@@ -31,49 +31,35 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' PSyIR nodes package module '''
+''' pytest module for the U/LBOUND intrinsic PSyIR operators. '''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.extract_node import ExtractNode
-from psyclone.psyir.nodes.profile_node import ProfileNode
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.ranges import Range
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.nodes import BinaryOperation, Literal, Array
+from psyclone.psyir.symbols import DataType
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'ExtractNode',
-        'ProfileNode',
-        'PSyDataNode']
+
+@pytest.mark.xfail(reason="#677 the create() method does not check that the "
+                   "types of the Nodes it is passed are correct for the "
+                   "provided operator.")
+@pytest.mark.parametrize("bound", [BinaryOperation.Operator.LBOUND,
+                                   BinaryOperation.Operator.UBOUND])
+def test_bound_intrinsic_wrong_type(bound):
+    ''' Check that attempting to create an L/UBOUND intrinsic operator
+    with the wrong type of arguments raises the expected error. '''
+    with pytest.raises(TypeError) as err:
+        # First argument must be an Array
+        _ = BinaryOperation.create(bound,
+                                   Literal("1", DataType.INTEGER),
+                                   Literal("1", DataType.INTEGER))
+    assert "must be an Array but got: 'Literal" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        # Second argument cannot be a real literal
+        _ = BinaryOperation.create(bound,
+                                   Array("array"),
+                                   Literal("1.0", DataType.REAL))
+    assert ("must be an integer but got a Literal of type REAL" in
+            str(err.value))

@@ -31,49 +31,40 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Laboratory
 
-''' PSyIR nodes package module '''
+''' Module containing pytest tests for the handling of the U/LBOUND intrinsics
+in the PSyIR. '''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.extract_node import ExtractNode
-from psyclone.psyir.nodes.profile_node import ProfileNode
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.ranges import Range
+from __future__ import absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'ExtractNode',
-        'ProfileNode',
-        'PSyDataNode']
+import pytest
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
+
+@pytest.mark.usefixtures("parser")
+@pytest.mark.parametrize("bound", ["ubound", "lbound"])
+@pytest.mark.parametrize("expression", ["n = {0}(a, 3)",
+                                        "n = {0}(a(:,:,:), 3)",
+                                        "n = {0}(a, idx1 + 3)"])
+def test_bound_intrinsics(bound, expression):
+    ''' Basic test that the UBOUND and LBROUND intrinsics are recognised
+    and represented in the PSyIR. '''
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
+        Reference, Literal
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(expression.format(bound))
+    fp2intrinsic = Execution_Part(reader).content[0]
+    processor.process_nodes(fake_parent, [fp2intrinsic])
+    assert isinstance(fake_parent[0], Assignment)
+    assert isinstance(fake_parent[0].rhs, BinaryOperation)
+    if bound == "ubound":
+        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.UBOUND
+    else:
+        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.LBOUND
+    assert isinstance(fake_parent[0].rhs.children[0], Reference)
+    assert isinstance(fake_parent[0].rhs.children[1],
+                      (Literal, BinaryOperation))

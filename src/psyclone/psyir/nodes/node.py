@@ -59,6 +59,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Extract": "green",
                        "If": "red",
                        "Assignment": "blue",
+                       "Range": "white",
                        "Reference": "yellow",
                        "Operation": "blue",
                        "Literal": "yellow",
@@ -140,7 +141,7 @@ class Node(object):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "{0} with unrecognized annotation '{1}', valid "
+                        "{0} with unrecognised annotation '{1}', valid "
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
@@ -257,10 +258,11 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
+        from psyclone.psyGen import GenerationError
         try:
             import graphviz as gv
         except ImportError:
-            # todo: add a warning to a log file here
+            # TODO: #11 add a warning to a log file here
             # silently return if graphviz bindings are not installed
             return
         try:
