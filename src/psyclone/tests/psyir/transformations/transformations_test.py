@@ -109,7 +109,7 @@ def test_ifblock_children_region():
     from psyclone.psyir.nodes import IfBlock
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
-    condition = Reference(DataSymbol('condition', DataType.INTEGER))
+    condition = Reference(DataSymbol('condition', DataType.BOOLEAN))
     ifblock = IfBlock.create(condition, [], [])
 
     # Attempt to put all of the children of the IfBlock into a region. This

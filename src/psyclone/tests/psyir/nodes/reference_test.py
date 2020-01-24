@@ -147,9 +147,8 @@ def test_array_create_invalid1():
                 Literal("1", DataType.INTEGER)]
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create(symbol_temp, children)
-    assert ("the symbol should be an array with the same number of dimensions "
-            "as indices (provided in the 'children' argument). Expecting '3' "
-            "but found '0'." in str(excinfo.value))
+    assert ("expecting the symbol to be an array, not a scalar."
+            in str(excinfo.value))
 
 
 def test_array_create_invalid2():
@@ -165,9 +164,9 @@ def test_array_create_invalid2():
                 Literal("1", DataType.INTEGER)]
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create(symbol_temp, children)
-    assert ("the symbol should be an array with the same number of dimensions "
-            "as indices (provided in the 'children' argument). Expecting '3' "
-            "but found '1'." in str(excinfo.value))
+    assert ("the symbol should have the same number of dimensions as indices "
+            "(provided in the 'children' argument). Expecting '3' but found "
+            "'1'." in str(excinfo.value))
 
 
 def test_array_create_invalid3():
@@ -175,18 +174,12 @@ def test_array_create_invalid3():
     exception if the provided input is invalid.
 
     '''
-    # name is not a string
+    # symbol argument is not a DataSymbol
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create([], [])
-    assert ("name argument in create method of Array class should "
+    assert ("symbol argument in create method of Array class should "
             "be a DataSymbol but found 'list'."
             in str(excinfo.value))
-
-    # name is an empty string
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create("", [])
-    assert ("name argument in create method of Array class can't "
-            "be an empty string.")
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:

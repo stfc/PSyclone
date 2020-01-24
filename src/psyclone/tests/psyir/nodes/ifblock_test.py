@@ -93,7 +93,7 @@ def test_ifblock_view_indices(capsys):
 def test_ifblock_can_be_printed():
     '''Test that an IfBlock instance can always be printed (i.e. is
     initialised fully)'''
-    condition = Reference(DataSymbol('condition1', DataType.REAL))
+    condition = Reference(DataSymbol('condition1', DataType.BOOLEAN))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
 
@@ -112,7 +112,8 @@ def test_ifblock_properties():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 0." in str(err.value))
 
-    ref1 = Reference(DataSymbol('condition1', DataType.REAL), parent=ifblock)
+    ref1 = Reference(DataSymbol('condition1', DataType.BOOLEAN),
+                     parent=ifblock)
     ifblock.addchild(ref1)
 
     # If_body can't be retrieved before is added as a child.
@@ -204,7 +205,7 @@ def test_ifblock_create_invalid():
     assert ("if_condition argument in create method of IfBlock class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
-    # One of more if body not a Node.
+    # One or more if body not a Node.
     if_body_err = [Assignment.create(Reference(DataSymbol("tmp",
                                                           DataType.REAL)),
                                      Literal("0.0", DataType.REAL)),

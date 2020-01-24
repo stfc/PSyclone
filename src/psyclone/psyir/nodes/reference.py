@@ -167,7 +167,7 @@ class Array(Reference):
         '''Create an Array instance given a symbol and a list of Node
         array indices.
 
-        :param symbol: the symbol that this reference is associated with.
+        :param symbol: the symbol that this array is associated with.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -183,7 +183,7 @@ class Array(Reference):
         from psyclone.psyir.symbols import DataSymbol
         if not isinstance(symbol, DataSymbol):
             raise GenerationError(
-                "name argument in create method of Array class should be a "
+                "symbol argument in create method of Array class should be a "
                 "DataSymbol but found '{0}'.".format(type(symbol).__name__))
         if not isinstance(children, list):
             raise GenerationError(
@@ -196,10 +196,13 @@ class Array(Reference):
                     "child of children argument in create method of "
                     "Array class should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
-        if not symbol.is_array or len(symbol.shape) != len(children):
+        if not symbol.is_array:
             raise GenerationError(
-                "the symbol should be an array with the same number of "
-                "dimensions as indices (provided in the 'children' argument). "
+                "expecting the symbol to be an array, not a scalar.")
+        if len(symbol.shape) != len(children):
+            raise GenerationError(
+                "the symbol should have the same number of dimensions as "
+                "indices (provided in the 'children' argument). "
                 "Expecting '{0}' but found '{1}'.".format(
                     len(children), len(symbol.shape)))
 

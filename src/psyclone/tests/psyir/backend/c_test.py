@@ -418,7 +418,7 @@ def test_cw_size():
     arr = Array(DataSymbol('a', DataType.INTEGER))
     lit = Literal('1', DataType.INTEGER)
     size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
-    lhs = Reference(DataSymbol('length', DataType.REAL))
+    lhs = Reference(DataSymbol('length', DataType.INTEGER))
     assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:

@@ -547,7 +547,7 @@ def test_node_dag(tmpdir, have_graphviz):
     assert "unsupported graphviz file format" in str(excinfo.value)
 
 
-def test_find_symbol(monkeypatch):
+def test_find_symbol():
     '''Test that the find_symbol method in a Node instance
     returns the associated symbol if there is one and raises an
     exception if not. Also test for an incorrect scope argument.
@@ -572,7 +572,9 @@ def test_find_symbol(monkeypatch):
                       DataSymbol)
     assert field_old.symbol.name == field_old.name
 
-    # Symbol in KernelSchedule SymbolTable with parent scope
+    # Symbol in KernelSchedule SymbolTable with parent scope, so
+    #  the symbol should not be found as we limit the scope to the
+    # immediate parent of the reference
     with pytest.raises(SymbolError) as excinfo:
         _ = field_old.find_symbol(field_old.name, scope_limit=field_old.parent)
     assert "Undeclared reference 'field_old' found." in str(excinfo.value)
@@ -586,7 +588,9 @@ def test_find_symbol(monkeypatch):
     assert (alpha.find_symbol(alpha.name) in
             container.symbol_table.symbols)
 
-    # Symbol in Container SymbolTable with KernelSchedule scope
+    # Symbol in Container SymbolTable with KernelSchedule scope, so
+    # the symbol should not be found as we limit the scope to the
+    # kernel so do not search the container symbol table.
     with pytest.raises(SymbolError) as excinfo:
         _ = alpha.find_symbol(alpha.name, scope_limit=kernel_schedule)
     assert "Undeclared reference 'alpha' found." in str(excinfo.value)
@@ -604,7 +608,6 @@ def test_find_symbol(monkeypatch):
     # find_symbol method with invalid scope location
     with pytest.raises(ValueError) as excinfo:
         _ = alpha.find_symbol(alpha.name, scope_limit=alpha)
-    print (str(excinfo.value))
     assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
             "find_symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))

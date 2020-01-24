@@ -40,6 +40,8 @@
 
 import abc
 from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.nodes import Loop
+from psyclone.psyGen import GenerationError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -459,7 +461,6 @@ class Node(object):
         :rtype: bool
 
         '''
-        from psyclone.psyGen import GenerationError
         # First perform correctness checks
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
@@ -504,18 +505,16 @@ class Node(object):
             if not prev_dep_node:
                 # There are no backward dependencies so the move is valid
                 return True
-            else:
-                # return (is the dependent node before the new_position?)
-                return prev_dep_node.position < new_position
-        else:  # new_node.position > self.position
-            # the new_node is after this node in the schedule
-            next_dep_node = self.forward_dependence()
-            if not next_dep_node:
-                # There are no forward dependencies so the move is valid
-                return True
-            else:
-                # return (is the dependent node after the new_position?)
-                return next_dep_node.position > new_position
+            # return (is the dependent node before the new_position?)
+            return prev_dep_node.position < new_position
+        # new_node.position > self.position
+        # the new_node is after this node in the schedule
+        next_dep_node = self.forward_dependence()
+        if not next_dep_node:
+            # There are no forward dependencies so the move is valid
+            return True
+        # return (is the dependent node after the new_position?)
+        return next_dep_node.position > new_position
 
     @property
     def depth(self):
@@ -803,7 +802,6 @@ class Node(object):
 
     def loops(self):
         '''Return all loops currently in this schedule.'''
-        from psyclone.psyir.nodes import Loop
         return self.walk(Loop)
 
     def reductions(self, reprod=None):
@@ -890,13 +888,12 @@ class Node(object):
             sched.ast = ast
         return sched
 
-    
     def find_symbol(self, name, scope_limit=None):
-        '''Returns the symbol from a symbol table associated with this node or one of its ancestors.
-***************************************
-        raises an exception is it is not found. The scope_limit
-        variable limits the symbol table search to nodes within the
-        scope.
+        '''Returns the symbol with the name 'name' from a symbol table
+        associated with this node or one of its ancestors.  Raises an
+        exception is the symbol is not found. The scope_limit variable
+        further limits the symbol table search to the scope_limit node
+        and its children.
 
         :param str name: the name of the symbol.
         :param scope_limit: optional Node which limits the symbol \
@@ -960,7 +957,7 @@ class Node(object):
                 break
             # Move on to the next ancestor.
             test_node = test_node.parent
-        # all requested Nodes have been checked but there has been no
+        # All requested Nodes have been checked but there has been no
         # match so raise an exception.
         raise SymbolError(
             "Undeclared reference '{0}' found.".format(name))
