@@ -87,7 +87,6 @@ def _get_symbol_table(node):
     while current:
         if hasattr(current, "symbol_table"):
             return current.symbol_table
-            break
         current = current.parent
     return None
 
@@ -1629,13 +1628,7 @@ class Fparser2Reader(object):
         # pylint: enable=protected-access
 
         # find the first symbol table attached to an ancestor
-        symbol_table = None
-        current = parent
-        while current:
-            if hasattr(current, "symbol_table"):
-                symbol_table = current.symbol_table
-                break
-            current = current.parent
+        symbol_table = _get_symbol_table(parent)
 
         # Now create a loop nest of depth `rank`
         new_parent = parent
