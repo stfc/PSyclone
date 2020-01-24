@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,11 +89,9 @@ def check_line_length(filename):
 
     :param str filename: The file containing the code.
 
-    :raises InternalError: if the specified file can not be opened or \
-    read.
+    :raises InternalError: if the specified file can not be opened or read.
     :raises ParseError: if one of more lines are longer than the 132 \
-    line length limit.
-
+                        line length limit.
     '''
     fll = FortLineLength()
     try:
