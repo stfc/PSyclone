@@ -66,7 +66,6 @@ class NemoMinTrans(NemoOperatorTrans):
 
     .. code-block:: python
 
-        R = MIN(A, B, C, ...)
         R = A
         if B < R:
             R = B

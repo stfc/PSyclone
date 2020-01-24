@@ -103,9 +103,9 @@ class NemoSignTrans(NemoOperatorTrans):
             tmp_sign = B
             if tmp_sign < 0.0:
                 res_sign = res_sign*-1.0
-            R = ... res_x ...
+            R = ... res_sign ...
 
-        where ``A`` and ``B`` could be an arbitrarily complex PSyIR
+        where ``A`` and ``B`` could be arbitrarily complex PSyIR
         expressions, ``...`` could be arbitrary PSyIR code and where
         ``ABS`` has been replaced with inline code by the NemoAbsTrans
         transformation.
