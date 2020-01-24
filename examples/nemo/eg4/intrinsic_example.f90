@@ -6,7 +6,7 @@
 ! BSD 3-Clause License
 !
 ! Code modifications Copyright (c) 2019-2020, Science and Technology Facilities
-! Council
+! Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,28 +36,28 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 
-! Code extracted from the tra_adv benchmark, with a SIGN intrinsic
-! replaced with equivalent code and the resultant expression
-! simplified. Literals have also had the Fortran double precision
-! specification (e.g. 0.d0) removed.
-program test_ifs
+! Code extracted from the tra_adv benchmark making use of intrinsics
+! MIN, ABS and SIGN. Literals have had the Fortran double precision
+! specification (e.g. 1.d0) removed. This code is provided purely to
+! demonstrate the removal of intrinsics via PSyclone transformations,
+! it is not designed to be run.
+program test_intrinsics
 
   integer, parameter :: jpi=10, jpj=10, jpk=10
-  real, dimension(jpi,jpj,jpk) :: zwx, zslpx
-  real :: tmpx
+  real, dimension(jpi,jpj,jpk) :: zwx, zwy, zslpx, zslpy
   integer :: ji, jj, jk
   
-  DO jk = 1, jpk-1
+  DO jk = 1, jpk-1    
      DO jj = 2, jpj
         DO ji = 2, jpi
-           tmpx = zwx(ji,jj,jk) * zwx(ji-1,jj,jk)
-           if (tmpx .ge. 0.0d0) then
-              zslpx(ji,jj,jk) = 0.5 * ( zwx(ji,jj,jk) + zwx(ji-1,jj,jk) )
-           else
-              zslpx(ji,jj,jk) = 0.0
-           end if
+           zslpx(ji,jj,jk) = SIGN( 1.0, zslpx(ji,jj,jk) ) * MIN(    ABS( zslpx(ji  ,jj,jk) ),   &
+           &                                                2.0*ABS( zwx  (ji-1,jj,jk) ),   &
+           &                                                2.0*ABS( zwx  (ji  ,jj,jk) ) )
+           zslpy(ji,jj,jk) = SIGN( 1.0, zslpy(ji,jj,jk) ) * MIN(    ABS( zslpy(ji,jj  ,jk) ),   &
+           &                                                2.0*ABS( zwy  (ji,jj-1,jk) ),   &
+           &                                                2.0*ABS( zwy  (ji,jj  ,jk) ) )
         END DO
      END DO
   END DO
 
-end program
+end program test_intrinsics

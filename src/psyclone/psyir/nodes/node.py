@@ -112,6 +112,7 @@ class Node(object):
     :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
+    # pylint: disable=too-many-public-methods
     # Define two class constants: START_DEPTH and START_POSITION
     # START_DEPTH is used to calculate depth of all Nodes in the tree
     # (1 for main Nodes and increasing for their descendants).
@@ -282,6 +283,7 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
+        # pylint: disable=too-many-branches
         from psyclone.psyir.nodes.loop import Loop
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"

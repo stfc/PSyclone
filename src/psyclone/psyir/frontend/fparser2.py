@@ -633,6 +633,23 @@ class Fparser2Reader(object):
                         elif "intent(inout)" in normalized_string:
                             interface = ArgumentInterface(
                                 ArgumentInterface.Access.READWRITE)
+                        elif "save" in normalized_string:
+                            # Variables declared with SAVE attribute inside a
+                            # module, submodule or main program are implicitly
+                            # SAVE'd (see Fortran specification 8.5.16.4) so it
+                            # is valid to ignore the attribute in these
+                            # situations.
+                            if not (decl.parent and
+                                    isinstance(decl.parent.parent,
+                                               (Fortran2003.Module,
+                                                Fortran2003.Main_Program))):
+                                raise NotImplementedError(
+                                    "Could not process {0}. The 'SAVE' "\
+                                    "attribute is not yet supported when it is"
+                                    " not part of a module, submodule or main_"
+                                    "program specification part.".
+                                    format(decl.items))
+
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
