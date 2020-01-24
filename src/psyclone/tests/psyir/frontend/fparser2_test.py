@@ -980,7 +980,7 @@ def test_handling_name():
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2name])
-    assert "Undeclared reference 'x' found." in str(error.value)
+    assert "No Symbol found for name 'x'." in str(error.value)
 
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2name])
@@ -1025,7 +1025,7 @@ def test_handling_part_ref():
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2part_ref])
-    assert "Undeclared reference 'x' found." in str(error.value)
+    assert "No Symbol found for name 'x'." in str(error.value)
 
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2part_ref])

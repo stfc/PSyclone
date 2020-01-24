@@ -577,7 +577,7 @@ def test_find_symbol():
     # immediate parent of the reference
     with pytest.raises(SymbolError) as excinfo:
         _ = field_old.find_symbol(field_old.name, scope_limit=field_old.parent)
-    assert "Undeclared reference 'field_old' found." in str(excinfo.value)
+    assert "No Symbol found for name 'field_old'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable
     alpha = references[6]
@@ -593,7 +593,7 @@ def test_find_symbol():
     # kernel so do not search the container symbol table.
     with pytest.raises(SymbolError) as excinfo:
         _ = alpha.find_symbol(alpha.name, scope_limit=kernel_schedule)
-    assert "Undeclared reference 'alpha' found." in str(excinfo.value)
+    assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
     assert (alpha.find_symbol(
@@ -617,4 +617,4 @@ def test_find_symbol():
     alpha._symbol._name = "undefined"
     with pytest.raises(SymbolError) as excinfo:
         _ = alpha.find_symbol(alpha.name)
-    assert "Undeclared reference 'undefined' found." in str(excinfo.value)
+    assert "No Symbol found for name 'undefined'." in str(excinfo.value)
