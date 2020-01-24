@@ -288,7 +288,7 @@ def test_scalar_float_arg(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_float_arg_from_module(tmpdir):
+def test_scalar_float_arg_from_module():
     ''' Tests that an invoke containing a kernel call requiring a real, scalar
     argument imported from a module produces correct code '''
     from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DataType, \
