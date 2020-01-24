@@ -82,33 +82,6 @@ VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 # GOcean API altogether.
 VALID_STENCIL_NAMES = ["go_pointwise"]
 
-# A dictionary giving the mapping from meta-data names for
-# properties of the grid to their names and type in the Fortran grid_type.
-# i.e. they can be accessed in Fortran by doing grid%<name>,
-# e.g. grid%area_t or grid%subdomain%internal%xstart.
-GRID_PROPERTY_DICT = {"go_grid_area_t": ("area_t", "array"),
-                      "go_grid_area_u": ("area_u", "array"),
-                      "go_grid_area_v": ("area_v", "array"),
-                      "go_grid_mask_t": ("tmask", "array"),
-                      "go_grid_dx_t": ("dx_t", "array"),
-                      "go_grid_dx_u": ("dx_u", "array"),
-                      "go_grid_dx_v": ("dx_v", "array"),
-                      "go_grid_dy_t": ("dy_t", "array"),
-                      "go_grid_dy_u": ("dy_u", "array"),
-                      "go_grid_dy_v": ("dy_v", "array"),
-                      "go_grid_lat_u": ("gphiu", "array"),
-                      "go_grid_lat_v": ("gphiv", "array"),
-                      "go_grid_dx_const": ("dx", "scalar"),
-                      "go_grid_dy_const": ("dy", "scalar"),
-                      "go_grid_x_min_index": ("subdomain%internal%xstart",
-                                              "scalar"),
-                      "go_grid_x_max_index": ("subdomain%internal%xstop",
-                                              "scalar"),
-                      "go_grid_y_min_index": ("subdomain%internal%ystart",
-                                              "scalar"),
-                      "go_grid_y_max_index": ("subdomain%internal%ystop",
-                                              "scalar")}
-
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
 VALID_LOOP_TYPES = ["inner", "outer"]
@@ -266,6 +239,7 @@ class GOInvoke(Invoke):
         return result
 
     def gen_code(self, parent):
+        # pylint: disable=too-many-locals
         '''
         Generates GOcean specific invocation code (the subroutine called
         by the associated invoke call in the algorithm layer). This
@@ -321,17 +295,19 @@ class GOInvoke(Invoke):
 
             # Look-up the loop bounds using the first field object in the
             # list
-            sim_domain = self.unique_args_arrays[0] +\
-                "%grid%subdomain%internal%"
+            api_config = Config.get().api_conf("gocean1.0")
+            xstop = api_config.grid_properties["go_grid_xstop"].fortran \
+                .format(self.unique_args_arrays[0])
+            ystop = api_config.grid_properties["go_grid_ystop"].fortran \
+                .format(self.unique_args_arrays[0])
             position = invoke_sub.last_declaration()
-
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
             invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_stop,
-                                     rhs=sim_domain+"ystop"),
+                                     rhs=ystop),
                            position=["after", position])
             invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_stop,
-                                     rhs=sim_domain+"xstop"),
+                                     rhs=xstop),
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
                            position=["after", position])
@@ -385,10 +361,9 @@ class GOInvokeSchedule(InvokeSchedule):
         '''
         if self._const_loop_bounds:
             return "istop"
-        else:
-            raise GenerationError(
-                "Refusing to supply name of inner loop upper bound "
-                "because constant loop bounds are not being used.")
+        raise GenerationError(
+            "Refusing to supply name of inner loop upper bound "
+            "because constant loop bounds are not being used.")
 
     @property
     def jloop_stop(self):
@@ -399,10 +374,9 @@ class GOInvokeSchedule(InvokeSchedule):
         '''
         if self._const_loop_bounds:
             return "jstop"
-        else:
-            raise GenerationError(
-                "Refusing to supply name of outer loop upper bound "
-                "because constant loop bounds are not being used.")
+        raise GenerationError(
+            "Refusing to supply name of outer loop upper bound "
+            "because constant loop bounds are not being used.")
 
     @property
     def const_loop_bounds(self):
@@ -434,7 +408,7 @@ class GOLoop(Loop):
         :type parent: :py:class:`psyclone.psyGen.node`
         :param str topology_name: Optional opology of the loop (unused atm).
         :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
-
+        # pylint: disable=unused-argument
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -543,6 +517,7 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     @staticmethod
     def add_bounds(bound_info):
+        # pylint: disable=too-many-locals
         '''
         Adds a new iteration space to PSyclone. An iteration space in the
         gocean1.0 API is for a certain offset type and field type. It defines
@@ -670,26 +645,27 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if not index_offset:
+                return Literal("not_yet_set", DataType.INTEGER, self)
+
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
             else:
                 stop = schedule.jloop_stop
 
-            if index_offset:
-                # This strange line splitting was the only way I could find
-                # to avoid pep8 warnings: using [..._space]\ keeps on
-                # complaining about a white space
-                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
-                    self._iteration_space][self._loop_type]
-                stop = bounds["stop"].format(start='2', stop=stop)
-                # Remove all white spaces
-                stop = "".join(stop.split())
-                # This common case is a bit of compile-time computation
-                # but it helps to fix all of the test cases.
-                if stop == "2-1":
-                    stop = "1"
-                return Literal(stop, DataType.INTEGER, self)
-            return Literal("not_yet_set", DataType.INTEGER, self)
+            # This strange line splitting was the only way I could find
+            # to avoid pep8 warnings: using [..._space]\ keeps on
+            # complaining about a white space
+            bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
+                self._iteration_space][self._loop_type]
+            stop = bounds["stop"].format(start='2', stop=stop)
+            # Remove all white spaces
+            stop = "".join(stop.split())
+            # This common case is a bit of compile-time computation
+            # but it helps to fix all of the test cases.
+            if stop == "2-1":
+                stop = "1"
+            return Literal(stop, DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -700,8 +676,14 @@ class GOLoop(Loop):
                                    self)
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
-            stop.addchild(Literal(self.field_name+"%data", DataType.INTEGER,
-                                  parent=stop))
+            api_config = Config.get().api_conf("gocean1.0")
+            # Use the data property to access the member of the field that
+            # contains the actual grid points. The property value is a
+            # string with a placeholder ({0}) where the name of the field
+            # must go.
+            data = api_config.grid_properties["go_grid_data"].fortran \
+                .format(self.field_name)
+            stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
             if self._loop_type == "inner":
                 stop.addchild(Literal("1", DataType.INTEGER, parent=stop))
             elif self._loop_type == "outer":
@@ -711,20 +693,24 @@ class GOLoop(Loop):
         # Loop bounds are pulled from the field object which
         # is more straightforward for us but provides the
         # Fortran compiler with less information.
-        stop = self.field_name
 
         if self._iteration_space.lower() == "go_internal_pts":
-            stop += "%internal"
+            key = "internal"
         elif self._iteration_space.lower() == "go_all_pts":
-            stop += "%whole"
+            key = "whole"
         else:
             raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
-        if self._loop_type == "inner":
-            stop += "%xstop"
-        elif self._loop_type == "outer":
-            stop += "%ystop"
+
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        # key is 'internal' or 'whole', and _loop_type is either
+        # 'inner' or 'outer'. The four possible combinations are
+        # defined in the config file:
+        stop_format = props["go_grid_{0}_{1}_stop"
+                            .format(key, self._loop_type)].fortran
+        stop = stop_format.format(self.field_name)
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
         return Literal(stop, DataType.INTEGER, self)
@@ -757,25 +743,26 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if not index_offset:
+                return Literal("not_yet_set", DataType.INTEGER, self)
+
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
             else:
                 stop = schedule.jloop_stop
-            if index_offset:
-                # This strange line splitting was the only way I could find
-                # to avoid pep8 warnings: using [..._space]\ keeps on
-                # complaining about a white space
-                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
-                    self._iteration_space][self._loop_type]
-                start = bounds["start"].format(start='2', stop=stop)
-                # Remove all white spaces
-                start = "".join(start.split())
-                # This common case is a bit of compile-time computation
-                # but it helps with fixing all of the test cases.
-                if start == "2-1":
-                    start = "1"
-                return Literal(start, DataType.INTEGER, self)
-            return Literal("not_yet_set", DataType.INTEGER, self)
+            # This strange line splitting was the only way I could find
+            # to avoid pep8 warnings: using [..._space]\ keeps on
+            # complaining about a white space
+            bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
+                self._iteration_space][self._loop_type]
+            start = bounds["start"].format(start='2', stop=stop)
+            # Remove all white spaces
+            start = "".join(start.split())
+            # This common case is a bit of compile-time computation
+            # but it helps with fixing all of the test cases.
+            if start == "2-1":
+                start = "1"
+            return Literal(start, DataType.INTEGER, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -784,19 +771,22 @@ class GOLoop(Loop):
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
         # with less information.
-        start = self.field_name
         if self._iteration_space.lower() == "go_internal_pts":
-            start += "%internal"
+            key = "internal"
         elif self._iteration_space.lower() == "go_all_pts":
-            start += "%whole"
+            key = "whole"
         else:
             raise GenerationError("Unrecognised iteration space, '{0}'. "
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
-        if self._loop_type == "inner":
-            start += "%xstart"
-        elif self._loop_type == "outer":
-            start += "%ystart"
+        api_config = Config.get().api_conf("gocean1.0")
+        props = api_config.grid_properties
+        # key is 'internal' or 'whole', and _loop_type is either
+        # 'inner' or 'outer'. The four possible combinations are
+        # defined in the config file:
+        start_format = props["go_grid_{0}_{1}_start"
+                             .format(key, self._loop_type)].fortran
+        start = start_format.format(self.field_name)
         # TODO 363 - update once the PSyIR supports derived types
         return Literal(start, DataType.INTEGER, self)
 
@@ -961,8 +951,7 @@ class GOKern(CodedKern):
                 if not field_for_grid_property:
                     field_for_grid_property = \
                         self._arguments.find_grid_access()
-                var_name = field_for_grid_property.name + "%grid%" + \
-                    arg.dereference_name
+                var_name = arg.dereference(field_for_grid_property.name)
             else:
                 var_name = arg.name
 
@@ -1033,6 +1022,7 @@ class GOKern(CodedKern):
                               funcnames=[self._name]))
 
     def gen_ocl(self, parent):
+        # pylint: disable=too-many-locals
         '''
         Generates code for the OpenCL invocation of this kernel.
 
@@ -1046,9 +1036,13 @@ class GOKern(CodedKern):
             root_name="globalsize", context="PSyVars", label="globalsize")
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
-        parent.add(AssignGen(
-            parent, lhs=glob_size,
-            rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
+        api_config = Config.get().api_conf("gocean1.0")
+        num_x = api_config.grid_properties["go_grid_nx"].fortran\
+            .format(garg.name)
+        num_y = api_config.grid_properties["go_grid_ny"].fortran\
+            .format(garg.name)
+        parent.add(AssignGen(parent, lhs=glob_size,
+                             rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
         local_size = self._name_space_manager.create_name(
@@ -1081,7 +1075,7 @@ class GOKern(CodedKern):
                 # "<grid-prop-name>_device" which is a bit hacky but
                 # works for now.
                 if arg.is_scalar():
-                    arguments.append(garg.name+"%grid%"+arg.dereference_name)
+                    arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
         sub_name = self._name_space_manager.create_name(
@@ -1188,6 +1182,7 @@ class GOKern(CodedKern):
             arg.set_kernel_arg(sub, index, self.name)
 
     def gen_data_on_ocl_device(self, parent):
+        # pylint: disable=too-many-locals
         '''
         Generate code to create data buffers on OpenCL device.
 
@@ -1205,13 +1200,14 @@ class GOKern(CodedKern):
         for arg in self._arguments.args:
             if arg.type == "field" or \
                (arg.type == "grid_property" and not arg.is_scalar()):
-
+                api_config = Config.get().api_conf("gocean1.0")
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping
                     # track of whether they are on the device
                     condition = ".NOT. {0}%data_on_device".format(arg.name)
                     device_buff = "{0}%device_ptr".format(arg.name)
-                    host_buff = "{0}%data".format(arg.name)
+                    host_buff = api_config.grid_properties["go_grid_data"]\
+                        .fortran.format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
                     # they are just arrays) so we check whether the device
@@ -1235,11 +1231,15 @@ class GOKern(CodedKern):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", target=True,
                                    entity_decls=[wevent]))
+                api_config = Config.get().api_conf("gocean1.0")
+                props = api_config.grid_properties
+                num_x = props["go_grid_nx"].fortran.format(grid_arg.name)
+                num_y = props["go_grid_ny"].fortran.format(grid_arg.name)
                 # Use c_sizeof() on first element of array to be copied over in
                 # order to cope with the fact that some grid properties are
                 # integer.
-                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*c_sizeof("
-                             "{1}(1,1))".format(grid_arg.name, host_buff))
+                size_expr = "int({0}*{1}, 8)*c_sizeof({2}(1,1))" \
+                            .format(num_x, num_y, host_buff)
                 ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
@@ -1360,7 +1360,11 @@ class GOKernelArguments(Arguments):
                 arguments.append(arg.name)
             elif arg.type == "field":
                 # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
+                api_config = Config.get().api_conf("gocean1.0")
+                # TODO: #676 go_grid_data is actually a field property
+                data = api_config.grid_properties["go_grid_data"].fortran\
+                    .format(arg.name)
+                arguments.append(data)
             elif arg.type == "grid_property":
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object.
@@ -1370,7 +1374,7 @@ class GOKernelArguments(Arguments):
                         "Error: kernel {0} requires grid property {1} but "
                         "does not have any arguments that are fields".
                         format(self._parent_call.name, arg.name))
-                arguments.append(grid_arg.name+"%grid%"+arg.dereference_name)
+                arguments.append(arg.dereference(grid_arg.name))
             else:
                 raise InternalError("Kernel {0}, argument {1} has "
                                     "unrecognised type: '{2}'".
@@ -1427,15 +1431,17 @@ class GOKernelArguments(Arguments):
         # access.
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
-        arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
-
+        api_config = Config.get().api_conf("gocean1.0")
+        # TODO: #676 go_grid_data is actually a field property
+        data_fmt = api_config.grid_properties["go_grid_data"].fortran
+        arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
         for arg in self._args:
             if arg.type == "scalar":
                 arg_list.append(arg.name)
             elif arg.type == "field" and arg != grid_fld:
                 # The remote device will need the reference to the field
                 # object *and* the reference to the array within that object.
-                arg_list.extend([arg.name, arg.name+"%data"])
+                arg_list.extend([arg.name, data_fmt.format(arg.name)])
             elif arg.type == "grid_property":
                 if grid_ptr not in arg_list:
                     # This kernel needs a grid property and therefore the
@@ -1533,16 +1539,21 @@ class GOKernelGridArgument(Argument):
     '''
     def __init__(self, arg):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
-        if arg.grid_prop not in GRID_PROPERTY_DICT:
+
+        api_config = Config.get().api_conf("gocean1.0")
+        try:
+            deref_name = api_config.grid_properties[arg.grid_prop].fortran
+        except KeyError:
+            all_keys = str(api_config.grid_properties.keys())
             raise GenerationError("Unrecognised grid property specified. "
                                   "Expected one of {0} but found '{1}'".
-                                  format(str(GRID_PROPERTY_DICT.keys()),
-                                         arg.grid_prop))
+                                  format(all_keys, arg.grid_prop))
+
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
-        self._name = GRID_PROPERTY_DICT[arg.grid_prop][0].split("%")[-1]
+        self._name = deref_name.split("%")[-1]
         # Store the full name used in dereferencing the grid properties.
-        self._dereference_name = GRID_PROPERTY_DICT[arg.grid_prop][0]
+        self._dereference_name = deref_name
         # Store the original property name for easy lookup in is_scalar()
         self._property_name = arg.grid_prop
 
@@ -1553,17 +1564,21 @@ class GOKernelGridArgument(Argument):
 
     @property
     def name(self):
-        ''' Returns the Fortran name of the grid property. This name is
-            used in the generated code like so: <fld>%grid%name '''
+        ''' Returns the Fortran name of the grid property, which is used
+        in error messages etc.'''
         return self._name
 
-    @property
-    def dereference_name(self):
-        ''':returns: the dereference string required to access a property in\
-        a dl_esm field (e.g. "subdomain%internal%xstart"). This name is\
-        used in the generated code like so: <fld>%grid%dereference_name
+    def dereference(self, fld_name):
+        '''Returns a Fortran string to dereference a grid property of the
+        specified field. E.g."name%grid%dx". The stored value of
+        self._dereference_name is a format string, where {0} represents
+        the field name.
+
+        :returns: the dereference string required to access a grid property
+            in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
+            must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
-        return self._dereference_name
+        return self._dereference_name.format(fld_name)
 
     @property
     def type(self):
@@ -1575,8 +1590,10 @@ class GOKernelGridArgument(Argument):
     def is_scalar(self):
         ''':return: If this variable is a scalar variable or not.
         :rtype: bool'''
-        # The constructur guarantees that _pro_name is a valid key!
-        return GRID_PROPERTY_DICT[self._property_name][1] == "scalar"
+        # The constructor guarantees that _property_name is a valid key!
+        api_config = Config.get().api_conf("gocean1.0")
+        return api_config.grid_properties[self._property_name].type \
+            == "scalar"
 
     @property
     def text(self):
@@ -1886,14 +1903,14 @@ class GO1p0Descriptor(Descriptor):
 
             self._grid_prop = grid_var
             self._type = "grid_property"
+            api_config = Config.get().api_conf("gocean1.0")
 
-            if grid_var.lower() not in GRID_PROPERTY_DICT:
+            if grid_var.lower() not in api_config.grid_properties:
+                valid_keys = str(api_config.grid_properties.keys())
                 raise ParseError(
                     "Meta-data error in kernel {0}: un-recognised grid "
                     "property '{1}' requested. Must be one of {2}".
-                    format(kernel_name,
-                           grid_var,
-                           str(GRID_PROPERTY_DICT.keys())))
+                    format(kernel_name, grid_var, valid_keys))
         else:
             raise ParseError(
                 "Meta-data error in kernel {0}: 'arg' type expects 2 or 3 "
@@ -2057,7 +2074,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                                          lhs=var+"%data_on_device",
                                          rhs=".true."))
                     obj_list.append(var)
-        return
 
 
 class GOSymbolTable(SymbolTable):

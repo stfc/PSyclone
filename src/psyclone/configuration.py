@@ -40,6 +40,7 @@ Deals with reading the config file and storing default settings.
 '''
 
 from __future__ import absolute_import, print_function
+from collections import namedtuple
 import os
 
 
@@ -783,7 +784,16 @@ class GOceanConfig(APISpecificConfig):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
+        # pylint: disable=too-many-locals
         super(GOceanConfig, self).__init__(section)
+        # Setup the mapping for the grid properties. This dictionary stores
+        # the name of the grid property as key (e.g. ``go_grid_dx_t``),
+        # with the value being a named tuple with an entry for 'property'
+        # and 'type'. The 'property' is a format string to dereference
+        # a property, and 'type' is a string.
+        # These values are taken from the psyclone config file.
+        self._grid_properties = {}
+        Property = namedtuple("Property", "fortran type")
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -802,10 +812,60 @@ class GOceanConfig(APISpecificConfig):
             elif key == "access_mapping":
                 # Handled in the base class APISpecificConfig
                 pass
+            elif key == "grid-properties":
+                # Grid properties have the format:
+                # go_grid_area_u: {0}%%grid%%area_u: array,
+                # First the name, then the Fortran code to access the property,
+                # followed by the type ("array" or "scalar")
+                all_props = self.create_dict_from_string(section[key])
+                for grid_property in all_props:
+                    try:
+                        fortran, variable_type = all_props[grid_property]\
+                                            .split(":")
+                    except ValueError:
+                        # Raised when the string does not contain exactly
+                        # two values separated by ":"
+                        error = "Invalid property \"{0}\" found with value " \
+                                "\"{1}\" in \"{2}\". It must have exactly " \
+                                "two ':'-delimited separated values: the " \
+                                "property and the type." \
+                                .format(grid_property,
+                                        all_props[grid_property],
+                                        config.filename)
+                        raise ConfigurationError(error)
+                    # Make sure to remove the spaces which the config
+                    # file might contain
+                    self._grid_properties[grid_property] = \
+                        Property(fortran.strip(), variable_type.strip())
+                # Check that the required values for xstop and ystop
+                # are defined:
+                for required in ["go_grid_xstop", "go_grid_ystop",
+                                 "go_grid_data",
+                                 "go_grid_internal_inner_start",
+                                 "go_grid_internal_inner_stop",
+                                 "go_grid_internal_outer_start",
+                                 "go_grid_internal_outer_stop",
+                                 "go_grid_whole_inner_start",
+                                 "go_grid_whole_inner_stop",
+                                 "go_grid_whole_outer_start",
+                                 "go_grid_whole_outer_stop"]:
+                    if required not in self._grid_properties:
+                        error = "The config file {0} does not contain " \
+                                "values for the following, mandatory grid " \
+                                "property: \"{1}\".".format(config.filename,
+                                                            required)
+                        raise ConfigurationError(error)
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
                                                            config.filename))
+    # ---------------------------------------------------------------------
+    @property
+    def grid_properties(self):
+        ''':returns: the dictionary containing the grid properties.
+        :type: a dictionary with values of pairs (dereference-format, type)
+        '''
+        return self._grid_properties
 
 
 # =============================================================================
