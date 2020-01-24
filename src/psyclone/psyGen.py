@@ -3304,11 +3304,12 @@ class Arguments(object):
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
 
-    def append(self, name):
+    def append(self, name, argument_type):
         ''' Abstract method to append KernelArguments to the Argument
         list.
 
         :param str name: name of the appended argument.
+        :param str argument_type: type of the appended argument.
         '''
         raise NotImplementedError(
             "Arguments.append must be implemented in sub-class")

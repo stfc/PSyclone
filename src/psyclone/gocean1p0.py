@@ -278,17 +278,28 @@ class GOInvoke(Invoke):
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
-        # add the subroutine argument declarations for real scalars
-        if self.unique_args_rscalars:
+        # get the list of global symbols used in the invoke
+        global_names = [sym.name for sym in
+                        self.schedule.symbol_table.global_datasymbols]
+
+        # add the subroutine argument declarations for real scalars which
+        # are not global symbols
+        real_decls = list(filter(lambda x: x not in global_names,
+                                 self.unique_args_rscalars))
+        if real_decls:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
-                                       entity_decls=self.unique_args_rscalars)
+                                       entity_decls=real_decls)
             invoke_sub.add(my_decl_rscalars)
+
         # add the subroutine argument declarations for integer scalars
-        if self.unique_args_iscalars:
+        # which are not global symbols
+        int_decls = list(filter(lambda x: x not in global_names,
+                                self.unique_args_iscalars))
+        if int_decls:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
-                                       entity_decls=self.unique_args_iscalars)
+                                       entity_decls=int_decls)
             invoke_sub.add(my_decl_iscalars)
 
         if self._schedule.const_loop_bounds and self.unique_args_arrays:
@@ -1475,10 +1486,11 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
-    def append(self, name):
+    def append(self, name, argument_type):
         ''' Create and append a GOKernelArgument to the Argument list.
 
         :param str name: name of the appended argument.
+        :param str argument_type: type of the appended argument.
 
         :raises TypeError: if the given name is not a string.
         '''
@@ -1490,7 +1502,10 @@ class GOKernelArguments(Arguments):
                 "should be a string, but found '{0}' instead.".
                 format(type(name).__name__))
 
-        descriptor = Descriptor(None, "")  # Create a dummy descriptor
+        # Create a descriptor with the given type
+        descriptor = Descriptor(None, argument_type)
+
+        # Create the argument and append it to the argument list
         arg = Arg("variable", name, name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
