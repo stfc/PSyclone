@@ -43,6 +43,7 @@ import abc
 from enum import Enum
 import six
 from psyclone.psyir.nodes.node import Node
+from psyclone.errors import GenerationError
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -158,7 +159,6 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of UnaryOperation class "
@@ -197,8 +197,31 @@ class BinaryOperation(Operation):
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Query Operators
-        'SIZE'
+        'SIZE', 'LBOUND', 'UBOUND'
         ])
+    '''
+    Arithmetic operators:
+
+    .. function:: POW(arg0, arg1) -> type(arg0)
+
+       :returns: `arg0` raised to the power of `arg1`.
+
+    Query operators:
+
+    .. function:: SIZE(array, index) -> int
+
+       :returns: the size of the `index` dimension of `array`.
+
+    .. function:: LBOUND(array, index) -> int
+
+       :returns: the value of the lower bound of the `index` dimension of \
+                 `array`.
+
+    .. function:: UBOUND(array, index) -> int
+
+       :returns: the value of the upper bound of the `index` dimension of \
+                 `array`.
+    '''
 
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(operator, parent)
@@ -250,7 +273,6 @@ class BinaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of BinaryOperation class "
@@ -310,7 +332,6 @@ class NaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, NaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of NaryOperation class "

@@ -39,6 +39,7 @@
 ''' This module contains the IfBlock node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.errors import InternalError, GenerationError
 
 
 class IfBlock(Node):
@@ -61,7 +62,6 @@ class IfBlock(Node):
                          'was_where')
 
     def __init__(self, parent=None, annotations=None):
-        from psyclone.psyGen import InternalError
         super(IfBlock, self).__init__(parent=parent)
         if annotations:
             for annotation in annotations:
@@ -85,7 +85,6 @@ class IfBlock(Node):
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
         '''
-        from psyclone.psyGen import InternalError
         if len(self.children) < 2:
             raise InternalError(
                 "IfBlock malformed or incomplete. It should have at least 2 "
@@ -101,7 +100,6 @@ class IfBlock(Node):
         :raises InternalError: If the IfBlock node does not have the correct \
             number of children.
         '''
-        from psyclone.psyGen import InternalError
         if len(self.children) < 2:
             raise InternalError(
                 "IfBlock malformed or incomplete. It should have at least 2 "
@@ -145,7 +143,6 @@ class IfBlock(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         from psyclone.psyir.nodes import Schedule
         if not isinstance(if_condition, Node):
             raise GenerationError(

@@ -45,8 +45,8 @@ from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, Array, Node
-from psyclone.psyGen import Directive, KernelSchedule, InternalError, \
-    GenerationError
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType
@@ -139,6 +139,8 @@ class Fparser2Reader(object):
         ('sign', BinaryOperation.Operator.SIGN),
         ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
+        ('lbound', BinaryOperation.Operator.LBOUND),
+        ('ubound', BinaryOperation.Operator.UBOUND),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
         ('mod', BinaryOperation.Operator.REM)])

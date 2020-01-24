@@ -80,7 +80,7 @@ def test_accenterdata_internalerr(monkeypatch):
     error if the validate method fails to throw out an invalid type of
     Schedule. '''
     from psyclone.transformations import ACCEnterDataTrans
-    from psyclone.psyGen import InternalError
+    from psyclone.errors import InternalError
     acct = ACCEnterDataTrans()
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:

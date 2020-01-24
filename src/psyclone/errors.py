@@ -31,42 +31,52 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' PSyIR nodes package module '''
+''' This module provides various error classes used in PSyclone'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.ranges import Range
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal']
+class GenerationError(Exception):
+    ''' Provides a PSyclone specific error class for errors found during PSy
+    code generation.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Generation Error: "+value
+
+    def __str__(self):
+        return str(self.value)
+
+
+class FieldNotFoundError(Exception):
+    ''' Provides a PSyclone-specific error class when a field with the
+    requested property/ies is not found.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Field not found error: "+value
+
+    def __str__(self):
+        return str(self.value)
+
+
+class InternalError(Exception):
+    '''
+    PSyclone-specific exception for use when an internal error occurs (i.e.
+    something that 'should not happen').
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone internal error: "+value
+
+    def __str__(self):
+        return str(self.value)

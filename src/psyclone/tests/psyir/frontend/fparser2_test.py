@@ -45,8 +45,8 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, IfBlock, Reference, Array, Container, Literal
-from psyclone.psyGen import PSyFactory, Directive, KernelSchedule, \
-    InternalError, GenerationError
+from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, _get_symbol_table

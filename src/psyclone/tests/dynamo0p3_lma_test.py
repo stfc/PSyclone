@@ -46,7 +46,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 

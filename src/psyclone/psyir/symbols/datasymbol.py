@@ -41,6 +41,7 @@
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
+from psyclone.errors import InternalError
 
 
 class DataSymbol(Symbol):
@@ -413,7 +414,6 @@ class DataSymbol(Symbol):
             self._constant_value = None
 
     def __str__(self):
-        from psyclone.psyGen import InternalError
         ret = self.name + ": <" + str(self.datatype) + ", "
         if self.is_array:
             ret += "Array["

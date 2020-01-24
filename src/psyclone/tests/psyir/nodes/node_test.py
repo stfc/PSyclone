@@ -45,8 +45,8 @@ import re
 import pytest
 from psyclone.psyir.nodes import Node, Schedule, Reference, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolError
-from psyclone.psyGen import PSyFactory, InternalError, OMPDoDirective, Kern, \
-    GenerationError
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
@@ -180,7 +180,7 @@ def test_node_annotations():
     with pytest.raises(InternalError) as excinfo:
         _ = Node(annotations=["invalid"])
     assert (
-        "Node with unrecognized annotation 'invalid', valid annotations are: "
+        "Node with unrecognised annotation 'invalid', valid annotations are: "
         "()." in str(excinfo.value))
 
 

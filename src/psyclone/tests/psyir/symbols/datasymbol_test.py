@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     DataType
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
 

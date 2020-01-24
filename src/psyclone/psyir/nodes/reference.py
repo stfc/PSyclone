@@ -42,6 +42,7 @@ nodes.'''
 from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol, SymbolError
+from psyclone.errors import GenerationError
 
 
 class Reference(Node):

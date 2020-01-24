@@ -40,8 +40,7 @@
 
 import abc
 from psyclone.psyir.symbols import SymbolError
-from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import GenerationError
+from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -60,6 +59,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Extract": "green",
                        "If": "red",
                        "Assignment": "blue",
+                       "Range": "white",
                        "Reference": "yellow",
                        "Operation": "blue",
                        "Literal": "yellow",
@@ -123,7 +123,6 @@ class Node(object):
     valid_annotations = tuple()
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        from psyclone.psyGen import InternalError
         if not children:
             self._children = []
         else:
@@ -142,7 +141,7 @@ class Node(object):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "{0} with unrecognized annotation '{1}', valid "
+                        "{0} with unrecognised annotation '{1}', valid "
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
@@ -259,10 +258,11 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
+        from psyclone.psyGen import GenerationError
         try:
             import graphviz as gv
         except ImportError:
-            # todo: add a warning to a log file here
+            # TODO: #11 add a warning to a log file here
             # silently return if graphviz bindings are not installed
             return
         try:
@@ -282,6 +282,7 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
+        from psyclone.psyir.nodes.loop import Loop
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
@@ -343,7 +344,7 @@ class Node(object):
         # now call any children so they can add their information to
         # the graph
         if isinstance(self, Loop):
-            # In case of a loop only loop at the body (the other part
+            # In case of a loop only look at the body (the other part
             # of the tree contain start, stop, step values):
             self.loop_body.dag_gen(graph)
         else:
@@ -615,7 +616,6 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found
         '''
         from psyclone.psyir.nodes import Schedule
-        from psyclone.psyGen import InternalError
         if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
@@ -635,7 +635,6 @@ class Node(object):
         :rtype: int
         :raises InternalError: if the starting position is < 0
         '''
-        from psyclone.psyGen import InternalError
         if position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
@@ -802,6 +801,7 @@ class Node(object):
 
     def loops(self):
         '''Return all loops currently in this schedule.'''
+        from psyclone.psyir.nodes import Loop
         return self.walk(Loop)
 
     def reductions(self, reprod=None):

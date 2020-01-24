@@ -57,12 +57,11 @@ from psyclone.psyir.nodes import CodeBlock, Container, Loop, \
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, KernelSchedule, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
-    ACCEnterDataDirective, ACCKernelsDirective
+    ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
+    DataAccess, Kern, Arguments, CodedKern
+from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
-from psyclone.psyGen import GenerationError, FieldNotFoundError, \
-     InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.psyGen import Kern, Arguments, CodedKern
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
