@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,35 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Transformation module, containing all generic (API independent)
-transformations and base classes.
-'''
+''' pytest module for the U/LBOUND intrinsic PSyIR operators. '''
 
-from psyclone.psyir.transformations.extract_trans import ExtractTrans
-from psyclone.psyir.transformations.profile_trans import ProfileTrans
-from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.nemo_abs_trans import NemoAbsTrans
-from psyclone.psyir.transformations.nemo_sign_trans import NemoSignTrans
-from psyclone.psyir.transformations.nemo_min_trans import NemoMinTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.nodes import BinaryOperation, Literal, Array
+from psyclone.psyir.symbols import DataType
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ExtractTrans',
-           'ProfileTrans',
-           'RegionTrans',
-           'TransformationError']
+@pytest.mark.xfail(reason="#677 the create() method does not check that the "
+                   "types of the Nodes it is passed are correct for the "
+                   "provided operator.")
+@pytest.mark.parametrize("bound", [BinaryOperation.Operator.LBOUND,
+                                   BinaryOperation.Operator.UBOUND])
+def test_bound_intrinsic_wrong_type(bound):
+    ''' Check that attempting to create an L/UBOUND intrinsic operator
+    with the wrong type of arguments raises the expected error. '''
+    with pytest.raises(TypeError) as err:
+        # First argument must be an Array
+        _ = BinaryOperation.create(bound,
+                                   Literal("1", DataType.INTEGER),
+                                   Literal("1", DataType.INTEGER))
+    assert "must be an Array but got: 'Literal" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        # Second argument cannot be a real literal
+        _ = BinaryOperation.create(bound,
+                                   Array("array"),
+                                   Literal("1.0", DataType.REAL))
+    assert ("must be an integer but got a Literal of type REAL" in
+            str(err.value))

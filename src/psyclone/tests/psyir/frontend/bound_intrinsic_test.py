@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,40 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Author A. R. Porter, STFC Daresbury Laboratory
 
-'''Transformation module, containing all generic (API independent)
-transformations and base classes.
-'''
+''' Module containing pytest tests for the handling of the U/LBOUND intrinsics
+in the PSyIR. '''
 
-from psyclone.psyir.transformations.extract_trans import ExtractTrans
-from psyclone.psyir.transformations.profile_trans import ProfileTrans
-from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.nemo_abs_trans import NemoAbsTrans
-from psyclone.psyir.transformations.nemo_sign_trans import NemoSignTrans
-from psyclone.psyir.transformations.nemo_min_trans import NemoMinTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from __future__ import absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
+import pytest
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
-__all__ = ['ExtractTrans',
-           'ProfileTrans',
-           'RegionTrans',
-           'TransformationError']
+
+@pytest.mark.usefixtures("parser")
+@pytest.mark.parametrize("bound", ["ubound", "lbound"])
+@pytest.mark.parametrize("expression", ["n = {0}(a, 3)",
+                                        "n = {0}(a(:,:,:), 3)",
+                                        "n = {0}(a, idx1 + 3)"])
+def test_bound_intrinsics(bound, expression):
+    ''' Basic test that the UBOUND and LBROUND intrinsics are recognised
+    and represented in the PSyIR. '''
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
+        Reference, Literal
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(expression.format(bound))
+    fp2intrinsic = Execution_Part(reader).content[0]
+    processor.process_nodes(fake_parent, [fp2intrinsic])
+    assert isinstance(fake_parent[0], Assignment)
+    assert isinstance(fake_parent[0].rhs, BinaryOperation)
+    if bound == "ubound":
+        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.UBOUND
+    else:
+        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.LBOUND
+    assert isinstance(fake_parent[0].rhs.children[0], Reference)
+    assert isinstance(fake_parent[0].rhs.children[1],
+                      (Literal, BinaryOperation))

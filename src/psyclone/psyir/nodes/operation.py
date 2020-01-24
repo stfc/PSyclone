@@ -197,10 +197,33 @@ class BinaryOperation(Operation):
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Query Operators
-        'SIZE',
+        'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
         'MATMUL'
         ])
+    '''
+    Arithmetic operators:
+
+    .. function:: POW(arg0, arg1) -> type(arg0)
+
+       :returns: `arg0` raised to the power of `arg1`.
+
+    Query operators:
+
+    .. function:: SIZE(array, index) -> int
+
+       :returns: the size of the `index` dimension of `array`.
+
+    .. function:: LBOUND(array, index) -> int
+
+       :returns: the value of the lower bound of the `index` dimension of \
+                 `array`.
+
+    .. function:: UBOUND(array, index) -> int
+
+       :returns: the value of the upper bound of the `index` dimension of \
+                 `array`.
+    '''
 
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(operator, parent)

@@ -1078,21 +1078,26 @@ def test_fw_nemoimplicitloop(fort_writer, parser):
     assert "a(:, :, :) = 0.0\n" in result
 
 
-def test_fw_size(fort_writer):
-    ''' Check that the FortranWriter outputs a SIZE intrinsic call. '''
+def test_fw_query_intrinsics(fort_writer):
+    ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
+    intrinsic calls. '''
     code = ("module test_mod\n"
             "contains\n"
             "subroutine test_kern(a)\n"
             "  real, intent(in) :: a(:,:)\n"
-            "  integer :: mysize\n"
+            "  integer :: mysize, lb, ub\n"
             "  mysize = size(a, 2)\n"
+            "  lb = lbound(a, 2)\n"
+            "  ub = ubound(a, 2)\n"
             "end subroutine test_kern\n"
             "end module test_mod\n")
     schedule = create_schedule(code, "test_kern")
 
     # Generate Fortran from the PSyIR schedule
-    result = fort_writer(schedule)
-    assert "mysize=size(a, 2)" in result.lower()
+    result = fort_writer(schedule).lower()
+    assert "mysize=size(a, 2)" in result
+    assert "lb=lbound(a, 2)" in result
+    assert "ub=ubound(a, 2)" in result
 
 
 def test_fw_literal_node(fort_writer):

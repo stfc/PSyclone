@@ -288,6 +288,60 @@ def test_scalar_float_arg(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
+def test_scalar_float_arg_from_module():
+    ''' Tests that an invoke containing a kernel call requiring a real, scalar
+    argument imported from a module produces correct code '''
+    from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DataType, \
+        GlobalInterface
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+
+    # Add a global variable named 'a_scalar' into the Invoke schedule
+    schedule = psy.invokes.invoke_list[0].schedule
+    my_mod = ContainerSymbol("my_mod")
+    var = DataSymbol('a_scalar', DataType.REAL,
+                     interface=GlobalInterface(my_mod))
+    schedule.symbol_table.add(var)
+
+    # Generate the code. 'a_scalar' should now come from a module instead of a
+    # declaration.
+    generated_code = str(psy.gen)
+    expected_output = (
+        "  MODULE psy_single_invoke_scalar_float_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
+        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+        "      USE my_mod, ONLY: a_scalar\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
+        "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_float_test")
+    assert generated_code.find(expected_output) != -1
+    # We don't compile this generated code as the module is made up and
+    # the compiler would correctly fail.
+
+
 def test_ne_offset_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CF points '''
@@ -1220,7 +1274,7 @@ def test_invalid_access_type():
     # Note that the error message looks slightly different between
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
-                     str(err.value))
+                     str(err.value)) is not None
 
 
 def test_compile_with_dependency(tmpdir):
@@ -1430,12 +1484,29 @@ def test07_kernel_wrong_gridpt_type():
 def test08_kernel_invalid_grid_property():
     ''' Check that the parser raises an error if a kernel's meta-data
     specifies an unrecognised grid property '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test08_invoke_kernel_invalid_grid_property.f90"),
               api="gocean1.0")
+    assert "Meta-data error in kernel compute_cu: un-recognised grid " \
+           "property 'grid_area_wrong' requested." in str(err.value)
+
+    # GOKernelGridArgument contains also a test for the validity of
+    # a grid property. It's easier to create a dummy class to test this:
+    class DummyDescriptor(object):
+        '''Dummy class to test error handling.'''
+        def __init__(self):
+            self.access = "read"
+            self.grid_prop = "does not exist"
+    descriptor = DummyDescriptor()
+    from psyclone.gocean1p0 import GOKernelGridArgument
+    with pytest.raises(GenerationError) as err:
+        GOKernelGridArgument(descriptor)
+    assert re.search("Unrecognised grid property specified. Expected one "
+                     "of.* but found 'does not exist'", str(err.value)) \
+        is not None
 
 
 def test08p1_kernel_without_fld_args():
@@ -1509,13 +1580,13 @@ def test_gokernelarguments_append():
 
     # Try append a non-string value
     with pytest.raises(TypeError) as err:
-        argument_list.append(3)
+        argument_list.append(3, "space")
     assert "The name parameter given to GOKernelArguments.append method " \
            "should be a string, but found 'int' instead." in str(err.value)
 
-    # Append strings
-    argument_list.append("var1")
-    argument_list.append("var2")
+    # Append well-constructed arguments
+    argument_list.append("var1", "go_r_scalar")
+    argument_list.append("var2", "go_i_scalar")
 
     assert isinstance(kernelcall.args[-1], GOKernelArgument)
     assert isinstance(kernelcall.args[-2], GOKernelArgument)
