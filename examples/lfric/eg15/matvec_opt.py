@@ -92,7 +92,7 @@ def trans(psy):
                 print(result)
                 # Abort after the first matrix vector kernel for the
                 # time being.
-                print ("Aborting to view the modifications to the matrix "
-                       "vector kernel")
+                print("Aborting to view the modifications to the matrix "
+                      "vector kernel")
                 exit(1)
     return psy
