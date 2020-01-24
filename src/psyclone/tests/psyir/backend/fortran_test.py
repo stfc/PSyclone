@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
-from psyclone.psyGen import Node, CodeBlock, Container
+from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
 from psyclone.tests.utilities import create_schedule
@@ -1022,18 +1022,45 @@ def test_fw_nemoimplicitloop(fort_writer, parser):
     assert "a(:, :, :) = 0.0\n" in result
 
 
-def test_fw_size(fort_writer):
-    ''' Check that the FortranWriter outputs a SIZE intrinsic call. '''
+def test_fw_query_intrinsics(fort_writer):
+    ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
+    intrinsic calls. '''
     code = ("module test_mod\n"
             "contains\n"
             "subroutine test_kern(a)\n"
             "  real, intent(in) :: a(:,:)\n"
-            "  integer :: mysize\n"
+            "  integer :: mysize, lb, ub\n"
             "  mysize = size(a, 2)\n"
+            "  lb = lbound(a, 2)\n"
+            "  ub = ubound(a, 2)\n"
             "end subroutine test_kern\n"
             "end module test_mod\n")
     schedule = create_schedule(code, "test_kern")
 
     # Generate Fortran from the PSyIR schedule
-    result = fort_writer(schedule)
-    assert "mysize=size(a, 2)" in result.lower()
+    result = fort_writer(schedule).lower()
+    assert "mysize=size(a, 2)" in result
+    assert "lb=lbound(a, 2)" in result
+    assert "ub=ubound(a, 2)" in result
+
+
+def test_fw_literal_node(fort_writer):
+    ''' Test the PSyIR literals are converted to the proper Fortran format
+    when necessary. '''
+
+    # By default literals are not modified
+    lit1 = Literal('a', DataType.CHARACTER)
+    result = fort_writer(lit1)
+    assert result == 'a'
+
+    lit1 = Literal('3.14', DataType.REAL)
+    result = fort_writer(lit1)
+    assert result == '3.14'
+
+    # Check that BOOLEANS use the FORTRAN formatting
+    lit1 = Literal('true', DataType.BOOLEAN)
+    result = fort_writer(lit1)
+    assert result == '.true.'
+    lit1 = Literal('false', DataType.BOOLEAN)
+    result = fort_writer(lit1)
+    assert result == '.false.'

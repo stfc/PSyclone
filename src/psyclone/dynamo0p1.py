@@ -40,9 +40,9 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
-    Schedule, Array
+from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    CodedKern, Arguments, Argument, GenerationError
 from psyclone.psyir.symbols import DataType
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError

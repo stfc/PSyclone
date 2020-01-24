@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019 Science and Technology Facilities Council.
+# Copyright (c) 2019-2020 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -382,15 +383,15 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      IF (chi_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(1)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (chi_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(2)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (chi_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(3)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -403,7 +404,7 @@ def test_operator_different_spaces(tmpdir):
         "basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
         "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"

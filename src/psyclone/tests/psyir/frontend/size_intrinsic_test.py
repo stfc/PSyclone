@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,8 @@ in the PSyIR. '''
 from __future__ import absolute_import
 
 import pytest
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 @pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
@@ -49,13 +49,13 @@ def test_size(expression, parser):
     ''' Basic test that the SIZE intrinsic is recognised and represented
     in the PSyIR. '''
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import Schedule, Assignment, BinaryOperation, \
+    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
         Reference, Literal
     fake_parent = Schedule()
     processor = Fparser2Reader()
     reader = FortranStringReader(expression)
     fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic], None)
+    processor.process_nodes(fake_parent, [fp2intrinsic])
     assert isinstance(fake_parent[0], Assignment)
     assert isinstance(fake_parent[0].rhs, BinaryOperation)
     assert isinstance(fake_parent[0].rhs.children[0], Reference)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,9 @@
 ''' This module provides support accessing. '''
 
 from __future__ import absolute_import, print_function
+from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import InternalError, Kern, NameSpace, \
-     NameSpaceFactory, Node
+from psyclone.psyir.nodes import Node
 
 
 # =============================================================================
@@ -59,10 +59,10 @@ class PSyDataNode(Node):
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: a list of child nodes for this node. These will be made \
                      children of the child Schedule of this PSyDataNode.
-    :type children: list of :py::class::`psyclone.psyGen.Node` \
+    :type children: list of :py::class::`psyclone.psyir.nodes.Node` \
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
-    :type parent: :py::class::`psyclone.psyGen.Node`
+    :type parent: :py::class::`psyclone.psyir.nodes.Node`
     :param (str,str) name: an optional name to use for this PSyDataNode, \
         provided as a 2-tuple containing a module name followed by a \
         local name. The pair of strings should uniquely identify a\
@@ -82,15 +82,13 @@ class PSyDataNode(Node):
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
 
-    # A namespace manager to make sure we get unique region names
-    _namespace = NameSpace()
-
     def __init__(self, ast=None, children=None, parent=None, name=None):
 
         # Store the name of the PSyData variable that is used for this
         # PSyData name. This allows to show the variable name in __str__
         # (and also if we would call create_name in gen(), the name would
         # change every time gen() is called).
+        from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
         if not children:
@@ -184,12 +182,12 @@ class PSyDataNode(Node):
     def psy_data_body(self):
         '''
         :returns: the Schedule associated with this PSyData region.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises InternalError: if this PSyData node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule
+        from psyclone.psyir.nodes import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
@@ -205,7 +203,7 @@ class PSyDataNode(Node):
 
         :param str name: name of the method to call.
         :param parent: parent node into which to insert the calls.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param arguments: optional arguments for the method call.
         :type arguments: list of str or None
         '''
@@ -221,7 +219,7 @@ class PSyDataNode(Node):
         of this node.
 
         :param parent: the parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param options["pre-var-list"]: a list of variables to be extracted \
@@ -230,7 +228,7 @@ class PSyDataNode(Node):
         :param options["post-var-list"]: a list of variables to be extracted \
             after the last child.
         :type options["post-var-list"]: list of str
-        :type str options['pre-far-postfix]: an optional postfix that will \
+        :type str options['pre-var-postfix]: an optional postfix that will \
             be added to each variable name in the pre-var-list.
         :type str options['post-var-postfix]: an optional postfix that will \
             be added to each variable name in the post-var-list.
@@ -249,6 +247,7 @@ class PSyDataNode(Node):
             # this particular invoke region). Use the invoke name as a
             # starting point.
             region_name = self.root.invoke.name
+            from psyclone.psyGen import Kern
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
@@ -361,7 +360,7 @@ class PSyDataNode(Node):
         '''
         from fparser.common.sourceinfo import FortranFormat
         from fparser.common.readfortran import FortranStringReader
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.two import Fortran2003
         from psyclone.psyGen import object_index
 
@@ -374,12 +373,12 @@ class PSyDataNode(Node):
         # pylint: enable=protected-access
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
-        node_list = walk_ast([ptree], [Fortran2003.Main_Program,
-                                       Fortran2003.Subroutine_Stmt,
-                                       Fortran2003.Function_Stmt,
-                                       Fortran2003.Specification_Part,
-                                       Fortran2003.Use_Stmt,
-                                       Fortran2003.Name])
+        node_list = walk([ptree], (Fortran2003.Main_Program,
+                                   Fortran2003.Subroutine_Stmt,
+                                   Fortran2003.Function_Stmt,
+                                   Fortran2003.Specification_Part,
+                                   Fortran2003.Use_Stmt,
+                                   Fortran2003.Name))
         if self._module_name:
             routine_name = self._module_name
         else:
@@ -387,7 +386,7 @@ class PSyDataNode(Node):
                 if isinstance(node, (Fortran2003.Main_Program,
                                      Fortran2003.Subroutine_Stmt,
                                      Fortran2003.Function_Stmt)):
-                    names = walk_ast([node], [Fortran2003.Name])
+                    names = walk([node], Fortran2003.Name)
                     routine_name = str(names[0]).lower()
                     break
 
@@ -420,7 +419,7 @@ class PSyDataNode(Node):
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
                 # list of nodes.
-                names = walk_ast([node], [Fortran2003.Name])
+                names = walk([node], Fortran2003.Name)
                 for name in names:
                     node_list.remove(name)
 
@@ -496,40 +495,24 @@ class PSyDataNode(Node):
         content_ast = self.psy_data_body.children[0].ast
         # Now store the parent of this region
         # pylint: disable=protected-access
-        fp_parent = content_ast._parent
+        fp_parent = content_ast.parent
         # pylint: enable=protected-access
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
                                        content_ast)
-        # Finding the location of the end is harder as it might be the
-        # end of a clause within an If or Select block. We therefore
-        # work back up the fparser2 parse tree until we find a node that is
-        # a direct child of the parent node.
-        ast_end_index = None
+        # Do the same for our last child node
         if self.psy_data_body[-1].ast_end:
             ast_end = self.psy_data_body[-1].ast_end
         else:
             ast_end = self.psy_data_body[-1].ast
-        # Keep a copy of the pointer into the parse tree in case of errors
-        ast_end_copy = ast_end
 
-        while ast_end_index is None:
-            try:
-                ast_end_index = object_index(fp_parent.content,
-                                             ast_end)
-            except ValueError:
-                # ast_end is not a child of fp_parent so go up to its parent
-                # and try again
-                # pylint: disable=protected-access
-                if hasattr(ast_end, "_parent") and ast_end._parent:
-                    ast_end = ast_end._parent
-                # pylint: enable=protected-access
-                else:
-                    raise InternalError(
-                        "Failed to find the location of '{0}' in the fparser2 "
-                        "Parse Tree:\n{1}\n".format(str(ast_end_copy),
-                                                    str(fp_parent.content)))
+        if ast_end.parent is not fp_parent:
+            raise InternalError(
+                "The beginning ({0}) and end ({1}) nodes of the PSyData "
+                "region in the fparser2 parse tree do not have the same "
+                "parent.".format(content_ast, ast_end))
+        ast_end_index = object_index(fp_parent.content, ast_end)
 
         # Add the PSyData end call
         reader = FortranStringReader(
@@ -537,6 +520,7 @@ class PSyDataNode(Node):
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         pecall = Fortran2003.Call_Stmt(reader)
+        pecall.parent = fp_parent
         fp_parent.content.insert(ast_end_index+1, pecall)
 
         # Add the PSyData start call
@@ -545,5 +529,6 @@ class PSyDataNode(Node):
                 routine_name, region_name, var_name))
         reader.set_format(FortranFormat(True, False))
         pscall = Fortran2003.Call_Stmt(reader)
+        pscall.parent = fp_parent
         fp_parent.content.insert(ast_start_index, pscall)
         self.set_region_identifier(routine_name, region_name)

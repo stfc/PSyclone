@@ -43,7 +43,7 @@ import re
 import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 def test_new_symbol_name_1():
@@ -199,7 +199,8 @@ def test_swap_symbol_properties():
     assert symbol4.datatype == DataType.INTEGER
     assert not symbol4.shape
     assert symbol4.is_local
-    assert symbol4.constant_value == 7
+    assert symbol4.constant_value.value == "7"
+    assert symbol4.constant_value.datatype == DataType.INTEGER
 
     # Check symbol references are unaffected
     sym_table.swap_symbol_properties(symbol2, symbol3)

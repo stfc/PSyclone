@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,9 @@ libraries to access data structures at specified locations in the
 code. Some example use cases are:
 
 Profiling:
-  By inserting callbacks before and after a region of code
+  By inserting callbacks before and after a region of code,
   performance measurements can be added. PSyclone provides
-  wrapper library for some common performance profiling tools,
+  wrapper libraries for some common performance profiling tools,
   see :ref:`profiling` for details.
 
 Kernel Data Extraction:
@@ -55,18 +55,20 @@ Kernel Data Extraction:
   a kernel, or to write a stand-alone driver that just calls one
   kernel, which can be used for performance tuning. An example
   library that extracts input- and output-data into a netcdf file
-  is included with PSyclone.
+  is included with PSyclone (see :ref:`psyke_netcdf`).
 
 In-situ Visualisation:
   By giving access to output fields of a kernel, an in-situ visualisation
-  library can be used to plot fields while a PSyclone application is
-  running.
+  library can be used to plot fields while a (PSyclone-processed)
+  application is running. There is no example library available at
+  this stage, but the API has been designed with this application in mind.
 
 Access Verification:
   The callbacks can be used to make sure a field declared as read-only
   is not modified during a kernel (either because of an incorrect
   declaration, or because memory is overwritten). A checksum can be
-  used to detect any changes to a read-only field.
+  used to detect any changes to a read-only field. Again, this is 
+  a feature for the future and not available at this stage.
 
 The PsyData API should be general enough to allow these and other
 applications to be developed and used.
@@ -102,19 +104,22 @@ shows the code created by PSyclone::
 The following code sequence will typically be created:
 
 #. A static variable of type ``PSyDataType`` is declared.
-#. ``PreStart`` indicating that a new instrumented code region is started.
-#. ``PreDeclareVariable`` is called for each variable that is written either
-   before or after the instrumented region.
-#. ``PreEndDeclaration`` to indicate the end of the variable declarations.
-#. ``ProvideVariable`` for each variable to be written before the instrumented
-   region.
-#. ``PreEnd`` to declare that all variables before the instrumented region
-   have been written.
-#. Then the actual instrumented code region is used.
-#. When the instrumented region is executed, a call to ``PostStart``
-   is added to indicate that all further variables written will be
-   after the user code.
-#. For each variable to be written after the user code a call to
+#. ``PreStart`` is called to indicate that a new that a new instrumented code
+   region is started.
+#. ``PreDeclareVariable`` is called for each variable passed to the data API
+   either before or after the instrumented region.
+#. ``PreEndDeclaration`` is called to indicate the end of the variable
+   declarations.
+#. ``ProvideVariable`` is called for each variable to be written before the
+   instrumented region.
+#. ``PreEnd`` is called to signal the end of all PSyData activity before the
+   instrumented region.
+#. Then the actual instrumented code region is entered.
+#. After the instrumented region, a call to ``PostStart``
+   is added to indicate that all further data output occurs after the
+   instrumented region.
+
+#. For each variable to be written after the instrumented region a call to
    ``ProvideVariable`` is added.
 #. A call to ``PostEnd`` is added once all variables have been written.
 
@@ -159,16 +164,17 @@ instance):
   variable declarations that will follow.
 
 Typically the static ``PSyDataType`` instance can be used to store
-module and kernel name if they are required later, or to allocate
+the module and kernel names if they are required later, or to allocate
 arrays to store variable data.
 
 ``PreDeclareVariable(this, name, value)``
 +++++++++++++++++++++++++++++++++++++++++
 This function is called for each variable that will be written
 before or after the user instrumented region. If a variable
-is written before and after, it will also be declared twice
-(it can be useful to provide a variable using a different
-name before and after, see :ref:`psyke`).
+is written before and after, the transformations will
+add two called to ``PreDeclareVariable`` (it can be useful to
+provide a variable using a different name before and after,
+see :ref:`psyke_netcdf`).
 
 ``name``:
   This is the name of the variable as a string.
@@ -176,10 +182,11 @@ name before and after, see :ref:`psyke`).
 ``value``:
   This is the actual content of the variable.
 
-The same call is used for different arguments, so in general
-an general interface is recommended to distinguish between
-the data types provided. The netcdf kernel writer uses the
-following declaration with dl_esm_inf::
+The same call is used for different arguments, so a generic
+interface is recommended to distinguish between
+the data types provided. The netcdf kernel writer 
+(see :ref:`psyke_netcdf`) uses the following declaration
+with dl_esm_inf::
 
     generic, public :: PreDeclareVariable => DeclareScalarInteger, &
                                              DeclareScalarReal,    &
@@ -205,7 +212,7 @@ following declaration with dl_esm_inf::
 Called once all variables have been declared.
 
 ``ProvideVariable(this, name, value)``
-++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++
 This function is called for each variable to be provided to the
 runtime library. 
 
@@ -217,7 +224,7 @@ runtime library.
 
 The same function ``ProvideVariable`` is called to provide variable
 name and content before and after the user instrumented region.
-And again it is expected that a library using the API will provide
+Again it is expected that a library using the API will provide
 a generic interface to distinguish between the various possible data
 types, which will be different for each infrastructure library::
 
@@ -256,8 +263,8 @@ kernel input- and output-parameter and store them in a NetCDF file.
 
 .. _psy_data_transformation:
 
-PSyData Transformation and PSyData-Node
----------------------------------------
+PSyData Transformation and "PSyData-Node"
+-----------------------------------------
 The base transformation to create the PSyData callbacks is the 
 ``PSyData`` transformation:
 
@@ -290,5 +297,6 @@ for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameter,
-and provides these two lists to the ``PSyDataNode``. It also uses
-``post-var-postfix``, see :ref:`psyke`.
+and provides these two lists to the gen() function of its baseclass,
+a ``PSyDataNode`` node. It also uses ``post-var-postfix`` option
+as described above (see also :ref:`psyke_netcdf`).

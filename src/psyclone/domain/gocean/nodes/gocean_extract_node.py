@@ -43,7 +43,6 @@ output files.
 
 from __future__ import absolute_import, print_function
 from psyclone.configuration import Config
-from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import ExtractNode
 
 
@@ -89,7 +88,6 @@ class GOceanExtractNode(ExtractNode):
         return "gocean_extract_" + str(self.position)
 
     def gen_code(self, parent):
-        # pylint: disable=arguments-differ
         '''
         Generates the code required for extraction of one or more Nodes. \
         For now it inserts comments before and after the code belonging \
@@ -121,6 +119,7 @@ class GOceanExtractNode(ExtractNode):
         :type output_list: list or str
         '''
 
+        from collections import namedtuple
         from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
             CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
             TypeDeclGen
@@ -217,9 +216,11 @@ class GOceanExtractNode(ExtractNode):
         # need to clear this cached data to make sure the new
         # value for "go_grid_data" is actually used.
         api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.field_properties
+        props = api_config.grid_properties
         old_data_property = props["go_grid_data"]
-        props["go_grid_data"] = ("{0}", "array")
+        Property = namedtuple("Property", "fortran type")
+        props["go_grid_data"] = Property("{0}", "array")
+        from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
             # Clear cached data in all kernels, which will
             # mean the new value for go_grid_data will be used:
@@ -229,8 +230,7 @@ class GOceanExtractNode(ExtractNode):
         for child in self.psy_data_body:
             child.gen_code(prog)
 
-        # Reset the go_grid_data property back to its original value.q
-
+        # Reset the go_grid_data property back to its original value.
         props["go_grid_data"] = old_data_property
 
         prog.add(CommentGen(prog, " RegionEnd"))

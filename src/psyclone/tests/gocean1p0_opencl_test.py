@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyGen import GenerationError
+from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
 from psyclone.tests.utilities import Compile, get_invoke
 
@@ -143,7 +143,7 @@ def test_psy_init(kernel_outputdir):
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF \n"
+        "      END IF\n"
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
@@ -168,15 +168,15 @@ def test_psy_init(kernel_outputdir):
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF \n"
+        "      END IF\n"
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_opencl_options_validation(kernel_outputdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_options_validation():
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
     '''
@@ -216,8 +216,8 @@ def test_opencl_options_validation(kernel_outputdir):
         in str(err.value)
 
 
-def test_opencl_options_effects(kernel_outputdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_options_effects():
     ''' Check that the OpenCL options produce the expected changes in the
     PSy layer.
     '''
@@ -348,8 +348,8 @@ def test_set_arg_const_scalar():
             "arguments passed by value" in str(err.value))
 
 
-def test_opencl_kernel_code_generation(kernel_outputdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_code_generation():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
     '''
@@ -480,8 +480,8 @@ def test_symtab_implementation_for_opencl():
 
 @pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
                           "#323 will add support for Use statments.")
-def test_opencl_kernel_with_use(kernel_outputdir):
-    # pylint: disable=unused-argument
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_with_use():
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
     from psyclone.psyir.transformations import TransformationError

@@ -51,10 +51,11 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Loop, CodedKern, Arguments, Argument, KernelArgument, \
-    GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, AccessType, Literal, ACCEnterDataDirective, Schedule
+    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
+    NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
@@ -295,9 +296,9 @@ class GOInvoke(Invoke):
             # Look-up the loop bounds using the first field object in the
             # list
             api_config = Config.get().api_conf("gocean1.0")
-            xstop = api_config.field_properties["go_grid_xstop"][0] \
+            xstop = api_config.grid_properties["go_grid_xstop"].fortran \
                 .format(self.unique_args_arrays[0])
-            ystop = api_config.field_properties["go_grid_ystop"][0] \
+            ystop = api_config.grid_properties["go_grid_ystop"].fortran \
                 .format(self.unique_args_arrays[0])
             position = invoke_sub.last_declaration()
             invoke_sub.add(CommentGen(invoke_sub, ""),
@@ -407,7 +408,7 @@ class GOLoop(Loop):
         :type parent: :py:class:`psyclone.psyGen.node`
         :param str topology_name: Optional opology of the loop (unused atm).
         :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
-
+        # pylint: disable=unused-argument
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -629,10 +630,10 @@ class GOLoop(Loop):
         loop type).
 
         :returns: the PSyIR for the upper bound of this loop.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        from psyclone.psyGen import BinaryOperation
+        from psyclone.psyir.nodes import BinaryOperation
         schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             # Look for a child kernel in order to get the index offset.
@@ -676,7 +677,11 @@ class GOLoop(Loop):
             # TODO 363 - needs to be updated once the PSyIR has support for
             # Fortran derived types.
             api_config = Config.get().api_conf("gocean1.0")
-            data = api_config.field_properties["go_grid_data"][0] \
+            # Use the data property to access the member of the field that
+            # contains the actual grid points. The property value is a
+            # string with a placeholder ({0}) where the name of the field
+            # must go.
+            data = api_config.grid_properties["go_grid_data"].fortran \
                 .format(self.field_name)
             stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
             if self._loop_type == "inner":
@@ -699,12 +704,12 @@ class GOLoop(Loop):
                                   format(self._iteration_space))
 
         api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.field_properties
+        props = api_config.grid_properties
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        stop_format = props["go_grid_{0}_{1}_stop"\
-                            .format(key, self._loop_type)][0]
+        stop_format = props["go_grid_{0}_{1}_stop"
+                            .format(key, self._loop_type)].fortran
         stop = stop_format.format(self.field_name)
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
@@ -724,7 +729,7 @@ class GOLoop(Loop):
         loop type).
 
         :returns: root of PSyIR sub-tree describing this lower bound.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         schedule = self.ancestor(GOInvokeSchedule)
@@ -775,12 +780,12 @@ class GOLoop(Loop):
                                   "Cannot generate loop bounds.".
                                   format(self._iteration_space))
         api_config = Config.get().api_conf("gocean1.0")
-        props = api_config.field_properties
+        props = api_config.grid_properties
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        start_format = props["go_grid_{0}_{1}_start"\
-                             .format(key, self._loop_type)][0]
+        start_format = props["go_grid_{0}_{1}_start"
+                             .format(key, self._loop_type)].fortran
         start = start_format.format(self.field_name)
         # TODO 363 - update once the PSyIR supports derived types
         return Literal(start, DataType.INTEGER, self)
@@ -1034,8 +1039,10 @@ class GOKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
-        num_x = api_config.field_properties["go_grid_nx"][0].format(garg.name)
-        num_y = api_config.field_properties["go_grid_ny"][0].format(garg.name)
+        num_x = api_config.grid_properties["go_grid_nx"].fortran\
+            .format(garg.name)
+        num_y = api_config.grid_properties["go_grid_ny"].fortran\
+            .format(garg.name)
         parent.add(AssignGen(parent, lhs=glob_size,
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
@@ -1201,8 +1208,8 @@ class GOKern(CodedKern):
                     # track of whether they are on the device
                     condition = ".NOT. {0}%data_on_device".format(arg.name)
                     device_buff = "{0}%device_ptr".format(arg.name)
-                    host_buff = api_config.field_properties["go_grid_data"][0]\
-                        .format(arg.name)
+                    host_buff = api_config.grid_properties["go_grid_data"]\
+                        .fortran.format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
                     # they are just arrays) so we check whether the device
@@ -1227,9 +1234,9 @@ class GOKern(CodedKern):
                                    kind="c_intptr_t", target=True,
                                    entity_decls=[wevent]))
                 api_config = Config.get().api_conf("gocean1.0")
-                props = api_config.field_properties
-                num_x = props["go_grid_nx"][0].format(grid_arg.name)
-                num_y = props["go_grid_ny"][0].format(grid_arg.name)
+                props = api_config.grid_properties
+                num_x = props["go_grid_nx"].fortran.format(grid_arg.name)
+                num_y = props["go_grid_ny"].fortran.format(grid_arg.name)
                 # Use c_sizeof() on first element of array to be copied over in
                 # order to cope with the fact that some grid properties are
                 # integer.
@@ -1356,7 +1363,8 @@ class GOKernelArguments(Arguments):
             elif arg.type == "field":
                 # Field objects are Fortran derived-types
                 api_config = Config.get().api_conf("gocean1.0")
-                data = api_config.field_properties["go_grid_data"][0]\
+                # TODO: #676 go_grid_data is actually a field property
+                data = api_config.grid_properties["go_grid_data"].fortran\
                     .format(arg.name)
                 arguments.append(data)
             elif arg.type == "grid_property":
@@ -1426,7 +1434,8 @@ class GOKernelArguments(Arguments):
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         api_config = Config.get().api_conf("gocean1.0")
-        data_fmt = api_config.field_properties["go_grid_data"][0]
+        # TODO: #676 go_grid_data is actually a field property
+        data_fmt = api_config.grid_properties["go_grid_data"].fortran
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
         for arg in self._args:
             if arg.type == "scalar":
@@ -1535,9 +1544,9 @@ class GOKernelGridArgument(Argument):
 
         api_config = Config.get().api_conf("gocean1.0")
         try:
-            deref_name, _ = api_config.field_properties[arg.grid_prop]
+            deref_name = api_config.grid_properties[arg.grid_prop].fortran
         except KeyError:
-            all_keys = str(api_config.field_properties.keys())
+            all_keys = str(api_config.grid_properties.keys())
             raise GenerationError("Unrecognised grid property specified. "
                                   "Expected one of {0} but found '{1}'".
                                   format(all_keys, arg.grid_prop))
@@ -1562,14 +1571,14 @@ class GOKernelGridArgument(Argument):
         return self._name
 
     def dereference(self, fld_name):
-        '''Returns a Fortran string to dereference a property of the
+        '''Returns a Fortran string to dereference a grid property of the
         specified field. E.g."name%grid%dx". The stored value of
         self._dereference_name is a format string, where {0} represents
         the field name.
 
-        :returns: the dereference string required to access a property in \
-            a dl_esm field (e.g. "subdomain%internal%xstart"). The name must \
-            contains a "{0}" which is replaced by the field name.
+        :returns: the dereference string required to access a grid property
+            in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
+            must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
         return self._dereference_name.format(fld_name)
 
@@ -1583,9 +1592,10 @@ class GOKernelGridArgument(Argument):
     def is_scalar(self):
         ''':return: If this variable is a scalar variable or not.
         :rtype: bool'''
-        # The constructur guarantees that _pro_name is a valid key!
+        # The constructor guarantees that _property_name is a valid key!
         api_config = Config.get().api_conf("gocean1.0")
-        return api_config.field_properties[self._property_name][1] == "scalar"
+        return api_config.grid_properties[self._property_name].type \
+            == "scalar"
 
     @property
     def text(self):
@@ -1897,8 +1907,8 @@ class GO1p0Descriptor(Descriptor):
             self._type = "grid_property"
             api_config = Config.get().api_conf("gocean1.0")
 
-            if grid_var.lower() not in api_config.field_properties:
-                valid_keys = str(api_config.field_properties.keys())
+            if grid_var.lower() not in api_config.grid_properties:
+                valid_keys = str(api_config.grid_properties.keys())
                 raise ParseError(
                     "Meta-data error in kernel {0}: un-recognised grid "
                     "property '{1}' requested. Must be one of {2}".

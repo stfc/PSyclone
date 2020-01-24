@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,13 @@
 '''
 
 from __future__ import print_function, absolute_import
-from fparser.two.utils import walk_ast, get_child
+from fparser.two.utils import walk, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    InlinedKern, NameSpaceFactory
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -60,7 +62,7 @@ class NemoFparser2Reader(Fparser2Reader):
         generic Loop.
 
         :param parent: the parent of the node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str variable_name: name of the iteration variable.
 
         :return: a new NemoLoop instance.
@@ -86,7 +88,7 @@ class NemoFparser2Reader(Fparser2Reader):
         in the loop_body.
 
         :param loop_body: schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
         :param node: fparser loop node being processed.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
@@ -94,8 +96,7 @@ class NemoFparser2Reader(Fparser2Reader):
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
         fakeparent = Schedule()
-        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
-                           nodes_parent=node)
+        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
 
         if NemoKern.match(fakeparent):
             # Create a new kernel object and make it the only
@@ -118,11 +119,11 @@ class NemoFparser2Reader(Fparser2Reader):
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyclone IR we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: returns the PSyIR representation of child or None if \
                  there isn't one.
-        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         '''
         if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
@@ -198,8 +199,8 @@ class NemoInvokes(Invokes):
         self._ast = ast
 
         # Find all the subroutines contained in the file
-        routines = walk_ast(ast.content, [Subroutine_Subprogram,
-                                          Function_Subprogram])
+        routines = walk(ast.content, (Subroutine_Subprogram,
+                                      Function_Subprogram))
         # Add the main program as a routine to analyse - take care
         # here as the Fortran source file might not contain a
         # main program (might just be a subroutine in a module)
@@ -246,7 +247,7 @@ class NemoPSy(PSy):
     '''
     def __init__(self, ast):
         # pylint: disable=super-init-not-called
-        names = walk_ast(ast.content, [Fortran2003.Name])
+        names = walk(ast.content, Fortran2003.Name)
         # The name of the program unit will be the first in the list
         if not names:
             raise InternalError("Found no names in supplied Fortran - should "
@@ -311,7 +312,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
 
-        self.process_nodes(self, ast.content, ast)
+        self.process_nodes(self, ast.content)
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 
@@ -368,7 +369,7 @@ class NemoKern(InlinedKern):
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
-    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parse_tree: reference to the innermost loop in the fparser2 parse \
                        tree that encloses this kernel.
     :type parse_tree: \
@@ -401,11 +402,11 @@ class NemoKern(InlinedKern):
         subroutine calls or IO operations).
 
         :param node: node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from psyclone.psyGen import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock
         # This function is called with node being a Schedule.
         if not isinstance(node, Schedule):
             raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
@@ -490,7 +491,7 @@ class NemoLoop(Loop):
     Class representing a Loop in NEMO.
 
     :param parent: parent of this NemoLoop in the PSyclone AST.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
     '''
@@ -530,7 +531,7 @@ class NemoImplicitLoop(NemoLoop):
     :param ast: the part of the fparser2 AST representing the loop.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
     :param parent: the parent of this Loop in the PSyIRe.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, ast, parent=None):
@@ -573,14 +574,14 @@ class NemoImplicitLoop(NemoLoop):
         if not isinstance(lhs, Fortran2003.Part_Ref):
             # LHS is not an array reference
             return False
-        colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
+        colons = walk(lhs.items, Fortran2003.Subscript_Triplet)
         if not colons:
             # LHS does not use array syntax
             return False
         # Now check the right-hand side...
         rhs = node.items[2]
         try:
-            if not walk_ast(rhs.items, [Fortran2003.Subscript_Triplet]):
+            if not walk(rhs.items, Fortran2003.Subscript_Triplet):
                 # We don't have any array syntax on the RHS
                 return True
         except AttributeError:
@@ -589,23 +590,14 @@ class NemoImplicitLoop(NemoLoop):
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
-        # Part_Ref nodes in the fparser2 AST. This would be easier to do
-        # if the fparser2 AST carried parent information with each node.
-        # As it is we have to walk down the tree rather than come back up
-        # from each colon.
+        # Part_Ref nodes in the fparser2 AST.
         # Find all array references
-        array_refs = []
-        if isinstance(rhs, Fortran2003.Part_Ref):
-            # Since walk_ast is slightly clunky we have to manually allow
-            # for the top-level "rhs" node being an array reference
-            array_refs.append(rhs)
-        array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
+        array_refs = walk(rhs, Fortran2003.Part_Ref)
         for ref in array_refs:
-            nested_refs = walk_ast(ref.items, [Fortran2003.Part_Ref])
+            nested_refs = walk(ref.items, Fortran2003.Part_Ref)
             # Do any of these nested array references use array syntax?
             for nested_ref in nested_refs:
-                colons = walk_ast(nested_ref.items,
-                                  [Fortran2003.Subscript_Triplet])
+                colons = walk(nested_ref.items, Fortran2003.Subscript_Triplet)
                 if colons:
                     return False
         return True
