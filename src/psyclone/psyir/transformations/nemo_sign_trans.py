@@ -63,9 +63,6 @@ class NemoSignTrans(NemoOperatorTrans):
 
     i.e. the value of A with the sign of B
 
-    Note, an alternative implementation would be:
-    `if B<0 then (if A<0 R=A else R=A*-1) else ((if A>0 R=A else R=A*-1))`
-
     '''
     def __init__(self):
         super(NemoSignTrans, self).__init__()
@@ -75,7 +72,7 @@ class NemoSignTrans(NemoOperatorTrans):
 
     def apply(self, node, symbol_table, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified
-        node. This node must be an SIGN BinaryOperation. The SIGN
+        node. This node must be a SIGN BinaryOperation. The SIGN
         BinaryOperation is converted to the following equivalent
         inline code:
 

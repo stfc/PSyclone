@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
-
+from psyclone.tests.utilities import Compile
 
 def test_initialise():
     '''Check that variables are set up as expected when an instance of the
@@ -99,7 +99,7 @@ def example_psyir(create_expression):
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
                               Literal("3.14", DataType.REAL)), "arg * 3.14")])
-def test_correct(func, output):
+def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     first argument to SIGN is a simple argument and when it is an
     expression.
@@ -141,11 +141,12 @@ def test_correct(func, output):
         "  end if\n"
         "  psyir_tmp=res_sign\n\n"
         "end subroutine sign_example\n".format(output)) in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 
 
-def test_correct_expr():
+def test_correct_expr(tmpdir):
     '''Check that a valid example produces the expected output when SIGN
     is part of an expression.
 
@@ -196,11 +197,12 @@ def test_correct_expr():
         "  end if\n"
         "  psyir_tmp=1.0 + res_sign + 2.0\n\n"
         "end subroutine sign_example\n") in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 
 
-def test_correct_2sign():
+def test_correct_2sign(tmpdir):
     '''Check that a valid example produces the expected output when there
     is more than one SIGN in an expression.
 
@@ -268,6 +270,7 @@ def test_correct_2sign():
         "  end if\n"
         "  psyir_tmp=res_sign_0 + res_sign\n\n"
         "end subroutine sign_example\n") in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 

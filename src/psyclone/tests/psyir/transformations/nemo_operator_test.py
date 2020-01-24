@@ -37,6 +37,7 @@
 provides common functionality for the intrinsic operator
 transformations (such as MIN, ABS and SIGN).'''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans, TransformationError
@@ -66,11 +67,9 @@ def test_init():
     '''Check that internal variables are initialised as expected.'''
 
     dummy = DummyTrans()
-    # pylint: disable=protected-access
     assert dummy._operator_name is None
     assert dummy._classes is None
     assert dummy._operators is None
-    # pylint: enable=protected-access
 
 
 def test_str_name():
@@ -80,9 +79,7 @@ def test_str_name():
     # operator_name is usually set by the Transformation's __init__
     # method but set it manually here to avoid creating multiple
     # implementations of DummyTrans.
-    # pylint: disable=protected-access
     dummy._operator_name = "hello"
-    # pylint: enable=protected-access
     assert (str(dummy) == "Convert the PSyIR HELLO intrinsic to equivalent "
             "PSyIR code.")
     assert dummy.name == "NemoHelloTrans"
@@ -97,11 +94,9 @@ def test_validate():
     # operator_name, classes and operators are usually set by the
     # Transformation's __init__ method but set them manually here to
     # avoid creating multiple implementations of DummyTrans.
-    # pylint: disable=protected-access
     dummy._operator_name = "hello"
     dummy._classes = (UnaryOperation,)
     dummy._operators = (UnaryOperation.Operator.ABS,)
-    # pylint: enable=protected-access
 
     symbol_table = SymbolTable()
     var = Literal("0.0", DataType.REAL)
@@ -140,6 +135,4 @@ def test_validate():
     assert ("This transformation only works for the nemo API, but found "
             "'dynamo0.3'." in str(excinfo.value))
 
-    # pylint: disable=protected-access
     Config._instance = None
-    # pylint: enable=protected-access

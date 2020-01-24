@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
-
+from psyclone.tests.utilities import Compile
 
 def test_initialise():
     '''Check that variables are set up as expected when an instance of the
@@ -141,7 +141,7 @@ def example_psyir_nary():
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
                               Literal("3.14", DataType.REAL)), "arg * 3.14")])
-def test_correct_binary(func, output):
+def test_correct_binary(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     first argument to MIN is a simple argument and when it is an
     expression.
@@ -175,11 +175,12 @@ def test_correct_binary(func, output):
         "  end if\n"
         "  psyir_tmp=res_min\n\n"
         "end subroutine min_example\n".format(output)) in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 
 
-def test_correct_expr():
+def test_correct_expr(tmpdir):
     '''Check that a valid example produces the expected output when MIN()
     is part of an expression.
 
@@ -220,11 +221,12 @@ def test_correct_expr():
         "  end if\n"
         "  psyir_tmp=1.0 + res_min + 2.0\n\n"
         "end subroutine min_example\n") in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 
 
-def test_correct_2min():
+def test_correct_2min(tmpdir):
     '''Check that a valid example produces the expected output when there
     is more than one MIN() in an expression.
 
@@ -274,11 +276,12 @@ def test_correct_2min():
         "  end if\n"
         "  psyir_tmp=res_min_0 + res_min\n\n"
         "end subroutine min_example\n") in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 
 
-def test_correct_nary():
+def test_correct_nary(tmpdir):
     '''Check that a valid example with an nary MIN produces the expected
     output.
 
@@ -317,6 +320,7 @@ def test_correct_nary():
         "  end if\n"
         "  psyir_tmp=res_min\n\n"
         "end subroutine min_example\n") in result
+    assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
 
