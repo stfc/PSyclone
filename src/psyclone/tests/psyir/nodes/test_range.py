@@ -147,7 +147,6 @@ def test_range_references_props():
     when the start, stop and step are references or expressions. '''
     from psyclone.psyGen import KernelSchedule
     from psyclone.psyir.nodes import BinaryOperation
-    from psyclone.psyir.symbols import DataSymbol
     sched = KernelSchedule("test_sched")
     sym_table = sched.symbol_table
     start_symbol = DataSymbol("istart", DataType.INTEGER)
