@@ -73,7 +73,7 @@ def _get_symbol_table(node):
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: a symbol table associated with node or one of its \
-    ancestors or None is one is not found.
+        ancestors or None if one is not found.
     :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
 
     :raises TypeError: if the node argument is not a Node.

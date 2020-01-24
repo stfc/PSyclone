@@ -891,18 +891,21 @@ class Node(object):
     def find_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
         associated with this node or one of its ancestors.  Raises an
-        exception is the symbol is not found. The scope_limit variable
-        further limits the symbol table search to the scope_limit node
-        and its children.
+        exception if the symbol is not found. The scope_limit variable
+        further limits the symbol table search so that the search
+        through ancestor nodes stops when the scope_limit node is
+        reached i.e. ancestors of the scope_limit node are not
+        searched.
 
         :param str name: the name of the symbol.
         :param scope_limit: optional Node which limits the symbol \
             search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole scope \
-            (all symbol tables in ancestor nodes) is searched \
-            otherwise the search is limited to the specified node and \
-            its children.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or `None`
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: the matching symbol.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -920,14 +923,14 @@ class Node(object):
 
             # Check that the scope_limit Node is an ancestor of this
             # Reference Node and raise an exception if not.
-            found = False
             mynode = self.parent
             while mynode is not None:
                 if mynode is scope_limit:
-                    found = True
+                    # The scope_limit node is an ancestor of the
+                    # supplied node.
                     break
                 mynode = mynode.parent
-            if not found:
+            else:
                 # The scope_limit node is not an ancestor of the
                 # supplied node so raise an exception.
                 raise ValueError(
@@ -960,4 +963,4 @@ class Node(object):
         # All requested Nodes have been checked but there has been no
         # match so raise an exception.
         raise SymbolError(
-            "Undeclared reference '{0}' found.".format(name))
+            "No Symbol found for name '{0}'.".format(name))

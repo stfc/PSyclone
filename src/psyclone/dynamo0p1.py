@@ -44,7 +44,6 @@ from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
 from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
-from psyclone.psyir.symbols import DataType
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 

@@ -573,7 +573,7 @@ def test_find_symbol():
     assert field_old.symbol.name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope, so
-    #  the symbol should not be found as we limit the scope to the
+    # the symbol should not be found as we limit the scope to the
     # immediate parent of the reference
     with pytest.raises(SymbolError) as excinfo:
         _ = field_old.find_symbol(field_old.name, scope_limit=field_old.parent)

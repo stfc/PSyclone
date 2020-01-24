@@ -180,7 +180,6 @@ class Array(Reference):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         from psyclone.psyir.symbols import DataSymbol
         if not isinstance(symbol, DataSymbol):
             raise GenerationError(
