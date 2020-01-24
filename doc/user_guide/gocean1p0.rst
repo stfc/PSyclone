@@ -525,8 +525,11 @@ go_grid_y_min_index Minimum Y index                Integer, scalar
 go_grid_y_max_index Maximum Y index                Integer, scalar
 =================== =============================  ====================
 
-These are stored in a dictionary named ``GRID_PROPERTY_DICT`` at the
-top of the ``gocean1p0.py`` file. All of the rank-two arrays have the
+These are defined in the psyclone config file (see
+:ref:`gocean1.0-configuration`), and the user or infrastructure
+library developer can provide additional entries if required.
+PSyclone will query PSyclone's Configuration class to get the
+properties required. All of the rank-two arrays have the
 first rank as longitude (*x*) and the second as latitude (*y*).
 
 Scalars and fields contain a third argument-metadata entry which
@@ -793,6 +796,8 @@ The supported keys are listed in the next section.
 
 .. highlight:: fortran
 
+.. _gocean1.0-configuration-iteration-spaces:
+
 Iteration-spaces
 +++++++++++++++++
 This section lists additional iteration spaces that can be used in a kernel
@@ -837,6 +842,70 @@ For example, given the iteration-spaces declaration above, a kernel declared wit
     if one of the loop boundaries contains the name of a variable that is not defined,
     compilation will fail. It is the responsibility of the user to make sure that
     valid loop boundaries are specified in a new iteration space definition.
+
+.. _gocean1.0-configuration-grid-properties:
+
+Grid Properties
++++++++++++++++
+Various grid properties can be specified as parameters to a kernel.
+The actual names and meaning of these properties depend on the
+infrastructure library used. By default PSyclone provides settings
+for the dl_esm_inf infrastructure library. But the user or a library
+developer can change or add definitions to the configuration file as
+required.
+
+The grid properties are specified as values for the key
+``grid-properties``. They consist of three entries, separated by ":".
+
+- The first entry is the name of the property as used in kernel metadata.
+
+- The next entry is the way of dereferencing the corresponding value in
+  Fortran. The expression ``{0}`` is replaced with the field name that
+  is used. Note that any ``%`` must be replaced with ``%%`` (due to the
+  way Python reads in configuration files).
+
+- The last entry specifies whether the value is an ``array`` or a ``scalar``. 
+
+Below an excerpt from the configuration file that is distributed
+with PSyclone:
+
+.. highlight:: none
+
+::
+
+    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
+                      go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
+                      go_grid_data: {0}%%data: array,
+                      go_grid_internal_inner_stop: {0}%%internal%%xstop: scalar,
+                      go_grid_internal_outer_stop: {0}%%internal%%ystop: scalar,
+                      go_grid_whole_inner_stop: {0}%%whole%%xstop: scalar,
+                      go_grid_whole_outer_stop: {0}%%whole%%ystop: scalar,
+    ...
+
+.. highlight:: fortran
+
+Most of the property names can be set arbitrarily by the user (to match whatever
+infrastructure library is being used), but PSyclone relies on a
+small number of properties that must be defined with the right name:
+
++-------------------------------+--------------------------------------------------+
+| Key                           | Description                                      |
++-------------------------------+--------------------------------------------------+
+| go_grid_data                  | This property gives access to the raw 2d-field.  |
++-------------------------------+--------------------------------------------------+
+| go_grid_xstop,                | These values specify the upper loop boundary     |
+| go_grid_ystop                 | when computing the constant loop boundaries.     |
++-------------------------------+--------------------------------------------------+
+| | go_grid_{internal,whole}    | These eight values are required to               |
+| | _{inner,outer}_{start,stop} | specify the loop boundaries depending on the     |
+|                               | field space.                                     |
++-------------------------------+--------------------------------------------------+
+| go_grid_nx,                   | These properties are only required when OpenCL   |
+| go_grid_ny                    | is enabled. They specify the overall array       |
+|                               | size (including any padding that the             |
+|                               | infrastructure library might implement).         |
++-------------------------------+--------------------------------------------------+
+
 
 Transformations
 ---------------

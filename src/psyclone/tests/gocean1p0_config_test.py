@@ -204,6 +204,46 @@ def test_invalid_config_files(tmpdir):
         GOLoop.add_bounds("offset:field:space:1:2:3:4+")
     assert "Expression '4+' is not a valid do loop boundary" in str(err.value)
 
+    # Test invalid field properties - too many fields
+    content = _CONFIG_CONTENT + "grid-properties = a: {0}%%b:c:d"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "Invalid property \"a\" found with value \"{0}%b:c:d\"" \
+               in str(err.value)
+
+    # Test invalid field properties - not enough fields
+    content = _CONFIG_CONTENT + "grid-properties = a:b"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "Invalid property \"a\" found with value \"b\"" \
+               in str(err.value)
+
+    # Test missing required values
+    content = _CONFIG_CONTENT + "grid-properties = a:b:c"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        # The config file {0} does not contain values for "..."
+        assert "does not contain values for the following, mandatory grid " \
+            "property: \"go_grid_xstop\"" in str(err.value)
+
 
 # =============================================================================
 def test_valid_config_files():
@@ -220,20 +260,18 @@ def test_valid_config_files():
     psy, _ = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
 
     gen = str(psy.gen)
-    # "# nopep8" suppresses the pep8 warning about trailing white space at end of
-    # line (after the "END DO ")
     new_loop1 = '''      DO j=1,2
         DO i=3,4
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
-      END DO'''   # nopep8
+      END DO'''
     assert new_loop1 in gen
 
     new_loop2 = '''      DO j=2,jstop
         DO i=1,istop+1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
-      END DO'''   # nopep8
+      END DO'''
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
@@ -241,7 +279,7 @@ def test_valid_config_files():
         DO i=istop,istop+1
           CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
-      END DO'''   # nopep8
+      END DO'''
     assert new_loop3 in gen
 
     # Note that this file can not be compiled, since the new iteration space
