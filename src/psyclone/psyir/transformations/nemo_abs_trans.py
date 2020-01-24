@@ -56,9 +56,20 @@ class NemoAbsTrans(NemoOperatorTrans):
     Operator node to equivalent code in a PSyIR tree. Validity checks
     are also performed.
 
-    The transformation replaces `R=ABS(X)` with the following logic:
+    The transformation replaces
 
-    `IF (X<0.0) R=X*-1.0 ELSE R=X`
+    .. code-block:: python
+
+        R = ABS(X)
+
+    with the following logic:
+
+    .. code-block:: python
+
+        IF X < 0.0:
+            R = X*-1.0
+        ELSE:
+            R = X
 
     '''
     def __init__(self):
@@ -70,21 +81,26 @@ class NemoAbsTrans(NemoOperatorTrans):
     def apply(self, node, symbol_table, options=None):
         '''Apply the ABS intrinsic conversion transformation to the specified
         node. This node must be an ABS UnaryOperation. The ABS
-        UnaryOperation is converted to the following equivalent inline code:
+        UnaryOperation is converted to equivalent inline code. This is
+        implemented as a PSyIR transform from:
 
-        R=ABS(X) => IF (X<0.0) R=X*-1.0 ELSE R=X
+        .. code-block:: python
 
-        In the PSyIR this is implemented as a transform from:
-
-        R= ... ABS(X) ...
+            R = ... ABS(X) ...
 
         to:
 
-        tmp_abs=X
-        IF (tmp_abs<0.0) res_abs=tmp_abs*-1.0 ELSE res_abs=tmp_abs
-        R= ... res_abs ...
+        .. code-block:: python
 
-        where X could be an arbitrarily complex expression.
+            tmp_abs = X
+            if tmp_abs < 0.0:
+                res_abs = tmp_abs*-1.0
+            else:
+                res_abs = tmp_abs
+            R = ... res_abs ...
+
+        where ``X`` could be an arbitrarily complex PSyIR expression
+        and ``...`` could be arbitrary PSyIR code.
 
         A symbol table is required as the NEMO api does not currently
         contain a symbol table and one is required in order to create

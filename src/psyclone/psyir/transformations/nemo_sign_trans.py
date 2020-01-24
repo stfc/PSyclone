@@ -57,11 +57,21 @@ class NemoSignTrans(NemoOperatorTrans):
     Operator node to equivalent code in a PSyIR tree. Validity checks
     are also performed.
 
-    The transformation replaces `R=SIGN(A,B)` with the following logic:
+    The transformation replaces
 
-    `R=SIGN(A,B) => R=ABS(A); if B<0.0 R=R*-1.0`
+    .. code-block:: python
 
-    i.e. the value of A with the sign of B
+        R = SIGN(A, B)
+
+    with the following logic:
+
+    .. code-block:: python
+
+        R = ABS(A)
+        if B < 0.0:
+            R = R*-1.0
+
+    i.e. the value of ``A`` with the sign of ``B``
 
     '''
     def __init__(self):
@@ -73,27 +83,32 @@ class NemoSignTrans(NemoOperatorTrans):
     def apply(self, node, symbol_table, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified
         node. This node must be a SIGN BinaryOperation. The SIGN
-        BinaryOperation is converted to the following equivalent
-        inline code:
+        BinaryOperation is converted to equivalent inline code. This
+        is implemented as a PSyIR transform from:
 
-        R=SIGN(A,B) => R=ABS(A); if B<0.0 R=R*-1.0
+        .. code-block:: python
 
-        This is implemented as a transform from:
-
-        R= ... SIGN(A,B) ...
+            R = ... SIGN(A, B) ...
 
         to:
 
-        tmp_abs=A
-        IF (tmp_abs<0.0) res_abs=tmp_abs*-1.0 ELSE res_abs=tmp_abs
-        res_sign=res_abs
-        tmp_sign=B
-        if (tmp_sign<0.0) res_sign=res_sign*-1.0
-        R= ... res_x ...
+        .. code-block:: python
 
-        where A and B could be an arbitrarily complex expressions and
-        where ABS has been replaced with inline code by the
-        NemoAbsTrans transformation.
+            tmp_abs = A
+            if tmp_abs < 0.0:
+                res_abs = tmp_abs*-1.0
+            else:
+                res_abs = tmp_abs
+            res_sign = res_abs
+            tmp_sign = B
+            if tmp_sign < 0.0:
+                res_sign = res_sign*-1.0
+            R = ... res_x ...
+
+        where ``A`` and ``B`` could be an arbitrarily complex PSyIR
+        expressions, ``...`` could be arbitrary PSyIR code and where
+        ``ABS`` has been replaced with inline code by the NemoAbsTrans
+        transformation.
 
         A symbol table is required as the NEMO API does not currently
         contain a symbol table and one is required in order to create

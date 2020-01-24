@@ -56,9 +56,23 @@ class NemoMinTrans(NemoOperatorTrans):
     Operator node to equivalent code in a PSyIR tree. Validity checks
     are also performed.
 
-    The transformation replaces `R=MIN(A,B,C...)` with the following logic:
+    The transformation replaces
 
-    `R=MIN(A,B,C,..) R=A; if B<R R=B; if C<R R=C; ...`
+    .. code-block:: python
+
+        R = MIN(A, B, C ...)
+
+    with the following logic:
+
+    .. code-block:: python
+
+        R = MIN(A, B, C, ...)
+        R = A
+        if B < R:
+            R = B
+        if C < R:
+            R = C
+        ...
 
     '''
     def __init__(self):
@@ -71,25 +85,30 @@ class NemoMinTrans(NemoOperatorTrans):
     def apply(self, node, symbol_table, options=None):
         '''Apply the MIN intrinsic conversion transformation to the specified
         node. This node must be an MIN NaryOperation. The MIN
-        NaryOperation is converted to the following equivalent inline code:
+        NaryOperation is converted to equivalent inline code.  This is
+        implemented as a PSyIR transform from:
 
-        R=MIN(A,B,C,..) => R=A; if B<R R=B; if C<R R=C; ...
+        .. code-block:: python
 
-        In the PSyIR this is implemented as a transform from:
-
-        R= ... MIN(A,B,C...) ...
+            R = ... MIN(A, B, C ...) ...
 
         to:
 
-        res_min=A
-        tmp_min=B
-        IF (tmp_min<res_min) res_min=tmp_min
-        tmp_min=C
-        IF (tmp_min<res_min) res_min=tmp_min
-        ...
-        R= ... res_min ...
+        .. code-block:: python
 
-        where A,B,C... could be arbitrarily complex expressions.
+            res_min = A
+            tmp_min = B
+            IF tmp_min < res_min:
+                res_min = tmp_min
+            tmp_min = C
+            IF tmp_min < res_min:
+                res_min = tmp_min
+            ...
+            R = ... res_min ...
+
+        where ``A``, ``B``, ``C`` ... could be arbitrarily complex PSyIR
+        expressions and the ``...`` before and after ``MIN(A, B, C
+        ...)`` can be arbitrary PSyIR code.
 
         A symbol table is required as the NEMO API does not currently
         contain a symbol table and one is required in order to create
