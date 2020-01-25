@@ -3316,11 +3316,12 @@ class Arguments(object):
         raise NotImplementedError(
             "Arguments.scalars must be implemented in sub-class")
 
-    def append(self, name):
+    def append(self, name, argument_type):
         ''' Abstract method to append KernelArguments to the Argument
         list.
 
         :param str name: name of the appended argument.
+        :param str argument_type: type of the appended argument.
         '''
         raise NotImplementedError(
             "Arguments.append must be implemented in sub-class")
@@ -3971,8 +3972,8 @@ class Transformation(object):
         '''
         # pylint: disable=no-self-use
         schedule = None
-        momento = None
-        return schedule, momento
+        memento = None
+        return schedule, memento
 
     def validate(self, node, options=None):
         '''Method that validates that the input data is correct.

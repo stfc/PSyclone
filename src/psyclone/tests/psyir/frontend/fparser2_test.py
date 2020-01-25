@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Specification_Part
+from fparser.two.Fortran2003 import Specification_Part, Type_Declaration_Stmt
 from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, IfBlock, Reference, Array, Container, Literal
@@ -481,13 +481,6 @@ def test_process_not_supported_declarations():
     assert "Could not process " in str(error.value)
     assert ". Unrecognized attribute " in str(error.value)
 
-    reader = FortranStringReader("integer, save :: arg1")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
-
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
@@ -504,6 +497,59 @@ def test_process_not_supported_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
+
+
+def test_process_save_attribute_declarations(parser):
+    ''' Test that the SAVE attribute in a declaration is supported when
+    found in the specification part of a module or main_program, otherwise
+    it raises an error.'''
+
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Test with no context about where the declaration. Not even that is
+    # in the Specification_Part.
+    reader = FortranStringReader("integer, save :: var1")
+    fparser2spec = Type_Declaration_Stmt(reader)
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
+        " of a module, submodule or main_program specification part." \
+        in str(error.value)
+
+    # Test with no context about where the declaration is.
+    reader = FortranStringReader("integer, save :: var1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
+        " of a module, submodule or main_program specification part." \
+        in str(error.value)
+
+    # Test with a subroutine.
+    reader = FortranStringReader(
+        "subroutine name()\n"
+        "integer, save :: var1\n"
+        "end subroutine name")
+    fparser2spec = parser(reader).content[0].content[1]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
+        " of a module, submodule or main_program specification part." \
+        in str(error.value)
+
+    # Test with a module.
+    reader = FortranStringReader(
+        "module modulename\n"
+        "integer, save :: var1\n"
+        "end module modulename")
+    fparser2spec = parser(reader).content[0].content[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "var1" in fake_parent.symbol_table
+
 
 
 @pytest.mark.usefixtures("f2008_parser")

@@ -783,7 +783,7 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
         "  )), make_block_stmt([make_assignment_stmt(\n"
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
-        "  \"=\")]), None)\n" in result)
+        "  \"=\")]), None),\n" in result)
 
 
 # (2/4) Method ifblock_node
@@ -810,7 +810,7 @@ def test_sirwriter_ifblock_node_2(parser, sir_writer):
         "  \"=\")]), make_block_stmt([make_assignment_stmt(\n"
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"0.0\", BuiltinType.Float),\n"
-        "  \"=\")]))\n" in result)
+        "  \"=\")])),\n" in result)
 
 
 # (3/4) Method ifblock_node
@@ -836,7 +836,7 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
         "  )), make_block_stmt([make_assignment_stmt(\n"
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
-        "  \"=\")]), None)\n" in result_0)
+        "  \"=\")]), None),\n" in result_0)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
         "  make_field_access_expr(\"c\"),\n"
@@ -845,7 +845,7 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
         "  )), make_block_stmt([make_assignment_stmt(\n"
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
-        "  \"=\")]), None)\n" in result_1)
+        "  \"=\")]), None),\n" in result_1)
 
 
 # (4/4) Method ifblock_node
@@ -895,7 +895,7 @@ def test_sirwriter_ifblock_node_4(parser, sir_writer):
         "  \"=\")]), make_block_stmt([make_assignment_stmt(\n"
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
-        "  \"=\")]))]))\n" in result)
+        "  \"=\")]))])),\n" in result)
 
 
 # (1/1) Method schedule_node
