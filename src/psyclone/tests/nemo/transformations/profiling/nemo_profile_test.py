@@ -111,7 +111,7 @@ def test_profile_single_loop_named(parser):
                                       "  sto_tmp(ji) = 1.0d0\n"
                                       "end do\n"
                                       "end program do_loop\n")
-    options = {"profile_name": ("my_routine", "my_region")}
+    options = {"region_name": ("my_routine", "my_region")}
     schedule, _ = PTRANS.apply(schedule.children[0], options=options)
     code = str(psy.gen)
     assert ("CALL psy_data0 % PreStart('my_routine', 'my_region', 0, 0)"

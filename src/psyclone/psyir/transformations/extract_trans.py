@@ -39,7 +39,6 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import ExtractNode, Schedule
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -154,34 +153,3 @@ class ExtractTrans(PSyDataTrans):
         # First check constraints on Nodes in the node_list common to
         # all RegionTrans transformations.
         super(ExtractTrans, self).validate(node_list, options)
-
-    def apply(self, nodes, options=None):
-        # pylint: disable=arguments-differ
-        ''' Apply this transformation to a subset of the Nodes within
-        a Schedule - i.e. enclose the specified Nodes in the Schedule
-        within a single Extract region.
-
-        :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations. \
-            This dictionary is passed on to the validate function and also \
-            to the constructor of the node that is being inserted. This way \
-            the derived API-specific extract transformation can pass on \
-            parameters to the API-specific node.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the `nodes` argument is not of \
-                                     the correct type.
-
-        :returns: tuple of the modified Schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
-        '''
-
-        node_list = self._get_node_list(nodes)
-
-        # Validate transformation
-        self.validate(node_list, options)
-
-        return super(ExtractTrans, self).apply(node_list, options)

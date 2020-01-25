@@ -36,7 +36,7 @@
 '''Contains the PSyData transformation.
 '''
 
-from psyclone.psyGen import Node, Schedule
+from psyclone.psyir.nodes import Node, Schedule
 from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -121,6 +121,22 @@ class PSyDataTrans(RegionTrans):
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
 
+        if options:
+            try:
+                name = options["region_name"]
+                # pylint: disable=too-many-boolean-expressions
+                if not isinstance(name, tuple) or not len(name) == 2 or \
+                   not name[0] or not isinstance(name[0], str) or \
+                   not name[1] or not isinstance(name[1], str):
+                    raise TransformationError(
+                        "Error in {0}. User-supplied region name must be a "
+                        "tuple containing two non-empty strings."
+                        "".format(str(self)))
+                # pylint: enable=too-many-boolean-expressions
+            except KeyError:
+                # profile name is not supplied
+                pass
+
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
         invoke = node_list[0].root.invoke
@@ -150,6 +166,11 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psygen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str, str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.

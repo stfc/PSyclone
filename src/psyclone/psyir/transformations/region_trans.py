@@ -66,19 +66,20 @@ class RegionTrans(Transformation):
     valid_node_types = ()
 
     def _get_node_list(self, nodes):
-        '''The parameter is either a single node , a schedule, or a list of
-        nodes. This function convers this into a list of nodes according to
-        the parameter type. Note that the list might be a copy of the
-        argument or the list of children of a schedule, so the result list
-        should not be modified.
+        '''This is a helper function for region based transformation.
+        The parameter for any of those transformations is either a single
+        node, a schedule, or a list of nodes. This function converts this
+        into a list of nodes according to the parameter type. Note that the
+        list might be a copy of the argument or the list of children of a
+        schedule, so the result list should not be modified.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Node` or  \
-            :py:obj:`psyclone.psygen.Schedule or a list of \
-            :py:obj:`psyclone.psygen.Node`
+        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or  \
+            :py:obj:`psyclone.psyir.nodes.Schedule or a list of \
+            :py:obj:`psyclone.psyir.nodes.Node`
 
         :returns: a list of nodes.
-        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
         :raises TransformationError: if the supplied parameter is neither a \
             single Node, nor a Schedule, nor a list of Nodes.
 

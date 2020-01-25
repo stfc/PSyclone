@@ -39,14 +39,13 @@
 '''
 
 from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
-from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.nodes import ProfileNode, Schedule
+from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.undoredo import Memento
 
 
-class ProfileTrans(RegionTrans):
+class ProfileTrans(PSyDataTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
@@ -75,6 +74,9 @@ class ProfileTrans(RegionTrans):
     # that a region can contain as we don't have to understand them.
     valid_node_types = (psyir.nodes.Node,)
 
+    def __init__(self):
+        super(ProfileTrans, self).__init__(ProfileNode)
+
     def __str__(self):
         return "Insert a profile start and end call."
 
@@ -93,9 +95,11 @@ class ProfileTrans(RegionTrans):
 
         :param nodes: a list of nodes to be profiled.
         :type nodes: :py:class:`psyclone.psyir.nodes.Loop`
-
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str, str) options["region_name"]: an optional name to \
+            use for this profile, provided as a 2-tuple containing a \
+            location name followed by a local name.
 
         :raises TransformationError: if we're using the NEMO API and the \
                                      target routine has no Specification_Part.
@@ -104,12 +108,10 @@ class ProfileTrans(RegionTrans):
         from fparser.two.utils import walk
         from psyclone.nemo import NemoInvoke
 
-        super(ProfileTrans, self).validate(nodes, options)
-
-        # pylint: disable=too-many-boolean-expressions
         if options:
             try:
-                name = options["profile_name"]
+                name = options["region_name"]
+                # pylint: disable=too-many-boolean-expressions
                 if not isinstance(name, tuple) or not len(name) == 2 or \
                    not name[0] or not isinstance(name[0], str) or \
                    not name[1] or not isinstance(name[1], str):
@@ -117,10 +119,23 @@ class ProfileTrans(RegionTrans):
                         "Error in {0}. User-supplied profile name must be a "
                         "tuple containing two non-empty strings."
                         "".format(str(self)))
+                # pylint: enable=too-many-boolean-expressions
             except KeyError:
                 # profile name is not supplied
                 pass
-        # pylint: enable=too-many-boolean-expressions
+
+        super(ProfileTrans, self).validate(nodes, options)
+
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within a profile region. Also keep the index of
+        # the first child to be enclosed as that will become the
+        # position of the new Profile node
+        node_parent = nodes[0].parent
+        if isinstance(node_parent, Schedule) and \
+           isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
+            raise TransformationError("A ProfileNode cannot be inserted "
+                                      "between an OpenMP/ACC directive and "
+                                      "the loop(s) to which it applies!")
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
@@ -138,63 +153,3 @@ class ProfileTrans(RegionTrans):
                 "which contain existing variable declarations (i.e. a "
                 "Specification Part) but '{0}' does not have any.".format(
                     invoke.name))
-
-    def apply(self, nodes, options=None):
-        # pylint: disable=arguments-differ, too-many-locals
-        '''Apply this transformation to a subset of the nodes within a
-        schedule - i.e. enclose the specified Nodes in the
-        schedule within a single profiler region.
-
-        :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-                     :py:obj:`psyclone.psygen.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-        :param (str, str) options["profile_name"]: an optional name to \
-            use for this profile, provided as a 2-tuple containing a \
-            location name followed by a local name.
-
-        :returns: Tuple of the modified schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`)
-
-        '''
-        # Check whether we've been passed a list of nodes or just a
-        # single node.
-        node_list = self._get_node_list(nodes)
-
-        # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a profile region. Also keep the index of
-        # the first child to be enclosed as that will become the
-        # position of the new Profile node
-        node_parent = node_list[0].parent
-        if isinstance(node_parent, Schedule) and \
-           isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
-            raise TransformationError("A ProfileNode cannot be inserted "
-                                      "between an OpenMP/ACC directive and "
-                                      "the loop(s) to which it applies!")
-
-        # Perform validation checks
-        self.validate(node_list, options)
-
-        name = None
-        if options:
-            try:
-                name = options["profile_name"]
-            except KeyError:
-                pass
-
-        # create a memento of the schedule and the proposed
-        # transformation
-        schedule = node_list[0].root
-
-        keep = Memento(schedule, self)
-
-        # Create the ProfileNode. All of the supplied child nodes will have
-        # the Profile's Schedule as their parent.
-
-        from psyclone.psyir.nodes import ProfileNode
-        ProfileNode(parent=node_parent, children=node_list[:], name=name)
-
-        return schedule, keep

@@ -91,7 +91,7 @@ def test_profile_node_invalid_name(value):
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode(name=value)
+        _ = ProfileNode(options={"region_name": value})
     assert ("Error in PSyDataNode. The name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
 
@@ -362,7 +362,7 @@ def test_profile_named_gocean1p0():
                              "gocean1.0", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
-    options = {"profile_name": (psy.name, invoke.name)}
+    options = {"region_name": (psy.name, invoke.name)}
     _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL psy_data%PreStart("
@@ -494,7 +494,7 @@ def test_profile_named_dynamo0p3():
     psy, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
-    options = {"profile_name": (psy.name, invoke.name)}
+    options = {"region_name": (psy.name, invoke.name)}
     _, _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL psy_data%PreStart(\"single_invoke_psy\", "
@@ -741,8 +741,9 @@ def test_transform_errors(capsys):
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(sched1[0].dir_body[0])
 
-    assert "A ProfileNode cannot be inserted between an OpenMP/ACC directive "\
-           "and the loop(s) to which it applies!" in str(excinfo.value)
+    assert "A PSyData node cannot be inserted between an OpenMP/ACC "\
+           "directive and the loop(s) to which it applies!" \
+           in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------

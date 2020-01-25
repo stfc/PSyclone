@@ -237,7 +237,7 @@ def test_regiontrans_wrong_options():
 
 
 @pytest.mark.parametrize("options", [None, {"invalid": "invalid"},
-                                     {"profile_name": ("mod", "reg")}])
+                                     {"region_name": ("mod", "reg")}])
 def test_profile_trans_name(options):
     '''Check that providing no option or an option not associated with the
     profile transformation does not result in anything being passed
@@ -259,7 +259,7 @@ def test_profile_trans_name(options):
     else:
         _, _ = profile_trans.apply(schedule.children)
     profile_node = schedule[0]
-    if options and "profile_name" in options:
+    if options and "region_name" in options:
         assert profile_node._module_name == "mod"
         assert profile_node._region_name == "reg"
     else:
@@ -279,6 +279,6 @@ def test_profile_trans_invalid_name(value):
     node = Node(parent=sched)
     sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
-        _ = profile_trans.apply(node, options={"profile_name": value})
+        _ = profile_trans.apply(node, options={"region_name": value})
     assert ("User-supplied profile name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
