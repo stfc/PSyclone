@@ -49,7 +49,8 @@ from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     KernCallArgList, DynACCEnterDataDirective, \
@@ -3207,7 +3208,7 @@ def test_fs_anyspace_and_readwrite_error():
 
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)

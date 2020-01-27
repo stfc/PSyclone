@@ -52,7 +52,8 @@ import os
 import traceback
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.alg_gen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
@@ -227,7 +228,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
         # Add profiling nodes to schedule if automatic profiling has
         # been requested.
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         for invoke in psy.invokes.invoke_list:
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -442,7 +443,6 @@ def write_unicode_file(contents, filename):
     elif six.PY3:
         encoding = {'encoding': 'utf-8'}
     else:
-        from psyclone.psyGen import InternalError
         raise InternalError("Unrecognised Python version!")
 
     with io.open(filename, mode='w', **encoding) as file_object:

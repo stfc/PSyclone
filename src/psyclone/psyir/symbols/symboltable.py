@@ -43,6 +43,7 @@ from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol
+from psyclone.errors import InternalError
 
 
 class SymbolTable(object):
@@ -53,7 +54,7 @@ class SymbolTable(object):
 
     :param schedule: reference to the Schedule to which this symbol table \
         belongs.
-    :type schedule: :py:class:`psyclone.psyGen.Schedule` or NoneType
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule` or NoneType
     '''
     # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
     # NameSpace class functionality.
@@ -244,7 +245,6 @@ class SymbolTable(object):
             self-consistent.
 
         '''
-        from psyclone.psyGen import InternalError
         try:
             self._validate_arg_list(self._argument_list)
             self._validate_non_args()

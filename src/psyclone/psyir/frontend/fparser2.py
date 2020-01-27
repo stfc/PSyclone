@@ -42,10 +42,11 @@
 from collections import OrderedDict
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
-from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
-    Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    KernelSchedule, Container, Assignment, Return, Array, InternalError, \
-    GenerationError, Node
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
+    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
+    Container, Assignment, Return, Array, Node
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType
@@ -110,6 +111,8 @@ class Fparser2Reader(object):
         ('sign', BinaryOperation.Operator.SIGN),
         ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
+        ('lbound', BinaryOperation.Operator.LBOUND),
+        ('ubound', BinaryOperation.Operator.UBOUND),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
         ('mod', BinaryOperation.Operator.REM)])
@@ -154,7 +157,7 @@ class Fparser2Reader(object):
 
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param fp2_nodes: list of fparser2 AST nodes constituting the \
                           code block.
         :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
@@ -320,7 +323,7 @@ class Fparser2Reader(object):
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: PSyIR container representing the given module_ast.
-        :rtype: :py:class:`psyclone.psyGen.Container`
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: unable to generate a Container from the \
                                  provided fpaser2 parse tree.
@@ -658,6 +661,23 @@ class Fparser2Reader(object):
                         elif "intent(inout)" in normalized_string:
                             interface = ArgumentInterface(
                                 ArgumentInterface.Access.READWRITE)
+                        elif "save" in normalized_string:
+                            # Variables declared with SAVE attribute inside a
+                            # module, submodule or main program are implicitly
+                            # SAVE'd (see Fortran specification 8.5.16.4) so it
+                            # is valid to ignore the attribute in these
+                            # situations.
+                            if not (decl.parent and
+                                    isinstance(decl.parent.parent,
+                                               (Fortran2003.Module,
+                                                Fortran2003.Main_Program))):
+                                raise NotImplementedError(
+                                    "Could not process {0}. The 'SAVE' "\
+                                    "attribute is not yet supported when it is"
+                                    " not part of a module, submodule or main_"
+                                    "program specification part.".
+                                    format(decl.items))
+
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
@@ -936,7 +956,7 @@ class Fparser2Reader(object):
         itself generates and stores this information.
 
         :param parent: Parent node in the PSyIR we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
@@ -967,13 +987,13 @@ class Fparser2Reader(object):
         :param child: node in fparser2 AST.
         :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
         :returns: Returns the PSyIR representation of child, which can be a \
                   single node, a tree of nodes or None if the child can be \
                   ignored.
-        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         '''
         handler = self.handlers.get(type(child))
         if handler is None:
@@ -1008,11 +1028,11 @@ class Fparser2Reader(object):
         because some APIs may want to instantiate a specialised Loop.
 
         :param parent: the parent of the node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str variable_name: name of the iteration variable.
 
         :return: a new Loop instance.
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
         return Loop(parent=parent, variable_name=variable_name)
@@ -1023,7 +1043,7 @@ class Fparser2Reader(object):
         continue processing the tree nodes inside the loop body.
 
         :param loop_body: Schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
         :param node: fparser loop node being processed.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
@@ -1039,10 +1059,10 @@ class Fparser2Reader(object):
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises InternalError: if the fparser2 tree has an unexpected \
             structure.
@@ -1105,9 +1125,9 @@ class Fparser2Reader(object):
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         '''
@@ -1200,9 +1220,9 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.If_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
         '''
         ifblock = IfBlock(parent=parent, annotations=['was_single_stmt'])
         ifblock.ast = node
@@ -1219,10 +1239,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
@@ -1374,7 +1394,7 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.Fortran2003.Name` or \
                      :py:class:`fparser.two.Fortran2003.Case_Value_Range`
         :param parent: parent node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         if len(nodes) == 1:
@@ -1403,7 +1423,7 @@ class Fparser2Reader(object):
                      fparser2 parse tree.
         :type node: sub-class of :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         if isinstance(node, Fortran2003.Case_Value_Range):
@@ -1449,7 +1469,7 @@ class Fparser2Reader(object):
         of the sub-section is 2.
 
         :param array: the array reference to check.
-        :type array: :py:class:`psyclone.psyGen.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.Array`
 
         :returns: rank of the sub-section of the array.
         :rtype: int
@@ -1501,7 +1521,7 @@ class Fparser2Reader(object):
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
-        :type parent:  :py:class:`psyclone.psyGen.Node`
+        :type parent:  :py:class:`psyclone.psyir.nodes.Node`
         :param loop_vars: the variable names for the array indices.
         :type loop_vars: list of str
 
@@ -1562,10 +1582,10 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
                     :py:class:`fparser.two.Fortran2003.Where_Stmt`
         :param parent: parent node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the top-level Loop object in the created loop nest.
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises InternalError: if the parse tree does not have the expected \
                                structure.
@@ -1734,10 +1754,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Return_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Return`
+        :rtype: :py:class:`psyclone.psyir.nodes.Return`
 
         '''
         rtn = Return(parent=parent)
@@ -1751,10 +1771,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Assignment`
+        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
         '''
         assignment = Assignment(node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
@@ -1771,10 +1791,10 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.utils.UnaryOpBase` or \
                :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :raises NotImplementedError: if the supplied operator is not \
                                      supported by this handler.
@@ -1813,10 +1833,10 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.utils.BinaryOpBase` or \
                :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :raises NotImplementedError: if the supplied operator/intrinsic is \
                                      not supported by this handler.
@@ -1862,10 +1882,10 @@ class Fparser2Reader(object):
         :type node: \
              :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.NaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
         :raises NotImplementedError: if the supplied Intrinsic is not \
                                      supported by this handler.
@@ -1909,12 +1929,12 @@ class Fparser2Reader(object):
         :type node: \
             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation` or \
-                :py:class:`psyclone.psyGen.BinaryOperation` or \
-                :py:class:`psyclone.psyGen.NaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation` or \
+                :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
+                :py:class:`psyclone.psyir.nodes.NaryOperation`
 
         '''
         # First item is the name of the intrinsic
@@ -1944,9 +1964,9 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Reference`
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
         reference = Reference(node.string, parent)
         reference.check_declared()
@@ -1961,9 +1981,9 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Parenthesis`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         # Use the items[1] content of the node as it contains the required
         # information (items[0] and items[2] just contain the left and right
@@ -1979,13 +1999,13 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises NotImplementedError: If the fparser node represents \
             unsupported PSyIR features and should be placed in a CodeBlock.
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Array`
+        :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
         '''
         reference_name = node.items[0].string.lower()
@@ -2002,10 +2022,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Literal`
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
@@ -2025,10 +2045,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Literal`
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
         # pylint: disable=no-self-use
@@ -2042,10 +2062,10 @@ class Fparser2Reader(object):
         :type node: \
             :py:class:`fparser.two.Fortran2003.Logical_Literal_Constant`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Literal`
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
         # pylint: disable=no-self-use

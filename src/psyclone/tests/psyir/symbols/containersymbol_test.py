@@ -47,8 +47,7 @@ from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
 from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
     GlobalInterface
 from psyclone.psyir.symbols.datatypes import DataType
-
-from psyclone.psyGen import Container
+from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
 
 

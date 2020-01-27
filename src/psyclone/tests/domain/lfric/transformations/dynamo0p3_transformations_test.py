@@ -40,7 +40,8 @@ from __future__ import absolute_import, print_function
 import pytest
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
-from psyclone.psyGen import GenerationError, InternalError
+from psyclone import psyir
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1852,7 +1853,7 @@ def test_multi_reduction_real_pdo():
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -1926,7 +1927,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": False})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2004,7 +2005,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": True})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2105,7 +2106,7 @@ def test_two_reductions_real_do():
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": False})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2177,7 +2178,7 @@ def test_two_reprod_reductions_real_do():
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": True})
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2279,7 +2280,7 @@ def test_multi_reduction_same_name_real_do():
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do to the loop
             for child in schedule.children:
-                if isinstance(child, psyGen.Loop):
+                if isinstance(child, psyir.nodes.Loop):
                     schedule, _ = otrans.apply(child, {"reprod": reprod})
             if distmem:
                 # We have to move/delete a
@@ -2335,7 +2336,7 @@ def test_multi_different_reduction_real_pdo():
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2409,7 +2410,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -2480,7 +2481,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": False})
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
@@ -2716,7 +2717,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -3045,7 +3046,7 @@ def test_no_global_sum_in_parallel_region():
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": True})
         schedule, _ = rtrans.apply(schedule.children)
         invoke.schedule = schedule
@@ -3074,7 +3075,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
-            if isinstance(child, psyGen.Loop):
+            if isinstance(child, psyir.nodes.Loop):
                 schedule, _ = otrans.apply(child, {"reprod": True})
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
@@ -3477,7 +3478,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import OMPDoDirective
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -6004,7 +6006,7 @@ def test_intergrid_colour(dist_mem):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
@@ -6047,12 +6049,12 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     loop = loops[1]
     # To a prolong kernel
     _, _ = ctrans.apply(loop)
     # Update our list of loops
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     # Trigger the error by calling the internal method to get the upper
     # bound before the colourmaps have been set-up
     with pytest.raises(InternalError) as err:
@@ -6085,13 +6087,13 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
     _, _ = ctrans.apply(loops[1])
     # To a restrict kernel
     _, _ = ctrans.apply(loops[3])
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OMP to loops over coloured cells
     _, _ = otrans.apply(loops[2])
@@ -6120,10 +6122,10 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     # Colour the first loop
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     _, _ = ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     _, _ = otrans.apply(loops[1])
     # Put the parallel loop inside a parallel region
     dirs = schedule.walk(psyGen.Directive)
@@ -6158,13 +6160,13 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     schedule.view()
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = DynamoLoopFuseTrans()
     _, _ = ctrans.apply(loops[0])
     _, _ = ctrans.apply(loops[1])
     schedule.view()
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     _, _ = ftrans.apply(loops[0], loops[2])
     schedule.view()
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6179,7 +6181,7 @@ def test_intergrid_err(dist_mem):
                            TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(psyGen.Loop)
+    loops = schedule.walk(psyir.nodes.Loop)
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as descendents and ")

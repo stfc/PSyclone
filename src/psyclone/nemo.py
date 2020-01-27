@@ -45,8 +45,10 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, InlinedKern, InternalError, NameSpaceFactory, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    InlinedKern, NameSpaceFactory
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -60,7 +62,7 @@ class NemoFparser2Reader(Fparser2Reader):
         generic Loop.
 
         :param parent: the parent of the node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str variable_name: name of the iteration variable.
 
         :return: a new NemoLoop instance.
@@ -86,7 +88,7 @@ class NemoFparser2Reader(Fparser2Reader):
         in the loop_body.
 
         :param loop_body: schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
         :param node: fparser loop node being processed.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
@@ -117,11 +119,11 @@ class NemoFparser2Reader(Fparser2Reader):
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyclone IR we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: returns the PSyIR representation of child or None if \
                  there isn't one.
-        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         '''
         if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
@@ -367,7 +369,7 @@ class NemoKern(InlinedKern):
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
-    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parse_tree: reference to the innermost loop in the fparser2 parse \
                        tree that encloses this kernel.
     :type parse_tree: \
@@ -400,11 +402,11 @@ class NemoKern(InlinedKern):
         subroutine calls or IO operations).
 
         :param node: node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from psyclone.psyGen import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock
         # This function is called with node being a Schedule.
         if not isinstance(node, Schedule):
             raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
@@ -489,7 +491,7 @@ class NemoLoop(Loop):
     Class representing a Loop in NEMO.
 
     :param parent: parent of this NemoLoop in the PSyclone AST.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
     '''
@@ -529,7 +531,7 @@ class NemoImplicitLoop(NemoLoop):
     :param ast: the part of the fparser2 AST representing the loop.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
     :param parent: the parent of this Loop in the PSyIRe.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, ast, parent=None):

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ Nodes
 All nodes in the AST are sub-classes of the abstract `Node` base class, which
 provides the following common interface:
 
-.. autoclass:: psyclone.psyGen.Node
+.. autoclass:: psyclone.psyir.nodes.Node
     :members:
 
 .. _container-label:
@@ -69,7 +69,7 @@ KernelSchedules and a hierarchy of Symbol scopes i.e. a Symbol
 specified in a Container is visible to all Containers and
 KernelSchedules within it and their descendents.
 
-.. autoclass:: psyclone.psyGen.Container
+.. autoclass:: psyclone.psyir.nodes.Container
     :members:
 
 Schedule
@@ -82,7 +82,7 @@ invokes and kernel subroutines. This makes them the starting points for any
 walking of the PSyIR tree in PSyclone transformation scripts and a common
 target for the application of transformations.
 
-.. autoclass:: psyclone.psyGen.Schedule
+.. autoclass:: psyclone.psyir.nodes.Schedule
     :members:
 
 
@@ -90,7 +90,7 @@ InvokeSchedule
 --------------
 
 The `InvokeSchedule` is a PSyIR node that represents an invoke subroutine in
-the PSy-layer. It extends the `psyclone.psyGen.Schedule` functionality
+the PSy-layer. It extends the `psyclone.psyir.nodes.Schedule` functionality
 with a `psyclone.psyGen.NameSpace` and a reference to its associated
 `psyclone.psyGen.Invoke` object.
 
@@ -103,7 +103,7 @@ KernelSchedule
 ---------------
 
 The `KernelSchedule` is a PSyIR node that represents a kernel
-subroutine. It extends the `psyclone.psyGen.Schedule` functionality
+subroutine. It extends the `psyclone.psyir.nodes.Schedule` functionality
 with a SymbolTable (`psyclone.psyGen.psyir.symbols.SymbolTable`) that
 keeps a record of the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`)
 used in the kernel scope (see :ref:`user_guide:symbol-label`).
@@ -158,16 +158,50 @@ Annotation         Node types         Origin
 Branching construct
 -------------------
 
-.. autoclass:: psyclone.psyGen.IfBlock
+.. autoclass:: psyclone.psyir.nodes.IfBlock
     :members:
 
 
 Iteration construct
 -------------------
 
-.. autoclass:: psyclone.psyGen.Loop
+.. autoclass:: psyclone.psyir.nodes.Loop
     :members:
 
+Ranges
+======
+
+The PSyIR has the `Range` node which represents a range of integer
+values with associated start, stop and step properties. e.g. the list
+of values [4, 6, 8, 10] would be represented by a `Range` with a start
+value of 4, a stop value of 10 and a step of 2 (all stored as `Literal`
+nodes). This class is intended to simplify the construction of Loop nodes
+as well as to support array slicing (see below). However, this
+functionality is under development and at this stage neither of those
+options have been implemented.
+
+The `Range` node must also provide support for array-slicing
+constructs where a user may wish to represent either the entire range
+of possible index values for a given dimension of an array or a
+sub-set thereof. e.g. in the following Fortran::
+
+    real, dimension(10, 5) :: my_array
+    call some_routine(my_array(1, :))
+
+the argument to `some_routine` is specified using array syntax where
+the lone colon means *every* element in that dimension. In the PSyIR,
+this argument would be represented by an `Array` node with the first
+entry in its `shape` being an integer `Literal` (with value 1) and the
+second entry being a `Range`. In this case the `Range` will have a
+start value of `LBOUND(my_array, 1)`, a stop value of
+`UBOUND(my_array, 1)` and a step of `Literal("1")`. Note that `LBOUND`
+and `UBOUND` are not yet implemented (Issue #651) but will be
+instances of `BinaryOperation`. (For the particular code fragment
+given above, the values are in fact known [1 and 5, respectively] and
+could be obtained by querying the Symbol Table.)
+
+.. autoclass:: psyclone.psyir.nodes.ranges.Range
+    :members:
 
 Operation Nodes
 ===============
@@ -175,39 +209,37 @@ Operation Nodes
 Arithmetic operations and various intrinsic/query functions are represented
 in the PSyIR by sub-classes of the `Operation` node:
 
-.. autoclass:: psyclone.psyGen.Operation
+.. autoclass:: psyclone.psyir.nodes.Operation
    :members:
 
-The operations are classified according to the number of operands:
-those having one operand are represented by
-`psyclone.psyGen.UnaryOperation` nodes, those having two by
-`psyclone.psyGen.BinaryOperation` and those having more than two by
-`psyclone.psyGen.NaryOperation`. Note that where an intrinsic (such as
+The operations are classified according to the number of operands.
+Those having one operand are represented by
+`psyclone.psyir.nodes.UnaryOperation` nodes:
+
+.. autoclass:: psyclone.psyir.nodes.UnaryOperation.Operator
+   :members:
+   :undoc-members:
+
+those having two operands are represented by
+`psyclone.psyir.nodes.BinaryOperation` nodes:
+
+.. autoclass:: psyclone.psyir.nodes.BinaryOperation
+   :members: Operator
+
+and those having more than two by `psyclone.psyir.nodes.NaryOperation`
+nodes:
+
+.. autoclass:: psyclone.psyir.nodes.NaryOperation.Operator
+   :members:
+   :undoc-members:
+
+Note that where an intrinsic (such as
 Fortran's `MAX`) can have a variable number of arguments, the class
 used to represent it in the PSyIR is determined by the actual number
 of arguments in a particular instance. e.g. `MAX(var1, var2)` would be
-represented by a `psyclone.psyGen.BinaryOperation` but `MAX(var1,
+represented by a `psyclone.psyir.nodes.BinaryOperation` but `MAX(var1,
 var2, var3)` would be represented by a
-`psyclone.psyGen.NaryOperation`.
-
-The operations supported by the `UnaryOperation` are:
-
-.. autoclass:: psyclone.psyGen.UnaryOperation.Operator
-   :members:
-   :undoc-members:
-
-The operations supported by the `BinaryOperation` are:
-
-.. autoclass:: psyclone.psyGen.BinaryOperation.Operator
-   :members:
-   :undoc-members:
-
-The operations supported by the `NaryOperation` are:
-
-.. autoclass:: psyclone.psyGen.NaryOperation.Operator
-   :members:
-   :undoc-members:
-
+`psyclone.psyir.nodes.NaryOperation`.
 
 CodeBlock Node
 ==============
@@ -222,7 +254,7 @@ concepts that are relevant for performance, not all aspects of a code,
 therefore it is likely that that CodeBlocks will continue to be an
 important part of the PSyIR.
 
-.. autoclass:: psyclone.psyGen.CodeBlock
+.. autoclass:: psyclone.psyir.nodes.CodeBlock
    :members:
    :undoc-members:
 
@@ -435,7 +467,7 @@ of a node can be gathered by creating an object of type
 `psyclone.core.access_info.VariablesAccessInfo`, and then calling
 the function `reference_accesses()` for the node:
 
-.. autofunction:: psyclone.psyGen.Node.reference_accesses
+.. autofunction:: psyclone.psyir.nodes.Node.reference_accesses
 
 .. autoclass:: psyclone.core.access_info.VariablesAccessInfo
     :members:

@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyGen import Node, CodeBlock, Assignment, \
+from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
@@ -214,7 +214,7 @@ def test_cw_ifblock():
     C representation.
 
     '''
-    from psyclone.psyGen import IfBlock
+    from psyclone.psyir.nodes import IfBlock
 
     # Try with just a IfBlock node
     ifblock = IfBlock()

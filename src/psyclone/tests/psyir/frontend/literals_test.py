@@ -43,7 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataType
-from psyclone.psyGen import Node, Literal, CodeBlock
+from psyclone.psyir.nodes import Node, Literal, CodeBlock
 
 
 @pytest.mark.parametrize("code, dtype", [("'hello'", DataType.CHARACTER),
@@ -75,7 +75,7 @@ def test_handling_literal(code, dtype):
 def test_handling_invalid_logic_literal():
     ''' Test that a logic fparser2 literal with an invalid value produces
     an error.'''
-    from psyclone.psyGen import GenerationError
+    from psyclone.errors import GenerationError
     reader = FortranStringReader("x = .true.")
     astmt = Fortran2003.Assignment_Stmt(reader)
     astmt.items[2].items = ('invalid', None)

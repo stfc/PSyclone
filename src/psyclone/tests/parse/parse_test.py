@@ -45,7 +45,7 @@ from fparser import api as fpapi
 from psyclone.parse.algorithm import parse, ParseError
 from psyclone.parse.kernel import KernelType, KernelTypeFactory, \
     BuiltInKernelTypeFactory
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")

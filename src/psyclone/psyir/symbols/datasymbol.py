@@ -41,6 +41,7 @@
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
+from psyclone.errors import InternalError
 
 
 class DataSymbol(Symbol):
@@ -73,7 +74,7 @@ class DataSymbol(Symbol):
         PSyIR expressions or Python intrinsic types available in the \
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
-        :py:class:`psyclone.psyGen.Node`
+        :py:class:`psyclone.psyir.nodes.Node`
     :param precision: the amount of storage required by the datatype (bytes) \
             or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
@@ -311,7 +312,7 @@ class DataSymbol(Symbol):
     def constant_value(self):
         '''
         :returns: the fixed known value of this symbol.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return self._constant_value
@@ -361,7 +362,7 @@ class DataSymbol(Symbol):
             PSyIR expressions or Python intrinsic types available in the \
             TYPE_MAP_TO_PYTHON map.
         :type new_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
-            :py:class:`psyclone.psyGen.Node`
+            :py:class:`psyclone.psyir.nodes.Node`
 
         :raises ValueError: if a non-None value is provided and 1) this \
             DataSymbol instance does not have local scope, or 2) this \
@@ -372,7 +373,7 @@ class DataSymbol(Symbol):
             instance, or 5) the provided PSyIR expression is unsupported.
 
         '''
-        from psyclone.psyGen import Node, Literal, Operation, Reference
+        from psyclone.psyir.nodes import Node, Literal, Operation, Reference
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(
@@ -425,7 +426,6 @@ class DataSymbol(Symbol):
             self._constant_value = None
 
     def __str__(self):
-        from psyclone.psyGen import InternalError
         ret = self.name + ": <" + str(self.datatype) + ", "
         if self.is_array:
             ret += "Array["
