@@ -3311,19 +3311,18 @@ class ACCRoutineTrans(KernelTrans):
                 "parse tree rather than the PSyIR (#490).".format(kern.name))
 
         # Perform general validation checks. In particular this checks that
-        # a PSyIR of the kernel body can be constructed.
+        # the PSyIR of the kernel body can be constructed.
         super(ACCRoutineTrans, self).validate(kern, options)
 
-        # Check that the kernel does not access any data via a module 'use'
-        # statement
+        # Check that the kernel does not access any data or routines via a
+        # module 'use' statement
         sched = kern.get_kernel_schedule()
         global_variables = sched.symbol_table.global_datasymbols
         if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
-                "symbols with 'global' scope: {1}. PSyclone cannot currently "
-                "transform kernels for execution on an OpenACC device if "
-                "they access data not passed by argument.".
+                "symbol(s) with global scope: {1}. PSyclone cannot currently "
+                "transform such kernels for execution on an OpenACC device.".
                 format(kern.name, [sym.name for sym in global_variables]))
         # Prevent unwanted side effects by removing the kernel schedule that
         # we have just constructed. This is necessary while

@@ -13,7 +13,7 @@ PSyclone can be run in the directory containing this file by
 executing, e.g.:
 
 ```sh
-psyclone -api "gocean1.0" alg.f90
+psyclone -api "gocean1.0" alg_kern_with_use.f90
 ```
 
 This will produce 'vanilla' PSy code along with a re-written version of
@@ -59,6 +59,17 @@ be demonstrated by:
 ```sh
 psyclone -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
 ```
+
+Currently this raises a TransformationError because PSyclone spots
+that the kernel accesses the global symbol 'my_function'.
+
+The third example:
+
+```sh
+psyclone -api "gocean1.0" -s ./acc_transform.py alg_nested_use.f90
+```
+
+also currently raises a TransformationError for the same reason.
 
 ## Licence
 
