@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019-20, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,17 +35,15 @@ module alg
 
 contains
 
-  subroutine do_update(fld1, fld2)
+  subroutine do_update(fld2)
     use field_mod, only: r2d_field
-    use kern_use_var_mod, only: kern_use_var
     use kern_call_kern_mod, only: kern_call_kern
-    use kern_nested_use_mod, only: kern_nested_use
     implicit none
-    type(r2d_field), intent(inout) :: fld1, fld2
+    type(r2d_field), intent(inout) :: fld2
 
-    call invoke(kern_use_var(fld1),   &
-                kern_call_kern(fld2), &
-                kern_nested_use(fld1))
+    ! Invoke calls kernel that itself calls a kernel defined in
+    ! another module
+    call invoke(kern_call_kern(fld2))
 
   end subroutine do_update
 

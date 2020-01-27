@@ -40,7 +40,7 @@ to have them compiled for an OpenACC accelerator. '''
 
 def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations
-    to the schedule of invoke_0 and return the new psy object '''
+    to the schedule of the first invoke and return the new psy object '''
     from psyclone.transformations import ACCParallelTrans, \
         ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
         KernelGlobalsToArguments
@@ -50,7 +50,7 @@ def trans(psy):
     ktrans = ACCRoutineTrans()
     g2localtrans = KernelGlobalsToArguments()
 
-    invoke = psy.invokes.get('invoke_0')
+    invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     schedule.view()
 
@@ -72,7 +72,7 @@ def trans(psy):
     # put an 'acc routine' directive inside each kernel
     for kern in schedule.coded_kernels():
         if kern.name == "kern_use_var_code":
-            # TODO #490. This currently won't work because the
+            # TODO #490 and #663. This currently won't work because the
             # KernelGlobalsToArguments transformation works on the PSyIR but
             # the subsequent ACCRoutineTrans works on the fparser2 parse tree.
             g2localtrans.apply(kern)
