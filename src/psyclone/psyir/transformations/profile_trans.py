@@ -163,7 +163,7 @@ class ProfileTrans(RegionTrans):
         # single node.
         from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
         from psyclone.psyir.nodes import Node
-        if isinstance(nodes, list) and list and isinstance(nodes[0], Node):
+        if isinstance(nodes, list) and nodes and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):
             # We've been passed a Schedule so default to enclosing its
