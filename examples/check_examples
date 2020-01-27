@@ -172,12 +172,9 @@ cd -
 
 echo "Running gocean/eg4"
 cd gocean/eg4
-${PSYCLONE} -api "gocean1.0" alg.f90
-# The following fails because PSyclone spots that one of the kernels has
-# already been transformed (to convert globals to arguments) and therefore
-# cannot be subsequently transformed using ACCRoutineTrans. TODO #490.
-# #342 also needs to be done in order to support nested 'use's and
-# kernels that call other kernels.
+${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
+# The following currently fail as work is in progress to support
+# transforming kernels that access data or routines from modules.
 echo "TODO #490 and #342 and #663"
 #${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
 #${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
