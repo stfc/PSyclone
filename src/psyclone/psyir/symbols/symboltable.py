@@ -207,13 +207,22 @@ class SymbolTable(object):
             ContainerSymbol which is referenced by one or more DataSymbols.
         :raises TypeError: if the supplied symbol is not a DataSymbol or a \
             ContainerSymbol.
+        :raises InternalError: if the supplied symbol is not the same as the \
+                               entry with that name in this SymbolTable.
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError("remove() expects a Symbol object but got: '{0}'".
                             format(type(symbol).__name__))
         if symbol.name not in self._symbols:
-            raise KeyError("Cannot remove symbol '{0}' from symbol table "
+            raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
+        # Sanity-check that the entry in the table is the symbol we've
+        # been passed.
+        if self._symbols[symbol.name] is not symbol:
+            raise InternalError(
+                "The Symbol with name '{0}' in this symbol table is not the "
+                "same Symbol object as the one that has been supplied to the "
+                "remove() method.".format(symbol.name))
         if isinstance(symbol, DataSymbol):
             self._symbols.pop(symbol.name)
             # If this is a global symbol then remove it from the list of

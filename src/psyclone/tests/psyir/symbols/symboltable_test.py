@@ -167,7 +167,7 @@ def test_remove():
     # Attempting to remove it a second time is an error
     with pytest.raises(KeyError) as err:
         sym_table.remove(var1)
-    assert "Cannot remove symbol 'var1'" in str(err.value)
+    assert "Cannot remove Symbol 'var1'" in str(err.value)
     # We should now be able to remove the ContainerSymbol
     sym_table.remove(my_mod)
     with pytest.raises(KeyError) as err:
@@ -187,6 +187,12 @@ def test_remove():
         sym_table.remove(bad_apple)
     assert ("Container or Data Symbols but symbol 'bad_apple' is of type "
             "'BadSymbol'" in str(err.value))
+    # Attempting to remove a Symbol that is not in the table but that has
+    # the same name as an entry in the table is an error
+    with pytest.raises(InternalError) as err:
+        sym_table.remove(BadSymbol("bad_apple"))
+    assert ("Symbol with name 'bad_apple' in this symbol table is not the "
+            "same" in str(err.value))
 
 
 def test_swap_symbol_properties():
