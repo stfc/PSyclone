@@ -51,6 +51,7 @@ from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
     VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 from psyclone.psyir.transformations import RegionTrans, TransformationError
+from psyclone.psyir.symbols import SymbolError
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -109,7 +110,6 @@ class KernelTrans(Transformation):
 
         '''
         from psyclone.errors import GenerationError
-        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -3834,7 +3834,6 @@ class KernelGlobalsToArguments(Transformation):
         '''
         from psyclone.psyGen import CodedKern
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(node, CodedKern):
             raise TransformationError(
@@ -3944,7 +3943,7 @@ class KernelGlobalsToArguments(Transformation):
             # this global was originally accessed
             if not container.imported_symbols and \
                not container.wildcard_import:
-                kernel.symbol_table.remove(container.name)
+                kernel.symbol_table.remove(container)
         # TODO #663 - uncomment line below and fix tests.
         # node.modified = True
         return memento

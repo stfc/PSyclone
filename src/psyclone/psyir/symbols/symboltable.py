@@ -196,23 +196,26 @@ class SymbolTable(object):
         '''
         return key in self._symbols
 
-    def remove(self, key):
-        ''' Remove the named symbol from the Symbol Table.
+    def remove(self, symbol):
+        ''' Remove the supplied symbol from the Symbol Table.
 
-        :param str key: name of symbol to remove.
+        :param symbol: the symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises KeyError: if the supplied name is not in the symbol table.
-        :raises ValueError: if the supplied name corresponds to a \
+        :raises KeyError: if the supplied symbol is not in the symbol table.
+        :raises ValueError: if the supplied symbol corresponds to a \
             ContainerSymbol which is referenced by one or more DataSymbols.
-        :raises TypeError: if the symbol corresponding to the supplied name \
-            is not a DataSymbol or a ContainerSymbol.
+        :raises TypeError: if the supplied symbol is not a DataSymbol or a \
+            ContainerSymbol.
         '''
-        if key not in self._symbols:
+        if not isinstance(symbol, Symbol):
+            raise TypeError("remove() expects a Symbol object but got: '{0}'".
+                            format(type(symbol).__name__))
+        if symbol.name not in self._symbols:
             raise KeyError("Cannot remove symbol '{0}' from symbol table "
-                           "because it does not exist.".format(key))
-        symbol = self._symbols[key]
+                           "because it does not exist.".format(symbol.name))
         if isinstance(symbol, DataSymbol):
-            self._symbols.pop(key)
+            self._symbols.pop(symbol.name)
             # If this is a global symbol then remove it from the list of
             # symbols associated with the container from which it is imported
             if symbol.is_global:
@@ -226,11 +229,11 @@ class SymbolTable(object):
                     "{1} are imported from it - remove them first.".format(
                         symbol.name,
                         [sym.name for sym in symbol.imported_symbols]))
-            self._symbols.pop(key)
+            self._symbols.pop(symbol.name)
         else:
             raise TypeError("Can only remove Container or Data Symbols but "
                             "symbol '{0}' is of type '{1}'".format(
-                                key, type(symbol).__name__))
+                                symbol.name, type(symbol).__name__))
 
     @property
     def argument_list(self):

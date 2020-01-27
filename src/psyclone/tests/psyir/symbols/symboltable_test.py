@@ -140,7 +140,7 @@ def test_remove():
     '''Test that the remove method removes symbols from the symbol
     table, but raises appropiate errors when provided with wrong
     parameters. '''
-    from psyclone.psyir.symbols import SymbolError
+    from psyclone.psyir.symbols import SymbolError, Symbol
     sym_table = SymbolTable()
 
     # Declare a symbol
@@ -154,11 +154,11 @@ def test_remove():
     # We should not be able to remove a Container if it is referenced
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
-        sym_table.remove("my_mod")
+        sym_table.remove(my_mod)
     assert ("Cannot remove ContainerSymbol 'my_mod' because symbols "
             "['var1'] are imported from it" in str(err.value))
     # Remove the data symbol
-    sym_table.remove("var1")
+    sym_table.remove(var1)
     with pytest.raises(KeyError) as err:
         sym_table.lookup("var1")
     assert "Could not find 'var1'" in str(err.value)
@@ -166,20 +166,27 @@ def test_remove():
     assert my_mod.imported_symbols == []
     # Attempting to remove it a second time is an error
     with pytest.raises(KeyError) as err:
-        sym_table.remove("var1")
+        sym_table.remove(var1)
     assert "Cannot remove symbol 'var1'" in str(err.value)
     # We should now be able to remove the ContainerSymbol
-    sym_table.remove("my_mod")
+    sym_table.remove(my_mod)
     with pytest.raises(KeyError) as err:
         sym_table.lookup("my_mod")
     assert "Could not find 'my_mod'" in str(err.value)
+    # Attempt to supply something that is not a Symbol
+    with pytest.raises(TypeError) as err:
+        sym_table.remove("broken")
+    assert "remove() expects a Symbol object but got: " in str(err.value)
     # Force an invalid entry into the symbol table
-    sym_table._symbols["bad_apple"] = "NotASymbol"
+    class BadSymbol(Symbol):
+        ''' An unsupported class of Symbol. '''
+    bad_apple = BadSymbol("bad_apple")
+    sym_table._symbols["bad_apple"] = bad_apple
     # Attempting to remove it should trigger an error
     with pytest.raises(TypeError) as err:
-        sym_table.remove("bad_apple")
+        sym_table.remove(bad_apple)
     assert ("Container or Data Symbols but symbol 'bad_apple' is of type "
-            "'str'" in str(err.value))
+            "'BadSymbol'" in str(err.value))
 
 
 def test_swap_symbol_properties():
