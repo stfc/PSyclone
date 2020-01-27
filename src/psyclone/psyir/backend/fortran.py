@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -244,7 +244,7 @@ class FortranWriter(PSyIRVisitor):
         Fortran use statement(s) for this ContainerSymbol. If this symbol
         has both a wildcard import and explicit imports then two use
         statements are generated. (This means that when generating Fortran
-        from a PSyIR of existing Fortran code we replicate the structure of
+        from PSyIR created from Fortran code, we replicate the structure of
         the original.)
 
         :param symbol: the container symbol instance.
@@ -286,7 +286,7 @@ class FortranWriter(PSyIRVisitor):
             only_list.append(dsym.name)
 
         # Finally construct the use statements for this Container (module)
-        if not only_list and not symbol.has_wildcard_import:
+        if not only_list and not symbol.wildcard_import:
             # We have a "use xxx, only:" - i.e. an empty only list
             return "{0}use {1}, only :\n".format(self._nindent, symbol.name)
         use_stmts = ""
@@ -295,7 +295,7 @@ class FortranWriter(PSyIRVisitor):
                 self._nindent, symbol.name, ", ".join(sorted(only_list)))
         # It's possible to have both explicit and wildcard imports from the
         # same Fortran module.
-        if symbol.has_wildcard_import:
+        if symbol.wildcard_import:
             use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
         return use_stmts
 

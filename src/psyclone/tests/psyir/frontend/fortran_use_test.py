@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -110,13 +110,13 @@ def test_multi_use_stmt():
     # Although there are 4 use statements, there are only 2 modules
     assert len(csymbols) == 2
     my_mod = symtab.lookup("my_mod")
-    assert not my_mod.has_wildcard_import
+    assert not my_mod.wildcard_import
     # Check that we have accumulated all imports
     assert len(my_mod.imported_symbols) == 3
     names = [sym.name for sym in my_mod.imported_symbols]
     assert sorted(names) == ["some_var", "var1", "var2"]
     this_mod = symtab.lookup("this_mod")
-    assert this_mod.has_wildcard_import
+    assert this_mod.wildcard_import
     names = [sym.name for sym in this_mod.imported_symbols]
     assert names == ["var3"]
 
@@ -147,7 +147,7 @@ def test_use_no_only_list():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     some_mod = fake_parent.symbol_table.lookup("some_mod")
-    assert not some_mod.has_wildcard_import
+    assert not some_mod.wildcard_import
     assert some_mod.imported_symbols == []
 
 
@@ -181,21 +181,21 @@ def test_redundant_empty_only_list():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod1")
-    assert csym.has_wildcard_import
+    assert csym.wildcard_import
     # Wildcard import followed by empty only-list
     reader = FortranStringReader("use mod2\n"
                                  "use mod2, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod2")
-    assert csym.has_wildcard_import
+    assert csym.wildcard_import
     # Empty only-list followed by named import
     reader = FortranStringReader("use mod3, only:\n"
                                  "use mod3, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod3")
-    assert not csym.has_wildcard_import
+    assert not csym.wildcard_import
     assert csym.imported_symbols[0].name == "fred"
     # Named import followed by empty only-list
     reader = FortranStringReader("use mod4, only: bob\n"
@@ -203,7 +203,7 @@ def test_redundant_empty_only_list():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod4")
-    assert not csym.has_wildcard_import
+    assert not csym.wildcard_import
     assert csym.imported_symbols[0].name == "bob"
 
 

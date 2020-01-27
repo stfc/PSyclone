@@ -135,13 +135,6 @@ class ContainerSymbol(Symbol):
                            "'{1}'".format(data_symbol.name, self.name))
         self._datasymbols.remove(data_symbol)
 
-    def add_wildcard_import(self):
-        '''
-        Mark this container as having a 'wildcard' import, i.e. all public
-        symbols are imported into the current scoping unit.
-        '''
-        self._has_wildcard_import = True
-
     @property
     def imported_symbols(self):
         '''
@@ -151,13 +144,30 @@ class ContainerSymbol(Symbol):
         return list(self._datasymbols)
 
     @property
-    def has_wildcard_import(self):
+    def wildcard_import(self):
         '''
         :returns: whether or not there is a wildcard import of all public
                   symbols from this Container.
         :rtype: bool
         '''
         return self._has_wildcard_import
+
+    @wildcard_import.setter
+    def wildcard_import(self, value):
+        '''
+        Set whether or not there is a wildcard import of all public symbols
+        from this Container symbol.
+
+        :param bool value: whether there is or is not a wildcard import.
+
+        :raises TypeError: if the supplied `value` is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("wildcard_import must be a bool but got: '{0}'".
+                            format(type(value).__name__))
+        self._has_wildcard_import = value
+
 
 # Classes below are not exposed in the psyclone.psyir.symbols
 

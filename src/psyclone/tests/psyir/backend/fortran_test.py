@@ -251,7 +251,7 @@ def test_fw_gen_use(fort_writer):
     result = fort_writer.gen_use(container_symbol)
     assert result == "use my_module, only : dummy1\n"
 
-    container_symbol.add_wildcard_import()
+    container_symbol.wildcard_import = True
     result = fort_writer.gen_use(container_symbol)
     assert result == ("use my_module, only : dummy1\n"
                       "use my_module\n")
@@ -271,7 +271,7 @@ def test_fw_gen_use(fort_writer):
     assert result == "use my_mod2, only :\n"
     # If we now add a wildcard import of this module then that's all we
     # should get from the backend (as it makes the "only:" redundant)
-    container2.add_wildcard_import()
+    container2.wildcard_import = True
     result = fort_writer.gen_use(container2)
     assert result == "use my_mod2\n"
 

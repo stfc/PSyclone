@@ -548,7 +548,7 @@ class Fparser2Reader(object):
 
             mod_name = str(decl.items[2])
 
-            # Add the module symbol in the symbol table. Keep a record of
+            # Add the module symbol to the symbol table. Keep a record of
             # whether or not we've seen this module before for reporting
             # purposes in the code below.
             if mod_name not in parent.symbol_table:
@@ -567,7 +567,7 @@ class Fparser2Reader(object):
 
             # Create a 'deferred' symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
-                if not new_container and not container.has_wildcard_import \
+                if not new_container and not container.wildcard_import \
                    and not container.imported_symbols:
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import with an empty only-list.
@@ -596,17 +596,17 @@ class Fparser2Reader(object):
                         # import of this symbol and that will take precendence.
             elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
-                if (not new_container) and (not container.has_wildcard_import) \
+                if (not new_container) and (not container.wildcard_import) \
                    and (not container.imported_symbols):
                     # TODO #11 Log the fact that this explicit symbol import
                     # will replace a previous import with an empty only-list.
                     pass
-                container.add_wildcard_import()
+                container.wildcard_import = True
             elif decl.items[3].lower().replace(" ", "") == ",only:":
                 # This use has an 'only: ' but no associated list of
                 # imported symbols. (It serves to keep a module in scope while
                 # not actually importing anything from it.)
-                if not new_container and (container.has_wildcard_import
+                if not new_container and (container.wildcard_import
                                           or container.imported_symbols):
                     # TODO #11 Log the fact that this import with an empty
                     # only-list is irrelevant because of existing 'use's of

@@ -185,7 +185,7 @@ def test_containersymbol_importlist():
     assert ("imported from a Container must have a GlobalInterface but symbol "
             "'var1' has a 'LocalInterface'" in str(err.value))
     assert csym.imported_symbols == []
-    assert not csym.has_wildcard_import
+    assert not csym.wildcard_import
     dsym1 = DataSymbol("var1", DataType.INTEGER,
                        interface=GlobalInterface(csym))
     # The DataSymbol constructor actually calls add_symbol_import() but we
@@ -199,9 +199,12 @@ def test_containersymbol_importlist():
     csym.add_symbol_import(dsym2)
     assert csym.imported_symbols.count(dsym2) == 1
     assert len(csym.imported_symbols) == 2
-    assert not csym.has_wildcard_import
-    csym.add_wildcard_import()
-    assert csym.has_wildcard_import
+    assert not csym.wildcard_import
+    csym.wildcard_import = True
+    assert csym.wildcard_import
+    with pytest.raises(TypeError) as err:
+        csym.wildcard_import = "false"
+    assert "wildcard_import must be a bool but got" in str(err.value)
 
 
 def test_containersymbol_rm_import():
