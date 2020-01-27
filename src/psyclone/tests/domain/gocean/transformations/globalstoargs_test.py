@@ -90,7 +90,7 @@ def test_globalstoargumentstrans_no_outer_module_import():
 def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
     ''' Check that the transformation rejects kernels with undeclared symbols
     and/or wildcard imports. '''
-    from psyclone.psyGen import Reference
+    from psyclone.psyir.nodes import Reference
     trans = KernelGlobalsToArguments()
     path = os.path.join(BASEPATH, "gocean1p0")
     _, invoke_info = parse(os.path.join(
