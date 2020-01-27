@@ -64,7 +64,8 @@ def test_use_stmt():
         container = symtab.lookup(module_name)
         assert isinstance(container, ContainerSymbol)
         assert container.name == module_name
-        assert not container._reference  # It is not evaluated explicitly told
+        # Container reference is not updated until explicitly requested
+        assert not container._reference
 
     for var in ["some_var", "var1", "var2"]:
         assert symtab.lookup(var).name == var

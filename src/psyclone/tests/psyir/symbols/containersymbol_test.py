@@ -77,7 +77,8 @@ def test_containersymbol_initialisation():
     sym = ContainerSymbol("my_mod")
     assert isinstance(sym, ContainerSymbol)
     assert sym.name == "my_mod"
-    assert not sym._reference  # References are not evaluated until told
+    # References are not followed/evaluated until explicitly requested
+    assert not sym._reference
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
     assert sym._interface == FortranModuleInterface
