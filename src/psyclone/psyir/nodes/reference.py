@@ -221,7 +221,9 @@ class Array(Reference):
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices
         in the access of the array will be added as READ.
-        :param var_accesses: \
+
+        :param var_accesses: variable access information.
+        :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
