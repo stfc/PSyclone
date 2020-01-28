@@ -112,8 +112,6 @@ class PSyDataTrans(RegionTrans):
         from psyclone.nemo import NemoInvoke
         from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
 
-        super(PSyDataTrans, self).validate(node_list, options)
-
         node_parent = node_list[0].parent
         if isinstance(node_parent, Schedule) and \
            isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
@@ -122,8 +120,8 @@ class PSyDataTrans(RegionTrans):
                                       "the loop(s) to which it applies!")
 
         if options:
-            try:
-                name = options["region_name"]
+            name = options.get("region_name", None)
+            if name:
                 # pylint: disable=too-many-boolean-expressions
                 if not isinstance(name, tuple) or not len(name) == 2 or \
                    not name[0] or not isinstance(name[0], str) or \
@@ -131,11 +129,10 @@ class PSyDataTrans(RegionTrans):
                     raise TransformationError(
                         "Error in {0}. User-supplied region name must be a "
                         "tuple containing two non-empty strings."
-                        "".format(str(self)))
+                        "".format(self.name))
                 # pylint: enable=too-many-boolean-expressions
-            except KeyError:
-                # profile name is not supplied
-                pass
+
+        super(PSyDataTrans, self).validate(node_list, options)
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.

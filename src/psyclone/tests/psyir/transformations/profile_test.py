@@ -745,6 +745,10 @@ def test_transform_errors(capsys):
            "directive and the loop(s) to which it applies!" \
            in str(excinfo.value)
 
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply(sched1[0], {"region_name":"xx"})
+    assert "Error in ProfileTrans. User-supplied region name must be a " \
+        "tuple containing two non-empty strings" in str(excinfo.value)
 
 # -----------------------------------------------------------------------------
 def test_region():

@@ -38,11 +38,8 @@
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
-from psyclone.psyir.nodes import ProfileNode, Schedule
+from psyclone.psyir.nodes import ProfileNode
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 
 
 class ProfileTrans(PSyDataTrans):
@@ -68,6 +65,10 @@ class ProfileTrans(PSyDataTrans):
     >>> newschedule, _ = p_trans.apply(schedule.children)
     >>> newschedule.view()
 
+    This implementation relies completely on the base class PSyDataTrans
+    for the actual work, it only adjusts the name etc, and the list
+    of valid nodes.
+
     '''
     from psyclone import psyGen, profiler, psyir
     # Unlike other transformations we can be fairly relaxed about the nodes
@@ -84,72 +85,3 @@ class ProfileTrans(PSyDataTrans):
     def name(self):
         ''' Returns the name of this transformation as a string '''
         return "ProfileTrans"
-
-    def validate(self, nodes, options=None):
-        # pylint: disable=arguments-differ
-        '''
-        Calls the validate method of the base class and then checks that,
-        for the NEMO API, the routine that will contain the profiling
-        region already has a Specification_Part (because we've not yet
-        implemented the necessary support if it doesn't).
-
-        :param nodes: a list of nodes to be profiled.
-        :type nodes: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-        :param (str, str) options["region_name"]: an optional name to \
-            use for this profile, provided as a 2-tuple containing a \
-            location name followed by a local name.
-
-        :raises TransformationError: if we're using the NEMO API and the \
-                                     target routine has no Specification_Part.
-        '''
-        from fparser.two import Fortran2003
-        from fparser.two.utils import walk
-        from psyclone.nemo import NemoInvoke
-
-        if options:
-            try:
-                name = options["region_name"]
-                # pylint: disable=too-many-boolean-expressions
-                if not isinstance(name, tuple) or not len(name) == 2 or \
-                   not name[0] or not isinstance(name[0], str) or \
-                   not name[1] or not isinstance(name[1], str):
-                    raise TransformationError(
-                        "Error in {0}. User-supplied profile name must be a "
-                        "tuple containing two non-empty strings."
-                        "".format(str(self)))
-                # pylint: enable=too-many-boolean-expressions
-            except KeyError:
-                # profile name is not supplied
-                pass
-
-        super(ProfileTrans, self).validate(nodes, options)
-
-        # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a profile region. Also keep the index of
-        # the first child to be enclosed as that will become the
-        # position of the new Profile node
-        node_parent = nodes[0].parent
-        if isinstance(node_parent, Schedule) and \
-           isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
-            raise TransformationError("A ProfileNode cannot be inserted "
-                                      "between an OpenMP/ACC directive and "
-                                      "the loop(s) to which it applies!")
-
-        # The checks below are only for the NEMO API and can be removed
-        # once #435 is done.
-        invoke = nodes[0].root.invoke
-        if not isinstance(invoke, NemoInvoke):
-            return
-        # Get the parse tree of the routine containing this region
-        # pylint: disable=protected-access
-        ptree = invoke._ast
-        # pylint: enable=protected-access
-        # Search for the Specification_Part
-        if not walk(ptree, Fortran2003.Specification_Part):
-            raise TransformationError(
-                "For the NEMO API, profiling can only be added to routines "
-                "which contain existing variable declarations (i.e. a "
-                "Specification Part) but '{0}' does not have any.".format(
-                    invoke.name))
