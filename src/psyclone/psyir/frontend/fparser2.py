@@ -596,16 +596,7 @@ class Fparser2Reader(object):
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
-                        if "intent(in)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        elif "intent(out)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif "intent(inout)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READWRITE)
-                        elif "save" in normalized_string:
+                        if "save" in normalized_string:
                             # Variables declared with SAVE attribute inside a
                             # module, submodule or main program are implicitly
                             # SAVE'd (see Fortran specification 8.5.16.4) so it
@@ -632,6 +623,18 @@ class Fparser2Reader(object):
                                 "Could not process {0}. Unrecognized "
                                 "attribute '{1}'.".format(decl.items,
                                                           str(attr)))
+                    elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                        normalized_string = \
+                            str(attr.items[1].string).lower().replace(' ', '')
+                        if normalized_string == "in":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                        elif normalized_string == "out":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
+                        elif normalized_string == "inout":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READWRITE)
                     elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
                         attribute_shape = \
                             self._parse_dimensions(attr, parent.symbol_table)
