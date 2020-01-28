@@ -65,7 +65,7 @@ class RegionTrans(Transformation):
     # populated by sub-class.
     valid_node_types = ()
 
-    def _get_node_list(self, nodes):
+    def get_node_list(self, nodes):
         '''This is a helper function for region based transformation.
         The parameter for any of those transformations is either a single
         node, a schedule, or a list of nodes. This function converts this

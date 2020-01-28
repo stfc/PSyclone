@@ -175,7 +175,7 @@ class PSyDataTrans(RegionTrans):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        node_list = self._get_node_list(nodes)
+        node_list = self.get_node_list(nodes)
 
         # Perform validation checks
         self.validate(node_list, options)
