@@ -57,13 +57,16 @@ def trans(psy):
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    _, _ = extract.apply(schedule.children)
+
+    _, _ = extract.apply(schedule.children, {"create-driver": True,
+                                             "region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
 
-    # Enclose everything in a profiling region
-    newschedule, _ = extract.apply(schedule.children)
+    newschedule, _ = extract.apply(schedule.children,
+                                   {"create-driver": True,
+                                    "region_name": ("main", "update")})
 
     invoke.schedule = newschedule
     newschedule.view()

@@ -10,7 +10,7 @@ LIB_NAME = lib_kernel_data_netcdf.a
 
 KERNELS = init_field_mod.o update_field_mod.o
 EXEC = extract_test
-DRIVER_INIT = driver-init_field_mod-init_field_code
+DRIVER_INIT = driver-main-init
 
 all:	$(EXEC) $(DRIVER_INIT)
 

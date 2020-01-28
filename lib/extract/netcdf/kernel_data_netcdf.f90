@@ -12,22 +12,27 @@ module psy_data_mod
     contains
         procedure :: DeclareScalarInteger, WriteScalarInteger
         procedure :: DeclareScalarReal,    WriteScalarReal
+        procedure :: DeclareScalarDouble,  WriteScalarDouble
         procedure :: DeclareFieldDouble,   WriteFieldDouble
-        procedure :: ReadScalarInteger, ReadScalarReal, ReadFieldDouble
+        procedure :: ReadScalarInteger, ReadScalarReal, ReadScalarDouble
+        procedure :: ReadFieldDouble
         procedure :: PreStart, PreEndDeclaration, PreEnd
         procedure :: PostStart, PostEnd
         procedure :: OpenRead
 
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
                                                  DeclareScalarReal,    &
+                                                 DeclareScalarDouble,  &
                                                  DeclareFieldDouble
 
         generic, public :: ProvideVariable => WriteScalarInteger, &
                                               WriteScalarReal,    &
+                                              WriteScalarDouble,  &
                                               WriteFieldDouble
 
         generic, public :: ReadVariable => ReadScalarInteger, &
                                            ReadScalarReal,    &
+                                           ReadScalarDouble,  &
                                            ReadFieldDouble 
     end type PSyDataType
 
@@ -197,12 +202,45 @@ Contains
     end subroutine ReadScalarReal
 
     ! -------------------------------------------------------------------------
-    subroutine WriteScalarDoublePrecision(name, value)
+    subroutine DeclareScalarDouble(this, name, value)
+        use netcdf
         implicit none
+        class(PSyDataType), intent(inout) :: this
         character(*), intent(in) :: name
         double precision, intent(in) :: value
-    end subroutine WriteScalarDoublePrecision
+        integer :: retval
+        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_DOUBLE,     &
+                                         this%var_id(this%next_var_index)))
+        this%next_var_index = this%next_var_index + 1
+        call CheckLastDeclaration(this)
+    end subroutine DeclareScalarDouble
+
+    ! -------------------------------------------------------------------------
+    subroutine WriteScalarDouble(this, name, value)
+        use netcdf
+        implicit none
+        class(PSyDataType), intent(inout) :: this
+        character(*), intent(in) :: name
+        double precision, intent(in) :: value
+        integer :: retval
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                         value))
+        this%next_var_index = this%next_var_index + 1
+    end subroutine WriteScalarDouble
     
+    ! -------------------------------------------------------------------------
+    subroutine ReadScalarDouble(this, name, value)
+        use netcdf
+        implicit none
+
+        class(PSyDataType), intent(inout) :: this
+        character(*), intent(in) :: name
+        double precision :: value
+        integer :: retval, varid
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+    end subroutine ReadScalarDouble
+
     ! -------------------------------------------------------------------------
     subroutine DeclareFieldDouble(this, name, value, prefix)
         use netcdf

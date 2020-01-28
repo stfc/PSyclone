@@ -74,7 +74,7 @@ class ExtractNode(PSyDataNode):
         # At this stage options is only used in the GOceanExtractNode
         # pylint: disable=unused-argument
         super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent)
+                                          parent=parent, options=options)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 

@@ -61,7 +61,7 @@ class GOceanExtractNode(ExtractNode):
     :type parent: :py:class:`psyclone.psyGen.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param bool options["create_driver"]: If at code creation time a driver \
+    :param bool options["create-driver"]: If at code creation time a driver \
         program should be created. If set, the driver will be created in the \
         current working directory with the name "driver-MODULE-REGION.f90" \
         where MODULE and REGION will be the corresponding values for this \
@@ -71,7 +71,7 @@ class GOceanExtractNode(ExtractNode):
     def __init__(self, ast=None, children=None, parent=None,
                  options=None):
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
-                                                parent=parent)
+                                                parent=parent, options=options)
         if options:
             self._create_driver = options.get("create-driver", False)
         else:
@@ -148,7 +148,18 @@ class GOceanExtractNode(ExtractNode):
         for var_name in all_vars:
             # TODO: we need to identify arrays!!
             # Any variable used needs to be defined.
-            decl = DeclGen(prog, "real", [var_name], kind="8",
+
+            # In case of a derived type, we need to get a 'local'
+            # name (since we don't have the derived type) to be
+            # used to store the values.
+            last_percent = var_name.rfind("%")
+            if last_percent > -1:
+                local_name = var_name[last_percent+1:]
+            else:
+                # No derived type, so we can just use the
+                # variable name directly in the driver
+                local_name = var_name
+            decl = DeclGen(prog, "real", [local_name], kind="8",
                            dimension=":,:", allocatable=True)
             prog.add(decl)
             is_input = var_name in input_list
@@ -158,48 +169,48 @@ class GOceanExtractNode(ExtractNode):
                 # We only need the pre-variable, and we can read
                 # it from the file (and allocate its size)
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}\", {0})"
-                               .format(var_name))
+                               "psy_data%ReadVariable(\"{0}\", {1})"
+                               .format(var_name, local_name))
                 prog.add(call)
             elif is_input:
                 # Now must be input and output:
                 # First read the pre-variable
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}\", {0})"
-                               .format(var_name))
+                               "psy_data%ReadVariable(\"{0}\", {1})"
+                               .format(var_name, local_name))
                 prog.add(call)
                 # Then declare the post variable, and and read its values
                 # (ReadVariable will also allocate it)
-                decl = DeclGen(prog, "real", [var_name+post_suffix],
+                decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}\", {0})"
-                               .format(var_name+post_suffix))
+                               "psy_data%ReadVariable(\"{0}{2}\", {1}{2})"
+                               .format(var_name, local_name, post_suffix))
                 prog.add(call)
             else:
                 # Now the variable is output only. We need to read the
                 # post variable in, and allocate the pre variable with
                 # the same size as the post
-                decl = DeclGen(prog, "real", [var_name+post_suffix],
+                decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}\", {0})"
-                               .format(var_name+post_suffix))
+                               "psy_data%ReadVariable(\"{0}{2}\", {1}{2})"
+                               .format(var_name, local_name, post_suffix))
                 prog.add(call)
-                decl = DeclGen(prog, "real", [var_name], kind="8",
+                decl = DeclGen(prog, "real", [local_name], kind="8",
                                dimension=":,:", allocatable=True)
                 prog.add(decl)
                 alloc = AllocateGen(prog, [var_name,
-                                           "mold={0}".format(var_name +
+                                           "mold={0}".format(local_name +
                                                              post_suffix)])
                 prog.add(alloc)
                 # Initialise the variable with 0, since it might contain
                 # values that are not set at all (halo regions, or a
                 # kernel might not set all values). This way the array
                 # comparison with the post value works as expected
-                assign = AssignGen(prog, var_name, "0.0")
+                assign = AssignGen(prog, local_name, "0.0")
                 prog.add(assign)
 
         # Now add the region that was extracted here:

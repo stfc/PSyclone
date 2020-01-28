@@ -150,6 +150,6 @@ class ExtractTrans(PSyDataTrans):
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
-        # First check constraints on Nodes in the node_list common to
+        # Check constraints on Nodes in the node_list common to
         # all RegionTrans transformations.
         super(ExtractTrans, self).validate(node_list, options)
