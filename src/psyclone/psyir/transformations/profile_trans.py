@@ -69,6 +69,7 @@ class ProfileTrans(RegionTrans):
     >>> newschedule.view()
 
     '''
+    # TODO #655: Refactor this to use PSyDataTrans as base class.
     from psyclone import psyGen, profiler, psyir
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.

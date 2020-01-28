@@ -69,6 +69,7 @@ class PSyDataTrans(RegionTrans):
     '''
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
+    # TODO: #415 Support different classes of PSyData calls.
     valid_node_types = (Node,)
 
     def __str__(self):
