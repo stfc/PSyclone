@@ -120,8 +120,8 @@ class PSyDataTrans(RegionTrans):
                                       "the loop(s) to which it applies!")
 
         if options:
-            name = options.get("region_name", None)
-            if name:
+            if "region_name" in options:
+                name = options["region_name"]
                 # pylint: disable=too-many-boolean-expressions
                 if not isinstance(name, tuple) or not len(name) == 2 or \
                    not name[0] or not isinstance(name[0], str) or \

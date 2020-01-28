@@ -280,5 +280,5 @@ def test_profile_trans_invalid_name(value):
     sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
         _ = profile_trans.apply(node, options={"region_name": value})
-    assert ("User-supplied profile name must be a tuple containing "
+    assert ("User-supplied region name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
