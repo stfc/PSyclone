@@ -2313,7 +2313,7 @@ The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
 Dynamo0.3 API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
-can be found in ``examples/lfirc/eg8`` and an example of asynchronous
+can be found in ``examples/lfric/eg8`` and an example of asynchronous
 halo exchanges can be found in ``examples/lfric/eg11``.
 
 The **Dynamo0p3KernelConstTrans** transformation is only valid for the
