@@ -624,8 +624,9 @@ class Fparser2Reader(object):
                                 "attribute '{1}'.".format(decl.items,
                                                           str(attr)))
                     elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                        (_, intent) = attr.items
                         normalized_string = \
-                            str(attr.items[1].string).lower().replace(' ', '')
+                            intent.string.lower().replace(' ', '')
                         if normalized_string == "in":
                             interface = ArgumentInterface(
                                 ArgumentInterface.Access.READ)
