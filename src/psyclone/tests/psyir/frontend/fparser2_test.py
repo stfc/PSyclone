@@ -588,6 +588,14 @@ def test_process_declarations_intent():
     assert fake_parent.symbol_table.lookup("arg4").interface.access is \
         ArgumentInterface.Access.READWRITE
 
+    reader = FortranStringReader("integer, intent ( invalid ) :: arg5")
+    arg_list.append(Fortran2003.Name("arg5"))
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert "Could not process " in str(err.value)
+    assert "Unexpected intent attribute " in str(err.value)
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_kind_new_param():

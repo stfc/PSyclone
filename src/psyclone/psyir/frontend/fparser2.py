@@ -635,6 +635,11 @@ class Fparser2Reader(object):
                         elif normalized_string == "inout":
                             interface = ArgumentInterface(
                                 ArgumentInterface.Access.READWRITE)
+                        else:
+                            raise InternalError(
+                                "Could not process {0}. Unexpected intent "
+                                "attribute '{1}'.".format(decl.items,
+                                                          str(attr)))
                     elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
                         attribute_shape = \
                             self._parse_dimensions(attr, parent.symbol_table)
