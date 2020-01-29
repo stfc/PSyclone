@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-
+from psyclone.tests.utilities import Compile
 
 @pytest.fixture(scope="function", name="fort_writer")
 def fixture_fort_writer():
@@ -597,10 +597,14 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
 # within previous tests
 
 
-def test_fw_binaryoperator(fort_writer):
+@pytest.mark.parametrize("binary_intrinsic", ["mod", "max", "min",
+                                              "sign"])
+def test_fw_binaryoperator(fort_writer, binary_intrinsic, tmpdir):
     '''Check the FortranWriter class binary_operation method correctly
-    prints out the Fortran representation of an intrinsic. Uses sign
-    as the example.
+    prints out the Fortran representation of an intrinsic. Tests all
+    of the binary operators, apart from sum (as it requires different
+    data types so is tested separately) and matmul ( as it requires
+    its arguments to be arrays).
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -610,14 +614,65 @@ def test_fw_binaryoperator(fort_writer):
         "subroutine tmp(a,n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
-        "    a = sign(1.0,1.0)\n"
+        "    a = {0}(1.0,1.0)\n"
+        "end subroutine tmp\n"
+        "end module test").format(binary_intrinsic)
+    schedule = create_schedule(code, "tmp")
+
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    assert "a={0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_binaryoperator_sum(fort_writer, tmpdir):
+    '''Check the FortranWriter class binary_operation method with the sum
+    operator correctly prints out the Fortran representation of an
+    intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(array,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: array(n)\n"
+        "  integer :: a\n"
+        "    a = sum(array,dim=1)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=SIGN(1.0, 1.0)" in result
+    assert "a=SUM(array, dim = 1)" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_binaryoperator_matmul(fort_writer, tmpdir):
+    '''Check the FortranWriter class binary_operation method with the matmul
+    operator correctly prints out the Fortran representation of an
+    intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,b,c,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(in) :: a(n,n), b(n)\n"
+        "  real, intent(out) :: c(n)\n"
+        "    c = MATMUL(a,b)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    assert "c=MATMUL(a, b)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
@@ -644,7 +699,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
-def test_fw_naryopeator(fort_writer):
+def test_fw_naryopeator(fort_writer, tmpdir):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
 
@@ -664,6 +719,7 @@ def test_fw_naryopeator(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a=MAX(1.0, 1.0, 2.0)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
