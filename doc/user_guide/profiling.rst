@@ -290,16 +290,16 @@ names). For example::
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     # Use the actual psy-layer module and subroutine names.
-    options = {"profile_name": (psy.name, invoke.name)}
+    options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
     # Use own names and repeat for different regions to aggregate profile.
-    options = {"profile_name": ("my_location", "my_region")}
+    options = {"region_name": ("my_location", "my_region")}
     profile_trans.apply(schedule[0].children[1:2], options=options)
     profile_trans.apply(schedule[0].children[5:7], options=options)
 
 .. warning::
 
-   If "profile_name" is misspelt in the options dictionary then the
+   If "region_name" is misspelt in the options dictionary then the
    option will be silently ignored. This is true for all
    options. Issue #613 captures this problem.
    
