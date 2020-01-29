@@ -551,7 +551,6 @@ def test_process_save_attribute_declarations(parser):
     assert "var1" in fake_parent.symbol_table
 
 
-
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_intent():
     '''Test that process_declarations method handles various different

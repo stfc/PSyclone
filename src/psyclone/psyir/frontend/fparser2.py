@@ -530,6 +530,8 @@ class Fparser2Reader(object):
                                  not have the expected structure.
         :raises SymbolError: if a declaration is found for a Symbol that is \
                     already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected \
+                               or invalid fparser or Fortran expression.
         '''
         # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
@@ -608,7 +610,7 @@ class Fparser2Reader(object):
                                                (Fortran2003.Module,
                                                 Fortran2003.Main_Program))):
                                 raise NotImplementedError(
-                                    "Could not process {0}. The 'SAVE' "\
+                                    "Could not process {0}. The 'SAVE' "
                                     "attribute is not yet supported when it is"
                                     " not part of a module, submodule or main_"
                                     "program specification part.".
