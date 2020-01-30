@@ -40,7 +40,7 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.transformations import KernelGlobalsToArguments, \
     TransformationError
 
@@ -90,7 +90,7 @@ def test_globalstoargumentstrans_no_outer_module_import():
 def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
     ''' Check that the transformation rejects kernels with undeclared symbols
     and/or wildcard imports. '''
-    from psyclone.psyir.nodes import Reference
+    from psyclone.psyir.nodes import Node
     trans = KernelGlobalsToArguments()
     path = os.path.join(BASEPATH, "gocean1p0")
     _, invoke_info = parse(os.path.join(
@@ -103,12 +103,13 @@ def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
         trans.apply(kernel)
     assert "contains undeclared symbol" in str(err.value)
     assert "'rdt'" in str(err.value)
-    # Now monkeypatch the check that symbols have been declared in order
-    # to exercise the check on unqualified imports
-    monkeypatch.setattr(Reference, "check_declared", lambda _: None)
     _, invoke_info = parse(os.path.join(
         path, "single_invoke_kern_with_unqualified_use.f90"),
                            api=API)
+    # monkeypatch the check that symbols have been declared in order
+    # to exercise the check on unqualified imports
+    rdt_sym = DataSymbol("rdt", DataType.REAL)
+    monkeypatch.setattr(Node, "find_symbol", lambda _1, _2: rdt_sym)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
@@ -126,7 +127,6 @@ def test_globalstoargumentstrans(monkeypatch):
     invoke and a global variable.'''
     from psyclone.psyGen import Argument
     from psyclone.psyir.backend.fortran import FortranWriter
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     assert trans.name == "KernelGlobalsToArguments"
@@ -205,7 +205,6 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     ''' Check the GlobalsToArguments transformation when the global is
     also a constant value, in this case the argument should be read-only.'''
     from psyclone.psyir.backend.fortran import FortranWriter
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
 
@@ -238,7 +237,6 @@ def test_globalstoargumentstrans_constant(monkeypatch):
 def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
     ''' Check the GlobalsToArguments transformation when the global is
     a type not supported by the GOcean infrastructure raises an Error'''
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
 
@@ -346,7 +344,6 @@ def test_globalstoarguments_noglobals():
 def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     ''' Check the GlobalsToArguments transformation with a symbol name clash
     produces the expected error.'''
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     # Construct a testing InvokeSchedule
@@ -378,7 +375,6 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
 def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
     ''' Check the GlobalsToArguments transformation adds the module and global
     variable names into the NameSpaceManager to prevent clashes'''
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     # Construct a testing InvokeSchedule
@@ -413,7 +409,6 @@ def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
 def test_globalstoargumentstrans_clash_namespace_before(monkeypatch):
     ''' Check the GlobalsToArguments generation will break if the global
     variable name has already been used in the NameSpaceManager'''
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     # Construct a testing InvokeSchedule
