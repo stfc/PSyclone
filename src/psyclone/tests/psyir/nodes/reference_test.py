@@ -195,21 +195,3 @@ def test_array_create_invalid3():
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
-
-
-def test_reference_check_declared():
-    '''Test that the check_declared method in the Reference class raises
-    an exception if the associated symbol does not exist in a symbol
-    table associated with an ancestor node. Note, this exception is
-    only raised if a symbol table exists. If one does not exist then
-    it silently returns (to support the NEMO API which does not have
-    symbol tables see issue #500).
-
-    '''
-    ref = Reference(DataSymbol("rname", DataType.REAL))
-    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
-    _ = KernelSchedule.create("test", SymbolTable(),
-                              [assignment])
-    with pytest.raises(SymbolError) as excinfo:
-        ref.check_declared()
-    assert "Undeclared reference 'rname' found." in str(excinfo.value)
