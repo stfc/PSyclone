@@ -290,6 +290,27 @@ Schedule. As the structure of Directives is under discussion, it was
 decided to raise an exception if the parent node of a CodeBlock is a
 Directive (for the time being).
 
+Reference Node
+==============
+
+The PSyIR Reference Node represents a scalar variable access. It keeps
+a reference to a Symbol which (for all APIs except NEMO) will be
+stored in a symbol table.
+
+.. autoclass:: psyclone.psyir.nodes.Reference
+    :members:
+
+Array Node
+==========
+
+The PSyIR Array Node represents an array access. It keeps a reference
+to a Symbol which (for all APIs except NEMO) will be stored in a
+symbol table and the indices used to access the array. Array Node
+inherits from Reference Node.
+
+.. autoclass:: psyclone.psyir.nodes.Array
+    :members:
+
 Dependence Analysis
 ===================
 
