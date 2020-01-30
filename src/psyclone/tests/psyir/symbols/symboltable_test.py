@@ -157,6 +157,11 @@ def test_imported_symbols():
     imported_symbols = sym_table.imported_symbols(my_mod)
     assert var3 in imported_symbols
     assert var2 in imported_symbols
+    # Passing something that is not a ContainerSymbol is an error
+    with pytest.raises(TypeError) as err:
+        sym_table.imported_symbols(var2)
+    assert "expects a ContainerSymbol but got an object of type" in \
+        str(err.value)
 
 
 def test_remove():
@@ -186,6 +191,11 @@ def test_remove():
     with pytest.raises(KeyError) as err:
         sym_table.lookup("my_mod")
     assert "Could not find 'my_mod'" in str(err.value)
+    # Attempting to remove it a second time is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.remove(my_mod)
+    assert ("Cannot remove Symbol 'my_mod' from symbol table because it does "
+            "not" in str(err.value))
     # Attempt to supply something that is not a Symbol
     with pytest.raises(TypeError) as err:
         sym_table.remove("broken")

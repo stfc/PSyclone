@@ -289,6 +289,11 @@ def test_fw_gen_use(fort_writer):
         _ = fort_writer.gen_use(container2, symbol2)
     assert ("expects a SymbolTable as its second argument but got 'DataSymbol'"
             in str(excinfo.value))
+    # Symbol not in SymbolTable
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(ContainerSymbol("my_mod3"), symbol_table)
+    assert ("the supplied symbol ('my_mod3') is not in the supplied "
+            "SymbolTable" in str(excinfo.value))
     # A different ContainerSymbol with the same name as an entry in the
     # SymbolTable should be picked up
     with pytest.raises(VisitorError) as excinfo:
