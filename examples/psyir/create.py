@@ -61,7 +61,8 @@ ARG1 = DataSymbol(TMP_NAME1, DataType.REAL, interface=ArgumentInterface(
     ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(ARG1)
 TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
-SYMBOL_TABLE.add(DataSymbol(TMP_NAME2, DataType.REAL))
+TMP_SYMBOL = DataSymbol(TMP_NAME2, DataType.REAL)
+SYMBOL_TABLE.add(TMP_SYMBOL)
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
 SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, DataType.INTEGER))
 SYMBOL_TABLE.specify_argument_list([ARG1])
@@ -71,8 +72,8 @@ ZERO = Literal("0.0", DataType.REAL)
 ONE = Literal("1.0", DataType.REAL)
 INT_ZERO = Literal("0", DataType.INTEGER)
 INT_ONE = Literal("1", DataType.INTEGER)
-TMP1 = Reference(TMP_NAME1)
-TMP2 = Reference(TMP_NAME2)
+TMP1 = Reference(ARG1)
+TMP2 = Reference(TMP_SYMBOL)
 
 # Unary Operation
 OPER = UnaryOperation.Operator.SIN

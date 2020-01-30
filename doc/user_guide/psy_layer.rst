@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ InvokeSchedule visualisation
 
 PSyclone supports visualising an InvokeSchedule (or any other PSyIR node)
 in two ways. First the `view()` method outputs textual information about
-the contents of a PSyIR node. If we were to look at the dynamo eg6 example
+the contents of a PSyIR node. If we were to look at the LFRic eg6 example
 we would see the following output:
 ::
 
@@ -188,7 +188,7 @@ should be consulted for valid formats if svg is not required.
 .. note:: The dag method can be called from any node and will
           output the dag for that node and all of its children.
 
-If we were to look at the dynamo eg6 example we would see the
+If we were to look at the LFRic eg6 example we would see the
 following image:
 
 .. image:: dag.png

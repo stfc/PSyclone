@@ -74,6 +74,12 @@
 	SIGN intrinsics into equivalent PSyIR code and uses these in
 	NEMO/eg4.
 
+        25) #662 for #661. Adds PSyIR support for the MATMUL intrinsic
+	and renames the dynamo examples to lfric.
+
+	26) #665 for #603 and #673. Alters the Reference and Array nodes
+	so that they refer to a Symbol instead of just a name.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
@@ -631,7 +637,7 @@ release 1.5.0 3rd October 2017
         3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
 
-	4) #40 and PR #47 Update example dynamo/eg3 to use builtins and to
+	4) #40 and PR #47 Update example lfric/eg3 to use builtins and to
 	merge invokes together as much as possible
 
 	5) #45 and PR #49 Change of kernel metadata names from
@@ -934,7 +940,7 @@ release 1.1.0
 	argument ordering.
 
 	6) #364 OpenMP fix for update 1) (ticket #263). 'ncolour' variable
-	now declared. New dynamo/eg3 example added to demonstrate the use
+	now declared. New lfric/eg3 example added to demonstrate the use
 	of transformation scripts introduced in update 2) (ticket #292).
 
 	7) #361 Minor updates to the kernel-stub generator. Remove spurious
