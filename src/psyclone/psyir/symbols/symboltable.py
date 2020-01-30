@@ -196,23 +196,47 @@ class SymbolTable(object):
         '''
         return key in self._symbols
 
-    def remove(self, symbol):
-        ''' Remove the supplied symbol from the Symbol Table.
+    def imported_symbols(self, csymbol):
+        '''
+        Examines the contents of this symbol table to see which DataSymbols
+        (if any) are imported from the supplied ContainerSymbol.
 
-        :param symbol: the symbol to remove.
-        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param csymbol: the ContainerSymbol to search for imports from.
+        :type csymbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :returns: list of DataSymbols that are imported from the supplied \
+                  ContainerSymbol. If none are found then the list is empty.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied object is not a ContainerSymbol.
+
+        '''
+        if not isinstance(csymbol, ContainerSymbol):
+            raise TypeError(
+                "imported_symbols() expects a ContainerSymbol but got an "
+                "object of type '{0}'".format(type(csymbol).__name__))
+        symbol_list = []
+        for symbol in self.global_datasymbols:
+            if symbol.interface.container_symbol is csymbol:
+                symbol_list.append(symbol)
+        return symbol_list
+
+    def remove(self, symbol):
+        ''' Remove the supplied ContainerSymbol from the Symbol Table.
+
+        :param symbol: the container symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
         :raises KeyError: if the supplied symbol is not in the symbol table.
-        :raises ValueError: if the supplied symbol corresponds to a \
-            ContainerSymbol which is referenced by one or more DataSymbols.
-        :raises TypeError: if the supplied symbol is not a DataSymbol or a \
-            ContainerSymbol.
+        :raises ValueError: if the supplied container symbol is referenced \
+                            by one or more DataSymbols.
+        :raises TypeError: if the supplied symbol is not a ContainerSymbol.
         :raises InternalError: if the supplied symbol is not the same as the \
                                entry with that name in this SymbolTable.
         '''
-        if not isinstance(symbol, Symbol):
-            raise TypeError("remove() expects a Symbol object but got: '{0}'".
-                            format(type(symbol).__name__))
+        if not isinstance(symbol, ContainerSymbol):
+            raise TypeError("remove() expects a ContainerSymbol object but "
+                            "got: '{0}'".format(type(symbol).__name__))
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
@@ -223,26 +247,16 @@ class SymbolTable(object):
                 "The Symbol with name '{0}' in this symbol table is not the "
                 "same Symbol object as the one that has been supplied to the "
                 "remove() method.".format(symbol.name))
-        if isinstance(symbol, DataSymbol):
-            self._symbols.pop(symbol.name)
-            # If this is a global symbol then remove it from the list of
-            # symbols associated with the container from which it is imported
-            if symbol.is_global:
-                symbol.interface.container_symbol.rm_symbol_import(symbol)
-        elif isinstance(symbol, ContainerSymbol):
-            # We can only remove a ContainerSymbol if no DataSymbols are
-            # being imported from it
-            if symbol.imported_symbols:
-                raise ValueError(
-                    "Cannot remove ContainerSymbol '{0}' because symbols "
-                    "{1} are imported from it - remove them first.".format(
-                        symbol.name,
-                        [sym.name for sym in symbol.imported_symbols]))
-            self._symbols.pop(symbol.name)
-        else:
-            raise TypeError("Can only remove Container or Data Symbols but "
-                            "symbol '{0}' is of type '{1}'".format(
-                                symbol.name, type(symbol).__name__))
+        # We can only remove a ContainerSymbol if no DataSymbols are
+        # being imported from it
+        if self.imported_symbols(symbol):
+            raise ValueError(
+                "Cannot remove ContainerSymbol '{0}' because symbols "
+                "{1} are imported from it - remove them first.".format(
+                    symbol.name,
+                    [sym.name for sym in self.imported_symbols(symbol)]))
+        self._symbols.pop(symbol.name)
+
 
     @property
     def argument_list(self):

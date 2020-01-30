@@ -247,11 +247,7 @@ class DataSymbol(Symbol):
     @interface.setter
     def interface(self, value):
         '''
-        Setter for the Interface associated with this DataSymbol. If the
-        symbol is already associated with a Container then that Container's
-        reference to it is removed. If the new interface is global then
-        this symbol is added to the list of those imported from the associated
-        Container.
+        Setter for the Interface associated with this DataSymbol.
 
         :param value: an Interface object describing how the DataSymbol is \
                       accessed by the code.
@@ -264,15 +260,7 @@ class DataSymbol(Symbol):
             raise TypeError("The interface to a DataSymbol must be a "
                             "DataSymbolInterface but got '{0}'".
                             format(type(value).__name__))
-        # If this Symbol already has a global interface then, since we are
-        # about to change it, remove this Symbol from associated Container
-        if isinstance(self._interface, GlobalInterface):
-            self._interface.container_symbol.rm_symbol_import(self)
         self._interface = value
-        # If the new interface is global then update the associated
-        # Container to flag that it imports this symbol
-        if isinstance(value, GlobalInterface):
-            value.container_symbol.add_symbol_import(self)
 
     @property
     def is_constant(self):

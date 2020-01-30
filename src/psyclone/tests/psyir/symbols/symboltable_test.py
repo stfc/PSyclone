@@ -42,7 +42,8 @@ from __future__ import absolute_import
 import re
 import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
+    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    DataType
 from psyclone.errors import InternalError
 
 
@@ -136,11 +137,32 @@ def test_add():
             "'var1'.") in str(error.value)
 
 
+def test_imported_symbols():
+    ''' Test the imported_symbols method. '''
+    sym_table = SymbolTable()
+    my_mod = ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    assert sym_table.imported_symbols(my_mod) == []
+    var1 = DataSymbol("var1", DataType.REAL, interface=LocalInterface())
+    sym_table.add(var1)
+    assert sym_table.imported_symbols(my_mod) == []
+    var2 = DataSymbol("var2", DataType.INTEGER,
+                      interface=GlobalInterface(my_mod))
+    assert sym_table.imported_symbols(my_mod) == []
+    sym_table.add(var2)
+    assert sym_table.imported_symbols(my_mod) == [var2]
+    var3 = DataSymbol("var3", DataType.INTEGER,
+                      interface=GlobalInterface(my_mod))
+    sym_table.add(var3)
+    imported_symbols = sym_table.imported_symbols(my_mod)
+    assert var3 in imported_symbols
+    assert var2 in imported_symbols
+
+
 def test_remove():
     '''Test that the remove method removes symbols from the symbol
     table, but raises appropiate errors when provided with wrong
     parameters. '''
-    from psyclone.psyir.symbols import SymbolError, Symbol
     sym_table = SymbolTable()
 
     # Declare a symbol
@@ -150,24 +172,15 @@ def test_remove():
                              interface=GlobalInterface(my_mod)))
     var1 = sym_table.lookup("var1")
     assert var1
-    assert my_mod.imported_symbols == [var1]
+    assert sym_table.imported_symbols(my_mod) == [var1]
     # We should not be able to remove a Container if it is referenced
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
         sym_table.remove(my_mod)
     assert ("Cannot remove ContainerSymbol 'my_mod' because symbols "
             "['var1'] are imported from it" in str(err.value))
-    # Remove the data symbol
-    sym_table.remove(var1)
-    with pytest.raises(KeyError) as err:
-        sym_table.lookup("var1")
-    assert "Could not find 'var1'" in str(err.value)
-    # It should no longer be listed as being imported from my_mod
-    assert my_mod.imported_symbols == []
-    # Attempting to remove it a second time is an error
-    with pytest.raises(KeyError) as err:
-        sym_table.remove(var1)
-    assert "Cannot remove Symbol 'var1'" in str(err.value)
+    # Change the interface on var1
+    var1.interface = LocalInterface()
     # We should now be able to remove the ContainerSymbol
     sym_table.remove(my_mod)
     with pytest.raises(KeyError) as err:
@@ -176,22 +189,14 @@ def test_remove():
     # Attempt to supply something that is not a Symbol
     with pytest.raises(TypeError) as err:
         sym_table.remove("broken")
-    assert "remove() expects a Symbol object but got: " in str(err.value)
-    # Force an invalid entry into the symbol table
-    class BadSymbol(Symbol):
-        ''' An unsupported class of Symbol. '''
-    bad_apple = BadSymbol("bad_apple")
-    sym_table._symbols["bad_apple"] = bad_apple
-    # Attempting to remove it should trigger an error
-    with pytest.raises(TypeError) as err:
-        sym_table.remove(bad_apple)
-    assert ("Container or Data Symbols but symbol 'bad_apple' is of type "
-            "'BadSymbol'" in str(err.value))
+    assert ("remove() expects a ContainerSymbol object but got: "
+            in str(err.value))
     # Attempting to remove a Symbol that is not in the table but that has
     # the same name as an entry in the table is an error
+    sym_table.add(ContainerSymbol("my_mod"))
     with pytest.raises(InternalError) as err:
-        sym_table.remove(BadSymbol("bad_apple"))
-    assert ("Symbol with name 'bad_apple' in this symbol table is not the "
+        sym_table.remove(ContainerSymbol("my_mod"))
+    assert ("Symbol with name 'my_mod' in this symbol table is not the "
             "same" in str(err.value))
 
 

@@ -82,8 +82,6 @@ def test_containersymbol_initialisation():
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
     assert sym._interface == FortranModuleInterface
-    # Upon creation we have no associated datasymbols
-    assert sym._datasymbols == set()
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
@@ -173,54 +171,12 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
             "'dummy_module'." in str(error.value))
 
 
-def test_containersymbol_importlist():
-    ''' Check the setters and getters for the imported-symbol list. '''
+def test_containersymbol_wildcard_import():
+    ''' Check the setter and getter for the wildcard_import property. '''
     csym = ContainerSymbol("my_mod")
-    with pytest.raises(TypeError) as err:
-        csym.add_symbol_import(csym)
-    assert ("Expected an argument of type DataSymbol but got: "
-            "'ContainerSymbol'" in str(err.value))
-    with pytest.raises(TypeError) as err:
-        csym.add_symbol_import(DataSymbol("var1", DataType.INTEGER,
-                                          interface=LocalInterface()))
-    assert ("imported from a Container must have a GlobalInterface but symbol "
-            "'var1' has a 'LocalInterface'" in str(err.value))
-    assert csym.imported_symbols == []
-    assert not csym.wildcard_import
-    dsym1 = DataSymbol("var1", DataType.INTEGER,
-                       interface=GlobalInterface(csym))
-    # The DataSymbol constructor actually calls add_symbol_import() but we
-    # do it again here to check that it doesn't break anything.
-    csym.add_symbol_import(dsym1)
-    assert csym.imported_symbols == [dsym1]
-    dsym2 = DataSymbol("var2", DataType.REAL, interface=GlobalInterface(csym))
-    csym.add_symbol_import(dsym2)
-    assert dsym2 in csym.imported_symbols
-    # Try adding the same symbol again
-    csym.add_symbol_import(dsym2)
-    assert csym.imported_symbols.count(dsym2) == 1
-    assert len(csym.imported_symbols) == 2
     assert not csym.wildcard_import
     csym.wildcard_import = True
     assert csym.wildcard_import
     with pytest.raises(TypeError) as err:
         csym.wildcard_import = "false"
     assert "wildcard_import must be a bool but got" in str(err.value)
-
-
-def test_containersymbol_rm_import():
-    ''' Check the functionality of the rm_symbol_import method. '''
-    csym = ContainerSymbol("my_mod")
-    with pytest.raises(TypeError) as err:
-        csym.rm_symbol_import("missing")
-    assert ("Expected an argument of type DataSymbol but got: 'str'" in
-            str(err.value))
-    dsym1 = DataSymbol("var1", DataType.REAL)
-    with pytest.raises(KeyError) as err:
-        csym.rm_symbol_import(dsym1)
-    assert ("DataSymbol 'var1' is not imported from Container 'my_mod'" in
-            str(err.value))
-    dsym2 = DataSymbol("var2", DataType.REAL, interface=GlobalInterface(csym))
-    assert csym.imported_symbols == [dsym2]
-    csym.rm_symbol_import(dsym2)
-    assert csym.imported_symbols == []

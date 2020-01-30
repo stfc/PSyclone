@@ -245,20 +245,24 @@ def test_fw_gen_use(fort_writer):
     does not describe a Container.
 
     '''
+    symbol_table = SymbolTable()
     container_symbol = ContainerSymbol("my_module")
+    symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DataType.DEFERRED,
                         interface=GlobalInterface(container_symbol))
-    result = fort_writer.gen_use(container_symbol)
+    symbol_table.add(symbol)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1\n"
 
     container_symbol.wildcard_import = True
-    result = fort_writer.gen_use(container_symbol)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
     assert result == ("use my_module, only : dummy1\n"
                       "use my_module\n")
 
     symbol2 = DataSymbol("dummy2", DataType.DEFERRED,
                          interface=GlobalInterface(container_symbol))
-    result = fort_writer.gen_use(container_symbol)
+    symbol_table.add(symbol2)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
     assert result == ("use my_module, only : dummy1, dummy2\n"
                       "use my_module\n")
 
@@ -267,42 +271,30 @@ def test_fw_gen_use(fort_writer):
     # with an empty 'ONLY' list (which serves to keep the module in scope
     # while not accessing any data from it).
     container2 = ContainerSymbol("my_mod2")
-    result = fort_writer.gen_use(container2)
+    symbol_table.add(container2)
+    result = fort_writer.gen_use(container2, symbol_table)
     assert result == "use my_mod2, only :\n"
     # If we now add a wildcard import of this module then that's all we
     # should get from the backend (as it makes the "only:" redundant)
     container2.wildcard_import = True
-    result = fort_writer.gen_use(container2)
+    result = fort_writer.gen_use(container2, symbol_table)
     assert result == "use my_mod2\n"
-
+    # Wrong type for first argument
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer.gen_use(symbol2)
-    assert ("expects a ContainerSymbol but got 'DataSymbol'"
+        _ = fort_writer.gen_use(symbol2, symbol_table)
+    assert ("expects a ContainerSymbol as its first argument but got "
+            "'DataSymbol'" in str(excinfo.value))
+    # Wrong type for second argument
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(container2, symbol2)
+    assert ("expects a SymbolTable as its second argument but got 'DataSymbol'"
             in str(excinfo.value))
-
-
-def test_fw_gen_use_checks(fort_writer):
-    ''' Tests for the consistency checks within the FortranWriter.gen_use()
-    method. '''
-    from psyclone.psyir.symbols import LocalInterface
-    container = ContainerSymbol("my_module")
-    symbol = DataSymbol("dummy1", DataType.DEFERRED,
-                        interface=GlobalInterface(container))
-    # Make things inconsistent by changing the interface of the symbol
-    symbol._interface = LocalInterface()
-    with pytest.raises(VisitorError) as err:
-        _ = fort_writer.gen_use(container)
-    assert ("Symbol 'dummy1' is marked as being imported from container "
-            "'my_module' but has an interface of 'LocalInterface'"
-            in str(err.value))
-    container2 = ContainerSymbol("my_mod2")
-    # Change the interface of the symbol to point to the wrong container
-    symbol._interface = GlobalInterface(container2)
-    with pytest.raises(VisitorError) as err:
-        _ = fort_writer.gen_use(container)
-    assert ("Container 'my_module' lists symbol 'dummy1' among its imports "
-            "but the global interface of that symbol refers to a different "
-            "container ('my_mod2')" in str(err.value))
+    # A different ContainerSymbol with the same name as an entry in the
+    # SymbolTable should be picked up
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(ContainerSymbol("my_mod2"), symbol_table)
+    assert ("the supplied symbol ('my_mod2') is not the same object as the "
+            "entry" in str(excinfo.value))
 
 
 def test_fw_gen_vardecl(fort_writer):

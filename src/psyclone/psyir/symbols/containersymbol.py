@@ -64,8 +64,6 @@ class ContainerSymbol(Symbol):
         # always assign this interface to all ContainerSymbols, we may want
         # to pass the interface as a parameter when we have more than one.
         self._interface = FortranModuleInterface
-        # Set of data symbols that we know are accessed from this container.
-        self._datasymbols = set()
         # Whether or not there is a wildcard import of all public symbols
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
@@ -89,59 +87,6 @@ class ContainerSymbol(Symbol):
         else:
             string += "not linked>"
         return string
-
-    def add_symbol_import(self, data_symbol):
-        ''' Add the supplied DataSymbol to the list of symbols accessed
-        from this Container.
-
-        :param data_symbol: the DataSymbol to add.
-        :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises TypeError: if the supplied object is not a DataSymbol.
-        :raises TypeError: if the supplied DataSymbol does not have a \
-                           Global interface.
-        '''
-        from psyclone.psyir.symbols.datasymbol import DataSymbol, \
-            GlobalInterface
-        if not isinstance(data_symbol, DataSymbol):
-            raise TypeError("Expected an argument of type DataSymbol but got:"
-                            " '{0}'".format(type(data_symbol).__name__))
-        if not isinstance(data_symbol.interface, GlobalInterface):
-            raise TypeError(
-                "A DataSymbol imported from a Container must have a "
-                "GlobalInterface but symbol '{0}' has a '{1}'".
-                format(data_symbol.name, type(data_symbol.interface).__name__))
-        self._datasymbols.add(data_symbol)
-
-    def rm_symbol_import(self, data_symbol):
-        '''
-        Remove the specified DataSymbol from the list of Symbols imported from
-        this Container.
-
-        :param data_symbol: the DataSymbol to remove.
-        :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises TypeError: if the supplied data_symbol is not a DataSymbol.
-        :raises KeyError: if the supplied data_symbol is not in the list of \
-                          symbols imported from this Container.
-
-        '''
-        from psyclone.psyir.symbols.datasymbol import DataSymbol
-        if not isinstance(data_symbol, DataSymbol):
-            raise TypeError("Expected an argument of type DataSymbol but got:"
-                            " '{0}'".format(type(data_symbol).__name__))
-        if data_symbol not in self._datasymbols:
-            raise KeyError("DataSymbol '{0}' is not imported from Container "
-                           "'{1}'".format(data_symbol.name, self.name))
-        self._datasymbols.remove(data_symbol)
-
-    @property
-    def imported_symbols(self):
-        '''
-        :returns: list of DataSymbols explicitly imported from this Container.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-        '''
-        return list(self._datasymbols)
 
     @property
     def wildcard_import(self):

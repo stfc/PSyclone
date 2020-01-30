@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, DataType
+    ContainerSymbol, DataType, SymbolTable
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -239,51 +239,51 @@ class FortranWriter(PSyIRVisitor):
     generating Fortran).
 
     '''
-    def gen_use(self, symbol):
+    def gen_use(self, symbol, symbol_table):
         ''' Performs consistency checks and then creates and returns the
-        Fortran use statement(s) for this ContainerSymbol. If this symbol
-        has both a wildcard import and explicit imports then two use
-        statements are generated. (This means that when generating Fortran
-        from PSyIR created from Fortran code, we replicate the structure of
-        the original.)
+        Fortran use statement(s) for this ContainerSymbol as required for
+        the supplied symbol table. If this symbol has both a wildcard import
+        and explicit imports then two use statements are generated. (This
+        means that when generating Fortran from PSyIR created from Fortran
+        code, we replicate the structure of the original.)
 
         :param symbol: the container symbol instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :param symbol_table: the symbol table containing this container symbol.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: the Fortran use statement(s) as a string.
         :rtype: str
 
         :raises VisitorError: if the symbol argument is not a ContainerSymbol.
-        :raises VisitorError: if a symbol listed as being imported from the \
-                    supplied container symbol does not have a GlobalInterface.
-        :raises VisitorError: if a symbol listed as being imported from the \
-                    supplied container has a GlobalInterface that references \
-                    a different container.
-        :raises VisitorError: if we fail to find a list of symbols to import \
-                    from the supplied container symbol and it is not marked \
-                    as having a wildcard import.
+        :raises VisitorError: if the symbol_table argument is not a \
+                            SymbolTable.
+        :raises VisitorError: if the supplied symbol is not in the supplied \
+                            SymbolTable.
+        :raises VisitorError: if the supplied symbol has the same name as an \
+                            entry in the SymbolTable but is a different object.
         '''
         if not isinstance(symbol, ContainerSymbol):
-            raise VisitorError("gen_use() expects a ContainerSymbol but got "
-                               "'{0}'".format(type(symbol).__name__))
-        # Construct the list of symbol names for the ONLY clause and perform
-        # consistency checks.
-        only_list = []
-        for dsym in symbol.imported_symbols:
-            if not dsym.is_global:
-                raise VisitorError(
-                    "Symbol '{0}' is marked as being imported from container "
-                    "'{1}' but has an interface of '{2}' rather than the "
-                    "expected Global interface.".format(
-                        dsym.name, symbol.name, type(dsym.interface).__name__))
-            if dsym.interface.container_symbol is not symbol:
-                raise VisitorError(
-                    "Container '{0}' lists symbol '{1}' among its imports but "
-                    "the global interface of that symbol refers to a different"
-                    " container ('{2}').".format(
-                        symbol.name, dsym.name,
-                        dsym.interface.container_symbol.name))
-            only_list.append(dsym.name)
+            raise VisitorError(
+                "gen_use() expects a ContainerSymbol as its first argument "
+                "but got '{0}'".format(type(symbol).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise VisitorError(
+                "gen_use() expects a SymbolTable as its second argument but "
+                "got '{0}'".format(type(symbol_table).__name__))
+        if symbol.name not in symbol_table:
+            raise VisitorError("gen_use() - the supplied symbol ('{0}') is not"
+                               " in the supplied SymbolTable.".format(
+                                   symbol.name))
+        if symbol_table.lookup(symbol.name) is not symbol:
+            raise VisitorError(
+                "gen_use() - the supplied symbol ('{0}') is not the same "
+                "object as the entry with that name in the supplied "
+                "SymbolTable.".format(symbol.name))
+
+        # Construct the list of symbol names for the ONLY clause
+        only_list = [dsym.name for dsym in
+                     symbol_table.imported_symbols(symbol)]
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
@@ -399,7 +399,7 @@ class FortranWriter(PSyIRVisitor):
 
         # 1: Use statements
         for symbol in symbol_table.container_symbols:
-            declarations += self.gen_use(symbol)
+            declarations += self.gen_use(symbol, symbol_table)
 
         # 2: Argument variable declarations
         if symbol_table.argument_datasymbols and not args_allowed:
