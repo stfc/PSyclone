@@ -63,6 +63,34 @@ TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
                          "real": DataType.REAL}
 
 
+def _get_symbol_table(node):
+    '''Find a symbol table associated with an ancestor of Node 'node' (or
+    the node itself). If there is more than one symbol table, then the
+    symbol table closest in ancestory to 'node' is returned. If no
+    symbol table is found then None is returned.
+
+    :param node: a PSyIR Node.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+    :returns: a symbol table associated with node or one of its \
+        ancestors or None if one is not found.
+    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+    :raises TypeError: if the node argument is not a Node.
+
+    '''
+    if not isinstance(node, Node):
+        raise TypeError(
+            "node argument to _get_symbol_table() should be of type Node, but "
+            "found '{0}'.".format(type(node).__name__))
+    current = node
+    while current:
+        if hasattr(current, "symbol_table"):
+            return current.symbol_table
+        current = current.parent
+    return None
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -758,7 +786,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(array_name.string.lower(), parent=assignment)
+                    lhs = Array(symbol, parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
@@ -1499,12 +1527,24 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            symbol_table = _get_symbol_table(parent)
             # Replace the CodeBlocks containing the Subscript_Triplets with
             # the index expressions
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                array.children[posn] = Reference(loop_vars[idx], parent=array)
+                if symbol_table:
+                    symbol = array.find_symbol(loop_vars[idx])
+                else:
+                    # The NEMO API does not generate symbol tables, so
+                    # create a new Symbol. Choose a datatype as we
+                    # don't know what it is. Remove this code when
+                    # issue #500 is addressed.
+                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
+                array.children[posn] = Reference(symbol, parent=array)
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -1607,6 +1647,9 @@ class Fparser2Reader(object):
         all_names = {str(name) for name in name_list}
         # pylint: enable=protected-access
 
+        # find the first symbol table attached to an ancestor
+        symbol_table = _get_symbol_table(parent)
+
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
@@ -1620,6 +1663,9 @@ class Fparser2Reader(object):
                     "Cannot create Loop with variable '{0}' because code "
                     "already contains a symbol with that name.".format(
                         loop_vars[idx-1]))
+            if symbol_table:
+                symbol_table.add(DataSymbol(loop_vars[idx-1],
+                                            DataType.INTEGER))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
@@ -1631,7 +1677,20 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            size_node.addchild(Reference(arrays[0].name, parent=size_node))
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            symbol_table = _get_symbol_table(parent)
+            if symbol_table:
+                symbol = size_node.find_symbol(arrays[0].name)
+            else:
+                # The NEMO API does not generate symbol tables, so
+                # create a new Symbol. Choose a datatype as we
+                # don't know what it is. Remove this code when
+                # issue #500 is addressed.
+                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+
+            size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), DataType.INTEGER,
                                        parent=size_node))
             # Add loop increment
@@ -1902,7 +1961,7 @@ class Fparser2Reader(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation. If the node
+        Transforms an fparser2 Name to the PSyIR representation. If the parent
         is connected to a SymbolTable, it checks the reference has been
         previously declared.
 
@@ -1913,9 +1972,19 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        reference = Reference(node.string, parent)
-        reference.check_declared()
-        return reference
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(node.string)
+        else:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is. Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(node.string, DataType.REAL)
+        return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1954,9 +2023,19 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-
-        array = Array(reference_name, parent)
-        array.check_declared()
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(reference_name)
+        else:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is.  Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(reference_name, DataType.REAL)
+        array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
 

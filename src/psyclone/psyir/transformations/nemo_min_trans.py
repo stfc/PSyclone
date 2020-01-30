@@ -43,6 +43,7 @@ currently create a symbol table, see issue #500. Once this has been
 implemented the transformation can be modified to work for all APIs.
 
 '''
+from __future__ import absolute_import
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
         NemoOperatorTrans
@@ -148,19 +149,21 @@ class NemoMinTrans(NemoOperatorTrans):
         # access to a symbol table (see #500) and don't have the
         # appropriate methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_min")
-        symbol_table.add(DataSymbol(res_var, DataType.REAL))
+        res_var_symbol = DataSymbol(res_var, DataType.REAL)
+        symbol_table.add(res_var_symbol)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
         # comment (associated issues #500 and #658).
         tmp_var = symbol_table.new_symbol_name("tmp_min")
-        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+        tmp_var_symbol = DataSymbol(tmp_var, DataType.REAL)
+        symbol_table.add(tmp_var_symbol)
 
         # Replace operation with a temporary (res_var).
-        oper_parent.children[node.position] = Reference(res_var,
+        oper_parent.children[node.position] = Reference(res_var_symbol,
                                                         parent=oper_parent)
 
         # res_var=A
-        lhs = Reference(res_var)
+        lhs = Reference(res_var_symbol)
         new_assignment = Assignment.create(lhs, node.children[0])
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -169,21 +172,21 @@ class NemoMinTrans(NemoOperatorTrans):
         for expression in node.children[1:]:
 
             # tmp_var=(B or C or ...)
-            lhs = Reference(tmp_var)
+            lhs = Reference(tmp_var_symbol)
             new_assignment = Assignment.create(lhs, expression)
             new_assignment.parent = assignment.parent
             assignment.parent.children.insert(assignment.position,
                                               new_assignment)
 
             # if_condition: tmp_var<res_var
-            lhs = Reference(tmp_var)
-            rhs = Reference(res_var)
+            lhs = Reference(tmp_var_symbol)
+            rhs = Reference(res_var_symbol)
             if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
                                                   lhs, rhs)
 
             # then_body: res_var=tmp_var
-            lhs = Reference(res_var)
-            rhs = Reference(tmp_var)
+            lhs = Reference(res_var_symbol)
+            rhs = Reference(tmp_var_symbol)
             then_body = [Assignment.create(lhs, rhs)]
 
             # if [if_condition] then [then_body]
