@@ -38,12 +38,13 @@ functionality required by transformations of PSyIR intrinsic operators
 (such as MIN and MAX).
 
 '''
-
+from __future__ import absolute_import
 import abc
 import six
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Assignment
-from psyclone.psyir.transformations.transformation_error import TransformationError
+from psyclone.psyir.transformations.transformation_error import \
+    TransformationError
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -132,7 +133,6 @@ class NemoOperatorTrans(Transformation):
     def apply(self, node, options=None):
         '''Abstract method, see psyclone.psyGen.Transformations apply() for
         more details.'''
-        # pylint: disable=no-self-use
         schedule = None
         memento = None
         return schedule, memento

@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataType
+from psyclone.psyir.symbols import SymbolTable, DataType, DataSymbol
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
 from psyclone.configuration import Config
 
@@ -108,7 +108,7 @@ def test_validate():
            "assignment statement, but no such assignment was found."
            in str(excinfo.value))
 
-    reference = Reference("fred")
+    reference = Reference(DataSymbol("fred", DataType.REAL))
     _ = Assignment.create(lhs=reference, rhs=operator)
 
     with pytest.raises(TransformationError) as excinfo:

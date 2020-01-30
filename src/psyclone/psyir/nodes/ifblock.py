@@ -155,7 +155,7 @@ class IfBlock(Node):
                 "if_body argument in create method of IfBlock class should be "
                 "a list of PSyIR Nodes but it is either not a list or "
                 "one of the list's children is not a Node.")
-        if else_body and \
+        if else_body is not None and \
            not (isinstance(if_body, list) and
                 all(isinstance(child, Node) for child in else_body)):
             raise GenerationError(
@@ -168,7 +168,7 @@ class IfBlock(Node):
         for node in if_body:
             node.parent = if_schedule
         if_schedule.children = if_body
-        if else_body:
+        if else_body is not None:
             else_schedule = Schedule(parent=if_stmt)
             for node in else_body:
                 node.parent = else_schedule
