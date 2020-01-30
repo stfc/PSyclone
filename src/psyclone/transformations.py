@@ -3941,7 +3941,7 @@ class KernelGlobalsToArguments(Transformation):
 
             # Check whether we still need the Container symbol from which
             # this global was originally accessed
-            if not container.imported_symbols and \
+            if not kernel.symbol_table.imported_symbols(container) and \
                not container.wildcard_import:
                 kernel.symbol_table.remove(container)
         # TODO #663 - uncomment line below and fix tests.
