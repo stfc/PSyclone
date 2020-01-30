@@ -315,6 +315,6 @@ The generated code is now:
       !
       ! ExtractEnd
 
-Examples in ``examples/dynamo/eg12`` directory demonstrate how to
+Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
 (see :ref:`examples` section for more information).
