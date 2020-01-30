@@ -558,6 +558,8 @@ class Fparser2Reader(object):
                                  not have the expected structure.
         :raises SymbolError: if a declaration is found for a Symbol that is \
                     already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected \
+                               or invalid fparser or Fortran expression.
         '''
         # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
@@ -682,16 +684,7 @@ class Fparser2Reader(object):
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
-                        if "intent(in)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        elif "intent(out)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif "intent(inout)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READWRITE)
-                        elif "save" in normalized_string:
+                        if "save" in normalized_string:
                             # Variables declared with SAVE attribute inside a
                             # module, submodule or main program are implicitly
                             # SAVE'd (see Fortran specification 8.5.16.4) so it
@@ -702,7 +695,7 @@ class Fparser2Reader(object):
                                                (Fortran2003.Module,
                                                 Fortran2003.Main_Program))):
                                 raise NotImplementedError(
-                                    "Could not process {0}. The 'SAVE' "\
+                                    "Could not process {0}. The 'SAVE' "
                                     "attribute is not yet supported when it is"
                                     " not part of a module, submodule or main_"
                                     "program specification part.".
@@ -716,6 +709,24 @@ class Fparser2Reader(object):
                         else:
                             raise NotImplementedError(
                                 "Could not process {0}. Unrecognized "
+                                "attribute '{1}'.".format(decl.items,
+                                                          str(attr)))
+                    elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                        (_, intent) = attr.items
+                        normalized_string = \
+                            intent.string.lower().replace(' ', '')
+                        if normalized_string == "in":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                        elif normalized_string == "out":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
+                        elif normalized_string == "inout":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READWRITE)
+                        else:
+                            raise InternalError(
+                                "Could not process {0}. Unexpected intent "
                                 "attribute '{1}'.".format(decl.items,
                                                           str(attr)))
                     elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
