@@ -752,7 +752,7 @@ def test_region():
 
     '''
     _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
-                           "dynamo0.3", name="invoke_0")
+                           "dynamo0.3", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
     # Just halo exchanges.

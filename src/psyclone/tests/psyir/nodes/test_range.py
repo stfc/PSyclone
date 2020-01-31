@@ -37,7 +37,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyir.nodes import Range, Literal, Reference, Node
 from psyclone.psyGen import InternalError
 
@@ -147,21 +147,21 @@ def test_range_references_props():
     when the start, stop and step are references or expressions. '''
     from psyclone.psyGen import KernelSchedule
     from psyclone.psyir.nodes import BinaryOperation
-    from psyclone.psyir.symbols import DataSymbol
     sched = KernelSchedule("test_sched")
     sym_table = sched.symbol_table
-    sym_table.add(DataSymbol("istart", DataType.INTEGER))
-    sym_table.add(DataSymbol("istop", DataType.INTEGER))
-    sym_table.add(DataSymbol("istep", DataType.INTEGER))
-    # TODO #603 References do not yet refer to entries in the Symbol Table but
-    # they should.
-    startvar = Reference("istart")
-    stopvar = Reference("istop")
+    start_symbol = DataSymbol("istart", DataType.INTEGER)
+    stop_symbol = DataSymbol("istop", DataType.INTEGER)
+    step_symbol = DataSymbol("istep", DataType.INTEGER)
+    sym_table.add(start_symbol)
+    sym_table.add(stop_symbol)
+    sym_table.add(step_symbol)
+    startvar = Reference(start_symbol)
+    stopvar = Reference(stop_symbol)
     start = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                    startvar, Literal("1", DataType.INTEGER))
     stop = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                   stopvar, Literal("1", DataType.INTEGER))
-    step = Reference("istep")
+    step = Reference(step_symbol)
     erange = Range.create(start, stop, step)
     assert erange.start is start
     assert erange.stop is stop
@@ -192,8 +192,9 @@ def test_range_view(capsys):
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", DataType.INTEGER),
                           Literal("10", DataType.INTEGER))
-    array = Array.create("my_array", [Literal("1", DataType.INTEGER),
-                                      erange])
+    array = Array.create(DataSymbol("my_array", DataType.REAL, [10, 10]),
+                         [Literal("1", DataType.INTEGER),
+                          erange])
     array.view()
     stdout, _ = capsys.readouterr()
     arrayref = colored("ArrayReference",

@@ -354,7 +354,7 @@ The generated code is now:
     output parameter. This issue is tracked in #637.
 
 
-Examples in ``examples/dynamo/eg12`` directory demonstrate how to
+Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
 (see :ref:`examples` section for more information).
 

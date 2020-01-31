@@ -43,9 +43,9 @@ import os
 import pytest
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
-from psyclone.psyir.symbols import DataType
-from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyGen import PSyFactory
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, check_links
 from psyclone.parse.algorithm import parse
@@ -191,7 +191,8 @@ def test_loop_create():
     start = Literal("0", DataType.INTEGER)
     stop = Literal("1", DataType.INTEGER)
     step = Literal("1", DataType.INTEGER)
-    child_node = Assignment.create(Reference("tmp"), Reference("i"))
+    child_node = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
+                                   Reference(DataSymbol("i", DataType.REAL)))
     loop = Loop.create("i", start, stop, step, [child_node])
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
@@ -208,7 +209,8 @@ def test_loop_create_invalid():
     '''
     zero = Literal("0", DataType.INTEGER)
     one = Literal("1", DataType.INTEGER)
-    children = [Assignment.create(Reference("x"), one)]
+    children = [Assignment.create(Reference(DataSymbol("x", DataType.INTEGER)),
+                                  one)]
 
     # var_name is not a string.
     with pytest.raises(GenerationError) as excinfo:
