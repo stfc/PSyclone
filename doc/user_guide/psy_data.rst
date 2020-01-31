@@ -33,6 +33,8 @@
 .. -----------------------------------------------------------------------------
 .. Written by J. Henrichs, Bureau of Meteorology
 
+.. highlight:: fortran
+
 .. _psy_data:
 
 PSyData API
@@ -77,7 +79,9 @@ API
 ---
 The callbacks are inserted into the code by the PSyData transformation,
 see :ref:`psy_data_transformation` for details. The following example
-shows the code created by PSyclone::
+shows the code created by PSyclone.
+
+::
 
     USE psy_data_mod, ONLY: PSyDataType
     TYPE(PSyDataType), save :: psy_data
@@ -96,7 +100,7 @@ shows the code created by PSyclone::
       END DO 
     END DO 
     ! End of PSY-layer kernel call
-
+    
     CALL psy_data%PostStart
     CALL psy_data%ProvideVariable("b_fld", b_fld)
     CALL psy_data%PostEnd
@@ -128,7 +132,7 @@ The following code sequence will typically be created:
     some of the calls might not be created. For example, for a performance
     profiling library no variables will be declared or written.
 
-The following sections will describe the API in detail.
+The following sections describe the API in detail.
 
 .. _psy_data_type:
 
@@ -142,7 +146,7 @@ can be used to accumulate data from call to call.
 ``PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)``
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 This function is called first each time the instrumented region is
-executed. It takes 4 parameters (besides the implicit PSyDataType
+executed. It takes 4 parameters (besides the implicit ``PSyDataType``
 instance):
 
 ``module_name``::
@@ -171,8 +175,8 @@ arrays to store variable data.
 +++++++++++++++++++++++++++++++++++++++++
 This function is called for each variable that will be written
 before or after the user instrumented region. If a variable
-is written before and after, the transformations will
-add two called to ``PreDeclareVariable`` (it can be useful to
+is written both before and after the region, the transformations will
+add two calls to ``PreDeclareVariable`` (it can be useful to
 provide a variable using a different name before and after,
 see :ref:`psyke_netcdf`).
 
@@ -251,28 +255,28 @@ that all variables have been provided.
  
 An example of a library using PSyData is included in PSyclone in the
 directory ``.../lib/extract/netcdf``. This library is used to extract
-kernel input- and output-parameter and store them in a NetCDF file.
+kernel input- and output-parameters and store them in a NetCDF file.
 
 .. note::
 
     Note that only the ``PreDataStart`` call takes the module-
     and region-name as parameters. If these names are required
-    by the profiling library in different calls, they must
+    by the PSyData runtime library in different calls, they must
     be stored in the ``PSyData`` object so that they are
     available when required.
 
 .. _psy_data_transformation:
 
-PSyData Transformation and "PSyData-Node"
------------------------------------------
-The base transformation to create the PSyData callbacks is the 
-``PSyData`` transformation:
+PSyData Transformation and ``PSyDataNode``
+-------------------------------------------
+The base transformation to create the PSyData callbacks is
+``PSyDataTrans``:
 
 .. autoclass:: psyclone.psyir.transformations.psy_data_trans.PSyDataTrans
     :members:
 
 It is very similar to the profile transformation and kernel extraction
-transformation. Those transforms insert a special node into the AST,
+transformations. Those transforms insert a special node into the AST,
 which at code creation time will generate the code to give access to
 the data fields. Both profile and kernel extraction
 nodes use ``PSyDataNode`` as a base class, which will create the 
@@ -296,7 +300,7 @@ performance and precision of any measurements, see :ref:`profiling`
 for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
-module to determine which variables are input- and output-parameter,
+module to determine which variables are input- and output-parameters,
 and provides these two lists to the gen() function of its baseclass,
 a ``PSyDataNode`` node. It also uses ``post-var-postfix`` option
 as described above (see also :ref:`psyke_netcdf`).

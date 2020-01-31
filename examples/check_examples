@@ -179,6 +179,21 @@ echo "TODO #323"
 #${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
 cd -
 
+echo "Running gocean/eg5"
+cd gocean/eg5
+${PSYCLONE} -api "gocean1.0" --profile invokes -l \
+            --config ../../../config/psyclone.cfg \
+            -opsy psy.f90 -oalg alg.f90 test.x90
+cd -
+
+echo "Running gocean/eg6"
+cd gocean/eg6
+${PSYCLONE} -nodm -l -api "gocean1.0" \
+            --config ../../../config/psyclone.cfg \
+            -opsy psy.f90 -oalg alg.f90 test.x90
+
+cd -
+
 echo "Running example nemo/eg1"
 cd nemo/eg1
 ./runme_openmp.py

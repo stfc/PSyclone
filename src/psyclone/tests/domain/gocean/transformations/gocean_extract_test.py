@@ -506,14 +506,16 @@ def test_driver_properties(tmpdir):
 
     # Now test the created driver:
     # ----------------------------
-    driver_name = tmpdir.join("driver-kernel_scalar_float-bc_ssh_code.f90")
-    with open(driver_name, "r") as driver_file:
+    driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
+                              "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
+    with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ['REAL(KIND=8), allocatable, dimension(:,:) :: tmask',
                       'INTEGER :: xstop',
-                      'CALL psy_data%OpenRead("kernel_scalar_float", '
-                      '"bc_ssh_code")',
+                      'CALL psy_data%OpenRead(',
+                      '"psy_single_invoke_scalar_float_test", '
+                      '"invoke_0_bc_ssh:bc_ssh_code:r0")',
                       'CALL psy_data%ReadVariable("ssh_fld%grid%subdomain%'
                       'internal%xstop", xstop)',
                       'CALL psy_data%ReadVariable("ssh_fld%grid%tmask", '
