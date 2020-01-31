@@ -123,11 +123,14 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
-# ---------- Datatypes (scalars, fields, operators) ------------------------- #
+# ---------- API datatypes (scalars, fields, operators) --------------------- #
 GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
+
+# ---------- Fortran datatypes ------------------------- #
+VALID_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]

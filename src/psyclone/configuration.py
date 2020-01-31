@@ -750,18 +750,10 @@ class DynConfig(APISpecificConfig):
         super(DynConfig, self).__init__(section)
         # Ref. to parent Config object
         self._config = config
-        # Setting for LFRic datatypes' default precisions
+        # Initialise redundant computation setting
+        self._compute_annexed_dofs = None
+        # Initialise LFRic datatypes' default precisions settings
         self._default_precision = {}
- 
-        try:
-            # Parse setting for redundant computation over annexed dofs
-            self._compute_annexed_dofs = section.getboolean(
-                'COMPUTE_ANNEXED_DOFS')
-        except ValueError as err:
-            raise ConfigurationError(
-                "error while parsing COMPUTE_ANNEXED_DOFS in the [dynamo0.3] "
-                "section of the config file: {0}".format(str(err)),
-                config=self._config)
 
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
@@ -771,14 +763,39 @@ class DynConfig(APISpecificConfig):
             if key == "access_mapping":
                 # Handled in the base class APISpecificConfig
                 pass
-            elif key == "default_precision":   
+            elif key == "compute_annexed_dofs":
+                try:
+                    # Parse setting for redundant computation over annexed dofs
+                    self._compute_annexed_dofs = section.getboolean(
+                        'COMPUTE_ANNEXED_DOFS')
+                except ValueError as err:
+                    raise ConfigurationError(
+                        "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                        "[dynamo0.3] section of the config file: {0}".
+                        format(str(err)), config=self._config)
+            elif key == "default_precision":
                 # Set default precisions from config file
-                self._default_precision = \
-                    self.create_dict_from_string(section[key])
+                all_prec = self.create_dict_from_string(section[key])
+                from psyclone.dynamo0p3 import VALID_DATATYPES as \
+                    dynamo0p3_datatypes
+                for dtype in all_prec:
+                    if dtype not in dynamo0p3_datatypes:
+                        raise ConfigurationError(
+                            "Invalid datatype \"{0}\" found in the "
+                            "\"[dynamo0.3]\" section of the configuration "
+                            "file \"{1}\".".format(dtype, config.filename))
+                    if not all_prec[dtype]:
+                        raise ConfigurationError(
+                            "Did not find default precision for \"{0}\" "
+                            "datatype in the \"[dynamo0.3]\" section of the "
+                            "configuration file \"{1}\"."
+                            .format(dtype, config.filename))
+                self._default_precision = all_prec
             else:
-                raise ConfigurationError("[dynamo0.3] configuration: Invalid key "
-                                         "\"{0}\" found in \"{1}\".".
-                                         format(key, config.filename))               
+                raise ConfigurationError(
+                    "Invalid configuration option \"{0}\" found in the "
+                    "\"[dynamo0.3]\" section of the configuration file "
+                    "\"{1}\".".format(key, config.filename))
 
     @property
     def compute_annexed_dofs(self):
@@ -791,8 +808,6 @@ class DynConfig(APISpecificConfig):
         '''
         return self._compute_annexed_dofs
 
-
-    # ---------------------------------------------------------------------
     @property
     def default_precision(self):
         '''

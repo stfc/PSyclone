@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author I.Kavcic, Met Office
+# Author I. Kavcic, Met Office
 
 '''
 Module containing tests for Dynamo0.3 (LFRic) API configuration handling.
@@ -39,7 +39,7 @@ Module containing tests for Dynamo0.3 (LFRic) API configuration handling.
 
 from __future__ import absolute_import
 
-import os
+import re
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
@@ -57,9 +57,10 @@ REPROD_PAD_SIZE = 8
 COMPUTE_ANNEXED_DOFS = false
 '''
 
+
 def test_anx_dof_not_bool(tmpdir):
-    ''' Check that we raise an error if the default API is not in
-    the list of supported APIs '''
+    ''' Check that we raise an error if the COMPUTE_ANNEXED_DOFS
+    setting is not a Boolean '''
     content = re.sub(r"^COMPUTE_ANNEXED_DOFS = .*$",
                      "COMPUTE_ANNEXED_DOFS = tree",
                      _CONFIG_CONTENT,
@@ -72,5 +73,54 @@ def test_anx_dof_not_bool(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("The API (invalid) is not in the list of "
-                "supported APIs" in str(err.value))
+        assert "error while parsing COMPUTE_ANNEXED_DOFS" in str(err.value)
+        assert "Not a boolean: tree" in str(err.value)
+
+
+def test_invalid_config_key(tmpdir):
+    ''' Check that we raise an error if we supply an invalid
+    configuration option '''
+    content = _CONFIG_CONTENT + "default_species = a: a_def"
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("Invalid configuration option \"default_species\" found "
+                "in the \"[dynamo0.3]\" section " in str(err.value))
+
+
+def test_invalid_default_precision(tmpdir):
+    ''' Check that we raise an error if we supply an invalid
+    datatype or precision in the configuration file '''
+
+    # Test invalid datatype
+    content = _CONFIG_CONTENT + \
+        "default_precision = reality: r_def, integer: i_def, logical: l_def"
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("Invalid datatype \"reality\" found in the "
+                "\"[dynamo0.3]\" section " in str(err.value))
+
+    # Test invalid precision
+    content = _CONFIG_CONTENT + \
+        "default_precision = real: r_def, integer: , logical: l_def"
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("Did not find default precision for \"integer\" datatype "
+                "in the \"[dynamo0.3]\" section " in str(err.value))
