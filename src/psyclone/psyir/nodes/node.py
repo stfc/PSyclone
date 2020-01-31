@@ -39,6 +39,8 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
+from psyclone.psyir.symbols import SymbolError
+from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -57,6 +59,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Extract": "green",
                        "If": "red",
                        "Assignment": "blue",
+                       "Range": "white",
                        "Reference": "yellow",
                        "Operation": "blue",
                        "Literal": "yellow",
@@ -109,6 +112,7 @@ class Node(object):
     :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
+    # pylint: disable=too-many-public-methods
     # Define two class constants: START_DEPTH and START_POSITION
     # START_DEPTH is used to calculate depth of all Nodes in the tree
     # (1 for main Nodes and increasing for their descendants).
@@ -120,7 +124,6 @@ class Node(object):
     valid_annotations = tuple()
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        from psyclone.psyGen import InternalError
         if not children:
             self._children = []
         else:
@@ -139,7 +142,7 @@ class Node(object):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "{0} with unrecognized annotation '{1}', valid "
+                        "{0} with unrecognised annotation '{1}', valid "
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
@@ -256,10 +259,11 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
+        from psyclone.psyGen import GenerationError
         try:
             import graphviz as gv
         except ImportError:
-            # todo: add a warning to a log file here
+            # TODO: #11 add a warning to a log file here
             # silently return if graphviz bindings are not installed
             return
         try:
@@ -279,6 +283,8 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
+        # pylint: disable=too-many-branches
+        from psyclone.psyir.nodes.loop import Loop
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
@@ -340,7 +346,7 @@ class Node(object):
         # now call any children so they can add their information to
         # the graph
         if isinstance(self, Loop):
-            # In case of a loop only loop at the body (the other part
+            # In case of a loop only look at the body (the other part
             # of the tree contain start, stop, step values):
             self.loop_body.dag_gen(graph)
         else:
@@ -458,7 +464,6 @@ class Node(object):
         :rtype: bool
 
         '''
-        from psyclone.psyGen import GenerationError
         # First perform correctness checks
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
@@ -503,18 +508,16 @@ class Node(object):
             if not prev_dep_node:
                 # There are no backward dependencies so the move is valid
                 return True
-            else:
-                # return (is the dependent node before the new_position?)
-                return prev_dep_node.position < new_position
-        else:  # new_node.position > self.position
-            # the new_node is after this node in the schedule
-            next_dep_node = self.forward_dependence()
-            if not next_dep_node:
-                # There are no forward dependencies so the move is valid
-                return True
-            else:
-                # return (is the dependent node after the new_position?)
-                return next_dep_node.position > new_position
+            # return (is the dependent node before the new_position?)
+            return prev_dep_node.position < new_position
+        # new_node.position > self.position
+        # the new_node is after this node in the schedule
+        next_dep_node = self.forward_dependence()
+        if not next_dep_node:
+            # There are no forward dependencies so the move is valid
+            return True
+        # return (is the dependent node after the new_position?)
+        return next_dep_node.position > new_position
 
     @property
     def depth(self):
@@ -615,7 +618,6 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found
         '''
         from psyclone.psyir.nodes import Schedule
-        from psyclone.psyGen import InternalError
         if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
@@ -635,7 +637,6 @@ class Node(object):
         :rtype: int
         :raises InternalError: if the starting position is < 0
         '''
-        from psyclone.psyGen import InternalError
         if position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
@@ -888,3 +889,80 @@ class Node(object):
         else:
             sched.ast = ast
         return sched
+
+    def find_symbol(self, name, scope_limit=None):
+        '''Returns the symbol with the name 'name' from a symbol table
+        associated with this node or one of its ancestors.  Raises an
+        exception if the symbol is not found. The scope_limit variable
+        further limits the symbol table search so that the search
+        through ancestor nodes stops when the scope_limit node is
+        reached i.e. ancestors of the scope_limit node are not
+        searched.
+
+        :param str name: the name of the symbol.
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
+
+        :returns: the matching symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises SymbolError: if no matching symbol is found.
+
+        '''
+        if scope_limit:
+
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}' provided to the "
+                    "find_symbol method, is not of type `Node`."
+                    "".format(str(scope_limit)))
+
+            # Check that the scope_limit Node is an ancestor of this
+            # Reference Node and raise an exception if not.
+            mynode = self.parent
+            while mynode is not None:
+                if mynode is scope_limit:
+                    # The scope_limit node is an ancestor of the
+                    # supplied node.
+                    break
+                mynode = mynode.parent
+            else:
+                # The scope_limit node is not an ancestor of the
+                # supplied node so raise an exception.
+                raise ValueError(
+                    "The scope_limit node '{0}' provided to the find_symbol "
+                    "method, is not an ancestor of this node '{1}'."
+                    "".format(str(scope_limit), str(self)))
+        test_node = self
+        # Iterate over ancestor Nodes of this Node.
+        while test_node:
+            # For simplicity, test every Node for the existence of a
+            # SymbolTable (rather than checking for the particular
+            # Node types which we know to have SymbolTables).
+            if hasattr(test_node, 'symbol_table'):
+                # This Node does have a SymbolTable.
+                symbol_table = test_node.symbol_table
+                try:
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
+                    return symbol_table.lookup(name)
+                except KeyError:
+                    # The Reference Node does not match any Symbols in
+                    # this SymbolTable.
+                    pass
+            if test_node is scope_limit:
+                # The ancestor scope Node has been reached and nothing
+                # has matched so raise an exception.
+                break
+            # Move on to the next ancestor.
+            test_node = test_node.parent
+        # All requested Nodes have been checked but there has been no
+        # match so raise an exception.
+        raise SymbolError(
+            "No Symbol found for name '{0}'.".format(name))

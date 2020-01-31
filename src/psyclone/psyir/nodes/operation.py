@@ -43,6 +43,7 @@ import abc
 from enum import Enum
 import six
 from psyclone.psyir.nodes.node import Node
+from psyclone.errors import GenerationError
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -158,7 +159,6 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of UnaryOperation class "
@@ -197,10 +197,56 @@ class BinaryOperation(Operation):
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Query Operators
-        'SIZE',
+        'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
         'MATMUL'
         ])
+    '''Arithmetic operators:
+
+    .. function:: POW(arg0, arg1) -> type(arg0)
+
+       :returns: `arg0` raised to the power of `arg1`.
+
+    Query operators:
+
+    .. function:: SIZE(array, index) -> int
+
+       :returns: the size of the `index` dimension of `array`.
+
+    .. function:: LBOUND(array, index) -> int
+
+       :returns: the value of the lower bound of the `index` dimension of \
+                 `array`.
+
+    .. function:: UBOUND(array, index) -> int
+
+       :returns: the value of the upper bound of the `index` dimension of \
+                 `array`.
+
+    Matrix and Vector Operators:
+
+    .. function:: MATMUL(array1, array2) -> array
+
+       :returns: the result of performing a matrix multiply with a \
+                 matrix (`array1`) and a matrix or a vector
+                 (`array2`).
+
+    .. note:: `array1` must be a 2D array. `array2` may be a 2D array
+        or a 1D array (vector). The size of the second dimension of
+        `array1` must be the same as the first dimension of
+        `array1`. If `array2` is 2D then the resultant array will be
+        2D with the size of its first dimension being the same as the
+        first dimension of `array1` and the size of its second
+        dimension being the same as second dimension of `array2`. If
+        `array2` is a vector then the resultant array is a vector with
+        the its size being the size of the first dimension of
+        `array1`.
+
+    .. note:: The type of data in `array1` and `array2` must be the
+        same and the resultant data will also have the same
+        type. Currently only `DataType.REAL` is supported.
+
+    '''
 
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(operator, parent)
@@ -252,7 +298,6 @@ class BinaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of BinaryOperation class "
@@ -312,7 +357,6 @@ class NaryOperation(Operation):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError
         if not isinstance(oper, NaryOperation.Operator):
             raise GenerationError(
                 "oper argument in create method of NaryOperation class "

@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import SymbolTable
+from psyclone.errors import GenerationError
 
 
 class Container(Node):
@@ -67,7 +68,7 @@ class Container(Node):
         :param str name: the name of the Container.
         :param symbol_table: the symbol table associated with this \
             Container.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or KernelSchedules.
         :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
@@ -80,7 +81,7 @@ class Container(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import GenerationError, KernelSchedule
+        from psyclone.psyGen import KernelSchedule
         if not isinstance(name, str):
             raise GenerationError(
                 "name argument in create method of Container class "

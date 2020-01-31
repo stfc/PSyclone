@@ -45,8 +45,8 @@ from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, Array, Node
-from psyclone.psyGen import Directive, KernelSchedule, InternalError, \
-    GenerationError
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType
@@ -61,6 +61,34 @@ TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
                          "character": DataType.CHARACTER,
                          "logical": DataType.BOOLEAN,
                          "real": DataType.REAL}
+
+
+def _get_symbol_table(node):
+    '''Find a symbol table associated with an ancestor of Node 'node' (or
+    the node itself). If there is more than one symbol table, then the
+    symbol table closest in ancestory to 'node' is returned. If no
+    symbol table is found then None is returned.
+
+    :param node: a PSyIR Node.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+    :returns: a symbol table associated with node or one of its \
+        ancestors or None if one is not found.
+    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+    :raises TypeError: if the node argument is not a Node.
+
+    '''
+    if not isinstance(node, Node):
+        raise TypeError(
+            "node argument to _get_symbol_table() should be of type Node, but "
+            "found '{0}'.".format(type(node).__name__))
+    current = node
+    while current:
+        if hasattr(current, "symbol_table"):
+            return current.symbol_table
+        current = current.parent
+    return None
 
 
 class Fparser2Reader(object):
@@ -111,6 +139,8 @@ class Fparser2Reader(object):
         ('sign', BinaryOperation.Operator.SIGN),
         ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
+        ('lbound', BinaryOperation.Operator.LBOUND),
+        ('ubound', BinaryOperation.Operator.UBOUND),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
         ('mod', BinaryOperation.Operator.REM),
@@ -528,6 +558,8 @@ class Fparser2Reader(object):
                                  not have the expected structure.
         :raises SymbolError: if a declaration is found for a Symbol that is \
                     already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected \
+                               or invalid fparser or Fortran expression.
         '''
         # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
@@ -595,15 +627,23 @@ class Fparser2Reader(object):
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
-                        if "intent(in)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        elif "intent(out)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif "intent(inout)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READWRITE)
+                        if "save" in normalized_string:
+                            # Variables declared with SAVE attribute inside a
+                            # module, submodule or main program are implicitly
+                            # SAVE'd (see Fortran specification 8.5.16.4) so it
+                            # is valid to ignore the attribute in these
+                            # situations.
+                            if not (decl.parent and
+                                    isinstance(decl.parent.parent,
+                                               (Fortran2003.Module,
+                                                Fortran2003.Main_Program))):
+                                raise NotImplementedError(
+                                    "Could not process {0}. The 'SAVE' "
+                                    "attribute is not yet supported when it is"
+                                    " not part of a module, submodule or main_"
+                                    "program specification part.".
+                                    format(decl.items))
+
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
@@ -612,6 +652,24 @@ class Fparser2Reader(object):
                         else:
                             raise NotImplementedError(
                                 "Could not process {0}. Unrecognized "
+                                "attribute '{1}'.".format(decl.items,
+                                                          str(attr)))
+                    elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                        (_, intent) = attr.items
+                        normalized_string = \
+                            intent.string.lower().replace(' ', '')
+                        if normalized_string == "in":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                        elif normalized_string == "out":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
+                        elif normalized_string == "inout":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READWRITE)
+                        else:
+                            raise InternalError(
+                                "Could not process {0}. Unexpected intent "
                                 "attribute '{1}'.".format(decl.items,
                                                           str(attr)))
                     elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
@@ -739,7 +797,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(array_name.string.lower(), parent=assignment)
+                    lhs = Array(symbol, parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
@@ -1480,12 +1538,24 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            symbol_table = _get_symbol_table(parent)
             # Replace the CodeBlocks containing the Subscript_Triplets with
             # the index expressions
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                array.children[posn] = Reference(loop_vars[idx], parent=array)
+                if symbol_table:
+                    symbol = array.find_symbol(loop_vars[idx])
+                else:
+                    # The NEMO API does not generate symbol tables, so
+                    # create a new Symbol. Choose a datatype as we
+                    # don't know what it is. Remove this code when
+                    # issue #500 is addressed.
+                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
+                array.children[posn] = Reference(symbol, parent=array)
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -1588,6 +1658,9 @@ class Fparser2Reader(object):
         all_names = {str(name) for name in name_list}
         # pylint: enable=protected-access
 
+        # find the first symbol table attached to an ancestor
+        symbol_table = _get_symbol_table(parent)
+
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
@@ -1601,6 +1674,9 @@ class Fparser2Reader(object):
                     "Cannot create Loop with variable '{0}' because code "
                     "already contains a symbol with that name.".format(
                         loop_vars[idx-1]))
+            if symbol_table:
+                symbol_table.add(DataSymbol(loop_vars[idx-1],
+                                            DataType.INTEGER))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
@@ -1612,7 +1688,20 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            size_node.addchild(Reference(arrays[0].name, parent=size_node))
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            symbol_table = _get_symbol_table(parent)
+            if symbol_table:
+                symbol = size_node.find_symbol(arrays[0].name)
+            else:
+                # The NEMO API does not generate symbol tables, so
+                # create a new Symbol. Choose a datatype as we
+                # don't know what it is. Remove this code when
+                # issue #500 is addressed.
+                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+
+            size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), DataType.INTEGER,
                                        parent=size_node))
             # Add loop increment
@@ -1883,7 +1972,7 @@ class Fparser2Reader(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation. If the node
+        Transforms an fparser2 Name to the PSyIR representation. If the parent
         is connected to a SymbolTable, it checks the reference has been
         previously declared.
 
@@ -1894,9 +1983,19 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        reference = Reference(node.string, parent)
-        reference.check_declared()
-        return reference
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(node.string)
+        else:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is. Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(node.string, DataType.REAL)
+        return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1935,9 +2034,19 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-
-        array = Array(reference_name, parent)
-        array.check_declared()
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(reference_name)
+        else:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is.  Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(reference_name, DataType.REAL)
+        array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
 

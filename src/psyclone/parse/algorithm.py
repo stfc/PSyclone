@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 # Section 1: parse the algorithm file
 

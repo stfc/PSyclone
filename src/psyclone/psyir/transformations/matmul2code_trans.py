@@ -111,98 +111,58 @@ class Matmul2CodeTrans(Transformation):
         assignment = node.ancestor(Assignment)
 
         matrix = node.children[0]
+        matrix_symbol = matrix.symbol
+        # TODO: does this assume the bound is a symbol????
+        matrix_bound = matrix_symbol.shape[0]
+        # TODO: Check shape[1] should be the same as vector_bound?
+
         vector = node.children[1]
-        # Find nearest ancestor symbol table (#issue xxx will address this)
+        vector_symbol=vector.symbol
+        # TODO: does this assume the bound is a symbol????
+        vector_bound = vector_symbol.shape[0]
+
+        result_symbol = node.parent.lhs.symbol
+
+        # TODO: Find nearest ancestor symbol table (is there an issue for this?)
         current = node
         while current and not hasattr(current, "symbol_table"):
             current=current.parent
         symbol_table = current.symbol_table
-        # find vectors symbol
-        vector_symbol=symbol_table.lookup(vector.name)
-        # find the array bounds of the vector
-        vector_bound = vector_symbol.shape[0].name
 
-        # find matrix's symbol
-        matrix_symbol = symbol_table.lookup(matrix.name)
-        matrix_bound = matrix_symbol.shape[0].name
-        # note shape[1] should be the same as vector_bound
+        i_loop_name = symbol_table.new_symbol_name("i")
+        i_loop_symbol = DataSymbol(i_loop_name, DataType.INTEGER)
+        symbol_table.add(i_loop_symbol)
+        j_loop_name = symbol_table.new_symbol_name("j")
+        j_loop_symbol = DataSymbol(j_loop_name, DataType.INTEGER)
+        symbol_table.add(j_loop_symbol)
 
-        result_name = node.parent.lhs.name
-        # Warning: name can be unicode which causes Array.create to fail.
-        result = Array.create(str(result_name), [Reference("i")])
-        # Warning: name can be unicode which causes Array.create to fail.
-        vector_array_reference = Array.create(str(vector.name), [Reference("j")])
-        # Third dimension is a hack as we don't yet support ":" so the first 2 dims are in a code block. So it should be children[2]!!
-        matrix_array_reference = Array.create(str(matrix.name), [Reference("i"), Reference("j"), matrix.children[1]])
-        multiply = BinaryOperation.create(BinaryOperation.Operator.MUL, matrix_array_reference, vector_array_reference)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, result, multiply)
+        result = Array.create(result_symbol, [Reference(i_loop_symbol)])
+        vector_array_reference = Array.create(
+            vector.symbol, [Reference(j_loop_symbol)])
+        # TODO: Third dimension is a hack as we don't yet support ":"
+        # so the first 2 dims are in a code block. So it should be
+        # children[2]!!
+        matrix_array_reference = Array.create(
+            matrix.symbol, [Reference(i_loop_symbol), Reference(j_loop_symbol),
+            matrix.children[1]])
+        multiply = BinaryOperation.create(
+            BinaryOperation.Operator.MUL, matrix_array_reference,
+            vector_array_reference)
+        rhs = BinaryOperation.create(
+            BinaryOperation.Operator.ADD, result, multiply)
         assign = Assignment.create(result, rhs)
-        jloop = Loop.create("j", Literal("1", DataType.INTEGER),
-                            Reference(vector_bound), Literal("1", DataType.INTEGER),
-                            [assign])
+        jloop = Loop.create(
+            j_loop_name, Literal("1", DataType.INTEGER),
+            Reference(vector_bound), Literal("1", DataType.INTEGER), [assign])
         assign = Assignment.create(result, Literal("0.0", DataType.REAL))
-        iloop = Loop.create("i", Literal("1", DataType.INTEGER),
-                            Reference(matrix_bound), Literal("1", DataType.INTEGER),
-                            [assign, jloop])
+        iloop = Loop.create(
+            i_loop_name, Literal("1", DataType.INTEGER),
+            Reference(matrix_bound), Literal("1", DataType.INTEGER),
+            [assign, jloop])
+        # TODO: HACK finding parents
         iloop.parent = node.parent.parent
         node.parent.parent.children.insert(node.parent.position, iloop)
         # remove original matmul
         node.parent.parent.children.remove(node.parent)
-        from psyclone.psyir.backend.fortran import FortranWriter
-        fortran_writer = FortranWriter()
-        code = fortran_writer(schedule)
-        print (code)
-        exit(1)
-
-        # Create a temporary result variable. There is an assumption
-        # here that the MIN Operator returns a PSyIR real type. This
-        # might not be what is wanted (e.g. the args might PSyIR
-        # integers), or there may be errors (arguments are of
-        # different types) but this can't be checked as we don't have
-        # access to a symbol table (see #500) and don't have the
-        # appropriate methods to query nodes (see #658).
-        res_var = symbol_table.new_symbol_name("res_min")
-        symbol_table.add(DataSymbol(res_var, DataType.REAL))
-        # Create a temporary variable. Again there is an
-        # assumption here about the datatype - please see previous
-        # comment (associated issues #500 and #658).
-        tmp_var = symbol_table.new_symbol_name("tmp_min")
-        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
-
-        # Replace operation with a temporary (res_var).
-        oper_parent.children[node.position] = Reference(res_var,
-                                                        parent=oper_parent)
-
-        # res_var=A
-        lhs = Reference(res_var)
-        new_assignment = Assignment.create(lhs, node.children[0])
-        new_assignment.parent = assignment.parent
-        assignment.parent.children.insert(assignment.position, new_assignment)
-
-        # For each of the remaining min arguments (B,C...)
-        for expression in node.children[1:]:
-
-            # tmp_var=(B or C or ...)
-            lhs = Reference(tmp_var)
-            new_assignment = Assignment.create(lhs, expression)
-            new_assignment.parent = assignment.parent
-            assignment.parent.children.insert(assignment.position,
-                                              new_assignment)
-
-            # if_condition: tmp_var<res_var
-            lhs = Reference(tmp_var)
-            rhs = Reference(res_var)
-            if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
-                                                  lhs, rhs)
-
-            # then_body: res_var=tmp_var
-            lhs = Reference(res_var)
-            rhs = Reference(tmp_var)
-            then_body = [Assignment.create(lhs, rhs)]
-
-            # if [if_condition] then [then_body]
-            if_stmt = IfBlock.create(if_condition, then_body)
-            if_stmt.parent = assignment.parent
-            assignment.parent.children.insert(assignment.position, if_stmt)
 
         return schedule, memento

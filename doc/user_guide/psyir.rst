@@ -93,7 +93,7 @@ PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
 Kernel-layer classes. Additionally, the ``Schedule`` class is further
 subclassed into a kernel-layer ``KernelSchedule``. In addition to
 ``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
-``IfBlock``, ``CodeBlock``, ``Assignment``, ``Reference``,
+``IfBlock``, ``CodeBlock``, ``Assignment``, ``Range``, ``Reference``,
 ``Operation``, ``Literal``, ``Return`` and ``Container``. The
 ``Reference`` class is further subclassed into ``Array`` and the
 ``Operation`` class is further subclassed into ``UnaryOperation``,
@@ -230,7 +230,7 @@ PSyIR symbol names can be specified by a user. For example::
    > symbol_table = SymbolTable()
    > data = DataSymbol(var_name, DataType.REAL)
    > symbol_table.add(data)
-   > reference = Reference(var_name)
+   > reference = Reference(data)
 
 However, the ``SymbolTable`` ``add()`` method will raise an exception if a
 user tries to add a symbol with the same name as a symbol already existing
@@ -262,7 +262,7 @@ As the root name (``psyir_tmp`` in the example above) is specified in
 PSyclone's config file it can be set to whatever the user wants.
 
 .. note:: The particular format used to create a unique name is the
-  responsibility of the SymbolTable class and is may change in the
+  responsibility of the SymbolTable class and may change in the
   future.
 
 A user might want to create a name that has some meaning in the
@@ -300,7 +300,7 @@ together. For example::
     > ...
     > assignment = Assignment()
     > literal = Literal("0.0")
-    > reference = Reference(var_name)
+    > reference = Reference(symbol)
     > literal.parent = assignment
     > reference.parent = assignment
     > assignment.children = [reference, literal]
@@ -317,7 +317,7 @@ above example then becomes::
 
     > ...
     > literal = Literal("0.0")
-    > reference = Reference(var_name)
+    > reference = Reference(symbol)
     > assignment = Assignment.create(reference, literal)
 
 A more complete example of using this approach can be found in the

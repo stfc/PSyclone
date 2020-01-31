@@ -45,7 +45,8 @@ import pytest
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import InternalError, NameSpace
+from psyclone.psyGen import NameSpace
+from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
@@ -753,7 +754,7 @@ def test_region():
 
     '''
     _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
-                           "dynamo0.3", name="invoke_0")
+                           "dynamo0.3", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
     # Just halo exchanges.

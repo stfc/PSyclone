@@ -5,7 +5,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Code modifications Copyright (c) 2019, Science and Technology Facilities Council
+! Code modifications Copyright (c) 2019-2020, Science and Technology Facilities
+! Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +38,8 @@
 
 ! Code extracted from the tra_adv benchmark, with a SIGN intrinsic
 ! replaced with equivalent code and the resultant expression
-! simplified.
+! simplified. Literals have also had the Fortran double precision
+! specification (e.g. 0.d0) removed.
 program test_ifs
 
   integer, parameter :: jpi=10, jpj=10, jpk=10
@@ -50,9 +52,9 @@ program test_ifs
         DO ji = 2, jpi
            tmpx = zwx(ji,jj,jk) * zwx(ji-1,jj,jk)
            if (tmpx .ge. 0.0d0) then
-              zslpx(ji,jj,jk) = 0.5d0 * ( zwx(ji,jj,jk) + zwx(ji-1,jj,jk) )
+              zslpx(ji,jj,jk) = 0.5 * ( zwx(ji,jj,jk) + zwx(ji-1,jj,jk) )
            else
-              zslpx(ji,jj,jk) = 0.0d0
+              zslpx(ji,jj,jk) = 0.0
            end if
         END DO
      END DO

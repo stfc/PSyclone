@@ -42,8 +42,8 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
     Return, Assignment
-from psyclone.psyir.symbols import DataType
-from psyclone.psyGen import InternalError, GenerationError
+from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
@@ -79,14 +79,9 @@ def test_ifblock_view_indices(capsys):
     colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
     colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
     colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
-
-    ifblock = IfBlock()
-    ref1 = Reference('condition1', parent=ifblock)
-    ifblock.addchild(ref1)
-    sch = Schedule(parent=ifblock)
-    ifblock.addchild(sch)
-    ret = Return(parent=sch)
-    sch.addchild(ret)
+    condition = Reference(DataSymbol('condition1', DataType.REAL))
+    then_content = [Return()]
+    ifblock = IfBlock.create(condition, then_content)
     ifblock.view()
     output, _ = capsys.readouterr()
     # Check that we only prepend child indices where it makes sense
@@ -98,13 +93,9 @@ def test_ifblock_view_indices(capsys):
 def test_ifblock_can_be_printed():
     '''Test that an IfBlock instance can always be printed (i.e. is
     initialised fully)'''
-    ifblock = IfBlock()
-    ref1 = Reference('condition1', parent=ifblock)
-    ifblock.addchild(ref1)
-    sch = Schedule(parent=ifblock)
-    ifblock.addchild(sch)
-    ret = Return(parent=sch)
-    sch.addchild(ret)
+    condition = Reference(DataSymbol('condition1', DataType.BOOLEAN))
+    then_content = [Return()]
+    ifblock = IfBlock.create(condition, then_content)
 
     assert "If[]\n" in str(ifblock)
     assert "condition1" in str(ifblock)  # Test condition is printed
@@ -115,13 +106,14 @@ def test_ifblock_properties():
     '''Test that an IfBlock node properties can be retrieved'''
     ifblock = IfBlock()
 
-    # Condition can't be retrieved before is added as a child.
+    # Condition can't be retrieved before it is added as a child.
     with pytest.raises(InternalError) as err:
         _ = ifblock.condition
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 0." in str(err.value))
 
-    ref1 = Reference('condition1', parent=ifblock)
+    ref1 = Reference(DataSymbol('condition1', DataType.BOOLEAN),
+                     parent=ifblock)
     ifblock.addchild(ref1)
 
     # If_body can't be retrieved before is added as a child.
@@ -156,9 +148,9 @@ def test_ifblock_create():
     '''
     # Without an else clause.
     if_condition = Literal('true', DataType.BOOLEAN)
-    if_body = [Assignment.create(Reference("tmp"),
+    if_body = [Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
                                  Literal("0.0", DataType.REAL)),
-               Assignment.create(Reference("tmp2"),
+               Assignment.create(Reference(DataSymbol("tmp2", DataType.REAL)),
                                  Literal("1.0", DataType.REAL))]
     ifblock = IfBlock.create(if_condition, if_body)
     if_schedule = ifblock.children[1]
@@ -172,9 +164,11 @@ def test_ifblock_create():
                       "end if\n")
 
     # With an else clause.
-    else_body = [Assignment.create(Reference("tmp"),
+    else_body = [Assignment.create(Reference(DataSymbol("tmp",
+                                                        DataType.REAL)),
                                    Literal("1.0", DataType.REAL)),
-                 Assignment.create(Reference("tmp2"),
+                 Assignment.create(Reference(DataSymbol("tmp2",
+                                                        DataType.REAL)),
                                    Literal("0.0", DataType.REAL))]
     ifblock = IfBlock.create(if_condition, if_body, else_body)
     if_schedule = ifblock.children[1]
@@ -200,9 +194,9 @@ def test_ifblock_create_invalid():
 
     '''
     if_condition = Literal('true', DataType.BOOLEAN)
-    if_body = [Assignment.create(Reference("tmp"),
+    if_body = [Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
                                  Literal("0.0", DataType.REAL)),
-               Assignment.create(Reference("tmp2"),
+               Assignment.create(Reference(DataSymbol("tmp2", DataType.REAL)),
                                  Literal("1.0", DataType.REAL))]
 
     # if_condition not a Node.
@@ -211,8 +205,9 @@ def test_ifblock_create_invalid():
     assert ("if_condition argument in create method of IfBlock class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
-    # One of more if body not a Node.
-    if_body_err = [Assignment.create(Reference("tmp"),
+    # One or more if body not a Node.
+    if_body_err = [Assignment.create(Reference(DataSymbol("tmp",
+                                                          DataType.REAL)),
                                      Literal("0.0", DataType.REAL)),
                    "invalid"]
     with pytest.raises(GenerationError) as excinfo:
@@ -229,7 +224,8 @@ def test_ifblock_create_invalid():
             "list's children is not a Node.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
-    else_body_err = [Assignment.create(Reference("tmp"),
+    else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
+                                                            DataType.REAL)),
                                        Literal("1.0", DataType.REAL)),
                      "invalid"]
     with pytest.raises(GenerationError) as excinfo:
