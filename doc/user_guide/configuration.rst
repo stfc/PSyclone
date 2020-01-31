@@ -164,6 +164,9 @@ COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
                         exchanges. See :ref:`annexed_dofs` in the Developers'
                         guide.
+
+default_precision       Captures the default precisions (kinds) for `real`,
+                        `integer` and `logical` datatypes in LFRic.
 ======================= =======================================================
 
 ``gocean1.0`` Section

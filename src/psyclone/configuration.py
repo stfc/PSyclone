@@ -748,8 +748,13 @@ class DynConfig(APISpecificConfig):
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
         super(DynConfig, self).__init__(section)
-        self._config = config  # Ref. to parent Config object
+        # Ref. to parent Config object
+        self._config = config
+        # Setting for LFRic datatypes' default precisions
+        self._default_precision = {}
+ 
         try:
+            # Parse setting for redundant computation over annexed dofs
             self._compute_annexed_dofs = section.getboolean(
                 'COMPUTE_ANNEXED_DOFS')
         except ValueError as err:
@@ -758,16 +763,45 @@ class DynConfig(APISpecificConfig):
                 "section of the config file: {0}".format(str(err)),
                 config=self._config)
 
+        for key in section.keys():
+            # Do not handle any keys from the DEFAULT section
+            # since they are handled by Config(), not this class.
+            if key in config.get_default_keys():
+                continue
+            if key == "access_mapping":
+                # Handled in the base class APISpecificConfig
+                pass
+            elif key == "default_precision":   
+                # Set default precisions from config file
+                self._default_precision = \
+                    self.create_dict_from_string(section[key])
+            else:
+                raise ConfigurationError("[dynamo0.3] configuration: Invalid key "
+                                         "\"{0}\" found in \"{1}\".".
+                                         format(key, config.filename))               
+
     @property
     def compute_annexed_dofs(self):
         '''
         Getter for whether or not we perform redundant computation over
         annexed dofs.
         :returns: True if we are to do redundant computation
-        :rtype: False
+        :rtype: Boolean
 
         '''
         return self._compute_annexed_dofs
+
+
+    # ---------------------------------------------------------------------
+    @property
+    def default_precision(self):
+        '''
+        Getter for default precision (kind) for real, integer and logical
+        datatypes in LFRic.
+        :returns: The default precisions for main datatypes in LFRic.
+        :rtype: Dictionary of strings
+        '''
+        return self._default_precision
 
 
 # =============================================================================
