@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,10 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    CodedKern, Arguments, KernelArgument, Literal, Schedule
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    CodedKern, Arguments, KernelArgument
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -259,7 +260,7 @@ class GOLoop(Loop):
 
         if self.field_space == "every":
             from psyclone.f2pygen import DeclGen
-            from psyclone.psyGen import BinaryOperation, Reference
+            from psyclone.psyir.nodes import BinaryOperation, Reference
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
@@ -274,8 +275,9 @@ class GOLoop(Loop):
                 index = "2"
             self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
                                              parent=self)
-            self.stop_expr.addchild(Reference(self.field_name,
-                                              parent=self.stop_expr))
+            self.stop_expr.addchild(
+                Reference(DataSymbol(self.field_name, DataType.INTEGER),
+                          parent=self.stop_expr))
             self.stop_expr.addchild(Literal(index, DataType.INTEGER,
                                             parent=self.stop_expr))
 

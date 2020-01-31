@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -155,8 +155,8 @@ def test_parallel_repeat_update(parser):
     # Generate the code in order to trigger the update of the fparser2 tree
     _ = str(psy.gen)
     # Store the content of a part of the fparser2 parse tree
-    orig_content = accdir._ast._parent.content[:]
+    orig_content = accdir._ast.parent.content[:]
     # Call update() a second time and then check that nothing has changed
     accdir.update()
     for idx, item in enumerate(orig_content):
-        assert item is accdir._ast._parent.content[idx]
+        assert item is accdir._ast.parent.content[idx]

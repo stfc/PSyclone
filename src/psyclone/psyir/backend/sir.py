@@ -41,7 +41,7 @@ gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyGen import Reference, BinaryOperation, Literal, \
+from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
     Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyir.symbols import DataType
@@ -61,7 +61,7 @@ def gen_stencil(node):
     stencil access.
 
     :param node: an array access.
-    :type node: :py:class:`psyclone.psyGen.Array`
+    :type node: :py:class:`psyclone.psyir.nodes.Array`
 
     :returns: the SIR stencil access format for the array access.
     :rtype: str
@@ -143,7 +143,7 @@ class SIRWriter(PSyIRVisitor):
         unsupported node is found.
 
         :param node: an unsupported PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyGen.Node`
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -309,7 +309,7 @@ class SIRWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a BinaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -356,7 +356,7 @@ class SIRWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -384,7 +384,7 @@ class SIRWriter(PSyIRVisitor):
         tree.
 
         :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.Array`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -404,7 +404,7 @@ class SIRWriter(PSyIRVisitor):
         tree.
 
         :param node: a Literal PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Literal`
+        :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -426,7 +426,7 @@ class SIRWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a UnaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -467,7 +467,7 @@ class SIRWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: an IfBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.IfBlock`
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :returns: SIR Python code.
         :rtype: str
@@ -487,7 +487,7 @@ class SIRWriter(PSyIRVisitor):
         else:
             else_part = "None"
 
-        return ("{0}make_if_stmt({1}, {2}, {3})\n"
+        return ("{0}make_if_stmt({1}, {2}, {3}),\n"
                 "".format(self._nindent, cond_part, then_part, else_part))
 
     def schedule_node(self, node):
@@ -500,7 +500,7 @@ class SIRWriter(PSyIRVisitor):
         agregated result.
 
         :param node: a Schedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :returns: the SIR Python code.
         :rtype: str

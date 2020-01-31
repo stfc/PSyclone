@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.psyGen import Literal, Loop, Node, Reference, Schedule
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.transformations import ACCParallelTrans
@@ -80,7 +80,7 @@ def test_accenterdata_internalerr(monkeypatch):
     error if the validate method fails to throw out an invalid type of
     Schedule. '''
     from psyclone.transformations import ACCEnterDataTrans
-    from psyclone.psyGen import InternalError
+    from psyclone.errors import InternalError
     acct = ACCEnterDataTrans()
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
@@ -106,19 +106,12 @@ def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of
     an If statement or to include both the if- and else-clauses in a region
     (without their parent). '''
-    from psyclone.psyGen import IfBlock
+    from psyclone.psyir.nodes import IfBlock
     acct = ACCParallelTrans()
     # Construct a valid IfBlock
-    ifblock = IfBlock()
-    # Condition
-    ref1 = Reference('condition1', parent=ifblock)
-    ifblock.addchild(ref1)
-    # If-body
-    sch = Schedule(parent=ifblock)
-    ifblock.addchild(sch)
-    # Else-body
-    sch2 = Schedule(parent=ifblock)
-    ifblock.addchild(sch2)
+    condition = Reference(DataSymbol('condition', DataType.BOOLEAN))
+    ifblock = IfBlock.create(condition, [], [])
+
     # Attempt to put all of the children of the IfBlock into a region. This
     # is an error because the first child is the conditional part of the
     # IfBlock.
@@ -134,7 +127,7 @@ def test_ifblock_children_region():
 
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
-    from psyclone.psyGen import Return
+    from psyclone.psyir.nodes import Return
     from psyclone.transformations import LoopFuseTrans
     sch = Schedule()
     loop1 = Loop(variable_name="i", parent=sch)

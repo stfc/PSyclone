@@ -38,12 +38,13 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.containersymbols file '''
 
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError
 from psyclone.psyir.symbols.containersymbol import ContainerSymbolInterface, \
     FortranModuleInterface
-from psyclone.psyGen import Container
+from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
 
 

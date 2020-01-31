@@ -39,7 +39,7 @@
 from __future__ import print_function
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyGen import Node
+from psyclone.psyir.nodes import Node
 
 
 def test_psyirvisitor_defaults():
@@ -245,7 +245,7 @@ def test_psyirvisitor_visit_return_node():
     Python keyword.
 
     '''
-    from psyclone.psyGen import Return
+    from psyclone.psyir.nodes import Return
     return_node = Return()
     test_visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:

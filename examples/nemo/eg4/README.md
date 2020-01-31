@@ -1,12 +1,52 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford, STFC Daresbury Lab
+
 # PSyclone NEMO Example 4 - SIR
 
-**Authors:** R. W. Ford, STFC Daresbury Lab
+The SIR and its Dawn back-end include three simple (Python Interface)
+examples. In this directory these three examples are provided in
+Fortran and PSyclone scripts are provided which translate the Fortran
+code back into SIR (DAWN Python interface code), which can then be run
+through the Dawn back end.
 
-The SIR and its Dawn back-end come with three examples which create
-SIR using its Python Interface.
-
-The PSyclone SIR back end translates PSyIR to SIR and prints out the
-required calls to the Dawn Python interface.
+We are also working towards supporting the translation of the NEMO
+Dwarf (being implemented in the ESCAPE2 project) from Fortran to SIR
+(DAWN Python interface code). There are two tests associated with
+this. The first tests the generation of SIR if statements and the
+second tests the translation of Fortran intrinsics into direct code
+(as the SIR does not support intrinsics).
 
 ## PSyclone SIR generation
 
@@ -17,15 +57,25 @@ through PSyclone they should produce the same (or equivalent) SIR as
 is in the examples. This then validates that the translation works
 correctly.
 
-An additional example (`if_example.f90`) extracted from a tracer
-advection benchmark (which itself was extracted from the NEMO code
-base) tests the ability of PSyclone and Dawn to deal with IF
-statements.
+Two additional examples (`if_example.f90` and `intrinsic_example.f90`)
+both extracted from a tracer advection benchmark (which itself was
+extracted from the NEMO code base and will form the basis of the NEMO
+Dwarf benchmark) tests the ability of PSyclone to a) translate if
+statements to SIR and b) translate Fortran `min`, `abs` and `sign`
+intrinsics to equivalent PSyIR code before translating to SIR (as SIR
+does not support intrinsics).
 
-To test this, run:
+
+To test any Fortran example (except the intrinsic example), run:
 
 ```sh
 > psyclone -s ./sir_trans.py -api nemo <filename> -opsy /dev/null
+```
+
+To test the `intrinsic` example run:
+
+```sh
+> psyclone -s ./sir_trans_intrinsics.py -api nemo intrinsic_example.f90 -opsy /dev/null
 ```
 
 ## Building Dawn
@@ -80,41 +130,3 @@ To build Dawn with Python support:
 6. Loops must be triply nested.
 7. Loops must be perfectly nested (no computation between different
    loop levels).
-
-## Licence
-
------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2019, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
------------------------------------------------------------------------------

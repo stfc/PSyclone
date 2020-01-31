@@ -38,7 +38,8 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import TransInfo, InternalError, GenerationError
+from psyclone.psyGen import TransInfo
+from psyclone.errors import InternalError, GenerationError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
 
