@@ -243,3 +243,13 @@ class Array(Reference):
             # The last entry in all_accesses is the one added above
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
+
+    @property
+    def datatype(self):
+        '''
+        :returns: returns the datatype of the symbol associated with \
+        this Reference object.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        return self.symbol.datatype

@@ -175,6 +175,40 @@ class UnaryOperation(Operation):
         unary_op.children = [child]
         return unary_op
 
+    def validate(self):
+        '''Check that the supplied argument is supported by the operator.'''
+        arg_datatype = self.children[0].datatype
+        valid_real = MINUS, PLUS, SQRT, EXP, LOG, LOG10, COS, SIN, TAN, ACOS, ASIN, ATAN, ABS, CEIL, INT
+        INTEGER = MINUS, PLUS, ABS, REAL
+        LOGICAL = NOT
+        if arg_datatype == REAL and self.operator in valid_real:
+            return
+        if arg_datatype == INTEGER and self.operator in valid_integer:
+            return
+        if arg_datatype == LOGICAL and self.operator in valid_logical:
+            return
+        raise Exception("Unsupported datatype '{0}' for operator '{1}'."
+                        "".format(arg_datyatype, self.operator.name))
+
+    def datatype(self):
+        '''Returns the datatype returned by the unary operators. Unless this
+        is a casting operator (INT or REAL) or the CEIL function
+        (which returns an integer) then the datatype is the same as
+        the datatype of the operator's argument.
+
+        :returns: returns the datatype associated with this node.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        if self.operator == UnaryOperator.REAL:
+            return DataType.REAL
+        elif self.operator == UnaryOperator.INT:
+            return DataType.INTEGER
+        elif self.operator == UnaryOperator.CEIL:
+            return DataType.INTEGER
+        arg = self.children[0]
+        return arg.datatype
+
 
 class BinaryOperation(Operation):
     '''
@@ -316,6 +350,21 @@ class BinaryOperation(Operation):
         binary_op.children = [lhs, rhs]
         return binary_op
 
+    def datatype(self):
+        '''Returns the datatype returned by this binary operator.  The
+        datatype of the returned value(s) is the same as the datatype
+        of the first argument for all of the supported operators,
+        apart from EQ, NE, GT, LT, GE and LE which return boolean.
+
+        :returns: returns the datatype associated with this node.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        if self.operator in ['EQ', 'NE', 'GT', 'LT', 'GE', 'LE']:
+            return BinaryOperator.BOOLEAN
+        arg = self.children[0]
+        return arg.datatype
+
 
 class NaryOperation(Operation):
     '''
@@ -379,3 +428,15 @@ class NaryOperation(Operation):
             child.parent = nary_op
         nary_op.children = children
         return nary_op
+
+    def datatype(self):
+        '''Returns the datatype returned by this nary operator.  The
+        datatype of the returned value(s) is the same as the datatype
+        of the first argument for all of the supported operators.
+
+        :returns: returns the datatype associated with this node.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        arg = self.children[0]
+        return arg.datatype
