@@ -31,44 +31,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford
 # -----------------------------------------------------------------------------
 
-''' PSyIR nodes package module '''
+'''This module contains the datanode abstract node class.'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.ranges import Range
+import six
+import abc
+from psyclone.psyir.nodes import Node
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'DataNode']
+
+@six.add_metaclass(abc.ABCMeta)
+class DataNode(Node):
+    '''A DataNode is a Node which returns Data. As such it must have a
+    datatype and dimension property.
+
+    '''
+    @property
+    @abc.abstractmethod
+    def datatype(self):
+        '''
+        :returns: returns the datatype of the symbol associated with \
+        this Reference object.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+
+    @property
+    @abc.abstractmethod
+    def dimension(self):
+        ''' xxx '''
+        

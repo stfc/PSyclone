@@ -39,13 +39,13 @@
 ''' This module contains the implementation of the Reference and Array
 nodes.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes import DataNode, Node
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.errors import GenerationError
 
 
-class Reference(Node):
+class Reference(DataNode):
     '''
     Node representing a Reference Expression.
 
