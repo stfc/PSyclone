@@ -147,6 +147,21 @@ class Reference(Node):
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(self.name))
 
+    @property
+    def datatype(self):
+        '''
+        :returns: returns the datatype of the symbol associated with \
+        this Reference object.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        return self.symbol.datatype
+
+    @property
+    def dimension(self):
+        ''' xxx '''
+        return 0
+
 
 class Array(Reference):
     '''
@@ -245,11 +260,6 @@ class Array(Reference):
             var_info.all_accesses[-1].indices = list_indices
 
     @property
-    def datatype(self):
-        '''
-        :returns: returns the datatype of the symbol associated with \
-        this Reference object.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
-
-        '''
-        return self.symbol.datatype
+    def dimension(self):
+        ''' xxx '''
+        return len(children)

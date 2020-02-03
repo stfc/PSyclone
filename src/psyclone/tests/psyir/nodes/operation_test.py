@@ -145,10 +145,10 @@ def test_unaryoperation_initialization():
     ''' Check the initialization method of the UnaryOperation class works
     as expected.'''
 
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(GenerationError) as err:
         _ = UnaryOperation("not an operator")
-    assert "UnaryOperation operator argument must be of type " \
-           "UnaryOperation.Operator but found" in str(err.value)
+    assert ("the operator in the UnaryOperation class should be a PSyIR "
+            "UnaryOperation Operator, but found 'str'" in str(err.value))
     uop = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert uop._operator is UnaryOperation.Operator.MINUS
 
@@ -206,15 +206,16 @@ def test_unaryoperation_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create("invalid",
                                   Reference(DataSymbol("tmp", DataType.REAL)))
-    assert ("oper argument in create method of UnaryOperation class should "
-            "be a PSyIR UnaryOperation Operator but found 'str'."
+    assert ("the operator in the UnaryOperation class should "
+            "be a PSyIR UnaryOperation Operator, but found 'str'."
             in str(excinfo.value))
 
     # child not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
-    assert ("child argument in create method of UnaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("the child argument in the UnaryOperation class should "
+            "be an Operation, Reference or Literal PSyIR Node, but found "
+            "'str'.") in str(excinfo.value)
 
 
 def test_naryoperation_node_str():

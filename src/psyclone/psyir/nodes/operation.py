@@ -138,8 +138,18 @@ class UnaryOperation(Operation):
         # Casting Operators
         'REAL', 'INT'
         ])
+    # Specify the datatypes that the intrinsics can operate on.
+    valid_real = [
+        Operator.MINUS, Operator.PLUS, Operator.SQRT, Operator.EXP,
+        Operator.LOG, Operator.LOG10, Operator.COS, Operator.SIN,
+        Operator.TAN, Operator.ACOS, Operator.ASIN, Operator.ATAN,
+        Operator.ABS, Operator.CEIL, Operator.INT]
+    valid_integer = [
+        Operator.MINUS, Operator.PLUS, Operator.ABS, Operator.REAL]
+    valid_logical = [Operator.NOT]
 
     def __init__(self, operation, parent=None):
+        UnaryOperation._check_operation(operation)
         super(UnaryOperation, self).__init__(operation, parent)
         self._text_name = "UnaryOperation"
 
@@ -159,39 +169,72 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(oper, UnaryOperation.Operator):
-            raise GenerationError(
-                "oper argument in create method of UnaryOperation class "
-                "should be a PSyIR UnaryOperation Operator but found '{0}'."
-                "".format(type(oper).__name__))
-        if not isinstance(child, Node):
-            raise GenerationError(
-                "child argument in create method of UnaryOperation class "
-                "should be a PSyIR Node but found '{0}'."
-                "".format(type(child).__name__))
-
+        # The oper argument is checked by UnaryOperation.__init__()
         unary_op = UnaryOperation(oper)
+        
+        # Check the child element
+        unary_op._check_child(child)
+        
         child.parent = unary_op
         unary_op.children = [child]
         return unary_op
 
-    def validate(self):
-        '''Check that the supplied argument is supported by the operator.'''
-        arg_datatype = self.children[0].datatype
-        valid_real = MINUS, PLUS, SQRT, EXP, LOG, LOG10, COS, SIN, TAN, ACOS, ASIN, ATAN, ABS, CEIL, INT
-        INTEGER = MINUS, PLUS, ABS, REAL
-        LOGICAL = NOT
-        if arg_datatype == REAL and self.operator in valid_real:
-            return
-        if arg_datatype == INTEGER and self.operator in valid_integer:
-            return
-        if arg_datatype == LOGICAL and self.operator in valid_logical:
-            return
-        raise Exception("Unsupported datatype '{0}' for operator '{1}'."
-                        "".format(arg_datyatype, self.operator.name))
+    @staticmethod
+    def _check_operation(operator):
+        '''check that the supplied operation is valid.
 
+        :raises GenerationError: if the oper argument is not a valid \
+            UnaryOperation operator.
+
+        '''
+        if not isinstance(operator, UnaryOperation.Operator):
+            raise GenerationError(
+                "the operator in the UnaryOperation class should be a "
+                "PSyIR UnaryOperation Operator, but found '{0}'."
+                "".format(type(operator).__name__))
+
+    def _check_child(self, child):
+        '''Check that the supplied child is valid.
+
+        :raises GenerationError: if the child argument is not valid for ...
+
+        '''
+        # Check the node type is valid.
+        from psyclone.psyir.nodes import Reference, Literal
+        if not isinstance(child, (Operation, Reference, Literal)):
+            raise GenerationError(
+                "the child argument in the UnaryOperation class should be an "
+                "Operation, Reference or Literal PSyIR Node, but found '{0}'."
+                "".format(type(child).__name__))
+
+        # Only scalar values are supported
+        # TODO: check whether what is returned is an array
+        if child.dimension > 0:
+            raise GenerationError(
+                "Operator '{0}' only supports scalars but argument has '{1}' "
+                "dimension(s)".format(self.operator.name, child.dimension))
+        
+        # Check the datatype of the node is valid.
+        child_datatype = child.datatype
+
+        # Check that the datatype of this argument is valid for this
+        # object's operator.
+        from psyclone.psyir.symbols import DataType
+        if child_datatype == DataType.REAL and \
+           self.operator in UnaryOperation.valid_real:
+            return
+        elif child_datatype == DataType.INTEGER and \
+             self.operator in UnaryOperation.valid_integer:
+            return
+        elif child_datatype == DataType.BOOLEAN and \
+             self.operator in UnaryOperation.valid_logical:
+            return
+        raise GenerationError("Unsupported datatype '{0}' for operator '{1}'."
+                              "".format(str(child_datatype), self.operator.name))
+
+    @property
     def datatype(self):
-        '''Returns the datatype returned by the unary operators. Unless this
+        '''Returns the datatype returned by the unary operator. Unless this
         is a casting operator (INT or REAL) or the CEIL function
         (which returns an integer) then the datatype is the same as
         the datatype of the operator's argument.
@@ -208,6 +251,12 @@ class UnaryOperation(Operation):
             return DataType.INTEGER
         arg = self.children[0]
         return arg.datatype
+
+    @property
+    def dimension(self):
+        ''' Returns the dimension of the data returned by the unary
+        operator. All unary operators return scalars. '''
+        return 0
 
 
 class BinaryOperation(Operation):
@@ -350,6 +399,7 @@ class BinaryOperation(Operation):
         binary_op.children = [lhs, rhs]
         return binary_op
 
+    @property
     def datatype(self):
         '''Returns the datatype returned by this binary operator.  The
         datatype of the returned value(s) is the same as the datatype
@@ -365,6 +415,16 @@ class BinaryOperation(Operation):
         arg = self.children[0]
         return arg.datatype
 
+    @property
+    def dimension(self):
+        ''' Returns the dimension of the data returned by the binary
+        operator. All binary operators return scalars apart from matmul '''
+        if self.operator == BinaryOperation.Operator.MATMUL:
+            # The dimension of the result is the same as the dimension
+            # of the second argument (as matmul can be matrix-matrix
+            # or matrix-vector).
+            return self.children[1].dimension
+        return 0
 
 class NaryOperation(Operation):
     '''

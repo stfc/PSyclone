@@ -85,7 +85,8 @@ def example_psyir(create_expression):
     var1 = Reference(arg1)
     var2 = Reference(local)
     oper = UnaryOperation.Operator.ABS
-    operation = UnaryOperation.create(oper, create_expression(var1))
+    expression = create_expression(var1)
+    operation = UnaryOperation.create(oper, expression)
     assign = Assignment.create(var2, operation)
     _ = KernelSchedule.create("abs_example", symbol_table, [assign])
     return operation

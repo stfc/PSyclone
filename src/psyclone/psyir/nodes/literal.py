@@ -101,6 +101,11 @@ class Literal(Node):
         return self._datatype
 
     @property
+    def dimension(self):
+        ''' xxx '''
+        return 0
+
+    @property
     def value(self):
         '''
         :returns: String representing the literal value.
