@@ -39,7 +39,8 @@ F90 ?= gfortran
 
 DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
 
-F90FLAGS ?= $$(nc-config --fflags) -I$(DL_DIR)
+F90FLAGS ?= 
+F90FLAGS += $$(nc-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 default: $(LIB_NAME)

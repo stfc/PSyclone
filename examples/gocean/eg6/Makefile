@@ -44,15 +44,16 @@ all:	$(EXEC) $(DRIVER_INIT)
 
 test:	$(DRIVER_INIT)
 
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o init_field_mod.o \
+$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
 				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $^ -o $(DRIVER_INIT)            \
+	$(F90) $(KERNELS) $(DRIVER_INIT).o main.o \
+	-o $(DRIVER_INIT)            \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	$$(nc-config --flibs)
 
 
 $(EXEC):	$(KERNELS) alg.o psy.o $(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $^ -o $(EXEC)                   \
+	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	-L $(DL_DIR) -l_fd                     \
 	$$(nc-config --flibs)

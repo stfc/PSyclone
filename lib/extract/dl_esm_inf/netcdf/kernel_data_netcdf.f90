@@ -108,7 +108,7 @@ Contains
     !! @param[in] retval The return value from a NetCDF operation.
     !! Returns the return value.
     function CheckError(retval) 
-        use netcdf
+        use netcdf, only: nf90_noerr, nf90_strerror
         implicit none
         integer :: CheckError
         integer, intent(in) :: retval

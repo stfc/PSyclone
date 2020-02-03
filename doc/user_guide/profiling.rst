@@ -429,6 +429,8 @@ For the `dynamo` and `gocean` api's,
     END MODULE container
 
 
+.. _profiling_third_party_tools:
+
 Interface to Third Party Profiling Tools 
 ----------------------------------------
 PSyclone comes with wrapper libraries to support usage of
@@ -446,15 +448,23 @@ that can be set in order to find third party profiling tools.
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
-module. The four profiling calls described
-in the section about the ProfilingAPI_ must be implemented,
+module. The four PSyData calls described
+in :ref:`ProfilingAPI` must be implemented,
 and an opaque, user-defined type ``PSyData`` needs to be 
 provided in the module.
 
-The examples in the lib/profiling directory show various ways
+The examples in the ````lib/profiling directory show various ways
 in which the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
 an index used by the profiling tool in ``PSyData``, or 
 by storing pointers to the profiling data to be able to 
 print all results in a ProfileFinalise() subroutine.
 
+Most libraries in ``lib/profiling`` need to be linked in
+with the corresponding 3rd party profiling tool. The
+exception is the template library (``lib/profiling.template``)
+which is a
+stand-alone dummy implementation that will just print
+out the name of the module and region called before and
+after each instrumented region. It is used e.g. in
+``examples/gocean/eg5`` to create an executable example.

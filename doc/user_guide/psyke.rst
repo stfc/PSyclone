@@ -363,8 +363,10 @@ apply code extraction by utilising PSyclone transformation scripts
 NetCDF Extraction Example
 -------------------------
 PSyclone comes with an example NetCDF based extraction library in
-``lib/extract/netcdf``. This library implements the full PSyData API
-for use with the GOcean 1.0 dl_esm_inf infrastructure library.
+``lib/extract/dl_esm_inf/netcdf``
+(https://github.com/stfc/PSyclone/tree/master/lib/extract/dl_esm_inf/netcdf).
+This library implements the full PSyData
+API for use with the GOcean 1.0 dl_esm_inf infrastructure library.
 In order to compile this library, you must have NetCDF installed.
 When running the code, it will create a NetCDF file for the instrumented
 code region. It includes all variables that are read before the code
