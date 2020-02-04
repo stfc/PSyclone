@@ -130,7 +130,7 @@ GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
 # ---------- Fortran datatypes ------------------------- #
-VALID_DATATYPES = ["real", "integer", "logical"]
+SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]

@@ -776,7 +776,7 @@ class DynConfig(APISpecificConfig):
             elif key == "default_precision":
                 # Set default precisions from config file
                 all_prec = self.create_dict_from_string(section[key])
-                from psyclone.dynamo0p3 import VALID_DATATYPES as \
+                from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES as \
                     dynamo0p3_datatypes
                 for dtype in all_prec:
                     if dtype not in dynamo0p3_datatypes:
