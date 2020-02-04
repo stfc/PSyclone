@@ -143,127 +143,127 @@ called ``PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call.
 
-``PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)``
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-This function is called first each time the instrumented region is
-executed. It takes 4 parameters (besides the implicit ``PSyDataType``
-instance):
+.. method:: PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)
 
-``module_name``::
-  This is the name of the module in which the original Fortran source
-  code is contained. Together with ``kernel_name`` it can be used to
-  create a unique name for each instrumented region.
+    This method is called first each time the instrumented region is
+    executed. It takes 4 parameters (besides the implicit ``PSyDataType``
+    instance):
+    
+    ``module_name``
+      This is the name of the module in which the original Fortran source
+      code is contained. Together with ``kernel_name`` it can be used to
+      create a unique name for each instrumented region.
 
-``kernel_name``::
-  The name of the kernel that is being executed.
+    ``kernel_name``
+      The name of the kernel that is being executed.
+    
+    ``num_pre_vars``
+      This is the number of variables that will be supplied using
+      ``WriteVar`` before the instrumented region is executed.
+    
+    ``num_post_vars``
+      This is the number of variables that will be supplied using
+      ``WriteVar`` after the instrumented region is executed.
+      The sum ``num_pre_vars+num_post_vars`` is the number of
+      variable declarations that will follow.
+    
+    Typically the static ``PSyDataType`` instance can be used to store
+    the module and kernel names if they are required later, or to allocate
+    arrays to store variable data.
 
-``num_pre_vars``::
-  This is the number of variables that will be supplied using
-  ``WriteVar`` before the instrumented region is executed.
+.. method:: PreDeclareVariable(this, name, value)
 
-``num_post_vars``::
-  This is the number of variables that will be supplied using
-  ``WriteVar`` after the instrumented region is executed.
-  The sum ``num_pre_vars+num_post_vars`` is the number of
-  variable declarations that will follow.
+    This method is called for each variable that will be written
+    before or after the user instrumented region. If a variable
+    is written both before and after the region, the transformations will
+    add two calls to ``PreDeclareVariable`` (it can be useful to
+    provide a variable using a different name before and after,
+    see :ref:`psyke_netcdf`).
+    
+    ``name``
+      This is the name of the variable as a string.
+    
+    ``value``
+      This is the actual content of the variable.
+    
+    The same call is used for different arguments, so a generic
+    interface is recommended to distinguish between
+    the data types provided. The netcdf kernel writer 
+    (see :ref:`psyke_netcdf`) uses the following declaration
+    with dl_esm_inf::
+    
+        generic, public :: PreDeclareVariable => DeclareScalarInteger, &
+                                                 DeclareScalarReal,    &
+                                                 DeclareFieldDouble
+        ...
+        subroutine DeclareScalarInteger(this, name, value)
+            implicit none
+            class(PSyDataType), intent(inout) :: this
+            character(*), intent(in) :: name
+            integer, intent(in) :: value
+        ...
+        subroutine DeclareFieldDouble(this, name, value)
+            use field_mod, only : r2d_field
+            implicit none
+            class(PSyDataType), intent(inout) :: this
+            character(*), intent(in) :: name
+            type(r2d_field), intent(in) :: value
+        ...
+    
 
-Typically the static ``PSyDataType`` instance can be used to store
-the module and kernel names if they are required later, or to allocate
-arrays to store variable data.
+.. method:: PreEndDeclaration(this)
 
-``PreDeclareVariable(this, name, value)``
-+++++++++++++++++++++++++++++++++++++++++
-This function is called for each variable that will be written
-before or after the user instrumented region. If a variable
-is written both before and after the region, the transformations will
-add two calls to ``PreDeclareVariable`` (it can be useful to
-provide a variable using a different name before and after,
-see :ref:`psyke_netcdf`).
+    Called once all variables have been declared.
 
-``name``:
-  This is the name of the variable as a string.
+.. method:: ProvideVariable(this, name, value)
 
-``value``:
-  This is the actual content of the variable.
+    This method is called for each variable to be provided to the
+    runtime library. 
+    
+    ``name``
+      This is the name of the variable as a string.
+    
+    ``value``
+      This is the actual content of the variable.
+    
+    The same method ``ProvideVariable`` is called to provide variable
+    name and content before and after the user instrumented region.
+    Again it is expected that a library using the API will provide
+    a generic interface to distinguish between the various possible data
+    types, which will be different for each infrastructure library::
+    
+        generic, public :: ProvideVariable => WriteScalarInteger, &
+                                              WriteScalarReal,    &
+                                              WriteFieldDouble
+    
+.. method:: PreEnd(this)
 
-The same call is used for different arguments, so a generic
-interface is recommended to distinguish between
-the data types provided. The netcdf kernel writer 
-(see :ref:`psyke_netcdf`) uses the following declaration
-with dl_esm_inf::
+    The method ``PreEnd`` is called after all variables before the instrumented
+    region have been provided.
 
-    generic, public :: PreDeclareVariable => DeclareScalarInteger, &
-                                             DeclareScalarReal,    &
-                                             DeclareFieldDouble
-    ...
-    subroutine DeclareScalarInteger(this, name, value)
-        implicit none
-        class(PSyDataType), intent(inout) :: this
-        character(*), intent(in) :: name
-        integer, intent(in) :: value
-    ...
-    subroutine DeclareFieldDouble(this, name, value)
-        use field_mod, only : r2d_field
-        implicit none
-        class(PSyDataType), intent(inout) :: this
-        character(*), intent(in) :: name
-        type(r2d_field), intent(in) :: value
-    ...
+.. method:: PostStart(this)
 
+    This is the first call after the instrumented region. It does not take
+    any parameters, but the static ``PSyDataType`` instance can be used
+    to store the name and number of variables if required. This will be
+    followed by calls to ``ProvideVariable``, which is described above.
 
-``PreEndDeclaration(this)``
-+++++++++++++++++++++++++++
-Called once all variables have been declared.
+.. method:: PostEnd(this)
 
-``ProvideVariable(this, name, value)``
-++++++++++++++++++++++++++++++++++++++
-This function is called for each variable to be provided to the
-runtime library. 
+    This method is the last call after an instrumented region. It indicates
+    that all variables have been provided.
 
-``name``:
-  This is the name of the variable as a string.
+    An example of a library using PSyData is included in PSyclone in the
+    directory ``.../lib/extract/netcdf``. This library is used to extract
+    kernel input- and output-parameters and store them in a NetCDF file.
 
-``value``:
-  This is the actual content of the variable.
+    .. note::
 
-The same function ``ProvideVariable`` is called to provide variable
-name and content before and after the user instrumented region.
-Again it is expected that a library using the API will provide
-a generic interface to distinguish between the various possible data
-types, which will be different for each infrastructure library::
-
-    generic, public :: ProvideVariable => WriteScalarInteger, &
-                                          WriteScalarReal,    &
-                                          WriteFieldDouble
-
-``PreEnd(this)``
-++++++++++++++++
-The method ``PreEnd`` is called after all variables before the instrumented
-region have been provided.
-
-``PostStart(this)``
-+++++++++++++++++++
-This is the first call after the instrumented region. It does not take
-any parameters, but the static ``PSyDataType`` instance can be used
-to store the name and number of variables if required. This will be
-followed by calls to ``ProvideVariable``, which is described above.
-
-``PostEnd(this)``
-+++++++++++++++++
-This function is the last call after an instrumented region. It indicates
-that all variables have been provided.
- 
-An example of a library using PSyData is included in PSyclone in the
-directory ``.../lib/extract/netcdf``. This library is used to extract
-kernel input- and output-parameters and store them in a NetCDF file.
-
-.. note::
-
-    Note that only the ``PreDataStart`` call takes the module-
-    and region-name as parameters. If these names are required
-    by the PSyData runtime library in different calls, they must
-    be stored in the ``PSyData`` object so that they are
-    available when required.
+        Note that only the ``PreDataStart`` call takes the module-
+        and region-name as parameters. If these names are required
+        by the PSyData runtime library in different calls, they must
+        be stored in the ``PSyData`` object so that they are
+        available when required.
 
 .. _psy_data_transformation:
 
@@ -301,6 +301,6 @@ for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
-and provides these two lists to the gen() function of its baseclass,
+and provides these two lists to the gen() function of its base class,
 a ``PSyDataNode`` node. It also uses ``post-var-postfix`` option
 as described above (see also :ref:`psyke_netcdf`).
