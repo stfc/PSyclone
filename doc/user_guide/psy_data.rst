@@ -276,11 +276,11 @@ The base transformation to create the PSyData callbacks is
     :members:
 
 It is very similar to the profile transformation and kernel extraction
-transformations. Those transforms insert a special node into the AST,
+transformations. These transforms insert a special node into the AST,
 which at code creation time will generate the code to give access to
 the data fields. Both profile and kernel extraction
 nodes use ``PSyDataNode`` as a base class, which will create the 
-PSyData calls as described above. The difference is that those
+PSyData calls as described above. The difference is that these
 classes will provide different parameters to the ``PSyDataNode``,
 resulting in different code being created:
 
