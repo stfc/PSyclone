@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,10 @@ def test_assignment(parser):
     ''' Check that assignments set the right read/write accesses.
     '''
     reader = FortranStringReader('''program test_prog
+                                 use some_mod, only: f
+                                 integer :: i, j
+                                 real :: a, b, e, x, y
+                                 real, dimension(5,5) :: c, d
                                  a = b
                                  c(i,j) = d(i,j+1)+e+f(x,y)
                                  c(i) = c(i) + 1
@@ -105,6 +109,8 @@ def test_indirect_addressing(parser):
     ''' Check that we correctly handle indirect addressing, especially
     on the LHS. '''
     reader = FortranStringReader('''program test_prog
+                                 integer :: i, h(10)
+                                 real :: a, g(10)
                                  g(h(i)) = a
                                  end program test_prog''')
     ast = parser(reader)
@@ -124,6 +130,7 @@ def test_double_variable_lhs(parser):
 
     '''
     reader = FortranStringReader('''program test_prog
+                                 integer :: g(10)
                                  g(g(1)) = 1
                                  end program test_prog''')
     ast = parser(reader)
@@ -144,6 +151,8 @@ def test_if_statement(parser):
     ''' Tests handling an if statement
     '''
     reader = FortranStringReader('''program test_prog
+                                 integer :: a, b, i
+                                 real, dimension(5) :: p, q, r
                                  if (a .eq. b) then
                                     p(i) = q(i)
                                  else
@@ -172,6 +181,7 @@ def test_if_statement(parser):
 def test_call(parser):
     ''' Check that we correctly handle a call in a program '''
     reader = FortranStringReader('''program test_prog
+                                 real :: a, b
                                  call sub(a,b)
                                  end program test_prog''')
     ast = parser(reader)
@@ -189,6 +199,8 @@ def test_do_loop(parser):
     ''' Check the handling of do loops.
     '''
     reader = FortranStringReader('''program test_prog
+                                 integer :: ji, jj, n
+                                 integer, dimension(10,10) :: s, t
                                  do jj=1, n
                                     do ji=1, 10
                                        s(ji, jj)=t(ji, jj)+1
@@ -212,6 +224,8 @@ def test_nemo_implicit_loop(parser):
     ''' Check the handling of ImplicitLoops access information.
     '''
     reader = FortranStringReader('''program test_prog
+                                 integer :: jj, n
+                                 real :: a, s(5,5), t(5,5)
                                  do jj=1, n
                                     s(:, jj)=t(:, jj)+a
                                  enddo
@@ -235,6 +249,8 @@ def test_nemo_implicit_loop_partial(parser):
     # be deleted when the issue is fixed and the above test
     # passes.
     reader = FortranStringReader('''program test_prog
+                                 integer :: jj, n
+                                 real :: s(5,5), t(5,5), a
                                  do jj=1, n
                                     s(:, jj)=t(:, jj)+a
                                  enddo
@@ -324,6 +340,8 @@ def test_location(parser):
     '''
 
     reader = FortranStringReader('''program test_prog
+                                 integer :: a, b, i, ji, jj, n, x
+                                 real :: p(5), q(5), r(5), s(5,5), t(5,5)
                                  a = b
                                  if (a .eq. b) then
                                     p(i) = q(i)
@@ -389,6 +407,8 @@ def test_user_defined_variables(parser):
     '''
     # TODO #363: this uses a work around for user defined types atm.
     reader = FortranStringReader('''program test_prog
+                                       use some_mod, only: a, e
+                                       integer :: ji, jj, d
                                        a%b%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
@@ -408,6 +428,7 @@ def test_math_equal(parser):
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     reader = FortranStringReader('''program test_prog
+                                    integer :: x(2,2), a(2,2), b, c, i, j, k
                                     x = a                 !  0
                                     x = a                 !  1
                                     x = b                 !  2

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology Facilities
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -43,13 +43,13 @@ program imperfect_nest
   implicit none
   integer :: ji, jj, jk, jn
   integer :: jpi, jpj, jpk, jpim1, jpjm1, jpkm1
-  real, dimension(jpi,jpj,jpk) :: umask, vmask, wmask
+  real, dimension(jpi,jpj,jpk) :: umask, vmask, wmask, pahu, e3u_n, e3t_n, uslp
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptbb ! tracer (only used in kpass=2)
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: pta  ! tracer trend
-  REAL(wp), DIMENSION(jpi,jpj)     ::   zdkt, zdk1t
+  REAL(wp), DIMENSION(jpi,jpj)     ::   zdkt, zdk1t, e2_e1u, e2u, r1_e1e2t
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
-  REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3   ! local scalars
+  REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3, zsign   ! local scalars
 
   ! Test code with imperfectly nested loops
   DO jk = 1, jpkm1
