@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -96,7 +96,45 @@ that we handle those that access data and/or routines via module
 ``use`` statements. This example shows the various forms for which
 support is planned (Issues #323 and #342).
 
-Dynamo
+Example 5: Profiling
+^^^^^^^^^^^^^^^^^^^^
+
+This example shows how to use the profiling support in PSyclone.
+It instruments two invoke statements and links in with the
+template profiling library included in PSyclone (see 
+:ref:`profiling_third_party_tools`). This library just
+prints out the name of the module and region before and after each
+invoke is executed. If you compile the profiling wrapper,
+this example will create a stand-alone program that can be
+executed.
+
+
+Example 6: Kernel data extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of kernel data extraction in PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based kernel extraction code.
+It uses the dl_esm_inf-specific extraction library 'netcdf'
+(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+available (including ``nc-config`` to detect installation-specific
+paths). You need to compile the NetCDF extraction library 
+(see :ref:`psyke_netcdf`).
+The makefile in this example will link with the compiled NetCDF 
+extraction library and NetCDF. You can execute the created
+binary and it will create two output netcdf files, one for
+each of the two invokes.
+
+It will also create two stand-alone driver programs (one for
+each invoke), that will read the corresponding NetCDF file,
+and then executes the original code.
+
+.. note::
+    At this stage the driver program will not compile
+    (see issue #644).
+
+
+LFRic
 ------
 
 Examples 1 and 2 are for the (deprecated) Dynamo 0.1 API. The remaining
@@ -248,6 +286,25 @@ computed beforehand) 3) set_dirty and set_clean calls are placed
 within an OpenACC Parallel directive and 4) there are no checks on
 whether loops are parallel or not, it is just assumed they are -
 i.e. support for colouring or locking is not yet implemented.
+
+Example 15: CPU Optimisation of Matvec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of optimising the LFRic matvec kernel for CPUs. This is work
+in progress with the idea being that PSyclone transformations will be
+able to reproduce hand-optimised code.
+
+There is one script which, when run:
+  
+.. code-block:: bash
+
+   > psyclone ./matvec_opt.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+
+will print out the modified matvec kernel code. At the moment no
+transformations are included (as they are work-in-progress) so the
+code that is output is the same as the original (but looks different
+as it has been translated to PSyIR and then output by the PSyIR
+fortran back-end).
 
 NEMO
 ----

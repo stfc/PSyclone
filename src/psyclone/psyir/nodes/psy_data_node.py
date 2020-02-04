@@ -85,6 +85,7 @@ class PSyDataNode(Node):
     psy_data_var = "psy_data"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
+        # TODO: #415 Support different classes of PSyData calls.
 
         # Store the name of the PSyData variable that is used for this
         # PSyData name. This allows to show the variable name in __str__
@@ -234,12 +235,13 @@ class PSyDataNode(Node):
         :param options["post-var-list"]: a list of variables to be extracted \
             after the last child.
         :type options["post-var-list"]: list of str
-        :type str options['pre-var-postfix]: an optional postfix that will \
+        :param str options["pre-var-postfix"]: an optional postfix that will \
             be added to each variable name in the pre-var-list.
-        :type str options['post-var-postfix]: an optional postfix that will \
+        :param str options["post-var-postfix"]: an optional postfix that will \
             be added to each variable name in the post-var-list.
 
         '''
+        # TODO: #415 Support different classes of PSyData calls.
         module_name = self._module_name
         if module_name is None:
             # The user has not supplied a module (location) name so

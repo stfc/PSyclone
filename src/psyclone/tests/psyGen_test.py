@@ -2390,14 +2390,13 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
-    assignment = Assignment()
-    kschedule.addchild(assignment)
-    lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", DataType.INTEGER, parent=assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(rhs)
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("x", DataType.INTEGER)
+    symbol_table.add(symbol)
+    lhs = Reference(symbol)
+    rhs = Literal("1", DataType.INTEGER)
+    assignment = Assignment.create(lhs, rhs)
+    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
     kschedule.view()
     coloredtext = colored("Schedule",
                           SCHEDULE_COLOUR_MAP["Schedule"])
@@ -2409,14 +2408,13 @@ def test_kernelschedule_view(capsys):
 def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
-    kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("x", DataType.INTEGER))
-    assignment = Assignment()
-    kschedule.addchild(assignment)
-    lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", DataType.INTEGER, parent=assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(rhs)
+    symbol = DataSymbol("x", DataType.INTEGER)
+    symbol_table = SymbolTable()
+    symbol_table.add(symbol)
+    lhs = Reference(symbol)
+    rhs = Literal("1", DataType.INTEGER)
+    assignment = Assignment.create(lhs, rhs)
+    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
     assert "Schedule[name:'kname']:\n" in str(kschedule)
     assert "Assignment" in str(kschedule)  # Check children are printed
     assert "End KernelSchedule" in str(kschedule)
@@ -2436,8 +2434,9 @@ def test_kernelschedule_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", DataType.REAL))
-    assignment = Assignment.create(Reference("tmp"),
+    symbol = DataSymbol("tmp", DataType.REAL)
+    symbol_table.add(symbol)
+    assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", DataType.REAL))
     kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
     check_links(kschedule, [assignment])
@@ -2456,8 +2455,9 @@ def test_kernelschedule_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("x", DataType.REAL))
-    children = [Assignment.create(Reference("x"),
+    symbol = DataSymbol("x", DataType.REAL)
+    symbol_table.add(symbol)
+    children = [Assignment.create(Reference(symbol),
                                   Literal("1", DataType.REAL))]
 
     # name is not a string.

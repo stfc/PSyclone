@@ -963,6 +963,10 @@ class GOKern(CodedKern):
                     field_for_grid_property = \
                         self._arguments.find_grid_access()
                 var_name = arg.dereference(field_for_grid_property.name)
+                print("XXX", arg.type, 
+                    field_for_grid_property.name,
+                    arg.dereference(field_for_grid_property.name))
+
             else:
                 var_name = arg.name
 
@@ -1595,6 +1599,10 @@ class GOKernelGridArgument(Argument):
             in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
             must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
+        api_config = Config.get().api_conf("gocean1.0")
+        deref_name = api_config.grid_properties[self._property_name].fortran
+        print("dereference", self._dereference_name, self._property_name, deref_name)
+        return deref_name.format(fld_name)
         return self._dereference_name.format(fld_name)
 
     @property

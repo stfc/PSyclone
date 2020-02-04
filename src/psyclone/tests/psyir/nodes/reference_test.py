@@ -40,22 +40,34 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, Array, Assignment, Container, \
-    Literal
-from psyclone.psyir.symbols import DataSymbol, DataType
-from psyclone.psyGen import KernelSchedule, Kern
-from psyclone.errors import GenerationError
+from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
+from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError, \
+    SymbolTable
+from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import check_links
+
+
+def test_reference_bad_init():
+    '''Check that the __init__ method of the Reference class raises the
+    expected exception if the symbol argument is not of the right
+    type.
+
+    '''
+    with pytest.raises(TypeError) as excinfo:
+        _ = Reference("hello")
+    assert ("In Reference initialisation expecting a symbol but found 'str'."
+            in str(excinfo.value))
 
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
+    symbol = DataSymbol("rname", DataType.INTEGER)
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    ref = Reference("rname", assignment)
+    ref = Reference(symbol, assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
     assert coloredtext+"[name:'rname']" in ref.node_str()
 
@@ -64,9 +76,10 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("rname", DataType.INTEGER))
+    symbol = DataSymbol("rname", DataType.INTEGER)
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    ref = Reference("rname", assignment)
+    ref = Reference(symbol, assignment)
     assert "Reference[name:'rname']" in str(ref)
 
 
@@ -75,67 +88,9 @@ def test_reference_optional_parent():
     argument is not supplied.
 
     '''
-    ref = Reference("rname")
+    ref = Reference(DataSymbol("rname", DataType.REAL))
     assert ref.parent is None
 
-
-def test_reference_symbol(monkeypatch):
-    '''Test that the symbol method in a Reference Node instance returns
-    the associated symbol if there is one and None if not. Also test
-    for an incorrect scope argument.
-
-    '''
-    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kernel_schedule = kernels[0].get_kernel_schedule()
-    references = kernel_schedule.walk(Reference)
-
-    # Symbol in KernelSchedule SymbolTable
-    field_old = references[0]
-    assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol(), DataSymbol)
-    assert field_old.symbol().name == field_old.name
-
-    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.symbol(scope_limit=kernel_schedule),
-                      DataSymbol)
-    assert field_old.symbol().name == field_old.name
-
-    # Symbol in KernelSchedule SymbolTable with parent scope
-    assert field_old.symbol(scope_limit=field_old.parent) is None
-
-    # Symbol in Container SymbolTable
-    alpha = references[6]
-    assert alpha.name == "alpha"
-    assert isinstance(alpha.symbol(), DataSymbol)
-    assert alpha.symbol().name == alpha.name
-
-    # Symbol in Container SymbolTable with KernelSchedule scope
-    assert alpha.symbol(scope_limit=kernel_schedule) is None
-
-    # Symbol in Container SymbolTable with Container scope
-    assert isinstance(kernel_schedule.root, Container)
-    assert alpha.symbol(scope_limit=kernel_schedule.root).name == alpha.name
-
-    # Symbol method with invalid scope type
-    with pytest.raises(TypeError) as excinfo:
-        _ = alpha.symbol(scope_limit="hello")
-    assert ("The scope_limit argument 'hello' provided to the symbol method, "
-            "is not of type `Node`." in str(excinfo.value))
-
-    # Symbol method with invalid scope location
-    with pytest.raises(ValueError) as excinfo:
-        _ = alpha.symbol(scope_limit=alpha)
-    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
-            "symbol method, is not an ancestor of this reference node "
-            "'Reference[name:'alpha']'." in str(excinfo.value))
-
-    # Symbol not in any container (rename alpha to something that is
-    # not defined)
-    monkeypatch.setattr(alpha, "_reference", "not_defined")
-    assert not alpha.symbol()
 
 # Test Array class
 
@@ -144,10 +99,11 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER,
-                                          [DataSymbol.Extent.ATTRIBUTE]))
+    symbol = DataSymbol("aname", DataType.INTEGER,
+                        [DataSymbol.Extent.ATTRIBUTE])
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    array = Array("aname", parent=assignment)
+    array = Array(symbol, parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
     assert coloredtext+"[name:'aname']" in array.node_str()
 
@@ -156,9 +112,10 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.add(DataSymbol("aname", DataType.INTEGER))
+    symbol = DataSymbol("aname", DataType.INTEGER)
+    kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
-    array = Array("aname", assignment)
+    array = Array(symbol, assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
 
 
@@ -167,41 +124,92 @@ def test_array_create():
     creates an Array instance.
 
     '''
-    children = [Reference("i"), Reference("j"), Literal("1", DataType.REAL)]
-    array = Array.create("temp", children)
+    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10, 10, 10])
+    symbol_i = DataSymbol("i", DataType.INTEGER)
+    symbol_j = DataSymbol("j", DataType.INTEGER)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", DataType.INTEGER)]
+    array = Array.create(symbol_temp, children)
     check_links(array, children)
     result = FortranWriter().array_node(array)
     assert result == "temp(i,j,1)"
 
 
-def test_array_create_invalid():
+def test_array_create_invalid1():
+    '''Test that the create method in the Array class raises an exception
+    if the provided symbol is not an array.
+
+    '''
+    symbol_i = DataSymbol("i", DataType.INTEGER)
+    symbol_j = DataSymbol("j", DataType.INTEGER)
+    symbol_temp = DataSymbol("temp", DataType.REAL)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", DataType.INTEGER)]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create(symbol_temp, children)
+    assert ("expecting the symbol to be an array, not a scalar."
+            in str(excinfo.value))
+
+
+def test_array_create_invalid2():
+    '''Test that the create method in the Array class raises an exception
+    if the number of dimension in the provided symbol is different to
+    the number of indices provided to the create method.
+
+    '''
+    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10])
+    symbol_i = DataSymbol("i", DataType.INTEGER)
+    symbol_j = DataSymbol("j", DataType.INTEGER)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", DataType.INTEGER)]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Array.create(symbol_temp, children)
+    assert ("the symbol should have the same number of dimensions as indices "
+            "(provided in the 'children' argument). Expecting '3' but found "
+            "'1'." in str(excinfo.value))
+
+
+def test_array_create_invalid3():
     '''Test that the create method in an Array class raises the expected
     exception if the provided input is invalid.
 
     '''
-    # name is not a string
+    # symbol argument is not a DataSymbol
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create([], [])
-    assert ("name argument in create method of Array class should "
-            "be a string but found 'list'."
+    assert ("symbol argument in create method of Array class should "
+            "be a DataSymbol but found 'list'."
             in str(excinfo.value))
-
-    # name is an empty string
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create("", [])
-    assert ("name argument in create method of Array class can't "
-            "be an empty string.")
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create("temp", "invalid")
+        _ = Array.create(DataSymbol("temp", DataType.REAL), "invalid")
     assert ("children argument in create method of Array class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create("temp",
-                         [Reference("i"), "invalid"])
+        _ = Array.create(DataSymbol("temp", DataType.REAL),
+                         [Reference(DataSymbol("i", DataType.INTEGER)),
+                          "invalid"])
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
+
+def test_reference_check_declared():
+    '''Test that the check_declared method in the Reference class raises
+    an exception if the associated symbol does not exist in a symbol
+    table associated with an ancestor node. Note, this exception is
+    only raised if a symbol table exists. If one does not exist then
+    it silently returns (to support the NEMO API which does not have
+    symbol tables see issue #500).
+
+    '''
+    ref = Reference(DataSymbol("rname", DataType.REAL))
+    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
+    _ = KernelSchedule.create("test", SymbolTable(),
+                              [assignment])
+    with pytest.raises(SymbolError) as excinfo:
+        ref.check_declared()
+    assert "Undeclared reference 'rname' found." in str(excinfo.value)

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ module update_field_mod
              go_arg(GO_READ,  GO_CT,       GO_POINTWISE),  & ! field
              go_arg(GO_READ,  GO_CT,       GO_POINTWISE)   & ! field
            /)
-     !> This kernel writes only to internal points of the
+     !> This kernel writes to all points of the
      !! simulation domain.
      integer :: ITERATES_OVER = GO_ALL_PTS
 

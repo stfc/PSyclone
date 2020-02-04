@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
@@ -158,10 +158,8 @@ def test_cw_assignment_and_reference():
 
     '''
 
-    assignment = Assignment()
-    assignment.addchild(Reference('a', parent=assignment))
-    assignment.addchild(Reference('b', parent=assignment))
-
+    assignment = Assignment.create(Reference(DataSymbol('a', DataType.REAL)),
+                                   Reference(DataSymbol('b', DataType.REAL)))
     # Generate C from the PSyIR schedule
     cwriter = CWriter()
     result = cwriter(assignment)
@@ -184,11 +182,10 @@ def test_cw_array():
     '''
     cwriter = CWriter()
 
-    assignment = Assignment()
-    arr = Array('a', parent=assignment)
-    lit = Literal('0.0', DataType.REAL, parent=assignment)
-    assignment.addchild(arr)
-    assignment.addchild(lit)
+    symbol = DataSymbol('a', DataType.REAL)
+    arr = Array(symbol)
+    lit = Literal('0.0', DataType.REAL)
+    assignment = Assignment.create(arr, lit)
 
     # An array without any children (dimensions) should produce an error.
     with pytest.raises(VisitorError) as excinfo:
@@ -197,10 +194,11 @@ def test_cw_array():
         in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
-    arr.addchild(Reference('b', parent=arr))
+    arr.addchild(Reference(DataSymbol('b', DataType.INTEGER), parent=arr))
     arr.addchild(Literal('1', DataType.INTEGER, parent=arr))
-    uop = UnaryOperation(UnaryOperation.Operator.MINUS, parent=arr)
-    uop.addchild(Literal('2', DataType.INTEGER, parent=uop))
+    uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
+                                Literal('2', DataType.INTEGER))
+    uop.parent = arr
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -216,7 +214,7 @@ def test_cw_ifblock():
     '''
     from psyclone.psyir.nodes import IfBlock
 
-    # Try with just a IfBlock node
+    # Try with just an IfBlock node
     ifblock = IfBlock()
     cwriter = CWriter()
     with pytest.raises(VisitorError) as err:
@@ -225,7 +223,7 @@ def test_cw_ifblock():
            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference('a', parent=ifblock))
+    ifblock.addchild(Reference(DataSymbol('a', DataType.REAL), parent=ifblock))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert("IfBlock malformed or incomplete. It should have "
@@ -236,13 +234,11 @@ def test_cw_ifblock():
     ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
 
-    ifblock2 = IfBlock(parent=ifblock.else_body)
-    ifblock2.addchild(Reference('b', parent=ifblock2))
-    ifblock2.addchild(Schedule(parent=ifblock2))
-    ifblock2.if_body.addchild(Return(parent=ifblock2.if_body))
-    ifblock2.addchild(Schedule(parent=ifblock2))
-    ifblock2.else_body.addchild(Return(parent=ifblock2.else_body))
-
+    condition = Reference(DataSymbol('b', DataType.REAL))
+    then_content = [Return()]
+    else_content = [Return()]
+    ifblock2 = IfBlock.create(condition, then_content, else_content)
+    ifblock2.parent = ifblock.if_body
     ifblock.else_body.addchild(ifblock2)
 
     result = cwriter(ifblock)
@@ -343,11 +339,11 @@ def test_cw_binaryoperator():
     assert("BinaryOperation malformed or incomplete. It should have "
            "exactly 2 children, but found 0." in str(err.value))
 
-    # Add children
-    ref1 = Reference("a", binary_operation)
-    ref2 = Reference("b", binary_operation)
-    binary_operation.addchild(ref1)
-    binary_operation.addchild(ref2)
+    # Test with children
+    ref1 = Reference(DataSymbol("a", DataType.REAL))
+    ref2 = Reference(DataSymbol("b", DataType.REAL))
+    binary_operation = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                              ref1, ref2)
     assert cwriter(binary_operation) == '(a + b)'
 
     # Test all supported Operators
@@ -419,16 +415,11 @@ def test_cw_size():
     ''' Check the CWriter class SIZE method raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
-
-    assignment = Assignment()
-    lhs = Reference('length', parent=assignment)
-    size = BinaryOperation(BinaryOperation.Operator.SIZE, parent=assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(size)
-    arr = Array('a', parent=size)
-    lit = Literal('1', DataType.INTEGER, parent=size)
-    size.addchild(arr)
-    size.addchild(lit)
+    arr = Array(DataSymbol('a', DataType.INTEGER))
+    lit = Literal('1', DataType.INTEGER)
+    size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
+    lhs = Reference(DataSymbol('length', DataType.INTEGER))
+    assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:
         cwriter(assignment)

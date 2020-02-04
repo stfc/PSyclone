@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
@@ -72,7 +73,8 @@ def process_where(code, fparser_cls):
     return sched, fparser2spec
 
 
-def test_where_broken_tree(parser):
+@pytest.mark.usefixtures("parser")
+def test_where_broken_tree():
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree does not have the correct structure.
     '''
@@ -93,7 +95,8 @@ def test_where_broken_tree(parser):
     assert "Failed to find opening where construct " in str(err.value)
 
 
-def test_missing_array_notation_expr(parser):
+@pytest.mark.usefixtures("parser")
+def test_missing_array_notation_expr():
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax in the logical expression.
     '''
@@ -103,7 +106,8 @@ def test_missing_array_notation_expr(parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-def test_missing_array_notation_lhs(parser):
+@pytest.mark.usefixtures("parser")
+def test_missing_array_notation_lhs():
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax on the LHS of an assignment within the body. '''
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
@@ -112,12 +116,13 @@ def test_missing_array_notation_lhs(parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-def test_where_array_notation_rank(parser):
+@pytest.mark.usefixtures("parser")
+def test_where_array_notation_rank():
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
     '''
-    from psyclone.psyir.symbols import DataType
-    my_array = Array("my_array", None)
+    from psyclone.psyir.symbols import DataType, DataSymbol
+    my_array = Array(DataSymbol("my_array", DataType.REAL), None)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
@@ -138,7 +143,8 @@ def test_where_array_notation_rank(parser):
             in str(err.value))
 
 
-def test_different_ranks_error(parser):
+@pytest.mark.usefixtures("parser")
+def test_different_ranks_error():
     ''' Check that a WHERE construct containing array references of different
     ranks results in the creation of a CodeBlock. '''
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
@@ -147,7 +153,8 @@ def test_different_ranks_error(parser):
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-def test_array_notation_rank(parser):
+@pytest.mark.usefixtures("parser")
+def test_array_notation_rank():
     ''' Check that the _array_notation_rank() utility handles various examples
     of array notation.
     '''
@@ -199,7 +206,8 @@ def test_where_symbol_clash(parser):
     assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
 
 
-def test_basic_where(parser):
+@pytest.mark.usefixtures("parser")
+def test_basic_where():
     ''' Check that a basic WHERE using a logical array as a mask is correctly
     translated into the PSyIR. '''
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
@@ -223,7 +231,8 @@ def test_basic_where(parser):
             "Reference[name:'widx1']\n" in str(ifblock.condition))
 
 
-def test_where_array_subsections(parser):
+@pytest.mark.usefixtures("parser")
+def test_where_array_subsections():
     ''' Check that we handle a WHERE construct with non-contiguous array
     subsections. '''
     fake_parent, _ = process_where("WHERE (dry(1, :, :))\n"
@@ -246,7 +255,8 @@ def test_where_array_subsections(parser):
     assert assign.lhs.children[2].name == "widx2"
 
 
-def test_elsewhere(parser):
+@pytest.mark.usefixtures("parser")
+def test_elsewhere():
     ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
     translated into a canonical form in the PSyIR. '''
     fake_parent, _ = process_where("WHERE (ptsu(:, :, :) /= 0._wp)\n"
@@ -277,7 +287,8 @@ def test_elsewhere(parser):
     assert ifblock.else_body[0].lhs.name == "z1_st"
 
 
-def test_where_stmt_validity(parser):
+@pytest.mark.usefixtures("parser")
+def test_where_stmt_validity():
     ''' Check that the correct exceptions are raised when the parse tree
     for a WHERE statement has an unexpected structure. '''
     fake_parent, fparser2spec = process_where(
@@ -298,7 +309,8 @@ def test_where_stmt_validity(parser):
             in str(err.value))
 
 
-def test_where_stmt(parser):
+@pytest.mark.usefixtures("parser")
+def test_where_stmt():
     ''' Basic check that we handle a WHERE statement correctly. '''
     fake_parent, _ = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
@@ -308,7 +320,8 @@ def test_where_stmt(parser):
     assert isinstance(fake_parent[0], Loop)
 
 
-def test_where_ordering(parser):
+@pytest.mark.usefixtures("parser")
+def test_where_ordering():
     ''' Check that the generated schedule has the correct ordering when
     a WHERE construct is processed. '''
     fake_parent, _ = process_where(
@@ -327,3 +340,29 @@ def test_where_ordering(parser):
     assert isinstance(fake_parent[1], Loop)
     assert isinstance(fake_parent[2], CodeBlock)
     assert isinstance(fake_parent[3], Loop)
+
+
+def test_where_with_symboltable(f2008_parser):
+    '''Tests that the code works as expected when the PSyIR has a symbol
+    table.
+
+    '''
+    reader = FortranStringReader(
+        "module my_test\n"
+        "contains\n"
+        "subroutine my_sub()\n"
+        "  logical, dimension(5,5) :: mask\n"
+        "  real, dimension(5,5) :: value\n"
+        "  where (mask(:,:))\n"
+        "    value(:,:) = 0.0\n"
+        "  end where\n"
+        "end subroutine my_sub\n"
+        "end module my_test\n")
+    fparser2spec = f2008_parser(reader)
+    processor = Fparser2Reader()
+    result = processor.generate_schedule("my_sub", fparser2spec)
+    # Check that the temporary variables are stored in the symbol
+    # table.
+    symbol_table = result.symbol_table
+    assert symbol_table.lookup("widx1")
+    assert symbol_table.lookup("widx2")
