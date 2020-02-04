@@ -56,7 +56,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, DataType
+from psyclone.psyir.symbols import SymbolTable, DataType, DataSymbol, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -942,6 +942,10 @@ class GOKern(CodedKern):
         self._name = ""
         self._index_offset = ""
         # Get a reference to the namespace manager
+        # FIXME: NameSpace was a singleton, this symbol table is not and it
+        # should use the appropiate scope symbol table
+        self._psyvars = SymbolTable()
+
         self._name_space_manager = NameSpaceFactory().create()
 
     def reference_accesses(self, var_accesses):
@@ -1043,8 +1047,8 @@ class GOKern(CodedKern):
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
         garg = self._arguments.find_grid_access()
-        glob_size = self._name_space_manager.create_name(
-            root_name="globalsize", context="PSyVars", label="globalsize")
+        glob_size = self._psyvars.new_symbol_name("globalsize")
+        self._psyvars.add(DataSymbol(glob_size, DataType.INTEGER, shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
@@ -1056,8 +1060,8 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = self._name_space_manager.create_name(
-            root_name="localsize", context="PSyVars", label="localsize")
+        local_size = self._psyvars.new_symbol_name("localsize")
+        self._psyvars.add(DataSymbol(local_size, DataType.INTEGER, shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
@@ -1067,9 +1071,9 @@ class GOKern(CodedKern):
 
         # Create Kernel name variable
         base = "kernel_" + self._name
-        kernel = self._name_space_manager.create_name(root_name=base,
-                                                      context="PSyVars",
-                                                      label=base)
+        kernel = self._psyvars.new_symbol_name(base)
+        self._psyvars.add(Symbol(kernel))
+
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
@@ -1096,10 +1100,9 @@ class GOKern(CodedKern):
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
-        qlist = self._name_space_manager.create_name(
-            root_name="cmd_queues", context="PSyVars", label="cmd_queues")
-        flag = self._name_space_manager.create_name(
-            root_name="ierr", context="PSyVars", label="ierr")
+
+        qlist = self._psyvars.lookup("cmd_queues").name
+        flag = self._psyvars.lookup("ierr").name
 
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
@@ -1181,8 +1184,9 @@ class GOKern(CodedKern):
                                 target=True, entity_decls=[arg.name]))
 
         # Declare local variables
-        err_name = self._name_space_manager.create_name(
-            root_name="ierr", context="PSyVars", label="ierr")
+
+        err_name = self._psyvars.new_symbol_name("ierr")
+        self._psyvars.add(DataSymbol(err_name, DataType.INTEGER))
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
 
         # Set kernel arguments
@@ -1228,13 +1232,11 @@ class GOKern(CodedKern):
                     condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
-                nbytes = self._name_space_manager.create_name(
-                    root_name="size_in_bytes", context="PSyVars",
-                    label="size_in_bytes")
+                nbytes = self._psyvars.new_symbol_name("size_in_bytes")
+                self._psyvars.add(DataSymbol(nbytes, DataType.INTEGER))
                 # Variable to hold write event returned by OpenCL runtime
-                wevent = self._name_space_manager.create_name(
-                    root_name="write_event", context="PSyVars",
-                    label="write_event")
+                wevent = self._psyvars.new_symbol_name("write_event")
+                self._psyvars.add(DataSymbol(wevent, DataType.INTEGER))
                 ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
@@ -1255,11 +1257,9 @@ class GOKern(CodedKern):
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
                 # psyGen.InvokeSchedule)
-                qlist = self._name_space_manager.create_name(
-                    root_name="cmd_queues", context="PSyVars",
-                    label="cmd_queues")
-                flag = self._name_space_manager.create_name(
-                    root_name="ierr", context="PSyVars", label="ierr")
+
+                qlist = self._psyvars.lookup("cmd_queues").name
+                flag = self._psyvars.lookup("ierr").name
 
                 ifthen.add(AssignGen(ifthen, lhs=device_buff,
                                      rhs="create_rw_buffer(" + nbytes + ")"))
@@ -1575,7 +1575,7 @@ class GOKernelGridArgument(Argument):
         # This object always represents an argument that is a grid_property
         self._type = "grid_property"
         # Access to the name-space manager
-        self._name_space_manager = NameSpaceFactory().create()
+        # self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def name(self):

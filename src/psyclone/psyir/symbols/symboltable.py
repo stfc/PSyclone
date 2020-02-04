@@ -79,6 +79,8 @@ class SymbolTable(object):
         symbol name. This will be appended with an integer if the name \
         clashes with an existing symbol name.
         :type root_name: str or NoneType
+        :returns: the new symbol name
+        :rtype: str
 
         :raises TypeError: if the root_name argument is not a string \
         or None.

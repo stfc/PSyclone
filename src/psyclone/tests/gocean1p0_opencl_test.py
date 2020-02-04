@@ -114,7 +114,7 @@ def test_grid_proprty(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
     assert "globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)" in generated_code
-    expected = "size_in_bytes = int(p_fld%grid%nx*p_fld%grid%ny, 8)*" \
+    expected = "size_in_bytes_0 = int(p_fld%grid%nx*p_fld%grid%ny, 8)*" \
                "c_sizeof(p_fld%data(1,1))"
     assert expected in generated_code
 
@@ -229,7 +229,7 @@ def test_opencl_options_effects():
 
     # By default there is 1 queue, with an end barrier and local_size is 1
     assert "localsize = (/1, 1/)" in generated_code
-    assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
+    assert "ierr_2 = clEnqueueNDRangeKernel(cmd_queues(1), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "! Block until all kernels have finished\n" \
@@ -244,6 +244,7 @@ def test_opencl_options_effects():
     # Change kernel queue to 2 (the barrier should then also go up to 2)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
     generated_code = str(psy.gen)
+    print(generated_code)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
