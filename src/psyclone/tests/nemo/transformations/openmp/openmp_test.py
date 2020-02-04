@@ -164,11 +164,11 @@ def test_omp_parallel_multi():
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
             "    do jj = 1, jpjm1\n"
-            "      do ji = 1, fs_jpim1\n"
+            "      do ji = 1, jpim1\n"
             "        zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * "
             "e3u_n(ji, jj, jk)\n" in gen_code)
     assert ("    do jj = 2, jpjm1\n"
-            "      do ji = fs_2, fs_jpim1\n"
+            "      do ji = 2, jpim1\n"
             "        pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + "
             "zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + "
             "zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / "

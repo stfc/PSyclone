@@ -43,7 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
-@pytest.mark.usefixtures("parser")
+@pytest.mark.usefixtures("parser", "disable_declaration_check")
 @pytest.mark.parametrize("bound", ["ubound", "lbound"])
 @pytest.mark.parametrize("expression", ["n = {0}(a, 3)",
                                         "n = {0}(a(:,:,:), 3)",

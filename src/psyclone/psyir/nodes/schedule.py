@@ -39,6 +39,7 @@
 ''' This module contains the Schedule node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import SymbolTable
 
 
 class Schedule(Node):

@@ -379,21 +379,7 @@ class Fparser2Reader(object):
 
         return new_container
 
-    @staticmethod
-    def _first_type_match(nodelist, typekind):
-        '''
-        Returns the first instance of the specified type in the given
-        node list.
-
-        :param list nodelist: List of fparser2 nodes.
-        :param type typekind: The fparse2 Type we are searching for.
-        '''
-        for node in nodelist:
-            if isinstance(node, typekind):
-                return node
-        raise ValueError  # Type not found
-
-    def generate_schedule(self, name, module_ast):
+    def generate_schedule(self, name, module_ast, invoke=None):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
@@ -408,6 +394,18 @@ class Fparser2Reader(object):
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
         '''
+        def first_type_match(nodelist, typekind):
+            '''
+            Returns the first instance of the specified type in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param type typekind: The fparse2 Type we are searching for.
+            '''
+            for node in nodelist:
+                if isinstance(node, typekind):
+                    return node
+            raise ValueError  # Type not found
 
         def search_subroutine(nodelist, searchname):
             '''
@@ -423,12 +421,13 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Subroutine not found
 
-        new_schedule = Fparser2Reader._create_schedule(name, None)
+        new_schedule = self._create_schedule(name, invoke)
 
         # Generate the Container of the module enclosing the Kernel
-        new_container = self.generate_container(module_ast)
-        new_schedule.parent = new_container
-        new_container.children.append(new_schedule)
+        if isinstance(module_ast, Fortran2003.Module):
+            new_container = self.generate_container(module_ast)
+            new_schedule.parent = new_container
+            new_container.children.append(new_schedule)
 
         try:
             if isinstance(module_ast, Fortran2003.Module) or \
@@ -443,6 +442,14 @@ class Fparser2Reader(object):
                 if str(module_ast.content[0].get_name()) != name:
                     raise ValueError("ARPDBG")
                 subroutine = module_ast
+            elif isinstance(module_ast, Fortran2003.Function_Subprogram):
+                # TODO fparser/#225 Function_Stmt does not have a get_name()
+                # method. Once it does we can remove this branch and handle
+                # it in the one above.
+                routine_name = module_ast.content[0].items[1]
+                if str(routine_name) != name:
+                    raise ValueError("ARPDBG2")
+                subroutine = module_ast
             else:
                 raise NotImplementedError(
                     "Expected either Fortran2003.Module, Program, "
@@ -452,6 +459,12 @@ class Fparser2Reader(object):
         except (ValueError, IndexError):
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
+
+        # Set pointer from schedule into fparser2 tree
+        # TODO #435 remove this line once fparser2 tree not needed
+        # pylint: disable=protected-access
+        new_schedule._ast = subroutine
+        # pylint: enable=protected-access
 
         try:
             sub_spec = first_type_match(subroutine.content,

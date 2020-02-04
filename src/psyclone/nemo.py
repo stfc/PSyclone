@@ -191,9 +191,6 @@ class NemoFparser2Reader(Fparser2Reader):
         try:
             sub_spec = self._first_type_match(subroutine.content,
                                               Fortran2003.Specification_Part)
-            # TODO remove once fparser/#102 is done
-            # pylint: disable=protected-access
-            sub_spec._parent = subroutine
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -266,7 +263,8 @@ class NemoInvoke(Invoke):
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
         processor = NemoFparser2Reader()
-        self._schedule = processor.generate_nemo_schedule(name, ast, self)
+        #self._schedule = processor.generate_nemo_schedule(name, ast, self)
+        self._schedule = processor.generate_schedule(name, ast, self)
 
     def update(self):
         '''
