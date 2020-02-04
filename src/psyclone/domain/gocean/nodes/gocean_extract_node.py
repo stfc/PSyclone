@@ -147,7 +147,6 @@ class GOceanExtractNode(ExtractNode):
 
         post_suffix = self._post_name
         for var_name in all_vars:
-            print("varname", var_name)
             # TODO: we need to identify arrays!!
             # Any variable used needs to be defined.
             decl = DeclGen(prog, "real", [var_name], kind="8",
@@ -211,27 +210,19 @@ class GOceanExtractNode(ExtractNode):
         # For the driver we have to re-create the code, but
         # the arguments are not fields anymore, but simple arrays.
         # So we need to make sure that the field parameters
-        # are changed from "fld%data" to just "fld", and similar
-        # for all grid properties. This is
+        # are changed from "fld%data" to just "fld". This is
         # achieved by temporary changing the value of the
-        # all grid properties (e.g. "{0}%data") to just "{0}".
+        # "go_grid_data" property from "{0}.%data" to just "{0}".
         # But each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new
         # value for "go_grid_data" is actually used.
         api_config = Config.get().api_conf("gocean1.0")
 
-        all_props = api_config.grid_properties
-        orig_props = dict(all_props)
+        props = api_config.grid_properties
+        old_data_property = props["go_grid_data"]
         Property = namedtuple("Property", "fortran type")
-        # A property is e.g. "{0}%grid%dx" where {0} will be replaced
-        # with the field. Since in a stand alone driver we don't have
-        # a field, 
-        for name, prop in all_props.items():
-            last_percent = prop.fortran.rfind("%")
-            if last_percent > -1:
-                local_name = var_name[last_percent+1:]
-                all_props[name] = Property(local_name, prop.type)
-        #print("all_props", all_props)
+        props["go_grid_data"] = Property("{0}", "array")
+
         from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
             # Clear cached data in all kernels, which will
@@ -243,8 +234,7 @@ class GOceanExtractNode(ExtractNode):
             child.gen_code(prog)
 
         # Reset the go_grid_data property back to its original value.
-        for name in all_props.keys():
-            all_props[name] = orig_props[name]
+        props["go_grid_data"] = old_data_property
 
         prog.add(CommentGen(prog, " RegionEnd"))
         prog.add(CommentGen(prog, ""))
