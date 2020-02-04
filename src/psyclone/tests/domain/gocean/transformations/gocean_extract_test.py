@@ -558,6 +558,6 @@ def test_rename_region(tmpdir):
     # Now test if the created driver has the right name, and will open the
     # right file:
     driver_name = tmpdir.join("driver-main-update.f90")
-    with open(driver_name, "r") as driver_file:
+    with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
     assert 'CALL psy_data%OpenRead("main", "update")' in driver_code
