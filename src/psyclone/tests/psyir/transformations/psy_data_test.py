@@ -67,6 +67,8 @@ def test_psy_data_basic(capsys):
     schedule = invoke.schedule
 
     data_trans = PSyDataTrans()
+    assert "Insert a PSyData node" in str(data_trans)
+    assert data_trans.name == "PSyDataTrans"
     data_trans.apply(schedule)
 
     assert isinstance(invoke.schedule[0], PSyDataNode)
