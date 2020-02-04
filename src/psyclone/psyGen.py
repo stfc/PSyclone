@@ -46,7 +46,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType
 from psyclone.psyir.nodes import Node, Schedule, Loop
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 
@@ -1031,15 +1031,18 @@ class InvokeSchedule(Schedule):
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
             # Command queues
-            nqueues = self._name_space_manager.create_name(
-                root_name="num_cmd_queues", context="PSyVars",
-                label="num_cmd_queues")
-            qlist = self._name_space_manager.create_name(
-                root_name="cmd_queues", context="PSyVars", label="cmd_queues")
-            first = self._name_space_manager.create_name(
-                root_name="first_time", context="PSyVars", label="first_time")
-            flag = self._name_space_manager.create_name(
-                root_name="ierr", context="PSyVars", label="ierr")
+
+            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
+            self.symbol_table.add(DataSymbol(nqueues, DataType.INTEGER))
+            qlist = self.symbol_table.new_symbol_name("cmd_queues")
+            self.symbol_table.add(
+                DataSymbol(qlist, DataType.INTEGER,
+                           shape=[DataSymbol.Extent.ATTRIBUTE]))
+            first = self.symbol_table.new_symbol_name("first_time")
+            self.symbol_table.add(DataSymbol(first, DataType.BOOLEAN))
+            flag = self.symbol_table.new_symbol_name("ierr")
+            self.symbol_table.add(DataSymbol(flag, DataType.INTEGER))
+
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
             parent.add(DeclGen(parent, datatype="integer", save=True,

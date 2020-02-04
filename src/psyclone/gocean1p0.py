@@ -1101,8 +1101,8 @@ class GOKern(CodedKern):
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
 
-        qlist = self._psyvars.lookup("cmd_queues").name
-        flag = self._psyvars.lookup("ierr").name
+        qlist = self.root.symbol_table.lookup("cmd_queues").name
+        flag = self.root.symbol_table.lookup("ierr").name
 
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
@@ -1258,8 +1258,8 @@ class GOKern(CodedKern):
                 # Get the name of the list of command queues (set in
                 # psyGen.InvokeSchedule)
 
-                qlist = self._psyvars.lookup("cmd_queues").name
-                flag = self._psyvars.lookup("ierr").name
+                qlist = self.root.symbol_table.lookup("cmd_queues").name
+                flag = self.root.symbol_table.lookup("ierr").name
 
                 ifthen.add(AssignGen(ifthen, lhs=device_buff,
                                      rhs="create_rw_buffer(" + nbytes + ")"))
