@@ -44,6 +44,7 @@ import pytest
 
 from psyclone.configuration import Config, ConfigurationError
 
+
 # Valid configuration file content with only defaults and
 # annexed dofs for testing purposes
 _CONFIG_CONTENT = '''\
@@ -57,7 +58,31 @@ REPROD_PAD_SIZE = 8
 COMPUTE_ANNEXED_DOFS = false
 '''
 
+# =============================================================================
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_instance():
+    ''' The tests in this module all assume that there is no pre-existing
+    Config object, so this fixture ensures that the config instance is
+    deleted before and after each test function. The latter makes sure that
+    any other test executed next will automatically reload the default
+    config file.
+    '''
 
+    # Enforce loading of the default config file
+    Config._instance = None
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default config file
+    Config._instance = None
+
+
+# Disable this pylint warning because otherwise it gets upset about the
+# use of these fixtures in the test code.
+@pytest.fixture(scope="module",
+                params=["COMPUTE_ANNEXED_DOFS"])
+# =============================================================================
 def test_anx_dof_not_bool(tmpdir):
     ''' Check that we raise an error if the COMPUTE_ANNEXED_DOFS
     setting is not a Boolean '''
