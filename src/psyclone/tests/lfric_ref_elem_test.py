@@ -189,6 +189,8 @@ def test_refelem_gen(tmpdir):
     assert "integer nfaces_re_h, nfaces_re_v" in gen
     assert ("real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:), "
             "normals_to_vert_faces(:,:)" in gen)
+    assert ("class(reference_element_type), pointer :: reference_element "
+            "=> null()" in gen)
     # We need a mesh object in order to get a reference_element object
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen
     assert "reference_element => mesh%get_reference_element()" in gen

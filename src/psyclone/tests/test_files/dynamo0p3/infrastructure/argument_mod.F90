@@ -39,6 +39,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified I. Kavcic, Met Office
+!          A. R. Porter, STFC Daresbury Laboratory
 
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
@@ -136,8 +137,6 @@ module argument_mod
   integer, public, parameter :: GH_COARSE = 702
 
   ! Reference-element properties
-  integer, public, parameter :: number_horizontal_faces = 904
-  integer, public, parameter :: number_vertical_faces = 905
   integer, public, parameter :: normals_to_horizontal_faces = 171
   integer, public, parameter :: outward_normals_to_horizontal_faces = 007
   integer, public, parameter :: normals_to_vertical_faces = 172

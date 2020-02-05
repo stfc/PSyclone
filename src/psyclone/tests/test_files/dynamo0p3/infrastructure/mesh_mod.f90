@@ -9,8 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology
-! Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology
+! Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modified: A. R. Porter, STFC Daresbury Laboratory
 
 module mesh_mod
 

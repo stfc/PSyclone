@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,8 @@
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
+  ! Description: single kernel (requiring two properties of the reference
+  ! element) specified in an invoke call
   use testkern_ref_elem_mod, only: testkern_ref_elem_type
 
   implicit none
