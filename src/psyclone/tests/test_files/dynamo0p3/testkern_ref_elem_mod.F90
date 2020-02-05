@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,16 +29,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab
 
 module testkern_ref_elem_mod
+
   use argument_mod
   use kernel_mod
   use constants_mod
   type, extends(kernel_type) :: testkern_ref_elem_type
      type(arg_type), dimension(5) :: meta_args =    &
           (/ arg_type(gh_real, gh_read),     &
-             arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_inc,  w1), &
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w3)  &
@@ -51,20 +52,22 @@ module testkern_ref_elem_mod
    contains
      procedure, nopass :: code => testkern_ref_elem_code
   end type testkern_ref_elem_type
+
 contains
 
   subroutine testkern_ref_elem_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
                            ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3, nfaces_h, nfaces_v, &
+                           ndf_w3, undf_w3, map_w3, nfaces_re_h, nfaces_re_v, &
                            horiz_face_normals, vert_face_normals)
     integer, intent(in) :: nlayers
     real(kind=r_def), intent(in) :: ascalar
     real(kind=r_def), dimension(:), intent(out) :: fld1
     real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
     integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, intent(in) :: nfaces_h, nfaces_v
+    integer, intent(in) :: nfaces_re_h, nfaces_re_v
     integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
-    real(kind=r_def), intent(in) :: horiz_face_normals(3, nfaces_h)
-    real(kind=r_def), intent(in) :: vert_face_normals(3, nfaces_v)
+    real(kind=r_def), intent(in) :: horiz_face_normals(3, nfaces_re_h)
+    real(kind=r_def), intent(in) :: vert_face_normals(3, nfaces_re_v)
   end subroutine testkern_ref_elem_code
+
 end module testkern_ref_elem_mod

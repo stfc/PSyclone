@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2020 and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1195,7 +1195,8 @@ class TypeDeclGen(BaseDeclGen):
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
         if is_class:
-            self._decl = fparser1.typedecl_statements.Class(parent.root, myline)
+            self._decl = fparser1.typedecl_statements.Class(parent.root,
+                                                            myline)
         else:
             self._decl = fparser1.typedecl_statements.Type(parent.root, myline)
         self._decl.selector = ('', datatype)

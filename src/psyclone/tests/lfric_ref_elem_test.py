@@ -186,24 +186,25 @@ def test_refelem_gen(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert "use reference_element_mod, only: reference_element_type" in gen
-    assert "integer nfaces_h, nfaces_v" in gen
-    assert ("real(kind=r_def), allocatable :: horiz_face_normals(:,:), "
-            "vert_face_normals(:,:)" in gen)
+    assert "integer nfaces_re_h, nfaces_re_v" in gen
+    assert ("real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:), "
+            "normals_to_vert_faces(:,:)" in gen)
     # We need a mesh object in order to get a reference_element object
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen
     assert "reference_element => mesh%get_reference_element()" in gen
-    assert "nfaces_h = reference_element%get_number_horizontal_faces()" in gen
-    assert "nfaces_v = reference_element%get_number_vertical_faces()" in gen
+    assert ("nfaces_re_h = reference_element%get_number_horizontal_faces()"
+            in gen)
+    assert "nfaces_re_v = reference_element%get_number_vertical_faces()" in gen
     assert ("call reference_element%get_normals_to_horizontal_faces("
-            "horiz_face_normals)" in gen)
+            "normals_to_horiz_faces)" in gen)
     assert ("call reference_element%get_normals_to_vertical_faces("
-            "vert_face_normals)" in gen)
+            "normals_to_vert_faces)" in gen)
     # The kernel call
     assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
             "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell), nfaces_h, nfaces_v, "
-            "horiz_face_normals, vert_face_normals)" in gen)
+            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
+            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
 
 
 def test_duplicate_refelem_gen(tmpdir):
@@ -216,28 +217,29 @@ def test_duplicate_refelem_gen(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    assert gen.count("real(kind=r_def), allocatable :: horiz_face_normals(:,:)"
-                     ", vert_face_normals(:,:)") == 1
+    assert gen.count(
+        "real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:)"
+        ", normals_to_vert_faces(:,:)") == 1
     assert gen.count(
         "reference_element => mesh%get_reference_element") == 1
     assert gen.count(
-        "nfaces_h = reference_element%get_number_horizontal_faces()") == 1
+        "nfaces_re_h = reference_element%get_number_horizontal_faces()") == 1
     assert gen.count(
-        "nfaces_v = reference_element%get_number_vertical_faces()") == 1
+        "nfaces_re_v = reference_element%get_number_vertical_faces()") == 1
     assert gen.count("call reference_element%get_normals_to_horizontal_faces("
-                     "horiz_face_normals)") == 1
+                     "normals_to_horiz_faces)") == 1
     assert gen.count("call reference_element%get_normals_to_vertical_faces("
-                     "vert_face_normals)") == 1
+                     "normals_to_vert_faces)") == 1
     assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
             "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell), nfaces_h, nfaces_v, "
-            "horiz_face_normals, vert_face_normals)" in gen)
+            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
+            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
     assert ("call testkern_ref_elem_code(nlayers, a, f3_proxy%data, "
             "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell), nfaces_h, nfaces_v, "
-            "horiz_face_normals, vert_face_normals)" in gen)
+            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
+            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
 
 
 def test_union_refelem_gen(tmpdir):
@@ -253,23 +255,24 @@ def test_union_refelem_gen(tmpdir):
 
     assert (
         "      reference_element => mesh%get_reference_element()\n"
-        "      nfaces_h = reference_element%get_number_horizontal_faces()\n"
-        "      nfaces_v = reference_element%get_number_vertical_faces()\n"
+        "      nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
+        "      nfaces_re_v = reference_element%get_number_vertical_faces()\n"
         "      call reference_element%get_normals_to_horizontal_faces("
-        "horiz_face_normals)\n"
-        "      call reference_element%get_out_normals_to_horizontal_faces("
-        "horiz_face_out_normals)\n"
+        "normals_to_horiz_faces)\n"
+        "      call reference_element%get_outward_normals_to_horizontal_faces("
+        "out_normals_to_horiz_faces)\n"
         "      call reference_element%get_normals_to_vertical_faces("
-        "vert_face_normals)\n"
-        "      call reference_element%get_out_normals_to_vertical_faces("
-        "vert_face_out_normals)\n" in gen)
+        "normals_to_vert_faces)\n"
+        "      call reference_element%get_outward_normals_to_vertical_faces("
+        "out_normals_to_vert_faces)\n" in gen)
     assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
             "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_h, nfaces_v, horiz_face_normals, "
-            "vert_face_normals)" in gen)
+            " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
+            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
     assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
             "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_h, nfaces_v, horiz_face_out_normals, "
-            "vert_face_normals, vert_face_out_normals)" in gen)
+            " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
+            "out_normals_to_horiz_faces, normals_to_vert_faces, "
+            "out_normals_to_vert_faces)" in gen)

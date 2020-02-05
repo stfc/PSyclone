@@ -6,7 +6,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology Facilities
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -50,9 +50,9 @@ module reference_element_mod
      procedure, public :: get_number_horizontal_faces
      procedure, public :: get_number_vertical_faces
      procedure, public :: get_normals_to_horizontal_faces
-     procedure, public :: get_out_normals_to_horizontal_faces
+     procedure, public :: get_outward_normals_to_horizontal_faces
      procedure, public :: get_normals_to_vertical_faces
-     procedure, public :: get_out_normals_to_vertical_faces
+     procedure, public :: get_outward_normals_to_vertical_faces
      
   end type reference_element_type
 
@@ -78,13 +78,13 @@ contains
     allocate( normals(1,1) )
   end subroutine get_normals_to_horizontal_faces
   
-  subroutine get_out_normals_to_horizontal_faces(this, normals)
+  subroutine get_outward_normals_to_horizontal_faces(this, normals)
     implicit none
     class(reference_element_type), intent(in)  :: this
     real(r_def), allocatable,      intent(out) :: normals(:,:)
 
     allocate( normals(1,1) )
-  end subroutine get_out_normals_to_horizontal_faces
+  end subroutine get_outward_normals_to_horizontal_faces
   
   subroutine get_normals_to_vertical_faces(this, normals)
     implicit none
@@ -94,12 +94,12 @@ contains
     allocate( normals(1,1) )
   end subroutine get_normals_to_vertical_faces
   
-  subroutine get_out_normals_to_vertical_faces(this, normals)
+  subroutine get_outward_normals_to_vertical_faces(this, normals)
     implicit none
     class(reference_element_type), intent(in)  :: this
     real(r_def), allocatable,      intent(out) :: normals(:,:)
 
     allocate( normals(1,1) )
-  end subroutine get_out_normals_to_vertical_faces
+  end subroutine get_outward_normals_to_vertical_faces
   
 end module reference_element_mod

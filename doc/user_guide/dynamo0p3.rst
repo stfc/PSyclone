@@ -1138,7 +1138,7 @@ Name                                 Description
 normals_to_horizontal_faces          Array of normals pointing in the positive
                                      (x, y, z) axis direction for each
                                      horizontal face indexed as (component,
-				     face).
+                                     face).
 normals_to_vertical_faces            Array of normals pointing in the positive
                                      (x, y, z) axis direction for each vertical
                                      face indexed as (component, face).
