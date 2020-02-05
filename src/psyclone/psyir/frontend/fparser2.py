@@ -423,16 +423,15 @@ class Fparser2Reader(object):
 
         new_schedule = self._create_schedule(name, invoke)
 
-        # Generate the Container of the module enclosing the Kernel
-        if isinstance(module_ast, Fortran2003.Module):
-            new_container = self.generate_container(module_ast)
-            new_schedule.parent = new_container
-            new_container.children.append(new_schedule)
-
         try:
-            if isinstance(module_ast, Fortran2003.Module) or \
-               (isinstance(module_ast, Fortran2003.Program) and
-                isinstance(module_ast.content[0], Fortran2003.Module)):
+            if (isinstance(module_ast, Fortran2003.Module) or
+                (isinstance(module_ast, Fortran2003.Program) and
+                 isinstance(module_ast.content[0], Fortran2003.Module))):
+                # We have a module so create a Container
+                new_container = self.generate_container(module_ast)
+                new_schedule.parent = new_container
+                new_container.children.append(new_schedule)
+                # Now find the named subroutine
                 mod_content = module_ast.content[0].content
                 subroutines = first_type_match(
                     mod_content, Fortran2003.Module_Subprogram_Part)
