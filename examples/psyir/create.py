@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,10 @@ C representation of the PSyIR.
 
 '''
 from __future__ import print_function
-from psyclone.psyGen import Reference, Literal, UnaryOperation, \
+from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    KernelSchedule, Container
+    Container
+from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
     ArgumentInterface, DataType
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -55,11 +56,15 @@ from psyclone.psyir.backend.c import CWriter
 
 # Symbol table and symbols
 SYMBOL_TABLE = SymbolTable()
-ARG1 = DataSymbol("tmp1", DataType.REAL, interface=ArgumentInterface(
+TMP_NAME1 = SYMBOL_TABLE.new_symbol_name()
+ARG1 = DataSymbol(TMP_NAME1, DataType.REAL, interface=ArgumentInterface(
     ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(ARG1)
-SYMBOL_TABLE.add(DataSymbol("tmp2", DataType.REAL))
-SYMBOL_TABLE.add(DataSymbol("i", DataType.INTEGER))
+TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
+TMP_SYMBOL = DataSymbol(TMP_NAME2, DataType.REAL)
+SYMBOL_TABLE.add(TMP_SYMBOL)
+INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
+SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, DataType.INTEGER))
 SYMBOL_TABLE.specify_argument_list([ARG1])
 
 # Nodes which do not have Nodes as children
@@ -67,8 +72,8 @@ ZERO = Literal("0.0", DataType.REAL)
 ONE = Literal("1.0", DataType.REAL)
 INT_ZERO = Literal("0", DataType.INTEGER)
 INT_ONE = Literal("1", DataType.INTEGER)
-TMP1 = Reference("tmp1")
-TMP2 = Reference("tmp2")
+TMP1 = Reference(ARG1)
+TMP2 = Reference(TMP_SYMBOL)
 
 # Unary Operation
 OPER = UnaryOperation.Operator.SIN
@@ -94,7 +99,7 @@ IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
 IFBLOCK = IfBlock.create(IF_CONDITION, [ASSIGN3, ASSIGN4])
 
 # Loop
-LOOP = Loop.create("i", INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
+LOOP = Loop.create(INDEX_NAME, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE,

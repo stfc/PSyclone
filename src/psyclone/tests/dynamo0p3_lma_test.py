@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019 Science and Technology Facilities Council.
+# Copyright (c) 2019-2020 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,10 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -286,7 +287,7 @@ def test_operator_different_spaces(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
@@ -382,15 +383,15 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      IF (chi_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(1)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (chi_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(2)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (chi_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(3)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -403,7 +404,7 @@ def test_operator_different_spaces(tmpdir):
         "basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
         "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
@@ -423,7 +424,7 @@ def test_operator_nofield(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)"
@@ -451,7 +452,7 @@ def test_operator_nofield_different_space(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -472,7 +473,7 @@ def test_operator_nofield_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -494,7 +495,7 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
@@ -525,7 +526,7 @@ def test_operator_orientation(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
@@ -554,7 +555,7 @@ def test_op_orient_different_space(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
@@ -588,7 +589,7 @@ def test_operator_deref(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, chi, a, qr)"
@@ -659,7 +660,7 @@ def test_operator_bc_kernel(tmpdir):
         "ndf_any_space_2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ Transformations
 
 As discussed in the previous section, transformations can be applied
 to a schedule to modify it. Typically transformations will be used to
-optimise the PSy layer for a particular architecture, however
-transformations could be added for other reasons, such as to aid
-debugging or for performance monitoring.
+optimise the PSy and/or Kernel layer(s) for a particular architecture,
+however transformations could be added for other reasons, such as to
+aid debugging or for performance monitoring.
 
 Finding
 -------
@@ -128,11 +128,12 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenCL transformations for
-	  the GOcean 1.0 API, the OpenACC Data transformation is
-	  limited to the NEMO and GOcean 1.0 APIs and the OpenACC
-	  Kernels transformation is limited to the NEMO and Dynamo0.3
-	  APIs.
+.. note:: PSyclone currently only supports OpenCL and
+          KernelGlobalsToArguments transformations for the GOcean 1.0
+          API, the Abs, Min and Sign transformations are limited to
+          the NEMO API, the OpenACC Data transformation is limited to
+          the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
+          transformation is limited to the NEMO and Dynamo0.3 APIs.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -182,6 +183,18 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+    :members: apply
+    :noindex:
+
+.. note:: This transformation modifies the PSyIR of both: the Invoke
+          Schedule where the transformed CodedKernel is located and its
+          associated Kernel Schedule.
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
+
+####
+
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
@@ -202,6 +215,58 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.transformations.MoveTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.NemoAbsTrans
+      :members: apply
+      :noindex:
+
+.. note:: As PSyIR created for the NEMO API does not currently include
+          a symbol table (issue #500), this transformation is
+          currently specialised for the NEMO API (by passing in a
+          symbol table as an additional argument). Once the symbol
+          table limitation is removed this transformation will be made
+          generic.
+	  
+.. warning:: This transformation assumes that the ABS Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issues #500 and #658 are on master
+             then this limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.NemoMinTrans
+      :members: apply
+      :noindex:
+
+.. note:: As PSyIR created for the NEMO API does not currently include
+          a symbol table, this transformation is currently specialised
+          for the NEMO API (by passing in a symbol table as an
+          additional argument). Once the symbol table limitation is
+          removed this transformation will be made generic.
+
+.. warning:: This transformation assumes that the MIN Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issues #500 and #658 are on master
+             then this limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.NemoSignTrans
+      :members: apply
+      :noindex:
+
+.. note:: As PSyIR created for the NEMO API does not currently include
+          a symbol table, this transformation is currently specialised
+          for the NEMO API (by passing in a symbol table as an
+          additional argument). Once the symbol table limitation is
+          removed this transformation will be made generic.
+
+.. warning:: This transformation assumes that the SIGN Operator acts
+             on PSyIR Real scalar data and does not check that this is
+             not the case. Once issues #500 and #658 are on master
+             then this limitation can be fixed.
 
 ####
 
@@ -243,6 +308,7 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
+
 
 Kernels
 -------
@@ -356,7 +422,9 @@ variable that is available to it from the enclosing module scope.
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
-PSyclone currently provides just one kernel transformation:
+PSyclone currently provides just one kernel-specific transformation
+(although there are a number that can be applied to either or both the
+PSy-layer and Kernel-layer PSyIR):
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:
@@ -436,8 +504,8 @@ with the new one. For example ...
     print psy.gen
 
 More examples of use of the interactive application of transformations
-can be found in the runme*.py files within the examples/dynamo/eg1 and
-examples/dynamo/eg2 directories. Some simple examples of the use of
+can be found in the runme*.py files within the examples/lfric/eg1 and
+examples/lfric/eg2 directories. Some simple examples of the use of
 transformations are also given in the previous section.
 
 .. _sec_transformations_script:
@@ -502,12 +570,14 @@ below does the same thing as the example in the
 
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
-schedules (i.e. invokes) contained within the PSy layer.
+schedules (i.e. invokes and/or kernels) contained within the PSy
+layer.
 
-Examples of the use of transformation scripts can be found in the
-examples/dynamo/eg3 and examples/dynamo/scripts directories. Please
-read the examples/dynamo/README file first as it explains how to run
-the examples (and see also the examples/check_examples script).
+Examples of the use of transformation scripts can be found in many of
+the examples, such as examples/lfric/eg3 and
+examples/lfric/scripts. Please read the examples/lfric/README file
+first as it explains how to run the examples (and see also the
+examples/check_examples script).
 
 OpenMP
 ------
@@ -694,7 +764,7 @@ gives free-reign to the compiler to automatically parallelise any
 suitable loops within the specified region. An example of the use of
 ``ACCDataTrans`` and ``ACCKernelsTrans`` may be found in
 PSyclone/examples/nemo/eg3 and an example of ``ACCKernelsTrans`` may
-be found in PSyclone/examples/dynamo/eg14.
+be found in PSyclone/examples/lfric/eg14.
 
 However, as with any "automatic" approach, a more performant solution
 can almost always be obtained by providing the compiler with more
@@ -702,7 +772,7 @@ explicit direction on how to parallelise the code.  The
 ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow the
 user to define thread-parallel regions and, within those, define which
 loops should be parallelised. For an example of their use please see
-PSyclone/examples/gocean/eg2 or PSyclone/examples/dynamo/eg14.
+PSyclone/examples/gocean/eg2 or PSyclone/examples/lfric/eg14.
 
 In order for a given section of code to be executed on a GPU, any
 routines called from within that section must also have been compiled
@@ -722,9 +792,6 @@ SIR
 ---
 
 It is currently not possible for PSyclone to output SIR code without
-using a script. Examples of such scripts are given in example 4 for
-the NEMO API. Whilst there are no transformations relating to the
-generation of the SIR, a script is associated with transformations and
-it is possible that transformations could be useful in the future
-e.g. to mark which bits of code should be optimised using the dawn
-tool.
+using a script. Two examples of such scripts are given in example 4
+for the NEMO API, one of which includes transformations to remove
+PSyIR intrinsics (as the SIR does not support them).

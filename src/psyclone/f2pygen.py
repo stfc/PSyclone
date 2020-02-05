@@ -47,6 +47,7 @@ from fparser.one.block_statements import SelectCase, SelectType, EndSelect
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
 from fparser import one as fparser1
+from psyclone.errors import InternalError
 
 # Module-wide utility methods
 
@@ -1033,7 +1034,6 @@ class DeclGen(BaseDeclGen):
         else:
             # Defensive programming in case SUPPORTED_TYPES is added to
             # but not handled here
-            from psyclone.psyGen import InternalError
             raise InternalError(
                 "Type '{0}' is in DeclGen.SUPPORTED_TYPES "
                 "but not handled by constructor.".format(dtype))
@@ -1093,7 +1093,6 @@ class DeclGen(BaseDeclGen):
         else:
             # We should never get to here because we check that the type
             # is supported before calling this routine.
-            from psyclone.psyGen import InternalError
             raise InternalError(
                 "unsupported type '{0}' - should be "
                 "one of {1}".format(dtype, DeclGen.SUPPORTED_TYPES))
@@ -1220,7 +1219,6 @@ class TypeDeclGen(BaseDeclGen):
         :raises InternalError: because specifying initial values for \
                                variables of derived type is not supported.
         '''
-        from psyclone.psyGen import InternalError
         raise InternalError(
             "This method should not have been called because initial values "
             "for derived-type declarations are not supported.")

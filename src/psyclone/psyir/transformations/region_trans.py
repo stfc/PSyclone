@@ -68,8 +68,8 @@ class RegionTrans(Transformation):
         transformation.
 
         :param node_list: list of PSyIR nodes or a single Schedule.
-        :type node_list: :py:class:`psyclone.psyGen.Schedule` or a \
-                         list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: :py:class:`psyclone.psyir.nodes.Schedule` or a \
+                         list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -91,7 +91,7 @@ class RegionTrans(Transformation):
 
         '''
         # pylint: disable=too-many-branches
-        from psyclone.psyGen import IfBlock, Loop
+        from psyclone.psyir.nodes import IfBlock, Loop
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.psyir.transformations import TransformationError
         if not options:

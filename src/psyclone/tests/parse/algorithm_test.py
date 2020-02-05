@@ -47,7 +47,7 @@ from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
 
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 # class parser() tests

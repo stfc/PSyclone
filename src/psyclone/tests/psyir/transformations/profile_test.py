@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,9 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import InternalError, Loop, NameSpace
+from psyclone.psyir.nodes import Loop
+from psyclone.psyGen import NameSpace
+from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
@@ -68,7 +70,7 @@ def teardown_function():
 def test_malformed_profile_node(monkeypatch):
     ''' Check that we raise the expected error if a ProfileNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyGen import Node
+    from psyclone.psyir.nodes import Node
     pnode = ProfileNode()
     monkeypatch.setattr(pnode, "_children", [])
     with pytest.raises(InternalError) as err:
@@ -97,7 +99,7 @@ def test_profile_node_invalid_name(value):
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
@@ -216,8 +218,9 @@ def test_profile_invokes_gocean1p0():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"kernel_ne_offset_mod\", "
-                  r"\"compute_cv_code\", profile\).*"
+                  r"call ProfileStart\(\"psy_single_invoke_different_iterates"
+                  r"_over\", "
+                  r"\"invoke_0:r0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -242,8 +245,8 @@ def test_profile_invokes_gocean1p0():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"compute_cu_mod\", "
-                  r"\"compute_cu_code\", profile\).*"
+                  r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
+                  r"\"invoke_0:r0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -275,27 +278,22 @@ def test_unique_region_names():
     code = str(invoke.gen()).replace("\n", "")
 
     # This regular expression puts the region names into groups.
-    # Make sure even though the kernels have the same name, that
-    # the created regions have different names. In order to be
-    # flexible for future changes, we get the region names from
-    # the ProfileStart calls using a regular expressions (\w*
-    # being the group name enclosed in "") group. Python will store
-    # those two groups and they can be accessed using the resulting
-    # re object.group(n).
+    # Make sure that the created regions have different names, even
+    # though the kernels have the same name.
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"compute_cu_mod\", \"(\w*)\", "
-                  r"profile\).*"
+                  r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
+                  r"\"invoke_0:compute_cu_code:r0\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
                   r"call ProfileEnd\(profile\).*"
-                  r"call ProfileStart\(\"compute_cu_mod\", \"(\w*)\", "
-                  r"profile_1\).*"
+                  r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
+                  r"\"invoke_0:compute_cu_code:r1\", profile_1\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -303,15 +301,7 @@ def test_unique_region_names():
                   "end.*"
                   r"call ProfileEnd\(profile_1\)")
 
-    groups = re.search(correct_re, code, re.I)
-    assert groups is not None
-
-    # Check that the region names are indeed different: group(1)
-    # is the first kernel region name crated by PSyclone, and
-    # group(2) the name used in the second ProfileStart.
-    # Those names must be different (otherwise the profiling tool
-    # would likely combine the two different regions into one).
-    assert groups.group(1) != groups.group(2)
+    assert re.search(correct_re, code, re.I) is not None
 
 
 # -----------------------------------------------------------------------------
@@ -338,16 +328,16 @@ def test_profile_kernels_gocean1p0():
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"compute_cu_mod\", "
-                  r"\"compute_cu_code.*\", (?P<profile1>\w*)\).*"
+                  r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
+                  r"\"invoke_0:compute_cu_code:r0\", (?P<profile1>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
                   r"call ProfileEnd\((?P=profile1)\).*"
-                  r"call ProfileStart\(\"time_smooth_mod\", "
-                  r"\"time_smooth_code\", (?P<profile2>\w*)\).*"
+                  r"call ProfileStart\(\"psy_single_invoke_two_kernels\", "
+                  r"\"invoke_0:time_smooth_code:r1\", (?P<profile2>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -356,7 +346,6 @@ def test_profile_kernels_gocean1p0():
                   r"call ProfileEnd\((?P=profile2)\)")
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
-    # Check that the variables are different
     assert groups.group(1) != groups.group(2)
 
     Profiler.set_options(None)
@@ -396,8 +385,8 @@ def test_profile_invokes_dynamo0p3():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code\", "
-                  r"profile\).*"
+                  r"call ProfileStart\(\"single_invoke_psy\", "
+                  r"\"invoke_0_testkern_type:testkern_code:r0\", profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -416,7 +405,7 @@ def test_profile_invokes_dynamo0p3():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code.*\","
+                  r"call ProfileStart\(\"multi_invoke_psy\", \"invoke_0:r0\","
                   r" profile\).*"
                   "do cell.*"
                   "call.*"
@@ -434,8 +423,8 @@ def test_profile_invokes_dynamo0p3():
     assert "USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd" \
         in code
     assert "TYPE(ProfileData), save :: profile" in code
-    assert "CALL ProfileStart(\"unknown-module\", \"x_plus_y\", profile)" \
-        in code
+    assert ("CALL ProfileStart(\"single_invoke_psy\", "
+            "\"invoke_0:x_plus_y:r0\", profile)" in code)
     assert "CALL ProfileEnd(profile)" in code
 
     Profiler.set_options(None)
@@ -458,8 +447,8 @@ def test_profile_kernels_dynamo0p3():
                   "use profile_mod, only: ProfileData, ProfileStart, "
                   "ProfileEnd.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code.*\", "
-                  r"profile\).*"
+                  r"call ProfileStart\(\"single_invoke_psy\", "
+                  r"\"invoke_0_testkern_type:testkern_code:r0\", profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -478,13 +467,15 @@ def test_profile_kernels_dynamo0p3():
                   "ProfileEnd.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(\"testkern_mod\", \"testkern_code.*\", "
+                  r"call ProfileStart\(\"multi_invoke_psy\", "
+                  r"\"invoke_0:testkern_code:r0\", "
                   r"(?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   r"call ProfileEnd\((?P=profile1)\).*"
-                  r"call ProfileStart\(.*, (?P<profile2>\w*)\).*"
+                  r"call ProfileStart\(\"multi_invoke_psy\", "
+                  r"\"invoke_0:testkern_code:r1\", (?P<profile2>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -643,7 +634,7 @@ End Schedule""")
     sched3.view()
     out, _ = capsys.readouterr()
 
-    from psyclone.psyGen import SCHEDULE_COLOUR_MAP, colored
+    from psyclone.psyir.nodes.node import SCHEDULE_COLOUR_MAP, colored
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -756,6 +747,40 @@ def test_transform_errors(capsys):
 
 
 # -----------------------------------------------------------------------------
+def test_region():
+    '''Tests that the profiling transform works correctly when a region of
+    code is specified that does not cover the full invoke and also
+    contains multiple kernels.
+
+    '''
+    _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
+                           "dynamo0.3", name="invoke_0", dist_mem=True)
+    schedule = invoke.schedule
+    prt = ProfileTrans()
+    # Just halo exchanges.
+    _ = prt.apply(schedule[0:3])
+    # Two loops.
+    _ = prt.apply(schedule[1:3])
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:r0\", profile)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:r1\", profile_1)" in result)
+    # Make nested profiles.
+    _ = prt.apply(schedule[1].profile_body[1])
+    _ = prt.apply(schedule)
+    result = str(invoke.gen())
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:r0\", profile_3)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:r1\", profile)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:r2\", profile_1)" in result)
+    assert ("CALL ProfileStart(\"multi_functions_multi_invokes_psy\", "
+            "\"invoke_0:testkern_code:r3\", profile_2)" in result)
+
+
+# -----------------------------------------------------------------------------
 def test_omp_transform():
     '''Tests that the profiling transform works correctly with OMP
      parallelisation.'''
@@ -774,15 +799,15 @@ def test_omp_transform():
     sched3, _ = prt.apply(sched2[0])
 
     correct = (
-        "      CALL ProfileStart(\"boundary_conditions_ne_offset_mod\", "
-        "\"bc_ssh_code\", profile)\n"
+        "      CALL ProfileStart(\"psy_test27_loop_swap\", "
+        "\"invoke_loop1:bc_ssh_code:r0\", profile)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      !$omp end do\n"
         "      !$omp end parallel\n"
         "      CALL ProfileEnd(profile)")
@@ -795,17 +820,17 @@ def test_omp_transform():
 
     code = str(invoke.gen())
 
-    correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code", profile)
+    correct = '''      CALL ProfileStart("psy_test27_loop_swap", \
+"invoke_loop1:bc_ssh_code:r0", profile)
       !$omp parallel default(shared), private(i,j)
-      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_1", \
-profile_1)
+      CALL ProfileStart("psy_test27_loop_swap", \
+"invoke_loop1:bc_ssh_code:r1", profile_1)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
-        END DO\x20
-      END DO\x20
+        END DO
+      END DO
       !$omp end do
       CALL ProfileEnd(profile_1)
       !$omp end parallel

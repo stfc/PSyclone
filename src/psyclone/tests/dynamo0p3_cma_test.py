@@ -42,12 +42,13 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 
 # Constants
@@ -674,7 +675,7 @@ def test_cma_asm(tmpdir, dist_mem):
             "ndf_any_discontinuous_space_2_lma_op1, "
             "cbanded_map_any_discontinuous_space_2_lma_op1)") in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_asm_field(tmpdir, dist_mem):
@@ -711,7 +712,7 @@ def test_cma_asm_field(tmpdir, dist_mem):
         "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
         "cbanded_map_any_space_2_lma_op1)")
     assert expected in code
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_asm_scalar(dist_mem):
@@ -867,7 +868,7 @@ def test_cma_apply(tmpdir, dist_mem):
     # We do not perform halo swaps for operators
     assert "cma_op1_proxy%is_dirty(" not in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
@@ -949,7 +950,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
         assert "CALL field_c_proxy%set_dirty()" in code
         assert "cma_op2_proxy%is_dirty(" not in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_apply_same_space(dist_mem):
@@ -1023,7 +1024,7 @@ def test_cma_matrix_matrix(tmpdir, dist_mem):
     if dist_mem:
         assert "_dirty(" not in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
@@ -1064,7 +1065,7 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
     if dist_mem:
         assert "_dirty(" not in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_multi_kernel(tmpdir, dist_mem):
@@ -1141,7 +1142,7 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
             "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
             "cma_opc_gamma_m, cma_opc_gamma_p)") in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 # Tests for the kernel-stub generator
 

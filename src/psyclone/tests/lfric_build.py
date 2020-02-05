@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,14 +35,14 @@
 #          J. Henrichs, Bureau of Meteorology
 
 ''' Module containing configuration required to build code generated
-for the Dynamo0p3 API '''
+for the LFRic domain. '''
 
 from __future__ import absolute_import
 from psyclone.tests.utilities import CompileError, Compile
 
 
-class Dynamo0p3Build(Compile):
-    '''Build class for compilation of test files for the Dynamo0.3 api.
+class LFRicBuild(Compile):
+    '''Build class for compilation of test files for the LFRic api.
     It uses the wrapper library from test_files/dynamo0p3/infrastructure
     and will automatically compile those files once per process.
     '''
@@ -79,14 +79,14 @@ class Dynamo0p3Build(Compile):
                               "flux_direction_mod"]
 
     def __init__(self, tmpdir):
-        '''Constructor for the Dynamo0p3-specific compilation class.
+        '''Constructor for the LFRic-specific compilation class.
         The very first time the constructor is called it will compile
         the infrastructure library in a temporary, process-specific
         location. These files will be used by all test compilations.
         :param tmpdir: Temporary directory to be used for output files.
         :type tmpdir: :py:class:`LocalPath`
         '''
-        super(Dynamo0p3Build, self).__init__(tmpdir)
+        super(LFRicBuild, self).__init__(tmpdir)
 
         import os
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -95,7 +95,7 @@ class Dynamo0p3Build(Compile):
         self._infrastructure_path = os.path.join(base_path, "infrastructure")
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
-        if not Dynamo0p3Build._infrastructure_built:
+        if not LFRicBuild._infrastructure_built:
             self._build_infrastructure()
 
     def get_infrastructure_flags(self):
@@ -105,32 +105,30 @@ class Dynamo0p3Build(Compile):
         :returns: A list of strings with the compiler flags required.
         :rtpe: list
         '''
-        return ["-I", Dynamo0p3Build._compilation_path]
+        return ["-I", LFRicBuild._compilation_path]
 
     def _build_infrastructure(self):
-        '''Compiles the Dynamo0.3 wrapper infrastructure files so that
+        '''Compiles the LFRic wrapper infrastructure files so that
         compilation tests can be done.
         '''
         old_pwd = self._tmpdir.chdir()
         # Store the temporary path so that the compiled infrastructure
         # files can be used by all test compilations later.
-        Dynamo0p3Build._compilation_path = str(self._tmpdir)
+        LFRicBuild._compilation_path = str(self._tmpdir)
 
         try:
             # Compile each infrastructure file
-            for fort_file in Dynamo0p3Build.INFRASTRUCTURE_MODULES:
+            for fort_file in LFRicBuild.INFRASTRUCTURE_MODULES:
                 name = self.find_fortran_file([self._infrastructure_path],
                                               fort_file)
                 self.compile_file(name)
-            Dynamo0p3Build._infrastructure_built = True
+            LFRicBuild._infrastructure_built = True
 
         except (CompileError, IOError) as err:
             # Failed to compile one of the files
-            Dynamo0p3Build._infrastructure_built = False
-            raise CompileError("Could not compile Dynamo0p3 wrapper. "
+            LFRicBuild._infrastructure_built = False
+            raise CompileError("Could not compile LFRic wrapper. "
                                "Error: {0}".format(str(err)))
 
         finally:
             old_pwd.chdir()
-
-        return

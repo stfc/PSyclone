@@ -1,9 +1,9 @@
-# PSyclone Dynamo Examples
+# PSyclone LFRic Examples
 
-## Examples 1 and 2 - Dynamo 0.1 API
+## Examples 1 and 2 - dynamo 0.1 API
 
-The dynamo examples in the eg1 and eg2 directories below the one
-containing this README use the Dynamo 0.1 API. Those in eg3 - eg10 use
+The LFRic examples in the eg1 and eg2 directories below the one
+containing this README use the Dynamo 0.1 API. Those in eg3 - eg14 use
 version 0.3 of the Dynamo API. They are primarily provided to
 illustrate the use of the PSyclone code-generation system. No guarantee
 is made as to their functional correctness or usefulness (i.e. the
@@ -265,6 +265,18 @@ presence of halo exchanges.
 ```sh
 cd eg14/
 psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+```
+
+## Example 15: Optimise matvec kernel for CPU
+
+This example shows how the LFRic matvec kernel can be optimised by
+PSyclone in the same way as it was hand optimised to run efficiently
+on a multi-core CPU. This is work in progress. To run:
+```sh
+cd eg15/
+psyclone -s ./matvec_opt.py \
+../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+-oalg /dev/null -opsy /dev/null
 ```
 
 ## Code

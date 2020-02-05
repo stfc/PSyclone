@@ -41,6 +41,7 @@
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
+from psyclone.errors import InternalError
 
 
 class DataSymbol(Symbol):
@@ -67,11 +68,13 @@ class DataSymbol(Symbol):
         way).
     :type interface: \
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
-    :param constant_value: sets a fixed known value for this DataSymbol. If \
-        the value is None (the default) then this symbol is not a constant. \
-        The datatype of the constant value must be compatible with the \
-        datatype of the symbol.
-    :type constant_value: int, str or bool
+    :param constant_value: sets a fixed known expression as a permanent \
+        value for this DataSymbol. If the value is None then this \
+        symbol does not have a fixed constant. Otherwise it can receive \
+        PSyIR expressions or Python intrinsic types available in the \
+        TYPE_MAP_TO_PYTHON map. By default it is None.
+    :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+        :py:class:`psyclone.psyir.nodes.Node`
     :param precision: the amount of storage required by the datatype (bytes) \
             or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
@@ -296,9 +299,8 @@ class DataSymbol(Symbol):
     @property
     def constant_value(self):
         '''
-        :returns: The fixed known value for this symbol if one has \
-        been set or None if not.
-        :rtype: int, str, bool or NoneType
+        :returns: the fixed known value of this symbol.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return self._constant_value
@@ -342,51 +344,76 @@ class DataSymbol(Symbol):
     @constant_value.setter
     def constant_value(self, new_value):
         '''
-        :param constant_value: Set or change the fixed known value of \
-        the constant for this DataSymbol. If the value is None then this \
-        symbol does not have a fixed constant. The datatype of \
-        new_value must be compatible with the datatype of the symbol.
-        :type constant_value: int, str or bool
+        :param new_value: set or change the fixed known value of the \
+            constant for this DataSymbol. If the value is None then this \
+            symbol does not have a fixed constant. Otherwise it can receive \
+            PSyIR expressions or Python intrinsic types available in the \
+            TYPE_MAP_TO_PYTHON map.
+        :type new_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+            :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises ValueError: If a non-None value is provided and 1) \
-        this DataSymbol instance does not have local scope, or 2) this \
-        DataSymbol instance is not a scalar (as the shape attribute is not \
-        empty), or 3) a constant value is provided but the type of the \
-        value does not support this, or 4) the type of the value \
-        provided is not compatible with the datatype of this DataSymbol \
-        instance.
+        :raises ValueError: if a non-None value is provided and 1) this \
+            DataSymbol instance does not have local scope, or 2) this \
+            DataSymbol instance is not a scalar (as the shape attribute is \
+            not empty), or 3) a constant value is provided but the type of \
+            the value does is not supported, or 4) the type of the value \
+            provided is not compatible with the datatype of this DataSymbol \
+            instance, or 5) the provided PSyIR expression is unsupported.
 
         '''
+        from psyclone.psyir.nodes import Node, Literal, Operation, Reference
         if new_value is not None:
-            if not self.is_local:
+            if self.is_argument:
                 raise ValueError(
-                    "Error setting '{0}' constant value. A DataSymbol with a "
-                    "constant value is currently limited to Local interfaces "
-                    "but found '{1}'.".format(self.name, self.interface))
+                    "Error setting constant value for symbol '{0}'. A "
+                    "DataSymbol with an ArgumentInterface can not have a "
+                    "constant value.".format(self.name))
             if self.is_array:
                 raise ValueError(
-                    "Error setting '{0}' constant value. A DataSymbol with a "
-                    "constant value must be a scalar but a shape was found."
-                    "".format(self.name))
-            try:
-                lookup = TYPE_MAP_TO_PYTHON[self.datatype]
-            except KeyError:
-                raise ValueError(
-                    "Error setting '{0}' constant value. Constant values are "
-                    "not supported for '{1}' datatypes."
-                    "".format(self.name, self.datatype))
-            if not isinstance(new_value, lookup):
-                raise ValueError(
-                    "Error setting '{0}' constant value. This DataSymbol "
-                    "instance datatype is '{1}' which means the constant "
-                    "value is expected to be '{2}' but found '{3}'."
-                    "".format(self.name, self.datatype,
-                              TYPE_MAP_TO_PYTHON[self.datatype],
-                              type(new_value)))
-        self._constant_value = new_value
+                    "Error setting constant value for symbol '{0}'. A "
+                    "DataSymbol with a constant value must be a scalar but "
+                    "a shape was found.".format(self.name))
+
+            if isinstance(new_value, Node):
+                for node in new_value.walk(Node):
+                    if not isinstance(node, (Literal, Operation, Reference)):
+                        raise ValueError(
+                            "Error setting constant value for symbol '{0}'. "
+                            "PSyIR static expressions can only contain PSyIR "
+                            "literal, operation or reference nodes but found:"
+                            " {1}".format(self.name, node))
+                self._constant_value = new_value
+            else:
+                try:
+                    lookup = TYPE_MAP_TO_PYTHON[self.datatype]
+                except KeyError:
+                    raise ValueError(
+                        "Error setting constant value for symbol '{0}'. "
+                        "Constant values are not supported for '{1}' "
+                        "datatypes.".format(self.name, self.datatype))
+                if not isinstance(new_value, lookup):
+                    raise ValueError(
+                        "Error setting constant value for symbol '{0}'. This "
+                        "DataSymbol instance datatype is '{1}' which means the"
+                        " constant value is expected to be '{2}' but found "
+                        "'{3}'.".format(self.name, self.datatype, lookup,
+                                        type(new_value)))
+                if self.datatype == DataType.BOOLEAN:
+                    # In this case we know new_value is a Python boolean as it
+                    # has passed the isinstance(new_value, lookup) check.
+                    if new_value:
+                        self._constant_value = Literal('true', self.datatype)
+                    else:
+                        self._constant_value = Literal('false', self.datatype)
+                else:
+                    # Otherwise we convert the Python intrinsic to a PSyIR
+                    # Literal using its string representation.
+                    self._constant_value = Literal(str(new_value),
+                                                   self.datatype)
+        else:
+            self._constant_value = None
 
     def __str__(self):
-        from psyclone.psyGen import InternalError
         ret = self.name + ": <" + str(self.datatype) + ", "
         if self.is_array:
             ret += "Array["

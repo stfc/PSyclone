@@ -1,8 +1,7 @@
-
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,12 +29,14 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author J.Henrichs, Bureau of Meteorology
+! Author: J.Henrichs, Bureau of Meteorology
+! Author: S. Siso, STFC Daresbury Lab
 
 module model_mod
   
     use kind_params_mod
 
-    real(go_wp) :: rdt = 1.0
+    real(go_wp), parameter :: rdt = 1.0
+    real(go_wp) :: cbfr
 
 end module model_mod

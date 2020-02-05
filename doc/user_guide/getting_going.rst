@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _getting-going:
 
 Getting Going
@@ -9,7 +44,8 @@ Download
 The following instructions are intended for a PSyclone user who wants
 to work with a released version of the code. If you are a developer or
 wish to test a specific branch of PSyclone from the GitHub repository
-please see :ref:`dev-installation` in the :ref:`developers-guide`.
+please see :ref:`dev-installation` in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 PSyclone is available on the Python Package Index (pypi.org) and is
 hosted on GitHub:
@@ -291,7 +327,8 @@ Test
 PSyclone contains an extensive test suite, but this test suite is not
 part of a standard installation. If you want to run the full test 
 suite, you need to install PSyclone from source, see 
-:ref:`dev-installation` in the :ref:`developers-guide`.
+:ref:`dev-installation` in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 .. _getting-going-run:
 
@@ -307,8 +344,7 @@ on your PATH:
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                    [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
                    [--kernel-renaming {multiple,single}]
-		   [--profile {invokes,kernels}]
-                   [--force-profile {invokes,kernels}] [-v]
+		   [--profile {invokes,kernels}] [--config CONFIG] [-v]
                    filename
    psyclone: error: too few arguments
 
@@ -332,19 +368,19 @@ case you should copy them to some convenient location (hereafter
 called ``EGS_HOME``) before attempting to carry out the following
 instructions.
 
-There are 3 subdirectories (``dynamo``, ``gocean`` and
-``nemo``) corresponding to different APIs that are supported by
-PSyclone. In this case we are going to use one of the dynamo
-examples::
+There are 3 subdirectories (``lfric``, ``gocean`` and ``nemo``)
+corresponding to different APIs that are supported by PSyclone. Note,
+the lfric directory corresponds to the dynamo0.1 and dynamo0.3
+APIs. In this case we are going to use one of the LFRic examples::
 
-   > cd <EGS_HOME>/examples/dynamo/eg1
+   > cd <EGS_HOME>/examples/lfric/eg1
    > psyclone -api dynamo0.1 \
    > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
 You should see two new files created called dynamo_alg.f90 (containing
 the re-written algorithm layer) and dynamo_psy.f90 (containing the
-generated PSy- or middle-layer). Since this is a dynamo example the
-Fortran source code has dependencies on the dynamo system and
+generated PSy- or middle-layer). Since this is an LFRic example the
+Fortran source code has dependencies on the LFRic system and
 therefore cannot be compiled stand-alone.
 
 You can also use the ``runme.py`` example to see the interactive
@@ -378,14 +414,14 @@ API in action. This script contains::
 
 It can be run non-interactively as follows::
 
-   > cd <EGS_HOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/lfric/eg1
    > python runme.py
 
 However, to understand this example in more depth it is instructive to
 cut-and-paste from the ``runme.py`` file into your own, interactive python
 session::
 
-   > cd <EGS_HOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/lfric/eg1
    > python
 
 In addition to the ``runme.py`` script, there is also
