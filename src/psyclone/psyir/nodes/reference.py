@@ -150,8 +150,8 @@ class Reference(DataNode):
     @property
     def datatype(self):
         '''
-        :returns: returns the datatype of the symbol associated with \
-        this Reference object.
+        :returns: the datatype of the symbol associated with this \
+        Reference object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
@@ -159,7 +159,12 @@ class Reference(DataNode):
 
     @property
     def dimension(self):
-        ''' xxx '''
+        '''
+        :returns: the dimension of the symbol associated with this \
+        Reference object. Returns 0 as this is a scalar.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
         return 0
 
 
@@ -261,5 +266,10 @@ class Array(Reference):
 
     @property
     def dimension(self):
-        ''' xxx '''
-        return len(children)
+        '''
+        :returns: the dimension of the symbol associated with this \
+        Array object.
+        :rtype: int
+
+        '''
+        return len(self.children)

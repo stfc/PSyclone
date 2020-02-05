@@ -53,10 +53,10 @@ def test_binaryoperation_initialization():
     ''' Check the initialization method of the BinaryOperation class works
     as expected.'''
 
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(GenerationError) as err:
         _ = BinaryOperation("not an operator")
-    assert "BinaryOperation operator argument must be of type " \
-           "BinaryOperation.Operator but found" in str(err.value)
+    assert ("the operator in the BinaryOperation class should be a PSyIR "
+            "BinaryOperation Operator, but found 'str'." in str(err.value))
     bop = BinaryOperation(BinaryOperation.Operator.ADD)
     assert bop._operator is BinaryOperation.Operator.ADD
 
@@ -123,9 +123,8 @@ def test_binaryoperation_create_invalid():
     # oper not a BinaryOperation.Operator.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create("invalid", ref1, ref2)
-    assert ("oper argument in create method of BinaryOperation class should "
-            "be a PSyIR BinaryOperation Operator but found 'str'."
-            in str(excinfo.value))
+    assert ("the operator in the BinaryOperation class should be a PSyIR "
+            "BinaryOperation Operator, but found 'str'." in str(excinfo.value))
 
     # lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -214,8 +213,7 @@ def test_unaryoperation_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
     assert ("the child argument in the UnaryOperation class should "
-            "be an Operation, Reference or Literal PSyIR Node, but found "
-            "'str'.") in str(excinfo.value)
+            "be a PSyIR DataNode, but found 'str'.") in str(excinfo.value)
 
 
 def test_naryoperation_node_str():

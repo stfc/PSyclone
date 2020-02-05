@@ -149,9 +149,9 @@ class UnaryOperation(Operation):
         Operator.MINUS, Operator.PLUS, Operator.ABS, Operator.REAL]
     valid_logical = [Operator.NOT]
 
-    def __init__(self, operation, parent=None):
-        UnaryOperation._check_operation(operation)
-        super(UnaryOperation, self).__init__(operation, parent)
+    def __init__(self, operator, parent=None):
+        UnaryOperation._check_operator(operator)
+        super(UnaryOperation, self).__init__(operator, parent)
         self._text_name = "UnaryOperation"
 
     @staticmethod
@@ -181,7 +181,7 @@ class UnaryOperation(Operation):
         return unary_op
 
     @staticmethod
-    def _check_operation(operator):
+    def _check_operator(operator):
         '''Check that the supplied operation is valid.
 
         :raises GenerationError: if the oper argument is not a valid \
@@ -197,8 +197,8 @@ class UnaryOperation(Operation):
     def _check_child(self, child):
         '''Check that the supplied Node is valid.
 
-        :raises GenerationError: if the child argument is an invalid
-        type of Node for this operator.
+        :raises GenerationError: if the child argument is an invalid \
+            type of Node for this operator.
 
         '''
         # Check the node type is valid.
@@ -209,10 +209,10 @@ class UnaryOperation(Operation):
                 "".format(type(child).__name__))
 
         # Only scalar values are supported in all unary operators.
-        if child.dimension > 0:
+        if child.dimension != 0:
             raise GenerationError(
                 "Operator '{0}' only supports scalars but argument is an "
-                "array with {1} dimension(s)"
+                "array with {1} dimension(s)."
                 "".format(self.operator.name, child.dimension))
 
         # Check that the datatype of this argument is valid for this
@@ -243,13 +243,13 @@ class UnaryOperation(Operation):
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
-        if self.operator == UnaryOperator.REAL:
+        if self.operator == UnaryOperation.Operator.REAL:
             # This operator casts the data to REAL.
             return DataType.REAL
-        elif self.operator == UnaryOperator.INT:
+        elif self.operator == UnaryOperation.Operator.INT:
             # This operator casts the data to INT.
             return DataType.INTEGER
-        elif self.operator == UnaryOperator.CEIL:
+        elif self.operator == UnaryOperation.Operator.CEIL:
             # This operator takes a REAL and returns an INT.
             return DataType.INTEGER
         # All other operators return data with the same datatype and
@@ -342,6 +342,7 @@ class BinaryOperation(Operation):
     '''
 
     def __init__(self, operator, parent=None):
+        BinaryOperation._check_operator(operator)
         super(BinaryOperation, self).__init__(operator, parent)
         self._text_name = "BinaryOperation"
 
@@ -391,11 +392,39 @@ class BinaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(oper, BinaryOperation.Operator):
+        # The oper argument is checked by BinaryOperation.__init__()
+        binary_op = BinaryOperation(oper)
+
+        # Check children elements
+        binary_op._check_children(lhs, rhs)
+
+        lhs.parent = binary_op
+        rhs.parent = binary_op
+        binary_op.children = [lhs, rhs]
+        return binary_op
+
+    @staticmethod
+    def _check_operator(operator):
+        '''Check that the supplied operator is valid.
+
+        :raises GenerationError: if the oper argument is not a valid \
+            BinaryOperation operator.
+
+        '''
+        if not isinstance(operator, BinaryOperation.Operator):
             raise GenerationError(
-                "oper argument in create method of BinaryOperation class "
-                "should be a PSyIR BinaryOperation Operator but found '{0}'."
-                "".format(type(oper).__name__))
+                "the operator in the BinaryOperation class should be a "
+                "PSyIR BinaryOperation Operator, but found '{0}'."
+                "".format(type(operator).__name__))
+
+    def _check_children(self, lhs, rhs):
+        '''Check that the supplied Nodes are valid.
+
+        :raises GenerationError: if either or both of the child \
+            arguments are invalid types of Node for this operator.
+
+        '''
+        # Check the node types are valid.
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, Node):
                 raise GenerationError(
@@ -403,11 +432,53 @@ class BinaryOperation(Operation):
                     "should be a PSyIR Node but found '{1}'."
                     "".format(name, type(instance).__name__))
 
-        binary_op = BinaryOperation(oper)
-        lhs.parent = binary_op
-        rhs.parent = binary_op
-        binary_op.children = [lhs, rhs]
-        return binary_op
+        # Check scalar/array operators
+        if self.operator == BinaryOperation.Operator.MATMUL:
+            # The first argument must be a 2D array and the second
+            # argument must be a 1D or 2D array.
+            if not lhs.dimension == 2:
+                raise GenerationError(
+                    "Operator 'MATMUL' requires the LHS argument to be a 2D "
+                    "array, but found {0} dimension(s)."
+                    "".format(lhs.dimension))
+            if not rhs.dimension in [1, 2]:
+                raise GenerationError(
+                    "Operator 'MATMUL' requires the RHS argument to be a 1D "
+                    "or 2D array, but found {0} dimension(s)."
+                    "".format(lhs.dimension))
+            # The size of the 2nd dimension of the first array must be
+            # the same size as the first dimension of the second
+            # array (see issue #692).
+        else:
+            # Both arguments should be scalars for all Operators
+            # except MATMUL.
+            for name, child in [("lhs", lhs), ("rhs", rhs)]:
+                if child.dimension != 0:
+                    raise GenerationError(
+                        "Operator '{0}' only supports scalars but {1} "
+                        "argument is an array with {2} dimension(s)."
+                        "".format(self.operator.name, child.name,
+                                  child.dimension))
+
+        # Check datatypes
+        if self.operator == BinaryOperation.Operator.MATMUL:
+            # MATMUL only supports REAL data.
+            if lhs.datatype != DataType.REAL or rhs.datatype != DataType.REAL:
+                raise GenerationError(
+                    "Operator MATMUL expects both arguments to be of type "
+                    "REAL but found [{0}, {1}]."
+                    "".format(lhs.datatype, rhs.datatype))
+        else:
+            # Operators other than MATMUL support REAL or INTEGER data.
+            if (lhs.datatype == DataType.REAL and
+               rhs.datatype == DataType.REAL) or \
+               (lhs.datatype == DataType.INTEGER and
+               rhs.datatype == DataType.INTEGER):
+                return None
+            raise GenerationError(
+                "Operator {0} expects both arguments to either be of type "
+                "REAL or INTEGER but found '{0}' and '{1}'."
+                "".format(lhs.datatype, rhs.datatype))
 
     @property
     def datatype(self):
@@ -511,14 +582,29 @@ class NaryOperation(Operation):
         nary_op.children = children
         return nary_op
 
+    @property
     def datatype(self):
-        '''Returns the datatype returned by this nary operator.  The
-        datatype of the returned value(s) is the same as the datatype
-        of the first argument for all of the supported operators.
+        '''Returns the datatype returned by this nary operator.  The datatype
+        of the returned value(s) is the same as the datatype of all of
+        the arguments for all of the supported operators. The first
+        argument is arbitrarily chosen.
 
         :returns: returns the datatype associated with this node.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
-        arg = self.children[0]
-        return arg.datatype
+        return self.children[0].datatype
+
+    @property
+    def dimension(self):
+        '''Returns the dimension of the datatype returned by this nary
+        operator. All nary operators accept scalars as arguments and
+        return a scalar.
+
+        :returns: returns the dimension of the data returned by the \
+            nary operator. As returned data is always sclar for nary \
+            operators, 0 is returned.
+        :rtype: int
+
+        '''
+        return 0
