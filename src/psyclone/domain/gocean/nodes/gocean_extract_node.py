@@ -92,9 +92,7 @@ class GOceanExtractNode(ExtractNode):
         '''
         Generates the code required for extraction of one or more Nodes. \
         For now it inserts comments before and after the code belonging \
-        to all the children of this ExtractNode. These comments will be \
-        replaced by calls to write out arguments of extracted Node(s) or \
-        Kernel(s) in Issue #234.
+        to all the children of this ExtractNode.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.

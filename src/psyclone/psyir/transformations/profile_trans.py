@@ -38,7 +38,7 @@
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyir.nodes import ProfileNode
+from psyclone.psyir.nodes import Node, ProfileNode
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 
 
@@ -70,11 +70,9 @@ class ProfileTrans(PSyDataTrans):
     of valid nodes.
 
     '''
-    # TODO #655: Refactor this to use PSyDataTrans as base class.
-    from psyclone import psyGen, profiler, psyir
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
-    valid_node_types = (psyir.nodes.Node,)
+    valid_node_types = (Node,)
 
     def __init__(self):
         super(ProfileTrans, self).__init__(ProfileNode)
