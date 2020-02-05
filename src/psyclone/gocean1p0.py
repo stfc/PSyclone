@@ -54,7 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
+    KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, DataType, DataSymbol, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -941,12 +941,6 @@ class GOKern(CodedKern):
         self._children = []
         self._name = ""
         self._index_offset = ""
-        # Get a reference to the namespace manager
-        # FIXME: NameSpace was a singleton, this symbol table is not and it
-        # should use the appropiate scope symbol table
-        self._psyvars = SymbolTable()
-
-        self._name_space_manager = NameSpaceFactory().create()
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -1047,8 +1041,9 @@ class GOKern(CodedKern):
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
         garg = self._arguments.find_grid_access()
-        glob_size = self._psyvars.new_symbol_name("globalsize")
-        self._psyvars.add(DataSymbol(glob_size, DataType.INTEGER, shape=[2]))
+        glob_size = self.root.symbol_table.new_symbol_name("globalsize")
+        self.root.symbol_table.add(DataSymbol(glob_size, DataType.INTEGER,
+                                              shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
@@ -1060,8 +1055,9 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = self._psyvars.new_symbol_name("localsize")
-        self._psyvars.add(DataSymbol(local_size, DataType.INTEGER, shape=[2]))
+        local_size = self.root.symbol_table.new_symbol_name("localsize")
+        self.root.symbol_table.add(DataSymbol(local_size, DataType.INTEGER,
+                                              shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
@@ -1071,8 +1067,8 @@ class GOKern(CodedKern):
 
         # Create Kernel name variable
         base = "kernel_" + self._name
-        kernel = self._psyvars.new_symbol_name(base)
-        self._psyvars.add(Symbol(kernel))
+        kernel = self.root.symbol_table.new_symbol_name(base)
+        self.root.symbol_table.add(Symbol(kernel))
 
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
@@ -1093,9 +1089,9 @@ class GOKern(CodedKern):
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = self._name_space_manager.create_name(
-            root_name=self.name+"_set_args", context=self.name+"ArgSetter",
-            label=self.name+"_set_args")
+
+        sub_name = self.root.symbol_table.new_symbol_name(self.name + "_set_args")
+        self.root.symbol_table.add(Symbol(sub_name))
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
@@ -1131,16 +1127,18 @@ class GOKern(CodedKern):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, CommentGen
+        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
+            CommentGen, AssignGen, CallGen
         # Currently literal arguments are checked for and rejected by
         # the OpenCL transformation.
-        kobj = self._name_space_manager.create_name(
-            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
+        argsetter_st = SymbolTable()
+
+        kobj = argsetter_st.new_symbol_name("kernel_obj")
+        argsetter_st.add(Symbol(kobj))
         args = [kobj] + [arg.name for arg in self._arguments.args]
 
-        sub_name = self._name_space_manager.create_name(
-            root_name=self.name+"_set_args", context=self.name+"ArgSetter",
-            label=self.name+"_set_args")
+        sub_name = argsetter_st.new_symbol_name(self.name + "_set_args")
+        argsetter_st.add(Symbol(sub_name))
         sub = SubroutineGen(parent, name=sub_name, args=args)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
@@ -1185,8 +1183,8 @@ class GOKern(CodedKern):
 
         # Declare local variables
 
-        err_name = self._psyvars.new_symbol_name("ierr")
-        self._psyvars.add(DataSymbol(err_name, DataType.INTEGER))
+        err_name = argsetter_st.new_symbol_name("ierr")
+        argsetter_st.add(DataSymbol(err_name, DataType.INTEGER))
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
 
         # Set kernel arguments
@@ -1194,7 +1192,15 @@ class GOKern(CodedKern):
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
         for index, arg in enumerate(self.arguments.args):
-            arg.set_kernel_arg(sub, index, self.name)
+            sub.add(AssignGen(
+                sub, lhs=err_name,
+                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+                format(kobj, index, arg.name)))
+            sub.add(CallGen(
+                sub, "check_status",
+                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
+                 err_name]))
+
 
     def gen_data_on_ocl_device(self, parent):
         # pylint: disable=too-many-locals
@@ -1232,11 +1238,11 @@ class GOKern(CodedKern):
                     condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
-                nbytes = self._psyvars.new_symbol_name("size_in_bytes")
-                self._psyvars.add(DataSymbol(nbytes, DataType.INTEGER))
+                nbytes = self.root.symbol_table.new_symbol_name("size_in_bytes")
+                self.root.symbol_table.add(DataSymbol(nbytes, DataType.INTEGER))
                 # Variable to hold write event returned by OpenCL runtime
-                wevent = self._psyvars.new_symbol_name("write_event")
-                self._psyvars.add(DataSymbol(wevent, DataType.INTEGER))
+                wevent = self.root.symbol_table.new_symbol_name("write_event")
+                self.root.symbol_table.add(DataSymbol(wevent, DataType.INTEGER))
                 ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
@@ -1574,8 +1580,6 @@ class GOKernelGridArgument(Argument):
 
         # This object always represents an argument that is a grid_property
         self._type = "grid_property"
-        # Access to the name-space manager
-        # self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def name(self):

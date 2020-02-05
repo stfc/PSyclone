@@ -3570,31 +3570,6 @@ class Argument(object):
         ''' set the node that this argument is associated with '''
         self._call = value
 
-    def set_kernel_arg(self, parent, index, kname):
-        '''
-        Generate the code to set this argument for an OpenCL kernel.
-
-        :param parent: the node in the Schedule to which to add the code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        :param int index: the (zero-based) index of this argument in the \
-                          list of kernel arguments.
-        :param str kname: the name of the OpenCL kernel.
-        '''
-        from psyclone.f2pygen import AssignGen, CallGen
-        # Look up variable names from name-space manager
-        err_name = self._name_space_manager.create_name(
-            root_name="ierr", context="PSyVars", label="ierr")
-        kobj = self._name_space_manager.create_name(
-            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
-        parent.add(AssignGen(
-            parent, lhs=err_name,
-            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format(kobj, index, self.name)))
-        parent.add(CallGen(
-            parent, "check_status",
-            ["'clSetKernelArg: arg {0} of {1}'".format(index, kname),
-             err_name]))
-
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
