@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -183,7 +183,7 @@ def test_refelem_gen(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert "use reference_element_mod, only: reference_element_type" in gen
     assert "integer nfaces_h, nfaces_v" in gen
@@ -214,7 +214,7 @@ def test_duplicate_refelem_gen(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert gen.count("real(kind=r_def), allocatable :: horiz_face_normals(:,:)"
                      ", vert_face_normals(:,:)") == 1
@@ -248,7 +248,7 @@ def test_union_refelem_gen(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
 
     assert (
