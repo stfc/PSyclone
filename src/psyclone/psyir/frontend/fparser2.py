@@ -424,9 +424,9 @@ class Fparser2Reader(object):
         new_schedule = self._create_schedule(name, invoke)
 
         try:
-            if (isinstance(module_ast, Fortran2003.Module) or
-                (isinstance(module_ast, Fortran2003.Program) and
-                 isinstance(module_ast.content[0], Fortran2003.Module))):
+            if isinstance(module_ast, Fortran2003.Module) or \
+                   (isinstance(module_ast, Fortran2003.Program) and
+                    isinstance(module_ast.content[0], Fortran2003.Module)):
                 # We have a module so create a Container
                 new_container = self.generate_container(module_ast)
                 new_schedule.parent = new_container
