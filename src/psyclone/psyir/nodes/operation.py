@@ -43,6 +43,7 @@ import abc
 from enum import Enum
 import six
 from psyclone.psyir.nodes import DataNode, Node
+from psyclone.psyir.symbols import DataType
 from psyclone.errors import GenerationError
 
 
@@ -181,7 +182,7 @@ class UnaryOperation(Operation):
 
     @staticmethod
     def _check_operation(operator):
-        '''check that the supplied operation is valid.
+        '''Check that the supplied operation is valid.
 
         :raises GenerationError: if the oper argument is not a valid \
             UnaryOperation operator.
@@ -194,68 +195,77 @@ class UnaryOperation(Operation):
                 "".format(type(operator).__name__))
 
     def _check_child(self, child):
-        '''Check that the supplied child is valid.
+        '''Check that the supplied Node is valid.
 
-        :raises GenerationError: if the child argument is not valid for ...
+        :raises GenerationError: if the child argument is an invalid
+        type of Node for this operator.
 
         '''
         # Check the node type is valid.
-        from psyclone.psyir.nodes import Reference, Literal
-        if not isinstance(child, (Operation, Reference, Literal)):
+        if not isinstance(child, DataNode):
             raise GenerationError(
-                "the child argument in the UnaryOperation class should be an "
-                "Operation, Reference or Literal PSyIR Node, but found '{0}'."
+                "the child argument in the UnaryOperation class should be "
+                "a PSyIR DataNode, but found '{0}'."
                 "".format(type(child).__name__))
 
-        # Only scalar values are supported
-        # TODO: check whether what is returned is an array
+        # Only scalar values are supported in all unary operators.
         if child.dimension > 0:
             raise GenerationError(
-                "Operator '{0}' only supports scalars but argument has '{1}' "
-                "dimension(s)".format(self.operator.name, child.dimension))
-        
-        # Check the datatype of the node is valid.
-        child_datatype = child.datatype
+                "Operator '{0}' only supports scalars but argument is an "
+                "array with {1} dimension(s)"
+                "".format(self.operator.name, child.dimension))
 
         # Check that the datatype of this argument is valid for this
         # object's operator.
-        from psyclone.psyir.symbols import DataType
+        child_datatype = child.datatype
         if child_datatype == DataType.REAL and \
            self.operator in UnaryOperation.valid_real:
-            return
+            return None
         elif child_datatype == DataType.INTEGER and \
              self.operator in UnaryOperation.valid_integer:
-            return
+            return None
         elif child_datatype == DataType.BOOLEAN and \
              self.operator in UnaryOperation.valid_logical:
-            return
-        raise GenerationError("Unsupported datatype '{0}' for operator '{1}'."
-                              "".format(str(child_datatype), self.operator.name))
+            return None
+        raise GenerationError(
+            "Unsupported datatype '{0}' for operator '{1}'."
+            "".format(str(child_datatype), self.operator.name))
 
     @property
     def datatype(self):
-        '''Returns the datatype returned by the unary operator. Unless this
-        is a casting operator (INT or REAL) or the CEIL function
-        (which returns an integer) then the datatype is the same as
-        the datatype of the operator's argument.
+        '''Returns the datatype of the data returned by the unary
+        operator. Unless this is a casting operator (INT or REAL) or
+        the CEIL function (which returns an integer) then the datatype
+        of the data returned is the same as the datatype of the
+        operator's argument.
 
-        :returns: returns the datatype associated with this node.
+        :returns: the datatype of the data returned by this node.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
         if self.operator == UnaryOperator.REAL:
+            # This operator casts the data to REAL.
             return DataType.REAL
         elif self.operator == UnaryOperator.INT:
+            # This operator casts the data to INT.
             return DataType.INTEGER
         elif self.operator == UnaryOperator.CEIL:
+            # This operator takes a REAL and returns an INT.
             return DataType.INTEGER
+        # All other operators return data with the same datatype and
+        # dimension as their argument.
         arg = self.children[0]
         return arg.datatype
 
     @property
     def dimension(self):
-        ''' Returns the dimension of the data returned by the unary
-        operator. All unary operators return scalars. '''
+        '''
+        :returns: the number of dimensions that the data returned by \
+            this unary operator has. As returned data is always scalar \
+            for unary operators, 0 is returned.
+        :rtype: int
+
+        '''
         return 0
 
 
@@ -401,30 +411,42 @@ class BinaryOperation(Operation):
 
     @property
     def datatype(self):
-        '''Returns the datatype returned by this binary operator.  The
-        datatype of the returned value(s) is the same as the datatype
-        of the first argument for all of the supported operators,
-        apart from EQ, NE, GT, LT, GE and LE which return boolean.
+        '''Returns the datatype of the data returned by this binary operator.
+        The datatype of the returned value(s) is the same as the
+        datatype of the first argument for all of the supported
+        operators, apart from EQ, NE, GT, LT, GE and LE which return
+        boolean.
 
-        :returns: returns the datatype associated with this node.
+        :returns: returns the datatype associated with the data \
+            returned by this node.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
         if self.operator in ['EQ', 'NE', 'GT', 'LT', 'GE', 'LE']:
+            # Equivalence operators all return boolean data
             return BinaryOperator.BOOLEAN
+        # All other operators return the same type as their first
+        # argument.
         arg = self.children[0]
         return arg.datatype
 
     @property
     def dimension(self):
-        ''' Returns the dimension of the data returned by the binary
-        operator. All binary operators return scalars apart from matmul '''
+        '''
+        :returns: the dimension of the data returned by the binary \
+            operator. All binary operators return scalars apart from \
+            matmul.
+        :rtype: int
+
+        '''
         if self.operator == BinaryOperation.Operator.MATMUL:
-            # The dimension of the result is the same as the dimension
-            # of the second argument (as matmul can be matrix-matrix
-            # or matrix-vector).
+            # The dimension of the data returned by MATMUL is the same
+            # as the dimension of the second argument (as matmul can
+            # be matrix-matrix or matrix-vector).
             return self.children[1].dimension
+        # All other binary operators return a scalar.
         return 0
+
 
 class NaryOperation(Operation):
     '''

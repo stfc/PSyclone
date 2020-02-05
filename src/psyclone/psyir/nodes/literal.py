@@ -102,7 +102,11 @@ class Literal(DataNode):
 
     @property
     def dimension(self):
-        ''' xxx '''
+        '''
+        :returns: the number of dimensions that this Literal value \
+        has. 0 is returned to indicate this is a scalar.
+        :rtype: int
+        '''
         return 0
 
     @property

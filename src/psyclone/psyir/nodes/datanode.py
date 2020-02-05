@@ -31,10 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford
+# Author: R. W. Ford
 # -----------------------------------------------------------------------------
 
-'''This module contains the datanode abstract node class.'''
+'''This module contains the datanode abstract node class. The DataNode
+specifies nodes which are expressions (rather than statements) which
+return data.
+
+'''
 
 import six
 import abc
@@ -43,16 +47,15 @@ from psyclone.psyir.nodes import Node
 
 @six.add_metaclass(abc.ABCMeta)
 class DataNode(Node):
-    '''A DataNode is a Node which returns Data. As such it must have a
-    datatype and dimension property.
+    '''A DataNode is an expression Node which returns data. As such it
+    must have a datatype and dimension property.
 
     '''
     @property
     @abc.abstractmethod
     def datatype(self):
         '''
-        :returns: returns the datatype of the symbol associated with \
-        this Reference object.
+        :returns: the datatype of the data returned by this object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
@@ -60,5 +63,10 @@ class DataNode(Node):
     @property
     @abc.abstractmethod
     def dimension(self):
-        ''' xxx '''
+        '''
+        :returns: the number of dimensions of the data returned by \
+            this object if it is an array and 0 otherwise.
+        :rtype: int
+
+        '''
         
