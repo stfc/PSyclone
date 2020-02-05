@@ -73,7 +73,7 @@ object into the Schedule of a specific Invoke. All Nodes marked for
 extraction become children of the ``ExtractNode``.
 
 The ``ExtractNode`` class uses the dependency analysis to detect
-which variables are input-, and which onesBelow is some are output-parameters.
+which variables are input-, and which ones are output-parameters.
 The lists of variables are then passed to the ``PSyDataNode``
 which creates the actual code as described in :ref:`psy_data`. Below is some
 example output for LFRic::
