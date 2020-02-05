@@ -3642,6 +3642,7 @@ class NemoExplicitLoopTrans(Transformation):
         from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
+        from psyclone.psyir.symbols import DataSymbol, DataType
 
         self.validate(loop, options)
 
@@ -3680,15 +3681,16 @@ class NemoExplicitLoopTrans(Transformation):
 
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
-        nsm = invoke._name_space_manager
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
-                                   label=base_name)
+
+        loop_var = loop.root._nis_symbtab.new_symbol_name(base_name)
+        loop.root._nis_symbtab.add(DataSymbol(loop_var, DataType.INTEGER))
+
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
