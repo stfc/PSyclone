@@ -111,11 +111,11 @@ def test_assignment_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Assignment.create("invalid", Literal("0.0", DataType.REAL))
     assert ("lhs argument in create method of Assignment class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+            "be a PSyIR DataNode but found 'str'.") in str(excinfo.value)
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
                               "invalid")
     assert ("rhs argument in create method of Assignment class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+            "be a PSyIR DataNode but found 'str'.") in str(excinfo.value)

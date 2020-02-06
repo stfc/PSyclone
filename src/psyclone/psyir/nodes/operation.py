@@ -172,7 +172,7 @@ class UnaryOperation(Operation):
         '''
         # The oper argument is checked by UnaryOperation.__init__()
         unary_op = UnaryOperation(oper)
-        
+
         # Check the child argument
         unary_op._check_child(child)
         
@@ -594,20 +594,45 @@ class NaryOperation(Operation):
             invalid types of Node for this operator.
 
         '''
+        # Not a list of children
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of NaryOperation class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "NaryOperation class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
-        print("**** ADD TESTS TO NaryOperation class in operation.py ***")
-        exit(1)
+                "children argument in NaryOperation class should be a list "
+                "but found '{0}'.".format(type(children).__name__))
 
+        # Wrong type of node
+        for child in children:
+            if not isinstance(child, DataNode):
+                raise GenerationError(
+                    "child of children argument in NaryOperation class "
+                    "should be a PSyIR DataNode but found '{0}'."
+                    "".format(type(child).__name__))
+
+        # Not a scalar
+        for child in children:
+            if hasattr(child, "shape"):
+                raise GenerationError(
+                    "child of children argument in NaryOperation class "
+                    "should be a scalar but found an array.")
+
+        # All arguments must be REAL or INTEGER
+        for child in children:
+            if child.datasymbol.datatype not in [DataType.REAL,
+                                                 DataType.INTEGER]:
+                raise GenerationError(
+                    "children arguments of NaryOperation class should be of "
+                    "type REAL or INTEGER but found '{0}'."
+                    "".format(child.datasymbol.datatype))
+        
+        # Different datatype
+        datatype = children[0].datasymbol.datatype
+        for child in children[1:]:
+            if child.datasymbol.datatype != datatype:
+                raise GenerationError(
+                    "children arguments in NaryOperation class should all be "
+                    "of the same type, but found '{0}' and '{1}'."
+                    "".format(datatype, child.datasymbol.datatype))
+        
     @property
     def datasymbol(self):
         '''

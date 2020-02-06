@@ -100,7 +100,7 @@ def test_validate():
 
     symbol_table = SymbolTable()
     var = Literal("0.0", DataType.REAL)
-    operator = UnaryOperation(UnaryOperation.Operator.ABS, var)
+    operator = UnaryOperation.create(UnaryOperation.Operator.ABS, var)
 
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(operator, symbol_table)

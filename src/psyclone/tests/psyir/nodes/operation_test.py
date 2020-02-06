@@ -279,7 +279,7 @@ def test_naryoperation_create_invalid():
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(NaryOperation.Operator.SUM, "invalid")
-    assert ("children argument in create method of NaryOperation class should "
+    assert ("children argument in NaryOperation class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node
@@ -288,5 +288,5 @@ def test_naryoperation_create_invalid():
                                  [Reference(DataSymbol(
                                      "tmp1", DataType.REAL)), "invalid"])
     assert (
-        "child of children argument in create method of NaryOperation class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+        "child of children argument in NaryOperation class should be a PSyIR "
+        "DataNode but found 'str'." in str(excinfo.value))

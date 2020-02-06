@@ -39,7 +39,7 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes import Node, DataNode
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError, GenerationError
@@ -108,17 +108,13 @@ class Assignment(Node):
             are not of the expected type.
 
         '''
-        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of Assignment class "
-                    "should be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
+        Assignment._check_children(lhs, rhs)
 
         new_assignment = Assignment()
         lhs.parent = new_assignment
         rhs.parent = new_assignment
         new_assignment.children = [lhs, rhs]
+
         return new_assignment
 
     def __str__(self):
@@ -182,3 +178,40 @@ class Assignment(Node):
         self.rhs.reference_accesses(var_accesses)
         var_accesses.merge(accesses_left)
         var_accesses.next_location()
+
+    @staticmethod
+    def _check_children(lhs, rhs):
+        ''' xxx '''
+        # Check nodes are of the right type
+        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
+            if not isinstance(instance, DataNode):
+                raise GenerationError(
+                    "{0} argument in create method of Assignment class "
+                    "should be a PSyIR DataNode but found '{1}'."
+                    "".format(name, type(instance).__name__))
+
+        # Check datatypes match. Perhaps we should have an '==' for
+        # data symbols?
+        lhs_datatype = lhs.datasymbol.datatype
+        print (type(rhs))
+        rhs_datatype = rhs.datasymbol.datatype
+        if lhs_datatype != rhs_datatype:
+            raise GenerationError(
+                "The datatypes of the LHS and RHS of this assignment should "
+                "match but found '{0}' and '{1}'.".format(
+                    lhs.datasymbol.datatype, rhs.datasymbol.datatype))
+
+        lhs_dimension = 0
+        if lhs.datasymbol.shape:
+            lhs_dimension = len(lhs.datasymbol.shape)
+        rhs_dimension = 0
+        if rhs.datasymbol.shape:
+            rhs_dimension = len(rhs.datasymbol.shape)
+        if lhs_dimension != rhs_dimension:
+            raise GenerationError(
+                "The dimensions of the LHS and RHS of this assignment should "
+                "match but found '{0}' and '{1}'.".format(
+                    lhs_dimension, rhs_dimension))
+        # We should also check that the sizes of the dimensions are
+        # the same, see issue #692.
+        
