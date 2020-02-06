@@ -34,6 +34,7 @@
 .. Written by I. Kavcic, Met Office
 .. Modified by J. Henrichs, Bureau of Meteorology
 
+.. highlight:: fortran
 
 .. _psyke:
 
@@ -72,10 +73,10 @@ object into the Schedule of a specific Invoke. All Nodes marked for
 extraction become children of the ``ExtractNode``.
 
 The ``ExtractNode`` class uses the dependency analysis to detect
-which variables are input-, and which one are output-parameters.
+which variables are input-, and which ones are output-parameters.
 The lists of variables are then passed to the ``PSyDataNode``
-which creates the actual code as described in :ref:`psy_data`. Here
-an example output for LFRic::
+which creates the actual code as described in :ref:`psy_data`. Below is some
+example output for LFRic::
 
       ! ExtractStart
       !
@@ -107,7 +108,7 @@ an example output for LFRic::
       ! ExtractEnd
 
 The PSyData API relies on generic Fortran interfaces to provide the 
-field-type-specific implementations of the ProvideVariable for different
+field-type-specific implementations of the ``ProvideVariable`` for different
 types. This means that a different version of the external PSyData
 library that PSyKE uses must be supplied for each PSyclone API.
 
@@ -353,7 +354,7 @@ The generated code is now:
     output parameter. This issue is tracked in #637.
 
 
-Examples in ``examples/dynamo/eg12`` directory demonstrate how to
+Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
 (see :ref:`examples` section for more information).
 
@@ -362,8 +363,10 @@ apply code extraction by utilising PSyclone transformation scripts
 NetCDF Extraction Example
 -------------------------
 PSyclone comes with an example NetCDF based extraction library in
-``lib/extract/netcdf``. This library implements the full PSyData API
-for the use with the GOcean 1.0 dl_esm_inf infrastructure library.
+``lib/extract/dl_esm_inf/netcdf``
+(https://github.com/stfc/PSyclone/tree/master/lib/extract/dl_esm_inf/netcdf).
+This library implements the full PSyData
+API for use with the GOcean 1.0 dl_esm_inf infrastructure library.
 In order to compile this library, you must have NetCDF installed.
 When running the code, it will create a NetCDF file for the instrumented
 code region. It includes all variables that are read before the code
@@ -379,5 +382,5 @@ and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 The output file only stores the values used in the subroutine,
 e.g. any GOcean grid properties (see :ref:`gocean1.0-grid-props`)
 will not be stored automatically. That means that a driver program
-that reads the input variables, executes the code region 5 and then
+that reads the input variables, executes the code region and then
 validates the results can be implemented independent of dl_esm_inf.

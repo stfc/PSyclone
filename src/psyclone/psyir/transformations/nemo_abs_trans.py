@@ -43,6 +43,7 @@ currently create a symbol table, see issue #500. Once this has been
 implemented the transformation can be modified to work for all APIs.
 
 '''
+from __future__ import absolute_import
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans
@@ -139,35 +140,37 @@ class NemoAbsTrans(NemoOperatorTrans):
         # symbol table (see #500) and don't have the appropriate
         # methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_abs")
-        symbol_table.add(DataSymbol(res_var, DataType.REAL))
+        symbol_res_var = DataSymbol(res_var, DataType.REAL)
+        symbol_table.add(symbol_res_var)
         tmp_var = symbol_table.new_symbol_name("tmp_abs")
-        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+        symbol_tmp_var = DataSymbol(tmp_var, DataType.REAL)
+        symbol_table.add(symbol_tmp_var)
 
         # Replace operation with a temporary (res_X).
-        oper_parent.children[node.position] = Reference(res_var,
+        oper_parent.children[node.position] = Reference(symbol_res_var,
                                                         parent=oper_parent)
 
         # tmp_var=X
-        lhs = Reference(tmp_var)
+        lhs = Reference(symbol_tmp_var)
         rhs = node.children[0]
         new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if condition: tmp_var>0.0
-        lhs = Reference(tmp_var)
+        lhs = Reference(symbol_tmp_var)
         rhs = Literal("0.0", DataType.REAL)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
                                               lhs, rhs)
 
         # then_body: res_var=tmp_var
-        lhs = Reference(res_var)
-        rhs = Reference(tmp_var)
+        lhs = Reference(symbol_res_var)
+        rhs = Reference(symbol_tmp_var)
         then_body = [Assignment.create(lhs, rhs)]
 
         # else_body: res_var=-1.0*tmp_var
-        lhs = Reference(res_var)
-        lhs_child = Reference(tmp_var)
+        lhs = Reference(symbol_res_var)
+        lhs_child = Reference(symbol_tmp_var)
         rhs_child = Literal("-1.0", DataType.REAL)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child,
                                      rhs_child)

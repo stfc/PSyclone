@@ -230,7 +230,7 @@ PSyIR symbol names can be specified by a user. For example::
    > symbol_table = SymbolTable()
    > data = DataSymbol(var_name, DataType.REAL)
    > symbol_table.add(data)
-   > reference = Reference(var_name)
+   > reference = Reference(data)
 
 However, the ``SymbolTable`` ``add()`` method will raise an exception if a
 user tries to add a symbol with the same name as a symbol already existing
@@ -300,7 +300,7 @@ together. For example::
     > ...
     > assignment = Assignment()
     > literal = Literal("0.0")
-    > reference = Reference(var_name)
+    > reference = Reference(symbol)
     > literal.parent = assignment
     > reference.parent = assignment
     > assignment.children = [reference, literal]
@@ -317,7 +317,7 @@ above example then becomes::
 
     > ...
     > literal = Literal("0.0")
-    > reference = Reference(var_name)
+    > reference = Reference(symbol)
     > assignment = Assignment.create(reference, literal)
 
 A more complete example of using this approach can be found in the

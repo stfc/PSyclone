@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Assignment, Reference, Literal
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -74,7 +74,7 @@ def test_assignment_semantic_navigation():
     assert "' malformed or incomplete. It needs at least 1 child to have " \
         "a lhs." in str(err.value)
 
-    ref = Reference("a", assignment)
+    ref = Reference(DataSymbol("a", DataType.REAL), assignment)
     assignment.addchild(ref)
 
     # rhs should fail if second child is not present
@@ -94,7 +94,7 @@ def test_assignment_create():
     creates an Assignment instance.
 
     '''
-    lhs = Reference("tmp")
+    lhs = Reference(DataSymbol("tmp", DataType.REAL))
     rhs = Literal("0.0", DataType.REAL)
     assignment = Assignment.create(lhs, rhs)
     check_links(assignment, [lhs, rhs])
@@ -115,6 +115,7 @@ def test_assignment_create_invalid():
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Assignment.create(Reference("tmp"), "invalid")
+        _ = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
+                              "invalid")
     assert ("rhs argument in create method of Assignment class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)

@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 
 
 # This Makefile picks up the compiler to use plus any flags from
-# environment variables. e.g. to use gfortran:
+# environment variables. e.g.:
 # 
 # export F90=mpif90
 # export F90FLAGS="-O3"
@@ -37,10 +37,10 @@
 
 F90 ?= gfortran
 
-NETCDF_DIR = /opt/local/
-DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
+DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
 
-F90FLAGS = -I$(NETCDF_DIR)/include -I$(DL_DIR)
+F90FLAGS ?= 
+F90FLAGS += $$(nc-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 default: $(LIB_NAME)

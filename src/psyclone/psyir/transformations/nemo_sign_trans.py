@@ -43,6 +43,7 @@ currently create a symbol table, see issue #500. Once this has been
 implemented the transformation can be modified to work for all APIs.
 
 '''
+from __future__ import absolute_import
 from psyclone.undoredo import Memento
 from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans
@@ -147,16 +148,18 @@ class NemoSignTrans(NemoOperatorTrans):
         # symbol table (see #500) and don't have the appropriate
         # methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_sign")
-        symbol_table.add(DataSymbol(res_var, DataType.REAL))
+        res_var_symbol = DataSymbol(res_var, DataType.REAL)
+        symbol_table.add(res_var_symbol)
         tmp_var = symbol_table.new_symbol_name("tmp_sign")
-        symbol_table.add(DataSymbol(tmp_var, DataType.REAL))
+        tmp_var_symbol = DataSymbol(tmp_var, DataType.REAL)
+        symbol_table.add(tmp_var_symbol)
 
         # Replace operator with a temporary (res_var).
-        oper_parent.children[node.position] = Reference(res_var,
+        oper_parent.children[node.position] = Reference(res_var_symbol,
                                                         parent=oper_parent)
 
         # res_var=ABS(A)
-        lhs = Reference(res_var)
+        lhs = Reference(res_var_symbol)
         rhs = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                     node.children[0])
         new_assignment = Assignment.create(lhs, rhs)
@@ -168,20 +171,20 @@ class NemoSignTrans(NemoOperatorTrans):
         abs_trans.apply(rhs, symbol_table)
 
         # tmp_var=B
-        lhs = Reference(tmp_var)
+        lhs = Reference(tmp_var_symbol)
         new_assignment = Assignment.create(lhs, node.children[1])
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if_condition: tmp_var<0.0
-        lhs = Reference(tmp_var)
+        lhs = Reference(tmp_var_symbol)
         rhs = Literal("0.0", DataType.REAL)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
                                               lhs, rhs)
 
         # then_body: res_var=res_var*-1.0
-        lhs = Reference(res_var)
-        lhs_child = Reference(res_var)
+        lhs = Reference(res_var_symbol)
+        lhs_child = Reference(res_var_symbol)
         rhs_child = Literal("-1.0", DataType.REAL)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      lhs_child, rhs_child)

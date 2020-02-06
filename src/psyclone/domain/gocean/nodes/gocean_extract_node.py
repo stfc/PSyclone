@@ -71,7 +71,8 @@ class GOceanExtractNode(ExtractNode):
     def __init__(self, ast=None, children=None, parent=None,
                  options=None):
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
-                                                parent=parent, options=options)
+                                                parent=parent,
+                                                options=options)
         if options:
             self._create_driver = options.get("create-driver", False)
         else:
@@ -91,9 +92,7 @@ class GOceanExtractNode(ExtractNode):
         '''
         Generates the code required for extraction of one or more Nodes. \
         For now it inserts comments before and after the code belonging \
-        to all the children of this ExtractNode. These comments will be \
-        replaced by calls to write out arguments of extracted Node(s) or \
-        Kernel(s) in Issue #234.
+        to all the children of this ExtractNode.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.
@@ -227,10 +226,12 @@ class GOceanExtractNode(ExtractNode):
         # need to clear this cached data to make sure the new
         # value for "go_grid_data" is actually used.
         api_config = Config.get().api_conf("gocean1.0")
+
         props = api_config.grid_properties
         old_data_property = props["go_grid_data"]
         Property = namedtuple("Property", "fortran type")
         props["go_grid_data"] = Property("{0}", "array")
+
         from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
             # Clear cached data in all kernels, which will

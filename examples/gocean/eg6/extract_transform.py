@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. Transforms the invoke with the addition of
-OpenACC directives and then encloses the whole in a profiling region. '''
+function via the -s option. It adds kernel extraction code to
+the invokes. When the transform program is compiled and run, it
+will create one NetCDF file for each of the two invokes. A separate
+driver program is also created for each invoke which can read the
+created NetCDF files, execute the invokes and then compare the results.
+'''
 
 from __future__ import print_function
 
 
 def trans(psy):
     '''
-    Take the supplied psy object, add OpenACC directives and then enclose
-    the whole schedule within a profiling region.
+    Take the supplied psy object, and ad kernel extraction code.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.gocean1p0.GOPSy`

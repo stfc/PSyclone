@@ -74,6 +74,7 @@ class PSyDataTrans(RegionTrans):
     '''
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
+    # TODO: #415 Support different classes of PSyData calls.
     valid_node_types = (Node,)
 
     def __init__(self, node_class=PSyDataNode):
@@ -97,9 +98,13 @@ class PSyDataTrans(RegionTrans):
 
         :param node_list: a list of node_list to be profiled.
         :type node_list: :py:class:`psyclone.psyGen.Loop`
-
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
 
         :raises TransformationError: if we're using the NEMO API and the \
             target routine has no Specification_Part.
@@ -163,7 +168,7 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psygen.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param (str, str) options["region_name"]: an optional name to \
+        :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region unless aggregate information \

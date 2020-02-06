@@ -75,6 +75,7 @@ def test_gocean_extract_trans():
     assert etrans.name == "GOceanExtractTrans"
 
 
+# -----------------------------------------------------------------------------
 def test_kern_builtin_no_loop():
     ''' Test that applying Extract Transformation on a Kernel or Built-in
     call without its parent Loop raises a TransformationError. '''
@@ -91,6 +92,7 @@ def test_kern_builtin_no_loop():
             "parent Loop is not allowed.") in str(excinfo.value)
 
 
+# -----------------------------------------------------------------------------
 def test_no_outer_loop_gocean1p0():
     ''' Test that applying GOceanExtractTrans on an inner Loop without
     its parent outer Loop in GOcean1.0 API raises a TransformationError. '''
@@ -107,6 +109,7 @@ def test_no_outer_loop_gocean1p0():
             "ancestor outer Loop is not allowed.") in str(excinfo.value)
 
 
+# -----------------------------------------------------------------------------
 def test_no_parent_accdirective():
     ''' Test that applying Extract Transformation on an orphaned
     ACCLoopDirective without its ancestor ACCParallelDirective
@@ -166,8 +169,10 @@ def test_extract_node_position():
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
     assert extract_node[0].depth == dpth
+    assert extract_node[0].dag_name == "gocean_extract_1"
 
 
+# -----------------------------------------------------------------------------
 def test_single_node_ompparalleldo_gocean1p0():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
@@ -220,6 +225,7 @@ def test_single_node_ompparalleldo_gocean1p0():
     assert output in code
 
 
+# -----------------------------------------------------------------------------
 def test_node_list_ompparallel_gocean1p0():
     ''' Test that applying Extract Transformation on a list of Nodes
     enclosed within an OMP Parallel Region produces the correct result
@@ -323,6 +329,7 @@ def test_driver_generation_flag(tmpdir, create_driver):
     assert driver.isfile() == (create_driver or False)
 
 
+# -----------------------------------------------------------------------------
 def test_driver_creation(tmpdir):
     '''Test that driver is created correctly for all variable access \
     modes (input, input-output, output).
@@ -375,6 +382,7 @@ def test_driver_creation(tmpdir):
         assert line in driver_code
 
 
+# -----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Loop var should not be stored - #641 and #644")
 def test_driver_scalar(tmpdir):
     '''Test that loop variables are not stored. ATM this test
@@ -415,6 +423,7 @@ def test_driver_scalar(tmpdir):
         assert line not in driver_code
 
 
+# -----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Scalars not yet supported - #644")
 def test_driver_scalars(tmpdir):
     '''
@@ -466,6 +475,8 @@ def test_driver_scalars(tmpdir):
         indx += new_index
 
 
+# -----------------------------------------------------------------------------
+@pytest.mark.xfail(reason="Properties not yet supported - #638")
 def test_driver_properties(tmpdir):
     '''
     This tests the extraction and driver generated for properties.
@@ -509,11 +520,13 @@ def test_driver_properties(tmpdir):
     # ----------------------------
     driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
                               "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
-    with open(driver_name, "r") as driver_file:
+    with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ['REAL(KIND=8), allocatable, dimension(:,:) :: tmask',
-                      'CALL psy_data%OpenRead("psy_single_invoke_scalar_float_test", '
+                      'INTEGER :: xstop',
+                      'CALL psy_data%OpenRead(',
+                      '"psy_single_invoke_scalar_float_test", '
                       '"invoke_0_bc_ssh:bc_ssh_code:r0")',
                       'CALL psy_data%ReadVariable("ssh_fld%grid%subdomain%'
                       'internal%xstop", xstop)',
@@ -524,3 +537,30 @@ def test_driver_properties(tmpdir):
         # index will raise an exception if the string is not found
         new_index = driver_code[indx:].index(line)
         indx += new_index
+
+
+# -----------------------------------------------------------------------------
+def test_rename_region(tmpdir):
+    '''
+    This tests that an extract region can be renamed, and that the created
+    driver will use the new names.
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    etrans = GOceanExtractTrans()
+    psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
+
+    etrans.apply(invoke.schedule.children[0],
+                 {'create-driver': True, 'region_name': ("main", "update")})
+
+    # Test that the extraction code contains the right names
+    assert 'CALL psy_data%PreStart("main", "update", 4, 3)' in str(psy.gen)
+
+    # Now test if the created driver has the right name, and will open the
+    # right file:
+    driver_name = tmpdir.join("driver-main-update.f90")
+    with open(str(driver_name), "r") as driver_file:
+        driver_code = driver_file.read()
+    assert 'CALL psy_data%OpenRead("main", "update")' in driver_code

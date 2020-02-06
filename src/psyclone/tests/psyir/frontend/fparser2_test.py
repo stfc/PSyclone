@@ -49,7 +49,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, _get_symbol_table
 
 
 def process_declarations(code):
@@ -551,7 +551,6 @@ def test_process_save_attribute_declarations(parser):
     assert "var1" in fake_parent.symbol_table
 
 
-
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_intent():
     '''Test that process_declarations method handles various different
@@ -587,6 +586,14 @@ def test_process_declarations_intent():
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg4").interface.access is \
         ArgumentInterface.Access.READWRITE
+
+    reader = FortranStringReader("integer, intent ( invalid ) :: arg5")
+    arg_list.append(Fortran2003.Name("arg5"))
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], arg_list)
+    assert "Could not process " in str(err.value)
+    assert "Unexpected intent attribute " in str(err.value)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -980,14 +987,14 @@ def test_handling_name():
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2name])
-    assert "Undeclared reference 'x' found." in str(error.value)
+    assert "No Symbol found for name 'x'." in str(error.value)
 
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2name])
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
-    assert new_node._reference == "x"
+    assert new_node.name == "x"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1025,14 +1032,14 @@ def test_handling_part_ref():
     # checks that the symbol is declared.
     with pytest.raises(SymbolError) as error:
         processor.process_nodes(fake_parent, [fparser2part_ref])
-    assert "Undeclared reference 'x' found." in str(error.value)
+    assert "No Symbol found for name 'x'." in str(error.value)
 
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2part_ref])
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
+    assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
     # Parse a complex array expression
@@ -1046,7 +1053,7 @@ def test_handling_part_ref():
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
-    assert new_node._reference == "x"
+    assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
 
 
@@ -1076,7 +1083,8 @@ def test_handling_intrinsics():
         ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
         ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
         ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-        ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
+        ('x = matmul(a, b)', BinaryOperation,
+         BinaryOperation.Operator.MATMUL),
         ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
         ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
         ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
@@ -1940,3 +1948,35 @@ def test_missing_loop_control(monkeypatch):
         processor.process_nodes(fake_parent, [fparser2while])
     assert "Unrecognised form of DO loop - failed to find Loop_Control " \
         "element in the node '<fparser2while>'." in str(err.value)
+
+
+def test_get_symbol_table():
+    '''Test that the utility function _get_symbol_table() works and fails
+    as expected. '''
+    # invalid argument
+    with pytest.raises(TypeError) as excinfo:
+        _ = _get_symbol_table("invalid")
+    assert ("node argument to _get_symbol_table() should be of type Node, "
+            "but found 'str'." in str(excinfo.value))
+
+    # no symbol table
+    lhs = Reference(DataSymbol("x", DataType.REAL))
+    rhs = Literal("1.0", DataType.REAL)
+    assignment = Assignment.create(lhs, rhs)
+    for node in [lhs, rhs, assignment]:
+        assert not _get_symbol_table(node)
+
+    # symbol table
+    symbol_table = SymbolTable()
+    kernel_schedule = KernelSchedule.create("test", symbol_table, [assignment])
+    for node in [lhs, rhs, assignment, kernel_schedule]:
+        assert _get_symbol_table(node) is symbol_table
+
+    # expected symbol table
+    symbol_table2 = SymbolTable()
+    container = Container.create("test_container", symbol_table2,
+                                 [kernel_schedule])
+    assert symbol_table is not symbol_table2
+    for node in [lhs, rhs, assignment, kernel_schedule]:
+        assert _get_symbol_table(node) is symbol_table
+    assert _get_symbol_table(container) is symbol_table2

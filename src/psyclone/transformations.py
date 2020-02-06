@@ -136,7 +136,10 @@ class KernelTrans(Transformation):
         from psyclone.psyir.nodes import Reference
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
-            if not var.symbol(scope_limit=var.ancestor(KernelSchedule)):
+            try:
+                _ = var.find_symbol(var.name,
+                                    scope_limit=var.ancestor(KernelSchedule))
+            except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
                     "that are not captured in the PSyIR Symbol Table(s) "
@@ -1751,19 +1754,7 @@ class ParallelRegionTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        from psyclone.psyir.nodes import Node
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Node):
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {0} transformation. "
-                                      "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {1}".
-                                      format(self.name, arg_type))
+        node_list = self.get_node_list(nodes)
         self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1950,7 +1941,8 @@ class GOConstLoopBoundsTrans(Transformation):
     a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
     generate loops where the bounds are obtained by de-referencing a field
     object, e.g.:
-    ::
+
+    .. code-block:: fortran
 
       DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
 
@@ -1958,7 +1950,8 @@ class GOConstLoopBoundsTrans(Transformation):
     provided with information on the relative trip-counts of the loops
     within an Invoke. With constant loop bounds switched on, PSyclone
     generates code like:
-    ::
+
+    .. code-block:: fortran
 
       ny = my_field%grid%subdomain%internal%ystop
       ...
@@ -2399,16 +2392,18 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
 class GOLoopSwapTrans(Transformation):
     ''' Provides a loop-swap transformation, e.g.:
-    ::
 
-      DO j=1, m
-         DO i=1, n
+    .. code-block:: fortran
+
+        DO j=1, m
+            DO i=1, n
 
     becomes:
-    ::
 
-      DO i=1, n
-         DO j=1, m
+    .. code-block:: fortran
+
+        DO i=1, n
+            DO j=1, m
 
     This transform is used as follows:
 

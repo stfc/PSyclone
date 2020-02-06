@@ -2,4 +2,4 @@ alg.f90
 psy.f90
 extract_test
 *nc
-driver-main*f90
+driver-main*
