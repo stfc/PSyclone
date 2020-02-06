@@ -998,14 +998,16 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
-        # Start with an empty gen_symbol_table
+        # Use a gen_symbol_table wich is a duplicate of the current permanent
+        # SymbolTable
         self._gen_symbol_table = SymbolTable()
+        for symbol in self.symbol_table.symbols:
+            self.gen_symbol_table.add(symbol)
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
-        # instead of the name_space_manager.
         # First aggregate all globals variables from the same module in a map
         module_map = {}
-        for globalvar in self.symbol_table.global_datasymbols:
+        for globalvar in self.gen_symbol_table.global_datasymbols:
             module_name = globalvar.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(globalvar.name)
@@ -1017,24 +1019,25 @@ class InvokeSchedule(Schedule):
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
 
+        # FIXME: Do we still need the code below?
         # Add the SymbolTable symbols used into the NameSpaceManager to prevent
         # clashes. Note that the global variables names are going to be used as
         # arguments and are declared with 'AlgArgs' context.
         # TODO: After #312 this will not be necessary.
-        for module_name, var_list in module_map.items():
-            self._name_space_manager.add_reserved_name(module_name)
-            for var_name in var_list:
-                newname = self._name_space_manager.create_name(
-                    root_name=var_name,
-                    context="AlgArgs",
-                    label=var_name)
+        #for module_name, var_list in module_map.items():
+            # self._name_space_manager.add_reserved_name(module_name)
+            # for var_name in var_list:
+                # newname = self._name_space_manager.create_name(
+                #     root_name=var_name,
+                #    context="AlgArgs",
+                #    label=var_name)
                 # There is a name clash with this variable name and we can not
                 # accept indexed names for global variables.
                 # TODO: #642 Improve global variables name clashes handling.
-                if var_name != newname:
-                    raise KeyError(
-                        "The imported variable '{0}' is already defined in the"
-                        " NameSpaceManager of the Invoke.".format(var_name))
+                # if var_name != newname:
+                #    raise KeyError(
+                #        "The imported variable '{0}' is already defined in the"
+                #        " NameSpaceManager of the Invoke.".format(var_name))
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
