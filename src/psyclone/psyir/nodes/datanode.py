@@ -47,8 +47,9 @@ from psyclone.psyir.nodes import Node
 
 @six.add_metaclass(abc.ABCMeta)
 class DataNode(Node):
-    '''A DataNode is an expression Node which returns data. As such it
-    must have a datasymbol property.
+    '''A DataNode returns data and is not a statement in its own right. As
+    a datanode returns data, an internal datasymbol is stored which
+    captures the properties of the data taht is returned.
 
     '''
     @property

@@ -161,7 +161,7 @@ class UnaryOperation(Operation):
         :param oper: the specified operator.
         :type oper: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
         :param child: the PSyIR node that oper operates on.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :type child: :py:class:`psyclone.psyir.nodes.DataNode`
 
         :returns: a UnaryOperation instance.
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
@@ -174,7 +174,7 @@ class UnaryOperation(Operation):
         unary_op = UnaryOperation(oper)
 
         # Check the child argument
-        unary_op._check_child(child)
+        UnaryOperation._check_child(child, oper)
         
         child.parent = unary_op
         unary_op.children = [child]
@@ -182,7 +182,11 @@ class UnaryOperation(Operation):
 
     @staticmethod
     def _check_operator(operator):
-        '''Check that the supplied operation is valid.
+        '''Check that the supplied operator is valid.
+
+        :param operator: the operator to check.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
 
         :raises GenerationError: if the oper argument is not a valid \
             UnaryOperation operator.
@@ -194,8 +198,15 @@ class UnaryOperation(Operation):
                 "PSyIR UnaryOperation Operator, but found '{0}'."
                 "".format(type(operator).__name__))
 
-    def _check_child(self, child):
+    @staticmethod
+    def _check_child(child, operator):
         '''Check that the supplied Node is valid.
+
+        :param child: the PSyIR node that oper operates on.
+        :type child: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
 
         :raises GenerationError: if the child argument is an invalid \
             type of Node for this operator.
@@ -214,23 +225,23 @@ class UnaryOperation(Operation):
             raise GenerationError(
                 "Operator '{0}' only supports scalars but argument is an "
                 "array with {1} dimension(s)."
-                "".format(self.operator.name, len(child.datasymbol.shape)))
+                "".format(operator.name, len(child.datasymbol.shape)))
 
         # Check that the datatype of this argument is valid for this
         # object's operator.
         child_datatype = child.datasymbol.datatype
         if child_datatype == DataType.REAL and \
-           self.operator in UnaryOperation.valid_real:
+           operator in UnaryOperation.valid_real:
             return None
         elif child_datatype == DataType.INTEGER and \
-             self.operator in UnaryOperation.valid_integer:
+             operator in UnaryOperation.valid_integer:
             return None
         elif child_datatype == DataType.BOOLEAN and \
-             self.operator in UnaryOperation.valid_logical:
+             operator in UnaryOperation.valid_logical:
             return None
         raise GenerationError(
             "Unsupported datatype '{0}' for operator '{1}'."
-            "".format(str(child_datatype), self.operator.name))
+            "".format(str(child_datatype), operator.name))
 
     @property
     def datasymbol(self):
@@ -383,7 +394,7 @@ class BinaryOperation(Operation):
         binary_op = BinaryOperation(oper)
 
         # Check children elements
-        binary_op._check_children(lhs, rhs)
+        BinaryOperation._check_children(lhs, rhs, oper)
 
         lhs.parent = binary_op
         rhs.parent = binary_op
@@ -393,6 +404,10 @@ class BinaryOperation(Operation):
     @staticmethod
     def _check_operator(operator):
         '''Check that the supplied operator is valid.
+
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
 
         :raises GenerationError: if the oper argument is not a valid \
             BinaryOperation operator.
@@ -404,8 +419,17 @@ class BinaryOperation(Operation):
                 "PSyIR BinaryOperation Operator, but found '{0}'."
                 "".format(type(operator).__name__))
 
-    def _check_children(self, lhs, rhs):
+    @staticmethod
+    def _check_children(lhs, rhs, operator):
         '''Check that the supplied Nodes are valid.
+
+        :param lhs: the lhs PSyIR node that the operator operates on.
+        :type lhs: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param rhs: the rhs PSyIR node that the operator operates on.
+        :type rhs: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
 
         :raises GenerationError: if either or both of the child \
             arguments are invalid types of Node for this operator.
@@ -420,7 +444,7 @@ class BinaryOperation(Operation):
                     "".format(name, type(instance).__name__))
 
         # Check scalar/array operators
-        if self.operator == BinaryOperation.Operator.MATMUL:
+        if operator == BinaryOperation.Operator.MATMUL:
             # The first argument must be a 2D array and the second
             # argument must be a 1D or 2D array.
             lhs_dimension = 0
@@ -453,11 +477,11 @@ class BinaryOperation(Operation):
                     raise GenerationError(
                         "Operator '{0}' only supports scalars but {1} "
                         "argument is an array with {2} dimension(s)."
-                        "".format(self.operator.name, child.name,
+                        "".format(operator.name, child.name,
                                   child.dimension))
 
         # Check datatypes
-        if self.operator == BinaryOperation.Operator.MATMUL:
+        if operator == BinaryOperation.Operator.MATMUL:
             # MATMUL only supports REAL data.
             if lhs.datasymbol.datatype != DataType.REAL or \
                rhs.datasymbol.datatype != DataType.REAL:
@@ -577,7 +601,11 @@ class NaryOperation(Operation):
 
     @staticmethod
     def _check_operator(operator):
-        '''Check that the supplied operation is valid.
+        '''Check that the supplied operator is valid.
+
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
 
         :raises GenerationError: if the oper argument is not a valid \
             NaryOperation operator.
@@ -589,8 +617,15 @@ class NaryOperation(Operation):
                 "PSyIR NaryOperation Operator, but found '{0}'."
                 "".format(type(operator).__name__))
 
-    def _check_children(self, children):
+    @staticmethod
+    def _check_children(children):
         '''Check that the supplied Nodes are valid.
+
+        :param children: a list of PSyIR nodes that the operator operates on.
+        :type children: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
 
         :raises GenerationError: if any of the child arguments are \
             invalid types of Node for this operator.
@@ -634,7 +669,7 @@ class NaryOperation(Operation):
                     "children arguments in NaryOperation class should all be "
                     "of the same type, but found '{0}' and '{1}'."
                     "".format(datatype, child.datasymbol.datatype))
-        
+
     @property
     def datasymbol(self):
         '''

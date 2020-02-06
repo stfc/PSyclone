@@ -147,16 +147,6 @@ class Reference(DataNode):
             raise SymbolError(
                 "Undeclared reference '{0}' found.".format(self.name))
 
-    @property
-    def datatype(self):
-        '''
-        :returns: the datatype of the symbol associated with this \
-        Reference object.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
-
-        '''
-        return self.symbol.datatype
-
 
 class Array(Reference):
     '''

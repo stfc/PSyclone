@@ -177,8 +177,6 @@ class NemoAbsTrans(NemoOperatorTrans):
         else_body = [Assignment.create(lhs, rhs)]
 
         # if [if_condition] then [then_body] else [else_body]
-        print (if_condition.datasymbol.datatype)
-        print (if_condition.operator)
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
         if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

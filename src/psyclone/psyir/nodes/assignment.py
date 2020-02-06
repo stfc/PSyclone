@@ -181,8 +181,18 @@ class Assignment(Node):
 
     @staticmethod
     def _check_children(lhs, rhs):
-        ''' xxx '''
-        # Check nodes are of the right type
+        '''Check that the supplied Nodes are valid.
+
+        :param lhs: the DataNode capturing the left hand side of the assignment.
+        :type lhs: py:class:`psyclone.psyir.nodes.DataNode`
+        :param rhs: the Node capturing the right hand side of the assignment.
+        :type rhs: py:class:`psyclone.psyir.nodes.DataNode`
+
+        :raises GenerationError: if any of the child arguments are \
+            not valid DataNodes in this assignment.
+
+        '''
+        # Check nodes are of the correct type
         for name, instance in [("lhs", lhs), ("rhs", rhs)]:
             if not isinstance(instance, DataNode):
                 raise GenerationError(
@@ -190,10 +200,8 @@ class Assignment(Node):
                     "should be a PSyIR DataNode but found '{1}'."
                     "".format(name, type(instance).__name__))
 
-        # Check datatypes match. Perhaps we should have an '==' for
-        # data symbols?
+        # Check datatypes match
         lhs_datatype = lhs.datasymbol.datatype
-        print (type(rhs))
         rhs_datatype = rhs.datasymbol.datatype
         if lhs_datatype != rhs_datatype:
             raise GenerationError(
@@ -201,6 +209,7 @@ class Assignment(Node):
                 "match but found '{0}' and '{1}'.".format(
                     lhs.datasymbol.datatype, rhs.datasymbol.datatype))
 
+        # Check dimensions match
         lhs_dimension = 0
         if lhs.datasymbol.shape:
             lhs_dimension = len(lhs.datasymbol.shape)
@@ -212,6 +221,7 @@ class Assignment(Node):
                 "The dimensions of the LHS and RHS of this assignment should "
                 "match but found '{0}' and '{1}'.".format(
                     lhs_dimension, rhs_dimension))
+
         # We should also check that the sizes of the dimensions are
-        # the same, see issue #692.
+        # the same whenever possible, see issue #692.
         
