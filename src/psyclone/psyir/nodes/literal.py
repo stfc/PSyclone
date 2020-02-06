@@ -40,7 +40,7 @@
 
 import six
 from psyclone.psyir.nodes import DataNode
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
 
 
 class Literal(DataNode):
@@ -93,21 +93,21 @@ class Literal(DataNode):
         self._value = value
 
     @property
+    def datasymbol(self):
+        '''
+        :returns: the properties of this literal as a DataSymbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        return DataSymbol("none", self._datatype)
+    
+    @property
     def datatype(self):
         '''
         :returns: the type of this Literal.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         return self._datatype
-
-    @property
-    def dimension(self):
-        '''
-        :returns: the number of dimensions that this Literal value \
-        has. 0 is returned to indicate this is a scalar.
-        :rtype: int
-        '''
-        return 0
 
     @property
     def value(self):

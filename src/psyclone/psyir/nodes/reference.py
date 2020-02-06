@@ -65,7 +65,7 @@ class Reference(DataNode):
         self._symbol = symbol
 
     @property
-    def symbol(self):
+    def datasymbol(self):
         ''' Return the referenced symbol.
 
         :returns: the referenced symbol.
@@ -156,16 +156,6 @@ class Reference(DataNode):
 
         '''
         return self.symbol.datatype
-
-    @property
-    def dimension(self):
-        '''
-        :returns: the dimension of the symbol associated with this \
-        Reference object. Returns 0 as this is a scalar.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
-
-        '''
-        return 0
 
 
 class Array(Reference):
@@ -263,13 +253,3 @@ class Array(Reference):
             # The last entry in all_accesses is the one added above
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
-
-    @property
-    def dimension(self):
-        '''
-        :returns: the dimension of the symbol associated with this \
-        Array object.
-        :rtype: int
-
-        '''
-        return len(self.children)

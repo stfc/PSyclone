@@ -48,25 +48,16 @@ from psyclone.psyir.nodes import Node
 @six.add_metaclass(abc.ABCMeta)
 class DataNode(Node):
     '''A DataNode is an expression Node which returns data. As such it
-    must have a datatype and dimension property.
+    must have a datasymbol property.
 
     '''
     @property
     @abc.abstractmethod
-    def datatype(self):
+    def datasymbol(self):
         '''
-        :returns: the datatype of the data returned by this object.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        :returns: a DataSymbol object which captures the properties of \
+            the returned data.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
 
-    @property
-    @abc.abstractmethod
-    def dimension(self):
-        '''
-        :returns: the number of dimensions of the data returned by \
-            this object if it is an array and 0 otherwise.
-        :rtype: int
-
-        '''
-        

@@ -43,7 +43,7 @@ import abc
 from enum import Enum
 import six
 from psyclone.psyir.nodes import DataNode, Node
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.errors import GenerationError
 
 
@@ -209,15 +209,16 @@ class UnaryOperation(Operation):
                 "".format(type(child).__name__))
 
         # Only scalar values are supported in all unary operators.
-        if child.dimension != 0:
+        # if child.dimension != 0:
+        if child.datasymbol.shape:
             raise GenerationError(
                 "Operator '{0}' only supports scalars but argument is an "
                 "array with {1} dimension(s)."
-                "".format(self.operator.name, child.dimension))
+                "".format(self.operator.name, len(child.datasymbol.shape)))
 
         # Check that the datatype of this argument is valid for this
         # object's operator.
-        child_datatype = child.datatype
+        child_datatype = child.datasymbol.datatype
         if child_datatype == DataType.REAL and \
            self.operator in UnaryOperation.valid_real:
             return None
@@ -232,41 +233,27 @@ class UnaryOperation(Operation):
             "".format(str(child_datatype), self.operator.name))
 
     @property
-    def datatype(self):
-        '''Returns the datatype of the data returned by the unary
-        operator. Unless this is a casting operator (INT or REAL) or
-        the CEIL function (which returns an integer) then the datatype
-        of the data returned is the same as the datatype of the
-        operator's argument.
-
-        :returns: the datatype of the data returned by this node.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+    def datasymbol(self):
+        '''
+        :returns: the properties of the return value of this \
+            UnaryOperator as a DataSymbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         if self.operator == UnaryOperation.Operator.REAL:
             # This operator casts the data to REAL.
-            return DataType.REAL
+            datatype = DataType.REAL
         elif self.operator == UnaryOperation.Operator.INT:
             # This operator casts the data to INT.
-            return DataType.INTEGER
+            datatype = DataType.INTEGER
         elif self.operator == UnaryOperation.Operator.CEIL:
             # This operator takes a REAL and returns an INT.
-            return DataType.INTEGER
-        # All other operators return data with the same datatype and
-        # dimension as their argument.
-        arg = self.children[0]
-        return arg.datatype
-
-    @property
-    def dimension(self):
-        '''
-        :returns: the number of dimensions that the data returned by \
-            this unary operator has. As returned data is always scalar \
-            for unary operators, 0 is returned.
-        :rtype: int
-
-        '''
-        return 0
+            datatype = DataType.INTEGER
+        else:
+            # All other operators return data with the same datatype
+            datatype = self.children[0].datasymbol.datatype
+        # All unary operators return scalar values.
+        return DataSymbol("none", datatype)
 
 
 class BinaryOperation(Operation):
@@ -436,16 +423,22 @@ class BinaryOperation(Operation):
         if self.operator == BinaryOperation.Operator.MATMUL:
             # The first argument must be a 2D array and the second
             # argument must be a 1D or 2D array.
-            if not lhs.dimension == 2:
+            lhs_dimension = 0
+            if lhs.datasymbol.shape:
+                lhs_dimension = len(lhs.datasymbol.shape)
+            if lhs_dimension != 2:
                 raise GenerationError(
                     "Operator 'MATMUL' requires the LHS argument to be a 2D "
                     "array, but found {0} dimension(s)."
-                    "".format(lhs.dimension))
-            if not rhs.dimension in [1, 2]:
+                    "".format(lhs_dimension))
+            rhs_dimension = 0
+            if rhs.datasymbol.shape:
+                rhs_dimension = len(rhs.datasymbol.shape)            
+            if not rhs_dimension in [1, 2]:
                 raise GenerationError(
                     "Operator 'MATMUL' requires the RHS argument to be a 1D "
                     "or 2D array, but found {0} dimension(s)."
-                    "".format(lhs.dimension))
+                    "".format(rhs_dimension))
             # The size of the 2nd dimension of the first array must be
             # the same size as the first dimension of the second
             # array (see issue #692).
@@ -453,7 +446,10 @@ class BinaryOperation(Operation):
             # Both arguments should be scalars for all Operators
             # except MATMUL.
             for name, child in [("lhs", lhs), ("rhs", rhs)]:
-                if child.dimension != 0:
+                dimension = 0
+                if child.datasymbol.shape:
+                    dimension = len(child.datasymbol.shape)
+                if dimension > 0:
                     raise GenerationError(
                         "Operator '{0}' only supports scalars but {1} "
                         "argument is an array with {2} dimension(s)."
@@ -463,60 +459,60 @@ class BinaryOperation(Operation):
         # Check datatypes
         if self.operator == BinaryOperation.Operator.MATMUL:
             # MATMUL only supports REAL data.
-            if lhs.datatype != DataType.REAL or rhs.datatype != DataType.REAL:
+            if lhs.datasymbol.datatype != DataType.REAL or \
+               rhs.datasymbol.datatype != DataType.REAL:
                 raise GenerationError(
                     "Operator MATMUL expects both arguments to be of type "
                     "REAL but found [{0}, {1}]."
-                    "".format(lhs.datatype, rhs.datatype))
+                    "".format(lhs.datasymbol.datatype, rhs.datasymbol.datatype))
         else:
             # Operators other than MATMUL support REAL or INTEGER data.
-            if (lhs.datatype == DataType.REAL and
-               rhs.datatype == DataType.REAL) or \
-               (lhs.datatype == DataType.INTEGER and
-               rhs.datatype == DataType.INTEGER):
+            if (lhs.datasymbol.datatype == DataType.REAL and
+               rhs.datasymbol.datatype == DataType.REAL) or \
+               (lhs.datasymbol.datatype == DataType.INTEGER and
+               rhs.datasymbol.datatype == DataType.INTEGER):
                 return None
             raise GenerationError(
                 "Operator {0} expects both arguments to either be of type "
                 "REAL or INTEGER but found '{0}' and '{1}'."
-                "".format(lhs.datatype, rhs.datatype))
+                "".format(lhs.datasymbol.datatype, rhs.datasymbol.datatype))
 
     @property
-    def datatype(self):
-        '''Returns the datatype of the data returned by this binary operator.
-        The datatype of the returned value(s) is the same as the
-        datatype of the first argument for all of the supported
-        operators, apart from EQ, NE, GT, LT, GE and LE which return
-        boolean.
-
-        :returns: returns the datatype associated with the data \
-            returned by this node.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+    def datasymbol(self):
+        '''
+        :returns: the properties of the return value of this \
+            BinaryOperator as a DataSymbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        # All operators except equivalence operators return the same
+        # type as their first argument.
+        datatype = self.children[0].datasymbol.datatype
         if self.operator in ['EQ', 'NE', 'GT', 'LT', 'GE', 'LE']:
             # Equivalence operators all return boolean data
-            return BinaryOperator.BOOLEAN
-        # All other operators return the same type as their first
-        # argument.
-        arg = self.children[0]
-        return arg.datatype
+            datatype = BinaryOperator.BOOLEAN
 
-    @property
-    def dimension(self):
-        '''
-        :returns: the dimension of the data returned by the binary \
-            operator. All binary operators return scalars apart from \
-            matmul.
-        :rtype: int
-
-        '''
         if self.operator == BinaryOperation.Operator.MATMUL:
-            # The dimension of the data returned by MATMUL is the same
-            # as the dimension of the second argument (as matmul can
-            # be matrix-matrix or matrix-vector).
-            return self.children[1].dimension
-        # All other binary operators return a scalar.
-        return 0
+            if len(self.children[1].datasymbol.shape) == 1:
+                # This is a matrix-vector multiply. The resultant
+                # array will be 1D with size the same as the 1st
+                # dimension of the 1st argument.
+                # r(n) = a(n,l)*b(l)
+                return DataSymbol("none", datatype,
+                                  shape=[self.children[0].datasymbol.shape[0]])
+            else:
+                # This is a matrix-matrix multiply. The resultant
+                # array will be 2D with the size of its 1st dimension
+                # being the same as the 1st dimension of the 1st
+                # argument. and the 2nd dimension being the same size
+                # as the 2nd dimension of the 2nd argument.
+                # r(n,m) = a(n,l)*b(l,m)
+                return DataSymbol("none", datatype,
+                                  shape=[self.children[0].datasymbol.shape[0],
+                                         self.children[1].datasymbol.shape[1]])
+        else:
+            # All other binary operators return a scalar.
+            return DataSymbol("none", datatype)
 
 
 class NaryOperation(Operation):
@@ -583,28 +579,13 @@ class NaryOperation(Operation):
         return nary_op
 
     @property
-    def datatype(self):
-        '''Returns the datatype returned by this nary operator.  The datatype
-        of the returned value(s) is the same as the datatype of all of
-        the arguments for all of the supported operators. The first
-        argument is arbitrarily chosen.
-
-        :returns: returns the datatype associated with this node.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+    def datasymbol(self):
+        '''
+        :returns: the properties of the return value of this \
+            NaryOperator as a DataSymbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return self.children[0].datatype
-
-    @property
-    def dimension(self):
-        '''Returns the dimension of the datatype returned by this nary
-        operator. All nary operators accept scalars as arguments and
-        return a scalar.
-
-        :returns: returns the dimension of the data returned by the \
-            nary operator. As returned data is always sclar for nary \
-            operators, 0 is returned.
-        :rtype: int
-
-        '''
-        return 0
+        # All nary operators return scalar values with datatypes the
+        # same as their arguments.
+        return DataSymbol("none", self.children[0].datasymbol.datatype)

@@ -563,14 +563,14 @@ def test_find_symbol():
     # Symbol in KernelSchedule SymbolTable
     field_old = references[0]
     assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol, DataSymbol)
-    assert field_old.symbol in kernel_schedule.symbol_table.symbols
+    assert isinstance(field_old.datasymbol, DataSymbol)
+    assert field_old.datasymbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
     assert isinstance(field_old.find_symbol(field_old.name,
                                             scope_limit=kernel_schedule),
                       DataSymbol)
-    assert field_old.symbol.name == field_old.name
+    assert field_old.datasymbol.name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope, so
     # the symbol should not be found as we limit the scope to the
