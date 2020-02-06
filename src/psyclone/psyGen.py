@@ -911,7 +911,8 @@ class InvokeSchedule(Schedule):
         # it would be better to merge them. The SymbolTable is only used
         # for global variables extracted from the Kernels.
         self._name_space_manager = NameSpaceFactory().create()
-        self._symbol_table = SymbolTable()
+        self._symbol_table = SymbolTable()  # Permament symbol table
+        self._gen_symbol_table = None  # Symbol table used on each psy.gen call
         self._text_name = "InvokeSchedule"
 
     @property
@@ -921,6 +922,15 @@ class InvokeSchedule(Schedule):
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
+
+    @property
+    def gen_symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the schedule created
+            during a gen_code method invokation.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        return self._gen_symbol_table
 
     def set_opencl_options(self, options):
         '''
@@ -988,6 +998,9 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
+        # Start with an empty gen_symbol_table
+        self._gen_symbol_table = SymbolTable()
+
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # instead of the name_space_manager.
         # First aggregate all globals variables from the same module in a map
@@ -1032,16 +1045,16 @@ class InvokeSchedule(Schedule):
                                          "get_kernel_by_name"]))
             # Command queues
 
-            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
-            self.symbol_table.add(DataSymbol(nqueues, DataType.INTEGER))
-            qlist = self.symbol_table.new_symbol_name("cmd_queues")
-            self.symbol_table.add(
+            nqueues = self.gen_symbol_table.new_symbol_name("num_cmd_queues")
+            self.gen_symbol_table.add(DataSymbol(nqueues, DataType.INTEGER))
+            qlist = self.gen_symbol_table.new_symbol_name("cmd_queues")
+            self.gen_symbol_table.add(
                 DataSymbol(qlist, DataType.INTEGER,
                            shape=[DataSymbol.Extent.ATTRIBUTE]))
-            first = self.symbol_table.new_symbol_name("first_time")
-            self.symbol_table.add(DataSymbol(first, DataType.BOOLEAN))
-            flag = self.symbol_table.new_symbol_name("ierr")
-            self.symbol_table.add(DataSymbol(flag, DataType.INTEGER))
+            first = self.gen_symbol_table.new_symbol_name("first_time")
+            self.gen_symbol_table.add(DataSymbol(first, DataType.BOOLEAN))
+            flag = self.gen_symbol_table.new_symbol_name("ierr")
+            self.gen_symbol_table.add(DataSymbol(flag, DataType.INTEGER))
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))

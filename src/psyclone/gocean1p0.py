@@ -1041,9 +1041,9 @@ class GOKern(CodedKern):
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
         garg = self._arguments.find_grid_access()
-        glob_size = self.root.symbol_table.new_symbol_name("globalsize")
-        self.root.symbol_table.add(DataSymbol(glob_size, DataType.INTEGER,
-                                              shape=[2]))
+        glob_size = self.root.gen_symbol_table.new_symbol_name("globalsize")
+        self.root.gen_symbol_table.add(DataSymbol(glob_size, DataType.INTEGER,
+                                                  shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
@@ -1055,9 +1055,9 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = self.root.symbol_table.new_symbol_name("localsize")
-        self.root.symbol_table.add(DataSymbol(local_size, DataType.INTEGER,
-                                              shape=[2]))
+        local_size = self.root.gen_symbol_table.new_symbol_name("localsize")
+        self.root.gen_symbol_table.add(DataSymbol(local_size, DataType.INTEGER,
+                                                  shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
@@ -1067,8 +1067,8 @@ class GOKern(CodedKern):
 
         # Create Kernel name variable
         base = "kernel_" + self._name
-        kernel = self.root.symbol_table.new_symbol_name(base)
-        self.root.symbol_table.add(Symbol(kernel))
+        kernel = self.root.gen_symbol_table.new_symbol_name(base)
+        self.root.gen_symbol_table.add(Symbol(kernel))
 
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
@@ -1090,15 +1090,16 @@ class GOKern(CodedKern):
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
 
-        sub_name = self.root.symbol_table.new_symbol_name(self.name + "_set_args")
-        self.root.symbol_table.add(Symbol(sub_name))
+        sub_name = self.root.gen_symbol_table.new_symbol_name(
+            self.name + "_set_args")
+        self.root.gen_symbol_table.add(Symbol(sub_name))
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
 
-        qlist = self.root.symbol_table.lookup("cmd_queues").name
-        flag = self.root.symbol_table.lookup("ierr").name
+        qlist = self.root.gen_symbol_table.lookup("cmd_queues").name
+        flag = self.root.gen_symbol_table.lookup("ierr").name
 
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
@@ -1238,11 +1239,15 @@ class GOKern(CodedKern):
                     condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
-                nbytes = self.root.symbol_table.new_symbol_name("size_in_bytes")
-                self.root.symbol_table.add(DataSymbol(nbytes, DataType.INTEGER))
+                nbytes = self.root.gen_symbol_table.new_symbol_name(
+                    "size_in_bytes")
+                self.root.gen_symbol_table.add(
+                    DataSymbol(nbytes, DataType.INTEGER))
                 # Variable to hold write event returned by OpenCL runtime
-                wevent = self.root.symbol_table.new_symbol_name("write_event")
-                self.root.symbol_table.add(DataSymbol(wevent, DataType.INTEGER))
+                wevent = self.root.gen_symbol_table.new_symbol_name(
+                    "write_event")
+                self.root.gen_symbol_table.add(
+                    DataSymbol(wevent, DataType.INTEGER))
                 ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
@@ -1264,8 +1269,8 @@ class GOKern(CodedKern):
                 # Get the name of the list of command queues (set in
                 # psyGen.InvokeSchedule)
 
-                qlist = self.root.symbol_table.lookup("cmd_queues").name
-                flag = self.root.symbol_table.lookup("ierr").name
+                qlist = self.root.gen_symbol_table.lookup("cmd_queues").name
+                flag = self.root.gen_symbol_table.lookup("ierr").name
 
                 ifthen.add(AssignGen(ifthen, lhs=device_buff,
                                      rhs="create_rw_buffer(" + nbytes + ")"))

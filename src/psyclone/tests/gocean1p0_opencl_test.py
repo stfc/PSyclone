@@ -218,7 +218,7 @@ def test_opencl_options_validation():
 
 # FIXME: I added subscripts to this test because multiple calls to
 # psy.gen create new symbols for the symbol table.
-@pytest.mark.xfail(reason="Multiple psy.gen calls don't work")
+# @pytest.mark.xfail(reason="Multiple psy.gen calls don't work")
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_options_effects():
     ''' Check that the OpenCL options produce the expected changes in the
@@ -243,14 +243,14 @@ def test_opencl_options_effects():
     # Change kernel local_size to 4
     sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
     generated_code = str(psy.gen)
-    assert "localsize_0 = (/4, 1/)" in generated_code
+    assert "localsize = (/4, 1/)" in generated_code
 
     # Change kernel queue to 2 (the barrier should then also go up to 2)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
-        "kernel_compute_cu_code_1, 2, C_NULL_PTR, C_LOC(globalsize_1), " \
-        "C_LOC(localsize_1), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
+        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "! Block until all kernels have finished\n" \
         "      ierr = clFinish(cmd_queues(1))\n" \
         "      ierr = clFinish(cmd_queues(2))\n" in generated_code
