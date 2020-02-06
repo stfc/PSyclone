@@ -173,7 +173,7 @@ class UnaryOperation(Operation):
         # The oper argument is checked by UnaryOperation.__init__()
         unary_op = UnaryOperation(oper)
         
-        # Check the child element
+        # Check the child argument
         unary_op._check_child(child)
         
         child.parent = unary_op
@@ -534,6 +534,7 @@ class NaryOperation(Operation):
         ])
 
     def __init__(self, operator, parent=None):
+        NaryOperation._check_operator(operator)
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
 
@@ -560,6 +561,39 @@ class NaryOperation(Operation):
                 "oper argument in create method of NaryOperation class "
                 "should be a PSyIR NaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
+
+        # The oper argument is checked by NaryOperation.__init__()
+        nary_op = NaryOperation(oper)
+
+        # Check the children argument
+        nary_op._check_children(children)
+
+        for child in children:
+            child.parent = nary_op
+        nary_op.children = children
+        return nary_op
+
+    @staticmethod
+    def _check_operator(operator):
+        '''Check that the supplied operation is valid.
+
+        :raises GenerationError: if the oper argument is not a valid \
+            NaryOperation operator.
+
+        '''
+        if not isinstance(operator, NaryOperation.Operator):
+            raise GenerationError(
+                "the operator in the NaryOperation class should be a "
+                "PSyIR NaryOperation Operator, but found '{0}'."
+                "".format(type(operator).__name__))
+
+    def _check_children(self, children):
+        '''Check that the supplied Nodes are valid.
+
+        :raises GenerationError: if any of the child arguments are \
+            invalid types of Node for this operator.
+
+        '''
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of NaryOperation class "
@@ -571,12 +605,8 @@ class NaryOperation(Operation):
                     "child of children argument in create method of "
                     "NaryOperation class should be a PSyIR Node but "
                     "found '{0}'.".format(type(child).__name__))
-
-        nary_op = NaryOperation(oper)
-        for child in children:
-            child.parent = nary_op
-        nary_op.children = children
-        return nary_op
+        print("**** ADD TESTS TO NaryOperation class in operation.py ***")
+        exit(1)
 
     @property
     def datasymbol(self):
