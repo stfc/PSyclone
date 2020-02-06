@@ -234,7 +234,7 @@ def test_cw_ifblock():
     ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
 
-    condition = Reference(DataSymbol('b', DataType.REAL))
+    condition = Reference(DataSymbol('b', DataType.BOOLEAN))
     then_content = [Return()]
     else_content = [Return()]
     ifblock2 = IfBlock.create(condition, then_content, else_content)

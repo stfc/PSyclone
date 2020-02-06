@@ -488,11 +488,13 @@ class BinaryOperation(Operation):
         # All operators except equivalence operators return the same
         # type as their first argument.
         datatype = self.children[0].datasymbol.datatype
-        if self.operator in ['EQ', 'NE', 'GT', 'LT', 'GE', 'LE']:
+        if self.operator in [
+                self.Operator.EQ, self.Operator.NE, self.Operator.GT,
+                self.Operator.LT, self.Operator.GE, self.Operator.LE]:
             # Equivalence operators all return boolean data
-            datatype = BinaryOperator.BOOLEAN
+            datatype = DataType.BOOLEAN
 
-        if self.operator == BinaryOperation.Operator.MATMUL:
+        if self.operator == self.Operator.MATMUL:
             if len(self.children[1].datasymbol.shape) == 1:
                 # This is a matrix-vector multiply. The resultant
                 # array will be 1D with size the same as the 1st

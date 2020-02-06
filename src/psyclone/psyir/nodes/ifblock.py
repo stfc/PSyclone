@@ -38,7 +38,8 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes import Node, DataNode
+from psyclone.psyir.symbols import DataType
 from psyclone.errors import InternalError, GenerationError
 
 
@@ -144,11 +145,16 @@ class IfBlock(Node):
 
         '''
         from psyclone.psyir.nodes import Schedule
-        if not isinstance(if_condition, Node):
+        if not isinstance(if_condition, DataNode):
             raise GenerationError(
                 "if_condition argument in create method of IfBlock class "
-                "should be a PSyIR Node but found '{0}'."
+                "should be a PSyIR DataNode but found '{0}'."
                 "".format(type(if_condition).__name__))
+        if not if_condition.datasymbol.datatype == DataType.BOOLEAN:
+            raise GenerationError(
+                "if_condition argument in create method of IfBlock class "
+                "should be of type 'boolean' but found '{0}'."
+                "".format(if_condition.datasymbol.datatype))
         if not (isinstance(if_body, list) and all(isinstance(child, Node)
                                                   for child in if_body)):
             raise GenerationError(

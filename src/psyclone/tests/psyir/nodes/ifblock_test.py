@@ -79,7 +79,7 @@ def test_ifblock_view_indices(capsys):
     colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
     colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
     colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
-    condition = Reference(DataSymbol('condition1', DataType.REAL))
+    condition = Reference(DataSymbol('condition1', DataType.BOOLEAN))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
     ifblock.view()
@@ -203,7 +203,7 @@ def test_ifblock_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create("True", "invalid")
     assert ("if_condition argument in create method of IfBlock class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+            "be a PSyIR DataNode but found 'str'.") in str(excinfo.value)
 
     # One or more if body not a Node.
     if_body_err = [Assignment.create(Reference(DataSymbol("tmp",
