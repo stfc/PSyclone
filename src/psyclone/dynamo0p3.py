@@ -1490,7 +1490,6 @@ class DynamoInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._name_space_manager = NameSpaceFactory().create()
         self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
