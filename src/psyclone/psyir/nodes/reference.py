@@ -66,10 +66,9 @@ class Reference(DataNode):
 
     @property
     def datasymbol(self):
-        ''' Return the referenced symbol.
-
-        :returns: the referenced symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        :returns: the referenced DataSymbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         return self._symbol
@@ -106,6 +105,8 @@ class Reference(DataNode):
         :rtype: bool
         '''
         if not super(Reference, self).math_equal(other):
+            return False
+        if not self.datasymbol.datatype == other.datasymbol.datatype:
             return False
         return self.name == other.name
 

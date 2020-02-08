@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
+from psyclone.psyir.nodes import Reference, Array, Assignment, Literal, IfBlock
 from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError, \
     SymbolTable
 from psyclone.psyGen import GenerationError, KernelSchedule
@@ -58,6 +58,34 @@ def test_reference_bad_init():
         _ = Reference("hello")
     assert ("In Reference initialisation expecting a symbol but found 'str'."
             in str(excinfo.value))
+
+def test_reference_name():
+    ''' Check the name property of the Reference class'''
+    name = "rname"
+    ref = Reference(DataSymbol(name, DataType.REAL))
+    assert ref.name == name
+
+
+def test_reference_math_equal():
+    '''Check the math_equal method of the Reference class'''
+    datasymbol = DataSymbol("name1", DataType.REAL)
+    # The same Reference
+    ref = Reference(datasymbol)
+    assert ref.math_equal(ref)
+    # Equivalent Reference (same properties)
+    datasymbol2 = DataSymbol("name1", DataType.REAL)
+    assert ref.math_equal(Reference(datasymbol2))
+    # Different type of node
+    datasymbol3 = DataSymbol("name1", DataType.REAL, shape=[10])
+    assert not ref.math_equal(
+        Array.create(datasymbol3, [
+            Literal("1", DataType.INTEGER)]))
+    # Different name
+    datasymbol4 = DataSymbol("name2", DataType.REAL)
+    assert not ref.math_equal(Reference(datasymbol4))
+    # Different datatype
+    datasymbol5 = DataSymbol("name1", DataType.INTEGER)
+    assert not ref.math_equal(Reference(datasymbol5))
 
 
 def test_reference_node_str():
@@ -90,6 +118,56 @@ def test_reference_optional_parent():
     '''
     ref = Reference(DataSymbol("rname", DataType.REAL))
     assert ref.parent is None
+
+
+def test_reference_datasymbol():
+    '''Test that the datasymbol property of the Reference class returns
+    the expected DataSymbol.
+
+    '''
+    datasymbol = DataSymbol("rname", DataType.REAL)
+    ref = Reference(datasymbol)
+    assert ref.datasymbol is datasymbol
+
+
+def test_reference_check_declared():
+    '''Test that the check_declared method in the Reference class raises
+    an exception if the associated symbol does not exist in a symbol
+    table associated with an ancestor node. Note, this exception is
+    only raised if a symbol table exists. If one does not exist then
+    it silently returns (to support the NEMO API which does not have
+    symbol tables see issue #500).
+
+    '''
+    ref = Reference(DataSymbol("rname", DataType.REAL))
+    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
+    _ = KernelSchedule.create("test", SymbolTable(),
+                              [assignment])
+    with pytest.raises(SymbolError) as excinfo:
+        ref.check_declared()
+    assert "Undeclared reference 'rname' found." in str(excinfo.value)
+
+
+def test_reference_check_declared2():
+    '''Test that the check_declared logic works when there is more than
+    one ancestor between the reference and the symbol table.
+
+    '''
+    ref = Reference(DataSymbol("rname", DataType.REAL))
+    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
+    if_stmt = IfBlock.create(Literal("true", DataType.BOOLEAN), [assignment])
+    symbol_table = SymbolTable()
+    _ = KernelSchedule.create("test", symbol_table,
+                              [if_stmt])
+
+    # Not declared
+    with pytest.raises(SymbolError) as excinfo:
+        ref.check_declared()
+    assert "Undeclared reference 'rname' found." in str(excinfo.value)
+
+    # Declared
+    symbol_table.add(ref)
+    ref.check_declared()
 
 
 # Test Array class
@@ -133,6 +211,17 @@ def test_array_create():
     check_links(array, children)
     result = FortranWriter().array_node(array)
     assert result == "temp(i,j,1)"
+
+
+def test_array_datasymbol():
+    '''Test that the datasymbol property of the Array class returns
+    the expected DataSymbol.
+
+    '''
+    datasymbol = DataSymbol("rname", DataType.REAL, shape=[10])
+    children = [Literal("1", DataType.INTEGER)]
+    array = Array.create(datasymbol, children)
+    assert array.datasymbol is datasymbol
 
 
 def test_array_create_invalid1():
@@ -195,21 +284,3 @@ def test_array_create_invalid3():
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
-
-
-def test_reference_check_declared():
-    '''Test that the check_declared method in the Reference class raises
-    an exception if the associated symbol does not exist in a symbol
-    table associated with an ancestor node. Note, this exception is
-    only raised if a symbol table exists. If one does not exist then
-    it silently returns (to support the NEMO API which does not have
-    symbol tables see issue #500).
-
-    '''
-    ref = Reference(DataSymbol("rname", DataType.REAL))
-    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
-    _ = KernelSchedule.create("test", SymbolTable(),
-                              [assignment])
-    with pytest.raises(SymbolError) as excinfo:
-        ref.check_declared()
-    assert "Undeclared reference 'rname' found." in str(excinfo.value)
