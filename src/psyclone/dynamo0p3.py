@@ -197,6 +197,11 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 
+# ---------- Configuration settings ----------------------------------------- #
+API_CONFIG = Config.get().api_conf("dynamo0.3")
+REAL_PREC = API_CONFIG.default_precision["real"]
+INT_PREC = API_CONFIG.default_precision["integer"]
+
 # ---------- Functions ------------------------------------------------------ #
 
 
@@ -602,12 +607,11 @@ class DynArgDescriptor03(Descriptor):
 
         # The 2nd arg is an access descriptor
         # Convert from GH_* names to the generic access type:
-        api_config = Config.get().api_conf("dynamo0.3")
-        access_mapping = api_config.get_access_mapping()
+        access_mapping = API_CONFIG.get_access_mapping()
         try:
             self._access_type = access_mapping[arg_type.args[1].name]
         except KeyError:
-            valid_names = api_config.get_valid_accesses_api()
+            valid_names = API_CONFIG.get_valid_accesses_api()
             raise ParseError(
                 "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
                 "must be a valid access descriptor (one of {0}), but found "
@@ -741,7 +745,7 @@ class DynArgDescriptor03(Descriptor):
             # Test allowed accesses for scalars (read_only or reduction)
             if self._access_type not in [AccessType.READ] + \
                AccessType.get_valid_reduction_modes():
-                rev_access_mapping = api_config.get_reverse_access_mapping()
+                rev_access_mapping = API_CONFIG.get_reverse_access_mapping()
                 api_specific_name = rev_access_mapping[self._access_type]
                 valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
@@ -2480,7 +2484,7 @@ class DynFields(DynCollection):
                                        intent=intent, entity_decls=[text]))
             else:
                 parent.add(
-                    DeclGen(parent, datatype="real", kind="r_def",
+                    DeclGen(parent, datatype="real", kind=REAL_PREC,
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
@@ -2610,8 +2614,8 @@ class DynCellIterators(DynCollection):
         '''
         from psyclone.f2pygen import DeclGen
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[self._nlayers_name]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
         '''
@@ -2681,7 +2685,7 @@ class DynScalarArgs(DynCollection):
         from psyclone.f2pygen import DeclGen
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                    entity_decls=self._real_scalars[intent],
                                    intent=intent))
 
@@ -2719,15 +2723,15 @@ class DynLMAOperators(DynCollection):
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
         if lma_args:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=["cell"]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             parent.add(DeclGen(parent, datatype="integer",
                                intent="in", entity_decls=[size]))
             ndf_name_to = get_fs_ndf_name(arg.function_space_to)
             ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -2913,7 +2917,7 @@ class DynCMAOperators(DynCollection):
             cma_name = self._name_space_manager.create_name(
                 root_name=op_name+"_matrix", context="PSyVars",
                 label=op_name+"_matrix")
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
@@ -2964,7 +2968,7 @@ class DynCMAOperators(DynCollection):
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
@@ -3623,17 +3627,17 @@ class DynBasisFunctions(DynCollection):
                                entity_decls=var_dims))
         for basis in basis_arrays:
             parent.add(DeclGen(parent, datatype="real",
-                               kind="r_def", intent="in",
+                               kind=REAL_PREC, intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
         for qr_shape in VALID_QUADRATURE_SHAPES:
             if qr_shape.lower() == "gh_quadrature_xyoz":
                 if qr_shape not in self._qr_vars:
                     continue
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                    intent="in", dimension="np_xy",
                                    entity_decls=["weights_xy"]))
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                    intent="in", dimension="np_z",
                                    entity_decls=["weights_z"]))
             else:
@@ -3731,7 +3735,7 @@ class DynBasisFunctions(DynCollection):
                 rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real", kind=REAL_PREC,
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
 
@@ -3782,7 +3786,7 @@ class DynBasisFunctions(DynCollection):
         # declare the basis function arrays
         if basis_declarations:
             parent.add(DeclGen(parent, datatype="real",
-                               allocatable=True, kind="r_def",
+                               allocatable=True, kind=REAL_PREC,
                                entity_decls=basis_declarations))
 
         # Compute the values for any basis arrays
@@ -3945,7 +3949,7 @@ class DynBasisFunctions(DynCollection):
                          for name in self.qr_weight_vars["xyoz"]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
-                        kind="r_def", entity_decls=decl_list))
+                        kind=REAL_PREC, entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
             parent.add(
@@ -4374,8 +4378,7 @@ class DynInvoke(Invoke):
                 "Expected one of '{0}' but found '{1}'".
                 format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
         if access and not isinstance(access, AccessType):
-            api_config = Config.get().api_conf("dynamo0.3")
-            valid_names = api_config.get_valid_accesses_api()
+            valid_names = API_CONFIG.get_valid_accesses_api()
             raise InternalError(
                 "unique_proxy_declarations called with an invalid access "
                 "type. Expected one of '{0}' but got '{1}'".
@@ -4866,7 +4869,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
+        if API_CONFIG.compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -5720,7 +5723,7 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
+            if API_CONFIG.compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
@@ -6700,7 +6703,7 @@ class DynKern(CodedKern):
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
         sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
-                            funcnames=["r_def"]))
+                            funcnames=[REAL_PREC]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,

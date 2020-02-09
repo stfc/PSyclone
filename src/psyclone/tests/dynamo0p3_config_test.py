@@ -45,6 +45,9 @@ import pytest
 from psyclone.configuration import Config, ConfigurationError
 
 
+TEST_API = "dynamo0.3"
+
+
 # Valid configuration file content with only defaults and
 # annexed dofs for testing purposes
 _CONFIG_CONTENT = '''\
@@ -149,3 +152,12 @@ def test_invalid_default_precision(tmpdir):
 
         assert ("Did not find default precision for \"integer\" datatype "
                 "in the \"[dynamo0.3]\" section " in str(err.value))
+
+
+def test_default_precision():
+    ''' Check that we load correct default precisions for all datatypes '''
+    config = Config()
+    api_config = config.get().api_conf(TEST_API)
+    assert api_config.default_precision["real"] == "r_def"
+    assert api_config.default_precision["integer"] == "i_def"
+    assert api_config.default_precision["logical"] == "l_def"
