@@ -100,17 +100,25 @@ contains
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
   !> a unique name for each region.
-  !> Parameters: 
-  !> this:        This PSyData instance.
-  !> module_name: Name of the module in which the region is
-  !> region_name: Name of the region (could be name of an invoke, or
-  !>              subroutine name).
-  subroutine PreStart(this, module_name, region_name)
+  !! Parameters:
+  !! @param[inout] this This PSyData instance.
+  !! @param[in] module_name Name of the module in which the region is
+  !! @param[in] region_name Name of the region (could be name of an invoke, or
+  !!            subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
+
+  subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                      num_post_vars)
     implicit none
 
     class(PSyDataType), intent(inout) :: this
-    character*(*)      :: module_name, region_name
-    integer            :: count, count_rate
+    character*(*)       :: module_name, region_name
+    integer             :: count, count_rate
+    integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
        call ProfileInit()
@@ -129,7 +137,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> Ends a profiling area. It takes a PSyDataType type that corresponds to
   !> to the PreStart call.
-  !> this: This PSyData instance.
+  !> @param[inout] this: This PSyData instance.
   subroutine PostEnd(this)
     implicit none
 

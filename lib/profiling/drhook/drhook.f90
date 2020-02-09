@@ -54,28 +54,36 @@ module psy_data_mod
 
 contains
   ! ---------------------------------------------------------------------------
-  ! The initialisation subroutine. It is not called directly from
-  ! any PSyclone created code, so a call to ProfileInit must be inserted
-  ! manually by the developer. In case of Dr Hook an initialisation is not
-  ! necessary.
-  !
+  !> The initialisation subroutine. It is not called directly from
+  !! any PSyclone created code, so a call to ProfileInit must be inserted
+  !! manually by the developer. In case of Dr Hook an initialisation is not
+  !! necessary.
+
   subroutine ProfileInit()
   end subroutine ProfileInit
 
   ! ---------------------------------------------------------------------------
-  ! Starts a profiling area. The module and region name can be used to create
-  ! a unique name for each region.
-  ! Parameters: 
-  ! this:        This PSyData instance.
-  ! module_name: Name of the module in which the region is
-  ! region_name: Name of the region (could be name of an invoke, or
-  !              subroutine name).
-  subroutine PreStart(this, module_name, region_name)
+  !> Starts a profiling area. The module and region name can be used to create
+  !! a unique name for each region.
+  !! Parameters:
+  !! @param[inout] this This PSyData instance.
+  !! @param[in] module_name Name of the module in which the region is
+  !! @param[in] region_name Name of the region (could be name of an invoke, or
+  !!            subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
+
+  subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                      num_post_vars)
     use yomhook, only : lhook, dr_hook
     implicit none
 
     class(PSyDataType), intent(inout) :: this
     character*(*), intent(in) :: module_name, region_name
+    integer, intent(in) :: num_pre_vars, num_post_vars
 
     if (lhook .and. .not. this%initialised) then
       this%name = module_name//":"//region_name
@@ -85,9 +93,9 @@ contains
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a PSyDataType type that corresponds to
-  ! to the PreStart call.
-  ! this: This PSyData instance.
+  !! Ends a profiling area. It takes a PSyDataType type that corresponds to
+  !! to the PreStart call.
+  !! this: This PSyData instance.
   ! 
   subroutine PostEnd(this)
     use yomhook, only : lhook, dr_hook
@@ -99,8 +107,8 @@ contains
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
-  ! Called at the end of the execution of a program, usually to generate
-  ! all output for the profiling library. Not required in the case of Dr Hook.
+  !> Called at the end of the execution of a program, usually to generate
+  !! all output for the profiling library. Not required in the case of Dr Hook.
   subroutine ProfileFinalise()
   end subroutine ProfileFinalise
 

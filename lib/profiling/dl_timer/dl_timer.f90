@@ -49,10 +49,10 @@ module psy_data_mod
 
 contains
   ! ---------------------------------------------------------------------------
-  ! The initialisation subroutine. It is not called directly from
-  ! any PSyclone created code, so a call to ProfileInit must be inserted
-  ! manually by the developer.
-  !
+  !> The initialisation subroutine. It is not called directly from
+  !! any PSyclone created code, so a call to ProfileInit must be inserted
+  !! manually by the developer.
+  !!
   subroutine ProfileInit()
     use dl_timer, only :timer_init
 
@@ -62,19 +62,26 @@ contains
   end subroutine ProfileInit
 
   ! ---------------------------------------------------------------------------
-  ! Starts a profiling area. The module and region name can be used to create
-  ! a unique name for each region.
-  ! Parameters: 
-  ! this:       This PSyData instance.
-  ! module_name: Name of the module in which the region is
-  ! region_name: Name of the region (could be name of an invoke, or
-  !              subroutine name).
-  subroutine PreStart(this, module_name, region_name)
+  !> Starts a profiling area. The module and region name can be used to create
+  !! a unique name for each region.
+  !! Parameters:
+  !! @param[inout] this This PSyData instance.
+  !! @param[in] module_name Name of the module in which the region is
+  !! @param[in] region_name Name of the region (could be name of an invoke, or
+  !!            subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
+  subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                      num_post_vars)
     use dl_timer, only : timer_register, timer_start
     implicit none
 
     class(PSyDataType), intent(inout) :: this
     character*(*) :: module_name, region_name
+    integer, intent(in) :: num_pre_vars, num_post_vars
 
     if( .not. this%registered) then
        call timer_register(this%timer_index, &
@@ -85,9 +92,9 @@ contains
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a PSyDataType type that corresponds to
-  ! to the PreStart call.
-  ! this: This PSyData instance.
+  !> Ends a profiling area. It takes a PSyDataType type that corresponds to
+  !! to the PreStart call.
+  !! @param[inout] this This PSyData instance.
   ! 
   subroutine PostEnd(this)
     use dl_timer, only : timer_stop
@@ -99,6 +106,8 @@ contains
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
+  !> Called at the end of the execution of a program, usually to generate
+  !! all output for the profiling library. Calls timer_report in dl_timer.
   subroutine ProfileFinalise()
     use dl_timer, only : timer_report
     implicit none
