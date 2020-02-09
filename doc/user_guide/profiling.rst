@@ -448,10 +448,9 @@ that can be set in order to find third party profiling tools.
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
-module. The four PSyData calls described
-in :ref:`ProfilingAPI` must be implemented,
-and an opaque, user-defined type ``PSyData`` needs to be 
-provided in the module.
+module. The functions that need to be implemented are described in
+:ref:`ProfilingAPI`, including the opaque, user-defined type
+``PSyData``.
 
 The examples in the ````lib/profiling directory show various ways
 in which the opaque data type can be used to interface
@@ -462,7 +461,7 @@ print all results in a ProfileFinalise() subroutine.
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exception is the template library (``lib/profiling.template``)
+exception is the template library (``lib/profiling/template``)
 which is a
 stand-alone dummy implementation that will just print
 out the name of the module and region called before and

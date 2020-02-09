@@ -18,7 +18,7 @@ right syntax to allow for syntax highlighting. The option
 for all text following the directive (until the end of the current file).
 It is recommended to have at most one ``highlight`` directive in
 a file and to avoid switching default languages several times within a file.
-Having a default language set in a file allow to use the very convenient
+Having a default language set in a file allow use of the very convenient
 shortcut notation "::". Note that the "::" will be replaced with a
 single ":" if the previous character is not a space::
 
@@ -50,8 +50,8 @@ change the syntax for the following code example::
         trans = self.get_transform()
 
 
-It is also possible to use ``code-block`` inside of a python
-comment that is pulled into a document::
+It is also possible to use ``code-block`` inside a Python docstring that
+is pulled into a document::
 
 
     class GOConstLoopBoundsTrans(Transformation):

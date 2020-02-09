@@ -141,11 +141,15 @@ The following sections describe the API in detail.
 The library using the PSyData API must provide a user-defined data type
 called ``PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
-can be used to accumulate data from call to call.
+can be used to accumulate data from call to call. An example of
+the PSyDatType can be found in the NetCDF example extraction code
+(see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`psyke_netcdf` for
+a detailed description) or any of the profiling wrapper libaries
+(all contained in ``lib/profiling``)
 
 .. method:: PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)
 
-    This method is called first each time the instrumented region is
+    This is the first method called when the instrumented region is
     executed. It takes 4 parameters (besides the implicit ``PSyDataType``
     instance):
     
@@ -190,7 +194,7 @@ can be used to accumulate data from call to call.
     interface is recommended to distinguish between
     the data types provided. The netcdf kernel writer 
     (see :ref:`psyke_netcdf`) uses the following declaration
-    with dl_esm_inf::
+    (with types defined in the dl_esm_inf library)::    
     
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
                                                  DeclareScalarReal,    &
@@ -209,7 +213,13 @@ can be used to accumulate data from call to call.
             character(*), intent(in) :: name
             type(r2d_field), intent(in) :: value
         ...
-    
+        subroutine DeclareFieldDouble(this, name, value)
+            use field_mod, only : r2d_field
+            implicit none
+            class(PSyDataType), intent(inout) :: this
+            character(*), intent(in) :: name
+            type(r2d_field), intent(in) :: value
+        ...
 
 .. method:: PreEndDeclaration(this)
 
@@ -301,6 +311,7 @@ for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
-and provides these two lists to the gen() function of its base class,
+and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses ``post-var-postfix`` option
-as described above (see also :ref:`psyke_netcdf`).
+as described under ``gen_code()`` above (see also :ref:`psyke_netcdf`).
+

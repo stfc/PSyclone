@@ -35,7 +35,7 @@
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel extraction code to
-the invokes. When the transform program is compiled and run, it
+the invokes. When the transformed program is compiled and run, it
 will create one NetCDF file for each of the two invokes. A separate
 driver program is also created for each invoke which can read the
 created NetCDF files, execute the invokes and then compare the results.
@@ -46,7 +46,7 @@ from __future__ import print_function
 
 def trans(psy):
     '''
-    Take the supplied psy object, and ad kernel extraction code.
+    Take the supplied psy object, and add kernel extraction code.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
@@ -60,13 +60,13 @@ def trans(psy):
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    _, _ = extract.apply(schedule.children)
+    _, _ = extract.apply(schedule.children, {"create-driver": True})
 
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
 
     # Enclose everything in a extract region
-    newschedule, _ = extract.apply(schedule.children)
+    newschedule, _ = extract.apply(schedule.children, {"create-driver": True})
 
     invoke.schedule = newschedule
     newschedule.view()

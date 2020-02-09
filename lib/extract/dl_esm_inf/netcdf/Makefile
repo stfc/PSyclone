@@ -34,13 +34,15 @@
 # export F90=mpif90
 # export F90FLAGS="-O3"
 # export AR=ar
+#
+# It also uses nf-config to query for flags required for NetCDF compilation.
 
 F90 ?= gfortran
 
 DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
 
 F90FLAGS ?= 
-F90FLAGS += $$(nc-config --fflags) -I$(DL_DIR)
+F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 default: $(LIB_NAME)

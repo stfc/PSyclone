@@ -478,28 +478,30 @@ The full list of supported grid properties in the GOcean 1.0 API is:
 
 .. _gocean1.0-grid-props:
 
-=================== =============================  ====================
-Name                Description                    Type
-=================== =============================  ====================
-go_grid_area_t      Cell area at T point           Real array, rank=2
-go_grid_area_u      Cell area at U point           Real array, rank=2
-go_grid_area_v      Cell area at V point           Real array, rank=2
-go_grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
-go_grid_dx_t        Grid spacing in x at T points  Real array, rank=2
-go_grid_dx_u        Grid spacing in x at U points  Real array, rank=2
-go_grid_dx_v        Grid spacing in x at V points  Real array, rank=2
-go_grid_dy_t        Grid spacing in y at T points  Real array, rank=2
-go_grid_dy_u        Grid spacing in y at U points  Real array, rank=2
-go_grid_dy_v        Grid spacing in y at V points  Real array, rank=2
-go_grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
-go_grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
-go_grid_dx_const    Grid spacing in x if constant  Real, scalar
-go_grid_dy_const    Grid spacing in y if constant  Real, scalar
-go_grid_x_min_index Minimum X index                Integer, scalar
-go_grid_x_max_index Maximum X index                Integer, scalar
-go_grid_y_min_index Minimum Y index                Integer, scalar
-go_grid_y_max_index Maximum Y index                Integer, scalar
-=================== =============================  ====================
+.. table:: Grid Properties Table
+
+    =================== =============================  ====================
+    Name                Description                    Type
+    =================== =============================  ====================
+    go_grid_area_t      Cell area at T point           Real array, rank=2
+    go_grid_area_u      Cell area at U point           Real array, rank=2
+    go_grid_area_v      Cell area at V point           Real array, rank=2
+    go_grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
+    go_grid_dx_t        Grid spacing in x at T points  Real array, rank=2
+    go_grid_dx_u        Grid spacing in x at U points  Real array, rank=2
+    go_grid_dx_v        Grid spacing in x at V points  Real array, rank=2
+    go_grid_dy_t        Grid spacing in y at T points  Real array, rank=2
+    go_grid_dy_u        Grid spacing in y at U points  Real array, rank=2
+    go_grid_dy_v        Grid spacing in y at V points  Real array, rank=2
+    go_grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
+    go_grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
+    go_grid_dx_const    Grid spacing in x if constant  Real, scalar
+    go_grid_dy_const    Grid spacing in y if constant  Real, scalar
+    go_grid_x_min_index Minimum X index                Integer, scalar
+    go_grid_x_max_index Maximum X index                Integer, scalar
+    go_grid_y_min_index Minimum Y index                Integer, scalar
+    go_grid_y_max_index Maximum Y index                Integer, scalar
+    =================== =============================  ====================
 
 These are defined in the psyclone config file (see
 :ref:`gocean1.0-configuration`), and the user or infrastructure
