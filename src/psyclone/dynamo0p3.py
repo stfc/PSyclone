@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -5657,8 +5657,9 @@ class DynLoop(Loop):
         # the name of the nlayers and ndf variables
         self._name_space_manager = NameSpaceFactory().create()
 
-        # set our variable name at initialisation as it might be
+        # Set our variable name at initialisation as it might be
         # required by other classes before code generation
+        # QUESTION: Where to set KIND for literals???
         if self._loop_type == "colours":
             self._variable_name = "colour"
         elif self._loop_type == "colour":
