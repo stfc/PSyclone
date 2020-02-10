@@ -1203,6 +1203,8 @@ Kernel are assumed to conform to and how data within that layout is
 addressed.  For the dynamo0.3 API, PSyclone supports the following
 layouts:
 
+.. tabularcolumns:: |l|p{10cm}|
+		    
 +-----------------+--------------------------------------------------+
 | Data Layout     | Definition                                       |
 +=================+==================================================+
