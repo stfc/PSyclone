@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
+
 '''A simple Python script showing how to create a PSyIR tree using the
 create methods. In order to use it you must first install
 PSyclone. See README.md in the top-level psyclone directory.
