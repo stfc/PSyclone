@@ -34,7 +34,28 @@ of kernels accessing data/routines via module use statements:
 
 These various forms of kernel only present a problem if a user wishes
 to transform them e.g. for use in either an OpenACC or OpenCL
-application. For instance, the following:
+application. For instance, we can use PSyclone with a suitable
+transformation script (employing the `KernelGlobalsToArguments` and
+`OCLTrans` transformations) to generate OpenCL code for the first
+example:
+
+```sh
+psyclone -api "gocean1.0" -s ./ocl_transform.py alg_kern_use_var.f90
+```
+
+The generated PSy- and Algorithm-layer code is written to stdout and a
+transformed version of the kernel is written to
+kern_use_var_kern_use_var_0.cl. This kernel has the `gravity` variable
+(previously accessed from a module in the original Fortran) passed by
+argument:
+
+    __kernel void kern_use_var_code(
+      __global double * restrict fld,
+      double gravity
+      ){
+
+Attempting to generate an OpenACC version of that same example by
+doing:
 
 ```sh
 psyclone -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
@@ -48,6 +69,7 @@ KernelGlobalsToArguments transformation (which is required because
 `kern_use_var` accesses `data_mod::gravity`). Note there is currently
 a bug (#663) that means that no error is raised and there is a mismatch
 between the generated kernel and the PSy-layer code which calls it.
+
 
 In addition, although the kernels named in the Invoke would be
 transformed, the other kernels that they then call would not and this
