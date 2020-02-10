@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2018-2019, Science and Technology Facilities Council.
+Copyright (c) 2018-2020, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 Author A. R. Porter, STFC Daresbury Lab
+Modified by R. W. Ford, STFC Daresbury Lab
 -->
 
 # PSyclone NEMO Examples
@@ -64,5 +65,5 @@ directives.
 
 ## Example 4
 
-SIR gemeration and transformation to CUDA using Dawn with simple
+SIR generation and transformation to CUDA using Dawn with simple
 examples.

@@ -44,7 +44,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import Assignment, IfBlock, Loop, PSyFactory
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke
 
 # Constants
@@ -85,7 +86,6 @@ def test_assignment(parser):
     array_assignment.reference_accesses(var_accesses)
     assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
                                 "i: READ, j: READ, x: READ, y: READ"
-
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)

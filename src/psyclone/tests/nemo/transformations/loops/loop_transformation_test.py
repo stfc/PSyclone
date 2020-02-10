@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
@@ -40,7 +40,8 @@ from __future__ import print_function, absolute_import
 import pytest
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo, InternalError
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
@@ -146,14 +147,14 @@ def test_exp_loop_missing_spec(parser):
     fparser2 AST is missing a Specification_Part for the routine.
 
     '''
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     reader = FortranStringReader("program atest\nreal :: umask(1,1,1,1)\n"
                                  "umask(:, :, :) = 0.0\nend program atest\n")
     prog = parser(reader)
     psy = PSyFactory(API).create(prog)
     sched = psy.invokes.invoke_list[0].schedule
     # Remove the specification part
-    spec = walk_ast(prog.content, [Fortran2003.Specification_Part])
+    spec = walk(prog.content, Fortran2003.Specification_Part)
     prog.content[0].content.remove(spec[0])
     # Check that we can transform OK
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')

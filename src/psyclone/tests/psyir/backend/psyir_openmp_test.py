@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
 
 from __future__ import absolute_import
 
-from psyclone.psyGen import Assignment, Reference
+from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import create_schedule, get_invoke
@@ -106,15 +108,14 @@ def replace_child_with_assignment(node):
     compile, e.g. assignment as child of an OMP DO directive)
     # TODO #440 tracks this
     :param node: the node whose child is replaced.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
     '''
 
     # Create a simple 'a=b' assignment statement for all tests
-    assignment = Assignment(parent=node)
-    lhs = Reference('a', assignment)
-    rhs = Reference('b', assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(rhs)
+    lhs = Reference(DataSymbol('a', DataType.REAL))
+    rhs = Reference(DataSymbol('b', DataType.REAL))
+    assignment = Assignment.create(lhs, rhs)
+    assignment.parent = node
     node.children[0] = assignment
 
 

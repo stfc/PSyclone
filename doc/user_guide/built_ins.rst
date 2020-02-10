@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -244,7 +244,7 @@ sees fit with no change to the algorithm and kernel layers.
   END MODULE solver_mod_psy
 
 This example is distributed with PSyclone and can be found in
-``<PSYCLONEHOME>/examples/dynamo/eg3``.
+``<PSYCLONEHOME>/examples/lfric/eg3``.
 
 Supported Built-in operations
 -----------------------------

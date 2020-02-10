@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -378,7 +378,8 @@ def test_profiling_no_spec_part(parser, monkeypatch):
 def test_profiling_missing_end(parser):
     ''' Check that we raise the expected error if we are unable to find
     the end of the profiled code section in the parse tree. '''
-    from psyclone.psyGen import Loop, InternalError
+    from psyclone.psyGen import Loop
+    from psyclone.errors import InternalError
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "real :: sto_tmp(jpj)\n"
@@ -393,7 +394,8 @@ def test_profiling_missing_end(parser):
     loops[0]._ast_end = psy._ast
     with pytest.raises(InternalError) as err:
         _ = psy.gen
-    assert "Failed to find the location of 'PROGRAM do_loop" in str(err.value)
+    assert ("nodes of the profiling region in the fparser2 parse tree do not "
+            "have the same parent" in str(err.value))
 
 
 def test_profiling_mod_use_clash(parser):

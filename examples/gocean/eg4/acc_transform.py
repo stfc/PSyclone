@@ -54,7 +54,7 @@ def trans(psy):
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
-    from psyclone.psyGen import Loop
+    from psyclone.psyir.nodes import Loop
     for child in schedule.children:
         if isinstance(child, Loop):
             newschedule, _ = ltrans.apply(child, {"collapse": 2})
