@@ -165,9 +165,10 @@ def test_imported_symbols():
 
 
 def test_remove():
-    '''Test that the remove method removes symbols from the symbol
-    table, but raises appropiate errors when provided with wrong
-    parameters. '''
+    '''Test that the remove method removes ContainerSymbols from the symbol
+    table. Also checks that appropiate errors are raised when the method is
+    provided with wrong parameters or if there are DataSymbols that reference
+    the provided ContainerSymbol. '''
     sym_table = SymbolTable()
 
     # Declare a symbol
@@ -178,6 +179,10 @@ def test_remove():
     var1 = sym_table.lookup("var1")
     assert var1
     assert sym_table.imported_symbols(my_mod) == [var1]
+    # We should not be able to remove a Symbol that is not a ContainerSymbol
+    with pytest.raises(TypeError) as err:
+        sym_table.remove(var1)
+    assert "expects a ContainerSymbol object but got" in str(err.value)
     # We should not be able to remove a Container if it is referenced
     # by an existing Symbol
     with pytest.raises(ValueError) as err:

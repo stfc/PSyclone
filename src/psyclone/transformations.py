@@ -2653,10 +2653,11 @@ class OCLTrans(Transformation):
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
-                    "symbols with 'global' scope: {1}. All data accessed by "
-                    "an OpenCL kernel must be passed by argument. Use the "
-                    "KernelGlobalsToArgumentsTrans transformation to convert "
-                    "such symbols to kernel arguments first.".
+                    "symbols with 'global' scope: {1}. An OpenCL kernel cannot"
+                    " call other kernels and all of the data it accesses must "
+                    "be passed by argument. Use the KernelGlobalsToArguments "
+                    "transformation to convert such symbols to kernel "
+                    "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
 
@@ -3324,8 +3325,12 @@ class ACCRoutineTrans(KernelTrans):
         if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
-                "symbol(s) with global scope: {1}. PSyclone cannot currently "
-                "transform such kernels for execution on an OpenACC device.".
+                "symbol(s) with global scope: {1}. If these symbols represent"
+                " data then they must first be converted to kernel arguments "
+                "using the KernelGlobalsToArguments transformation. If the "
+                "symbols represent external routines then PSyclone cannot "
+                "currently transform this kernel for execution on an OpenACC "
+                "device (issue #342).".
                 format(kern.name, [sym.name for sym in global_variables]))
         # Prevent unwanted side effects by removing the kernel schedule that
         # we have just constructed. This is necessary while
@@ -3859,7 +3864,7 @@ class KernelGlobalsToArguments(Transformation):
                     node.name, str(err.value)))
 
         symtab = kernel.symbol_table
-        for container in symtab.container_symbols:
+        for container in symtab.containersymbols:
             if container.wildcard_import:
                 raise TransformationError(
                     "Kernel '{0}' has a wildcard import of symbols from "
@@ -3875,20 +3880,21 @@ class KernelGlobalsToArguments(Transformation):
         modify the InvokeSchedule to pass the same global variables to the
         kernel call.
 
+        This apply() method does not return anything, as agreed in #595.
+        However, this change has yet to be applied to the other Transformation
+        classes.
+
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: a record of the transformation.
-        :rtype: :py:class:`psyclone.undoredo.Memento`.
         '''
         from psyclone.psyir.symbols import ArgumentInterface
         from psyclone.psyir.symbols import DataType
 
         self.validate(node)
 
-        memento = Memento(node, self)
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
@@ -3949,4 +3955,3 @@ class KernelGlobalsToArguments(Transformation):
                 kernel.symbol_table.remove(container)
         # TODO #663 - uncomment line below and fix tests.
         # node.modified = True
-        return memento

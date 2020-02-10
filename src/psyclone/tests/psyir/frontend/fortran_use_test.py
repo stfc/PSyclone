@@ -107,7 +107,7 @@ def test_multi_use_stmt():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     symtab = fake_parent.symbol_table
-    csymbols = symtab.container_symbols
+    csymbols = symtab.containersymbols
     # Although there are 4 use statements, there are only 2 modules
     assert len(csymbols) == 2
     my_mod = symtab.lookup("my_mod")

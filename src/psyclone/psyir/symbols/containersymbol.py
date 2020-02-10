@@ -91,9 +91,10 @@ class ContainerSymbol(Symbol):
     @property
     def wildcard_import(self):
         '''
-        :returns: whether or not there is a wildcard import of all public
+        :returns: whether or not there is a wildcard import of all public \
                   symbols from this Container.
         :rtype: bool
+
         '''
         return self._has_wildcard_import
 
