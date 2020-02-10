@@ -1817,7 +1817,7 @@ class DynStencils(DynCollection):
         '''
         from psyclone.f2pygen import DeclGen
         if self._unique_extent_vars:
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=self._unique_extent_vars,
                                intent="in"))
 
@@ -1849,7 +1849,7 @@ class DynStencils(DynCollection):
         '''
         from psyclone.f2pygen import DeclGen
         if self._unique_direction_vars:
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=self._unique_direction_vars,
                                intent="in"))
 
@@ -1979,10 +1979,11 @@ class DynStencils(DynCollection):
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="stencil_dofmap_type",
                                    entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               pointer=True,
                                entity_decls=[self.dofmap_name(arg) +
                                              "(:,:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=[self.dofmap_size_name(arg)]))
 
             stencil_type = arg.descriptor.stencil['type']
@@ -2004,7 +2005,8 @@ class DynStencils(DynCollection):
                                str(STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=[stencil_name]))
-                parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=INT_PREC, pointer=True,
                                    entity_decls=[self.dofmap_name(arg) +
                                                  "(:,:,:) => null()"]))
 
@@ -2021,7 +2023,7 @@ class DynStencils(DynCollection):
 
         for arg in self._kern_args:
             parent.add(DeclGen(
-                parent, datatype="integer", intent="in",
+                parent, datatype="integer", kind=INT_PREC, intent="in",
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
                                     self.dofmap_size_name(arg)]),
                 entity_decls=[self.dofmap_name(arg)]))
@@ -2182,22 +2184,22 @@ class DynDofmaps(DynCollection):
             [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
 
         if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_map_names))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               pointer=True, entity_decls=decl_map_names))
 
         # Column-banded dofmaps
         decl_bmap_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
         if decl_bmap_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_bmap_names))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               pointer=True, entity_decls=decl_bmap_names))
 
         # CMA operator indirection dofmaps
         decl_ind_map_names = \
             [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
         if decl_ind_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_ind_map_names))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               pointer=True, entity_decls=decl_ind_map_names))
 
     def _stub_declarations(self, parent):
         '''
@@ -2213,10 +2215,11 @@ class DynDofmaps(DynCollection):
             # We declare ndf first as some compilers require this
             ndf_name = get_fs_ndf_name(
                 self._unique_fs_maps[dmap].function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=ndf_name, entity_decls=[dmap]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", dimension=ndf_name,
+                               entity_decls=[dmap]))
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":
@@ -2228,9 +2231,10 @@ class DynDofmaps(DynCollection):
                     "Invalid direction ('{0}') found for CMA operator when "
                     "collecting column-banded dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in",
                                dimension=",".join([ndf_name, "nlayers"]),
                                entity_decls=[dmap]))
         # CMA operator indirection dofmaps
@@ -2244,10 +2248,11 @@ class DynDofmaps(DynCollection):
                     "Invalid direction ('{0}') found for CMA operator when "
                     "collecting indirection dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[dim_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=dim_name, entity_decls=[dmap]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=[dim_name]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", dimension=dim_name,
+                               entity_decls=[dmap]))
 
 
 class DynOrientations(DynCollection):
@@ -2292,8 +2297,9 @@ class DynOrientations(DynCollection):
         from psyclone.f2pygen import DeclGen
         for orient in self._orients:
             ndf_name = get_fs_ndf_name(orient.function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=ndf_name, entity_decls=[orient.name]))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", dimension=ndf_name,
+                               entity_decls=[orient.name]))
 
     def _invoke_declarations(self, parent):
         '''
@@ -2308,8 +2314,8 @@ class DynOrientations(DynCollection):
 
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=declns))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               pointer=True, entity_decls=declns))
 
 
 class DynFunctionSpaces(DynCollection):
@@ -2362,8 +2368,8 @@ class DynFunctionSpaces(DynCollection):
         from psyclone.f2pygen import DeclGen
         if self._var_list:
             # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=self._var_list))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=self._var_list))
 
     def _invoke_declarations(self, parent):
         '''
@@ -2377,7 +2383,7 @@ class DynFunctionSpaces(DynCollection):
         from psyclone.f2pygen import DeclGen
         if self._var_list:
             # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=self._var_list))
 
     def initialise(self, parent):
@@ -2602,7 +2608,7 @@ class DynCellIterators(DynCollection):
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that iterate over cells
         if not self._dofs_only:
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=[self._nlayers_name]))
 
     def _stub_declarations(self, parent):
@@ -2691,7 +2697,7 @@ class DynScalarArgs(DynCollection):
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="integer",
+                parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                    entity_decls=self._int_scalars[intent],
                                    intent=intent))
 
@@ -2727,7 +2733,7 @@ class DynLMAOperators(DynCollection):
                                intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                intent="in", entity_decls=[size]))
             ndf_name_to = get_fs_ndf_name(arg.function_space_to)
             ndf_name_from = get_fs_ndf_name(arg.function_space_from)
@@ -2850,7 +2856,7 @@ class DynCMAOperators(DynCollection):
             AssignGen(
                 parent, lhs=ncol_name,
                 rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
-        parent.add(DeclGen(parent, datatype="integer",
+        parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                            entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
@@ -2927,7 +2933,7 @@ class DynCMAOperators(DynCollection):
                     root_name=op_name+"_"+param,
                     context="PSyVars",
                     label=op_name+"_"+param))
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=param_names))
 
     def _stub_declarations(self, parent):
@@ -2947,8 +2953,8 @@ class DynCMAOperators(DynCollection):
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
-        parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=["cell", "ncell_2d"]))
+        parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                           intent="in", entity_decls=["cell", "ncell_2d"]))
 
         for op_name in self._cma_ops:
             # Declare the associated scalar arguments before the array because
@@ -2962,7 +2968,7 @@ class DynCMAOperators(DynCollection):
                     label=op_name+"_"+param)
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
-                               intent="in",
+                               kind=INT_PREC, intent="in",
                                entity_decls=_local_args))
             # Declare the array that holds the CMA operator
             bandwidth = op_name + "_bandwidth"
@@ -3145,19 +3151,20 @@ class DynMeshes(object):
                                    entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
+                        kind=INT_PREC,
                         entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=[kern.ncell_fine,
                                              kern.ncellpercell]))
             # Declare variables to hold the colourmap information if required
             if kern.colourmap:
-                parent.add(DeclGen(parent, datatype="integer",
+                parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                    pointer=True,
                                    entity_decls=[kern.colourmap+"(:,:)"]))
-                parent.add(DeclGen(parent, datatype="integer",
+                parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                    entity_decls=[kern.ncolours_var]))
 
         if not self._ig_kernels and self._needs_colourmap:
@@ -3171,10 +3178,10 @@ class DynMeshes(object):
             ncolours = self._name_space_manager.create_name(
                 root_name=base_name, context="PSyVars", label=base_name)
             # Add declarations for these variables
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                pointer=True,
                                entity_decls=[colour_map+"(:,:)"]))
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=[ncolours]))
 
     def initialise(self, parent):
@@ -3623,8 +3630,8 @@ class DynBasisFunctions(DynCollection):
         var_dims, basis_arrays = self._basis_fn_declns()
 
         if var_dims:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=var_dims))
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in", entity_decls=var_dims))
         for basis in basis_arrays:
             parent.add(DeclGen(parent, datatype="real",
                                kind=REAL_PREC, intent="in",
@@ -3772,7 +3779,7 @@ class DynBasisFunctions(DynCollection):
 
         if var_dims:
             # declare dim and diff_dim for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=var_dims))
 
         basis_declarations = []
@@ -3942,7 +3949,7 @@ class DynBasisFunctions(DynCollection):
             # argument
             parent.add(
                 DeclGen(
-                    parent, datatype="integer",
+                    parent, datatype="integer", kind=INT_PREC,
                     entity_decls=[name+"_"+qr_arg_name
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
@@ -4099,7 +4106,7 @@ class DynBasisFunctions(DynCollection):
                                                    VALID_EVALUATOR_SHAPES))
         if loop_var_list:
             # Declare any loop variables
-            parent.add(DeclGen(parent, datatype="integer",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                                entity_decls=sorted(loop_var_list)))
 
     def deallocate(self, parent):
@@ -4207,7 +4214,8 @@ class DynBoundaryConditions(DynCollection):
         from psyclone.f2pygen import DeclGen
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(DeclGen(parent, datatype="integer", pointer="True",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               pointer="True",
                                entity_decls=[name+"(:,:) => null()"]))
 
     def _stub_declarations(self, parent):
@@ -4221,7 +4229,8 @@ class DynBoundaryConditions(DynCollection):
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             ndf_name = get_fs_ndf_name(dofs.function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
+            parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
+                               intent="in",
                                dimension=",".join([ndf_name, "2"]),
                                entity_decls=[name]))
 
@@ -4480,7 +4489,8 @@ class DynInvoke(Invoke):
         # Initialise all quantities required by this PSy routine (invoke)
 
         if self.schedule.reductions(reprod=True):
-            # we have at least one reproducible reduction so we need
+            # QUESTION: WHAT ABOUT KIND FOR NTHREADS???
+            # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
             from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
@@ -6703,7 +6713,7 @@ class DynKern(CodedKern):
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
         sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
-                            funcnames=[REAL_PREC]))
+                            funcnames=[REAL_PREC, INT_PREC]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
@@ -6738,7 +6748,7 @@ class DynKern(CodedKern):
 
         '''
         from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
-        parent.add(DeclGen(parent, datatype="integer",
+        parent.add(DeclGen(parent, datatype="integer", kind=INT_PREC,
                            entity_decls=["cell"]))
 
         parent_loop = self.parent.parent
