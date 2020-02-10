@@ -162,6 +162,16 @@ def test_imported_symbols():
         sym_table.imported_symbols(var2)
     assert "expects a ContainerSymbol but got an object of type" in \
         str(err.value)
+    # Passing a ContainerSymbol that is not in the SymbolTable is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.imported_symbols(ContainerSymbol("another_mod"))
+    assert "Could not find 'another_mod' in " in str(err.value)
+    # Passing a ContainerSymbol that is not in the SymbolTable but that has
+    # the same name as one that is is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.imported_symbols(ContainerSymbol("my_mod"))
+    assert ("The 'my_mod' entry in this SymbolTable is not the supplied "
+            "ContainerSymbol" in str(err.value))
 
 
 def test_remove():

@@ -199,7 +199,8 @@ class SymbolTable(object):
     def imported_symbols(self, csymbol):
         '''
         Examines the contents of this symbol table to see which DataSymbols
-        (if any) are imported from the supplied ContainerSymbol.
+        (if any) are imported from the supplied ContainerSymbol (which must
+        be present in the SymbolTable).
 
         :param csymbol: the ContainerSymbol to search for imports from.
         :type csymbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
@@ -209,28 +210,31 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises TypeError: if the supplied object is not a ContainerSymbol.
+        :raises KeyError: if the supplied object is not in this SymbolTable.
 
         '''
         if not isinstance(csymbol, ContainerSymbol):
             raise TypeError(
                 "imported_symbols() expects a ContainerSymbol but got an "
                 "object of type '{0}'".format(type(csymbol).__name__))
-        symbol_list = []
-        for symbol in self.global_datasymbols:
-            if symbol.interface.container_symbol is csymbol:
-                symbol_list.append(symbol)
-        return symbol_list
+        if self.lookup(csymbol.name) is not csymbol:
+            raise KeyError("The '{0}' entry in this SymbolTable is not the "
+                           "supplied ContainerSymbol.".format(csymbol.name))
+
+        return [symbol for symbol in self.global_datasymbols if
+                symbol.interface.container_symbol is csymbol]
 
     def remove(self, symbol):
         ''' Remove the supplied ContainerSymbol from the Symbol Table.
+        Support for removing other types of Symbol will be added as required.
 
         :param symbol: the container symbol to remove.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
+        :raises TypeError: if the supplied symbol is not a ContainerSymbol.
         :raises KeyError: if the supplied symbol is not in the symbol table.
         :raises ValueError: if the supplied container symbol is referenced \
                             by one or more DataSymbols.
-        :raises TypeError: if the supplied symbol is not a ContainerSymbol.
         :raises InternalError: if the supplied symbol is not the same as the \
                                entry with that name in this SymbolTable.
         '''
@@ -407,7 +411,7 @@ class SymbolTable(object):
         return list(precision_symbols)
 
     @property
-    def container_symbols(self):
+    def containersymbols(self):
         '''
         :returns: a list of the ContainerSymbols present in the Symbol Table.
         :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
@@ -474,8 +478,7 @@ class SymbolTable(object):
         # Copy the variable into the SymbolTable with the appropriate interface
         if globalvar.name not in self:
             new_symbol = globalvar.copy()
-            # Update the interface of this new symbol. This also removes the
-            # symbol from its original Container and adds it to the new one.
+            # Update the interface of this new symbol
             new_symbol.interface = GlobalInterface(container_ref)
             self.add(new_symbol)
         else:

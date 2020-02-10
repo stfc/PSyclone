@@ -630,18 +630,21 @@ class Fparser2Reader(object):
                 if (not new_container) and (not container.wildcard_import) \
                    and (not parent.symbol_table.imported_symbols(container)):
                     # TODO #11 Log the fact that this explicit symbol import
-                    # will replace a previous import with an empty only-list.
+                    # will replace a previous import that had an empty
+                    # only-list.
                     pass
                 container.wildcard_import = True
             elif decl.items[3].lower().replace(" ", "") == ",only:":
                 # This use has an 'only: ' but no associated list of
                 # imported symbols. (It serves to keep a module in scope while
-                # not actually importing anything from it.)
+                # not actually importing anything from it.) We do not need to
+                # set anything as the defaults (empty 'only' list and no
+                # wildcard import) imply 'only:'.
                 if not new_container and \
                    (container.wildcard_import or
                     parent.symbol_table.imported_symbols(container)):
                     # TODO #11 Log the fact that this import with an empty
-                    # only-list is irrelevant because of existing 'use's of
+                    # only-list is ignored because of existing 'use's of
                     # the module.
                     pass
             else:

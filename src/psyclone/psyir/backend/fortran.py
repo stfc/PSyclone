@@ -398,7 +398,7 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Use statements
-        for symbol in symbol_table.container_symbols:
+        for symbol in symbol_table.containersymbols:
             declarations += self.gen_use(symbol, symbol_table)
 
         # 2: Argument variable declarations
