@@ -738,7 +738,8 @@ class Fparser2Reader(object):
                             entity_shape[idx] = DataSymbol.Extent.DEFERRED
                         else:
                             entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
-                    elif allocatable:
+                    elif not isinstance(extent, DataSymbol.Extent) and \
+                         allocatable:
                         # We have an allocatable array with a defined extent.
                         # This is invalid Fortran.
                         raise InternalError(

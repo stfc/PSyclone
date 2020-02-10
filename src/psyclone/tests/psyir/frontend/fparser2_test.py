@@ -456,12 +456,20 @@ def test_process_array_declarations():
     assert symbol.name == "l8"
     assert symbol.shape == [DataSymbol.Extent.DEFERRED]
 
-    # Unknown extents but not allocatable
-    reader = FortranStringReader("integer :: l9(:, :)")
+    reader = FortranStringReader("integer, allocatable, dimension(:,:) :: l9")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l9")
     assert symbol.name == "l9"
+    assert symbol.shape == [DataSymbol.Extent.DEFERRED,
+                            DataSymbol.Extent.DEFERRED]
+
+    # Unknown extents but not allocatable
+    reader = FortranStringReader("integer :: l10(:, :)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("l10")
+    assert symbol.name == "l10"
     assert symbol.shape == [DataSymbol.Extent.ATTRIBUTE,
                             DataSymbol.Extent.ATTRIBUTE]
 
@@ -492,6 +500,13 @@ def test_process_not_supported_declarations():
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
     reader = FortranStringReader("integer, allocatable :: l10(5)")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "An array with defined extent cannot have the ALLOCATABLE" \
+        in str(err.value)
+
+    reader = FortranStringReader("integer, allocatable, dimension(n) :: l10")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(InternalError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
