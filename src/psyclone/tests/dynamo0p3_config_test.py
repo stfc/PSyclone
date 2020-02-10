@@ -155,7 +155,10 @@ def test_invalid_default_precision(tmpdir):
 
 
 def test_default_precision():
-    ''' Check that we load correct default precisions for all datatypes '''
+    ''' Check that we load correct default precisions for all datatypes.
+    This test will be modified to test whether the default precisions
+    are in a list of allowed precisions for each datatype when the
+    functionality is introduced. '''
     config = Config()
     api_config = config.get().api_conf(TEST_API)
     assert api_config.default_precision["real"] == "r_def"
