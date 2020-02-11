@@ -530,7 +530,7 @@ and 7) 'procedure'::
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
     integer :: data_layout = layout_z_xy
-    integer :: data_addressing = indirect_xy
+    integer :: data_addressing(2) = (/direct_z, indirect_xy/)
   contains
     procedure, nopass :: my_kernel_code
   end type
@@ -1254,11 +1254,11 @@ A 'standard' LFRic dynamics kernel working with finite-element fields
 therefore requires the following metadata entries::
 
   data_layout = LAYOUT_ZXY
-  data_addressing = (/ DIRECT_Z, INDIRECT_XY /)
+  data_addressing(2) = (/ DIRECT_Z, INDIRECT_XY /)
 
 Since this is obviously a common use case, these are the default
 values and are set in the PSyclone configuration file (see the
-:ref:`configuration` section). Kernel meta-data therefore need only
+:ref:`configuration` section). Kernel metadata therefore need only
 explicitly set these quantities if they differ from the defaults.
 
 Procedure

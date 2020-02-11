@@ -129,6 +129,10 @@ GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
+# ------------------------ Kernel data model -------------------------------- #
+GH_VALID_DATA_LAYOUTS = ["layout_zxy", "layout_xy_z", "layout_x_y_z"]
+GH_VALID_DATA_ADDRESSING = ["direct", "indirect"]
+
 # ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -931,7 +935,7 @@ class DynKernMetadata(KernelType):
 
     :param ast: fparser1 AST for the kernel.
     :type ast: :py:class:`fparser.block_statements.BeginSource`
-    :param str name: The name of this kernel.
+    :param str name: the name of this kernel.
 
     :raises ParseError: if the meta-data does not conform to the \
                         rules for the Dynamo 0.3 API.
@@ -953,6 +957,11 @@ class DynKernMetadata(KernelType):
         # required. We set this up below once we've processed the meta-
         # -data describing the kernel arguments.
         self._eval_targets = []
+
+        # Get the data-layout/addressing used by this kernel. If not
+        # specified then we default to the values in the config file.
+        self.data_layout = self.get_integer_variable('data_layout')
+        self.data_addressing = self.get_integer_array('data_addressing')
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -1057,11 +1066,12 @@ class DynKernMetadata(KernelType):
     def _validate(self, need_evaluator):
         '''
         Check that the meta-data conforms to Dynamo 0.3 rules for a
-        user-provided kernel or a built-in
+        user-provided kernel or a built-in.
 
-        :param bool need_evaluator: whether this kernel requires an
+        :param bool need_evaluator: whether this kernel requires an \
                                     evaluator/quadrature
-        :raises: ParseError: if meta-data breaks the Dynamo 0.3 rules
+        :raises ParseError: if meta-data breaks the Dynamo 0.3 rules.
+
         '''
         from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
@@ -1126,6 +1136,29 @@ class DynKernMetadata(KernelType):
                                        arg_types=["gh_columnwise_operator"])
         if cwise_ops:
             self._cma_operation = self._identify_cma_op(cwise_ops)
+
+        if self.data_layout and self.data_layout not in GH_VALID_DATA_LAYOUTS:
+            raise ParseError(
+                "Kernel '{0}' specifies an un-recognised data-layout ('{1}'). "
+                "Supported layouts are: {2}.".format(self.name,
+                                                     self.data_layout,
+                                                     GH_VALID_DATA_LAYOUTS))
+        if self.data_addressing:
+            dims = ""
+            for item in self.data_addressing:
+                for address in GH_VALID_DATA_ADDRESSING:
+                    if item.startswith(address):
+                        dims += item.lstrip(address+"_")
+                        break
+                else:
+                    raise ParseError()
+            for dim in ["x", "y", "z"]:
+                if dims.count(dim) == 0:
+                    raise ParseError("The metadata for kernel '{0}' contains a data_addressing entry but does not specify how to address dimension '{1}': {2}".format(self.name, dim, self.data_addressing))
+                if dims.count(dim) > 1:
+                    raise ParseError("The data_addressing entry in the metadata for kernel '{0}' specifies how to address dimension '{1}' more than once: {2}".format(self.name, dim, self.data_addressing))
+            if len(dims) != 3:
+                raise ParseError()
 
         # Perform checks for inter-grid kernels
         self._validate_inter_grid()
