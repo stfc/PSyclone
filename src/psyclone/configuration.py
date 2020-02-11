@@ -630,7 +630,7 @@ class Config(object):
         '''Returns all keys from the default section.
         :returns list: List of all keys of the default section as strings.
         '''
-        return self._config.defaults()
+        return list(self._config.defaults().keys())
 
 
 # =============================================================================
@@ -639,12 +639,14 @@ class APISpecificConfig(object):
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
     AccessType.
-    :param section: :py:class:`configparser.SectionProxy`
+
+    :param section: The entry for an API-specific section of \
+                    the configuration file, as produced by ConfigParser.
+    :type section: :py:class:`configparser.SectionProxy`
     :raises ConfigurationError: if an access-mapping is provided that \
         assigns an invalid value (i.e. not one of 'read', 'write', \
         'readwrite'), 'inc' or 'sum') to a string.
     '''
-
     def __init__(self, section):
         # Set a default mapping, this way the test cases all work without
         # having to specify those mappings.
@@ -673,6 +675,21 @@ class APISpecificConfig(object):
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
                                         self._access_mapping.items()}
+
+        # Lookup the default data layout assumed by kernels in this API
+        try:
+            self._kernel_data_layout = [
+                item.strip() for item in
+                section["kernel_data_layout"].split(",")]
+        except:
+            raise ConfigurationError("hohoh")
+        # Default data addressing
+        try:
+            self._kernel_data_addressing = [
+                item.strip() for item in
+                section["kernel_data_addressing"].split(",")]
+        except:
+            raise ConfigurationError("nononono")
 
     @staticmethod
     def create_dict_from_string(input_str):
@@ -809,7 +826,8 @@ class GOceanConfig(APISpecificConfig):
                 from psyclone.gocean1p0 import GOLoop
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
-            elif key == "access_mapping":
+            elif key in ["access_mapping", "kernel_data_addressing",
+                         "kernel_data_layout"]:
                 # Handled in the base class APISpecificConfig
                 pass
             elif key == "grid-properties":
@@ -901,7 +919,8 @@ class NemoConfig(APISpecificConfig):
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
-            if key in config.get_default_keys():
+            if key in config.get_default_keys() + ["kernel_data_addressing",
+                                                   "kernel_data_layout"]:
                 continue
 
             # Handle the definition of variables
