@@ -822,18 +822,25 @@ class KernelType(object):
         return None
 
     def get_integer_array(self, name):
-        ''' Parse the kernel meta-data and find the values of the
+        ''' Parse the kernel meta-data and find the values of the 1D
         integer array variable with the supplied name. Returns an empty list
         if no matching variable is found.
 
         :param str name: the name of the integer array to find.
+
         :returns: list of values.
         :rtype: list of str.
 
         :raises InternalError: if we fail to parse the LHS of the array \
-                               declaration or the array constructor.
+                               declaration.
+        :raises ParseError: if the array constructor does not contain Names.
+        :raises ParseError: if the declaration is not for a 1D array.
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
+        :raises ParseError: if the extent of the array is not specified using \
+                            an integer literal.
+        :raises ParseError: if the declared extent of the array does not \
+                            match the number of entries in the constructor.
 
         '''
         # Ensure the classes are setup for the Fortran2003 parser
@@ -857,13 +864,33 @@ class KernelType(object):
                     raise ParseError(
                         "get_integer_array: RHS of assignment is not "
                         "an array constructor: '{0}'".format(str(assign)))
+                # Check the extent of the array
+                if not isinstance(assign.children[0].children[1].children[0],
+                                  Fortran2003.Int_Literal_Constant):
+                    raise ParseError(
+                        "get_integer_array: only integer literals are "
+                        "supported for specifying the extent of an array: "
+                        "'{0}'".format(str(assign)))
+                if len(assign.children[0].children[1].children) != 1:
+                    raise ParseError(
+                        "get_integer_array: only 1D arrays are supported but "
+                        "found: {0}".format(str(assign)))
+                extent = int(str(assign.children[0].children[1].children[0]))
                 # fparser2 AST for Array_Constructor is:
                 # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
                 #                                      Name('w1'))), ']')
                 # Construct a list of the names in the array constructor
                 names = walk(assign.items[2].items, Fortran2003.Name)
                 if not names:
-                    raise InternalError("Failed to parse array constructor: "
-                                        "'{0}'".format(str(assign.items[2])))
+                    raise ParseError(
+                        "get_integer_array: the array constructor does not "
+                        "contain any Names: '{0}'".format(str(assign)))
+                # Ideally fparser would do this check but it's some way
+                # from being able to do that.
+                if len(names) != extent:
+                    raise ParseError(
+                        "get_integer_array: the number of items in the "
+                        "constructor ({0}) does not match the array extent "
+                        "({1}): {2}".format(len(names), extent, str(assign)))
                 return [str(name) for name in names]
         return []
