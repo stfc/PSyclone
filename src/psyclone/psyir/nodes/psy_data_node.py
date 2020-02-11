@@ -34,7 +34,10 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module provides support accessing. '''
+''' This module implementes a PSyData node, i.e.a node that at code
+creation time will create callbacks according to the PSyData API.
+This is the base class for nodes that e.g. create kernel extraction
+or profiling.'''
 
 from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
@@ -48,9 +51,9 @@ class PSyDataNode(Node):
     '''
     This class can be inserted into a schedule to instrument a set of nodes.
     Instrument means that calls to an external library will be inserted
-    before and after the child nodes, which will give this library access
-    to fields and the fact that a region is executed. This can be used as
-    example to add performance profiling calls, in-situ visualisation
+    before and after the child nodes, which will give that library access
+    to fields and the fact that a region is executed. This can be used, for
+    example, to add performance profiling calls, in-situ visualisation
     of data, or for writing fields to a file (e.g. for creating test
     cases, or using driver to run a certain kernel only)
 
@@ -59,10 +62,10 @@ class PSyDataNode(Node):
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: a list of child nodes for this node. These will be made \
                      children of the child Schedule of this PSyDataNode.
-    :type children: list of :py::class::`psyclone.psyir.nodes.Node` \
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node` \
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
-    :type parent: :py::class::`psyclone.psyir.nodes.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param (str,str) name: an optional name to use for this PSyDataNode, \
         provided as a 2-tuple containing a module name followed by a \
         local name. The pair of strings should uniquely identify a\
@@ -86,9 +89,9 @@ class PSyDataNode(Node):
         # TODO: #415 Support different classes of PSyData calls.
 
         # Store the name of the PSyData variable that is used for this
-        # PSyData name. This allows to show the variable name in __str__
-        # (and also if we would call create_name in gen(), the name would
-        # change every time gen() is called).
+        # PSyData name. This allows the variable name to be shown in str
+        # (and also, calling create_name in gen() would result in the name
+        # being changed every time gen() is called)."
         from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
@@ -152,17 +155,17 @@ class PSyDataNode(Node):
     # -------------------------------------------------------------------------
     @property
     def region_identifier(self):
-        ''':returns" the unique region identifier, which is a tuple \
+        ''':returns: the unique region identifier, which is a tuple \
             consisting of the module name and region name.
         :rtype: 2-tuple (str, str)'''
         return self._region_identifier
 
     # -------------------------------------------------------------------------
     def set_region_identifier(self, module_name, region_name):
-        '''Defines a unique region identifier based on module- and region-name
-        by simply concatenating these two strings with a "-". The region-name
-        is unique in the module, so concatenating the strings will result
-        in a unique region name.
+        '''Defines a unique region identifier based on module- and region-name.
+        Typically the names will be concatenated to create a file name or a
+        region name. Since the region name is unique in the module,
+        concatenating the strings will then result in a unique region name.
 
         :param str module_name: name of the module.
         :param str region_name: name of the region.
@@ -173,10 +176,12 @@ class PSyDataNode(Node):
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         this node. '''
-        result = "{0}Start[var={1}]\n".format(self._text_name, self._var_name)
-        for child in self.psy_data_body.children:
-            result += str(child)+"\n"
-        return result+"{0}End[var={1}]".format(self._text_name, self._var_name)
+        return_list = \
+            ["{0}Start[var={1}]".format(self._text_name, self._var_name)] + \
+            [str(child) for child in self.psy_data_body.children] + \
+            ["{0}End[var={1}]".format(self._text_name, self._var_name)]
+
+        return "\n".join(return_list)
 
     # -------------------------------------------------------------------------
     @property
@@ -199,12 +204,12 @@ class PSyDataNode(Node):
 
     # -------------------------------------------------------------------------
     def _add_call(self, name, parent, arguments=None):
-        '''This function adds a call to the specified method of
+        '''This function adds a call to the specified (type-bound) method of
         self._var_name to the parent.
 
         :param str name: name of the method to call.
         :param parent: parent node into which to insert the calls.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param arguments: optional arguments for the method call.
         :type arguments: list of str or None
         '''
@@ -216,11 +221,11 @@ class PSyDataNode(Node):
     # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ, too-many-branches
-        '''Creates the PSyData code before and after the surrounded children
+        '''Creates the PSyData code before and after the children
         of this node.
 
-        :param parent: the parent of this node.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param parent: the parent of this node in the f2pygen AST.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param options["pre-var-list"]: a list of variables to be extracted \
@@ -287,28 +292,35 @@ class PSyDataNode(Node):
         self.set_region_identifier(module_name, region_name)
         has_var = pre_variable_list or post_variable_list
 
-        # All variable names get a postfix of "-post" or "-pr".
-        # This enables the netcdf file to store variables that
-        # read read-write (i.e. pre and post), and also avoids
-        # potential name clashes (e.g. when using the PSyData
-        # interface to create a netcdf file), since a Fortran
-        # variable name cannot contain a "-".
+        # Each variable name can be given a suffix. The reason for
+        # this feature is that a library might have to distinguish if
+        # a variable is both in the pre- and post-variable list.
+        # Consider a NetCDF file that is supposed to store a
+        # variable that is read (i.e. it is in the pre-variable
+        # list) and written (it is also in the post-variable
+        # list). Since a NetCDF file uses the variable name as a key,
+        # there must be a way to distinguish these two variables.
+        # The application could for example give all variables in
+        # the post-variable list a suffix like "_post" to create
+        # a different key in the NetCDF file, allowing it to store
+        # values of a variable "A" as "A" in the pre-variable list,
+        # and store the modified value of "A" later as "A_post".
         if has_var:
             for var_name in pre_variable_list:
                 self._add_call("PreDeclareVariable", parent,
                                ["\"{0}{1}\"".format(var_name, pre_suffix),
-                                "{0}".format(var_name)])
+                                var_name])
             for var_name in post_variable_list:
                 self._add_call("PreDeclareVariable", parent,
                                ["\"{0}{1}\"".format(var_name, post_suffix),
-                                "{0}".format(var_name)])
+                                var_name])
 
             self._add_call("PreEndDeclaration", parent)
 
             for var_name in pre_variable_list:
                 self._add_call("ProvideVariable", parent,
                                ["\"{0}{1}\"".format(var_name, pre_suffix),
-                                "{0}".format(var_name)])
+                                var_name])
 
             self._add_call("PreEnd", parent)
 
@@ -321,7 +333,7 @@ class PSyDataNode(Node):
             for var_name in post_variable_list:
                 self._add_call("ProvideVariable", parent,
                                ["\"{0}{1}\"".format(var_name, post_suffix),
-                                "{0}".format(var_name)])
+                                var_name])
 
         self._add_call("PostEnd", parent)
 
@@ -496,9 +508,7 @@ class PSyDataNode(Node):
         # AST for the content of this region.
         content_ast = self.psy_data_body.children[0].ast
         # Now store the parent of this region
-        # pylint: disable=protected-access
         fp_parent = content_ast.parent
-        # pylint: enable=protected-access
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,

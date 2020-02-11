@@ -89,7 +89,8 @@ class ProfileNode(PSyDataNode):
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule, InternalError
+        from psyclone.psyir.nodes import Schedule
+        from psyclone.errors import InternalError
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
