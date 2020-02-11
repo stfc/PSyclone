@@ -66,8 +66,10 @@ and an optional API specific section, for example for
    access_mapping = gh_read:read, gh_write:write, gh_rw:readwrite,
                     gh_inc:inc, gh_sum:sum
 
-   COMPUTE_ANNEXED_DOFS = false
+   compute_annexed_dofs = false
 
+   kernel_data_layout = layout_zxy
+   kernel_data_addressing = direct_z, indirect_xy
 
 or for ``gocean1.0``:
 ::
@@ -160,10 +162,20 @@ using the Dynamo 0.3 API.
 =======================	=======================================================
 Entry             		Description
 =======================	=======================================================
-COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
+compute_annexed_dofs    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
                         exchanges. See :ref:`annexed_dofs` in the Developers'
                         guide.
+
+kernel_data_layout      Single name specifying the default data layout that
+                        fields passed to kernels are expected to have. See
+                        :ref:`lfric_kernel_data_layout` for the supported
+                        values.
+
+kernel_data_addressing  A comma-delimited list of one or more names specifying
+                        how each dimension of a field is addressed. See
+                        :ref:`lfric_kernel_data_layout` for the supported
+                        values.
 ======================= =======================================================
 
 ``gocean1.0`` Section

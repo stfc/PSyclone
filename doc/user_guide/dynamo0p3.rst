@@ -1195,6 +1195,8 @@ specifies that the Kernel has been written with the assumption that it
 is iterating over the specified entity. For user-supplied kernels this
 currently only has one valid value which is ``CELLS``.
 
+.. _lfric_kernel_data_layout:
+
 data_layout and data_addressing
 ###############################
 
@@ -1240,7 +1242,8 @@ For the dynamo0.3 API, PSyclone supports the following indexing schemes:
 +-----------------+--------------------------------------------------+
 | Data Addressing | Definition                                       |
 +=================+==================================================+
-| DIRECT_XY       | Horizontal locations are directly indexed.       |
+| DIRECT_XY       | Horizontal locations are directly indexed but x  |
+|                 | and y are not distinguished.                     |
 +-----------------+--------------------------------------------------+
 | DIRECT_Z        | Vertical levels are directly indexed.            |
 +-----------------+--------------------------------------------------+
