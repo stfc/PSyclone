@@ -63,7 +63,7 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 [dynamo0.3]
 COMPUTE_ANNEXED_DOFS = false
-KERNEL_DATA_LAYOUT = zxy
+KERNEL_DATA_LAYOUT = layout_zxy
 KERNEL_DATA_ADDRESSING = direct_z, indirect_xy
 '''
 

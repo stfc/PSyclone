@@ -762,7 +762,7 @@ class DynConfig(APISpecificConfig):
                 config=self._config)
 
         # Lookup the default data layout assumed by kernels in this API
-        valid_layouts = ["zxy"]
+        valid_layouts = ["layout_zxy"]
         valid_addressing = ["direct_z", "indirect_xy"]
         try:
             self._kernel_data_layout = [
