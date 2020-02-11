@@ -377,6 +377,13 @@ class PSyDataNode(Node):
         from fparser.two.utils import walk
         from fparser.two import Fortran2003
         from psyclone.psyGen import object_index
+        from psyclone.psyir.nodes import ProfileNode
+
+        # The update function at this stage only supports profiling
+        if not isinstance(self, ProfileNode):
+            raise InternalError("PSyData.update is only supported for a "
+                                "ProfileNode, not for a node of type {0}."
+                                .format(type(self)))
 
         # Ensure child nodes are up-to-date
         super(PSyDataNode, self).update()
