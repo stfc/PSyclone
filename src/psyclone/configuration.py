@@ -643,6 +643,7 @@ class APISpecificConfig(object):
     :param section: The entry for an API-specific section of \
                     the configuration file, as produced by ConfigParser.
     :type section: :py:class:`configparser.SectionProxy`
+
     :raises ConfigurationError: if an access-mapping is provided that \
         assigns an invalid value (i.e. not one of 'read', 'write', \
         'readwrite'), 'inc' or 'sum') to a string.
@@ -675,21 +676,6 @@ class APISpecificConfig(object):
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
                                         self._access_mapping.items()}
-
-        # Lookup the default data layout assumed by kernels in this API
-        try:
-            self._kernel_data_layout = [
-                item.strip() for item in
-                section["kernel_data_layout"].split(",")]
-        except:
-            raise ConfigurationError("hohoh")
-        # Default data addressing
-        try:
-            self._kernel_data_addressing = [
-                item.strip() for item in
-                section["kernel_data_addressing"].split(",")]
-        except:
-            raise ConfigurationError("nononono")
 
     @staticmethod
     def create_dict_from_string(input_str):
@@ -774,6 +760,41 @@ class DynConfig(APISpecificConfig):
                 "error while parsing COMPUTE_ANNEXED_DOFS in the [dynamo0.3] "
                 "section of the config file: {0}".format(str(err)),
                 config=self._config)
+
+        # Lookup the default data layout assumed by kernels in this API
+        valid_layouts = ["zxy"]
+        valid_addressing = ["direct_z", "indirect_xy"]
+        try:
+            self._kernel_data_layout = [
+                item.strip() for item in
+                section["kernel_data_layout"].split(",")]
+        except KeyError:
+            raise ConfigurationError(
+                "Failed to find 'kernel_data_layout' entry in the [dynamo0.3] "
+                "section of the config file.", config=self._config)
+        if self._kernel_data_layout != valid_layouts:
+            raise ConfigurationError(
+                "unsupported value for KERNEL_DATA_LAYOUT in the [dynamo0.3] "
+                "section of the config file: {0}. Must be one of: {1}".
+                format(self._kernel_data_layout, valid_layouts),
+                config=self._config)
+        # Default data addressing
+        try:
+            self._kernel_data_addressing = [
+                item.strip() for item in
+                section["kernel_data_addressing"].split(",")]
+        except KeyError:
+            raise ConfigurationError(
+                "Failed to find 'kernel_data_addressing' entry in the "
+                "[dynamo0.3] section of the config file.", config=self._config)
+        for item in self._kernel_data_addressing:
+            if item not in valid_addressing:
+                raise ConfigurationError(
+                    "unsupported value for KERNEL_DATA_ADDRESSING in the "
+                    "[dynamo0.3] section of the config file: {0}. Must be "
+                    "one of: {1}".format(
+                        self._kernel_data_addressing, valid_addressing),
+                    config=self._config)
 
     @property
     def compute_annexed_dofs(self):
