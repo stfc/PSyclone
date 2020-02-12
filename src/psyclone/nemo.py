@@ -306,7 +306,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
 
         self._invoke = invoke
         self._ast = ast
-        self._nis_symbtab = SymbolTable()
+        #self._symbol_table = SymbolTable()  # Permament symbol table
         # Whether or not we've already checked the associated Fortran for
         # potential name-clashes when inserting profiling code.
         # TODO this can be removed once #435 is done and we're no longer

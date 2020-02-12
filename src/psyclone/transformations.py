@@ -3687,9 +3687,9 @@ class NemoExplicitLoopTrans(Transformation):
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-
-        loop_var = loop.root._nis_symbtab.new_symbol_name(base_name)
-        loop.root._nis_symbtab.add(DataSymbol(loop_var, DataType.INTEGER))
+        # TODO: loop_var should be checked for clashes against the symbol table
+        # of the current scope, this is being introduced in #596
+        loop_var = base_name
 
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
