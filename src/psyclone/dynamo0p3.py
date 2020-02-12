@@ -607,11 +607,12 @@ class DynArgDescriptor03(Descriptor):
 
         # The 2nd arg is an access descriptor
         # Convert from GH_* names to the generic access type:
-        access_mapping = API_CONFIG.get_access_mapping()
+        api_config = Config.get().api_conf("dynamo0.3")
+        access_mapping = api_config.get_access_mapping()
         try:
             self._access_type = access_mapping[arg_type.args[1].name]
         except KeyError:
-            valid_names = API_CONFIG.get_valid_accesses_api()
+            valid_names = api_config.get_valid_accesses_api()
             raise ParseError(
                 "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
                 "must be a valid access descriptor (one of {0}), but found "
@@ -745,7 +746,7 @@ class DynArgDescriptor03(Descriptor):
             # Test allowed accesses for scalars (read_only or reduction)
             if self._access_type not in [AccessType.READ] + \
                AccessType.get_valid_reduction_modes():
-                rev_access_mapping = API_CONFIG.get_reverse_access_mapping()
+                rev_access_mapping = api_config.get_reverse_access_mapping()
                 api_specific_name = rev_access_mapping[self._access_type]
                 valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
@@ -4387,7 +4388,8 @@ class DynInvoke(Invoke):
                 "Expected one of '{0}' but found '{1}'".
                 format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
         if access and not isinstance(access, AccessType):
-            valid_names = API_CONFIG.get_valid_accesses_api()
+            api_config = Config.get().api_conf("dynamo0.3")
+            valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
                 "unique_proxy_declarations called with an invalid access "
                 "type. Expected one of '{0}' but got '{1}'".
@@ -4879,7 +4881,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if API_CONFIG.compute_annexed_dofs and \
+        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -5734,7 +5736,7 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if API_CONFIG.compute_annexed_dofs \
+            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
