@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''

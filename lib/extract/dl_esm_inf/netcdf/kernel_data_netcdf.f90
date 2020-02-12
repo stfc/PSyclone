@@ -38,7 +38,7 @@
 !! the GOcean API.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will nf90_create
-!! a NetCDF file that contains that contains the dimensions for each
+!! a NetCDF file that contains the dimensions for each
 !! field.
 !! 
 
@@ -47,7 +47,7 @@ module psy_data_mod
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write datat to a NetCDF file using the PSyData API. A
+    !! to write data to a NetCDF file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
@@ -128,7 +128,7 @@ Contains
     !!            region.
     !! @param[in] kernel_name The name of the instrumented region.
     !! @param[in] num_pre_vars The number of variables that are declared and
-    !!            and written before the instrumented region.
+    !!            written before the instrumented region.
     !! @param[in] num_post_vars The number of variables that are also declared
     !!            before an instrumented region of code, but are written after
     !!            this region.
@@ -154,9 +154,10 @@ Contains
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called to open a NetCDF file based on the module and
-    !! kernel name for reading. This is used by a driver program that will
-    !! read a previously written NetCDF file by the PSyData API.
+    !> This subroutine is called to open a NetCDF file for reading. The
+    !! filename is based on the module and kernel name. This is used by a
+    !! driver program that will read a NetCDF file previously created by the
+    !! PSyData API.
     !! @param[inout] this The instance of the PSyDataType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
@@ -269,7 +270,7 @@ Contains
 
         class(PSyDataType), intent(inout) :: this
         character(*), intent(in) :: name
-        integer :: value
+        integer, intent(out) :: value
         integer :: retval, varid
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
@@ -325,7 +326,7 @@ Contains
 
         class(PSyDataType), intent(inout) :: this
         character(*), intent(in) :: name
-        real :: value
+        real, intent(out) :: value
         integer :: retval, varid
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
@@ -353,29 +354,22 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     !! @param[inout] this The instance of the PSyDataType.
-    subroutine DeclareFieldDouble(this, name, value, prefix)
+    subroutine DeclareFieldDouble(this, name, value)
         use netcdf
         use field_mod, only : r2d_field
         implicit none
         class(PSyDataType), intent(inout) :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-        character(*), intent(in), optional :: prefix
         integer :: x_dimid, y_dimid, retval
         integer, dimension(2) :: dimids
-        character(128) :: real_prefix
 
-        if (present(prefix)) then
-            real_prefix = prefix
-        else
-            real_prefix = ""
-        endif
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
                                          value%grid%nx, x_dimid))
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
                                          value%grid%ny, y_dimid))
         dimids =  (/ x_dimid, y_dimid /)
-        retval = CheckError(nf90_def_var(this%ncid, trim(name//real_prefix), Nf90_REAL8,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -416,7 +410,7 @@ Contains
 
         class(PSyDataType), intent(inout) :: this
         character(*), intent(in) :: name
-        double precision, dimension(:,:), allocatable :: value
+        double precision, dimension(:,:), allocatable, intent(out) :: value
         integer :: retval, varid
         integer :: dim1_id, dim1
         integer :: dim2_id, dim2, ierr
@@ -433,13 +427,13 @@ Contains
         ! Allocate enough space to store the values to be read:
         allocate(value(dim1, dim2), Stat=ierr)
         if (ierr /= 0) then
-            print *,"Can not allocate array for ",name," of size ", &
-                  dim1,"x",dim2,"."
+            print *,"Cannot allocate array for ", name, &
+                    " of size ", dim1,"x",dim2," in ReadFieldDouble."
             stop
         endif
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
-        value = 0
+        value = 0.0d
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadFieldDouble

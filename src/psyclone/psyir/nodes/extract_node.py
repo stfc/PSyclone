@@ -78,9 +78,11 @@ class ExtractNode(PSyDataNode):
         self._text_name = "Extract"
         self._colour_key = "Extract"
 
-        # Define two postfixes that will be added to variable names
-        # to make sure the names can be distinguished between pre-
-        # and post-variables (i.e. here input and output).
+        # Define a postfix that will be added to variable that are
+        # modified to make sure the names can be distinguished between pre-
+        # and post-variables (i.e. here input and output). A variable
+        # "myvar" will be stored as "myvar" with its input value, and
+        # "myvar_post" with its output value.
         self._post_name = "_post"
 
     @property
