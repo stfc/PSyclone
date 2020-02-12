@@ -145,19 +145,24 @@ class GOceanExtractNode(ExtractNode):
 
         post_suffix = self._post_name
         for var_name in all_vars:
-            # TODO: we need to identify arrays!!
-            # Any variable used needs to be defined.
-
-            # In case of a derived type, we need to get a 'local'
-            # name (since we don't have the derived type) to be
-            # used to store the values.
+            # Support GOcean properties, which are accessed via a
+            # derived type (e.g. 'fld%grid%dx'). In this stand-alone
+            # driver we don't have the derived type, instead we create
+            # variable based on the field in the derived type ('dx'
+            # in the example above), and pass this variable to the
+            # instrumented code.
             last_percent = var_name.rfind("%")
             if last_percent > -1:
+                # Strip off the derived type, and only leave the last
+                # field, which is used as the local variable name.
                 local_name = var_name[last_percent+1:]
             else:
                 # No derived type, so we can just use the
                 # variable name directly in the driver
                 local_name = var_name
+
+            # TODO: #644 - we need to identify arrays!!
+            # Any variable used needs to be defined.
             decl = DeclGen(prog, "real", [local_name], kind="8",
                            dimension=":,:", allocatable=True)
             prog.add(decl)
@@ -166,14 +171,14 @@ class GOceanExtractNode(ExtractNode):
 
             if is_input and not is_output:
                 # We only need the pre-variable, and we can read
-                # it from the file (and allocate its size)
+                # it from the file (which also allocate space for it)
                 call = CallGen(prog,
                                "psy_data%ReadVariable(\"{0}\", {1})"
                                .format(var_name, local_name))
                 prog.add(call)
             elif is_input:
                 # Now must be input and output:
-                # First read the pre-variable
+                # First read the pre-variable (which is also allocated):
                 call = CallGen(prog,
                                "psy_data%ReadVariable(\"{0}\", {1})"
                                .format(var_name, local_name))
@@ -189,8 +194,8 @@ class GOceanExtractNode(ExtractNode):
                 prog.add(call)
             else:
                 # Now the variable is output only. We need to read the
-                # post variable in, and allocate the pre variable with
-                # the same size as the post
+                # post variable in, and create and allocate a pre variable
+                # with the same size as the post
                 decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
@@ -216,34 +221,56 @@ class GOceanExtractNode(ExtractNode):
         prog.add(CommentGen(prog, ""))
         prog.add(CommentGen(prog, " RegionStart"))
 
-        # For the driver we have to re-create the code, but
-        # the arguments are not fields anymore, but simple arrays.
-        # So we need to make sure that the field parameters
-        # are changed from "fld%data" to just "fld". This is
-        # achieved by temporary changing the value of the
-        # "go_grid_data" property from "{0}.%data" to just "{0}".
-        # But each kernel caches the argument code, so we also
+        # For the driver we have to re-create the code of the
+        # instrumented region, but in this stand-alone driver the
+        # arguments are not dl_esm_inf fields anymore, but simple arrays.
+        # Similarly, for properties we cannot use e.g. 'fld%grid%dx'
+        # anymore, we have to use e.g. a local variable 'dx' that has
+        # been created. Since we are using the existing way of creating
+        # the code for the instrument region, we need to modify how
+        # those variables are created. We do this by temporarily
+        # modifying the properties in the config file.
+        api_config = Config.get().api_conf("gocean1.0")
+        all_props = api_config.grid_properties
+        # Keep a copy of the original values, so we can restore
+        # them later
+        orig_props = dict(all_props)
+
+        # 1) A grid property is defined like "{0}%grid%dx". This is
+        #    changed to be just 'dx', i.e. the final component of
+        #    the current value.
+        #    (if a property is not used, it doesn't matter if we modify
+        #    its definition, so we just change all properties).
+        Property = namedtuple("Property", "fortran type")
+        for name, prop in all_props.items():
+            last_percent = prop.fortran.rfind("%")
+            if last_percent > -1:
+                # Get the last field name, which will be the
+                # local variable name
+                local_name = prop.fortran[last_percent+1:]
+                all_props[name] = Property(local_name, prop.type)
+
+        # 2) grid_data is "{0}%data" --> this just becomes {0}
+        #    (a_fld%data in the original program becomes just a_fld,
+        #    and a_fld is declared to be a plain Fortran 2d-array)
+        all_props["go_grid_data"] = Property("{0}", "array")
+
+        # Each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new
         # value for "go_grid_data" is actually used.
-        api_config = Config.get().api_conf("gocean1.0")
-
-        props = api_config.grid_properties
-        old_data_property = props["go_grid_data"]
-        Property = namedtuple("Property", "fortran type")
-        props["go_grid_data"] = Property("{0}", "array")
-
         from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
-            # Clear cached data in all kernels, which will
-            # mean the new value for go_grid_data will be used:
             kernel.clear_cached_data()
 
-        # Recreate the instrumented region:
+        # Recreate the instrumented region. Due to the changes in the
+        # config files, fields and properties will now become local
+        # plain arrays and variables:
         for child in self.psy_data_body:
             child.gen_code(prog)
 
-        # Reset the go_grid_data property back to its original value.
-        props["go_grid_data"] = old_data_property
+        # Now reset all properties back to the original values:
+        for name in all_props.keys():
+            all_props[name] = orig_props[name]
 
         prog.add(CommentGen(prog, " RegionEnd"))
         prog.add(CommentGen(prog, ""))
