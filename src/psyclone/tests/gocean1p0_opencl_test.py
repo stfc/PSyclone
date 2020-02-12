@@ -114,7 +114,7 @@ def test_grid_proprty(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
     assert "globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)" in generated_code
-    expected = "size_in_bytes_0 = int(p_fld%grid%nx*p_fld%grid%ny, 8)*" \
+    expected = "size_in_bytes = int(p_fld%grid%nx*p_fld%grid%ny, 8)*" \
                "c_sizeof(p_fld%data(1,1))"
     assert expected in generated_code
 
@@ -216,15 +216,11 @@ def test_opencl_options_validation():
         in str(err.value)
 
 
-# FIXME: I added subscripts to this test because multiple calls to
-# psy.gen create new symbols for the symbol table.
-# @pytest.mark.xfail(reason="Multiple psy.gen calls don't work")
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_options_effects():
     ''' Check that the OpenCL options produce the expected changes in the
     PSy layer.
     '''
-
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()

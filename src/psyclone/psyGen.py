@@ -1046,8 +1046,8 @@ class InvokeSchedule(Schedule):
                               funcnames=["get_num_cmd_queues",
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
-            # Command queues
 
+            # Declare variables needed on a OpenCL PSy-layer invoke
             nqueues = self.gen_symbol_table.new_symbol_name("num_cmd_queues")
             self.gen_symbol_table.add(DataSymbol(nqueues, DataType.INTEGER))
             qlist = self.gen_symbol_table.new_symbol_name("cmd_queues")
@@ -1058,6 +1058,11 @@ class InvokeSchedule(Schedule):
             self.gen_symbol_table.add(DataSymbol(first, DataType.BOOLEAN))
             flag = self.gen_symbol_table.new_symbol_name("ierr")
             self.gen_symbol_table.add(DataSymbol(flag, DataType.INTEGER))
+            nbytes = self.root.gen_symbol_table.new_symbol_name(
+                "size_in_bytes")
+            self.gen_symbol_table.add(DataSymbol(nbytes, DataType.INTEGER))
+            wevent = self.root.gen_symbol_table.new_symbol_name("write_event")
+            self.gen_symbol_table.add(DataSymbol(wevent, DataType.INTEGER))
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))

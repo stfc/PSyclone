@@ -1069,7 +1069,6 @@ class GOKern(CodedKern):
         base = "kernel_" + self._name
         kernel = self.root.gen_symbol_table.new_symbol_name(base)
         self.root.gen_symbol_table.add(Symbol(kernel))
-
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
@@ -1089,7 +1088,6 @@ class GOKern(CodedKern):
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
-
         sub_name = self.root.gen_symbol_table.new_symbol_name(
             self.name + "_set_args")
         self.root.gen_symbol_table.add(Symbol(sub_name))
@@ -1097,7 +1095,6 @@ class GOKern(CodedKern):
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
-
         qlist = self.root.gen_symbol_table.lookup("cmd_queues").name
         flag = self.root.gen_symbol_table.lookup("ierr").name
 
@@ -1130,10 +1127,11 @@ class GOKern(CodedKern):
         '''
         from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
             CommentGen, AssignGen, CallGen
-        # Currently literal arguments are checked for and rejected by
-        # the OpenCL transformation.
+        # The arg_setter code is in a subroutine, so we create a new scope
         argsetter_st = SymbolTable()
 
+        # Currently literal arguments are checked for and rejected by
+        # the OpenCL transformation.
         kobj = argsetter_st.new_symbol_name("kernel_obj")
         argsetter_st.add(Symbol(kobj))
         args = [kobj] + [arg.name for arg in self._arguments.args]
@@ -1183,7 +1181,6 @@ class GOKern(CodedKern):
                                 target=True, entity_decls=[arg.name]))
 
         # Declare local variables
-
         err_name = argsetter_st.new_symbol_name("ierr")
         argsetter_st.add(DataSymbol(err_name, DataType.INTEGER))
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
@@ -1239,15 +1236,10 @@ class GOKern(CodedKern):
                     condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
-                nbytes = self.root.gen_symbol_table.new_symbol_name(
-                    "size_in_bytes")
-                self.root.gen_symbol_table.add(
-                    DataSymbol(nbytes, DataType.INTEGER))
+                nbytes = \
+                    self.root.gen_symbol_table.lookup("size_in_bytes").name
                 # Variable to hold write event returned by OpenCL runtime
-                wevent = self.root.gen_symbol_table.new_symbol_name(
-                    "write_event")
-                self.root.gen_symbol_table.add(
-                    DataSymbol(wevent, DataType.INTEGER))
+                wevent = self.root.gen_symbol_table.lookup("write_event").name
                 ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
@@ -1268,7 +1260,6 @@ class GOKern(CodedKern):
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
                 # psyGen.InvokeSchedule)
-
                 qlist = self.root.gen_symbol_table.lookup("cmd_queues").name
                 flag = self.root.gen_symbol_table.lookup("ierr").name
 
