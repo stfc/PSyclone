@@ -24,14 +24,19 @@ contains
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
-  !> a unique name for each region.
-  !> Parameters: 
-  !> this:        PSyData instance.
-  !> module_name: Name of the module in which the region is
-  !> region_name: Name of the region (could be name of an invoke, or
-  !>              subroutine name).
+  !! a unique name for each region.
+  !! Parameters: 
+  !! this:        PSyData instance.
+  !! module_name: Name of the module in which the region is
+  !! region_name: Name of the region (could be name of an invoke, or
+  !!              subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
-                          num_post_vars)
+                      num_post_vars)
     implicit none
     class(PSyDataType), intent(inout) :: this
     character*(*), intent(in) :: module_name, region_name
@@ -67,7 +72,6 @@ contains
   subroutine ProfileFinalise()
     implicit none
     print *,"ProfileFinalise called"
-    has_been_initialised = .true.
   end subroutine ProfileFinalise
 
 end module psy_data_mod

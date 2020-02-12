@@ -146,7 +146,6 @@ class GOceanExtractNode(ExtractNode):
 
         post_suffix = self._post_name
         for var_name in all_vars:
-            print("varname", var_name)
             # TODO: we need to identify arrays!!
             # Any variable used needs to be defined.
             decl = DeclGen(prog, "real", [var_name], kind="8",

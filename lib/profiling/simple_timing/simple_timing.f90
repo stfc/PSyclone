@@ -202,7 +202,7 @@ contains
        spaces(i:i) = " "
     enddo
 
-    print *,
+    print *
     print *,"==========================================="
     print *, heading, spaces(1:max_len - len(heading)),                       &
              tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab,   &
