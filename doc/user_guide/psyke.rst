@@ -95,10 +95,10 @@ example output for LFRic::
       CALL psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
-        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, """ + \
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, " + \
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
-        """undf_w3, map_w3(:,cell))
+        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
+             m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1,           &
+             map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
+             undf_w3, map_w3(:,cell))
       END DO 
       CALL psy_data%PostStart
       CALL psy_data%ProvideVariable("cell_post", cell)
@@ -363,8 +363,8 @@ apply code extraction by utilising PSyclone transformation scripts
 NetCDF Extraction Example
 -------------------------
 PSyclone comes with an example NetCDF based extraction library in
-``lib/extract/dl_esm_inf/netcdf``
-(https://github.com/stfc/PSyclone/tree/master/lib/extract/dl_esm_inf/netcdf).
+`lib/extract/dl_esm_inf/netcdf 
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/dl_esm_inf/netcdf>`_.
 This library implements the full PSyData
 API for use with the GOcean 1.0 dl_esm_inf infrastructure library.
 In order to compile this library, you must have NetCDF installed.
@@ -381,6 +381,7 @@ and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
 The output file only stores the values used in the subroutine,
 e.g. any GOcean grid properties (see :ref:`gocean1.0-grid-props`)
-will not be stored automatically. That means that a driver program
+will not be stored automatically at this stage (see issue #638).
+That means that a driver program
 that reads the input variables, executes the code region and then
 validates the results can be implemented independent of dl_esm_inf.

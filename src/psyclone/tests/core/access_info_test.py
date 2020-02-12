@@ -293,6 +293,14 @@ def test_constructor():
     assert str(vai2) == "a: READ+WRITE, b: READ, c: READ+WRITE"
 
     with pytest.raises(InternalError) as err:
+        VariablesAccessInfo([node1, node2, 3])
+    assert "One element in the node list is not a Node, but of type " in \
+        str(err.value)
+    # The error message is slightly different between python 2 and 3
+    # so only test for the part that is the same in both:
+    assert "'int'>" in str(err.value)
+
+    with pytest.raises(InternalError) as err:
         VariablesAccessInfo(1)
     assert "Error in VariablesAccessInfo" in str(err)
     # The error message is slightly different between python 2 and 3

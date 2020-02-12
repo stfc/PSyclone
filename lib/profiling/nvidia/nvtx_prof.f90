@@ -116,17 +116,22 @@ contains
 
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
-  !! Parameters: 
-  !! this:         This PSyData instance - holds the selected colour and
-  !!               name of this region.
-  !! module_name:  Name of the module in which the region is
-  !! region_name:  Name of the region (could be name of an invoke, or
-  !!               subroutine name).
-  !! this: Persistent data 
-  subroutine PreStart(this, module_name, region_name)
+  !! Parameters:
+  !! @param[inout] this This PSyData instance.
+  !! @param[in] module_name Name of the module in which the region is
+  !! @param[in] region_name Name of the region (could be name of an invoke, or
+  !!            subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
+  subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                      num_post_vars)
     implicit none
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), target, intent(inout) :: this
     character*(*), intent(in) :: module_name, region_name
+    integer, intent(in) :: num_pre_vars, num_post_vars
     ! Locals
     type(nvtxEventAttributes) :: event
 
@@ -155,7 +160,7 @@ contains
   end subroutine PreStart
 
   !> Ends a profiling area.
-  !! this: Persistent data, not used in this case.
+  !! @param[inout] this: Persistent data, not used in this case.
   subroutine PostEnd(this)
     implicit none
     class(PSyDataType) :: this

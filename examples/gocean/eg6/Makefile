@@ -32,7 +32,7 @@ F90FLAGS ?= -g -O0
 
 DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
 EXTRACT_DIR = ../../../lib/extract/dl_esm_inf/netcdf
-F90FLAGS += $$(nc-config --fflags) -I$(DL_DIR)
+F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 
@@ -40,23 +40,24 @@ KERNELS = init_field_mod.o update_field_mod.o
 EXEC = extract_test
 DRIVER_INIT = driver-main-init
 
-all:	$(EXEC) $(DRIVER_INIT)
+all:	$(EXEC)
 
 test:	$(DRIVER_INIT)
 
+# The driver does not yet compile because of #644
 $(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
 				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
 	$(F90) $(KERNELS) $(DRIVER_INIT).o main.o \
 	-o $(DRIVER_INIT)            \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
-	$$(nc-config --flibs)
+	$$(nf-config --flibs)
 
 
 $(EXEC):	$(KERNELS) alg.o psy.o $(EXTRACT_DIR)/lib_kernel_data_netcdf.a
 	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	-L $(DL_DIR) -l_fd                     \
-	$$(nc-config --flibs)
+	$$(nf-config --flibs)
 	
 
 alg.f90 psy.f90: test.x90 extract_transform.py

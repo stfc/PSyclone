@@ -17,7 +17,16 @@ To create and compile the example, modify the Makefile if required
 and type ``make``.
 
 PSyclone is invoked with the script ``extract_transform.py`` which will 
-add extract regions around its invokes.
+add extract regions around the invokes:
+```
+psyclone -nodm -l -api "gocean1.0"             \
+         --config ../../../config/psyclone.cfg \
+         -s ./extract_transform.py             \
+         -opsy psy.f90 -oalg alg.f90 test.x90
+```
+
+This will also create two driver files, but because of #644 the
+driver will not compile.
 
 ## Running
 When running the program, you should see:

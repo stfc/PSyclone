@@ -40,8 +40,10 @@
 '''
 
 from __future__ import absolute_import, print_function
+import re
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
@@ -380,7 +382,6 @@ def test_profiling_missing_end(parser):
     ''' Check that we raise the expected error if we are unable to find
     the end of the profiled code section in the parse tree. '''
     from psyclone.psyGen import Loop
-    from psyclone.errors import InternalError
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "real :: sto_tmp(jpj)\n"
@@ -467,3 +468,20 @@ def test_profiling_var_clash(parser):
     assert ("Cannot add PSyData calls to 'my_test' because it already "
             "contains symbols that potentially clash with the variables "
             "we will "in str(err.value))
+
+
+def test_only_profile():
+    '''Test that the update function in PSyDataNode aborts if the node is not
+    a ProfileNode.
+    '''
+
+    class DummyNode(PSyDataNode):
+        '''Dummy class for testing.'''
+
+    node = DummyNode()
+    with pytest.raises(InternalError) as err:
+        node.update()
+    # Python 2 and 3 have slightly different messages to describe the type
+    correct_re = "PSyData.update is only supported for a ProfileNode, not " \
+        "for a node of type .*DummyNode'>."
+    assert re.search(correct_re, str(err.value))

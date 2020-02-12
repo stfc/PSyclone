@@ -188,8 +188,9 @@ cd -
 
 echo "Running gocean/eg6"
 cd gocean/eg6
-${PSYCLONE} -nodm -l -api "gocean1.0" \
+${PSYCLONE} -nodm -l -api "gocean1.0"             \
             --config ../../../config/psyclone.cfg \
+            -s ./extract_transform.py             \
             -opsy psy.f90 -oalg alg.f90 test.x90
 
 cd -
