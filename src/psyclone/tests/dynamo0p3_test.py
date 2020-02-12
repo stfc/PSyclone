@@ -106,13 +106,13 @@ module testkern_qr
              func_type(w2, gh_diff_basis),          &
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
   end type testkern_qr_type
 contains
-  subroutine testkern_qr_code(a,b,c,d)
+  subroutine testkern_qr_code(a, b, c, d)
   end subroutine testkern_qr_code
 end module testkern_qr
 '''
@@ -361,7 +361,7 @@ def test_missing_shape_both():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Remove the line specifying the shape of the evaluator
     code = CODE.replace(
-        "     integer, parameter :: gh_shape = gh_quadrature_XYoZ\n",
+        "     integer :: gh_shape = gh_quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -386,7 +386,7 @@ def test_missing_shape_basis_only():
         "          (/ func_type(w1, gh_basis)                &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
-        "     integer, parameter :: gh_shape = gh_quadrature_XYoZ\n",
+        "     integer :: gh_shape = gh_quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -411,7 +411,7 @@ def test_missing_eval_shape_diff_basis_only():
         "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
-        "     integer, parameter :: gh_shape = gh_quadrature_XYoZ\n",
+        "     integer :: gh_shape = gh_quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -473,7 +473,7 @@ def test_field(tmpdir):
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_psy\n"
-        "    USE constants_mod, ONLY: r_def\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
         "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -484,12 +484,13 @@ def test_field(tmpdir):
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -562,13 +563,13 @@ def test_field_deref(tmpdir, dist_mem):
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
         "est_m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
         "undf_w3\n")
     assert output in generated_code
     if dist_mem:
@@ -676,7 +677,7 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
         "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -690,19 +691,19 @@ def test_field_fs(tmpdir):
         "      TYPE(field_type), intent(inout) :: f3\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4, f5, "
         "m5\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, m5_proxy\n"
-        "      INTEGER, pointer :: map_any_w2(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_any_w2(:,:) => null(), "
         "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => null(), "
         "map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
         "map_w2trace(:,:) => null(), map_w2v(:,:) => null(), "
         "map_w3(:,:) => null(), map_wtheta(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
-        "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
-        "ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, ndf_w2trace, "
-        "undf_w2trace, ndf_any_w2, undf_any_w2\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, "
+        "ndf_w0, undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
+        "undf_w2h, ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, "
+        "ndf_w2trace, undf_w2trace, ndf_any_w2, undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -871,12 +872,13 @@ def test_real_scalar(tmpdir):
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -954,15 +956,16 @@ def test_int_scalar(tmpdir):
         "(f1, iflag, f2, m1, m2)\n"
         "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(in) :: iflag\n"
+        "      INTEGER(KIND=i_def), intent(in) :: iflag\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1043,12 +1046,13 @@ def test_two_real_scalars(tmpdir):
         "      REAL(KIND=r_def), intent(in) :: a, b\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1124,15 +1128,16 @@ def test_two_int_scalars(tmpdir):
         "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(in) :: iflag, istep\n"
+        "      INTEGER(KIND=i_def), intent(in) :: iflag, istep\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1217,15 +1222,16 @@ def test_two_scalars(tmpdir):
         "      USE testkern_two_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      INTEGER, intent(in) :: istep\n"
+        "      INTEGER(KIND=i_def), intent(in) :: istep\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      INTEGER cell\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1358,7 +1364,8 @@ def test_orientation():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    assert "INTEGER, pointer :: orientation_w2(:) => null()" in generated_code
+    assert ("INTEGER(KIND=i_def), pointer :: orientation_w2(:) "
+            "=> null()") in generated_code
     assert ("orientation_w2 => f2_proxy%vspace%"
             "get_cell_orientation(cell)" in generated_code)
 
@@ -1373,7 +1380,7 @@ def test_any_space_1(tmpdir):
     generated_code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("INTEGER, pointer :: "
+    assert ("INTEGER(KIND=i_def), pointer :: "
             "map_any_space_1_a(:,:) => null(), "
             "map_any_space_2_b(:,:) => null(), "
             "map_w0(:,:) => null()\n"
@@ -1408,10 +1415,11 @@ def test_any_space_2():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    assert "INTEGER, intent(in) :: istp" in generated_code
-    assert ("INTEGER, pointer :: map_any_space_1_a(:,:) => null()" in
-            generated_code)
-    assert "INTEGER ndf_any_space_1_a, undf_any_space_1_a" in generated_code
+    assert "INTEGER(KIND=i_def), intent(in) :: istp" in generated_code
+    assert ("INTEGER(KIND=i_def), pointer :: map_any_space_1_a(:,:) "
+            "=> null()" in generated_code)
+    assert ("INTEGER(KIND=i_def) ndf_any_space_1_a, "
+            "undf_any_space_1_a" in generated_code)
     assert "ndf_any_space_1_a = a_proxy%vspace%get_ndf()" in generated_code
     assert "undf_any_space_1_a = a_proxy%vspace%get_undf()" in generated_code
     assert ("map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()" in
@@ -1478,9 +1486,9 @@ def test_op_any_discontinuous_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
-    assert ("INTEGER, pointer :: map_any_discontinuous_space_1_f1(:,:) => "
-            "null()" in generated_code)
-    assert ("INTEGER ndf_any_discontinuous_space_1_f1, "
+    assert ("INTEGER(KIND=i_def), pointer :: map_any_discontinuous_space_1_f1"
+            "(:,:) => null()" in generated_code)
+    assert ("INTEGER(KIND=i_def) ndf_any_discontinuous_space_1_f1, "
             "undf_any_discontinuous_space_1_f1" in generated_code)
     assert ("ndf_any_discontinuous_space_1_f1 = f1_proxy(1)%vspace%get_ndf()"
             in generated_code)
@@ -1721,9 +1729,9 @@ def test_kernel_specific(tmpdir):
     assert output0 not in generated_code
     output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
     assert output1 not in generated_code
-    output2 = "INTEGER fs"
+    output2 = "INTEGER(KIND=i_def) fs"
     assert output2 not in generated_code
-    output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    output3 = "INTEGER(KIND=i_def), pointer :: boundary_dofs(:,:) => null()"
     assert output3 not in generated_code
     output4 = "fs = f1%which_function_space()"
     assert output4 not in generated_code
@@ -1762,9 +1770,9 @@ def test_multi_kernel_specific(tmpdir):
     assert generated_code.count(output1) == 0
 
     # first loop
-    output1 = "INTEGER fs\n"
+    output1 = "INTEGER(KIND=i_def) fs\n"
     assert output1 not in generated_code
-    output2 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    output2 = "INTEGER(KIND=i_def), pointer :: boundary_dofs(:,:) => null()"
     assert output2 not in generated_code
     output3 = "fs = f1%which_function_space()"
     assert output3 not in generated_code
@@ -1784,9 +1792,9 @@ def test_multi_kernel_specific(tmpdir):
     assert output5 not in generated_code
 
     # second loop
-    output6 = "INTEGER fs_1\n"
+    output6 = "INTEGER(KIND=i_def) fs_1\n"
     assert output6 not in generated_code
-    output7 = "INTEGER, pointer :: boundary_dofs_1(:,:) => null()"
+    output7 = "INTEGER(KIND=i_def), pointer :: boundary_dofs_1(:,:) => null()"
     assert output7 not in generated_code
     output8 = "fs_1 = f1%which_function_space()"
     assert output8 not in generated_code
@@ -1821,7 +1829,8 @@ def test_field_bc_kernel(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code = str(psy.gen)
-    assert "INTEGER, pointer :: boundary_dofs_a(:,:) => null()" in gen_code
+    assert ("INTEGER(KIND=i_def), pointer :: boundary_dofs_a(:,:) => "
+            "null()" in gen_code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code
     assert ("CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
             "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs_a)"
@@ -1998,8 +2007,8 @@ def test_2kern_invoke_any_space():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
-            "map_any_space_1_f2(:,:) => null()\n"
+    assert ("INTEGER(KIND=i_def), pointer :: map_any_space_1_f1(:,:) => "
+            "null(), map_any_space_1_f2(:,:) => null()\n"
             in gen)
     assert "map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
     assert "map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
@@ -2027,7 +2036,8 @@ def test_multikern_invoke_any_space(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
+    assert ("INTEGER(KIND=i_def), pointer :: "
+            "map_any_space_1_f1(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
             "map_any_space_2_f2(:,:) => null(), map_w0(:,:) => null()" in gen)
@@ -2271,7 +2281,7 @@ module stencil_mod
           (/ arg_type(gh_field,gh_write,w1), &
              arg_type(gh_field,gh_read, w2, stencil(cross)) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, nopass :: code => stencil_code
   end type stencil_type
@@ -3442,8 +3452,8 @@ def test_derived_type_arg(dist_mem):
         "my_obj_get_flag, my_obj_get_flag_1, my_obj_get_flag_2)\n")
     assert expected in gen
     expected = (
-        "      INTEGER, intent(in) :: my_obj_iflag, my_obj_get_flag, "
-        "my_obj_get_flag_1, my_obj_get_flag_2\n")
+        "      INTEGER(KIND=i_def), intent(in) :: my_obj_iflag, "
+        "my_obj_get_flag, my_obj_get_flag_1, my_obj_get_flag_2\n")
     assert expected in gen
     # Check that they are still named correctly when passed to the
     # kernels
@@ -3486,7 +3496,7 @@ def test_multiple_derived_type_args(dist_mem):
         "obj_b_iflag, obj_a_obj_b, obj_b_obj_a)\n")
     assert expected in gen
     expected = (
-        "      INTEGER, intent(in) :: obj_a_iflag, obj_b_iflag, "
+        "      INTEGER(KIND=i_def), intent(in) :: obj_a_iflag, obj_b_iflag, "
         "obj_a_obj_b, obj_b_obj_a\n")
     assert expected in gen
     # Check that they are still named correctly when passed to the
@@ -3529,11 +3539,12 @@ def test_single_stencil_extent(dist_mem):
     assert output1 in result
     assert "USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n" in result
     assert "USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n" in result
-    output3 = ("      INTEGER, intent(in) :: f2_extent\n")
+    output3 = ("      INTEGER(KIND=i_def), intent(in) :: f2_extent\n")
     assert output3 in result
     output4 = (
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output4 in result
@@ -3577,12 +3588,13 @@ def test_single_stencil_xory1d(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER, intent(in) :: f2_extent\n"
-        "      INTEGER, intent(in) :: f2_direction\n")
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n")
     assert output3 in result
     output4 = (
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output4 in result
@@ -3629,8 +3641,9 @@ def test_single_stencil_literal(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output3 in result
@@ -3694,8 +3707,9 @@ def test_single_stencil_xory1d_literal(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output3 in result
@@ -3750,8 +3764,9 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output3 in result
@@ -3806,20 +3821,23 @@ def test_multiple_stencils(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER, intent(in) :: f2_extent, f3_extent\n"
-        "      INTEGER, intent(in) :: f3_direction\n")
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
     assert output3 in result
     output4 = (
-        "      INTEGER f4_stencil_size\n"
-        "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
         "null()\n"
-        "      INTEGER f3_stencil_size\n"
-        "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output4 in result
@@ -3882,20 +3900,23 @@ def test_multiple_stencil_same_name(dist_mem):
         "f4, extent, f3_direction)")
     assert output1 in result
     output2 = (
-        "      INTEGER, intent(in) :: extent\n"
-        "      INTEGER, intent(in) :: f3_direction\n")
+        "      INTEGER(KIND=i_def), intent(in) :: extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
     assert output2 in result
     output3 = (
-        "      INTEGER f4_stencil_size\n"
-        "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
         "null()\n"
-        "      INTEGER f3_stencil_size\n"
-        "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output3 in result
@@ -3948,20 +3969,23 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4, extent, direction)")
     assert output1 in result
     output2 = (
-        "      INTEGER, intent(in) :: extent\n"
-        "      INTEGER, intent(in) :: direction\n")
+        "      INTEGER(KIND=i_def), intent(in) :: extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: direction\n")
     assert output2 in result
     output3 = (
-        "      INTEGER f4_stencil_size\n"
-        "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
         "null()\n"
-        "      INTEGER f3_stencil_size\n"
-        "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n")
     assert output3 in result
@@ -4038,15 +4062,17 @@ def test_multi_kerns_stencils_diff_fields(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER, intent(in) :: f2a_extent, extent\n")
+        "      INTEGER(KIND=i_def), intent(in) :: f2a_extent, extent\n")
     assert output3 in result
     output4 = (
-        "      INTEGER f2b_stencil_size\n"
-        "      INTEGER, pointer :: f2b_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2b_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2b_stencil_dofmap(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2b_stencil_map "
         "=> null()\n"
-        "      INTEGER f2a_stencil_size\n"
-        "      INTEGER, pointer :: f2a_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2a_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2a_stencil_dofmap(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2a_stencil_map "
         "=> null()\n")
     assert output4 in result
@@ -4106,7 +4132,8 @@ def test_extent_name_clash(dist_mem):
         "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type")
     assert output2 in result
-    assert "INTEGER, intent(in) :: f2_extent, f3_stencil_size\n" in result
+    assert ("INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_stencil_size\n"
+            in result)
     output3 = (
         "      TYPE(field_type), intent(inout) :: f2_stencil_map, "
         "f3_stencil_map\n"
@@ -4114,12 +4141,14 @@ def test_extent_name_clash(dist_mem):
         "stencil_cross_1, f3, f3_stencil_dofmap\n")
     assert output3 in result
     output4 = (
-        "      INTEGER f3_stencil_size_1\n"
-        "      INTEGER, pointer :: f3_stencil_dofmap_1(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f3_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap_1(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
         "null()\n"
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
         "null()\n")
     assert output4 in result
@@ -4180,15 +4209,16 @@ def test_two_stencils_same_field(dist_mem):
         "f2_extent, extent)")
     assert output1 in result
     output2 = (
-        "      INTEGER f2_w2_stencil_size_1\n"
-        "      INTEGER, pointer :: f2_w2_stencil_dofmap_1(:,:,:) => "
-        "null()\n"
+        "      INTEGER(KIND=i_def) f2_w2_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_dofmap_1(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map_1 "
         "=> null()")
     assert output2 in result
     output3 = (
-        "      INTEGER f2_w2_stencil_size\n"
-        "      INTEGER, pointer :: f2_w2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_w2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_dofmap(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map "
         "=> null()")
     assert output3 in result
@@ -4241,12 +4271,14 @@ def test_stencils_same_field_literal_extent(dist_mem):
     result = str(psy.gen)
     print(result)
     output1 = (
-        "      INTEGER f2_stencil_size_1\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
         "=> null()\n"
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
         "=> null()")
     assert output1 in result
@@ -4300,12 +4332,14 @@ def test_stencils_same_field_literal_direct(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
     output1 = (
-        "      INTEGER f2_stencil_size_1\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
         "=> null()\n"
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) "
+        "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
         "=> null()")
     assert output1 in result
@@ -4430,16 +4464,18 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
         "f0, f1, f2, f3, f4, extent, direction)")
     assert output1 in result
     output2 = (
-        "      INTEGER, intent(in) :: extent\n"
-        "      INTEGER, intent(in) :: direction\n")
+        "      INTEGER(KIND=i_def), intent(in) :: extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: direction\n")
     assert output2 in result
     output3 = (
-        "      INTEGER f3_stencil_size\n"
-        "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER f1_stencil_size\n"
-        "      INTEGER, pointer :: f1_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f1_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f1_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f1_stencil_map => "
         "null()\n")
     assert output3 in result
@@ -4637,13 +4673,13 @@ def test_stencil_args_unique_1(dist_mem):
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
                "f2, f3, f4, f2_stencil_size, nlayers)")
     assert output1 in result
-    output2 = ("      INTEGER, intent(in) :: f2_stencil_size\n"
-               "      INTEGER, intent(in) :: nlayers")
+    output2 = ("      INTEGER(KIND=i_def), intent(in) :: f2_stencil_size\n"
+               "      INTEGER(KIND=i_def), intent(in) :: nlayers")
     assert output2 in result
-    output3 = "      INTEGER f2_stencil_size_1"
+    output3 = "      INTEGER(KIND=i_def) f2_stencil_size_1"
     assert output3 in result
     # therefore the local variable is now declared as nlayers_1"
-    output4 = "      INTEGER nlayers_1"
+    output4 = "      INTEGER(KIND=i_def) nlayers_1"
     assert output4 in result
     output5 = "      nlayers_1 = f1_proxy%vspace%get_nlayers()"
     assert output5 in result
@@ -4685,8 +4721,8 @@ def test_stencil_args_unique_2(dist_mem):
                "f2_info_2, f2_info_1, f2_info_3)")
     assert output1 in result
     output2 = (
-        "      INTEGER, intent(in) :: f2_info, f2_info_2\n"
-        "      INTEGER, intent(in) :: f2_info_1, f2_info_3")
+        "      INTEGER(KIND=i_def), intent(in) :: f2_info, f2_info_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_info_1, f2_info_3")
     assert output2 in result
     output3 = (
         "      IF (f2_info_1 .eq. x_direction) THEN\n"
@@ -4747,8 +4783,9 @@ def test_stencil_args_unique_3(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
     assert (
-        "      INTEGER, intent(in) :: my_info_f2_info, my_info_f2_info_2\n"
-        "      INTEGER, intent(in) :: my_info_f2_info_1, "
+        "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info, "
+        "my_info_f2_info_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info_1, "
         "my_info_f2_info_3\n"
         in result)
     assert (
@@ -4786,8 +4823,9 @@ def test_stencil_vector(dist_mem, tmpdir):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
         in str(result)
     assert(
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n") \
         in str(result)
@@ -4823,12 +4861,13 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
         in result
     assert(
-        "      INTEGER, intent(in) :: f2_extent\n"
-        "      INTEGER, intent(in) :: f2_direction\n") \
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
         in result
     assert(
-        "      INTEGER f2_stencil_size\n"
-        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
         "null()\n") \
         in result
@@ -5007,7 +5046,7 @@ module testkern
           (/ arg_type(gh_real, gh_read),            &
              arg_type(gh_integer, gh_read)          &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type
