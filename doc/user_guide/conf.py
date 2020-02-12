@@ -210,7 +210,7 @@ latex_elements = {
 #  documentclass [howto/manual]).
 latex_documents = [
     ('index', 'psyclone.tex', u'PSyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and'
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and '
      'Sergi Siso', 'manual'),
 ]
 
