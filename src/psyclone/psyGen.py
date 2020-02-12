@@ -46,7 +46,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, Symbol
 from psyclone.psyir.nodes import Node, Schedule, Loop
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 
@@ -580,6 +580,9 @@ class Invoke(object):
         # create the schedule
         self._schedule = schedule_class(alg_invocation.kcalls)
 
+        for name in reserved_names:
+            self.schedule.symbol_table.add(Symbol(name))
+
         # let the schedule have access to me
         self._schedule.invoke = self
 
@@ -1047,22 +1050,29 @@ class InvokeSchedule(Schedule):
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
 
-            # Declare variables needed on a OpenCL PSy-layer invoke
+            # Declare variables needed on a OpenCL PSy-layer invoke (this
+            # must be an exact match because they are looked up later on)
             nqueues = self.gen_symbol_table.new_symbol_name("num_cmd_queues")
-            self.gen_symbol_table.add(DataSymbol(nqueues, DataType.INTEGER))
+            self.gen_symbol_table.add(DataSymbol(nqueues, DataType.INTEGER),
+                                      tag="opencl_num_cmd_queues")
             qlist = self.gen_symbol_table.new_symbol_name("cmd_queues")
             self.gen_symbol_table.add(
                 DataSymbol(qlist, DataType.INTEGER,
-                           shape=[DataSymbol.Extent.ATTRIBUTE]))
+                           shape=[DataSymbol.Extent.ATTRIBUTE]),
+                tag="opencl_cmd_queues")
             first = self.gen_symbol_table.new_symbol_name("first_time")
-            self.gen_symbol_table.add(DataSymbol(first, DataType.BOOLEAN))
+            self.gen_symbol_table.add(
+                DataSymbol(first, DataType.BOOLEAN), tag="first_time")
             flag = self.gen_symbol_table.new_symbol_name("ierr")
-            self.gen_symbol_table.add(DataSymbol(flag, DataType.INTEGER))
+            self.gen_symbol_table.add(
+                DataSymbol(flag, DataType.INTEGER), tag="opencl_error")
             nbytes = self.root.gen_symbol_table.new_symbol_name(
                 "size_in_bytes")
-            self.gen_symbol_table.add(DataSymbol(nbytes, DataType.INTEGER))
+            self.gen_symbol_table.add(
+                DataSymbol(nbytes, DataType.INTEGER), tag="opencl_bytes")
             wevent = self.root.gen_symbol_table.new_symbol_name("write_event")
-            self.gen_symbol_table.add(DataSymbol(wevent, DataType.INTEGER))
+            self.gen_symbol_table.add(
+                DataSymbol(wevent, DataType.INTEGER), tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
@@ -1089,8 +1099,8 @@ class InvokeSchedule(Schedule):
             kernels = self.walk(Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
-                kernel = self._name_space_manager.create_name(
-                    root_name=base, context="PSyVars", label=base)
+                kernel = self.root.gen_symbol_table.new_symbol_name(base)
+                self.gen_symbol_table.add(Symbol(kernel), tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))

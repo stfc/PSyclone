@@ -65,6 +65,8 @@ class SymbolTable(object):
         self._symbols = OrderedDict()
         # Ordered list of the arguments.
         self._argument_list = []
+        # Dict of tags. Some symbols can be identified with a tag.
+        self._tags = {}
         # Reference to Schedule to which this symbol table belongs.
         self._schedule = schedule
 
@@ -99,11 +101,13 @@ class SymbolTable(object):
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol):
+    def add(self, new_symbol, tag=None):
         '''Add a new symbol to the symbol table.
 
         :param new_symbol: the symbol to add to the symbol table.
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param tag: a tag identifier for the new symbol.
+        :type tag: str
 
         :raises KeyError: if the symbol name is already in use.
 
@@ -112,6 +116,14 @@ class SymbolTable(object):
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
         self._symbols[new_symbol.name] = new_symbol
+
+        if tag:
+            if tag in self._tags:
+                raise KeyError(
+                    "Symbol table already contains the tag {0} given to symbol"
+                    " {1}.".format(tag, new_symbol.name))
+            self._tags[tag] = new_symbol
+
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
@@ -187,6 +199,23 @@ class SymbolTable(object):
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
+
+    def lookup_tag(self, tag):
+        '''
+        Look up a tag in the symbol table.
+
+        :param str tag: tag identifier.
+
+        :returns: symbol with the given tag.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises KeyError: if the given tag is not in the Symbol Table.
+        '''
+        try:
+            return self._tags[tag]
+        except KeyError:
+            raise KeyError("Could not find the tag '{0}' in the Symbol Table."
+                           "".format(tag))
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
