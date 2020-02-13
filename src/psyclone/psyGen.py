@@ -568,6 +568,9 @@ class Invoke(object):
         # schedule
         self._name_space_manager = NameSpaceFactory(reset=True).create()
 
+        # create the schedule
+        self._schedule = schedule_class(alg_invocation.kcalls)
+
         # Add the name for the call to the list of reserved names. This
         # ensures we don't get a name clash with any variables we subsequently
         # generate.
@@ -575,10 +578,6 @@ class Invoke(object):
             reserved_names.append(self._name)
         else:
             reserved_names = [self._name]
-        self._name_space_manager.add_reserved_names(reserved_names)
-
-        # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls)
 
         for name in reserved_names:
             self.schedule.symbol_table.add(Symbol(name))
@@ -1003,9 +1002,7 @@ class InvokeSchedule(Schedule):
 
         # Use a gen_symbol_table wich is a duplicate of the current permanent
         # SymbolTable
-        self._gen_symbol_table = SymbolTable()
-        for symbol in self.symbol_table.symbols:
-            self.gen_symbol_table.add(symbol)
+        self._gen_symbol_table = self.symbol_table.shallow_copy()
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
@@ -1746,9 +1743,8 @@ class OMPParallelDirective(OMPDirective):
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
             # we will use a private thread index variable
-            name_space_manager = NameSpaceFactory().create()
-            thread_idx = name_space_manager.create_name(
-                root_name="th_idx", context="PSyVars", label="thread_index")
+            thread_idx = \
+                self.root.gen_symbol_table.lookup_tag("omp_thread_index").name
             private_list.append(thread_idx)
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
@@ -2505,10 +2501,15 @@ class Kern(Node):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         var_name = self._reduction_arg.name
-        return self._name_space_manager.\
-            create_name(root_name="l_"+var_name,
-                        context="PSyVars",
-                        label=var_name)
+        sym_name = ""
+        # gen_symbol_table because this is always call from a gen_code method
+        try:
+            sym_name = self.root.gen_symbol_table.lookup_tag(var_name).name
+        except KeyError:
+            sym_name = self.root.gen_symbol_table.new_symbol_name("l_" + var_name)
+            self.root.gen_symbol_table.add(Symbol(sym_name), tag=var_name)
+        return sym_name
+
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -2551,8 +2552,8 @@ class Kern(Node):
                                entity_decls=[local_var_name],
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
-            nthreads = self._name_space_manager.create_name(
-                root_name="nthreads", context="PSyVars", label="nthreads")
+            nthreads = \
+                self.root.symbol_table.lookup_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
@@ -2568,13 +2569,8 @@ class Kern(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
-        # TODO we should initialise self._name_space_manager in the
-        # constructor!
-        self._name_space_manager = NameSpaceFactory().create()
-        thread_idx = self._name_space_manager.create_name(
-            root_name="th_idx", context="PSyVars", label="thread_index")
-        nthreads = self._name_space_manager.create_name(
-            root_name="nthreads", context="PSyVars", label="nthreads")
+        thread_idx = self.root.symbol_table.lookup_tag("omp_threads_idx").name
+        nthreads = self.root.symbol_table.lookup_tag("omp_num_threads").name
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         local_var_ref = self._reduction_ref(var_name)
@@ -2600,11 +2596,10 @@ class Kern(Node):
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
         thread.'''
+        # gen_symbol_table because this is always call from a gen_code method
         if self.reprod_reduction:
-            idx_name = self._name_space_manager.create_name(
-                root_name="th_idx",
-                context="PSyVars",
-                label="thread_index")
+            idx_name = \
+                self.root.gen_symbol_table.lookup_tag("omp_threads_idx").name
             local_name = self._name_space_manager.create_name(
                 root_name="l_"+name,
                 context="PSyVars",

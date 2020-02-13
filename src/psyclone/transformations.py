@@ -46,6 +46,7 @@ import six
 from psyclone.psyGen import Transformation, Kern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
@@ -940,6 +941,23 @@ class OMPLoopTrans(ParallelLoopTrans):
             options = {}
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
+
+
+        # Add OMP symbol table variables if they don't already exist
+        try:
+            node.root.symbol_table.lookup_tag("omp_thread_index")
+        except KeyError:
+            thread_idx = node.root.symbol_table.new_symbol_name("th_idx")
+            node.root.symbol_table.add(
+                DataSymbol(thread_idx, DataType.INTEGER),
+                tag="omp_thread_index")
+        try:
+            node.root.symbol_table.lookup_tag("omp_num_threads")
+        except KeyError:
+            nthread = node.root.symbol_table.new_symbol_name("nthreads")
+            node.root.symbol_table.add(
+                DataSymbol(nthread, DataType.INTEGER),
+                tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
 

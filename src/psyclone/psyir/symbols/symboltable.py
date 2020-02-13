@@ -70,6 +70,18 @@ class SymbolTable(object):
         # Reference to Schedule to which this symbol table belongs.
         self._schedule = schedule
 
+    def shallow_copy(self):
+        """
+        """
+        # pylint: disable=protected-access
+        from copy import copy
+        new_st = SymbolTable()
+        new_st._symbols = copy(self._symbols)
+        new_st._argument_list = copy(self._argument_list)
+        new_st._tags = copy(self._tags)
+        new_st._schedule = self._schedule
+        return new_st
+
     def new_symbol_name(self, root_name=None):
         '''Create a symbol name that is not in the symbol table. If the
         `root_name` argument is not supplied or if it is an empty
