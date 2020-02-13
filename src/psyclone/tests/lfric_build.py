@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ class LFRicBuild(Compile):
                               "argument_mod",
                               "kernel_mod",
                               "partition_mod",
+                              "reference_element_mod",
                               "mesh_map_mod",
                               "mesh_mod",
                               "stencil_dofmap_mod",
