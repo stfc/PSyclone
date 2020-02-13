@@ -477,10 +477,11 @@ Contains
         endif
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
-        value = 0.0d
+        value = 0.0d0
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadFieldDouble
     ! -------------------------------------------------------------------------
 
 end module psy_data_mod
+
