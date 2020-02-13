@@ -45,6 +45,8 @@ class SymbolError(Exception):
     SymbolTable in the PSyIR.
 
     :param str value: the message associated with the error.
+
+    :raises TypeError: if the name is not a string.
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
@@ -66,8 +68,8 @@ class Symbol(object):
 
         if not isinstance(name, str):
             raise TypeError(
-                "Symbol name attribute should be of type 'str'"
-                " but '{0}' found.".format(type(name)))
+                "{0} name attribute should be of type 'str'"
+                " but '{1}' found.".format(type(self).__name__, type(name)))
 
         self._name = name
 

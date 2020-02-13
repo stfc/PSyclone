@@ -48,7 +48,6 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern, NameSpaceFactory
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -152,6 +151,7 @@ class NemoInvoke(Invoke):
         # symbol table to store information on the variable declarations.
         # TODO (#255) remove this workaround.
         self._loop_vars = []
+        self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
         # Find the section of the tree containing the execution part
@@ -306,7 +306,6 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
 
         self._invoke = invoke
         self._ast = ast
-        #self._symbol_table = SymbolTable()  # Permament symbol table
         # Whether or not we've already checked the associated Fortran for
         # potential name-clashes when inserting profiling code.
         # TODO this can be removed once #435 is done and we're no longer
