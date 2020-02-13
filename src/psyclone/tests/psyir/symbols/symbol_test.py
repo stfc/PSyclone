@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,53 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# Authors S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the generic Symbol and the SymbolError.'''
+''' Perform py.test tests on the psygen.psyir.symbols.symbol module '''
+
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.symbols import Symbol
+
+def test_symbol_initialisation():
+    '''Test that a Symbol instance can be created when valid
+    arguments are given, otherwise raise relevant exceptions.'''
+
+    sym = Symbol("sym1")
+    assert isinstance(sym, Symbol)
+    assert sym.name == "sym1"
+
+    with pytest.raises(TypeError) as error:
+        sym = Symbol(None)
+    assert "Symbol name attribute should be of type 'str'" \
+        in str(error.value)
 
 
-class SymbolError(Exception):
-    '''
-    PSyclone-specific exception for use with errors relating to the Symbol and
-    SymbolTable in the PSyIR.
+def test_symbol_str():
+    '''Test that a ContainerSymbol instance can be stringified'''
 
-    :param str value: the message associated with the error.
-    '''
-    def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "PSyclone SymbolTable error: "+value
-
-    def __str__(self):
-        return str(self.value)
-
-
-class Symbol(object):
-    '''
-    Generic Symbol item for the Symbol Table. It always has a fixed name label
-    that matches with the key on the SymbolTables that contain the symbol.
-
-    :param str name: name of the symbol.
-    '''
-
-    def __init__(self, name):
-
-        if not isinstance(name, str):
-            raise TypeError(
-                "Symbol name attribute should be of type 'str'"
-                " but '{0}' found.".format(type(name)))
-
-        self._name = name
-
-    @property
-    def name(self):
-        '''
-        :returns: name of the Symbol.
-        :rtype: str
-        '''
-        return self._name
-
-    def __str__(self):
-        return self.name
+    sym = Symbol("my_symbol")
+    assert str(sym) == "my_symbol"

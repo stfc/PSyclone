@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import re
 import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
+    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType, Symbol
 from psyclone.errors import InternalError
 
 
@@ -135,6 +135,31 @@ def test_add():
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
+def test_add_with_tags():
+    '''Test that the add method with a tag inserts new symbols in the symbol
+    table and raises appropiate errors.'''
+    sym_table = SymbolTable()
+
+    sym1 = Symbol("symbol_notag")
+    sym2 = Symbol("symbol_tag1")
+    sym3 = Symbol("symbol_tag2")
+    sym_table.add(sym1)
+    assert len(sym_table._tags) == 0  # No tag added if none given
+    sym_table.add(sym2, tag="tag1")
+    sym_table.add(sym3, tag="tag2")
+
+    assert len(sym_table._symbols) == 3
+    assert len(sym_table._tags) == 2
+    assert "tag1" in sym_table._tags
+    assert sym_table._tags["tag1"] == sym2
+    assert "tag2" in sym_table._tags
+    assert sym_table._tags["tag2"] == sym3
+
+    with pytest.raises(KeyError) as error:
+        sym_table.add(DataSymbol("var1", DataType.REAL), tag="tag1")
+    assert ("Symbol table already contains the tag 'tag1' for symbol "
+            "'symbol_tag1', so it can not be associated to symbol "
+            "'var1'.") in str(error.value)
 
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
@@ -235,6 +260,27 @@ def test_lookup():
         sym_table.lookup("notdeclared")
     assert "Could not find 'notdeclared' in the Symbol Table." in \
         str(error.value)
+
+def test_lookup_tag():
+    '''Test that the lookup_tag method retrieves symbols from the symbol table
+    if the tag exists, otherwise it raises an error.'''
+    sym_table = SymbolTable()
+
+    sym1 = Symbol("symbol_notag")
+    sym2 = Symbol("symbol_tag1")
+    sym3 = Symbol("symbol_tag2")
+    sym_table.add(sym1)
+    sym_table.add(sym2, tag="tag1")
+    sym_table.add(sym3, tag="tag2")
+
+    assert sym_table.lookup_tag("tag1").name == "symbol_tag1"
+    assert sym_table.lookup_tag("tag2").name == "symbol_tag2"
+
+    with pytest.raises(KeyError) as error:
+        sym_table.lookup_tag("symbol_tag1")
+    assert "Could not find the tag 'symbol_tag1' in the Symbol Table." in \
+        str(error.value)
+
 
 
 def test_view(capsys):

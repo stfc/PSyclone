@@ -120,8 +120,9 @@ class SymbolTable(object):
         if tag:
             if tag in self._tags:
                 raise KeyError(
-                    "Symbol table already contains the tag {0} given to symbol"
-                    " {1}.".format(tag, new_symbol.name))
+                    "Symbol table already contains the tag '{0}' for symbol"
+                    " '{1}', so it can not be associated to symbol '{2}'.".
+                    format(tag, self._tags[tag], new_symbol.name))
             self._tags[tag] = new_symbol
 
 
