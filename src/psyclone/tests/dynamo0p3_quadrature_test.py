@@ -216,7 +216,7 @@ def test_edge_qr(tmpdir, dist_mem):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.5_edge_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen).lower()
 
     assert ("use quadrature_edge_mod, only: quadrature_edge_type, "
@@ -255,7 +255,7 @@ def test_face_qr(tmpdir, dist_mem):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.6_face_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     output_decls = (
         "      USE testkern_qr_faces, ONLY: testkern_qr_code\n"
