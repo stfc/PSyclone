@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,11 +54,11 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
-    CodedKern, ACCEnterDataDirective
+from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    Arguments, KernelArgument, NameSpaceFactory, HaloExchange, GlobalSum, \
+    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType
 
 # --------------------------------------------------------------------------- #
@@ -879,25 +879,14 @@ class RefElementMetaData(object):
     class Property(Enum):
         '''
         Enumeration of the various properties of the Reference Element
-        (that a kernel can request).
+        (that a kernel can request). The names of each of these corresponds to
+        the names that must be used in kernel meta-data.
 
         '''
         NORMALS_TO_HORIZONTAL_FACES = 1
         NORMALS_TO_VERTICAL_FACES = 2
         OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
-
-    # Mapping from meta-data text to our property enumeration.
-    reference_element_property_map = {
-        "normals_to_horizontal_faces":
-        Property.NORMALS_TO_HORIZONTAL_FACES,
-        "normals_to_vertical_faces":
-        Property.NORMALS_TO_VERTICAL_FACES,
-        "outward_normals_to_horizontal_faces":
-        Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
-        "outward_normals_to_vertical_faces":
-        Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
-    }
 
     def __init__(self, kernel_name, type_declns):
         from psyclone.parse.kernel import getkerneldescriptors
@@ -924,19 +913,19 @@ class RefElementMetaData(object):
         try:
             # The meta-data entry is a declaration of a Fortran array of type
             # reference_element_data_type. The initialisation of each member
-            # of this array is done as a structure constructor, the argument
-            # to which gives a property of the reference element.
+            # of this array is done as a Fortran structure constructor, the
+            # argument to which gives a property of the reference element.
             for re_prop in re_properties:
                 for arg in re_prop.args:
                     self.properties.append(
-                        self.reference_element_property_map[str(arg).lower()])
+                        self.Property[str(arg).upper()])
         except KeyError:
             # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing
-            sorted_keys = sorted(self.reference_element_property_map.keys())
+            # Sort for consistency when testing.
+            sorted_names = sorted([prop.name for prop in self.Property])
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_keys))
+                "values are: {1}".format(arg, sorted_names))
 
 
 class DynKernMetadata(KernelType):
@@ -1451,7 +1440,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls)
+        self._invokes = DynamoInvokes(invoke_info.calls, self)
 
     @property
     def name(self):
@@ -1466,7 +1455,7 @@ class DynamoPSy(PSy):
         Generate PSy code for the Dynamo0.3 api.
 
         :return: Root node of generated Fortran AST
-        :rtype: :py:class:`psyGen.Node`
+        :rtype: :py:class:`psyir.nodes.Node`
 
         '''
         from psyclone.f2pygen import ModuleGen, UseGen
@@ -1491,15 +1480,22 @@ class DynamoPSy(PSy):
 
 
 class DynamoInvokes(Invokes):
-    ''' The Dynamo specific invokes class. This passes the Dynamo
+    '''The Dynamo specific invokes class. This passes the Dynamo
     specific invoke class to the base class so it creates the one we
-    require. '''
+    require.
 
-    def __init__(self, alg_calls):
+    :param alg_calls: list of objects containing the parsed invoke \
+        information.
+    :type alg_calls: list of \
+        :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param psy: the PSy object containing this DynamoInvokes object.
+    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    def __init__(self, alg_calls, psy):
         self._name_space_manager = NameSpaceFactory().create()
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = DynInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke)
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
 class DynCollection(object):
@@ -2025,6 +2021,199 @@ class DynStencils(DynCollection):
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
                                     self.dofmap_size_name(arg)]),
                 entity_decls=[self.dofmap_name(arg)]))
+
+
+class DynReferenceElement(DynCollection):
+    '''
+    Holds all information on the properties of the Reference Element
+    required by an Invoke.
+
+    :param node: Kernel or Invoke for which to manage Reference-Element \
+                 properties.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    '''
+    # pylint: disable=too-many-instance-attributes
+    def __init__(self, node):
+        super(DynReferenceElement, self).__init__(node)
+
+        # Create a union of the reference-element properties required by
+        # all kernels in this invoke.
+        self._properties = set()
+        for call in self._calls:
+            if call.reference_element:
+                self._properties.update(call.reference_element.properties)
+
+        if not self._properties:
+            return
+
+        # Create and store a name for the reference element object
+        self._ref_elem_name = self._name_space_manager.create_name(
+            root_name="reference_element", context="PSyVars",
+            label="reference_element")
+
+        # Create and store names for the number of horizontal/vertical faces
+        # as required.
+        self._nfaces_h_name = ""
+        self._nfaces_v_name = ""
+        self._horiz_face_normals_name = ""
+        self._horiz_face_out_normals_name = ""
+        self._vert_face_normals_name = ""
+        self._vert_face_out_normals_name = ""
+
+        if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
+                in self._properties):
+            self._nfaces_h_name = self._name_space_manager.create_name(
+                root_name="nfaces_re_h", context="PSyVars",
+                label="nfaces_re_h")
+            if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
+               in self._properties:
+                self._horiz_face_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="normals_to_horiz_faces", context="PSyVars",
+                        label="normals_to_horiz_faces")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
+               in self._properties:
+                self._horiz_face_out_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="out_normals_to_horiz_faces",
+                        context="PSyVars", label="out_normals_to_horiz_faces")
+
+        if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
+                in self._properties):
+            self._nfaces_v_name = self._name_space_manager.create_name(
+                root_name="nfaces_re_v", context="PSyVars",
+                label="nfaces_re_v")
+            if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
+               in self._properties:
+                self._vert_face_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="normals_to_vert_faces", context="PSyVars",
+                        label="normals_to_vert_faces")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
+               in self._properties:
+                self._vert_face_out_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="out_normals_to_vert_faces",
+                        context="PSyVars",
+                        label="out_normals_to_vert_faces")
+
+    def _invoke_declarations(self, parent):
+        '''
+        Create the necessary declarations for the variables needed in order
+        to provide properties of the reference element.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+
+        if not self._properties:
+            return
+
+        parent.add(UseGen(parent, name="reference_element_mod", only=True,
+                          funcnames=["reference_element_type"]))
+        parent.add(
+            TypeDeclGen(parent, pointer=True, is_class=True,
+                        datatype="reference_element_type",
+                        entity_decls=[self._ref_elem_name + " => null()"]))
+
+        # Declare the necessary scalars
+        nface_vars = []
+        if self._nfaces_h_name:
+            nface_vars.append(self._nfaces_h_name)
+        if self._nfaces_v_name:
+            nface_vars.append(self._nfaces_v_name)
+
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=nface_vars))
+
+        # Declare the necessary arrays
+        ref_element_arrays = []
+        if self._horiz_face_normals_name:
+            ref_element_arrays.append(self._horiz_face_normals_name+"(:,:)")
+        if self._horiz_face_out_normals_name:
+            ref_element_arrays.append(
+                self._horiz_face_out_normals_name+"(:,:)")
+        if self._vert_face_normals_name:
+            ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
+        if self._vert_face_out_normals_name:
+            ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
+
+        parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                           allocatable=True, entity_decls=ref_element_arrays))
+
+    def initialise(self, parent):
+        '''
+        Creates the f2pygen nodes representing the necessary initialisation
+        code for properties of the reference element.
+
+        :param parent: node in the f2pygen tree to which to add statements.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
+
+        if not self._properties:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(
+            CommentGen(parent,
+                       " Get the reference element and query its properties"))
+        parent.add(CommentGen(parent, ""))
+
+        mesh_obj_name = self._name_space_manager.create_name(
+            root_name="mesh", context="PSyVars", label="mesh")
+        parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
+                             rhs=mesh_obj_name+"%get_reference_element()"))
+
+        if self._nfaces_h_name:
+            parent.add(
+                AssignGen(parent, lhs=self._nfaces_h_name,
+                          rhs=self._ref_elem_name +
+                          "%get_number_horizontal_faces()"))
+        if self._nfaces_v_name:
+            parent.add(
+                AssignGen(
+                    parent, lhs=self._nfaces_v_name,
+                    rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
+
+        if self._horiz_face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_horizontal_faces({1})".format(
+                            self._ref_elem_name,
+                            self._horiz_face_normals_name)))
+
+        if self._horiz_face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_outward_normals_to_horizontal_faces({1})".
+                    format(self._ref_elem_name,
+                           self._horiz_face_out_normals_name)))
+
+        if self._vert_face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_vertical_faces({1})".format(
+                            self._ref_elem_name,
+                            self._vert_face_normals_name)))
+
+        if self._vert_face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_outward_normals_to_vertical_faces({1})".
+                    format(self._ref_elem_name,
+                           self._vert_face_out_normals_name)))
 
 
 class DynDofmaps(DynCollection):
@@ -2978,9 +3167,10 @@ class DynMeshes(object):
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
-    one mesh object required (when colouring or doing distributed memory).
-    However, kernels performing inter-grid operations require multiple mesh
-    objects as well as mesh maps and other quantities.
+    one mesh object required (when colouring, doing distributed memory or
+    querying the reference element). However, kernels performing inter-grid
+    operations require multiple mesh objects as well as mesh maps and other
+    quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
@@ -3025,7 +3215,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
+        requires_ref_element = False
         for call in self._schedule.coded_kernels():
+
+            if call.reference_element.properties:
+                requires_ref_element = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3067,12 +3261,15 @@ class DynMeshes(object):
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
-        # more kernels that iterate over cells. (Colourmaps also
-        # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set and (Config.get().distributed_memory and
-                              not invoke.iterate_over_dofs_only):
-            _name_set.add(self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh"))
+        # more kernels that iterate over cells. We also require a mesh object
+        # if any of the kernels require properties of the reference element.
+        # (Colourmaps also require a mesh object but that is handled in
+        # _colourmap_init().)
+        if not _name_set:
+            if (requires_ref_element or (Config.get().distributed_memory and
+                                         not invoke.iterate_over_dofs_only)):
+                _name_set.add(self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -4316,7 +4513,7 @@ class DynBoundaryConditions(DynCollection):
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
         for dofs in self._boundary_dofs:
@@ -4329,7 +4526,7 @@ class DynBoundaryConditions(DynCollection):
         Add declarations for any boundary-dofs arrays required by a kernel.
 
         :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
         for dofs in self._boundary_dofs:
@@ -4344,7 +4541,7 @@ class DynBoundaryConditions(DynCollection):
         Initialise any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import AssignGen
         for dofs in self._boundary_dofs:
@@ -4357,30 +4554,35 @@ class DynBoundaryConditions(DynCollection):
 
 
 class DynInvoke(Invoke):
-    '''The Dynamo specific invoke class. This passes the Dynamo
-    specific InvokeSchedule class to the base class so it creates the one we
+    '''The Dynamo specific invoke class. This passes the Dynamo specific
+    InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
+    :param alg_invocation: object containing the invoke call information.
+    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: the position of the invoke in the list of invokes \
+        contained in the Algorithm.
+    :param invokes: the Invokes object containing this DynInvoke \
+        object.
+    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
+
+    :raises GenerationError: if integer reductions are required in the \
+        psy-layer.
+
     '''
-    def __init__(self, alg_invocation, idx):
-        '''
-        :param alg_invocation: node in the AST describing the invoke call
-        :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-        :param int idx: the position of the invoke in the list of invokes \
-                        contained in the Algorithm
-        :raises GenerationError: if integer reductions are required in the \
-                                 psy-layer
-        '''
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = DynInvokeSchedule(None)  # for pyreverse
+    def __init__(self, alg_invocation, idx, invokes):
+        if not alg_invocation and not idx:
+            # This if test is added to support pyreverse.
+            return
+        self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
-                        reserved_names=reserved_names_list)
+                        invokes, reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
         # list and stores it in the self._alg_unique_args
@@ -4429,6 +4631,9 @@ class DynInvoke(Invoke):
 
         # Information on any orientation arrays required by this invoke
         self.orientation = DynOrientations(self)
+
+        # Information on the required properties of the reference element
+        self.reference_element_properties = DynReferenceElement(self)
 
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -4584,7 +4789,8 @@ class DynInvoke(Invoke):
                          self.stencil, self.orientation, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators]:
+                         self.proxies, self.cell_iterators,
+                         self.reference_element_properties]:
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
@@ -4610,7 +4816,8 @@ class DynInvoke(Invoke):
         for entities in [self.proxies, self.cell_iterators, self.meshes,
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators]:
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised, we can call our kernels
@@ -4667,7 +4874,7 @@ class DynGlobalSum(GlobalSum):
     :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the PSyIR
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises GenerationError: if distributed memory is not enabled.
     :raises GenerationError: if the scalar is not of type gh_real.
@@ -6445,6 +6652,7 @@ class DynKern(CodedKern):
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+        self._reference_element = None
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -6652,6 +6860,9 @@ class DynKern(CodedKern):
                 "Must be one of {1}.".format(self._eval_shape,
                                              VALID_EVALUATOR_SHAPES))
 
+        # Properties of the reference element required by this kernel
+        self._reference_element = ktype.reference_element
+
     @property
     def cma_operation(self):
         ''' Returns the type of CMA operation performed by this kernel
@@ -6757,6 +6968,14 @@ class DynKern(CodedKern):
                 the names of the target function spaces.
         '''
         return self._eval_targets
+
+    @property
+    def reference_element(self):
+        '''
+        :returns: the reference-element properties required by this kernel.
+        :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
+        '''
+        return self._reference_element
 
     @property
     def qr_text(self):
@@ -7066,6 +7285,10 @@ class ArgOrdering(object):
                     format(self._kern.name, op_arg.access.api_specific_name()))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
+        # Reference-element properties
+        if self._kern.reference_element:
+            self.ref_element_properties()
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -7253,6 +7476,11 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
+
+    @abc.abstractmethod
+    def ref_element_properties(self):
+        ''' Add kernel arguments relating to properties of the reference
+        element. '''
 
     def quad_rule(self):
         '''
@@ -7583,6 +7811,67 @@ class KernCallArgList(ArgOrdering):
                                                     label=base_name)
         self._arglist.append(name)
 
+    def ref_element_properties(self):
+        ''' Provide kernel arguments required by the reference-element
+        properties specified in the kernel metadata.
+
+        :raises InternalError: if an unsupported reference-element property \
+                               is encountered.
+        '''
+        # Provide no. of horizontal faces if required
+        if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES \
+           in self._kern.reference_element.properties:
+            # Query the namespace manager to get the variable name
+            nfaces_h = self._name_space_manager.create_name(
+                root_name="nfaces_re_h", context="PSyVars",
+                label="nfaces_re_h")
+            self._arglist.append(nfaces_h)
+        # Provide no. of vertical faces if required
+        if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES \
+           in self._kern.reference_element.properties:
+            nfaces_v = self._name_space_manager.create_name(
+                root_name="nfaces_re_v", context="PSyVars",
+                label="nfaces_re_v")
+            self._arglist.append(nfaces_v)
+        # Now the arrays themselves, in the order specified in the
+        # kernel metadata
+        for prop in self._kern.reference_element.properties:
+            if prop == \
+               RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
+                name = self._name_space_manager.create_name(
+                    root_name="out_normals_to_horiz_faces", context="PSyVars",
+                    label="out_normals_to_horiz_faces")
+                self._arglist.append(name)
+            elif (prop ==
+                  RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES):
+                name = self._name_space_manager.create_name(
+                    root_name="normals_to_horiz_faces", context="PSyVars",
+                    label="normals_to_horiz_faces")
+                self._arglist.append(name)
+            elif (prop == RefElementMetaData.Property.
+                  OUTWARD_NORMALS_TO_VERTICAL_FACES):
+                name = self._name_space_manager.create_name(
+                    root_name="out_normals_to_vert_faces", context="PSyVars",
+                    label="out_normals_to_vert_faces")
+                self._arglist.append(name)
+            elif (prop == RefElementMetaData.Property.
+                  NORMALS_TO_VERTICAL_FACES):
+                name = self._name_space_manager.create_name(
+                    root_name="normals_to_vert_faces", context="PSyVars",
+                    label="normals_to_vert_faces")
+                self._arglist.append(name)
+            else:
+                raise InternalError(
+                    "Unsupported reference-element property ('{0}') found when"
+                    " generating arguments for kernel '{1}'. Supported "
+                    "properties are: {2}".format(
+                        str(prop), self._kern.name,
+                        [str(sprop) for sprop in RefElementMetaData.Property]))
+
     def quad_rule(self):
         ''' add qr information to the argument list'''
         # At the moment we only support XYoZ quadrature which requires
@@ -7698,21 +7987,28 @@ class KernCallArgList(ArgOrdering):
 class KernStubArgList(ArgOrdering):
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
-    of the arguments is captured by the base class '''
+    of the arguments is captured by the base class.
+
+    :param kern: Kernel for which to create argument list.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises NotImplementedError: if the kernel is inter-grid.
+    :raises NotImplementedError: if the kernel requires properties of the \
+                                 reference element.
+    '''
     def __init__(self, kern):
-        '''
-        :param kern: Kernel for which to create argument list
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-
-        :raises NotImplementedError: if kernel is inter-grid
-        '''
-
         # We don't yet support inter-grid kernels (Issue #162)
         if kern.is_intergrid:
             raise NotImplementedError(
                 "Kernel {0} is an inter-grid kernel and stub generation "
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
+        # We don't support Kernels requiring properties of the reference
+        # element
+        if kern.reference_element.properties:
+            raise NotImplementedError(
+                "Kernel {0} requires properties of the reference element "
+                "which is not yet supported for stub generation.")
 
         self._first_arg = True
         self._first_arg_decl = None

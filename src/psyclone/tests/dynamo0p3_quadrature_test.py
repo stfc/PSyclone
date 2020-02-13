@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,10 @@ import pytest
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -68,9 +69,8 @@ def test_field_xyoz(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -176,15 +176,15 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -193,7 +193,7 @@ def test_field_xyoz(tmpdir):
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -414,7 +414,7 @@ def test_field_qr_deref(tmpdir):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
         gen = str(psy.gen)
         print(gen)
         assert (

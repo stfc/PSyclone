@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ PSyclone-conformant Algorithm code.
 from __future__ import absolute_import
 
 from fparser.two import pattern_tools
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 # Section 1: parse the algorithm file
 
@@ -205,7 +205,7 @@ class Parser(object):
         self._arg_name_to_module_name = {}
         invoke_calls = []
 
-        for statement in walk_ast(alg_parse_tree.content):
+        for statement in walk(alg_parse_tree.content):
 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -596,7 +596,7 @@ def get_kernel(parse_tree, alg_filename):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
             # reason Add_Operation represents binary expressions in
             # fparser2.  Walk the tree to look for an argument.
-            if not walk_ast([argument], [Name]):
+            if not walk(argument, Name):
                 # This is a literal so store the full expression as a
                 # string
                 arguments.append(Arg('literal', argument.tostr().lower()))

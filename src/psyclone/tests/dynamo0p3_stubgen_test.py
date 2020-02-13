@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
-from psyclone.psyGen import InternalError, GenerationError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
 
@@ -844,3 +844,17 @@ def test_stub_stencil_multi():
         "field_4_stencil_dofmap")
 
     assert result2 in generated_code
+
+
+def test_kernel_stub_no_reference_element():
+    '''Check that we raise an exception if the kernel-stub generator
+    encounters a kernel that requires properties of the reference element. '''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_ref_elem_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = str(kernel.gen_stub)
+    assert ("requires properties of the reference element which is not yet "
+            "supported" in str(excinfo.value))

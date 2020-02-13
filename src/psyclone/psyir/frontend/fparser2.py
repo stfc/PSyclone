@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,14 +41,15 @@
 
 from collections import OrderedDict
 from fparser.two import Fortran2003
-from fparser.two.utils import walk_ast
-from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
-    Schedule, Directive, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    KernelSchedule, Container, Assignment, Return, Array, InternalError, \
-    GenerationError
+from fparser.two.utils import walk
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
+    NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
+    Container, Assignment, Return, Array, Node
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, TYPE_MAP_TO_PYTHON
+    DataType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -60,6 +61,34 @@ TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
                          "character": DataType.CHARACTER,
                          "logical": DataType.BOOLEAN,
                          "real": DataType.REAL}
+
+
+def _get_symbol_table(node):
+    '''Find a symbol table associated with an ancestor of Node 'node' (or
+    the node itself). If there is more than one symbol table, then the
+    symbol table closest in ancestory to 'node' is returned. If no
+    symbol table is found then None is returned.
+
+    :param node: a PSyIR Node.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+    :returns: a symbol table associated with node or one of its \
+        ancestors or None if one is not found.
+    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+    :raises TypeError: if the node argument is not a Node.
+
+    '''
+    if not isinstance(node, Node):
+        raise TypeError(
+            "node argument to _get_symbol_table() should be of type Node, but "
+            "found '{0}'.".format(type(node).__name__))
+    current = node
+    while current:
+        if hasattr(current, "symbol_table"):
+            return current.symbol_table
+        current = current.parent
+    return None
 
 
 class Fparser2Reader(object):
@@ -110,9 +139,12 @@ class Fparser2Reader(object):
         ('sign', BinaryOperation.Operator.SIGN),
         ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
+        ('lbound', BinaryOperation.Operator.LBOUND),
+        ('ubound', BinaryOperation.Operator.UBOUND),
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
-        ('mod', BinaryOperation.Operator.REM)])
+        ('mod', BinaryOperation.Operator.REM),
+        ('matmul', BinaryOperation.Operator.MATMUL)])
 
     nary_operators = OrderedDict([
         ('max', NaryOperation.Operator.MAX),
@@ -154,7 +186,7 @@ class Fparser2Reader(object):
 
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param fp2_nodes: list of fparser2 AST nodes constituting the \
                           code block.
         :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
@@ -209,7 +241,7 @@ class Fparser2Reader(object):
         all_array_refs = {}
 
         # Loop over a flat list of all the nodes in the supplied region
-        for node in walk_ast(nodes):
+        for node in walk(nodes):
 
             if isinstance(node, Assignment_Stmt):
                 # Found lhs = rhs
@@ -220,7 +252,7 @@ class Fparser2Reader(object):
                 # Do RHS first as we cull readers after writers but want to
                 # keep a = a + ... as the RHS is computed before assigning
                 # to the LHS
-                for node2 in walk_ast([rhs]):
+                for node2 in walk(rhs):
                     if isinstance(node2, Part_Ref):
                         name = node2.items[0].string
                         if name.upper() not in FORTRAN_INTRINSICS:
@@ -248,7 +280,7 @@ class Fparser2Reader(object):
                     writers.add(name_str)
             elif isinstance(node, If_Then_Stmt):
                 # Check for array accesses in IF statements
-                array_refs = walk_ast([node], [Part_Ref])
+                array_refs = walk(node, Part_Ref)
                 for ref in array_refs:
                     name = ref.items[0].string
                     if name.upper() not in FORTRAN_INTRINSICS:
@@ -320,7 +352,7 @@ class Fparser2Reader(object):
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: PSyIR container representing the given module_ast.
-        :rtype: :py:class:`psyclone.psyGen.Container`
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: unable to generate a Container from the \
                                  provided fpaser2 parse tree.
@@ -399,12 +431,6 @@ class Fparser2Reader(object):
         try:
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
-            # TODO remove once fparser/#102 is done
-            # pylint: disable=protected-access
-            module_ast.content[0]._parent = module_ast
-            for item in mod_content:
-                item._parent = module_ast.content[0]
-            subroutines._parent = mod_content
             subroutine = search_subroutine(subroutines.content, name)
         except (ValueError, IndexError):
             raise GenerationError("Unexpected kernel AST. Could not find "
@@ -413,9 +439,6 @@ class Fparser2Reader(object):
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
-            # TODO remove once fparser/#102 is done
-            # pylint: disable=protected-access
-            sub_spec._parent = subroutine
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -436,13 +459,10 @@ class Fparser2Reader(object):
         try:
             sub_exec = first_type_match(subroutine.content,
                                         Fortran2003.Execution_Part)
-            # TODO remove once fparser/#102 is done
-            # pylint: disable=protected-access
-            sub_exec._parent = subroutine
         except ValueError:
             pass
         else:
-            self.process_nodes(new_schedule, sub_exec.content, sub_exec)
+            self.process_nodes(new_schedule, sub_exec.content)
 
         return new_schedule
 
@@ -468,9 +488,9 @@ class Fparser2Reader(object):
         shape = []
 
         # Traverse shape specs in Depth-first-search order
-        for dim in walk_ast([dimensions], [Fortran2003.Assumed_Shape_Spec,
-                                           Fortran2003.Explicit_Shape_Spec,
-                                           Fortran2003.Assumed_Size_Spec]):
+        for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
+                                     Fortran2003.Explicit_Shape_Spec,
+                                     Fortran2003.Assumed_Size_Spec)):
 
             if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
@@ -538,9 +558,11 @@ class Fparser2Reader(object):
                                  not have the expected structure.
         :raises SymbolError: if a declaration is found for a Symbol that is \
                     already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected \
+                               or invalid fparser or Fortran expression.
         '''
         # Look at any USE statments
-        for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
+        for decl in walk(nodes, Fortran2003.Use_Stmt):
 
             # Check that the parse tree is what we expect
             if len(decl.items) != 5:
@@ -569,7 +591,7 @@ class Fparser2Reader(object):
                                    datatype=DataType.DEFERRED,
                                    interface=GlobalInterface(container)))
 
-        for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
+        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
             (type_spec, attr_specs, entities) = decl.items
 
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
@@ -605,15 +627,23 @@ class Fparser2Reader(object):
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
                         normalized_string = str(attr).lower().replace(' ', '')
-                        if "intent(in)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        elif "intent(out)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif "intent(inout)" in normalized_string:
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READWRITE)
+                        if "save" in normalized_string:
+                            # Variables declared with SAVE attribute inside a
+                            # module, submodule or main program are implicitly
+                            # SAVE'd (see Fortran specification 8.5.16.4) so it
+                            # is valid to ignore the attribute in these
+                            # situations.
+                            if not (decl.parent and
+                                    isinstance(decl.parent.parent,
+                                               (Fortran2003.Module,
+                                                Fortran2003.Main_Program))):
+                                raise NotImplementedError(
+                                    "Could not process {0}. The 'SAVE' "
+                                    "attribute is not yet supported when it is"
+                                    " not part of a module, submodule or main_"
+                                    "program specification part.".
+                                    format(decl.items))
+
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
                             has_constant_value = True
@@ -622,6 +652,24 @@ class Fparser2Reader(object):
                         else:
                             raise NotImplementedError(
                                 "Could not process {0}. Unrecognized "
+                                "attribute '{1}'.".format(decl.items,
+                                                          str(attr)))
+                    elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                        (_, intent) = attr.items
+                        normalized_string = \
+                            intent.string.lower().replace(' ', '')
+                        if normalized_string == "in":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                        elif normalized_string == "out":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
+                        elif normalized_string == "inout":
+                            interface = ArgumentInterface(
+                                ArgumentInterface.Access.READWRITE)
+                        else:
+                            raise InternalError(
+                                "Could not process {0}. Unexpected intent "
                                 "attribute '{1}'.".format(decl.items,
                                                           str(attr)))
                     elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
@@ -636,7 +684,7 @@ class Fparser2Reader(object):
             # parent symbol table for each entity found.
             for entity in entities.items:
                 (name, array_spec, char_len, initialisation) = entity.items
-                ct_value = None
+                ct_expr = None
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
@@ -660,7 +708,8 @@ class Fparser2Reader(object):
                             entity_shape[idx] = DataSymbol.Extent.DEFERRED
                         else:
                             entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
-                    elif allocatable:
+                    elif not isinstance(extent, DataSymbol.Extent) and \
+                         allocatable:
                         # We have an allocatable array with a defined extent.
                         # This is invalid Fortran.
                         raise InternalError(
@@ -670,17 +719,11 @@ class Fparser2Reader(object):
 
                 if initialisation:
                     if has_constant_value:
-                        # If it is a parameter, get the initialization value
+                        # If it is a parameter parse its initialization
+                        tmp = Node()
                         expr = initialisation.items[1]
-                        if isinstance(expr, Fortran2003.NumberBase):
-                            value_str = expr.items[0]
-                            # Convert string literal to the Symbol datatype
-                            ct_value = TYPE_MAP_TO_PYTHON[datatype](value_str)
-                        else:
-                            raise NotImplementedError(
-                                "Could not process {0}. Initialisations with "
-                                "static expressions are not supported."
-                                "".format(decl.items))
+                        self.process_nodes(parent=tmp, nodes=[expr])
+                        ct_expr = tmp.children[0]
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Initialisations on the"
@@ -698,7 +741,7 @@ class Fparser2Reader(object):
                 if sym_name not in parent.symbol_table:
                     parent.symbol_table.add(DataSymbol(sym_name, datatype,
                                                        shape=entity_shape,
-                                                       constant_value=ct_value,
+                                                       constant_value=ct_expr,
                                                        interface=interface,
                                                        precision=precision))
                 else:
@@ -738,7 +781,7 @@ class Fparser2Reader(object):
         # loop checks for Stmt_Functions that should be an array statement
         # and recovers them, otherwise it raises an error as currently
         # Statement Functions are not supported in PSyIR.
-        for stmtfn in walk_ast(nodes, [Fortran2003.Stmt_Function_Stmt]):
+        for stmtfn in walk(nodes, Fortran2003.Stmt_Function_Stmt):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
                 symbol = parent.symbol_table.lookup(fn_name.string.lower())
@@ -755,15 +798,13 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(array_name.string.lower(), parent=assignment)
-                    self.process_nodes(parent=lhs, nodes=array_subscript,
-                                       nodes_parent=arg_list)
+                    lhs = Array(symbol, parent=assignment)
+                    self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
                     # Build rhs
                     self.process_nodes(parent=assignment,
-                                       nodes=[assignment_rhs],
-                                       nodes_parent=scalar_expr)
+                                       nodes=[assignment_rhs])
                 else:
                     raise InternalError(
                         "Could not process '{0}'. Symbol '{1}' is in the"
@@ -804,8 +845,8 @@ class Fparser2Reader(object):
         # representation in the PSyIR. We therefore can't use
         # self.process_nodes() here.
         kind_selector = type_spec.items[1]
-        intrinsics = walk_ast(kind_selector.items,
-                              [Fortran2003.Intrinsic_Function_Reference])
+        intrinsics = walk(kind_selector.items,
+                          Fortran2003.Intrinsic_Function_Reference)
         if intrinsics and isinstance(intrinsics[0].items[0],
                                      Fortran2003.Intrinsic_Name) and \
            str(intrinsics[0].items[0]).lower() == "kind":
@@ -841,7 +882,7 @@ class Fparser2Reader(object):
                 "{1}".format(type(kind_arg).__name__, str(kind_selector)))
 
         # We have kind=kind-param
-        kind_names = walk_ast(kind_selector.items, [Fortran2003.Name])
+        kind_names = walk(kind_selector.items, Fortran2003.Name)
         if not kind_names:
             raise NotImplementedError(
                 "Failed to find valid Name in Fortran Kind "
@@ -892,9 +933,7 @@ class Fparser2Reader(object):
             symbol_table.add(kind_symbol)
         return kind_symbol
 
-    # TODO remove nodes_parent argument once fparser2 AST contains
-    # parent information (fparser/#102).
-    def process_nodes(self, parent, nodes, nodes_parent):
+    def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
         fparser2 AST. Currently also inserts parent information back
@@ -902,18 +941,13 @@ class Fparser2Reader(object):
         itself generates and stores this information.
 
         :param parent: Parent node in the PSyIR we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
-        :param nodes_parent: the parent of the supplied list of nodes in \
-                             the fparser2 AST.
-        :type nodes_parent: :py:class:`fparser.two.utils.Base`
+
         '''
         code_block_nodes = []
         for child in nodes:
-            # TODO remove this line once fparser2 contains parent
-            # information (fparser/#102)
-            child._parent = nodes_parent  # Retro-fit parent info
 
             try:
                 psy_child = self._create_child(child, parent)
@@ -938,13 +972,13 @@ class Fparser2Reader(object):
         :param child: node in fparser2 AST.
         :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
         :returns: Returns the PSyIR representation of child, which can be a \
                   single node, a tree of nodes or None if the child can be \
                   ignored.
-        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         '''
         handler = self.handlers.get(type(child))
         if handler is None:
@@ -979,11 +1013,11 @@ class Fparser2Reader(object):
         because some APIs may want to instantiate a specialised Loop.
 
         :param parent: the parent of the node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str variable_name: name of the iteration variable.
 
         :return: a new Loop instance.
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
         return Loop(parent=parent, variable_name=variable_name)
@@ -994,14 +1028,13 @@ class Fparser2Reader(object):
         continue processing the tree nodes inside the loop body.
 
         :param loop_body: Schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
         :param node: fparser loop node being processed.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
         '''
         # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
-        self.process_nodes(parent=loop_body, nodes=node.content[1:-1],
-                           nodes_parent=node)
+        self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
 
     def _do_construct_handler(self, node, parent):
         '''
@@ -1011,15 +1044,15 @@ class Fparser2Reader(object):
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises InternalError: if the fparser2 tree has an unexpected \
             structure.
         '''
-        ctrl = walk_ast(node.content, [Fortran2003.Loop_Control])
+        ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
             raise InternalError(
                 "Unrecognised form of DO loop - failed to find Loop_Control "
@@ -1049,17 +1082,14 @@ class Fparser2Reader(object):
         limits_list = ctrl[0].items[1][1]
 
         # Start expression child
-        self.process_nodes(parent=loop, nodes=[limits_list[0]],
-                           nodes_parent=ctrl)
+        self.process_nodes(parent=loop, nodes=[limits_list[0]])
 
         # Stop expression child
-        self.process_nodes(parent=loop, nodes=[limits_list[1]],
-                           nodes_parent=ctrl)
+        self.process_nodes(parent=loop, nodes=[limits_list[1]])
 
         # Step expression child
         if len(limits_list) == 3:
-            self.process_nodes(parent=loop, nodes=[limits_list[2]],
-                               nodes_parent=ctrl)
+            self.process_nodes(parent=loop, nodes=[limits_list[2]])
         else:
             # Default loop increment is 1
             default_step = Literal("1", DataType.INTEGER, parent=loop)
@@ -1080,9 +1110,9 @@ class Fparser2Reader(object):
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         '''
@@ -1100,7 +1130,6 @@ class Fparser2Reader(object):
         # Search for all the conditional clauses in the If_Construct
         clause_indices = []
         for idx, child in enumerate(node.content):
-            child._parent = node  # Retrofit parent info
             if isinstance(child, (Fortran2003.If_Then_Stmt,
                                   Fortran2003.Else_Stmt,
                                   Fortran2003.Else_If_Stmt,
@@ -1139,8 +1168,7 @@ class Fparser2Reader(object):
 
                 # Create condition as first child
                 self.process_nodes(parent=newifblock,
-                                   nodes=[clause.items[0]],
-                                   nodes_parent=node)
+                                   nodes=[clause.items[0]])
 
                 # Create if-body as second child
                 ifbody = Schedule(parent=ifblock)
@@ -1148,8 +1176,7 @@ class Fparser2Reader(object):
                 ifbody.ast_end = node.content[end_idx - 1]
                 newifblock.addchild(ifbody)
                 self.process_nodes(parent=ifbody,
-                                   nodes=node.content[start_idx + 1:end_idx],
-                                   nodes_parent=node)
+                                   nodes=node.content[start_idx + 1:end_idx])
 
                 currentparent = newifblock
 
@@ -1163,8 +1190,7 @@ class Fparser2Reader(object):
                 elsebody.ast = node.content[start_idx]
                 elsebody.ast_end = node.content[end_idx]
                 self.process_nodes(parent=elsebody,
-                                   nodes=node.content[start_idx + 1:end_idx],
-                                   nodes_parent=node)
+                                   nodes=node.content[start_idx + 1:end_idx])
             else:
                 raise InternalError(
                     "Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt "
@@ -1179,18 +1205,16 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.If_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
         '''
         ifblock = IfBlock(parent=parent, annotations=['was_single_stmt'])
         ifblock.ast = node
-        self.process_nodes(parent=ifblock, nodes=[node.items[0]],
-                           nodes_parent=node)
+        self.process_nodes(parent=ifblock, nodes=[node.items[0]])
         ifbody = Schedule(parent=ifblock)
         ifblock.addchild(ifbody)
-        self.process_nodes(parent=ifbody, nodes=[node.items[1]],
-                           nodes_parent=node)
+        self.process_nodes(parent=ifbody, nodes=[node.items[1]])
         return ifblock
 
     def _case_construct_handler(self, node, parent):
@@ -1200,10 +1224,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
@@ -1231,7 +1255,6 @@ class Fparser2Reader(object):
         # The position of the 'case default' clause, if any
         default_clause_idx = None
         for idx, child in enumerate(node.content):
-            child._parent = node  # Retrofit parent info
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
             if isinstance(child, Fortran2003.Case_Stmt):
@@ -1277,16 +1300,14 @@ class Fparser2Reader(object):
                 ifblock.ast_end = node.content[end_idx - 1]
 
             # Process the logical expression
-            self._process_case_value_list(selector,
-                                          case.items[0].items,
-                                          case.items[0], ifblock)
+            self._process_case_value_list(selector, case.items[0].items,
+                                          ifblock)
 
             # Add If_body
             ifbody = Schedule(parent=ifblock)
             self.process_nodes(parent=ifbody,
                                nodes=node.content[start_idx + 1:
-                                                  end_idx],
-                               nodes_parent=node)
+                                                  end_idx])
             ifblock.addchild(ifbody)
             ifbody.ast = node.content[start_idx + 1]
             ifbody.ast_end = node.content[end_idx - 1]
@@ -1319,14 +1340,13 @@ class Fparser2Reader(object):
                     break
             self.process_nodes(parent=elsebody,
                                nodes=node.content[start_idx + 1:
-                                                  end_idx],
-                               nodes_parent=node)
+                                                  end_idx])
             currentparent.addchild(elsebody)
             elsebody.ast = node.content[start_idx + 1]
             elsebody.ast_end = node.content[end_idx - 1]
         return rootif
 
-    def _process_case_value_list(self, selector, nodes, nodes_parent, parent):
+    def _process_case_value_list(self, selector, nodes, parent):
         '''
         Processes the supplied list of fparser2 nodes representing case-value
         expressions and constructs the equivalent PSyIR representation.
@@ -1358,27 +1378,24 @@ class Fparser2Reader(object):
                       CASE() clause.
         :type nodes: list of :py:class:`fparser.two.Fortran2003.Name` or \
                      :py:class:`fparser.two.Fortran2003.Case_Value_Range`
-        :param nodes_parent: the parent in the fparser2 parse tree of the \
-                             nodes making up the label-list.
-        :type nodes_parent: sub-class of :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         if len(nodes) == 1:
             # Only one item in list so process it
-            self._process_case_value(selector, nodes[0], nodes_parent, parent)
+            self._process_case_value(selector, nodes[0], parent)
             return
         # More than one item in list. Create an OR node with the first item
         # on the list as one arg then recurse down to handle the remainder
         # of the list.
         orop = BinaryOperation(BinaryOperation.Operator.OR,
                                parent=parent)
-        self._process_case_value(selector, nodes[0], nodes_parent, orop)
-        self._process_case_value_list(selector, nodes[1:], nodes_parent, orop)
+        self._process_case_value(selector, nodes[0], orop)
+        self._process_case_value_list(selector, nodes[1:], orop)
         parent.addchild(orop)
 
-    def _process_case_value(self, selector, node, node_parent, parent):
+    def _process_case_value(self, selector, node, parent):
         '''
         Handles an individual condition inside a CASE statement. This can
         be a single scalar expression (e.g. CASE(1)) or a range specification
@@ -1390,15 +1407,10 @@ class Fparser2Reader(object):
         :param node: the node representing the case-value expression in the \
                      fparser2 parse tree.
         :type node: sub-class of :py:class:`fparser.two.utils.Base`
-        :param node_parent: the parent in the fparser2 parse tree of the \
-                            node representing this case-value.
-        :type node_parent: sub-class of :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        node._parent = node_parent  # Retrofit parent information
-
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
             if node.items[0] and node.items[1]:
@@ -1415,35 +1427,23 @@ class Fparser2Reader(object):
                 # A lower limit is specified
                 geop = BinaryOperation(BinaryOperation.Operator.GE,
                                        parent=new_parent)
-                self.process_nodes(parent=geop,
-                                   nodes=[selector],
-                                   nodes_parent=node)
-                self.process_nodes(parent=geop,
-                                   nodes=[node.items[0]],
-                                   nodes_parent=node)
+                self.process_nodes(parent=geop, nodes=[selector])
+                self.process_nodes(parent=geop, nodes=[node.items[0]])
                 new_parent.addchild(geop)
             if node.items[1]:
                 # An upper limit is specified
                 leop = BinaryOperation(BinaryOperation.Operator.LE,
                                        parent=new_parent)
-                self.process_nodes(parent=leop,
-                                   nodes=[selector],
-                                   nodes_parent=node)
-                self.process_nodes(parent=leop,
-                                   nodes=[node.items[1]],
-                                   nodes_parent=node)
+                self.process_nodes(parent=leop, nodes=[selector])
+                self.process_nodes(parent=leop, nodes=[node.items[1]])
                 new_parent.addchild(leop)
         else:
             # The case value is some scalar initialisation expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
             parent.addchild(bop)
-            self.process_nodes(parent=bop,
-                               nodes=[selector],
-                               nodes_parent=node)
-            self.process_nodes(parent=bop,
-                               nodes=[node],
-                               nodes_parent=node_parent)
+            self.process_nodes(parent=bop, nodes=[selector])
+            self.process_nodes(parent=bop, nodes=[node])
 
     @staticmethod
     def _array_notation_rank(array):
@@ -1454,7 +1454,7 @@ class Fparser2Reader(object):
         of the sub-section is 2.
 
         :param array: the array reference to check.
-        :type array: :py:class:`psyclone.psyGen.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.Array`
 
         :returns: rank of the sub-section of the array.
         :rtype: int
@@ -1506,7 +1506,7 @@ class Fparser2Reader(object):
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
-        :type parent:  :py:class:`psyclone.psyGen.Node`
+        :type parent:  :py:class:`psyclone.psyir.nodes.Node`
         :param loop_vars: the variable names for the array indices.
         :type loop_vars: list of str
 
@@ -1539,12 +1539,24 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            symbol_table = _get_symbol_table(parent)
             # Replace the CodeBlocks containing the Subscript_Triplets with
             # the index expressions
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                array.children[posn] = Reference(loop_vars[idx], parent=array)
+                if symbol_table:
+                    symbol = array.find_symbol(loop_vars[idx])
+                else:
+                    # The NEMO API does not generate symbol tables, so
+                    # create a new Symbol. Choose a datatype as we
+                    # don't know what it is. Remove this code when
+                    # issue #500 is addressed.
+                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
+                array.children[posn] = Reference(symbol, parent=array)
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -1567,10 +1579,10 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
                     :py:class:`fparser.two.Fortran2003.Where_Stmt`
         :param parent: parent node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the top-level Loop object in the created loop nest.
-        :rtype: :py:class:`psyclone.psyGen.Loop`
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises InternalError: if the parse tree does not have the expected \
                                structure.
@@ -1619,7 +1631,7 @@ class Fparser2Reader(object):
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
         fake_parent = Schedule()
-        self.process_nodes(fake_parent, logical_expr, None)
+        self.process_nodes(fake_parent, logical_expr)
         arrays = fake_parent[0].walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
@@ -1643,12 +1655,12 @@ class Fparser2Reader(object):
         # as we can before searching for all instances of Fortran2003.Name.
         # TODO #500 - replace this by using the SymbolTable instead.
         # pylint: disable=protected-access
-        fp2_parent = node
-        while hasattr(fp2_parent, "_parent") and fp2_parent._parent:
-            fp2_parent = fp2_parent._parent
-        name_list = walk_ast([fp2_parent], [Fortran2003.Name])
+        name_list = walk(node.get_root(), Fortran2003.Name)
         all_names = {str(name) for name in name_list}
         # pylint: enable=protected-access
+
+        # find the first symbol table attached to an ancestor
+        symbol_table = _get_symbol_table(parent)
 
         # Now create a loop nest of depth `rank`
         new_parent = parent
@@ -1663,6 +1675,9 @@ class Fparser2Reader(object):
                     "Cannot create Loop with variable '{0}' because code "
                     "already contains a symbol with that name.".format(
                         loop_vars[idx-1]))
+            if symbol_table:
+                symbol_table.add(DataSymbol(loop_vars[idx-1],
+                                            DataType.INTEGER))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
@@ -1674,7 +1689,20 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            size_node.addchild(Reference(arrays[0].name, parent=size_node))
+            # Once #667 is implemented we can simplify this logic by
+            # checking for the NEMO API. i.e. if api=="nemo": add local
+            # symbol else: add symbol from symbol table.
+            symbol_table = _get_symbol_table(parent)
+            if symbol_table:
+                symbol = size_node.find_symbol(arrays[0].name)
+            else:
+                # The NEMO API does not generate symbol tables, so
+                # create a new Symbol. Choose a datatype as we
+                # don't know what it is. Remove this code when
+                # issue #500 is addressed.
+                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+
+            size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), DataType.INTEGER,
                                        parent=size_node))
             # Add loop increment
@@ -1702,7 +1730,7 @@ class Fparser2Reader(object):
         # logical-array-expression of the WHERE. We process_nodes() a
         # second time here now that we have the correct parent node in the
         # PSyIR (and thus a SymbolTable) to refer to.
-        self.process_nodes(ifblock, logical_expr, None)
+        self.process_nodes(ifblock, logical_expr)
 
         # Each array reference must now be indexed by the loop variables
         # of the loops we've just created.
@@ -1716,20 +1744,20 @@ class Fparser2Reader(object):
             # Do we have an ELSE WHERE?
             for idx, child in enumerate(node.content):
                 if isinstance(child, Fortran2003.Elsewhere_Stmt):
-                    self.process_nodes(sched, node.content[1:idx], node)
+                    self.process_nodes(sched, node.content[1:idx])
                     self._array_syntax_to_indexed(sched, loop_vars)
                     # Add an else clause to the IF block for the ELSEWHERE
                     # clause
                     sched = Schedule(parent=ifblock)
                     ifblock.addchild(sched)
-                    self.process_nodes(sched, node.content[idx+1:-1], node)
+                    self.process_nodes(sched, node.content[idx+1:-1])
                     break
             else:
                 # No elsewhere clause was found
-                self.process_nodes(sched, node.content[1:-1], node)
+                self.process_nodes(sched, node.content[1:-1])
         else:
             # We only had a single-statement WHERE
-            self.process_nodes(sched, node.items[1:], node)
+            self.process_nodes(sched, node.items[1:])
         # Convert all uses of array syntax to indexed accesses
         self._array_syntax_to_indexed(sched, loop_vars)
         # Return the top-level loop generated by this handler
@@ -1742,10 +1770,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Return_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Return`
+        :rtype: :py:class:`psyclone.psyir.nodes.Return`
 
         '''
         rtn = Return(parent=parent)
@@ -1759,16 +1787,14 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Assignment`
+        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
         '''
         assignment = Assignment(node, parent=parent)
-        self.process_nodes(parent=assignment, nodes=[node.items[0]],
-                           nodes_parent=node)
-        self.process_nodes(parent=assignment, nodes=[node.items[2]],
-                           nodes_parent=node)
+        self.process_nodes(parent=assignment, nodes=[node.items[0]])
+        self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
         return assignment
 
@@ -1781,10 +1807,10 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.utils.UnaryOpBase` or \
                :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :raises NotImplementedError: if the supplied operator is not \
                                      supported by this handler.
@@ -1810,8 +1836,7 @@ class Fparser2Reader(object):
         else:
             node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-        self.process_nodes(parent=unary_op, nodes=node_list,
-                           nodes_parent=node)
+        self.process_nodes(parent=unary_op, nodes=node_list)
 
         return unary_op
 
@@ -1824,10 +1849,10 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.utils.BinaryOpBase` or \
                :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :raises NotImplementedError: if the supplied operator/intrinsic is \
                                      not supported by this handler.
@@ -1860,10 +1885,8 @@ class Fparser2Reader(object):
             raise NotImplementedError(operator_str)
 
         binary_op = BinaryOperation(operator, parent=parent)
-        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]],
-                           nodes_parent=node)
-        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]],
-                           nodes_parent=node)
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
 
         return binary_op
 
@@ -1875,10 +1898,10 @@ class Fparser2Reader(object):
         :type node: \
              :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.NaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
         :raises NotImplementedError: if the supplied Intrinsic is not \
                                      supported by this handler.
@@ -1908,8 +1931,7 @@ class Fparser2Reader(object):
 
         # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
         # to process the `items` of that...
-        self.process_nodes(parent=nary_op, nodes=list(node.items[1].items),
-                           nodes_parent=node.items[1])
+        self.process_nodes(parent=nary_op, nodes=list(node.items[1].items))
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -1923,12 +1945,12 @@ class Fparser2Reader(object):
         :type node: \
             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.UnaryOperation` or \
-                :py:class:`psyclone.psyGen.BinaryOperation` or \
-                :py:class:`psyclone.psyGen.NaryOperation`
+        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation` or \
+                :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
+                :py:class:`psyclone.psyir.nodes.NaryOperation`
 
         '''
         # First item is the name of the intrinsic
@@ -1951,20 +1973,30 @@ class Fparser2Reader(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation. If the node
+        Transforms an fparser2 Name to the PSyIR representation. If the parent
         is connected to a SymbolTable, it checks the reference has been
         previously declared.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Reference`
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
         '''
-        reference = Reference(node.string, parent)
-        reference.check_declared()
-        return reference
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(node.string)
+        else:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is. Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(node.string, DataType.REAL)
+        return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -1975,9 +2007,9 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Parenthesis`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         # Use the items[1] content of the node as it contains the required
         # information (items[0] and items[2] just contain the left and right
@@ -1993,21 +2025,30 @@ class Fparser2Reader(object):
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises NotImplementedError: If the fparser node represents \
             unsupported PSyIR features and should be placed in a CodeBlock.
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyGen.Array`
+        :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
         '''
         reference_name = node.items[0].string.lower()
-
-        array = Array(reference_name, parent)
-        array.check_declared()
-        self.process_nodes(parent=array, nodes=node.items[1].items,
-                           nodes_parent=node.items[1])
+        # Once #667 is implemented we can simplify this logic by
+        # checking for the NEMO API. i.e. if api=="nemo": add local
+        # symbol else: add symbol from symbol table.
+        symbol_table = _get_symbol_table(parent)
+        if symbol_table:
+            symbol = parent.find_symbol(reference_name)
+        else:
+            # The NEMO API does not generate symbol tables, so create
+            # a new Symbol. Randomly choose a datatype as we don't
+            # know what it is.  Remove this code when issue #500 is
+            # addressed.
+            symbol = DataSymbol(reference_name, DataType.REAL)
+        array = Array(symbol, parent)
+        self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
 
     def _number_handler(self, node, parent):
@@ -2017,10 +2058,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Literal`
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
@@ -2040,10 +2081,10 @@ class Fparser2Reader(object):
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Literal`
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
         # pylint: disable=no-self-use
@@ -2054,14 +2095,21 @@ class Fparser2Reader(object):
         Transforms an fparser2 logical literal into a PSyIR literal.
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Char_Literal_Constant`
+        :type node: \
+            :py:class:`fparser.two.Fortran2003.Logical_Literal_Constant`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyGen.Literal`
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
         # pylint: disable=no-self-use
-        value = str(node.items[0]).lower() == ".true."
-        return Literal(value, DataType.BOOLEAN, parent=parent)
+        value = str(node.items[0]).lower()
+        if value == ".true.":
+            return Literal("true", DataType.BOOLEAN, parent=parent)
+        if value == ".false.":
+            return Literal("false", DataType.BOOLEAN, parent=parent)
+        raise GenerationError(
+            "Expected to find '.true.' or '.false.' as fparser2 logical "
+            "literal, but found '{0}' instead.".format(value))

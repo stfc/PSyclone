@@ -52,7 +52,8 @@ import os
 import traceback
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.alg_gen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
@@ -227,7 +228,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
         # Add profiling nodes to schedule if automatic profiling has
         # been requested.
-        from psyclone.psyGen import Loop
+        from psyclone.psyir.nodes import Loop
         for invoke in psy.invokes.invoke_list:
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -296,11 +297,6 @@ def main(args):
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
-    parser.add_argument(
-        '--force-profile', action="append",
-        choices=Profiler.SUPPORTED_OPTIONS,
-        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
-             "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
     parser.add_argument("--config", help="Config file with "
@@ -314,24 +310,8 @@ def main(args):
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
 
-    if args.script is not None and args.profile is not None:
-        print("Error: use of automatic profiling in combination with an\n"
-              "optimisation script is not recommended since it may not work\n"
-              "as expected.\n"
-              "You can use --force-profile instead of --profile if you \n"
-              "really want to use both options at the same time.",
-              file=sys.stderr)
-        exit(1)
-
-    if args.profile is not None and args.force_profile is not None:
-        print("Specify only one of --profile and --force-profile.",
-              file=sys.stderr)
-        exit(1)
-
     if args.profile:
         Profiler.set_options(args.profile)
-    elif args.force_profile:
-        Profiler.set_options(args.force_profile)
 
     # If an output directory has been specified for transformed kernels
     # then check that it is valid
@@ -463,7 +443,6 @@ def write_unicode_file(contents, filename):
     elif six.PY3:
         encoding = {'encoding': 'utf-8'}
     else:
-        from psyclone.psyGen import InternalError
         raise InternalError("Unrecognised Python version!")
 
     with io.open(filename, mode='w', **encoding) as file_object:

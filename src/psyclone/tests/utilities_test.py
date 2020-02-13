@@ -118,6 +118,9 @@ def test_find_fortran_file(tmpdir):
             ffile.write(HELLO_CODE)
         name = Compile.find_fortran_file([str(tmpdir)], "hello_world")
         assert name.endswith("hello_world.f90")
+        # Check that we also succeed if the file suffix is included
+        name = Compile.find_fortran_file([str(tmpdir)], "hello_world.f90")
+        assert name.endswith("hello_world.f90")
     finally:
         old_pwd.chdir()
 
@@ -150,6 +153,9 @@ def test_get_invoke():
     get_invoke("test14_module_inline_same_kernel.f90", "gocean1.0", idx=0)
     get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
     get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    # Check that dist_mem is being accepted:
+    get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0, dist_mem=True)
+    get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0, dist_mem=False)
     get_invoke("explicit_do.f90", "nemo", idx=0)
 
     # Test that an invalid name raises an exception

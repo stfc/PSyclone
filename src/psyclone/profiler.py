@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,11 +41,12 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, BuiltIn, InternalError
+from psyclone.psyGen import Kern, NameSpace, NameSpaceFactory
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import Node
 
 
-class Profiler(object):
+class Profiler():
     ''' This class wraps all profiling related settings.'''
 
     # Command line option to use for the various profiling options
@@ -112,11 +113,12 @@ class Profiler(object):
         :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or \
                         derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
-        :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
+        :type loop_class: :py::class::`psyclone.psyir.nodes.Loop` or \
+                          derived class.
         '''
 
-        from psyclone.transformations import ProfileRegionTrans
-        profile_trans = ProfileRegionTrans()
+        from psyclone.psyir.transformations import ProfileTrans
+        profile_trans = ProfileTrans()
         if Profiler.profile_kernels():
             for i in schedule.children:
                 if isinstance(i, loop_class):
@@ -141,10 +143,10 @@ class ProfileNode(Node):
 
     :param children: a list of child nodes for this node. These will be made \
         children of the child Schedule of this Profile Node.
-    :type children: list of :py::class::`psyclone.psyGen.Node` \
+    :type children: list of :py::class::`psyclone.psyir.nodes.Node` \
         or derived classes
     :param parent: the parent of this node in the PSyIR.
-    :type parent: :py::class::`psyclone.psyGen.Node`
+    :type parent: :py::class::`psyclone.psyir.nodes.Node`
     :param str region_name: the name to call this profile region. This \
         name should be unique within this invoke unless aggregate \
         information is required.
@@ -213,12 +215,12 @@ class ProfileNode(Node):
     def profile_body(self):
         '''
         :returns: the Schedule associated with this Profiling region.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyGen import Schedule
+        from psyclone.psyir.nodes import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(
@@ -233,25 +235,32 @@ class ProfileNode(Node):
         of this node.
 
         :param parent: the parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        if self._module_name is None or self._region_name is None:
-            # Find the first kernel and use its name. In an untransformed
-            # Schedule there should be only one kernel, but if Profile is
-            # invoked after e.g. a loop merge more kernels might be there.
-            region_name = "unknown-kernel"
-            module_name = "unknown-module"
-            for kernel in self.walk(Kern):
-                region_name = kernel.name
-                if not isinstance(kernel, BuiltIn):
-                    # If the kernel is not a builtin then it has a module name.
-                    module_name = kernel.module_name
-                break
-            if self._region_name is None:
-                self._region_name = Profiler.create_unique_region(region_name)
-            if self._module_name is None:
-                self._module_name = module_name
+        module_name = self._module_name
+        if module_name is None:
+            # The user has not supplied a module (location) name so
+            # return the psy-layer module name as this will be unique
+            # for each PSyclone algorithm file.
+            module_name = self.root.invoke.invokes.psy.name
+
+        region_name = self._region_name
+        if region_name is None:
+            # The user has not supplied a region name (to identify
+            # this particular invoke region). Use the invoke name as a
+            # starting point.
+            region_name = self.root.invoke.name
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This profile only has one kernel within it, so append
+                # the kernel name.
+                region_name += ":{0}".format(kerns[0].name)
+            # Add a region index to ensure uniqueness when there are
+            # multiple regions in an invoke.
+            profile_nodes = self.root.walk(ProfileNode)
+            idx = profile_nodes.index(self)
+            region_name += ":r{0}".format(idx)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -264,8 +273,8 @@ class ProfileNode(Node):
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
-                             ["\"{0}\"".format(self._module_name),
-                              "\"{0}\"".format(self._region_name),
+                             ["\"{0}\"".format(module_name),
+                              "\"{0}\"".format(region_name),
                               self._var_name])
         parent.add(prof_start)
 
@@ -289,6 +298,8 @@ class ProfileNode(Node):
                                   "for profiling")
 
     def update(self):
+        # pylint: disable=too-many-locals, too-many-branches
+        # pylint: disable=too-many-statements
         '''
         Update the underlying fparser2 parse tree to implement the profiling
         region represented by this Node. This involves adding the necessary
@@ -309,7 +320,7 @@ class ProfileNode(Node):
         '''
         from fparser.common.sourceinfo import FortranFormat
         from fparser.common.readfortran import FortranStringReader
-        from fparser.two.utils import walk_ast
+        from fparser.two.utils import walk
         from fparser.two import Fortran2003
         from psyclone.psyGen import object_index
 
@@ -317,15 +328,17 @@ class ProfileNode(Node):
         super(ProfileNode, self).update()
 
         # Get the parse tree of the routine containing this region
+        # pylint: disable=protected-access
         ptree = self.root.invoke._ast
+        # pylint: enable=protected-access
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
-        node_list = walk_ast([ptree], [Fortran2003.Main_Program,
-                                       Fortran2003.Subroutine_Stmt,
-                                       Fortran2003.Function_Stmt,
-                                       Fortran2003.Specification_Part,
-                                       Fortran2003.Use_Stmt,
-                                       Fortran2003.Name])
+        node_list = walk(ptree, (Fortran2003.Main_Program,
+                                 Fortran2003.Subroutine_Stmt,
+                                 Fortran2003.Function_Stmt,
+                                 Fortran2003.Specification_Part,
+                                 Fortran2003.Use_Stmt,
+                                 Fortran2003.Name))
         if self._module_name:
             routine_name = self._module_name
         else:
@@ -333,7 +346,7 @@ class ProfileNode(Node):
                 if isinstance(node, (Fortran2003.Main_Program,
                                      Fortran2003.Subroutine_Stmt,
                                      Fortran2003.Function_Stmt)):
-                    names = walk_ast([node], [Fortran2003.Name])
+                    names = walk(node, Fortran2003.Name)
                     routine_name = str(names[0]).lower()
                     break
 
@@ -366,7 +379,7 @@ class ProfileNode(Node):
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
                 # list of nodes.
-                names = walk_ast([node], [Fortran2003.Name])
+                names = walk(node, Fortran2003.Name)
                 for name in names:
                     node_list.remove(name)
 
@@ -439,37 +452,23 @@ class ProfileNode(Node):
         # AST for the content of this region.
         content_ast = self.profile_body.children[0].ast
         # Now store the parent of this region
-        fp_parent = content_ast._parent
+        fp_parent = content_ast.parent
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
                                        content_ast)
-        # Finding the location of the end is harder as it might be the
-        # end of a clause within an If or Select block. We therefore
-        # work back up the fparser2 parse tree until we find a node that is
-        # a direct child of the parent node.
-        ast_end_index = None
+        # Do the same for our last child node
         if self.profile_body[-1].ast_end:
             ast_end = self.profile_body[-1].ast_end
         else:
             ast_end = self.profile_body[-1].ast
-        # Keep a copy of the pointer into the parse tree in case of errors
-        ast_end_copy = ast_end
 
-        while ast_end_index is None:
-            try:
-                ast_end_index = object_index(fp_parent.content,
-                                             ast_end)
-            except ValueError:
-                # ast_end is not a child of fp_parent so go up to its parent
-                # and try again
-                if hasattr(ast_end, "_parent") and ast_end._parent:
-                    ast_end = ast_end._parent
-                else:
-                    raise InternalError(
-                        "Failed to find the location of '{0}' in the fparser2 "
-                        "Parse Tree:\n{1}\n".format(str(ast_end_copy),
-                                                    str(fp_parent.content)))
+        if ast_end.parent is not fp_parent:
+            raise InternalError(
+                "The beginning ({0}) and end ({1}) nodes of the profiling "
+                "region in the fparser2 parse tree do not have the same "
+                "parent.".format(content_ast, ast_end))
+        ast_end_index = object_index(fp_parent.content, ast_end)
 
         # Add the profiling-end call
         reader = FortranStringReader(
@@ -477,6 +476,7 @@ class ProfileNode(Node):
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         pecall = Fortran2003.Call_Stmt(reader)
+        pecall.parent = fp_parent
         fp_parent.content.insert(ast_end_index+1, pecall)
 
         # Add the profiling-start call
@@ -485,4 +485,5 @@ class ProfileNode(Node):
                 routine_name, region_name, var_name))
         reader.set_format(FortranFormat(True, False))
         pscall = Fortran2003.Call_Stmt(reader)
+        pscall.parent = fp_parent
         fp_parent.content.insert(ast_start_index, pscall)
