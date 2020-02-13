@@ -38,6 +38,7 @@
 
 ''' This module contains the generic Symbol and the SymbolError.'''
 
+import six
 
 class SymbolError(Exception):
     '''
@@ -66,7 +67,7 @@ class Symbol(object):
 
     def __init__(self, name):
 
-        if not isinstance(name, str):
+        if not isinstance(name, six.string_types):
             raise TypeError(
                 "{0} name attribute should be of type 'str'"
                 " but '{1}' found.".format(type(self).__name__, type(name)))
