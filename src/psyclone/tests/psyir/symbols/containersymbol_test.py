@@ -44,9 +44,6 @@ import pytest
 from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
     ContainerSymbolInterface, FortranModuleInterface
-from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
-    GlobalInterface
-from psyclone.psyir.symbols.datatypes import DataType
 from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
 

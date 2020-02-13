@@ -217,6 +217,8 @@ class SymbolTable(object):
             raise TypeError(
                 "imported_symbols() expects a ContainerSymbol but got an "
                 "object of type '{0}'".format(type(csymbol).__name__))
+        # self.lookup(name) will raise a KeyError if there is no symbol with
+        # that name in the table.
         if self.lookup(csymbol.name) is not csymbol:
             raise KeyError("The '{0}' entry in this SymbolTable is not the "
                            "supplied ContainerSymbol.".format(csymbol.name))
@@ -260,7 +262,6 @@ class SymbolTable(object):
                     symbol.name,
                     [sym.name for sym in self.imported_symbols(symbol)]))
         self._symbols.pop(symbol.name)
-
 
     @property
     def argument_list(self):

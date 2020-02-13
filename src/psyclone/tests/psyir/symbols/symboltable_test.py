@@ -114,8 +114,8 @@ def test_new_symbol_name_4():
 
 
 def test_add():
-    '''Test that the add method inserts new symbols in the symbol
-    table, but raises appropiate errors when provided with wrong parameters
+    '''Test that the add method inserts new symbols in the symbol table,
+    but raises appropriate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
 
@@ -176,7 +176,7 @@ def test_imported_symbols():
 
 def test_remove():
     '''Test that the remove method removes ContainerSymbols from the symbol
-    table. Also checks that appropiate errors are raised when the method is
+    table. Also checks that appropriate errors are raised when the method is
     provided with wrong parameters or if there are DataSymbols that reference
     the provided ContainerSymbol. '''
     sym_table = SymbolTable()

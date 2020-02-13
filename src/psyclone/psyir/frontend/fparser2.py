@@ -641,8 +641,8 @@ class Fparser2Reader(object):
                 # set anything as the defaults (empty 'only' list and no
                 # wildcard import) imply 'only:'.
                 if not new_container and \
-                   (container.wildcard_import or
-                    parent.symbol_table.imported_symbols(container)):
+                       (container.wildcard_import or
+                        parent.symbol_table.imported_symbols(container)):
                     # TODO #11 Log the fact that this import with an empty
                     # only-list is ignored because of existing 'use's of
                     # the module.
@@ -769,7 +769,7 @@ class Fparser2Reader(object):
                         else:
                             entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
                     elif not isinstance(extent, DataSymbol.Extent) and \
-                         allocatable:
+                            allocatable:
                         # We have an allocatable array with a defined extent.
                         # This is invalid Fortran.
                         raise InternalError(
