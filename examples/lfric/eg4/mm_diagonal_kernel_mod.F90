@@ -106,8 +106,10 @@ subroutine mm_diagonal_kernel_code(cell,        &
                                    mm_diag,     &
                                    ncell_3d,    &
                                    mass_matrix, &
-                                   ndf,undf,map)
+                                   ndf, undf, map)
  
+  implicit none
+
   ! Arguments
   integer(kind=i_def),                   intent(in) :: cell, nlayers, ndf
   integer(kind=i_def),                   intent(in) :: undf, ncell_3d

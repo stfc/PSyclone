@@ -105,6 +105,8 @@ subroutine enforce_bc_code(nlayers,                        &
                            ndf, undf, map, boundary_value  &
                           )
  
+  implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf

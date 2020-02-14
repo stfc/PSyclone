@@ -109,6 +109,8 @@ subroutine matrix_vector_code(cell,        &
                               ndf1, undf1, map1, &
                               ndf2, undf2, map2)
  
+  implicit none
+
   ! Arguments
   integer(kind=i_def),                   intent(in)    :: cell, nlayers, ncell_3d
   integer(kind=i_def),                   intent(in)    :: undf1, ndf1
