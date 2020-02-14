@@ -57,10 +57,10 @@ class ProfileNode(PSyDataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param (str,str) options["region_name"]: an optional name to \
-        use for this profile, provided as a 2-tuple containing a \
-        module name followed by a local name. The pair of strings should \
-        uniquely identify a region unless aggregate information is required.
+    :param (str,str) options["region_name"]: an optional name for this \
+        profile region provided as a 2-tuple containing a module name \
+        followed by a local name. The pair of strings should uniquely \
+        identify a region unless aggregate information is required.
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):

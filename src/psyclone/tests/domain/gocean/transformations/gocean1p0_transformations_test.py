@@ -1504,14 +1504,12 @@ def test_acc_parallel_not_a_loop():
     ''' Test that we raise an appropriate error if we attempt
     to apply the OpenACC Parallel transformation to something that
     is not a loop '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
-    schedule = invoke.schedule
 
     acct = ACCParallelTrans()
     # Attempt to (erroneously) apply the OpenACC Parallel transformation
     # to the schedule rather than a loop
     with pytest.raises(TransformationError):
-        _, _ = acct.apply(schedule)
+        _, _ = acct.apply(1)
 
 
 def test_acc_parallel_trans(tmpdir):
