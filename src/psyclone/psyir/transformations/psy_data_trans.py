@@ -36,8 +36,7 @@
 '''Contains the PSyData transformation.
 '''
 
-from psyclone.psyir.nodes import Node, Schedule
-from psyclone.psyir.nodes import PSyDataNode
+from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -50,20 +49,19 @@ class PSyDataTrans(RegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> data_trans = t.get_trans_name('PSyDataTrans')
+    >>> from psyclone.psyir.transformations import PSyDataTrans
+    >>> data_trans = PSyDataTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
-    >>> # Enclose all children within a single profile region
+    >>> # Enclose all children within a single PSyData region
     >>> newschedule, _ = data_trans.apply(schedule.children)
     >>> newschedule.view()
 
@@ -92,12 +90,13 @@ class PSyDataTrans(RegionTrans):
     def validate(self, node_list, options=None):
         '''
         Calls the validate method of the base class and then checks that,
-        for the NEMO API, the routine that will contain the profiling
+        for the NEMO API, the routine that will contain the instrumented
         region already has a Specification_Part (because we've not yet
         implemented the necessary support if it doesn't).
-
-        :param node_list: a list of node_list to be profiled.
-        :type node_list: :py:class:`psyclone.psyGen.Loop`
+        TODO: #435
+        :param node_list: a list of node_list to be instrumented with \
+            PSyData API calls.
+        :type node_list: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param (str,str) options["region_name"]: an optional name to \
@@ -164,8 +163,8 @@ class PSyDataTrans(RegionTrans):
         schedule within a single PSyData region.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Node` or list of \
-                     :py:obj:`psyclone.psygen.Node`
+        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
+                     :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param (str,str) options["region_name"]: an optional name to \
@@ -176,7 +175,7 @@ class PSyDataTrans(RegionTrans):
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
-        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -194,5 +193,4 @@ class PSyDataTrans(RegionTrans):
         # 'create_driver' flag.
         self._node_class(parent=node_list[0].parent, children=node_list[:],
                          options=options)
-
         return schedule, keep

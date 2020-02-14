@@ -46,20 +46,25 @@ from psyclone.psyir.transformations.transformation_error \
 
 
 class ExtractTrans(PSyDataTrans):
-    ''' Provides a transformation to extract code represented by a \
-    subset of the Nodes in the PSyIR of a Schedule into a stand-alone \
-    program. Examples are given in descriptions of children classes \
-    DynamoExtractTrans and GOceanExtractTrans.
+    '''This transformation inserts an ExtractNode or a node derived
+    from ExtractNode into the PSyIR of a schedule. At code creation
+    time this node will use the PSyData API to create code that can
+    write the input and output parameters to a file. The node might
+    also create a stand-alone driver program that can read the created
+    file and then execute the instrumented region.
+    Examples are given in the derived classes DynamoExtractTrans and
+    GOceanExtractTrans.
 
-    After applying the transformation the Nodes marked for extraction are \
-    children of the ExtractNode. \
-    Nodes to extract can be individual constructs within an Invoke (e.g. \
-    Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
+    After applying the transformation the Nodes marked for extraction are
+    children of the ExtractNode.
+    Nodes to extract can be individual constructs within an Invoke (e.g.
+    Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
 
-    :param node_class: The Node class of which an instance will be inserted \
-        into the tree (defaults to ExtractNode).
-    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode`
+    :param node_class: The Node class of which an instance will be inserted
+        into the tree (defaults to ExtractNode), but can be any derived class.
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or derived
+        class
 
     '''
     from psyclone.psyir import nodes
@@ -105,7 +110,7 @@ class ExtractTrans(PSyDataTrans):
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
-        # GlobalSum classses as they are only generated when distributed
+        # GlobalSum classes as they are only generated when distributed
         # memory is enabled.
         if Config.get().distributed_memory:
             raise TransformationError(
@@ -150,6 +155,4 @@ class ExtractTrans(PSyDataTrans):
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
-        # First check constraints on Nodes in the node_list common to
-        # all RegionTrans transformations.
         super(ExtractTrans, self).validate(node_list, options)

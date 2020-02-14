@@ -382,7 +382,7 @@ class DependencyTools(object):
         read (before potentially being written).
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type loop:list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param variables_info: optional variable usage information, \
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
@@ -403,7 +403,7 @@ class DependencyTools(object):
             # will be ignored
             first_access = variables_info[var_name][0]
             # If the first access is a write, the variable is not an input
-            # parameters and does not need to be saved.
+            # parameter and does not need to be saved.
             if first_access.access_type != AccessType.WRITE:
                 input_list.append(var_name)
 
@@ -416,7 +416,7 @@ class DependencyTools(object):
         written.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type loop:list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param variables_info: optional variable usage information, \
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
@@ -430,25 +430,22 @@ class DependencyTools(object):
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list)
 
-        output_list = []
-        for var_name in variables_info.all_vars:
-            if variables_info.is_written(var_name):
-                output_list.append(var_name)
-
-        return output_list
+        return [var_name for var_name in variables_info.all_vars
+                if variables_info.is_written(var_name)]
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list):
-        '''Return a pair of lists that contains all variables that are input
-        parameters (first entry) and output parameter (second entry).
+        '''Return a 2-tuple of lists that contains all variables that are input
+        parameters (first entry) and output parameters (second entry).
         This function calls get_input_parameter and get_output_parameter,
-        but avoids the repeated computation of the variable usage
+        but avoids the repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type loop:list of :py:class:`psyclone.psyGen.Node`
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a list of all variable names that are written.
-        :rtype: list of str
+        :returns: a 2-tuple of two lists, the first one containing \
+            the input parameters, the second the output paramters.
+        :rtype: 2-tuple of list of str
 
         '''
         variables_info = VariablesAccessInfo(node_list)

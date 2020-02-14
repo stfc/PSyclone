@@ -153,6 +153,8 @@ contains
     end if
     
     event%color = col(this%colour_index)
+    ! TODO: #698 This requires target attribute in the PSyData instances
+    ! in the calling program.
     event%message = c_loc(this%name)
     
     call nvtxRangePushEx(event)

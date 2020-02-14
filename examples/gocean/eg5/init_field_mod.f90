@@ -43,8 +43,7 @@ module init_field_mod
           (/ go_arg(GO_WRITE, GO_CT,       GO_POINTWISE),  & ! field
              go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE)   & ! value
            /)
-     !> This kernel writes only to internal points of the
-     !! simulation domain.
+     !> This kernel writes to all points of the simulation domain.
      integer :: ITERATES_OVER = GO_ALL_PTS
 
      !> Although the staggering of variables used in an Arakawa

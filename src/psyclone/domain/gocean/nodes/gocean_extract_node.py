@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,16 +56,17 @@ class GOceanExtractNode(ExtractNode):
         this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param bool options["create_driver"]: If at code creation time a driver \
-        program should be created. If set, the driver will be created in the \
-        current working directory with the name "driver-MODULE-REGION.f90" \
-        where MODULE and REGION will be the corresponding values for this \
-        region.
+    :param bool options["create_driver"]: whether or not to create a driver
+        program at code-generation time. If set, the driver will be created \
+        in the current working directory with the name
+        "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
+        corresponding values for this region.
+
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
@@ -90,27 +91,32 @@ class GOceanExtractNode(ExtractNode):
 
     def gen_code(self, parent):
         '''
-        Generates the code required for extraction of one or more Nodes. \
-        For now it inserts comments before and after the code belonging \
-        to all the children of this ExtractNode.
+        Generates the code required for extraction of one or more Nodes.
+        It uses the PSyData API (via the base class ExtractNode) to create
+        the required callbacks that will allow a library to write the
+        kernel data to a file. If requested, it will also trigger the
+        creation of a stand-alone
 
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
         '''
 
-        input_list, output_list = \
-            super(GOceanExtractNode, self).gen_code(parent)
+        super(GOceanExtractNode, self).gen_code(parent)
         if self._create_driver:
+            input_list = self.input_list
+            output_list = self.output_list
             self.create_driver(input_list, output_list)
 
     # -------------------------------------------------------------------------
     def create_driver(self, input_list, output_list):
         # pylint: disable=too-many-locals, too-many-statements
         '''This function creates a driver that can read the
-        output created by the extractopm process. This is a stand-alone
+        output created by the extraction code. This is a stand-alone
         program that will read the input data, calls the kernels/
         instrumented region, and then compares the results with the
         stored results in the file.
+
+        TODO: #644: we need type information here.
 
         :param input_list: list of variables that are input parameters.
         :type input_list: list of str
@@ -145,8 +151,10 @@ class GOceanExtractNode(ExtractNode):
 
         post_suffix = self._post_name
         for var_name in all_vars:
-            # TODO: we need to identify arrays!!
-            # Any variable used needs to be defined.
+            # TODO #644: we need to identify arrays!!
+            # Any variable used needs to be defined. We also need
+            # to handle the kind property better and not rely on
+            # a hard-coded value.
             decl = DeclGen(prog, "real", [var_name], kind="8",
                            dimension=":,:", allocatable=True)
             prog.add(decl)
@@ -210,26 +218,19 @@ class GOceanExtractNode(ExtractNode):
         # So we need to make sure that the field parameters
         # are changed from "fld%data" to just "fld". This is
         # achieved by temporary changing the value of the
-        # "go_grid_data" property from "{0}.%data" to just "{0}".
-        # But each kernel caches the argument code, so we also
-        # need to clear this cached data to make sure the new
-        # value for "go_grid_data" is actually used.
+        # "go_grid_data" property (e.g. "{0}%data") to just "{0}".
         api_config = Config.get().api_conf("gocean1.0")
-
         props = api_config.grid_properties
         old_data_property = props["go_grid_data"]
         Property = namedtuple("Property", "fortran type")
         props["go_grid_data"] = Property("{0}", "array")
 
+        # Each kernel caches the argument code, so we also
+        # need to clear this cached data to make sure the new
+        # value for "go_grid_data" is actually used.
         from psyclone.psyGen import CodedKern
         for kernel in self.psy_data_body.walk(CodedKern):
-            # Clear cached data in all kernels, which will
-            # mean the new value for go_grid_data will be used:
             kernel.clear_cached_data()
-
-        # Recreate the instrumented region:
-        for child in self.psy_data_body:
-            child.gen_code(prog)
 
         # Reset the go_grid_data property back to its original value.
         props["go_grid_data"] = old_data_property
