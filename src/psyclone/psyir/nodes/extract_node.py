@@ -66,7 +66,7 @@ class ExtractNode(PSyDataNode):
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options for transformations.
+    :param options: a dictionary with options provided via transformations.
     :type options: dictionary of string:values or None
 
     '''
@@ -84,6 +84,11 @@ class ExtractNode(PSyDataNode):
         # "myvar" will be stored as "myvar" with its input value, and
         # "myvar_post" with its output value.
         self._post_name = "_post"
+
+        # Store the list of input- and output-variables, so that a driver
+        # generator can get the list of variables that are written.
+        self._input_list = []
+        self._output_list = []
 
     @property
     def extract_body(self):
@@ -106,28 +111,38 @@ class ExtractNode(PSyDataNode):
         '''
         return "extract_" + str(self.position)
 
+    @property
+    def input_list(self):
+        ''':returns: the list of input variables that will be written.
+        :rtype: list of str
+        '''
+        return self._input_list
+
+    @property
+    def output_list(self):
+        ''':returns: the list of output variables that will be written.
+        :rtype: list of str
+        '''
+        return self._output_list
+
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
-        Generates the code required for extraction of one or more Nodes. \
-        For now it inserts comments before and after the code belonging \
-        to all the children of this ExtractNode. These comments will be \
-        replaced by calls to write out arguments of extracted Node(s) or \
-        Kernel(s) in Issue #234.
+        Generates the code required for extraction of one or more Nodes.
+        It uses the PSyData API (via the base class PSyDataNode) to create
+        the required callbacks that will allow a library to write the
+        kernel data to a file.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-
-        :returns: The list of the names of input- and output-variables.
-        :rtype: 2-tuple of list of strings.
         '''
 
         # Determine the variables to write:
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
-        options = {'pre-var-list': input_list,
-                   'post-var-list': output_list,
+        self._input_list, self._output_list = dep.get_in_out_parameters(self)
+        options = {'pre-var-list': self._input_list,
+                   'post-var-list': self._output_list,
                    'post-var-postfix': self._post_name}
 
         from psyclone.f2pygen import CommentGen
@@ -138,5 +153,3 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
-
-        return input_list, output_list

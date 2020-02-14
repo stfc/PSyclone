@@ -142,7 +142,7 @@ The library using the PSyData API must provide a user-defined data type
 called ``PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
-the PSyDatType can be found in the NetCDF example extraction code
+the PSyDataType can be found in the NetCDF example extraction code
 (see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`psyke_netcdf` for
 a detailed description) or any of the profiling wrapper libaries
 (all contained in ``lib/profiling``)

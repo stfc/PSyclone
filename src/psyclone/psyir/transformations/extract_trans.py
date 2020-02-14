@@ -47,20 +47,25 @@ from psyclone.undoredo import Memento
 
 
 class ExtractTrans(RegionTrans):
-    ''' Provides a transformation to extract code represented by a \
-    subset of the Nodes in the PSyIR of a Schedule into a stand-alone \
-    program. Examples are given in descriptions of children classes \
-    DynamoExtractTrans and GOceanExtractTrans.
+    '''This transformation inserts an ExtractNode or a node derived
+    from ExtractNode into the PSyIR of a schedule. At code creation
+    time this node will use the PSyData API to create code that can
+    write the input and output parameters to a file. The node might
+    also create a stand-alone driver program that can read the created
+    file and then execute the instrumented region.
+    Examples are given in the derived classes DynamoExtractTrans and
+    GOceanExtractTrans.
 
-    After applying the transformation the Nodes marked for extraction are \
-    children of the ExtractNode. \
-    Nodes to extract can be individual constructs within an Invoke (e.g. \
-    Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
+    After applying the transformation the Nodes marked for extraction are
+    children of the ExtractNode.
+    Nodes to extract can be individual constructs within an Invoke (e.g.
+    Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
 
-    :param node_class: The Node class of which an instance will be inserted \
-        into the tree (defaults to ExtractNode).
-    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode`
+    :param node_class: The Node class of which an instance will be inserted
+        into the tree (defaults to ExtractNode), but can be any derived class.
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or derived
+        class
 
     '''
     from psyclone.psyir import nodes
@@ -213,8 +218,17 @@ class ExtractTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
-        # Pass the options to the constructor, used e.g. for the
-        # 'create_driver' flag.
+        # Create an instance of the required class that implements
+        # the code extraction using the PSyData API, e.g. a
+        # GOceanExtractNode. The constructor of the extraction node
+        # will insert itself into the PSyIR between the specified
+        # nodes to be extracted and their parent. The nodes to
+        # be extracted will become children of the extraction node.
+        # it also passes the user-specified options to the constructor,
+        # so that the behaviour of the code extraction can be controlled.
+        # An example use case of this is the 'create_driver' flag, where
+        # the calling program can control if a stand-alone driver program
+        # should be created or not.
         self._node_class(parent=node_parent, children=node_list[:],
                          options=options)
 

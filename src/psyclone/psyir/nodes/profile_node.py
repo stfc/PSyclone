@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,10 +51,10 @@ class ProfileNode(PSyDataNode):
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: a list of child nodes for this node. These will be made \
         children of the child Schedule of this Profile Node.
-    :type children: list of :py::class::`psyclone.psyGen.Node` \
+    :type children: list of :py::class::`psyclone.psyir.nodes.Node` \
         or derived classes
     :param parent: the parent of this node in the PSyIR.
-    :type parent: :py::class::`psyclone.psyGen.Node`
+    :type parent: :py::class::`psyclone.psyir.nodes.Node`
     :param (str, str) name: an optional name to use for this profile, \
         provided as a 2-tuple containing a module name followed by a \
         local name. The pair of strings should uniquely identify a\
@@ -84,7 +84,7 @@ class ProfileNode(PSyDataNode):
     def profile_body(self):
         '''
         :returns: the Schedule associated with this Profiling region.
-        :rtype: :py:class:`psyclone.psyGen.Schedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises InternalError: if this Profile node does not have a Schedule \
                                as its one and only child.
@@ -106,7 +106,7 @@ class ProfileNode(PSyDataNode):
         of this node.
 
         :param parent: the parent of this node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         options = {'pre-var-list': [],
