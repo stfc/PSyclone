@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author I. Kavcic, Met Office
 
 '''
-Module containing tests for Dynamo0.3 (LFRic) API configuration handling.
+Module containing tests for LFRic (Dynamo0.3) API configuration handling.
 '''
 
 from __future__ import absolute_import
@@ -80,9 +80,6 @@ def clear_config_instance():
     # Enforce loading of the default config file
     Config._instance = None
 
-
-# Disable this pylint warning because otherwise it gets upset about the
-# use of these fixtures in the test code.
 @pytest.fixture(scope="module",
                 params=["COMPUTE_ANNEXED_DOFS"])
 # =============================================================================
