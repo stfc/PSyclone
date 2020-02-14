@@ -159,8 +159,10 @@ class Fparser2Reader(object):
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
+            Fortran2003.Subscript_Triplet: self._subscript_triplet_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
+            Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
             utils.BinaryOpBase: self._binary_op_handler,
@@ -2050,6 +2052,48 @@ class Fparser2Reader(object):
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
+
+    def _subscript_triplet_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Subscript_Triplet to the PSyIR
+        representation.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Subscript_Triplet`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises NotImplementedError: If the fparser node represents \
+            unsupported PSyIR features and should be placed in a CodeBlock.
+
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+        '''
+        dimension = str(len(parent.children)+1)
+        from psyclone.psyir.nodes import Range
+        my_range = Range(parent=parent)
+        my_range.children=[]
+        if node.children[0]:
+            self.process_nodes(parent=my_range, nodes=[node.children[0]])
+        else:
+            lbound = BinaryOperation.create(
+                BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
+                Literal(dimension, DataType.INTEGER))
+            my_range.children.append(lbound)
+        if node.children[1]:
+            self.process_nodes(parent=my_range, nodes=[node.children[1]])
+        else:
+            ubound = BinaryOperation.create(
+                BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
+                Literal(dimension, DataType.INTEGER))
+            my_range.children.append(ubound)
+        if node.children[2]:
+            self.process_nodes(parent=my_range, nodes=[node.children[2]])
+        else:
+            # Default step is 1.
+            my_range.children.append(Literal("1", DataType.INTEGER))
+        return my_range
 
     def _number_handler(self, node, parent):
         '''

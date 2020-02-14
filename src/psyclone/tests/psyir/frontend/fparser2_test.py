@@ -1233,6 +1233,17 @@ def test_handling_nested_intrinsic():
     assert not cblocks
 
 
+@pytest.mark.usefixtures("f2008_parser")
+def test_array_section():
+    ''' Check that we correctly handle an array section '''
+    from fparser.two.Fortran2003 import Execution_Part
+    processor = Fparser2Reader()
+    fake_parent = Node()
+    reader = FortranStringReader("a(:,:) = 0.0")
+    fp2node = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fp2node])
+    # HOW TO CHECK HERE????
+
 @pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
                    "non-NEMO PSyIR")
 @pytest.mark.usefixtures("f2008_parser")
