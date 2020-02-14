@@ -2278,8 +2278,8 @@ STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
      type(arg_type), meta_args(2) =          &
-          (/ arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2, stencil(cross)) &
+          (/ arg_type(gh_field, gh_inc, w1), &
+             arg_type(gh_field, gh_read, w2, stencil(cross)) &
            /)
      integer :: iterates_over = cells
    contains
@@ -2308,8 +2308,8 @@ def test_field_metadata_too_many_arguments():
     '''Check that we raise an exception if more than 4 arguments are
     provided in the metadata for a gh_field arg_type.'''
     result = STENCIL_CODE.replace(
-        "gh_field,gh_read, w2, stencil(cross)",
-        "gh_field,gh_read, w2, stencil(cross), w1", 1)
+        "gh_field, gh_read, w2, stencil(cross)",
+        "gh_field, gh_read, w2, stencil(cross), w1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)

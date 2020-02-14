@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''
 Module containing pytest tests for the reference-element functionality
@@ -186,7 +187,7 @@ def test_refelem_gen(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert "use reference_element_mod, only: reference_element_type" in gen
-    assert "integer nfaces_re_h, nfaces_re_v" in gen
+    assert "integer(kind=i_def) nfaces_re_h, nfaces_re_v" in gen
     assert ("real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:), "
             "normals_to_vert_faces(:,:)" in gen)
     assert ("class(reference_element_type), pointer :: reference_element "
