@@ -375,7 +375,19 @@ def test_driver_creation(tmpdir):
       CALL psy_data%ReadVariable("p_fld", p_fld)
       CALL psy_data%ReadVariable("p_fld_post", p_fld_post)
       CALL psy_data%ReadVariable("u_fld", u_fld)
-    '''
+      ! RegionStart
+      DO j=2,jstop
+        DO i=2,istop+1
+          CALL compute_kernel_code(i, j, cu_fld, p_fld, u_fld)
+        END DO
+      END DO
+      ! RegionEnd
+      !
+      ! Check cu_fld
+      ! Check i
+      ! Check j
+      ! Check p_fld'''
+
     expected_lines = expected.split("\n")
 
     for line in expected_lines:
