@@ -248,7 +248,6 @@ def test_edge_qr(tmpdir, dist_mem):
             "nedges_qr, weights_xyz_qr)" in gen_code)
 
 
-@pytest.mark.xfail(reason="#150 reference element support not on master")
 def test_face_qr(tmpdir, dist_mem):
     ''' Check that we generate correct code when a kernel specifies
     that it requires face quadrature. '''
@@ -257,6 +256,7 @@ def test_face_qr(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
+    print(generated_code)
     output_decls = (
         "      USE testkern_qr_faces, ONLY: testkern_qr_code\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
@@ -272,9 +272,9 @@ def test_face_qr(tmpdir, dist_mem):
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER dim_w1, nfaces, diff_dim_w2, dim_w3, diff_dim_w3\n"
+        "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
-        "      INTEGER np_xyz_qr\n"
+        "      INTEGER np_xyz_qr, nfaces_qr\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_face_proxy_type) qr_proxy\n"
@@ -298,7 +298,8 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         init_output += ("      ! Create a mesh object\n"
                         "      !\n"
-                        "      mesh => f1%get_mesh()\n      !\n")
+                        "      mesh => f1_proxy%vspace%get_mesh()\n"
+                        "      !\n")
     init_output += (
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -325,67 +326,72 @@ def test_face_qr(tmpdir, dist_mem):
         "      !\n"
         "      qr_proxy = qr%get_quadrature_proxy()\n"
         "      np_xyz_qr = qr_proxy%np_xyz\n"
-        # TODO #150 need to add support to get reference_element
-        "      nfaces_qr = reference_element%get_number_horizontal_faces()\n"
+        "      nfaces_qr = qr_proxy%nfaces\n"
         "      weights_xyz_qr => qr_proxy%weights_xyz\n")
     assert init_output in generated_code
-    compute_output = (
+    init_output2 = (
         "      !\n"
-        "      ! Allocate basis arrays\n"
+        "      ! Allocate basis/diff-basis arrays\n"
         "      !\n"
         "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xyz_qr, nfaces_qr))\n"
-        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xyz_qr, nfaces_qr))\n"
-        "      !\n"
-        "      ! Allocate differential basis arrays\n"
-        "      !\n"
         "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
+        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
+        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xyz_qr, nfaces_qr))\n"
         "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xyz_qr, "
         "nfaces_qr))\n"
-        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xyz_qr, nfaces_qr))\n"
         "      ALLOCATE (diff_basis_w3_qr(diff_dim_w3, ndf_w3, np_xyz_qr, "
         "nfaces_qr))\n"
         "      !\n"
-        "      ! Compute basis arrays\n"
+        "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
         "      CALL qr%compute_function(BASIS, f1_proxy%vspace, dim_w1, "
         "ndf_w1, basis_w1_qr)\n"
-        "      CALL qr%compute_function(BASIS, m2_proxy%vspace, dim_w3, "
-        "ndf_w3, basis_w3_qr)\n"
-        "      !\n"
-        "      ! Compute differential basis arrays\n"
-        "      !\n"
         "      CALL qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
+        "      CALL qr%compute_function(BASIS, m2_proxy%vspace, dim_w3, "
+        "ndf_w3, basis_w3_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "      !\n"
-        "      ! Call kernels and communication routines\n"
-        "      !\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      !\n")
+    if dist_mem:
+        init_output2 += (
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL m1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL m2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n")
+    else:
+        init_output2 += (
+            "      ! Call our kernels\n")
+    assert init_output2 in generated_code
+    if dist_mem:
+        compute_output = (
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    else:
+        compute_output = (
+            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+    compute_output += (
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xyz_qr, nfaces_qr, weights_xyz_qr)\n"
-        "      END DO \n"
-        "      !\n")
+        "      END DO\n")
     if dist_mem:
         compute_output += (
+            "      !\n"
             "      ! Set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"

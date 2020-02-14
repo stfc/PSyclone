@@ -336,10 +336,12 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
         alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                      "np_xyz"+"_"+basis_fn["qr_var"], "nfaces"]
+                      "np_xyz"+"_"+basis_fn["qr_var"],
+                      "nfaces"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_edge":
         alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                      "np_xyz"+"_"+basis_fn["qr_var"], "nedges"]
+                      "np_xyz"+"_"+basis_fn["qr_var"],
+                      "nedges"+"_"+basis_fn["qr_var"]]
     else:
         raise NotImplementedError(
             "unrecognised shape ({0}) specified in "
@@ -4189,16 +4191,17 @@ class DynBasisFunctions(DynCollection):
         Add in the initialisation of variables needed for face
         quadrature.
 
-        :param parent: the node in the AST representing the PSy subroutine
-                       in which to insert the initialisation
+        :param parent: the node in the f2pygen AST representing the PSy \
+                       subroutine in which to insert the initialisation.
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
 
         if "gh_quadrature_face" not in self._qr_vars:
             return
 
-        qr_vars = ["np_xyz"]
+        qr_vars = ["np_xyz", "nfaces"]
         qr_ptr_vars = ["weights_xyz"]
 
         for qr_arg_name in self._qr_vars["gh_quadrature_face"]:
@@ -4220,7 +4223,7 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
-            # Number of points in each dimension
+            # Number of points in each dimension & no. of faces
             for qr_var in qr_vars:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
