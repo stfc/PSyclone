@@ -4795,10 +4795,11 @@ class DynInvoke(Invoke):
                 root_name="nthreads", context="PSyVars", label="nthreads")
             invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
                                   funcnames=[omp_function_name]))
-            invoke_sub.add(
-                DeclGen(invoke_sub, datatype="integer",
-                        kind=api_config.default_precision["integer"],
-                        entity_decls=[nthreads_name]))
+            # Note: There is no assigned kind for integer nthreads as this
+            # would imply assigning kind to th_idx and other elements of
+            # the psyGen OMPParallelDirective
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[nthreads_name]))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(
                 invoke_sub, " Determine the number of OpenMP threads"))

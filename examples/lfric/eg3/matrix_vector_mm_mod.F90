@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,14 +45,17 @@
 !> @details Accessor functions for the W2_solver_kernel class are defined in this module.
 
 module matrix_vector_mm_mod
+
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1,                            &
                                     CELLS 
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -67,7 +70,7 @@ type, public, extends(kernel_type) :: matrix_vector_kernel_mm_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::matrix_vector_mm_code
+  procedure, nopass :: matrix_vector_mm_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -104,18 +107,18 @@ subroutine matrix_vector_mm_code(cell,        &
                                  lhs, x,      & 
                                  ncell_3d,    &
                                  mass_matrix, &
-                                 ndf,undf,map)
+                                 ndf, undf, map)
  
   ! Arguments
-  integer,                   intent(in)    :: cell, nlayers, ndf
-  integer,                   intent(in)    :: undf, ncell_3d
-  integer, dimension(ndf),   intent(in)    :: map
+  integer(kind=i_def),                  intent(in)    :: cell, nlayers, ndf
+  integer(kind=i_def),                  intent(in)    :: undf, ncell_3d
+  integer(kind=i_def), dimension(ndf),  intent(in)    :: map
   real(kind=r_def), dimension(undf), intent(in)    :: x
   real(kind=r_def), dimension(undf), intent(inout) :: lhs
   real(kind=r_def), dimension(ndf,ndf,ncell_3d), intent(in) :: mass_matrix
 
   ! Internal variables
-  integer                                  :: df, k, ik 
+  integer(kind=i_def)                      :: df, k, ik
   real(kind=r_def), dimension(ndf)         :: x_e, lhs_e
  
   do k = 0, nlayers-1

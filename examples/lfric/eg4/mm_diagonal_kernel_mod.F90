@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,14 +45,17 @@
 !> @details Stores the diagonal elements of a mass matrix M into a field D
 !>          i.e D(df) = M(df,df)
 module mm_diagonal_kernel_mod
+
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1,                            &
                                     CELLS 
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -66,7 +69,7 @@ type, public, extends(kernel_type) :: mm_diagonal_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::mm_diagonal_kernel_code
+  procedure, nopass :: mm_diagonal_kernel_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -84,7 +87,7 @@ end interface
 public mm_diagonal_kernel_code
 contains
 
-  type(mm_diagonal_kernel_type) function mm_diagonal_kernel_constructor() result(self)
+type(mm_diagonal_kernel_type) function mm_diagonal_kernel_constructor() result(self)
   return
 end function mm_diagonal_kernel_constructor
 
@@ -106,14 +109,14 @@ subroutine mm_diagonal_kernel_code(cell,        &
                                    ndf,undf,map)
  
   ! Arguments
-  integer,                   intent(in)    :: cell, nlayers, ndf
-  integer,                   intent(in)    :: undf, ncell_3d
-  integer, dimension(ndf),   intent(in)    :: map
+  integer(kind=i_def),                   intent(in) :: cell, nlayers, ndf
+  integer(kind=i_def),                   intent(in) :: undf, ncell_3d
+  integer(kind=i_def), dimension(ndf),   intent(in) :: map
   real(kind=r_def), dimension(undf), intent(inout) :: mm_diag
   real(kind=r_def), dimension(ndf,ndf,ncell_3d), intent(in) :: mass_matrix
 
   ! Internal variables
-  integer :: df, k, ik
+  integer(kind=i_def) :: df, k, ik
  
   do k = 0, nlayers-1
     ik = (cell-1)*nlayers + k + 1
