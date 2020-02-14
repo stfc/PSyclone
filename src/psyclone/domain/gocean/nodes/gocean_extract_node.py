@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,16 +56,16 @@ class GOceanExtractNode(ExtractNode):
         this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param bool options["create-driver"]: If at code creation time a driver \
-        program should be created. If set, the driver will be created in the \
-        current working directory with the name "driver-MODULE-REGION.f90" \
-        where MODULE and REGION will be the corresponding values for this \
-        region.
+    :param bool options["create_driver"]: whether or not to create a driver
+        program at code-generation time. If set, the driver will be created \
+        in the current working directory with the name
+        "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
+        corresponding values for this region.
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
@@ -90,27 +90,32 @@ class GOceanExtractNode(ExtractNode):
 
     def gen_code(self, parent):
         '''
-        Generates the code required for extraction of one or more Nodes. \
-        For now it inserts comments before and after the code belonging \
-        to all the children of this ExtractNode.
+        Generates the code required for extraction of one or more Nodes.
+        It uses the PSyData API (via the base class ExtractNode) to create
+        the required callbacks that will allow a library to write the
+        kernel data to a file. If requested, it will also trigger the
+        creation of a stand-alone
 
         :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
         '''
 
-        input_list, output_list = \
-            super(GOceanExtractNode, self).gen_code(parent)
+        super(GOceanExtractNode, self).gen_code(parent)
         if self._create_driver:
+            input_list = self.input_list
+            output_list = self.output_list
             self.create_driver(input_list, output_list)
 
     # -------------------------------------------------------------------------
     def create_driver(self, input_list, output_list):
         # pylint: disable=too-many-locals, too-many-statements
         '''This function creates a driver that can read the
-        output created by the extractopm process. This is a stand-alone
+        output created by the extraction code. This is a stand-alone
         program that will read the input data, calls the kernels/
         instrumented region, and then compares the results with the
         stored results in the file.
+
+        TODO: #644: we need type information here.
 
         :param input_list: list of variables that are input parameters.
         :type input_list: list of str
@@ -145,6 +150,7 @@ class GOceanExtractNode(ExtractNode):
 
         post_suffix = self._post_name
         for var_name in all_vars:
+            # TODO #644: we need to identify arrays!!
             # Support GOcean properties, which are accessed via a
             # derived type (e.g. 'fld%grid%dx'). In this stand-alone
             # driver we don't have the derived type, instead we create
@@ -162,7 +168,9 @@ class GOceanExtractNode(ExtractNode):
                 local_name = var_name
 
             # TODO: #644 - we need to identify arrays!!
-            # Any variable used needs to be defined.
+            # Any variable used needs to be defined. We also need
+            # to handle the kind property better and not rely on
+            # a hard-coded value.
             decl = DeclGen(prog, "real", [local_name], kind="8",
                            dimension=":,:", allocatable=True)
             prog.add(decl)
