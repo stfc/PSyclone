@@ -231,6 +231,10 @@ class GOceanExtractNode(ExtractNode):
         for kernel in self.psy_data_body.walk(CodedKern):
             kernel.clear_cached_data()
 
+        # Recreate the instrumented region:
+        for child in self.psy_data_body:
+            child.gen_code(prog)
+
         # Reset the go_grid_data property back to its original value.
         props["go_grid_data"] = old_data_property
 
