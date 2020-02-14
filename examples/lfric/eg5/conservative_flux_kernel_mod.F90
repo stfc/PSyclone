@@ -148,6 +148,8 @@ subroutine conservative_flux_code( nlayers,              &
 
   use timestepping_config_mod,      only: dt
 
+  implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in)                       :: nlayers
   integer(kind=i_def), intent(in)                       :: ndf_w3

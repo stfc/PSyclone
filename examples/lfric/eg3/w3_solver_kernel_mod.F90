@@ -125,6 +125,8 @@ subroutine solver_w3_code(nlayers,                                    &
   ! Needs to compute the integral of rho_df * P 
   ! P_analytic over a single column    
   
+  implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_w3, undf_w3, ndf_w0, undf_w0

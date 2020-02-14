@@ -142,6 +142,8 @@ subroutine subgrid_coeffs_code(                                               &
   use subgrid_rho_mod, only: return_ppm_output, minmod_function, maxmod_function, subgridrho_option
 
 
+  implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: undf_w3
