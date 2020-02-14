@@ -146,8 +146,8 @@ class ProfileTrans(RegionTrans):
         schedule within a single profiler region.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-                     :py:obj:`psyclone.psygen.Node`
+        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of\
+                     :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param (str, str) options["profile_name"]: an optional name to \
@@ -213,6 +213,8 @@ class ProfileTrans(RegionTrans):
         # the Profile's Schedule as their parent.
 
         from psyclone.psyir.nodes import ProfileNode
+        # The constructor of the ProfileNode will insert the profile node
+        # instance between the list of nodes provided and their parents.
         ProfileNode(parent=node_parent, children=node_list[:], name=name)
 
         return schedule, keep

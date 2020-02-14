@@ -89,9 +89,9 @@ class PSyDataNode(Node):
         # TODO: #415 Support different classes of PSyData calls.
 
         # Store the name of the PSyData variable that is used for this
-        # PSyData name. This allows the variable name to be shown in str
+        # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
-        # being changed every time gen() is called)."
+        # being changed every time gen() is called).
         from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
@@ -127,7 +127,7 @@ class PSyDataNode(Node):
         self._colour_key = "PSyData"
 
         # Name of the region. In general at constructor time we might
-        # not have a parent subroutine or a child for the kernel, so
+        # not have a parent subroutine or a any child nodes, so
         # the name is left empty, unless explicitly provided by the
         # user. If names are not provided here then the region and
         # module names are set the first time gen() is called (and
