@@ -2698,7 +2698,7 @@ class DynFields(DynCollection):
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import DeclGe
+        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         fld_args = psyGen.args_filter(self._kernel.args,
@@ -7019,6 +7019,7 @@ class DynKern(CodedKern):
 
         '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # create an empty PSy layer module
         base_name = self._base_name
@@ -7027,8 +7028,10 @@ class DynKern(CodedKern):
         # Create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
-        sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
-                            funcnames=[REAL_PREC, INT_PREC]))
+        sub_stub.add(
+            UseGen(sub_stub, name="constants_mod", only=True,
+                   funcnames=[api_config.default_precision["real"],
+                              api_config.default_precision["integer"]]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
