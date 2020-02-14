@@ -5960,7 +5960,6 @@ class DynLoop(Loop):
 
         # Set our variable name at initialisation as it might be
         # required by other classes before code generation
-        # QUESTION: Where to set KIND for literals???
         if self._loop_type == "colours":
             self._variable_name = "colour"
         elif self._loop_type == "colour":
@@ -5973,8 +5972,6 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
-        # TODO (issue #696): Add precision to Literal class when the
-        #                    support is implemented.
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
                               parent=self))  # start
@@ -6502,7 +6499,9 @@ class DynLoop(Loop):
                                   "parallel region.")
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
+        # TODO: Issue #696. Add precision when the support in Literal class
+        #                   is implemented.
         self.start_expr = Literal(self._lower_bound_fortran(),
                                   DataType.INTEGER, parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(),
