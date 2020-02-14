@@ -84,8 +84,14 @@
 	work with the latest version of fparser2 which now correctly deals
 	with intent attributes.
 
-        28) #681 for #680. Small fix to failing profiling test (DM assumed
+	28) #681 for #680. Small fix to failing profiling test (DM assumed
 	to be on but not explicitly set).
+
+	29) #691 for #690. Fix PSyIR fparser frontend handling of allocatable
+	array declarations.
+
+	30) PR #605 for #150. Implements code generation for reference
+	element properties in the Dynamo0.3 (LFRic) API.
 
 release 1.8.1 29th November 2019
 
