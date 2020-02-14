@@ -409,6 +409,19 @@ def test_face_qr(tmpdir, dist_mem):
     assert compute_output in generated_code
 
 
+def test_face_and_edge_qr(dist_mem, tmpdir):
+    ''' Check that we can handle a kernel that requires two types of
+    quadrature. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.7_face_and_edge_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    gen_code = str(psy.gen)
+    print(gen_code)
+    assert 0
+
+
 def test_field_qr_deref(tmpdir):
     ''' Tests that a call, with a set of fields requiring
     quadrature, produces correct code when the quadrature is supplied as the
