@@ -41,10 +41,11 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Specification_Part, Type_Declaration_Stmt
+from fparser.two.Fortran2003 import Specification_Part, \
+    Type_Declaration_Stmt, Execution_Part
 from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, IfBlock, Reference, Array, Container, Literal
+    NaryOperation, IfBlock, Reference, Array, Container, Literal, Range
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
@@ -972,7 +973,6 @@ def test_handling_assignment_stmt():
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
@@ -991,7 +991,6 @@ def test_handling_name():
     ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -1017,7 +1016,6 @@ def test_handling_parenthesis():
     ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=(x+1)")
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
 
@@ -1036,7 +1034,6 @@ def test_handling_part_ref():
     ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
@@ -1077,7 +1074,6 @@ def test_handling_intrinsics():
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
 
     # Test parsing all supported binary operators.
@@ -1128,7 +1124,6 @@ def test_handling_intrinsics():
 def test_intrinsic_no_args():
     ''' Check that an intrinsic with no arguments results in a
     NotImplementedError. '''
-    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b)")
@@ -1145,7 +1140,6 @@ def test_unary_op_handler_error():
     ''' Check that the unary op handler raises the expected error if the
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
-    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = exp(a)")
@@ -1167,7 +1161,7 @@ def test_unary_op_handler_error():
 def test_binary_op_handler_error():
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
-    from fparser.two.Fortran2003 import Execution_Part, Name
+    from fparser.two.Fortran2003 import Name
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b)")
@@ -1190,7 +1184,7 @@ def test_binary_op_handler_error():
 def test_nary_op_handler_error():
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
-    from fparser.two.Fortran2003 import Execution_Part, Name
+    from fparser.two.Fortran2003 import Name
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b, mask)")
@@ -1212,7 +1206,6 @@ def test_nary_op_handler_error():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_nested_intrinsic():
     ''' Check that we correctly handle nested intrinsic functions. '''
-    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader(
@@ -1233,23 +1226,123 @@ def test_handling_nested_intrinsic():
     assert not cblocks
 
 
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_array_section():
     ''' Check that we correctly handle an array section '''
-    from fparser.two.Fortran2003 import Execution_Part
-    processor = Fparser2Reader()
-    fake_parent = Node()
-    reader = FortranStringReader("a(:,:) = 0.0")
-    fp2node = Execution_Part.match(reader)[0][0]
-    processor.process_nodes(fake_parent, [fp2node])
-    # HOW TO CHECK HERE????
+
+    def check_array(node, ndims):
+        ''' xxx '''
+        assert isinstance(node, Array)
+        assert len(node.children) == ndims
+
+    def check_range(array, dim):
+        ''' xxx '''
+        range_node = array.children[dim-1]
+        assert isinstance(range_node, Range)
+
+    def check_bound(array, dim, index, operator):
+        ''' xxx '''
+        bound = array.children[dim-1].children[index]
+        assert isinstance(bound, BinaryOperation)
+        assert bound.operator == operator
+        reference = bound.children[0]
+        literal = bound.children[1]
+        assert isinstance(reference, Reference)
+        assert reference.symbol is array.symbol
+        assert isinstance(literal, Literal)
+        assert literal.datatype == DataType.INTEGER
+        assert literal.value == str(dim)
+
+    def array_create(code):
+        ''' xxx '''
+        processor = Fparser2Reader()
+        fake_parent = Node()
+        reader = FortranStringReader(code)
+        fp2node = Execution_Part.match(reader)[0][0]
+        processor.process_nodes(fake_parent, [fp2node])
+        return fake_parent.children[0].children[0]
+
+    def check_literal(node, dim, index, value):
+        ''' xxx '''
+        literal = node.children[dim-1].children[index]
+        assert isinstance(literal, Literal)
+        assert literal.datatype == DataType.INTEGER
+        assert literal.value == str(value)
+
+    # Simple one-dimensional
+    for code in ["a(:) = 0.0", "a(::) = 0.0"]:
+        array_reference = array_create(code)
+        check_array(array_reference, ndims=1)
+        check_range(array_reference, dim=1)
+        check_bound(array_reference, dim=1, index=0,
+                    operator=BinaryOperation.Operator.LBOUND)
+        check_bound(array_reference, dim=1, index=1,
+                    operator=BinaryOperation.Operator.UBOUND)
+        check_literal(array_reference, dim=1, index=2, value=1)
+    # Simple multi-dimensional
+    for code in ["a(:,:,:) = 0.0", "a(::,::,::) = 0.0"]:
+        array_reference = array_create(code)
+        check_array(array_reference, ndims=3)
+        for dim in [1, 2, 3]:
+            check_range(array_reference, dim=dim)
+            check_bound(array_reference, dim=dim, index=0,
+                        operator=BinaryOperation.Operator.LBOUND)
+            check_bound(array_reference, dim=dim, index=1,
+                        operator=BinaryOperation.Operator.UBOUND)
+            check_literal(array_reference, dim=dim, index=2, value=1)
+    # Simple values
+    code = "a(1:, 1:2, 1:2:3, :2, :2:3, ::3, 1::3) = 0.0"
+    array_reference = array_create(code)
+    check_array(array_reference, ndims=7)
+    # dim 1
+    check_range(array_reference, dim=1)
+    check_literal(array_reference, dim=1, index=0, value=1)
+    check_bound(array_reference, dim=1, index=1,
+                operator=BinaryOperation.Operator.UBOUND)
+    check_literal(array_reference, dim=1, index=2, value=1)
+    # dim 2
+    check_range(array_reference, dim=2)
+    check_literal(array_reference, dim=2, index=0, value=1)
+    check_literal(array_reference, dim=2, index=1, value=2)
+    check_literal(array_reference, dim=2, index=2, value=1)
+    # dim 3
+    check_range(array_reference, dim=3)
+    check_literal(array_reference, dim=3, index=0, value=1)
+    check_literal(array_reference, dim=3, index=1, value=2)
+    check_literal(array_reference, dim=3, index=2, value=3)
+    # dim 4
+    check_range(array_reference, dim=4)
+    check_bound(array_reference, dim=4, index=0,
+                operator=BinaryOperation.Operator.LBOUND)
+    check_literal(array_reference, dim=4, index=1, value=2)
+    check_literal(array_reference, dim=4, index=2, value=1)
+    # dim 5
+    check_range(array_reference, dim=5)
+    check_bound(array_reference, dim=5, index=0,
+                operator=BinaryOperation.Operator.LBOUND)
+    check_literal(array_reference, dim=5, index=1, value=2)
+    check_literal(array_reference, dim=5, index=2, value=3)
+    # dim 6
+    check_range(array_reference, dim=6)
+    check_bound(array_reference, dim=6, index=0,
+                operator=BinaryOperation.Operator.LBOUND)
+    check_bound(array_reference, dim=6, index=1,
+                operator=BinaryOperation.Operator.UBOUND)
+    check_literal(array_reference, dim=6, index=2, value=3)
+    # dim 7
+    check_range(array_reference, dim=7)
+    check_literal(array_reference, dim=7, index=0, value=1)
+    check_bound(array_reference, dim=7, index=1,
+                operator=BinaryOperation.Operator.UBOUND)
+    check_literal(array_reference, dim=7, index=2, value=3)
+
 
 @pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
                    "non-NEMO PSyIR")
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_array_product():
     ''' Check that we correctly handle array products. '''
-    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader(
@@ -1265,7 +1358,6 @@ def test_handling_if_stmt():
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
@@ -1284,7 +1376,6 @@ def test_handling_if_construct():
     ''' Test that fparser2 If_Construct is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''if (condition1 == 1) then
             branch1 = 1
@@ -1336,8 +1427,6 @@ def test_handling_if_construct_errors():
     ''' Test that unsupported If_Construct structures raise the proper
     errors.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
-
     reader = FortranStringReader(
         '''if (condition1) then
         elseif (condition2) then
@@ -1401,7 +1490,6 @@ def test_handling_complex_if_construct():
     ''' Test that nested If_Construct structures and empty bodies are
     handled properly.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''if (condition1) then
         elseif (condition2) then
@@ -1434,7 +1522,6 @@ def test_handling_case_construct():
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (selector)
             CASE (label1)
@@ -1474,7 +1561,7 @@ def test_handling_case_construct():
 def test_case_default():
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause. '''
-    from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
+    from fparser.two.Fortran2003 import Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
@@ -1511,7 +1598,6 @@ def test_case_default():
 def test_handling_case_list():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of conditions. '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
             CASE (label2, label3)
@@ -1543,7 +1629,6 @@ def test_handling_case_list():
 def test_handling_case_range():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a range. '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
             CASE (label4:label5)
@@ -1568,7 +1653,6 @@ def test_handling_case_range():
 def test_handling_case_range_list():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of ranges. '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
             CASE (:label1, label5:, label6)
@@ -1602,8 +1686,6 @@ def test_handling_invalid_case_construct():
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
-    from fparser.two.Fortran2003 import Execution_Part, Name
-
     # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
         '''SELECT CASE (selector)
@@ -1665,7 +1747,6 @@ def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1+4")
     fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
 
@@ -1729,7 +1810,7 @@ def test_handling_unaryopbase():
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
+    from fparser.two.Fortran2003 import UnaryOpBase
     reader = FortranStringReader("x=-4")
     fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
     assert isinstance(fp2unaryop, UnaryOpBase)
@@ -1778,7 +1859,7 @@ def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
+    from fparser.two.Fortran2003 import Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
@@ -1796,7 +1877,6 @@ def test_handling_return_stmt():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_do_stmt():
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         do i=1,10
             a=a+1
@@ -1830,7 +1910,6 @@ def test_handling_end_subroutine_stmt():
 def test_do_construct():
     ''' Check that do loop constructs are converted to the expected
     PSyIR node'''
-    from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyGen import Loop
     reader = FortranStringReader('''
         do i = 1, 10 , 2\n
@@ -1855,7 +1934,6 @@ def test_do_construct():
 @pytest.mark.usefixtures("f2008_parser")
 def test_do_construct_while():
     ''' Check that do while constructs are placed in Codeblocks '''
-    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         do while(a .gt. b)\n
             c = c + 1\n
