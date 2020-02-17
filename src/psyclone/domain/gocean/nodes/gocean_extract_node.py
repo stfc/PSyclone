@@ -65,7 +65,7 @@ class GOceanExtractNode(ExtractNode):
         program at code-generation time. If set, the driver will be created \
         in the current working directory with the name
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
-        corresponding values for this region.
+        corresponding values for this region. Defaults to False.
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
