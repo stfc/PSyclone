@@ -118,7 +118,8 @@ class SymbolTable(object):
 
         :param new_symbol: the symbol to add to the symbol table.
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param tag: a tag identifier for the new symbol.
+        :param tag: a tag identifier for the new symbol, by default no tag \
+            is given.
         :type tag: str
 
         :raises KeyError: if the symbol name is already in use.

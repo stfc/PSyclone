@@ -943,7 +943,8 @@ class OMPLoopTrans(ParallelLoopTrans):
                                    Config.get().reproducible_reductions)
 
 
-        # Add OMP symbol table variables if they don't already exist
+        # Add OMP common variables into the InvokeSchedule (root) symboltable
+        # if they don't already exist
         try:
             node.root.symbol_table.lookup_tag("omp_thread_index")
         except KeyError:
