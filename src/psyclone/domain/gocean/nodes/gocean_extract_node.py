@@ -65,7 +65,7 @@ class GOceanExtractNode(ExtractNode):
         program at code-generation time. If set, the driver will be created \
         in the current working directory with the name
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
-        corresponding values for this region.
+        corresponding values for this region. Defaults to False.
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
@@ -74,7 +74,7 @@ class GOceanExtractNode(ExtractNode):
                                                 parent=parent,
                                                 options=options)
         if options:
-            self._create_driver = options.get("create-driver", False)
+            self._create_driver = options.get("create_driver", False)
         else:
             self._create_driver = False
 
@@ -226,7 +226,7 @@ class GOceanExtractNode(ExtractNode):
                 # comparison with the post value works as expected
                 # TODO #644 - create the right "0.0" type here (e.g.
                 # 0.0d0, ...)
-                assign = AssignGen(prog, local_name, "0.0")
+                assign = AssignGen(prog, local_name, "0.0d0")
                 prog.add(assign)
 
         # Now add the region that was extracted here:

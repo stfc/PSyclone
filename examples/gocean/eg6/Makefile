@@ -82,4 +82,6 @@ psy.o:	$(KERNELS)
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(EXTRACT_DIR) -c $<
 
 clean:
-	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC) $(DRIVER_INIT)
+	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC)
+	rm -f $(DRIVER_INIT) $(DRIVER_INIT).f90 \
+		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90
