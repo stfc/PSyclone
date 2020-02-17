@@ -57,9 +57,9 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Arguments, KernelArgument, NameSpaceFactory, HaloExchange, GlobalSum, \
+    Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, Symbol, DataSymbol
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -1521,8 +1521,6 @@ class DynCollection(object):
         else:
             self._dofs_only = False
 
-        self._name_space_manager = NameSpaceFactory().create()
-
     def declarations(self, parent):
         '''
         Insert declarations for all necessary variables into the AST of
@@ -1706,8 +1704,16 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        return self._name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        if self._invoke.schedule.gen_symbol_table:
+            raise TypeError()  # FIXME
+        try:
+            return self._invoke.schedule.symbol_table.lookup_tag(unique).name
+        except KeyError:
+            new_name = \
+                self._invoke.schedule.symbol_table.new_symbol_name(root_name)
+            self._invoke.schedule.symbol_table.add(
+                Symbol(new_name), tag=unique)
+            return new_name
 
     @staticmethod
     def dofmap_name(arg):
@@ -1721,11 +1727,9 @@ class DynStencils(DynCollection):
         :returns: a valid unique dofmap name for a stencil in the PSy layer.
         :rtype: str
         '''
-        name_space_manager = NameSpaceFactory().create()
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return root_name  # FIXME symbol_table with tag=unique
 
     @staticmethod
     def dofmap_size_name(arg):
@@ -1741,9 +1745,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
-        name_space_manager = NameSpaceFactory().create()
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return root_name  # FIXME symbol_table with tag=unique
 
     @staticmethod
     def direction_name(arg):
@@ -1757,11 +1759,9 @@ class DynStencils(DynCollection):
         :returns: a Fortran variable name for the stencil direction.
         :rtype: str
         '''
-        name_space_manager = NameSpaceFactory().create()
         root_name = arg.name+"_direction"
         unique = DynStencils.stencil_unique_str(arg, "direction")
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return root_name  # FIXME symbol_table with tag=unique
 
     @property
     def _unique_extent_vars(self):
@@ -2034,9 +2034,10 @@ class DynReferenceElement(DynCollection):
             return
 
         # Create and store a name for the reference element object
-        self._ref_elem_name = self._name_space_manager.create_name(
-            root_name="reference_element", context="PSyVars",
-            label="reference_element")
+        if self._invoke.schedule.gen_symbol_table:
+            raise TypeError()  # FIXME
+        self._ref_elem_name = \
+            self._invoke.schedule.name_from_tag("reference_element")
 
         # Create and store names for the number of horizontal/vertical faces
         # as required.
@@ -2051,42 +2052,35 @@ class DynReferenceElement(DynCollection):
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties):
-            self._nfaces_h_name = self._name_space_manager.create_name(
-                root_name="nfaces_re_h", context="PSyVars",
-                label="nfaces_re_h")
+            self._nfaces_h_name = \
+                self._invoke.schedule.name_from_tag("nfaces_re_h")
             if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
                in self._properties:
                 self._horiz_face_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="normals_to_horiz_faces", context="PSyVars",
-                        label="normals_to_horiz_faces")
+                    self._invoke.schedule.name_from_tag(
+                        "normals_to_horiz_faces")
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
                in self._properties:
                 self._horiz_face_out_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="out_normals_to_horiz_faces",
-                        context="PSyVars", label="out_normals_to_horiz_faces")
+                    self._invoke.schedule.name_from_tag(
+                        "out_normals_to_horiz_faces")
 
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_name = self._name_space_manager.create_name(
-                root_name="nfaces_re_v", context="PSyVars",
-                label="nfaces_re_v")
+            self._nfaces_v_name = \
+                self._invoke.schedule.name_from_tag("nfaces_re_v")
             if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
                in self._properties:
                 self._vert_face_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="normals_to_vert_faces", context="PSyVars",
-                        label="normals_to_vert_faces")
+                    self._invoke.schedule.name_from_tag(
+                        "normals_to_vert_faces")
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
                in self._properties:
                 self._vert_face_out_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="out_normals_to_vert_faces",
-                        context="PSyVars",
-                        label="out_normals_to_vert_faces")
+                    self._invoke.schedule.name_from_tag(
+                        "out_normals_to_vert_faces")
 
     def _invoke_declarations(self, parent):
         '''
@@ -2743,11 +2737,8 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        # Use our namespace manager to create a unique name unless
-        # the context and label match and in this case return the
-        # previous name.
-        self._nlayers_name = self._name_space_manager.create_name(
-            root_name="nlayers", context="PSyVars", label="nlayers")
+        self._nlayers_name = \
+            self._invoke.schedule.symbol_table.name_from_tag("nlayers")
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -3018,8 +3009,8 @@ class DynCMAOperators(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise number of cols"))
         parent.add(CommentGen(parent, ""))
-        ncol_name = self._name_space_manager.create_name(
-            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        ncol_name = \
+            self._invoke.schedule.symbol_table.name_from_tag("ncell_2d")
         parent.add(
             AssignGen(
                 parent, lhs=ncol_name,
@@ -3035,19 +3026,15 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
             # matrix
-            cma_name = self._name_space_manager.create_name(
-                root_name=op_name+"_matrix",
-                context="PSyVars",
-                label=op_name+"_matrix")
+            cma_name = self._invoke.schedule.symbol_table.\
+                name_from_tag(op_name+"_matrix")
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._name_space_manager.create_name(
-                    root_name=op_name+"_"+param,
-                    context="PSyVars",
-                    label=op_name+"_"+param)
+                param_name = self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_"+param)
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
@@ -3088,19 +3075,17 @@ class DynCMAOperators(DynCollection):
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
-            cma_name = self._name_space_manager.create_name(
-                root_name=op_name+"_matrix", context="PSyVars",
-                label=op_name+"_matrix")
+            cma_name = self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_matrix")
             parent.add(DeclGen(parent, datatype="real", kind="r_def",
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._name_space_manager.create_name(
-                    root_name=op_name+"_"+param,
-                    context="PSyVars",
-                    label=op_name+"_"+param))
+                param_name = self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_"+param)
+                param_names.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=param_names))
 
@@ -3130,10 +3115,8 @@ class DynCMAOperators(DynCollection):
             # get upset if this ordering is not followed)
             _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._name_space_manager.create_name(
-                    root_name=op_name+"_"+param,
-                    context="PSyVars",
-                    label=op_name+"_"+param)
+                param_name = self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_"+param)
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
                                intent="in",
@@ -3171,7 +3154,6 @@ class DynMeshes(object):
     '''
 
     def __init__(self, invoke, unique_psy_vars):
-        self._name_space_manager = NameSpaceFactory().create()
         # Dict of DynInterGrid objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
         # names.
@@ -3224,15 +3206,11 @@ class DynMeshes(object):
 
             # Create and store the names of the associated mesh objects
             _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name="mesh_{0}".format(fine_arg.name),
-                    context="PSyVars",
-                    label="mesh_{0}".format(fine_arg.name)))
+                self._schedule.symbol_table.name_from_tag(
+                    "mesh_{0}".format(fine_arg.name)))
             _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name="mesh_{0}".format(coarse_arg.name),
-                    context="PSyVars",
-                    label="mesh_{0}".format(coarse_arg.name)))
+                self._schedule.symbol_table.name_from_tag(
+                    "mesh_{0}".format(coarse_arg.name)))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
@@ -3253,8 +3231,8 @@ class DynMeshes(object):
         if not _name_set:
             if (requires_ref_element or (Config.get().distributed_memory and
                                          not invoke.iterate_over_dofs_only)):
-                _name_set.add(self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh"))
+                _name_set.add(
+                    self._schedule.symbol_table.name_from_tag("mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -3278,12 +3256,12 @@ class DynMeshes(object):
                 carg_name = self._ig_kernels[call.name].coarse.name
                 # Colour map
                 base_name = "cmap_" + carg_name
-                colour_map = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
+                colour_map = \
+                    self._schedule.symbol_table.name_from_tag(base_name)
                 # No. of colours
                 base_name = "ncolour_" + carg_name
-                ncolours = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
+                ncolours = \
+                    self._schedule.symbol_table.name_from_tag(base_name)
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
@@ -3292,8 +3270,8 @@ class DynMeshes(object):
         if not self._mesh_names and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
-            mesh_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            mesh_name = \
+                self._schedule.symbol_table.name_from_tag("mesh")
             self._mesh_names.append(mesh_name)
 
     def declarations(self, parent):
@@ -3346,12 +3324,12 @@ class DynMeshes(object):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
-            colour_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
+            colour_map = \
+                self._schedule.symbol_table.name_from_tag(base_name)
             # No. of colours
             base_name = "ncolour"
-            ncolours = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
+            ncolours = \
+                self._schedule.symbol_table.name_from_tag(base_name)
             # Add declarations for these variables
             parent.add(DeclGen(parent, datatype="integer",
                                pointer=True,
@@ -3389,11 +3367,9 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                colour_map = self._name_space_manager.create_name(
-                    root_name="cmap", context="PSyVars", label="cmap")
-                ncolour = self._name_space_manager.create_name(
-                    root_name="ncolour", context="PSyVars",
-                    label="ncolour")
+                colour_map =  self._schedule.symbol_table.name_from_tag("cmap")
+                ncolour = \
+                    self._schedule.symbol_table.name_from_tag("ncolour")
                 # Get the number of colours
                 parent.add(AssignGen(
                     parent, lhs=ncolour,
@@ -3513,7 +3489,6 @@ class DynInterGrid(object):
     :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     '''
     def __init__(self, fine_arg, coarse_arg):
-        self._name_space_manager = NameSpaceFactory().create()
 
         # Arguments on the coarse and fine grids
         self.coarse = coarse_arg
@@ -3850,10 +3825,9 @@ class DynBasisFunctions(DynCollection):
                 # our namespace manager to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    var_names.append(
-                        self._name_space_manager.create_name(
-                            root_name=var+"_proxy", context="PSyVars",
-                            label=var+"_proxy"))
+                    var_name = self._invoke.schedule.symbol_table.\
+                        name_from_tag(var+"_proxy")
+                    var_names.append(var_name)
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -4647,8 +4621,6 @@ class DynInvoke(Invoke):
         from psyclone.f2pygen import SubroutineGen, AssignGen, \
             DeclGen, CommentGen
 
-        # Create a namespace manager so we can avoid name clashes
-        self._name_space_manager = NameSpaceFactory().create()
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
@@ -4671,8 +4643,16 @@ class DynInvoke(Invoke):
             # to know the number of OpenMP threads
             from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
-            nthreads_name = self._name_space_manager.create_name(
-                root_name="nthreads", context="PSyVars", label="nthreads")
+            try:
+                tag = "omp_num_threads"
+                nthreads_name = \
+                    self.schedule.symbol_table.lookup_tag(tag).name
+            except KeyError:
+                nthreads_name = \
+                    self.schedule.symbol_table.new_symbol_name("nthreads")
+                self.schedule.symbol_table.add(
+                    DataSymbol(nthreads_name, DataType.INTEGER),
+                    tag="omp_num_threads")
             invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
                                   funcnames=[omp_function_name]))
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
@@ -4768,9 +4748,8 @@ class DynGlobalSum(GlobalSum):
         ''' Dynamo specific code generation for this class '''
         from psyclone.f2pygen import AssignGen, TypeDeclGen, UseGen
         name = self._scalar.name
-        name_space_manager = NameSpaceFactory().create()
-        sum_name = name_space_manager.create_name(
-            root_name="global_sum", context="PSyVars", label="global_sum")
+        sum_name = self.root.gen_symbol_table.new_symbol_name("global_sum")
+        self.root.gen_symbol_table.add(Symbol(sum_name), tag="global_sum")
         parent.add(UseGen(parent, name="scalar_mod", only=True,
                           funcnames=["scalar_type"]))
         parent.add(TypeDeclGen(parent, datatype="scalar_type",
@@ -5831,10 +5810,6 @@ class DynLoop(Loop):
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # Get the namespace manager instance so we can look-up
-        # the name of the nlayers and ndf variables
-        self._name_space_manager = NameSpaceFactory().create()
-
         # set our variable name at initialisation as it might be
         # required by other classes before code generation
         if self._loop_type == "colours":
@@ -5842,10 +5817,15 @@ class DynLoop(Loop):
         elif self._loop_type == "colour":
             self._variable_name = "cell"
         elif self._loop_type == "dofs":
-            self._variable_name = self._name_space_manager.\
-                create_name(root_name="df",
-                            context="PSyVars",
-                            label="dof_loop_idx")
+            try:
+                self._variable_name = \
+                    self.root.symbol_table.lookup_tag("dof_loop_idx").name
+            except KeyError:
+                self._variable_name = \
+                    self.root.symbol_table.new_symbol_name("df")
+                self.root.symbol_table.add(
+                    DataSymbol(self._variable_name, DataType.INTEGER),
+                    tag="dof_loop_idx")
         else:
             self._variable_name = "cell"
 
@@ -6040,8 +6020,7 @@ class DynLoop(Loop):
                 raise GenerationError(
                     "Unsupported lower bound name '{0}' "
                     "found".format(self._lower_bound_name))
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            mesh_obj_name = self.root.gen_symbol_table.lookup_tag("mesh").name
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
                 + prev_space_index_str + ")+1"
 
@@ -6071,8 +6050,11 @@ class DynLoop(Loop):
         else:
             # It's not an inter-grid kernel so there's only one mesh
             mesh_name = "mesh"
-        mesh = self._name_space_manager.create_name(
-            root_name=mesh_name, context="PSyVars", label=mesh_name)
+        try:
+            mesh = self.root.symbol_table.lookup_tag(mesh_name).name
+        except KeyError:
+            mesh = self.root.symbol_table.new_symbol_name(mesh_name)
+            self.root.symbol_table.add(Symbol(mesh_name), tag=mesh_name)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -6520,7 +6502,6 @@ class DynKern(CodedKern):
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
         self._reference_element = None
@@ -6682,9 +6663,10 @@ class DynKern(CodedKern):
             # previous name. We use the full text of the original
             # as a label.
             if qr_arg.varname:
-                self._qr_name = self._name_space_manager.create_name(
-                    root_name=qr_arg.varname, context="AlgArgs",
-                    label=self._qr_text)
+                self._qr_name = qr_arg.varname # FIXME add to ST
+                # self._name_space_manager.create_name(
+                #    root_name=qr_arg.varname, context="AlgArgs",
+                #    label=self._qr_text)
             else:
                 self._qr_name = ""
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
@@ -6770,8 +6752,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
-            cmap = self._name_space_manager.create_name(
-                root_name="cmap", context="PSyVars", label="cmap")
+            cmap = self.root.gen_symbol_table.lookup_tag("cmap").name
         return cmap
 
     @property
@@ -6796,8 +6777,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
-            ncols = self._name_space_manager.create_name(
-                root_name="ncolour", context="PSyVars", label="ncolour")
+            ncols = self.root.gen_symbol_table.lookup_tag("ncolour").name
         return ncols
 
     @property
@@ -7395,7 +7375,6 @@ class KernCallArgList(ArgOrdering):
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
         self._arglist = []
-        self._name_space_manager = NameSpaceFactory().create()
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
@@ -7413,26 +7392,24 @@ class KernCallArgList(ArgOrdering):
                                    arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        map_name = self._kern.root.gen_symbol_table.name_from_tag(base_name)
         # Add the cell map to our argument list
         self._arglist.append("{0}(:,{1})".format(map_name,
                                                  self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
-        ncellpercell = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        ncellpercell = \
+            self._kern.root.gen_symbol_table.name_from_tag(base_name)
         self._arglist.append(ncellpercell)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        ncell_fine = self._kern.root.gen_symbol_table.name_from_tag(base_name)
         self._arglist.append(ncell_fine)
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list'''
-        nlayers_name = self._name_space_manager.create_name(
-            root_name="nlayers", context="PSyVars", label="nlayers")
+        nlayers_name = \
+            self._kern.root.gen_symbol_table.name_from_tag("nlayers")
         self._arglist.append(nlayers_name)
         self._nlayers_positions.append(len(self._arglist))
 
@@ -7447,8 +7424,8 @@ class KernCallArgList(ArgOrdering):
 
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list '''
-        ncell2d_name = self._name_space_manager.create_name(
-            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        ncell2d_name = \
+            self._kern.root.gen_symbol_table.name_from_tag("ncell_2d")
         self._arglist.append(ncell2d_name)
 
     def field_vector(self, argvect):
@@ -7531,11 +7508,9 @@ class KernCallArgList(ArgOrdering):
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            self._arglist.append(
-                self._name_space_manager.create_name(
-                    root_name=arg.name+"_"+component,
-                    context="PSyVars",
-                    label=arg.name+"_"+component))
+            component_name = self._kern.root.symbol_table.name_from_tag(
+                arg.name+"_"+component)
+            self._arglist.append(component_name)
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
@@ -7883,7 +7858,6 @@ class KernStubArgList(ArgOrdering):
         self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
         self._arglist = []
-        self._name_space_manager = NameSpaceFactory().create()
 
     def cell_position(self):
         ''' Add cell position to the argument list. '''
@@ -8157,7 +8131,6 @@ class KernStubArgList(ArgOrdering):
 #        ArgOrdering.__init__(self, kern)
 #        self._parent = parent
 #        self._position = position
-#        self._name_space_manager = NameSpaceFactory().create()
 #        self._scalar_position = None
 #        self._array_position = None
 #
@@ -8469,7 +8442,6 @@ class DynKernelArguments(Arguments):
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
-        self._name_space_manager = NameSpaceFactory().create()
 
         Arguments.__init__(self, parent_call)
 
@@ -8520,9 +8492,10 @@ class DynKernelArguments(Arguments):
                     # Ensure extent argument name is registered with
                     # namespace manager
                     root = arg.stencil.extent_arg.varname
-                    new_name = self._name_space_manager.create_name(
-                        root_name=root, context="AlgArgs",
-                        label=arg.stencil.extent_arg.text)
+                    new_name = root  # FIXME add to ST
+                        # self._name_space_manager.create_name(
+                        # root_name=root, context="AlgArgs",
+                        # label=arg.stencil.extent_arg.text)
                     arg.stencil.extent_arg.varname = new_name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
@@ -8532,9 +8505,10 @@ class DynKernelArguments(Arguments):
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
                     root = arg.stencil.direction_arg.varname
-                    unique_name = self._name_space_manager.create_name(
-                        root_name=root, context="AlgArgs",
-                        label=arg.stencil.direction_arg.text)
+                    unique_name = root  # FIXME add to ST
+                        # self._name_space_manager.create_name(
+                        # root_name=root, context="AlgArgs",
+                        # label=arg.stencil.direction_arg.text)
                     arg.stencil.direction_arg.varname = unique_name
 
         self._dofs = []
@@ -9143,6 +9117,7 @@ class DynKernCallFactory(object):
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
         kern.parent = cloop.children[3]
+
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)

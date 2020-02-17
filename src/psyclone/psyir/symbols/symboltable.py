@@ -231,6 +231,14 @@ class SymbolTable(object):
             raise KeyError("Could not find the tag '{0}' in the Symbol Table."
                            "".format(tag))
 
+    def name_from_tag(self, tag):
+        try:
+            return self.lookup(tag).name
+        except KeyError:
+            self.add(Symbol(tag), tag=tag)
+            return tag
+
+
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
 

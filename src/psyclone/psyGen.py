@@ -892,6 +892,16 @@ class InvokeSchedule(Schedule):
 
     '''
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
+
+        # Initialize class
+        self._parent = None
+        self._symbol_table = SymbolTable()  # Permament symbol table
+        self._gen_symbol_table = None  # Symbol table used on each psy.gen call
+        self._invoke = None
+        self._opencl = False  # Whether or not to generate OpenCL
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barrier": True}
+
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
@@ -905,16 +915,6 @@ class InvokeSchedule(Schedule):
             else:
                 sequence.append(KernFactory.create(call, parent=self))
         Schedule.__init__(self, children=sequence, parent=None)
-        self._invoke = None
-        self._opencl = False  # Whether or not to generate OpenCL
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
-        # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
-        # it would be better to merge them. The SymbolTable is only used
-        # for global variables extracted from the Kernels.
-        self._name_space_manager = NameSpaceFactory().create()
-        self._symbol_table = SymbolTable()  # Permament symbol table
-        self._gen_symbol_table = None  # Symbol table used on each psy.gen call
         self._text_name = "InvokeSchedule"
 
     @property
@@ -1002,7 +1002,9 @@ class InvokeSchedule(Schedule):
 
         # Use a gen_symbol_table wich is a duplicate of the current permanent
         # SymbolTable
-        self._gen_symbol_table = self.symbol_table.shallow_copy()
+        symbol_table_before_gen = self.symbol_table
+        self._symbol_table = self.symbol_table.shallow_copy()
+        self._gen_symbol_table = self._symbol_table  # FIXME delete
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
@@ -1125,6 +1127,9 @@ class InvokeSchedule(Schedule):
                     AssignGen(parent, lhs=flag,
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
+
+        # Restore symbol table
+        self._symbol_table = symbol_table_before_gen
 
     @property
     def opencl(self):
@@ -2600,10 +2605,8 @@ class Kern(Node):
         if self.reprod_reduction:
             idx_name = \
                 self.root.gen_symbol_table.lookup_tag("omp_threads_idx").name
-            local_name = self._name_space_manager.create_name(
-                root_name="l_"+name,
-                context="PSyVars",
-                label=name)
+            local_name = \
+                self.root.gen_symbol_table.lookup_tag("l_" + name).name
             return local_name + "(1," + idx_name + ")"
         else:
             return name
@@ -2680,6 +2683,7 @@ class CodedKern(Kern):
 
     '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
+        self._parent = parent
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
                                         KernelArguments(call, self))
@@ -3526,7 +3530,6 @@ class Argument(object):
             self._form = ""
             self._is_literal = False
         self._access = access
-        self._name_space_manager = NameSpaceFactory().create()
 
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
@@ -3538,8 +3541,9 @@ class Argument(object):
             # Use our namespace manager to create a unique name unless
             # the context and label match in which case return the
             # previous name.
-            self._name = self._name_space_manager.create_name(
-                root_name=self._orig_name, context="AlgArgs", label=self._text)
+            self._name = self._orig_name # FIXME: Add to SymbolTable
+            #            self._name_space_manager.create_name(
+            #    root_name=self._orig_name, context="AlgArgs", label=self._text)
         self._vector_size = 1
 
     def __str__(self):
