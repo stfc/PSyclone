@@ -797,7 +797,7 @@ class KernelType(object):
 
         :param str name: the name of the integer variable to find.
 
-        :returns: value of the specified integer variable or None.
+        :returns: value of the specified integer variable (lower case) or None.
         :rtype: str
 
         :raises ParseError: if the RHS of the assignment is not a Name.
@@ -818,7 +818,7 @@ class KernelType(object):
                         raise ParseError(
                             "get_integer_variable: RHS of assignment is not "
                             "a variable name: '{0}'".format(str(assign)))
-                    return str(assign.items[2])
+                    return str(assign.items[2]).lower()
         return None
 
     def get_integer_array(self, name):
@@ -827,7 +827,8 @@ class KernelType(object):
         if no matching variable is found.
 
         :param str name: the name of the integer array to find.
-        :returns: list of values.
+
+        :returns: list of values (lower-case).
         :rtype: list of str.
 
         :raises InternalError: if we fail to parse the LHS of the array \
@@ -865,5 +866,5 @@ class KernelType(object):
                 if not names:
                     raise InternalError("Failed to parse array constructor: "
                                         "'{0}'".format(str(assign.items[2])))
-                return [str(name) for name in names]
+                return [str(name).lower() for name in names]
         return []
