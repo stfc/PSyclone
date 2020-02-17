@@ -462,6 +462,18 @@ def test_unecessary_shape():
             in str(excinfo.value))
 
 
+def test_shape_array():
+    ''' Check that we support gh_shape being an array containing multiple
+    entries. '''
+    code = CODE.replace(
+        "gh_shape = gh_quadrature_XYoZ",
+        "gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)")
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    dkm = DynKernMetadata(ast, name=name)
+    assert 0  # ARPDBG
+
+
 def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''

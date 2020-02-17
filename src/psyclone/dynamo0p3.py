@@ -950,10 +950,16 @@ class DynKernMetadata(KernelType):
         # no CMA operators are involved)
         self._cma_operation = None
 
-        # Query the meta-data for the evaluator shape (only required if
+        # Query the meta-data for the evaluator shape(s) (only required if
         # kernel uses quadrature or an evaluator). If it is not
-        # present then eval_shape will be None.
-        self._eval_shape = self.get_integer_variable('gh_shape')
+        # present then eval_shapes will be an empty list.
+        shape = self.get_integer_variable('gh_shape')
+        if not shape:
+            # There's no scalar gh_shape - is it present as an array?
+            self._eval_shapes = self.get_integer_array('gh_shape')
+        else:
+            self._eval_shapes = [shape]
+
         # The list of function space names for which an evaluator is
         # required. We set this up below once we've processed the meta-
         # -data describing the kernel arguments.
@@ -1015,7 +1021,7 @@ class DynKernMetadata(KernelType):
             for name in descriptor.operator_names:
                 if name in VALID_EVALUATOR_NAMES:
                     need_evaluator = True
-                    if not self._eval_shape:
+                    if not self._eval_shapes:
                         raise ParseError(
                             "In the dynamo0.3 API any kernel requiring "
                             "quadrature or an evaluator ({0}) must also "
@@ -1023,13 +1029,14 @@ class DynKernMetadata(KernelType):
                             "'gh_shape' in the kernel meta-data but "
                             "this is missing for kernel '{1}'".
                             format(VALID_EVALUATOR_NAMES, self.name))
-                    if self._eval_shape not in VALID_EVALUATOR_SHAPES:
+                    shape_set = set(self._eval_shapes)
+                    if not shape_set.issubset(set(VALID_EVALUATOR_SHAPES):
                         raise ParseError(
                             "In the dynamo0.3 API a kernel requiring either "
-                            "quadrature or an evaluator must request a valid "
-                            "gh_shape (one of {0}) but got '{1}' for "
-                            "kernel '{2}'".
-                            format(VALID_EVALUATOR_SHAPES, self._eval_shape,
+                            "quadrature or an evaluator must request one or "
+                            "more valid gh_shapes (one of {0}) but got '{1}' "
+                            "for kernel '{2}'".
+                            format(VALID_EVALUATOR_SHAPES, self._eval_shapes,
                                    self.name))
 
             self._func_descriptors.append(descriptor)
@@ -1039,7 +1046,7 @@ class DynKernMetadata(KernelType):
         # any evaluators (gh_shape=gh_evaluator) should be provided.
         _targets = self.get_integer_array('gh_evaluator_targets')
         if not _targets and \
-           self._eval_shape and self._eval_shape.lower() == "gh_evaluator":
+           self._eval_shapes and "gh_evaluator" in self._eval_shapes:
             # Use the FS of the kernel arguments that are updated
             write_accesses = AccessType.all_write_accesses()
             write_args = psyGen.args_filter(self._arg_descriptors,
@@ -1092,11 +1099,11 @@ class DynKernMetadata(KernelType):
 
         # Check that no shape has been supplied if no basis or
         # differential basis functions are required for the kernel
-        if not need_evaluator and self._eval_shape:
+        if not need_evaluator and self._eval_shapes:
             raise ParseError(
-                "Kernel '{0}' specifies a gh_shape ({1}) but does not "
-                "need an evaluator because no basis or differential basis "
-                "functions are required".format(self.name, self._eval_shape))
+                "Kernel '{0}' specifies one or more gh_shapes ({1}) but does "
+                "not need an evaluator because no basis or differential basis "
+                "functions are required".format(self.name, self._eval_shapes))
         # Check that gh_evaluator_targets is only present if required
         if self._eval_targets:
             if not need_evaluator:
@@ -1105,11 +1112,11 @@ class DynKernMetadata(KernelType):
                     "does not need an evaluator because no basis or "
                     "differential basis functions are required".
                     format(self.name, self._eval_targets))
-            if self._eval_shape != "gh_evaluator":
+            if "gh_evaluator" not in self._eval_shapes:
                 raise ParseError(
                     "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
                     "does not need an evaluator because gh_shape={2}".
-                    format(self.name, self._eval_targets, self._eval_shape))
+                    format(self.name, self._eval_targets, self._eval_shapes))
             # Check that there is a kernel argument on each of the
             # specified spaces...
             # Create a list (set) of the function spaces associated with
@@ -1385,18 +1392,17 @@ class DynKernMetadata(KernelType):
         return self._cma_operation
 
     @property
-    def eval_shape(self):
+    def eval_shapes(self):
         '''
-        Returns the shape of evaluator required by this kernel or an
+        Returns the shape(s) of evaluator required by this kernel or an
         empty string if none.
 
-        :return: the shape of the evaluator (one of VALID_EVALUATOR_SHAPES)
-                 or an empty string if the kernel does not require one.
-        :rtype: string
+        :return: the shape(s) of the evaluator (one of VALID_EVALUATOR_SHAPES)
+                 or an empty list if the kernel does not require one.
+        :rtype: list
+
         '''
-        if self._eval_shape:
-            return self._eval_shape
-        return ""
+        return self._eval_shapes
 
     @property
     def eval_targets(self):
@@ -3611,7 +3617,7 @@ class DynBasisFunctions(DynCollection):
 
         for call in self._calls:
 
-            if isinstance(call, DynBuiltIn) or not call.eval_shape:
+            if isinstance(call, DynBuiltIn) or not call.eval_shapes:
                 # Skip this kernel if it doesn't require basis/diff basis fns
                 continue
 
