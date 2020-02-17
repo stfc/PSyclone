@@ -67,7 +67,6 @@ class GOceanExtractNode(ExtractNode):
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
         corresponding values for this region.
 
-
     '''
     def __init__(self, ast=None, children=None, parent=None,
                  options=None):
@@ -94,7 +93,8 @@ class GOceanExtractNode(ExtractNode):
         It uses the PSyData API (via the base class ExtractNode) to create
         the required callbacks that will allow a library to write the
         kernel data to a file. If requested, it will also trigger the
-        creation of a stand-alone
+        creation of a stand-alone driver program, which can read in the
+        extracted data.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
@@ -133,7 +133,8 @@ class GOceanExtractNode(ExtractNode):
 
         module_name, region_name = self.region_identifier
         module = ModuleGen(name=module_name)
-        prog = SubroutineGen(parent=module, name=module_name+"_code")
+        prog = SubroutineGen(parent=module, name=module_name+"_code",
+                             implicitnone=True)
         module.add(prog)
         use = UseGen(prog, "psy_data_mod", only=True,
                      funcnames=["PSyDataType"])
