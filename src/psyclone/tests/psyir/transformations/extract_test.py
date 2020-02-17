@@ -112,8 +112,8 @@ def test_node_list_error(tmpdir):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(invoke0)
     assert ("Error in LFRicExtractTrans: Argument must be "
-            "a single Node in a Schedule or a list of Nodes in a Schedule "
-            "but have been passed an object of type: "
+            "a single Node in a Schedule, a Schedule or a list of Nodes in a "
+            "Schedule but have been passed an object of type: "
             "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
 
     # Supply Nodes in incorrect order or duplicate Nodes

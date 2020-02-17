@@ -94,7 +94,8 @@ class GOceanExtractNode(ExtractNode):
         It uses the PSyData API (via the base class ExtractNode) to create
         the required callbacks that will allow a library to write the
         kernel data to a file. If requested, it will also trigger the
-        creation of a stand-alone
+        creation of a stand-alone driver program, which can read in the
+        extracted data.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
@@ -133,7 +134,8 @@ class GOceanExtractNode(ExtractNode):
 
         module_name, region_name = self.region_identifier
         module = ModuleGen(name=module_name)
-        prog = SubroutineGen(parent=module, name=module_name+"_code")
+        prog = SubroutineGen(parent=module, name=module_name+"_code",
+                             implicitnone=True)
         module.add(prog)
         use = UseGen(prog, "psy_data_mod", only=True,
                      funcnames=["PSyDataType"])
@@ -222,6 +224,8 @@ class GOceanExtractNode(ExtractNode):
                 # values that are not set at all (halo regions, or a
                 # kernel might not set all values). This way the array
                 # comparison with the post value works as expected
+                # TODO #644 - create the right "0.0" type here (e.g.
+                # 0.0d0, ...)
                 assign = AssignGen(prog, local_name, "0.0")
                 prog.add(assign)
 

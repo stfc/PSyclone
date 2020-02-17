@@ -100,13 +100,18 @@ Example 5: Profiling
 ^^^^^^^^^^^^^^^^^^^^
 
 This example shows how to use the profiling support in PSyclone.
-It instruments two invoke statements and links in with the
-template profiling library included in PSyclone (see 
-:ref:`profiling_third_party_tools`). This library just
+It instruments two invoke statements and can link in with any
+of the following profiling wrapper libraries: template,
+simple_timer, apeg-dl_timer, and DrHook (see
+:ref:`profiling_third_party_tools`). The ``README.md``
+file contains detailed instructions on how to build the
+different executables. By default (i.e. just using ``make``
+without additional parameters) it links in with the
+template profiling library included in PSyclone. This library just
 prints out the name of the module and region before and after each
-invoke is executed. If you compile the profiling wrapper,
-this example will create a stand-alone program that can be
-executed.
+invoke is executed. This example can actually be executed to
+test the behaviour of the various profiling wrappers, and is
+also useful if you want to develop your own wrapper libraries.
 
 
 Example 6: Kernel data extraction

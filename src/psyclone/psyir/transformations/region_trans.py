@@ -97,8 +97,8 @@ class RegionTrans(Transformation):
         arg_type = str(type(nodes))
         raise TransformationError("Error in {1}: "
                                   "Argument must be a single Node in a "
-                                  "Schedule or a list of Nodes in a "
-                                  "Schedule but have been passed an "
+                                  "Schedule, a Schedule or a list of Nodes "
+                                  "in a Schedule but have been passed an "
                                   "object of type: {0}".
                                   format(arg_type, self.name))
 
