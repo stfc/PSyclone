@@ -3392,14 +3392,10 @@ class DynMeshes(object):
         # Loop over the DynInterGrid objects in our dictionary
         for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
-            fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(dig.fine.name),
-                context="PSyVars",
-                label="mesh_{0}".format(dig.fine.name))
-            coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(dig.coarse.name),
-                context="PSyVars",
-                label="mesh_{0}".format(dig.coarse.name))
+            fine_mesh = self._schedule.symbol_table.name_from_tag(
+                "mesh_{0}".format(dig.fine.name))
+            coarse_mesh = self._schedule.symbol_table.name_from_tag(
+                "mesh_{0}".format(dig.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
@@ -3494,30 +3490,23 @@ class DynInterGrid(object):
         self.coarse = coarse_arg
         self.fine = fine_arg
 
+        symtab = self.coarse.call.root.symbol_table
+
         # Generate name for inter-mesh map
         base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
                                                coarse_arg.name)
-        self.mmap = self._name_space_manager.create_name(
-            root_name=base_mmap_name,
-            context="PSyVars",
-            label=base_mmap_name)
+        self.mmap = symtab.name_from_tag(base_mmap_name)
 
         # Generate name for ncell variables
-        self.ncell_fine = self._name_space_manager.create_name(
-            root_name="ncell_{0}".format(fine_arg.name),
-            context="PSyVars",
-            label="ncell_{0}".format(fine_arg.name))
+        self.ncell_fine = symtab.name_from_tag(
+            "ncell_{0}".format(fine_arg.name))
         # No. of fine cells per coarse cell
-        self.ncellpercell = self._name_space_manager.create_name(
-            root_name="ncpc_{0}_{1}".format(fine_arg.name,
-                                            coarse_arg.name),
-            context="PSyVars",
-            label="ncpc_{0}_{1}".format(fine_arg.name,
-                                        coarse_arg.name))
+        self.ncellpercell = symtab.name_from_tag(
+            "ncpc_{0}_{1}".format(fine_arg.name, coarse_arg.name))
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
-        self.cell_map = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        self.cell_map = symtab.name_from_tag(base_name)
+
         # We have no colourmap information when first created
         self.colourmap = ""
         # Name of the variable holding the number of colours

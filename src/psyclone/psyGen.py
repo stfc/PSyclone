@@ -2574,7 +2574,7 @@ class Kern(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
-        thread_idx = self.root.symbol_table.lookup_tag("omp_threads_idx").name
+        thread_idx = self.root.symbol_table.lookup_tag("omp_thread_index").name
         nthreads = self.root.symbol_table.lookup_tag("omp_num_threads").name
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
@@ -2601,12 +2601,11 @@ class Kern(Node):
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
         thread.'''
-        # gen_symbol_table because this is always call from a gen_code method
         if self.reprod_reduction:
             idx_name = \
-                self.root.gen_symbol_table.lookup_tag("omp_threads_idx").name
+                self.root.symbol_table.lookup_tag("omp_thread_index").name
             local_name = \
-                self.root.gen_symbol_table.lookup_tag("l_" + name).name
+                self.root.symbol_table.name_from_tag("l_" + name)
             return local_name + "(1," + idx_name + ")"
         else:
             return name
