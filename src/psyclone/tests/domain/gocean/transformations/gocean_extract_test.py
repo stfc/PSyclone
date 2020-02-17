@@ -361,7 +361,8 @@ def test_driver_creation(tmpdir):
     # This is an excerpt of the code that should get created.
     # It is tested line by line since there is other code in between
     # which is not important, and the order might also change.
-    expected = '''      REAL(KIND=8), allocatable, dimension(:,:) :: u_fld
+    expected = '''      IMPLICIT NONE
+      REAL(KIND=8), allocatable, dimension(:,:) :: u_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: p_fld_post
       REAL(KIND=8), allocatable, dimension(:,:) :: p_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld_post

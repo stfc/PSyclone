@@ -184,6 +184,9 @@ Some important details:
   #) Standard Python functions like `__str__` etc. need only be documented with a
      simple informal comment.
 
+  #) Only document exceptions that are raised directly by a method, not exceptions
+     that might be raised in base classes.
+
 File Names and Directory Layout
 ################################
 Any file in PSyclone should only contain one main class (helper classes or functions
