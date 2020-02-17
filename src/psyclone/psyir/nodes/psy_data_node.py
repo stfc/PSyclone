@@ -95,19 +95,18 @@ class PSyDataNode(Node):
         from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
-        if not children:
-            super(PSyDataNode, self).__init__(ast=ast, children=children,
-                                              parent=parent)
-        else:
+        if children:
+            # We need to store the position of the original children,
+            # i.e. before they are added to a schedule
             node_parent = children[0].parent
             node_position = children[0].position
 
-            # A PSyData node always contains a Schedule
-            sched = self._insert_schedule(children)
+        # A PSyData node always contains a Schedule
+        sched = self._insert_schedule(children)
+        super(PSyDataNode, self).__init__(ast=ast, children=[sched],
+                                          parent=parent)
 
-            super(PSyDataNode, self).__init__(ast=ast, children=[sched],
-                                              parent=parent)
-
+        if children:
             # Correct the parent's list of children. Use a slice of the list
             # of nodes so that we're looping over a local copy of the list.
             # Otherwise things get confused when we remove children from
