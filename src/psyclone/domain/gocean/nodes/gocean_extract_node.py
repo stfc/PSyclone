@@ -208,7 +208,7 @@ class GOceanExtractNode(ExtractNode):
                 # comparison with the post value works as expected
                 # TODO #644 - create the right "0.0" type here (e.g.
                 # 0.0d0, ...)
-                assign = AssignGen(prog, var_name, "0.0")
+                assign = AssignGen(prog, var_name, "0.0d0")
                 prog.add(assign)
 
         # Now add the region that was extracted here:
