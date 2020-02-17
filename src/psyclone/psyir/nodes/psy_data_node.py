@@ -66,18 +66,20 @@ class PSyDataNode(Node):
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param (str,str) name: an optional name to use for this PSyDataNode, \
-        provided as a 2-tuple containing a module name followed by a \
-        local name. The pair of strings should uniquely identify a\
-        region unless aggregate information is required and supported
-        by the runtime library linked in.
+    :param options: a dictionary with options for transformations.
+    :type options: dictionary of string:values or None
+    :param (str, str) options["region_name"]: an optional name to \
+        use for this PSyData area, provided as a 2-tuple containing a \
+        module name followed by a local name. The pair of strings should \
+        uniquely identify a region unless aggregate information is required \
+        (and is supported by the runtime library).
 
     '''
     # PSyData interface Fortran module
     fortran_module = "psy_data_mod"
     # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
-    # The use statement that we will insert. Any use of a module of the
+    # The use statement that will be inserted. Any use of a module of the
     # same name that doesn't match this will result in a NotImplementedError
     # at code-generation time.
     use_stmt = "use psy_data_mod, only: " + ", ".join(symbols)
@@ -85,7 +87,7 @@ class PSyDataNode(Node):
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
 
-    def __init__(self, ast=None, children=None, parent=None, name=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
         # TODO: #415 Support different classes of PSyData calls.
 
         # Store the name of the PSyData variable that is used for this
@@ -95,19 +97,18 @@ class PSyDataNode(Node):
         from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
-        if not children:
-            super(PSyDataNode, self).__init__(ast=ast, children=children,
-                                              parent=parent)
-        else:
+        if children:
+            # We need to store the position of the original children,
+            # i.e. before they are added to a schedule
             node_parent = children[0].parent
             node_position = children[0].position
 
-            # A PSyData node always contains a Schedule
-            sched = self._insert_schedule(children)
+        # A PSyData node always contains a Schedule
+        sched = self._insert_schedule(children)
+        super(PSyDataNode, self).__init__(ast=ast, children=[sched],
+                                          parent=parent)
 
-            super(PSyDataNode, self).__init__(ast=ast, children=[sched],
-                                              parent=parent)
-
+        if children:
             # Correct the parent's list of children. Use a slice of the list
             # of nodes so that we're looping over a local copy of the list.
             # Otherwise things get confused when we remove children from
@@ -137,6 +138,10 @@ class PSyDataNode(Node):
         # The region identifier caches the computed module- and
         # region-name as a tuple of strings
         self._region_identifier = ("", "")
+
+        name = None
+        if options:
+            name = options.get("region_name", None)
 
         if name:
             # pylint: disable=too-many-boolean-expressions
@@ -423,6 +428,8 @@ class PSyDataNode(Node):
                 "existing declarations is not supported and '{0}' has no "
                 "Specification-Part".format(routine_name))
 
+        # TODO #703: Rename the PSyDataType instead of
+        # aborting.
         # Get the existing use statements
         found = False
         for node in node_list[:]:

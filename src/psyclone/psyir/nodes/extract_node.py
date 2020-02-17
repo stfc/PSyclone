@@ -74,7 +74,7 @@ class ExtractNode(PSyDataNode):
         # At this stage options is only used in the GOceanExtractNode
         # pylint: disable=unused-argument
         super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent)
+                                          parent=parent, options=options)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 
@@ -96,8 +96,6 @@ class ExtractNode(PSyDataNode):
         :returns: the Schedule associated with this ExtractNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :raises InternalError: if this node does not have a single Schedule as\
-                               its child.
         '''
         return super(ExtractNode, self).psy_data_body
 

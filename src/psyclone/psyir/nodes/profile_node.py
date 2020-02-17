@@ -55,16 +55,17 @@ class ProfileNode(PSyDataNode):
         or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py::class::`psyclone.psyir.nodes.Node`
-    :param (str, str) name: an optional name to use for this profile, \
-        provided as a 2-tuple containing a module name followed by a \
+    :param options: a dictionary with options for transformations.
+    :type options: dictionary of string:values or None
+    :param (str,str) options["region_name"]: an optional name to \
+        be provided as a 2-tuple containing a module name followed by a \
         local name. The pair of strings should uniquely identify a\
         region unless aggregate information is required.
 
     '''
-
-    def __init__(self, ast=None, children=None, parent=None, name=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
         super(ProfileNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, name=name)
+                                          parent=parent, options=options)
 
         # Name and colour to use for this node
         self._text_name = "Profile"

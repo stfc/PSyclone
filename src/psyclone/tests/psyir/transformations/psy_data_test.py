@@ -164,7 +164,6 @@ def test_psy_data_invokes_gocean1p0():
     data_trans.apply(schedule[0])
 
     code = invoke.gen()
-    print(code)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
