@@ -675,9 +675,9 @@ def test_transform_errors(capsys):
     # Supply not a node object:
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(5)
-    assert "Argument must be a single Node in a Schedule or a list of Nodes " \
-           "in a Schedule but have been passed an object of type: " \
-           in str(excinfo.value)
+    assert "Argument must be a single Node in a Schedule, a Schedule or a " \
+           "list of Nodes in a Schedule but have been passed an object of " \
+           "type: " in str(excinfo.value)
     # Python 3 reports 'class', python 2 'type' - so just check for both
     assert ("<type 'int'>" in str(excinfo.value) or "<class 'int'>"
             in str(excinfo.value))
@@ -746,9 +746,10 @@ def test_transform_errors(capsys):
            in str(excinfo.value)
 
     with pytest.raises(TransformationError) as excinfo:
-        prt.apply(sched1[0], {"region_name":"xx"})
+        prt.apply(sched1[0], {"region_name": "xx"})
     assert "Error in ProfileTrans. User-supplied region name must be a " \
         "tuple containing two non-empty strings" in str(excinfo.value)
+
 
 # -----------------------------------------------------------------------------
 def test_region():
