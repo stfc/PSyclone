@@ -440,7 +440,7 @@ def test_driver_scalar(tmpdir):
 @pytest.mark.xfail(reason="Scalars not yet supported - #644")
 def test_driver_scalars(tmpdir):
     '''
-    This tests the extraction and driver generated for properties.
+    This tests the extraction and driver generated for scalars.
     '''
     # Use tmpdir so that the driver is created in tmp
     tmpdir.chdir()
