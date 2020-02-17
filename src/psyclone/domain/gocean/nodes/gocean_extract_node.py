@@ -74,7 +74,7 @@ class GOceanExtractNode(ExtractNode):
                                                 parent=parent,
                                                 options=options)
         if options:
-            self._create_driver = options.get("create-driver", False)
+            self._create_driver = options.get("create_driver", False)
         else:
             self._create_driver = False
 

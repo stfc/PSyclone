@@ -317,7 +317,7 @@ def test_driver_generation_flag(tmpdir, create_driver):
         schedule, _ = etrans.apply(schedule.children[0:2])
     else:
         schedule, _ = etrans.apply(schedule.children[0:2],
-                                   {'create-driver': create_driver})
+                                   {'create_driver': create_driver})
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
@@ -344,7 +344,7 @@ def test_driver_creation(tmpdir):
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0],
-                               {'create-driver': True})
+                               {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
@@ -411,7 +411,7 @@ def test_driver_scalar(tmpdir):
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0],
-                               {'create-driver': True})
+                               {'creat_-driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
@@ -449,7 +449,7 @@ def test_driver_scalars(tmpdir):
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
 
-    etrans.apply(invoke.schedule.children[0], {'create-driver': True})
+    etrans.apply(invoke.schedule.children[0], {'create_driver': True})
 
     # First test extraction code
     # --------------------------
@@ -499,7 +499,7 @@ def test_driver_properties(tmpdir):
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
 
-    etrans.apply(invoke.schedule.children[0], {'create-driver': True})
+    etrans.apply(invoke.schedule.children[0], {'create_driver': True})
 
     # First test extraction code
     # --------------------------
@@ -564,7 +564,7 @@ def test_rename_region(tmpdir):
                              GOCEAN_API, idx=0, dist_mem=False)
 
     etrans.apply(invoke.schedule.children[0],
-                 {'create-driver': True, 'region_name': ("main", "update")})
+                 {'create_driver': True, 'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
     assert 'CALL psy_data%PreStart("main", "update", 4, 3)' in str(psy.gen)
