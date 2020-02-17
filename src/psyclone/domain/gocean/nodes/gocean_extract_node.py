@@ -206,6 +206,8 @@ class GOceanExtractNode(ExtractNode):
                 # values that are not set at all (halo regions, or a
                 # kernel might not set all values). This way the array
                 # comparison with the post value works as expected
+                # TODO #644 - create the right "0.0" type here (e.g.
+                # 0.0d0, ...)
                 assign = AssignGen(prog, var_name, "0.0")
                 prog.add(assign)
 

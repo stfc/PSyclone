@@ -77,7 +77,7 @@ class PSyDataNode(Node):
     fortran_module = "psy_data_mod"
     # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
-    # The use statement that we will insert. Any use of a module of the
+    # The use statement that will be inserted. Any use of a module of the
     # same name that doesn't match this will result in a NotImplementedError
     # at code-generation time.
     use_stmt = "use psy_data_mod, only: " + ", ".join(symbols)
@@ -423,6 +423,8 @@ class PSyDataNode(Node):
                 "existing declarations is not supported and '{0}' has no "
                 "Specification-Part".format(routine_name))
 
+        # TODO #703: Rename the PSyDataType instead of
+        # aborting.
         # Get the existing use statements
         found = False
         for node in node_list[:]:
