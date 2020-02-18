@@ -63,6 +63,24 @@ def clear_psydata_namespace():
     names will change.'''
     PSyDataNode._namespace = NameSpace()
 
+
+def ordered_lines_in_text(lines, text):
+    '''Verifies that the specified lines occur in text in the
+    specified same order, though not necessarily consecutive.
+    If not, a ValueError will be raised.
+    :param lines: The lines that must occur in this order in the text.
+    :type lines: list of str
+    :param str text: The text in which the lines must occur.
+
+    :raises ValueError: if a line is not found in the text, or the
+        lines occur in a different order.
+    '''
+    indx = 0
+    for line in lines:
+        # index will raise a ValueException if the string is not found
+        new_index = text.index(line, indx)
+        indx = new_index + len(line)
+
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
@@ -447,14 +465,10 @@ def test_driver_scalars(tmpdir):
                       'a_scalar)',
                       'CALL psy_data%ProvideVariable("a_scalar", a_scalar)']
 
-    # There might be other lines between the expected lines, but the lines
-    # should at least come in the above order. So make sure to search for
-    # each line after the previous occurence.
-    indx = 0
-    for line in expected_lines:
-        # index will raise an exception if the string is not found
-        new_index = extract_code[indx:].index(line)
-        indx += new_index
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, extract_code)
 
     # Now test the created driver:
     # ----------------------------
@@ -466,10 +480,11 @@ def test_driver_scalars(tmpdir):
                       'CALL psy_data%OpenRead("kernel_scalar_float", '
                       '"bc_ssh_code")',
                       'CALL psy_data%ReadVariable("a_scalar", a_scalar)']
-    indx = 0
-    for line in expected_lines:
-        new_index = driver_code[indx:].index(line)
-        indx += new_index
+
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, driver_code)
 
 
 @pytest.mark.xfail(reason="Grid properties not yet supported - #638")
@@ -502,14 +517,10 @@ def test_driver_grid_properties(tmpdir):
                       'CALL psy_data%ProvideVariable("ssh_fld%grid%tmask", '
                       'ssh_fld%grid%tmask)']
 
-    # There might be other lines between the expected lines, but the lines
-    # should at least come in the above order. So make sure to search for
-    # each line after the previous occurence.
-    indx = 0
-    for line in expected_lines:
-        # index will raise an exception if the string is not found
-        new_index = extract_code[indx:].index(line)
-        indx += new_index
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, extract_code)
 
     # Now test the created driver:
     # ----------------------------
@@ -527,8 +538,7 @@ def test_driver_grid_properties(tmpdir):
                       'internal%xstop", xstop)',
                       'CALL psy_data%ReadVariable("ssh_fld%grid%tmask", '
                       'tmask)']
-    indx = 0
-    for line in expected_lines:
-        # index will raise an exception if the string is not found
-        new_index = driver_code[indx:].index(line)
-        indx += new_index
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, driver_code)
