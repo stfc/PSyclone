@@ -59,7 +59,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType, Symbol, DataSymbol
+from psyclone.psyir.symbols import DataType, Symbol, DataSymbol, SymbolTable
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -2148,6 +2148,7 @@ class DynReferenceElement(DynCollection):
                        " Get the reference element and query its properties"))
         parent.add(CommentGen(parent, ""))
 
+        import pdb; pdb.set_trace()
         mesh_obj_name = self._name_space_manager.create_name(
             root_name="mesh", context="PSyVars", label="mesh")
         parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
@@ -2737,8 +2738,11 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        self._nlayers_name = \
-            self._invoke.schedule.symbol_table.name_from_tag("nlayers")
+        if self._invoke:
+            self._nlayers_name = \
+                self._invoke.schedule.symbol_table.name_from_tag("nlayers")
+        else:
+            self._nlayers_name = "nlayers"
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -4737,8 +4741,7 @@ class DynGlobalSum(GlobalSum):
         ''' Dynamo specific code generation for this class '''
         from psyclone.f2pygen import AssignGen, TypeDeclGen, UseGen
         name = self._scalar.name
-        sum_name = self.root.gen_symbol_table.new_symbol_name("global_sum")
-        self.root.gen_symbol_table.add(Symbol(sum_name), tag="global_sum")
+        sum_name = self.root.symbol_table.name_from_tag("global_sum")
         parent.add(UseGen(parent, name="scalar_mod", only=True,
                           funcnames=["scalar_type"]))
         parent.add(TypeDeclGen(parent, datatype="scalar_type",
@@ -6615,6 +6618,7 @@ class DynKern(CodedKern):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
         from psyclone.parse.algorithm import KernelCall
+        self._parent = parent
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
                            parent, check=False)
@@ -6652,10 +6656,14 @@ class DynKern(CodedKern):
             # previous name. We use the full text of the original
             # as a label.
             if qr_arg.varname:
-                self._qr_name = qr_arg.varname # FIXME add to ST
-                # self._name_space_manager.create_name(
-                #    root_name=qr_arg.varname, context="AlgArgs",
-                #    label=self._qr_text)
+                try:
+                    self._qr_name = \
+                        self.root.symbol_table.lookup_tag(self._qr_text).name
+                except KeyError:
+                    self._qr_name = \
+                        self.root.symbol_table.new_symbol_name(qr_arg.varname)
+                    self.root.symbol_table.add(Symbol(self._qr_name),
+                                               tag=self._qr_text)
             else:
                 self._qr_name = ""
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
@@ -7398,7 +7406,7 @@ class KernCallArgList(ArgOrdering):
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list'''
         nlayers_name = \
-            self._kern.root.gen_symbol_table.name_from_tag("nlayers")
+            self._kern.root.symbol_table.name_from_tag("nlayers")
         self._arglist.append(nlayers_name)
         self._nlayers_positions.append(len(self._arglist))
 
@@ -7623,9 +7631,7 @@ class KernCallArgList(ArgOrdering):
                 "for kernel {0} but got {1}".format(self._kern.name,
                                                     farg.type))
         base_name = "boundary_dofs_" + farg.name
-        name = self._name_space_manager.create_name(root_name=base_name,
-                                                    context="PSyVars",
-                                                    label=base_name)
+        name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
 
     def operator_bcs_kernel(self, _):
@@ -7639,9 +7645,7 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_"+op_arg.name
-        name = self._name_space_manager.create_name(root_name=base_name,
-                                                    context="PSyVars",
-                                                    label=base_name)
+        name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
 
     def ref_element_properties(self):
@@ -7651,51 +7655,40 @@ class KernCallArgList(ArgOrdering):
         :raises InternalError: if an unsupported reference-element property \
                                is encountered.
         '''
+        symtab = self._kern.root.symbol_table
         # Provide no. of horizontal faces if required
         if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
            in self._kern.reference_element.properties or \
            RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES \
            in self._kern.reference_element.properties:
             # Query the namespace manager to get the variable name
-            nfaces_h = self._name_space_manager.create_name(
-                root_name="nfaces_re_h", context="PSyVars",
-                label="nfaces_re_h")
+            nfaces_h = symtab.name_from_tag("nfaces_re_h")
             self._arglist.append(nfaces_h)
         # Provide no. of vertical faces if required
         if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
            in self._kern.reference_element.properties or \
            RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES \
            in self._kern.reference_element.properties:
-            nfaces_v = self._name_space_manager.create_name(
-                root_name="nfaces_re_v", context="PSyVars",
-                label="nfaces_re_v")
+            nfaces_v = symtab.name_from_tag("nfaces_re_v")
             self._arglist.append(nfaces_v)
         # Now the arrays themselves, in the order specified in the
         # kernel metadata
         for prop in self._kern.reference_element.properties:
             if prop == \
                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
-                name = self._name_space_manager.create_name(
-                    root_name="out_normals_to_horiz_faces", context="PSyVars",
-                    label="out_normals_to_horiz_faces")
+                name = symtab.name_from_tag("out_normals_to_horiz_faces")
                 self._arglist.append(name)
             elif (prop ==
                   RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES):
-                name = self._name_space_manager.create_name(
-                    root_name="normals_to_horiz_faces", context="PSyVars",
-                    label="normals_to_horiz_faces")
+                name = symtab.name_from_tag("normals_to_horiz_faces")
                 self._arglist.append(name)
             elif (prop == RefElementMetaData.Property.
                   OUTWARD_NORMALS_TO_VERTICAL_FACES):
-                name = self._name_space_manager.create_name(
-                    root_name="out_normals_to_vert_faces", context="PSyVars",
-                    label="out_normals_to_vert_faces")
+                name = symtab.name_from_tag("out_normals_to_vert_faces")
                 self._arglist.append(name)
             elif (prop == RefElementMetaData.Property.
                   NORMALS_TO_VERTICAL_FACES):
-                name = self._name_space_manager.create_name(
-                    root_name="normals_to_vert_faces", context="PSyVars",
-                    label="normals_to_vert_faces")
+                name = symtab.name_from_tag("normals_to_vert_faces")
                 self._arglist.append(name)
             else:
                 raise InternalError(
@@ -8473,6 +8466,10 @@ class DynKernelArguments(Arguments):
         # We have now completed the construction of the kernel arguments so
         # we can go back and update the names of any stencil size and/or
         # direction variable names to ensure there are no clashes.
+        if hasattr(self._parent_call.root, 'symbol_table'):
+            symtab = self._parent_call.root.symbol_table
+        else:
+            symtab = SymbolTable()
         for arg in self._args:
             if not arg.descriptor.stencil:
                 continue
@@ -8480,11 +8477,8 @@ class DynKernelArguments(Arguments):
                 if arg.stencil.extent_arg.varname:
                     # Ensure extent argument name is registered with
                     # namespace manager
-                    root = arg.stencil.extent_arg.varname
-                    new_name = root  # FIXME add to ST
-                        # self._name_space_manager.create_name(
-                        # root_name=root, context="AlgArgs",
-                        # label=arg.stencil.extent_arg.text)
+                    new_name = symtab.name_from_tag(
+                        arg.stencil.extent_arg.varname)
                     arg.stencil.extent_arg.varname = new_name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
@@ -8494,10 +8488,7 @@ class DynKernelArguments(Arguments):
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
                     root = arg.stencil.direction_arg.varname
-                    unique_name = root  # FIXME add to ST
-                        # self._name_space_manager.create_name(
-                        # root_name=root, context="AlgArgs",
-                        # label=arg.stencil.direction_arg.text)
+                    unique_name = symtab.name_from_tag(root)
                     arg.stencil.direction_arg.varname = unique_name
 
         self._dofs = []
@@ -9101,12 +9092,10 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call)
+        kern.load(call, cloop.children[3])
 
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
-        kern.parent = cloop.children[3]
-
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
