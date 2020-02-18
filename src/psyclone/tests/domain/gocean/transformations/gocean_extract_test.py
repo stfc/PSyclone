@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone GOceanExtractTrans
@@ -55,7 +56,7 @@ GOCEAN_API = "gocean1.0"
 
 @pytest.fixture(scope="function", autouse=True)
 def clear_psydata_namespace():
-    '''This function is called at the before any test function. It
+    '''This function is called before any test function. It
     creates a new NameSpace manager, which is responsible to create
     unique region names - this makes sure the test works if the order
     or number of tests run is changed, otherwise the created region
@@ -145,7 +146,7 @@ def test_no_parent_accdirective():
 
 def test_extract_node_position():
     ''' Test that Extract Transformation inserts the ExtractNode
-    at the position of the first Node a Schedule in the Node list
+    at the position of the first node in the Node list
     marked for extraction. '''
 
     # Test GOcean1.0 API for extraction of a single Node
@@ -344,9 +345,6 @@ def test_driver_creation(tmpdir):
 
     driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
                          "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
-    # When create_driver is None, as a default no driver should be created.
-    # Since "None or False" is "False", this simple test can be used in all
-    # three cases.
     assert driver.isfile()
 
     with driver.open("r") as driver_file:
@@ -390,7 +388,7 @@ def test_driver_creation(tmpdir):
 
 
 @pytest.mark.xfail(reason="Loop var should not be stored - #641 and #644")
-def test_driver_scalar(tmpdir):
+def test_driver_loop_variables(tmpdir):
     '''Test that loop variables are not stored. ATM this test
     also triggers #644 (scalars are considred to be arrays)
 
@@ -410,9 +408,6 @@ def test_driver_scalar(tmpdir):
 
     from os.path import isfile
     driver = tmpdir.join("driver-kernel_driver_test-compute_kernel_code.f90")
-    # When create_driver is None, as a default no driver should be created.
-    # Since "None or False" is "False", this simple test can be used in all
-    # three cases.
     assert isfile(driver)
 
     with open(driver, "r") as driver_file:
@@ -420,7 +415,7 @@ def test_driver_scalar(tmpdir):
 
     # Since atm types are not handled, scalars are actually considered
     # to be arrays. Once this is fixed, none of those lines should be
-    # in the code anymore:
+    # in the code anymore (j_post should be declared as scalar):
     unexpected = '''      REAL(KIND=8), allocatable, dimension(:,:) :: j_post
       ALLOCATE (j, mold=j_post)'''
     unexpected_lines = unexpected.split("\n")
@@ -432,7 +427,7 @@ def test_driver_scalar(tmpdir):
 @pytest.mark.xfail(reason="Scalars not yet supported - #644")
 def test_driver_scalars(tmpdir):
     '''
-    This tests the extraction and driver generated for properties.
+    This tests the extraction and driver scalars.
     '''
     # Use tmpdir so that the driver is created in tmp
     tmpdir.chdir()
@@ -447,8 +442,7 @@ def test_driver_scalars(tmpdir):
     # --------------------------
     extract_code = str(psy.gen)
 
-    # Test the handling of scalar parameter, scalar grid property, array
-    # grid property:
+    # Test the handling of scalar parameter in extraction code:
     expected_lines = ['CALL psy_data%PreDeclareVariable("a_scalar", '
                       'a_scalar)',
                       'CALL psy_data%ProvideVariable("a_scalar", a_scalar)']
@@ -478,10 +472,10 @@ def test_driver_scalars(tmpdir):
         indx += new_index
 
 
-@pytest.mark.xfail(reason="Properties not yet supported - #638")
-def test_driver_properties(tmpdir):
+@pytest.mark.xfail(reason="Grid properties not yet supported - #638")
+def test_driver_grid_properties(tmpdir):
     '''
-    This tests the extraction and driver generated for properties.
+    This tests the extraction and driver generated for grid properties.
     '''
     # Use tmpdir so that the driver is created in tmp
     tmpdir.chdir()
@@ -496,8 +490,7 @@ def test_driver_properties(tmpdir):
     # --------------------------
     extract_code = str(psy.gen)
 
-    # Test the handling of scalar parameter, scalar grid property, array
-    # grid property:
+    # Test the handling of scalar and array grid properties
     expected_lines = ['CALL psy_data%PreDeclareVariable("ssh_fld%grid%'
                       'subdomain%internal%xstop", ssh_fld%grid%subdomain%'
                       'internal%xstop)',

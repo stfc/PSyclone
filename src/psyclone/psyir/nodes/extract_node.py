@@ -111,14 +111,18 @@ class ExtractNode(PSyDataNode):
 
     @property
     def input_list(self):
-        ''':returns: the list of input variables that will be written.
+        '''
+        :returns: the list of variables that are inputs to this \
+            extraction region.
         :rtype: list of str
         '''
         return self._input_list
 
     @property
     def output_list(self):
-        ''':returns: the list of output variables that will be written.
+        '''
+        :returns: the list of variables that are outputs of this \
+            extraction region.
         :rtype: list of str
         '''
         return self._output_list

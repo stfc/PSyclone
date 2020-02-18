@@ -55,7 +55,7 @@ class PSyDataNode(Node):
     to fields and the fact that a region is executed. This can be used, for
     example, to add performance profiling calls, in-situ visualisation
     of data, or for writing fields to a file (e.g. for creating test
-    cases, or using driver to run a certain kernel only)
+    cases, or using driver to run a certain kernel only).
 
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
@@ -69,7 +69,7 @@ class PSyDataNode(Node):
     :param (str,str) name: an optional name to use for this PSyDataNode, \
         provided as a 2-tuple containing a module name followed by a \
         local name. The pair of strings should uniquely identify a\
-        region unless aggregate information is required and supported
+        region unless aggregate information is required and supported \
         by the runtime library linked in.
 
     '''
@@ -126,7 +126,7 @@ class PSyDataNode(Node):
         self._colour_key = "PSyData"
 
         # Name of the region. In general at constructor time we might
-        # not have a parent subroutine or a any child nodes, so
+        # not have a parent subroutine or any child nodes, so
         # the name is left empty, unless explicitly provided by the
         # user. If names are not provided here then the region and
         # module names are set the first time gen() is called (and

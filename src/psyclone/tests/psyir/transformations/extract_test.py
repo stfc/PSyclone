@@ -424,7 +424,7 @@ def test_dynamo0p3_builtin():
     schedule, _ = etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
 
-    # Node that this code was manually created (see #646), and might need
+    # Note that this code was manually created (see #646), and might need
     # adjustment to how the missing variables are actually stored.
     output = """! ExtractStart
       !

@@ -62,10 +62,10 @@ class ExtractTrans(RegionTrans):
     Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
 
-    :param node_class: The Node class of which an instance will be inserted
+    :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to ExtractNode), but can be any derived class.
-    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or derived
-        class
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or \
+        derived class
 
     '''
     from psyclone.psyir import nodes
