@@ -1270,6 +1270,12 @@ def test_array_section():
         assert literal.datatype == DataType.INTEGER
         assert literal.value == str(value)
 
+    def check_reference(node, dim, index, name):
+        ''' xxx '''
+        reference = node.children[dim-1].children[index]
+        assert isinstance(reference, Reference)
+        assert reference.name == name
+
     # Simple one-dimensional
     for code in ["a(:) = 0.0", "a(::) = 0.0"]:
         array_reference = array_create(code)
@@ -1284,7 +1290,7 @@ def test_array_section():
     for code in ["a(:,:,:) = 0.0", "a(::,::,::) = 0.0"]:
         array_reference = array_create(code)
         check_array(array_reference, ndims=3)
-        for dim in [1, 2, 3]:
+        for dim in range(1, 4):
             check_range(array_reference, dim=dim)
             check_bound(array_reference, dim=dim, index=0,
                         operator=BinaryOperation.Operator.LBOUND)
@@ -1337,9 +1343,33 @@ def test_array_section():
                 operator=BinaryOperation.Operator.UBOUND)
     check_literal(array_reference, dim=7, index=2, value=3)
 
+    # Simple variables
+    code = "a(b:, b:c, b:c:d) = 0.0"
+    array_reference = array_create(code)
+    check_array(array_reference, ndims=3)
+    # dim 1
+    check_range(array_reference, dim=1)
+    check_reference(array_reference, dim=1, index=0, name="b")
+    check_bound(array_reference, dim=1, index=1,
+                operator=BinaryOperation.Operator.UBOUND)
+    check_literal(array_reference, dim=1, index=2, value=1)
+    # dim 2
+    check_range(array_reference, dim=2)
+    check_reference(array_reference, dim=2, index=0, name="b")
+    check_reference(array_reference, dim=2, index=1, name="c")
+    check_literal(array_reference, dim=2, index=2, value=1)
+    # dim 3
+    check_range(array_reference, dim=3)
+    check_reference(array_reference, dim=3, index=0, name="b")
+    check_reference(array_reference, dim=3, index=1, name="c")
+    check_reference(array_reference, dim=3, index=2, name="d")
 
-@pytest.mark.xfail(reason="#412 Fortran array notation not yet handled in "
-                   "non-NEMO PSyIR")
+    # Expressions
+    code = "x"
+    array_reference = array_create(code)
+    check_array(array_reference, ndims=3)
+    ****
+    
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_array_product():
     ''' Check that we correctly handle array products. '''

@@ -654,7 +654,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
-def test_fw_naryopeator(fort_writer, tmpdir):
+def test_fw_naryoperator(fort_writer, tmpdir):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
 
@@ -677,7 +677,7 @@ def test_fw_naryopeator(fort_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
+def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
     ''' Check that the FortranWriter class nary_operation method raises
     the expected error if it encounters an unknown operator.
 
@@ -769,6 +769,17 @@ def test_fw_array(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
+
+def test_fw_array_2(fort_writer):
+    '''Check the FortranWriter class gen_array method produces the expected
+    declaration.
+
+    '''
+    from psyclone.psyir.nodes import Array, Range
+    symbol = DataSymbol("a", DataType.REAL, shape=[10])
+    array = Array.create(symbol, [Range()])
+    result = fort_writer.gen_array(array)
+    assert result == "a(:)\n"
 
 # literal is already checked within previous tests
 
