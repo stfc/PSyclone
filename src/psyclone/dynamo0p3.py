@@ -1704,8 +1704,6 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        if self._invoke.schedule.gen_symbol_table:
-            raise TypeError()  # FIXME
         try:
             return self._invoke.schedule.symbol_table.lookup_tag(unique).name
         except KeyError:
@@ -1716,7 +1714,7 @@ class DynStencils(DynCollection):
             return new_name
 
     @staticmethod
-    def dofmap_name(arg):
+    def dofmap_name(symtab, arg):
         '''
         Creates and registers a name for the stencil dofmap associated with
         the supplied kernel argument.
@@ -1729,10 +1727,15 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        return root_name  # FIXME symbol_table with tag=unique
+        try:
+            return symtab.lookup_tag(unique).name
+        except KeyError:
+            new_name = symtab.new_symbol_name(root_name)
+            symtab.add(Symbol(new_name), tag=unique)
+            return new_name
 
     @staticmethod
-    def dofmap_size_name(arg):
+    def dofmap_size_name(symtab, arg):
         '''
         Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
@@ -1745,10 +1748,15 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
-        return root_name  # FIXME symbol_table with tag=unique
+        try:
+            return symtab.lookup_tag(unique).name
+        except KeyError:
+            new_name = symtab.new_symbol_name(root_name)
+            symtab.add(Symbol(new_name), tag=unique)
+            return new_name
 
     @staticmethod
-    def direction_name(arg):
+    def direction_name(symtab, arg):
         '''
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
@@ -1761,7 +1769,12 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name+"_direction"
         unique = DynStencils.stencil_unique_str(arg, "direction")
-        return root_name  # FIXME symbol_table with tag=unique
+        try:
+            return symtab.lookup_tag(unique).name
+        except KeyError:
+            new_name = symtab.new_symbol_name(root_name)
+            symtab.add(Symbol(new_name), tag=unique)
+            return new_name
 
     @property
     def _unique_extent_vars(self):
@@ -1922,13 +1935,14 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
+                symtab = self._invoke.schedule.symbol_table
                 parent.add(AssignGen(parent, pointer=True,
-                                     lhs=self.dofmap_name(arg),
+                                     lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
                 parent.add(AssignGen(parent,
-                                     lhs=self.dofmap_size_name(arg),
+                                     lhs=self.dofmap_size_name(symtab, arg),
                                      rhs=map_name + "%get_size()"))
 
     def _declare_maps_invoke(self, parent):
@@ -1948,6 +1962,7 @@ class DynStencils(DynCollection):
         parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
                           funcnames=["stencil_dofmap_type"]))
 
+        symtab = self._invoke.schedule.symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -1960,11 +1975,11 @@ class DynStencils(DynCollection):
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="stencil_dofmap_type",
                                    entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=[self.dofmap_name(arg) +
-                                             "(:,:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[self.dofmap_size_name(arg)]))
+            parent.add(DeclGen(parent, datatype="integer", pointer=True, \
+                entity_decls=[self.dofmap_name(symtab, arg) +
+                              "(:,:,:) => null()"]))
+            parent.add(DeclGen(parent, datatype="integer", \
+                entity_decls=[self.dofmap_size_name(symtab, arg)]))
 
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "xory1d":
@@ -1985,9 +2000,9 @@ class DynStencils(DynCollection):
                                str(STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=[stencil_name]))
-                parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                                   entity_decls=[self.dofmap_name(arg) +
-                                                 "(:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer", pointer=True, \
+                    entity_decls=[self.dofmap_name(symtab, arg) +
+                                  "(:,:,:) => null()"]))
 
     def _declare_maps_stub(self, parent):
         '''
@@ -2000,12 +2015,16 @@ class DynStencils(DynCollection):
         '''
         from psyclone.f2pygen import DeclGen
 
+        if hasattr(self._kernel.root, 'symbol_table'):
+            symtab = self._kernel.root.symbol_table
+        else:
+            symtab = SymbolTable()
         for arg in self._kern_args:
             parent.add(DeclGen(
                 parent, datatype="integer", intent="in",
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
-                                    self.dofmap_size_name(arg)]),
-                entity_decls=[self.dofmap_name(arg)]))
+                                    self.dofmap_size_name(symtab, arg)]),
+                entity_decls=[self.dofmap_name(symtab, arg)]))
 
 
 class DynReferenceElement(DynCollection):
@@ -2034,8 +2053,6 @@ class DynReferenceElement(DynCollection):
             return
 
         # Create and store a name for the reference element object
-        if self._invoke.schedule.gen_symbol_table:
-            raise TypeError()  # FIXME
         self._ref_elem_name = \
             self._invoke.schedule.name_from_tag("reference_element")
 
@@ -6656,14 +6673,14 @@ class DynKern(CodedKern):
             # previous name. We use the full text of the original
             # as a label.
             if qr_arg.varname:
+                tag = "AlgArgs_" + self._qr_text
                 try:
                     self._qr_name = \
-                        self.root.symbol_table.lookup_tag(self._qr_text).name
+                        self.root.symbol_table.lookup_tag(tag).name
                 except KeyError:
                     self._qr_name = \
                         self.root.symbol_table.new_symbol_name(qr_arg.varname)
-                    self.root.symbol_table.add(Symbol(self._qr_name),
-                                               tag=self._qr_text)
+                    self.root.symbol_table.add(Symbol(self._qr_name), tag=tag)
             else:
                 self._qr_name = ""
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
@@ -7451,7 +7468,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
-        name = DynStencils.dofmap_size_name(arg)
+        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -7478,7 +7495,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # add in stencil dofmap
-        var_name = DynStencils.dofmap_name(arg)
+        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = var_name + "(:,:," + self._cell_ref_name + ")"
         self._arglist.append(name)
 
@@ -8477,8 +8494,13 @@ class DynKernelArguments(Arguments):
                 if arg.stencil.extent_arg.varname:
                     # Ensure extent argument name is registered with
                     # namespace manager
-                    new_name = symtab.name_from_tag(
-                        arg.stencil.extent_arg.varname)
+                    tag = "AlgArgs_" + arg.stencil.extent_arg.varname
+                    try:
+                        new_name = symtab.lookup_tag(tag)
+                    except KeyError:
+                        new_name = symtab.new_symbol_name(
+                            arg.stencil.extent_arg.varname)
+                        symtab.add(Symbol(new_name), tag=tag)
                     arg.stencil.extent_arg.varname = new_name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
@@ -8487,9 +8509,14 @@ class DynKernelArguments(Arguments):
                    VALID_STENCIL_DIRECTIONS:
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
-                    root = arg.stencil.direction_arg.varname
-                    unique_name = symtab.name_from_tag(root)
-                    arg.stencil.direction_arg.varname = unique_name
+                    tag = "AlgArgs_" + arg.stencil.direction_arg.varname
+                    try:
+                        new_name = symtab.lookup_tag(tag)
+                    except KeyError:
+                        new_name = symtab.new_symbol_name(
+                            arg.stencil.direction_arg.varname)
+                        symtab.add(Symbol(new_name), tag=tag)
+                    arg.stencil.direction_arg.varname = new_name
 
         self._dofs = []
 
@@ -8736,7 +8763,8 @@ class DynKernelArguments(Arguments):
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
                 '''
-                var_name = DynStencils.dofmap_name(arg)
+                var_name = DynStencils.dofmap_name(
+                    self._parent_call.root.symbol_table, arg)
                 self._arglist.append(var_name)
 
             def operator(self, arg):

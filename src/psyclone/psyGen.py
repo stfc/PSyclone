@@ -3540,9 +3540,16 @@ class Argument(object):
             # Use our namespace manager to create a unique name unless
             # the context and label match in which case return the
             # previous name.
-            self._name = self._orig_name # FIXME: Add to SymbolTable
-            #            self._name_space_manager.create_name(
-            #    root_name=self._orig_name, context="AlgArgs", label=self._text)
+            tag = "AlgArgs_" + self._text
+            try:
+                self._name = \
+                    self._call.root.symbol_table.lookup_tag(tag).name
+            except KeyError:
+                self._name = \
+                    self._call.root.symbol_table.new_symbol_name(
+                        self._orig_name)
+                self._call.root.symbol_table.add(Symbol(self._name), tag=tag)
+
         self._vector_size = 1
 
     def __str__(self):

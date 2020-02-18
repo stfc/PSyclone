@@ -107,7 +107,7 @@ class SymbolTable(object):
         if not root_name:
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
-        idx = 0
+        idx = 1
         while candidate_name in self._symbols:
             candidate_name = "{0}_{1}".format(root_name, idx)
             idx += 1
@@ -233,10 +233,11 @@ class SymbolTable(object):
 
     def name_from_tag(self, tag):
         try:
-            return self.lookup(tag).name
+            return self.lookup_tag(tag).name
         except KeyError:
-            self.add(Symbol(tag), tag=tag)
-            return tag
+            name = self.new_symbol_name(tag)
+            self.add(Symbol(name), tag=tag)
+            return name
 
 
     def __contains__(self, key):
