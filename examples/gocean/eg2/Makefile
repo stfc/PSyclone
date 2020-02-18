@@ -42,7 +42,7 @@
 #
 #     make NVTX_DIR=/apps/packages/cuda/10.0/lib64 profile
 #
-# The compiler to use must be specified via the F90 environment
+# The compiler to use may be specified via the F90 environment
 # variable. e.g. to use PGI and OpenACC:
 #
 # export F90=pgf90
@@ -64,6 +64,10 @@ PROFILE_LIB = ${PROFILE_DIR}/libnvtx_prof.a
 NVTX_DIR ?= /usr/local/lib64/cuda10.0
 NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
 
+# Default to gfortran if no compiler specified. This then just
+# compiles without OpenACC support.
+F90 ?= gfortran
+
 .PHONY: all kernels profile clean allclean
 
 all: single.exe
@@ -73,7 +77,7 @@ profile: single_prof.exe
 
 # The dl_esm_inf library
 ${INF_LIB}:
-	${MAKE} -C ${INF_DIR}
+	${MAKE} -C ${INF_DIR} F90=${F90}
 
 # The profiling wrapper library
 ${PROFILE_LIB}:

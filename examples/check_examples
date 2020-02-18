@@ -47,6 +47,10 @@ set -e
 export PSYCLONE=${PWD}/../bin/psyclone
 export KSTUBGEN=${PWD}/../bin/genkernelstub
 
+# Ensure we use the configuration file distributed with PSyclone and
+# not a (potentially modified) local version.
+export PSYCLONE_CONFIG=${PWD}/../config/psyclone.cfg
+
 # ----------------------------------------------------------------- #
 # Handle any command-line options. Currently we only support one.
 # This code taken from https://stackoverflow.com/questions/192249/
@@ -205,6 +209,9 @@ if [ $COMPILE -eq 1 ]
 then
     # Only do the full compile if requested (because it requires a Fortran
     # compiler). Defaults to using gfortran.
+    cd ../../../external/dl_esm_inf/finite_difference
+    make distclean
+    cd -
     make allclean
     make
 else
@@ -212,7 +219,7 @@ else
     ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
     ${PSYCLONE} -api "gocean1.0" -s ./acc_prof_transform.py alg.f90
 fi
-cd -
+cd ../..
 
 echo "Running gocean/eg3"
 cd gocean/eg3
