@@ -51,6 +51,7 @@ from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
     VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 from psyclone.psyir.transformations import RegionTrans, TransformationError
+from psyclone.psyir.symbols import SymbolError
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -109,7 +110,6 @@ class KernelTrans(Transformation):
 
         '''
         from psyclone.errors import GenerationError
-        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -2649,16 +2649,15 @@ class OCLTrans(Transformation):
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
-            # TODO: While we are not able to capture the value of 'use'
-            # parameters (issue 323) we have to bypass this validation and
-            # provide them manually for the OpenCL kernels to compile.
-            continue
             global_variables = ksched.symbol_table.global_datasymbols
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
-                    "symbols with 'global' scope: {1}. PSyclone cannot "
-                    "currently transform such a kernel into OpenCL.".
+                    "symbols with 'global' scope: {1}. An OpenCL kernel cannot"
+                    " call other kernels and all of the data it accesses must "
+                    "be passed by argument. Use the KernelGlobalsToArguments "
+                    "transformation to convert such symbols to kernel "
+                    "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
 
@@ -3292,8 +3291,11 @@ class ACCRoutineTrans(KernelTrans):
 
         :raises TransformationError: if the target kernel is a built-in.
         :raises TransformationError: if any of the symbols in the kernel are \
-                                     accessed via a module use statement.
-
+                            accessed via a module use statement.
+        :raises TransformationError: if the target kernel has already been \
+                            transformed (since all other transformations work \
+                            on the PSyIR but this one still uses the fparser2 \
+                            parse tree (#490).
         '''
         from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
@@ -3306,21 +3308,29 @@ class ACCRoutineTrans(KernelTrans):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
+        if kern.modified:
+            raise TransformationError(
+                "Cannot transform kernel '{0}' because it has previously been "
+                "transformed and this transformation works on the fparser2 "
+                "parse tree rather than the PSyIR (#490).".format(kern.name))
 
         # Perform general validation checks. In particular this checks that
-        # a PSyIR of the kernel body can be constructed.
+        # the PSyIR of the kernel body can be constructed.
         super(ACCRoutineTrans, self).validate(kern, options)
 
-        # Check that the kernel does not access any data via a module 'use'
-        # statement
+        # Check that the kernel does not access any data or routines via a
+        # module 'use' statement
         sched = kern.get_kernel_schedule()
         global_variables = sched.symbol_table.global_datasymbols
         if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
-                "symbols with 'global' scope: {1}. PSyclone cannot currently "
-                "transform kernels for execution on an OpenACC device if "
-                "they access data not passed by argument.".
+                "symbol(s) with global scope: {1}. If these symbols represent"
+                " data then they must first be converted to kernel arguments "
+                "using the KernelGlobalsToArguments transformation. If the "
+                "symbols represent external routines then PSyclone cannot "
+                "currently transform this kernel for execution on an OpenACC "
+                "device (issue #342).".
                 format(kern.name, [sym.name for sym in global_variables]))
         # Prevent unwanted side effects by removing the kernel schedule that
         # we have just constructed. This is necessary while
@@ -3826,9 +3836,13 @@ class KernelGlobalsToArguments(Transformation):
         :raises TransformationError: if the supplied node is not a CodedKern.
         :raises TransformationError: if this transformation is not applied to \
             a Gocean API Invoke.
+        :raises TransformationError: if the supplied kernel contains wildcard \
+            imports of symbols from one or more containers (e.g. a USE without\
+            an ONLY clause in Fortran).
         '''
         from psyclone.psyGen import CodedKern
         from psyclone.gocean1p0 import GOInvokeSchedule
+
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 "The {0} transformation can only be applied to CodedKern "
@@ -3841,21 +3855,40 @@ class KernelGlobalsToArguments(Transformation):
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
                 format(self.name, type(node.root).__name__))
 
+        # Check that there are no unqualified imports or undeclared symbols
+        try:
+            kernel = node.get_kernel_schedule()
+        except SymbolError as err:
+            raise TransformationError(
+                "Kernel '{0}' contains undeclared symbol: {1}".format(
+                    node.name, str(err.value)))
+
+        symtab = kernel.symbol_table
+        for container in symtab.containersymbols:
+            if container.wildcard_import:
+                raise TransformationError(
+                    "Kernel '{0}' has a wildcard import of symbols from "
+                    "container '{1}'. This is not supported.".format(
+                        node.name, container.name))
+
+        # TODO #649. Check for variables accessed by the kernel but declared
+        # in an outer scope.
+
     def apply(self, node, options=None):
         '''
         Convert the global variables used inside the kernel into arguments and
         modify the InvokeSchedule to pass the same global variables to the
         kernel call.
 
+        This apply() method does not return anything, as agreed in #595.
+        However, this change has yet to be applied to the other Transformation
+        classes.
+
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: tuple of the modified Schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
         '''
         from psyclone.psyir.symbols import ArgumentInterface
         from psyclone.psyir.symbols import DataType
@@ -3866,10 +3899,10 @@ class KernelGlobalsToArguments(Transformation):
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
 
-        # Transform each global variable into an argument
+        # Transform each global variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no globals are found in the kernel.
-        for globalvar in kernel.symbol_table.global_datasymbols:
+        for globalvar in kernel.symbol_table.global_datasymbols[:]:
 
             # Resolve the data type information if it is not available
             if globalvar.datatype == DataType.DEFERRED:
@@ -3877,6 +3910,10 @@ class KernelGlobalsToArguments(Transformation):
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(globalvar)
+
+            # Keep a reference to the original container so that we can
+            # update it after the interface has been updated.
+            container = globalvar.interface.container_symbol
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
@@ -3910,3 +3947,11 @@ class KernelGlobalsToArguments(Transformation):
 
             # Add the global variable in the call argument list
             node.arguments.append(globalvar.name, go_space)
+
+            # Check whether we still need the Container symbol from which
+            # this global was originally accessed
+            if not kernel.symbol_table.imported_symbols(container) and \
+               not container.wildcard_import:
+                kernel.symbol_table.remove(container)
+        # TODO #663 - uncomment line below and fix tests.
+        # node.modified = True

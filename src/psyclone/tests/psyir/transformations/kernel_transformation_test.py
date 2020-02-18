@@ -109,8 +109,24 @@ def test_accroutine_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
-    assert ("'global' scope: ['rdt']. PSyclone cannot currently"
-            in str(err.value))
+    assert ("global scope: ['rdt']. If these symbols represent data then they"
+            " must first" in str(err.value))
+
+
+def test_accroutine_rejects_transformed_kernel():
+    ''' Check that the ACCRoutineTrans rejects an already-transformed
+    kernel (because it still works with the fparser2 parse tree and not
+    the PSyIR - Issue #490). '''
+    rtrans = ACCRoutineTrans()
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].loop_body[0].loop_body[0]
+    # Pretend that this kernel has previously been transformed
+    kern.modified = True
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kern)
+    assert ("Cannot transform kernel 'continuity_code' because it has "
+            "previously been transformed" in str(err.value))
 
 
 def test_accroutine():
