@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.tests.utilities import get_invoke
 
 @pytest.fixture(scope="function", autouse=True)
 def clear_psydata_namespace():
-    '''This function is called at the before any test function. It
+    '''This function is called before any test function. It
     creates a new NameSpace manager, which is responsible to create
     unique region names - this makes sure the test works if the order
     or number of tests run is changed, otherwise the created region
@@ -163,8 +163,6 @@ def test_psy_data_invokes_gocean1p0():
 
     data_trans.apply(schedule[0])
 
-    code = invoke.gen()
-
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
@@ -173,7 +171,7 @@ def test_psy_data_invokes_gocean1p0():
     # the function 'compute_cv_code' is in the module file
     # kernel_ne_offset_mod.
     # Since this is only PSyData, which by default does not supply
-    # variable inforation, the parameters to PreStart are both 0.
+    # variable information, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
                   r"TYPE\(PSyDataType\), save :: psy_data.*"
@@ -186,7 +184,6 @@ def test_psy_data_invokes_gocean1p0():
                   "end.*"
                   "end.*"
                   r"call psy_data%PostEnd")
-    print("code\n", code)
 
     assert re.search(correct_re, code, re.I) is not None
 

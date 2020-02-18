@@ -42,7 +42,7 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
-from psyclone.generator import GenerationError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import GOConstLoopBoundsTrans, \
