@@ -39,6 +39,7 @@
     Visitor Pattern to traverse relevant fparser2 nodes and contains the logic
     to transform each node into the equivalent PSyIR representation.'''
 
+from __future__ import absolute_import
 from collections import OrderedDict
 from fparser.two import Fortran2003
 from fparser.two.utils import walk

@@ -38,7 +38,7 @@
 
 ''' This module contains the SymbolTable implementation. '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \

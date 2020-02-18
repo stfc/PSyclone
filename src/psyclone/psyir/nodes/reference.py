@@ -39,6 +39,7 @@
 ''' This module contains the implementation of the Reference and Array
 nodes.'''
 
+from __future__ import absolute_import
 from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol
