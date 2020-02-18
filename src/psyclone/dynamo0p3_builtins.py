@@ -130,6 +130,8 @@ class DynBuiltIn(BuiltIn):
             create_name(root_name="df",
                         context="PSyVars",
                         label="dof_loop_idx")
+        # Builtins do not accept quadrature
+        self.qr_rules = {}
         super(DynBuiltIn, self).__init__()
 
     def __str__(self):

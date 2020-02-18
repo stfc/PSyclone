@@ -1030,7 +1030,7 @@ class DynKernMetadata(KernelType):
                             "this is missing for kernel '{1}'".
                             format(VALID_EVALUATOR_NAMES, self.name))
                     shape_set = set(self._eval_shapes)
-                    if not shape_set.issubset(set(VALID_EVALUATOR_SHAPES):
+                    if not shape_set.issubset(set(VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
                             "In the dynamo0.3 API a kernel requiring either "
                             "quadrature or an evaluator must request one or "
@@ -3621,24 +3621,25 @@ class DynBasisFunctions(DynCollection):
                 # Skip this kernel if it doesn't require basis/diff basis fns
                 continue
 
-            if call.eval_shape in VALID_QUADRATURE_SHAPES:
+            for shape, rule in call.qr_rules.items():
 
                 # This kernel requires quadrature
-                if call.eval_shape not in self._qr_vars:
+                if shape not in self._qr_vars:
                     # We haven't seen a quadrature arg with this shape
                     # before so create a dictionary entry with an
                     # empty list
-                    self._qr_vars[call.eval_shape] = []
-                if call.qr_name not in self._qr_vars[call.eval_shape]:
+                    self._qr_vars[shape] = []
+                if rule.name not in self._qr_vars[shape]:
                     # Add this qr argument to the list of those that
                     # have this shape
-                    self._qr_vars[call.eval_shape].append(call.qr_name)
+                    self._qr_vars[shape].append(rule.name)
 
-            elif call.eval_shape.lower() == "gh_evaluator":
+            if "gh_evaluator" in call.eval_shapes:
                 # An evaluator consists of basis or diff basis functions
                 # for one FS evaluated on the nodes of another 'target' FS.
-                # Make a dict of 2-tuples, each containing the FunctionSpace
-                # and associated kernel argument for the target FSs.
+                # Make a dict of 2-tuples, each containing the
+                # FunctionSpace and associated kernel argument for the
+                # target FSs.
 
                 # Loop over the target FS for evaluators required by this
                 # kernel
@@ -3648,11 +3649,10 @@ class DynBasisFunctions(DynCollection):
                         # add it to the list of target spaces
                         self._eval_targets[fs_name] = \
                             call.eval_targets[fs_name]
-            else:
-                raise InternalError("Unrecognised evaluator shape: '{0}'. "
-                                    "Should be one of {1}".format(
-                                        call.eval_shape,
-                                        VALID_EVALUATOR_SHAPES))
+#                else:
+#                    raise InternalError("Unrecognised evaluator shape: '{0}'. "
+#                                        "Should be one of {1}".format(
+#                                            shape, VALID_EVALUATOR_SHAPES))
 
             # Both quadrature and evaluators require basis and/or differential
             # basis functions. This helper routine populates self._basis_fns
@@ -3775,47 +3775,48 @@ class DynBasisFunctions(DynCollection):
             # space...
             arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
 
-            # Populate a dict with the shape, function space and
-            # associated kernel argument for this basis/diff-basis f'n.
-            entry = {"shape": call.eval_shape,
-                     "fspace": fspace,
-                     "arg": arg}
-            if call.eval_shape in VALID_QUADRATURE_SHAPES:
-                # This is for quadrature - store the name of the
-                # qr variable
-                entry["qr_var"] = call.qr_name
-                # Quadrature are evaluated at pre-determined
-                # points rather than at the nodes of another FS.
-                # We put one entry of None in the list of target
-                # spaces to facilitate cases where we loop over
-                # this list.
-                entry["nodal_fspaces"] = [None]
-            elif call.eval_shape.lower() == "gh_evaluator":
-                # This is an evaluator
-                entry["qr_var"] = None
-                # Store a list of the FunctionSpace objects for which
-                # these basis functions are to be evaluated
-                entry["nodal_fspaces"] = [items[0] for items in
-                                          call.eval_targets.values()]
-            else:
-                raise InternalError("Unrecognised evaluator shape: '{0}'. "
-                                    "Should be one of {1}".format(
-                                        call.eval_shape,
-                                        VALID_EVALUATOR_SHAPES))
+            for shape in call.eval_shapes:
 
-            # Add our newly-constructed dict object to the list describing
-            # the required basis and/or differential basis functions for
-            # this Invoke.
-            if fsd.requires_basis:
-                entry["type"] = "basis"
-                self._basis_fns.append(entry)
-            if fsd.requires_diff_basis:
-                # Take a shallow copy of the dict and just modify the
-                # 'type' of the basis function it describes (this works
-                # because the 'type' entry is a primitive type [str]).
-                diff_entry = entry.copy()
-                diff_entry["type"] = "diff-basis"
-                self._basis_fns.append(diff_entry)
+                # Populate a dict with the shape, function space and
+                # associated kernel argument for this basis/diff-basis f'n.
+                entry = {"shape": shape,
+                         "fspace": fspace,
+                         "arg": arg}
+                if shape in VALID_QUADRATURE_SHAPES:
+                    # This is for quadrature - store the name of the
+                    # qr variable
+                    entry["qr_var"] = call.qr_rules[shape].name
+                    # Quadrature are evaluated at pre-determined
+                    # points rather than at the nodes of another FS.
+                    # We put one entry of None in the list of target
+                    # spaces to facilitate cases where we loop over
+                    # this list.
+                    entry["nodal_fspaces"] = [None]
+                elif shape == "gh_evaluator":
+                    # This is an evaluator
+                    entry["qr_var"] = None
+                    # Store a list of the FunctionSpace objects for which
+                    # these basis functions are to be evaluated
+                    entry["nodal_fspaces"] = [items[0] for items in
+                                              call.eval_targets.values()]
+                else:
+                    raise InternalError("Unrecognised evaluator shape: '{0}'. "
+                                        "Should be one of {1}".format(
+                                            shape, VALID_EVALUATOR_SHAPES))
+
+                # Add our newly-constructed dict object to the list describing
+                # the required basis and/or differential basis functions for
+                # this Invoke.
+                if fsd.requires_basis:
+                    entry["type"] = "basis"
+                    self._basis_fns.append(entry)
+                if fsd.requires_diff_basis:
+                    # Take a shallow copy of the dict and just modify the
+                    # 'type' of the basis function it describes (this works
+                    # because the 'type' entry is a primitive type [str]).
+                    diff_entry = entry.copy()
+                    diff_entry["type"] = "diff-basis"
+                    self._basis_fns.append(diff_entry)
 
     def _stub_declarations(self, parent):
         '''
@@ -4650,18 +4651,18 @@ class DynInvoke(Invoke):
         # adding in qr arguments
         self._alg_unique_qr_args = []
         for call in self.schedule.kernels():
-            if call.qr_required:
-                if call.qr_text not in self._alg_unique_qr_args:
-                    self._alg_unique_qr_args.append(call.qr_text)
+            for rule in call.qr_rules.values():
+                if rule.text not in self._alg_unique_qr_args:
+                    self._alg_unique_qr_args.append(rule.text)
         self._alg_unique_args.extend(self._alg_unique_qr_args)
         # we also need to work out the names to use for the qr
         # arguments within the psy layer. These are stored in the
         # _psy_unique_qr_vars list
         self._psy_unique_qr_vars = []
         for call in self.schedule.kernels():
-            if call.qr_required:
-                if call.qr_name not in self._psy_unique_qr_vars:
-                    self._psy_unique_qr_vars.append(call.qr_name)
+            for rule in call.qr_rules.values():
+                if rule.name not in self._psy_unique_qr_vars:
+                    self._psy_unique_qr_vars.append(rule.name)
 
         # lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
@@ -6638,6 +6639,7 @@ class DynKern(CodedKern):
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
     instance or to generate a Kernel stub'''
+    QRRule = namedtuple("QRRule", ["text", "name", "args"])
 
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
@@ -6649,15 +6651,18 @@ class DynKern(CodedKern):
         self._qr_required = False
         # Whether this kernel requires basis functions
         self._basis_required = False
-        # What shape of evaluator this kernel requires (if any)
-        self._eval_shape = ""
+        # What shapes of evaluator this kernel requires (if any)
+        self._eval_shapes = []
         # The function spaces on which to *evaluate* basis/diff-basis
         # functions if any are required for this kernel. Is a dict with
         # (mangled) FS names as keys and associated kernel argument as value.
         self._eval_targets = OrderedDict()
-        self._qr_text = ""
-        self._qr_name = None
-        self._qr_args = None
+        # Will hold a dict of QRRule namedtuple objects, one for each QR
+        # rule required by a kernel, indexed by shape.
+        self._qr_rules = {}
+        #self._qr_text = ""
+        #self._qr_name = None
+        #self._qr_args = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
@@ -6744,8 +6749,8 @@ class DynKern(CodedKern):
         # initialise basis/diff basis so we can test whether quadrature
         # or an evaluator is required
         self._setup_basis(ktype)
-        if self._basis_required and self._eval_shape in \
-           VALID_QUADRATURE_SHAPES:
+        if self._basis_required and \
+           set(self._eval_shapes).intersection(set(VALID_QUADRATURE_SHAPES)):
             # Basis functions on quadrature points are required so add
             # a qr algorithm argument
             args.append(Arg("variable", "qr"))
@@ -6763,7 +6768,7 @@ class DynKern(CodedKern):
         for descriptor in kmetadata.func_descriptors:
             if len(descriptor.operator_names) > 0:
                 self._basis_required = True
-                self._eval_shape = kmetadata.eval_shape
+                self._eval_shapes = kmetadata.eval_shapes[:]
                 break
 
     def _setup(self, ktype, module_name, args, parent):
@@ -6805,52 +6810,55 @@ class DynKern(CodedKern):
         # is an inter-grid kernel
         self._is_intergrid = ktype.is_intergrid
 
-        # if there is a quadrature rule, what is the name of the
-        # algorithm argument?
-        self._qr_text = ""
-        self._qr_name = None
-        self._qr_args = []
+        # If there are any quadrature rule(s), what are the names of the
+        # corresponding algorithm arguments?
+        #self._qr_text = ""
+        #self._qr_name = None
+        #self._qr_args = []
 
-        if self._eval_shape in VALID_QUADRATURE_SHAPES:
+        qr_shapes = set(self._eval_shapes).intersection(
+            set(VALID_QUADRATURE_SHAPES)) 
+        for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
             # The quadrature-related arguments always come last
-            qr_arg = args[-1]
-            self._qr_text = qr_arg.text
+            qr_arg = args[idx]
+
             # use our namespace manager to create a unique name unless
             # the context and label match and in this case return the
             # previous name. We use the full text of the original
             # as a label.
             if qr_arg.varname:
-                self._qr_name = self._name_space_manager.create_name(
+                qr_name = self._name_space_manager.create_name(
                     root_name=qr_arg.varname, context="AlgArgs",
-                    label=self._qr_text)
+                    label=qr_arg.text)
             else:
-                self._qr_name = ""
+                qr_name = ""
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
             # if self._eval_shape == "gh_quadrature_xyz":
             #     self._qr_args = ["np_xyz", "weights_xyz"]
-            if self._eval_shape == "gh_quadrature_xyoz":
-                self._qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
+            if shape == "gh_quadrature_xyoz":
+                qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
             # elif self._eval_shape == "gh_quadrature_xoyoz":
             #     self._qr_args = ["np_x", "np_y", "np_z",
             #                      "weights_x", "weights_y", "weights_z"]
-            elif self._eval_shape == "gh_quadrature_face":
-                self._qr_args = ["np_xyz", "nfaces", "weights_xyz"]
-            elif self._eval_shape == "gh_quadrature_edge":
-                self._qr_args = ["np_xyz", "nedges", "weights_xyz"]
+            elif shape == "gh_quadrature_face":
+                qr_args = ["np_xyz", "nfaces", "weights_xyz"]
+            elif shape == "gh_quadrature_edge":
+                qr_args = ["np_xyz", "nedges", "weights_xyz"]
             else:
                 raise InternalError("unsupported shape ({0}) found in "
-                                    "DynKern._setup".format(self._eval_shape))
+                                    "DynKern._setup".format(shape))
 
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related
             # variables.
-            if qr_arg.varname:
-                self._qr_args = [
-                    arg + "_" + self._qr_name for arg in self._qr_args]
+            if qr_name:
+                qr_args = [arg + "_" + qr_name for arg in qr_args]
 
-        elif self._eval_shape == "gh_evaluator":
+            self._qr_rules[shape] = self.QRRule(qr_arg.text, qr_name, qr_args)
+
+        if "gh_evaluator" in self._eval_shapes:
             # Kernel has an evaluator. If gh_evaluator_targets is present
             # then that specifies the function spaces for which the evaluator
             # is required. Otherwise, the FS of the updated argument(s) tells
@@ -6862,15 +6870,19 @@ class DynKern(CodedKern):
                 if fspace.mangled_name not in self._eval_targets:
                     self._eval_targets[fspace.mangled_name] = (fspace, arg)
 
-        elif self._eval_shape:
-            # Should never get to here!
-            raise GenerationError(
-                "Internal error: evaluator shape '{0}' is not recognised. "
-                "Must be one of {1}.".format(self._eval_shape,
-                                             VALID_EVALUATOR_SHAPES))
+#        elif self._eval_shapes:
+#            # Should never get to here!
+#            raise GenerationError(
+#                "Internal error: evaluator shape '{0}' is not recognised. "
+#                "Must be one of {1}.".format(self._eval_shapes,
+#                                             VALID_EVALUATOR_SHAPES))
 
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
+
+    @property
+    def qr_rules(self):
+        return self._qr_rules
 
     @property
     def cma_operation(self):
@@ -6953,19 +6965,16 @@ class DynKern(CodedKern):
         :return: True if this kernel requires quadrature, else returns False.
         :rtype: bool
         '''
-        if self._basis_required and self._eval_shape in \
-           VALID_QUADRATURE_SHAPES:
-            return True
-        return False
+        return self._basis_required and self.qr_rules
 
     @property
-    def eval_shape(self):
+    def eval_shapes(self):
         '''
-        :return: the value of GH_SHAPE for this kernel or an empty string \
+        :return: the value(s) of GH_SHAPE for this kernel or an empty list \
                  if none is specified.
-        :rtype: str
+        :rtype: list
         '''
-        return self._eval_shape
+        return self._eval_shapes
 
     @property
     def eval_targets(self):
@@ -6985,23 +6994,6 @@ class DynKern(CodedKern):
         :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
         '''
         return self._reference_element
-
-    @property
-    def qr_text(self):
-        ''' Returns the QR argument-text used by the algorithm layer
-        in the calling argument list. '''
-        return self._qr_text
-
-    @property
-    def qr_name(self):
-        ''' Returns a Quadrature-rule name for this Kernel. '''
-        return self._qr_name
-
-    @property
-    def qr_args(self):
-        '''Returns a dictionary of generic qr names mapped to specific
-        dynamo0.3 names'''
-        return self._qr_args
 
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
@@ -7732,11 +7724,12 @@ class KernCallArgList(ArgOrdering):
                                function is required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
-        if self._kern.qr_required:
+        for rule in self._kern.qr_rules.values():
             basis_name = get_fs_basis_name(function_space,
-                                           qr_var=self._kern.qr_name)
+                                           qr_var=rule.name)
             self._arglist.append(basis_name)
-        else:
+
+        if "gh_evaluator" in self._kern.eval_shapes:
             # We are dealing with an evaluator and therefore need as many
             # basis functions as there are target function spaces.
             for fs_name in self._kern.eval_targets:
@@ -7745,7 +7738,6 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = get_fs_basis_name(function_space,
-                                               qr_var=self._kern.qr_name,
                                                on_space=fspace)
                 self._arglist.append(basis_name)
 
@@ -7758,11 +7750,12 @@ class KernCallArgList(ArgOrdering):
                                basis functions are required
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
-        if self._kern.qr_required:
+        for rule in self._kern.qr_rules.values():
             diff_basis_name = get_fs_diff_basis_name(
-                function_space, qr_var=self._kern.qr_name)
+                function_space, qr_var=rule.name)
             self._arglist.append(diff_basis_name)
-        else:
+
+        if "gh_evaluator" in self._kern.eval_shapes:
             # We are dealing with an evaluator and therefore need as many
             # basis functions as there are target function spaces.
             for fs_name in self._kern.eval_targets:
@@ -7771,7 +7764,7 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = get_fs_diff_basis_name(
-                    function_space, qr_var=self._kern.qr_name, on_space=fspace)
+                    function_space, on_space=fspace)
                 self._arglist.append(diff_basis_name)
 
     def orientation(self, function_space):
@@ -7886,10 +7879,14 @@ class KernCallArgList(ArgOrdering):
         # At the moment we only support XYoZ quadrature which requires
         # a number of quadrature points in the horizontal and
         # vertical.
+        for shape, rule in self._kern.qr_rules.items():
 
-        self._nqp_positions.append({"horizontal": len(self._arglist) + 1,
-                                    "vertical": len(self._arglist) + 2})
-        self._arglist.extend(self._kern.qr_args)
+            if shape == "gh_quadrature_xyoz":
+                self._nqp_positions.append({"horizontal": len(self._arglist) + 1,
+                                            "vertical": len(self._arglist) + 2})
+                self._arglist.extend(rule.args)
+            else:
+                raise NotImplementedError("ARPDBG")
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''
@@ -8538,10 +8535,8 @@ def check_args(call):
                 stencil_arg_count += 1
 
     # qr_argument
-    if call.ktype.eval_shape in VALID_QUADRATURE_SHAPES:
-        qr_arg_count = 1
-    else:
-        qr_arg_count = 0
+    qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
+        set(VALID_QUADRATURE_SHAPES)))
 
     expected_arg_count = len(call.ktype.arg_descriptors) + \
         stencil_arg_count + qr_arg_count
