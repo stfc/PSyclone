@@ -425,7 +425,8 @@ def test_driver_loop_variables(tmpdir):
     str(psy.gen)
 
     from os.path import isfile
-    driver = tmpdir.join("driver-kernel_driver_test-compute_kernel_code.f90")
+    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-invoke_0"
+                         "_compute_kernel:compute_kernel_code:r0.f90")
     assert isfile(driver)
 
     with open(driver, "r") as driver_file:
@@ -472,7 +473,8 @@ def test_driver_scalars(tmpdir):
 
     # Now test the created driver:
     # ----------------------------
-    driver_name = tmpdir.join("driver-kernel_scalar_float-bc_ssh_code.f90")
+    driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
+                              "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
     with open(driver_name, "r") as driver_file:
         driver_code = driver_file.read()
 
