@@ -7875,18 +7875,29 @@ class KernCallArgList(ArgOrdering):
                         [str(sprop) for sprop in RefElementMetaData.Property]))
 
     def quad_rule(self):
-        ''' add qr information to the argument list'''
-        # At the moment we only support XYoZ quadrature which requires
-        # a number of quadrature points in the horizontal and
-        # vertical.
+        ''' Add quadrature-related information to the kernel argument list.
+        Adds the necessary arguments to the self._arglist list.
+
+        '''
         for shape, rule in self._kern.qr_rules.items():
 
             if shape == "gh_quadrature_xyoz":
-                self._nqp_positions.append({"horizontal": len(self._arglist) + 1,
-                                            "vertical": len(self._arglist) + 2})
+                # XYoZ quadrature requires the number of quadrature points in
+                # the horizontal and in the vertical.
+                self._nqp_positions.append(
+                    {"horizontal": len(self._arglist) + 1,
+                     "vertical": len(self._arglist) + 2})
+                self._arglist.extend(rule.args)
+            elif shape == "gh_quadrature_edge":
+                self._nqp_positions.append({"xyz": len(self._arglist) + 1})
+                self._arglist.extend(rule.args)
+            elif shape == "gh_quadrature_face":
+                self._nqp_positions.append({"xyz": len(self._arglist) + 1})
                 self._arglist.extend(rule.args)
             else:
-                raise NotImplementedError("ARPDBG")
+                raise NotImplementedError(
+                    "quad_rule: no support implemented for quadrature with a "
+                    "shape of '{0}'".format(shape))
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''
