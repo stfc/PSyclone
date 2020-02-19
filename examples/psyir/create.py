@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
+
 '''A simple Python script showing how to create a PSyIR tree using the
 create methods. In order to use it you must first install
 PSyclone. See README.md in the top-level psyclone directory.
@@ -49,8 +51,8 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
     Container
 from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    ArgumentInterface, DataType
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
+    ArgumentInterface, DataType, GlobalInterface
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
@@ -109,6 +111,12 @@ KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE,
 CONTAINER_SYMBOL_TABLE = SymbolTable()
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
+
+# Import data from another container
+EXTERNAL_CONTAINER = ContainerSymbol("some_mod")
+EXTERNAL_VAR = DataSymbol("some_var", DataType.INTEGER,
+                          interface=GlobalInterface(EXTERNAL_CONTAINER))
+CONTAINER_SYMBOL_TABLE.add(EXTERNAL_CONTAINER)
 
 # Write out the code as Fortran
 WRITER = FortranWriter()
