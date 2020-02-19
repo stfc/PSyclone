@@ -66,18 +66,18 @@ def test_new_symbol_name_1():
     # Check we return a new symbol by appending an integer index to
     # the root name when the names clash.
     name = sym_table.new_symbol_name(root_name="my_mod")
-    assert name == "my_mod_0"
+    assert name == "my_mod_1"
     sym_table.add(ContainerSymbol(name))
     name = sym_table.new_symbol_name(root_name="my_mod")
-    assert name == "my_mod_1"
-    name = sym_table.new_symbol_name(root_name="my_mod_0")
-    assert name == "my_mod_0_0"
+    assert name == "my_mod_2"
+    name = sym_table.new_symbol_name(root_name="my_mod_1")
+    assert name == "my_mod_1_1"
     # Check we return a new symbol by appending an integer index to
     # the default name when the names clash.
     name = sym_table.new_symbol_name()
-    assert name == "psyir_tmp_0"
+    assert name == "psyir_tmp_1"
     sym_table.add(DataSymbol(name, DataType.REAL))
-    assert sym_table.new_symbol_name() == "psyir_tmp_1"
+    assert sym_table.new_symbol_name() == "psyir_tmp_2"
 
 
 def test_new_symbol_name_2():

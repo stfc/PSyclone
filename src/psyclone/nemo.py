@@ -50,6 +50,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import SymbolTable
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -313,6 +314,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         self._name_clashes_checked = False
 
         self.process_nodes(self, ast.content)
+        # self._symbol_table = SymbolTable()
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 

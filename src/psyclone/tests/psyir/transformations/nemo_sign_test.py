@@ -111,19 +111,19 @@ def test_correct(func, output, tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine sign_example(arg,arg_0)\n"
+        "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=SIGN({0}, arg_0)\n\n"
+        "  psyir_tmp=SIGN({0}, arg_1)\n\n"
         "end subroutine sign_example\n".format(output)) in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine sign_example(arg,arg_0)\n"
+        "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_sign\n"
         "  real :: tmp_sign\n"
@@ -136,7 +136,7 @@ def test_correct(func, output, tmpdir):
         "    res_abs=tmp_abs * -1.0\n"
         "  end if\n"
         "  res_sign=res_abs\n"
-        "  tmp_sign=arg_0\n"
+        "  tmp_sign=arg_1\n"
         "  if (tmp_sign < 0.0) then\n"
         "    res_sign=res_sign * -1.0\n"
         "  end if\n"
@@ -167,19 +167,19 @@ def test_correct_expr(tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine sign_example(arg,arg_0)\n"
+        "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=1.0 + SIGN(arg * 3.14, arg_0) + 2.0\n\n"
+        "  psyir_tmp=1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine sign_example(arg,arg_0)\n"
+        "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_sign\n"
         "  real :: tmp_sign\n"
@@ -192,7 +192,7 @@ def test_correct_expr(tmpdir):
         "    res_abs=tmp_abs * -1.0\n"
         "  end if\n"
         "  res_sign=res_abs\n"
-        "  tmp_sign=arg_0\n"
+        "  tmp_sign=arg_1\n"
         "  if (tmp_sign < 0.0) then\n"
         "    res_sign=res_sign * -1.0\n"
         "  end if\n"
@@ -224,29 +224,29 @@ def test_correct_2sign(tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine sign_example(arg,arg_0)\n"
+        "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_0)\n\n"
+        "  psyir_tmp=SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     _, _ = trans.apply(sign_op, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine sign_example(arg,arg_0)\n"
+        "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_sign\n"
         "  real :: tmp_sign\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n"
-        "  real :: res_sign_0\n"
-        "  real :: tmp_sign_0\n"
-        "  real :: res_abs_0\n"
-        "  real :: tmp_abs_0\n\n"
+        "  real :: res_sign_1\n"
+        "  real :: tmp_sign_1\n"
+        "  real :: res_abs_1\n"
+        "  real :: tmp_abs_1\n\n"
         "  tmp_abs=arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
         "    res_abs=tmp_abs\n"
@@ -254,22 +254,22 @@ def test_correct_2sign(tmpdir):
         "    res_abs=tmp_abs * -1.0\n"
         "  end if\n"
         "  res_sign=res_abs\n"
-        "  tmp_sign=arg_0\n"
+        "  tmp_sign=arg_1\n"
         "  if (tmp_sign < 0.0) then\n"
         "    res_sign=res_sign * -1.0\n"
         "  end if\n"
-        "  tmp_abs_0=1.0\n"
-        "  if (tmp_abs_0 > 0.0) then\n"
-        "    res_abs_0=tmp_abs_0\n"
+        "  tmp_abs_1=1.0\n"
+        "  if (tmp_abs_1 > 0.0) then\n"
+        "    res_abs_1=tmp_abs_1\n"
         "  else\n"
-        "    res_abs_0=tmp_abs_0 * -1.0\n"
+        "    res_abs_1=tmp_abs_1 * -1.0\n"
         "  end if\n"
-        "  res_sign_0=res_abs_0\n"
-        "  tmp_sign_0=1.0\n"
-        "  if (tmp_sign_0 < 0.0) then\n"
-        "    res_sign_0=res_sign_0 * -1.0\n"
+        "  res_sign_1=res_abs_1\n"
+        "  tmp_sign_1=1.0\n"
+        "  if (tmp_sign_1 < 0.0) then\n"
+        "    res_sign_1=res_sign_1 * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=res_sign_0 + res_sign\n\n"
+        "  psyir_tmp=res_sign_1 + res_sign\n\n"
         "end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance

@@ -568,6 +568,10 @@ class Invoke(object):
         # schedule
         self._name_space_manager = NameSpaceFactory(reset=True).create()
 
+        if not reserved_names:
+            reserved_names = []
+        reserved_names.append(self._name)
+
         # create the schedule
         self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
 
@@ -2587,11 +2591,13 @@ class Kern(Node):
         if self.reprod_reduction:
             idx_name = \
                 self.root.symbol_table.lookup_tag("omp_thread_index").name
-            local_name = \
-                self.root.symbol_table.name_from_tag("l_" + name)
+            try:
+                local_name = self.root.symbol_table.lookup_tag(name).name
+            except KeyError:
+                local_name = self.root.symbol_table.new_symbol_name("l_"+name)
+                self.root.symbol_table.add(Symbol(local_name), tag=name)
             return local_name + "(1," + idx_name + ")"
-        else:
-            return name
+        return name
 
     @property
     def arg_descriptors(self):

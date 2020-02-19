@@ -937,28 +937,30 @@ class OMPLoopTrans(ParallelLoopTrans):
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
+        from psyclone.nemo import NemoInvokeSchedule
+
         if not options:
             options = {}
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
 
-
         # Add OMP common variables into the InvokeSchedule (root) symboltable
         # if they don't already exist
-        try:
-            node.root.symbol_table.lookup_tag("omp_thread_index")
-        except KeyError:
-            thread_idx = node.root.symbol_table.new_symbol_name("th_idx")
-            node.root.symbol_table.add(
-                DataSymbol(thread_idx, DataType.INTEGER),
-                tag="omp_thread_index")
-        try:
-            node.root.symbol_table.lookup_tag("omp_num_threads")
-        except KeyError:
-            nthread = node.root.symbol_table.new_symbol_name("nthreads")
-            node.root.symbol_table.add(
-                DataSymbol(nthread, DataType.INTEGER),
-                tag="omp_num_threads")
+        if not isinstance(node.root, NemoInvokeSchedule):
+            try:
+                node.root.symbol_table.lookup_tag("omp_thread_index")
+            except KeyError:
+                thread_idx = node.root.symbol_table.new_symbol_name("th_idx")
+                node.root.symbol_table.add(
+                    DataSymbol(thread_idx, DataType.INTEGER),
+                    tag="omp_thread_index")
+            try:
+                node.root.symbol_table.lookup_tag("omp_num_threads")
+            except KeyError:
+                nthread = node.root.symbol_table.new_symbol_name("nthreads")
+                node.root.symbol_table.add(
+                    DataSymbol(nthread, DataType.INTEGER),
+                    tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -3895,7 +3897,8 @@ class KernelGlobalsToArguments(Transformation):
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
-            invoke_symtab.copy_external_global(globalvar)
+            invoke_symtab.copy_external_global(
+                globalvar, "AlgArgs_" + globalvar.name)
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list

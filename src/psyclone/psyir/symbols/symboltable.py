@@ -100,7 +100,6 @@ class SymbolTable(object):
         or None.
 
         '''
-        #import pdb; pdb.set_trace()
         if root_name is not None and not isinstance(root_name, str):
             raise TypeError(
                 "Argument root_name should be of type str or NoneType but "
@@ -250,7 +249,7 @@ class SymbolTable(object):
         :returns: Whether the Symbol Table contains the given key.
         :rtype: bool
         '''
-        return key in self._symbols
+        return key.lower() in self._symbols
 
     @property
     def argument_list(self):
@@ -424,7 +423,7 @@ class SymbolTable(object):
             "Abstract property. Which symbols are data arguments is"
             " API-specific.")
 
-    def copy_external_global(self, globalvar):
+    def copy_external_global(self, globalvar, tag=None):
         '''
         Copy the given global variable (and its referenced ContainerSymbol if
         needed) into the SymbolTable.
@@ -460,9 +459,10 @@ class SymbolTable(object):
             new_symbol = globalvar.copy()
             container_ref = self.lookup(external_container_name)
             new_symbol.interface = GlobalInterface(container_ref)
-            self.add(new_symbol)
+            self.add(new_symbol, tag)
         else:
-            # If it already exists it must refer to the same Container
+            # If it already exists it must refer to the same Container and have
+            # the same tag.
             if not (self.lookup(globalvar.name).is_global and
                     self.lookup(globalvar.name).interface
                     .container_symbol.name == external_container_name):
@@ -470,6 +470,8 @@ class SymbolTable(object):
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " name '{1}' is already used by another symbol."
                     "".format(globalvar, globalvar.name))
+            if tag and self.lookup(globalvar.name) != self.lookup_tag(tag):
+                raise KeyError()
 
     def view(self):
         '''

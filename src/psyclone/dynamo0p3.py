@@ -2057,8 +2057,8 @@ class DynReferenceElement(DynCollection):
             return
 
         # Create and store a name for the reference element object
-        self._ref_elem_name = \
-            self._invoke.schedule.name_from_tag("reference_element")
+        self._ref_elem_name = self._invoke.schedule.symbol_table.name_from_tag(
+            "reference_element")
 
         # Create and store names for the number of horizontal/vertical faces
         # as required.
@@ -2074,16 +2074,16 @@ class DynReferenceElement(DynCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties):
             self._nfaces_h_name = \
-                self._invoke.schedule.name_from_tag("nfaces_re_h")
+                self._invoke.schedule.symbol_table.name_from_tag("nfaces_re_h")
             if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
                in self._properties:
                 self._horiz_face_normals_name = \
-                    self._invoke.schedule.name_from_tag(
+                    self._invoke.schedule.symbol_table.name_from_tag(
                         "normals_to_horiz_faces")
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
                in self._properties:
                 self._horiz_face_out_normals_name = \
-                    self._invoke.schedule.name_from_tag(
+                    self._invoke.schedule.symbol_table.name_from_tag(
                         "out_normals_to_horiz_faces")
 
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
@@ -2091,16 +2091,16 @@ class DynReferenceElement(DynCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
             self._nfaces_v_name = \
-                self._invoke.schedule.name_from_tag("nfaces_re_v")
+                self._invoke.schedule.symbol_table.name_from_tag("nfaces_re_v")
             if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
                in self._properties:
                 self._vert_face_normals_name = \
-                    self._invoke.schedule.name_from_tag(
+                    self._invoke.schedule.symbol_table.name_from_tag(
                         "normals_to_vert_faces")
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
                in self._properties:
                 self._vert_face_out_normals_name = \
-                    self._invoke.schedule.name_from_tag(
+                    self._invoke.schedule.symbol_table.name_from_tag(
                         "out_normals_to_vert_faces")
 
     def _invoke_declarations(self, parent):
@@ -2169,9 +2169,8 @@ class DynReferenceElement(DynCollection):
                        " Get the reference element and query its properties"))
         parent.add(CommentGen(parent, ""))
 
-        import pdb; pdb.set_trace()
-        mesh_obj_name = self._name_space_manager.create_name(
-            root_name="mesh", context="PSyVars", label="mesh")
+        mesh_obj_name = \
+            self._invoke.schedule.symbol_table.name_from_tag("mesh")
         parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
                              rhs=mesh_obj_name+"%get_reference_element()"))
 
