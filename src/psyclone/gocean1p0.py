@@ -1041,8 +1041,8 @@ class GOKern(CodedKern):
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
         garg = self._arguments.find_grid_access()
-        glob_size = self.root.gen_symbol_table.new_symbol_name("globalsize")
-        self.root.gen_symbol_table.add(DataSymbol(glob_size, DataType.INTEGER,
+        glob_size = self.root.symbol_table.new_symbol_name("globalsize")
+        self.root.symbol_table.add(DataSymbol(glob_size, DataType.INTEGER,
                                                   shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
@@ -1055,8 +1055,8 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = self.root.gen_symbol_table.new_symbol_name("localsize")
-        self.root.gen_symbol_table.add(DataSymbol(local_size, DataType.INTEGER,
+        local_size = self.root.symbol_table.new_symbol_name("localsize")
+        self.root.symbol_table.add(DataSymbol(local_size, DataType.INTEGER,
                                                   shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
@@ -1067,7 +1067,7 @@ class GOKern(CodedKern):
 
         # Create Kernel name variable
         kernel = \
-            self.root.gen_symbol_table.lookup_tag("kernel_" + self.name).name
+            self.root.symbol_table.lookup_tag("kernel_" + self.name).name
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
@@ -1087,15 +1087,15 @@ class GOKern(CodedKern):
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = self.root.gen_symbol_table.new_symbol_name(
+        sub_name = self.root.symbol_table.new_symbol_name(
             self.name + "_set_args")
-        self.root.gen_symbol_table.add(Symbol(sub_name))
+        self.root.symbol_table.add(Symbol(sub_name))
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
-        qlist = self.root.gen_symbol_table.lookup_tag("opencl_cmd_queues").name
-        flag = self.root.gen_symbol_table.lookup_tag("opencl_error").name
+        qlist = self.root.symbol_table.lookup_tag("opencl_cmd_queues").name
+        flag = self.root.symbol_table.lookup_tag("opencl_error").name
 
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
@@ -1209,7 +1209,7 @@ class GOKern(CodedKern):
         from psyclone.f2pygen import UseGen, CommentGen, IfThenGen, DeclGen, \
             AssignGen
         grid_arg = self._arguments.find_grid_access()
-        gen_symtab = self.root.gen_symbol_table
+        symtab = self.root.symbol_table
         # Ensure the fields required by this kernel are on device. We must
         # create the buffers for them if they're not.
         parent.add(UseGen(parent, name="fortcl", only=True,
@@ -1235,9 +1235,9 @@ class GOKern(CodedKern):
                     condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
-                nbytes = gen_symtab.lookup_tag("opencl_bytes").name
+                nbytes = symtab.lookup_tag("opencl_bytes").name
                 # Variable to hold write event returned by OpenCL runtime
-                wevent = gen_symtab.lookup_tag("opencl_wevent").name
+                wevent = symtab.lookup_tag("opencl_wevent").name
                 ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
@@ -1258,8 +1258,8 @@ class GOKern(CodedKern):
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
                 # psyGen.InvokeSchedule)
-                qlist = gen_symtab.lookup_tag("opencl_cmd_queues").name
-                flag = gen_symtab.lookup_tag("opencl_error").name
+                qlist = symtab.lookup_tag("opencl_cmd_queues").name
+                flag = symtab.lookup_tag("opencl_error").name
 
                 ifthen.add(AssignGen(ifthen, lhs=device_buff,
                                      rhs="create_rw_buffer(" + nbytes + ")"))

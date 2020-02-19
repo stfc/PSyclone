@@ -6037,7 +6037,7 @@ class DynLoop(Loop):
                 raise GenerationError(
                     "Unsupported lower bound name '{0}' "
                     "found".format(self._lower_bound_name))
-            mesh_obj_name = self.root.gen_symbol_table.lookup_tag("mesh").name
+            mesh_obj_name = self.root.symbol_table.lookup_tag("mesh").name
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
                 + prev_space_index_str + ")+1"
 
@@ -6774,7 +6774,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
-            cmap = self.root.gen_symbol_table.lookup_tag("cmap").name
+            cmap = self.root.symbol_table.lookup_tag("cmap").name
         return cmap
 
     @property
@@ -6799,7 +6799,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
-            ncols = self.root.gen_symbol_table.lookup_tag("ncolour").name
+            ncols = self.root.symbol_table.lookup_tag("ncolour").name
         return ncols
 
     @property
@@ -7414,18 +7414,18 @@ class KernCallArgList(ArgOrdering):
                                    arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = self._kern.root.gen_symbol_table.name_from_tag(base_name)
+        map_name = self._kern.root.symbol_table.name_from_tag(base_name)
         # Add the cell map to our argument list
         self._arglist.append("{0}(:,{1})".format(map_name,
                                                  self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = \
-            self._kern.root.gen_symbol_table.name_from_tag(base_name)
+            self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(ncellpercell)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = self._kern.root.gen_symbol_table.name_from_tag(base_name)
+        ncell_fine = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(ncell_fine)
 
     def mesh_height(self):
@@ -7447,7 +7447,7 @@ class KernCallArgList(ArgOrdering):
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list '''
         ncell2d_name = \
-            self._kern.root.gen_symbol_table.name_from_tag("ncell_2d")
+            self._kern.root.symbol_table.name_from_tag("ncell_2d")
         self._arglist.append(ncell2d_name)
 
     def field_vector(self, argvect):

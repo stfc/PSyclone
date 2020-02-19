@@ -143,8 +143,8 @@ def test_globalstoargumentstrans(monkeypatch):
     assert "USE model_mod, ONLY: rdt" in generated_code
     assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert invoke.schedule.gen_symbol_table.lookup("model_mod")
-    assert invoke.schedule.gen_symbol_table.lookup("rdt")
+    assert invoke.schedule.symbol_table.lookup("model_mod")
+    assert invoke.schedule.symbol_table.lookup("rdt")
 
 
 def test_globalstoargumentstrans_constant(monkeypatch):

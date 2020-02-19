@@ -889,7 +889,6 @@ class InvokeSchedule(Schedule):
         if reserved_names:
             for name in reserved_names:
                 self._symbol_table.add(Symbol(name))
-        self._gen_symbol_table = None  # Symbol table used on each psy.gen call
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         # InvokeSchedule opencl_options default values
@@ -917,15 +916,6 @@ class InvokeSchedule(Schedule):
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
-
-    @property
-    def gen_symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the schedule created
-            during a gen_code method invokation.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._gen_symbol_table
 
     def set_opencl_options(self, options):
         '''
@@ -993,16 +983,16 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
-        # Use a gen_symbol_table wich is a duplicate of the current permanent
-        # SymbolTable
+        # During gen_code, use a duplicate of the symbol_table so that changes
+        # made are not permanent. The original symbol table is restored at the
+        # end of this method.
         symbol_table_before_gen = self.symbol_table
         self._symbol_table = self.symbol_table.shallow_copy()
-        self._gen_symbol_table = self._symbol_table  # FIXME delete
 
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
         module_map = {}
-        for globalvar in self.gen_symbol_table.global_datasymbols:
+        for globalvar in self.symbol_table.global_datasymbols:
             module_name = globalvar.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(globalvar.name)
@@ -1044,26 +1034,26 @@ class InvokeSchedule(Schedule):
 
             # Declare variables needed on a OpenCL PSy-layer invoke (this
             # must be an exact match because they are looked up later on)
-            nqueues = self.gen_symbol_table.new_symbol_name("num_cmd_queues")
-            self.gen_symbol_table.add(DataSymbol(nqueues, DataType.INTEGER),
-                                      tag="opencl_num_cmd_queues")
-            qlist = self.gen_symbol_table.new_symbol_name("cmd_queues")
-            self.gen_symbol_table.add(
+            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
+            self.symbol_table.add(DataSymbol(nqueues, DataType.INTEGER),
+                                  tag="opencl_num_cmd_queues")
+            qlist = self.symbol_table.new_symbol_name("cmd_queues")
+            self.symbol_table.add(
                 DataSymbol(qlist, DataType.INTEGER,
                            shape=[DataSymbol.Extent.ATTRIBUTE]),
                 tag="opencl_cmd_queues")
-            first = self.gen_symbol_table.new_symbol_name("first_time")
-            self.gen_symbol_table.add(
+            first = self.symbol_table.new_symbol_name("first_time")
+            self.symbol_table.add(
                 DataSymbol(first, DataType.BOOLEAN), tag="first_time")
-            flag = self.gen_symbol_table.new_symbol_name("ierr")
-            self.gen_symbol_table.add(
+            flag = self.symbol_table.new_symbol_name("ierr")
+            self.symbol_table.add(
                 DataSymbol(flag, DataType.INTEGER), tag="opencl_error")
-            nbytes = self.root.gen_symbol_table.new_symbol_name(
+            nbytes = self.root.symbol_table.new_symbol_name(
                 "size_in_bytes")
-            self.gen_symbol_table.add(
+            self.symbol_table.add(
                 DataSymbol(nbytes, DataType.INTEGER), tag="opencl_bytes")
-            wevent = self.root.gen_symbol_table.new_symbol_name("write_event")
-            self.gen_symbol_table.add(
+            wevent = self.root.symbol_table.new_symbol_name("write_event")
+            self.symbol_table.add(
                 DataSymbol(wevent, DataType.INTEGER), tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
@@ -1091,8 +1081,8 @@ class InvokeSchedule(Schedule):
             kernels = self.walk(Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
-                kernel = self.root.gen_symbol_table.new_symbol_name(base)
-                self.gen_symbol_table.add(Symbol(kernel), tag=kernel)
+                kernel = self.root.symbol_table.new_symbol_name(base)
+                self.symbol_table.add(Symbol(kernel), tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))
@@ -1743,7 +1733,7 @@ class OMPParallelDirective(OMPDirective):
         if reprod_red_call_list:
             # we will use a private thread index variable
             thread_idx = \
-                self.root.gen_symbol_table.lookup_tag("omp_thread_index").name
+                self.root.symbol_table.lookup_tag("omp_thread_index").name
             private_list.append(thread_idx)
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
@@ -2501,12 +2491,11 @@ class Kern(Node):
         reductions with reproducible reductions '''
         var_name = self._reduction_arg.name
         sym_name = ""
-        # gen_symbol_table because this is always call from a gen_code method
         try:
-            sym_name = self.root.gen_symbol_table.lookup_tag(var_name).name
+            sym_name = self.root.symbol_table.lookup_tag(var_name).name
         except KeyError:
-            sym_name = self.root.gen_symbol_table.new_symbol_name("l_" + var_name)
-            self.root.gen_symbol_table.add(Symbol(sym_name), tag=var_name)
+            sym_name = self.root.symbol_table.new_symbol_name("l_" + var_name)
+            self.root.symbol_table.add(Symbol(sym_name), tag=var_name)
         return sym_name
 
 
@@ -2568,8 +2557,6 @@ class Kern(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
-        thread_idx = self.root.symbol_table.lookup_tag("omp_thread_index").name
-        nthreads = self.root.symbol_table.lookup_tag("omp_num_threads").name
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         local_var_ref = self._reduction_ref(var_name)
@@ -2583,6 +2570,8 @@ class Kern(Node):
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
                 format(reduction_access.api_specific_name(), api_strings))
+        thread_idx = self.root.symbol_table.lookup_tag("omp_thread_index").name
+        nthreads = self.root.symbol_table.lookup_tag("omp_num_threads").name
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
