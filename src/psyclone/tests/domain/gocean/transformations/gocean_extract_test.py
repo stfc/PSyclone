@@ -426,14 +426,13 @@ def test_driver_loop_variables(tmpdir):
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    from os.path import isfile
     driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
                          "access_patterns-invoke_0_compute_kernel:compute_"
                          "kernel_code:r0.f90")
 
-    assert isfile(driver)
+    assert driver.isfile()
 
-    with open(driver, "r") as driver_file:
+    with open(str(driver), "r") as driver_file:
         driver_code = driver_file.read()
 
     # Since atm types are not handled, scalars are actually considered
@@ -480,7 +479,7 @@ def test_driver_scalars(tmpdir):
     # ----------------------------
     driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
                               "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
-    with open(driver_name, "r") as driver_file:
+    with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ['REAL(KIND=8) :: a_scalar',
