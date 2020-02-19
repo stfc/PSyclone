@@ -419,7 +419,17 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen)
     print(gen_code)
-    assert 0
+    assert (
+        "CALL testkern_2qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_face, basis_w1_qr_edge, "
+        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_face, "
+        "diff_basis_w2_qr_edge, "
+        "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr_face, basis_w3_qr_edge, "
+        "diff_basis_w3_qr_face, diff_basis_w3_qr_edge, "
+        "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face, "
+        "nedges_qr_edge, np_xyz_qr_edge, weights_xyz_qr_edge)" in gen_code)
+
 
 
 def test_field_qr_deref(tmpdir):
