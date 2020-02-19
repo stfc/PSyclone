@@ -63,6 +63,24 @@ def clear_psydata_namespace():
     names will change.'''
     PSyDataNode._namespace = NameSpace()
 
+
+def ordered_lines_in_text(lines, text):
+    '''Verifies that the specified lines occur in text in the
+    specified same order, though not necessarily consecutive.
+    If not, a ValueError will be raised.
+    :param lines: The lines that must occur in this order in the text.
+    :type lines: list of str
+    :param str text: The text in which the lines must occur.
+
+    :raises ValueError: if a line is not found in the text, or the
+        lines occur in a different order.
+    '''
+    indx = 0
+    for line in lines:
+        # index will raise a ValueException if the string is not found
+        new_index = text.index(line, indx)
+        indx = new_index + len(line)
+
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
@@ -322,8 +340,9 @@ def test_driver_generation_flag(tmpdir, create_driver):
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
-    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
-                         "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -349,8 +368,9 @@ def test_driver_creation(tmpdir):
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
-                         "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
     assert driver.isfile()
 
     with driver.open("r") as driver_file:
@@ -366,8 +386,8 @@ def test_driver_creation(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld_post
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld
       TYPE(PSyDataType) psy_data
-      CALL psy_data%OpenRead("psy_single_invoke_three_kernels", ''' \
-      '''"invoke_0_compute_kernel:compute_kernel_code:r0")
+      CALL psy_data%OpenRead("psy_extract_example_with_various_variable''' \
+      '''_access_patterns", "invoke_0_compute_kernel:compute_kernel_code:r0")
       CALL psy_data%ReadVariable("cu_fld_post", cu_fld_post)
       ALLOCATE (cu_fld, mold=cu_fld_post)
       cu_fld = 0.0
@@ -394,10 +414,10 @@ def test_driver_creation(tmpdir):
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="Loop var should not be stored - #641 and #644")
 def test_driver_loop_variables(tmpdir):
     '''Test that loop variables are not stored. ATM this test
-    also triggers #644 (scalars are considred to be arrays)
+    fails because of #641 but also because of #644 (scalars are considered
+    to be arrays)
 
     '''
     # Use tmpdir so that the driver is created in tmp
@@ -409,15 +429,17 @@ def test_driver_loop_variables(tmpdir):
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0],
-                               {'creat_-driver': True})
+                               {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    from os.path import isfile
-    driver = tmpdir.join("driver-kernel_driver_test-compute_kernel_code.f90")
-    assert isfile(driver)
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
 
-    with open(driver, "r") as driver_file:
+    assert driver.isfile()
+
+    with open(str(driver), "r") as driver_file:
         driver_code = driver_file.read()
 
     # Since atm types are not handled, scalars are actually considered
@@ -428,11 +450,12 @@ def test_driver_loop_variables(tmpdir):
     unexpected_lines = unexpected.split("\n")
 
     for line in unexpected_lines:
-        assert line not in driver_code
+        if line in driver_code:
+            pytest.xfail("#641 Loop variables are stored.")
+    assert False, "X-failing test working: #641 Loop variables."
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="Scalars not yet supported - #644")
 def test_driver_scalars(tmpdir):
     '''
     This tests the extraction and driver generated for scalars.
@@ -455,20 +478,16 @@ def test_driver_scalars(tmpdir):
                       'a_scalar)',
                       'CALL psy_data%ProvideVariable("a_scalar", a_scalar)']
 
-    # There might be other lines between the expected lines, but the lines
-    # should at least come in the above order. So make sure to search for
-    # each line after the previous occurence.
-    indx = 0
-    for line in expected_lines:
-        # index will raise an exception if the string is not found
-        new_index = extract_code[indx:].index(line)
-        indx += new_index
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, extract_code)
 
     # Now test the created driver:
     # ----------------------------
     driver_name = tmpdir.join("driver-psy_single_invoke_scalar_float_test-"
                               "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
-    with open(driver_name, "r") as driver_file:
+    with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ['INTEGER :: xstop',
@@ -476,10 +495,13 @@ def test_driver_scalars(tmpdir):
                       'CALL psy_data%OpenRead("kernel_scalar_float", '
                       '"bc_ssh_code")',
                       'CALL psy_data%ReadVariable("a_scalar", a_scalar)']
-    indx = 0
-    for line in expected_lines:
-        new_index = driver_code[indx:].index(line)
-        indx += new_index
+
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    with pytest.raises(ValueError):
+        ordered_lines_in_text(expected_lines, driver_code)
+    pytest.xfail("#644 Scalars not supported yet.")
 
 
 # -----------------------------------------------------------------------------
@@ -513,14 +535,10 @@ def test_driver_grid_properties(tmpdir):
                       'CALL psy_data%ProvideVariable("ssh_fld%grid%tmask", '
                       'ssh_fld%grid%tmask)']
 
-    # There might be other lines between the expected lines, but the lines
-    # should at least come in the above order. So make sure to search for
-    # each line after the previous occurence.
-    indx = 0
-    for line in expected_lines:
-        # index will raise an exception if the string is not found
-        new_index = extract_code[indx:].index(line)
-        indx += new_index
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, extract_code)
 
     # Now test the created driver:
     # ----------------------------
@@ -538,11 +556,11 @@ def test_driver_grid_properties(tmpdir):
                       'internal%xstop", xstop)',
                       'CALL psy_data%ReadVariable("ssh_fld%grid%tmask", '
                       'tmask)']
-    indx = 0
-    for line in expected_lines:
-        # index will raise an exception if the string is not found
-        new_index = driver_code[indx:].index(line)
-        indx += new_index
+
+    # Check that the above lines occur in the same order. There might be
+    # other lines between the expected lines, which will be ignored in
+    # 'ordered_linex_in_text'.
+    ordered_lines_in_text(expected_lines, driver_code)
 
 
 # -----------------------------------------------------------------------------

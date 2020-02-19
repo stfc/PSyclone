@@ -61,7 +61,7 @@ class GOceanExtractNode(ExtractNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param bool options["create_driver"]: whether or not to create a driver \
+    :param bool options["create-driver"]: whether or not to create a driver \
         program at code-generation time. If set, the driver will be created \
         in the current working directory with the name \
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \

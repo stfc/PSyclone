@@ -39,9 +39,10 @@
 ''' This module contains the implementation of the Reference and Array
 nodes.'''
 
+from __future__ import absolute_import
 from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol, SymbolError
+from psyclone.psyir.symbols import Symbol
 from psyclone.errors import GenerationError
 
 
@@ -119,33 +120,6 @@ class Reference(Node):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         var_accesses.add_access(self.name, AccessType.READ, self)
-
-    def check_declared(self):
-        '''Check whether this reference has an associated symbol table entry.
-
-        raises SymbolError: if one or more ancestor symbol table(s) \
-            are found and this reference is not found in any of them.
-
-        '''
-        found_symbol_table = False
-        test_node = self.parent
-        while test_node:
-            if hasattr(test_node, 'symbol_table'):
-                found_symbol_table = True
-                symbol_table = test_node.symbol_table
-                if self.name in symbol_table:
-                    return
-            test_node = test_node.parent
-
-        # TODO: remove this if test, remove the initialisation of the
-        # found_symbol_table boolean variable and update the doc
-        # string when SymbolTables are suppported in the NEMO API, see
-        # issue #500. After this change has been made this method could
-        # make use of the get_symbol method to determine
-        # whether the reference has been declared (or not).
-        if found_symbol_table:
-            raise SymbolError(
-                "Undeclared reference '{0}' found.".format(self.name))
 
 
 class Array(Reference):

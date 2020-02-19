@@ -42,7 +42,8 @@ from __future__ import absolute_import
 import re
 import pytest
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
+    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    DataType
 from psyclone.errors import InternalError
 
 
@@ -113,8 +114,8 @@ def test_new_symbol_name_4():
 
 
 def test_add():
-    '''Test that the add method inserts new symbols in the symbol
-    table, but raises appropiate errors when provided with wrong parameters
+    '''Test that the add method inserts new symbols in the symbol table,
+    but raises appropriate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
 
@@ -134,6 +135,94 @@ def test_add():
         sym_table.add(DataSymbol("var1", DataType.REAL))
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
+
+
+def test_imported_symbols():
+    ''' Test the imported_symbols method. '''
+    sym_table = SymbolTable()
+    my_mod = ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    assert sym_table.imported_symbols(my_mod) == []
+    var1 = DataSymbol("var1", DataType.REAL, interface=LocalInterface())
+    sym_table.add(var1)
+    assert sym_table.imported_symbols(my_mod) == []
+    var2 = DataSymbol("var2", DataType.INTEGER,
+                      interface=GlobalInterface(my_mod))
+    assert sym_table.imported_symbols(my_mod) == []
+    sym_table.add(var2)
+    assert sym_table.imported_symbols(my_mod) == [var2]
+    var3 = DataSymbol("var3", DataType.INTEGER,
+                      interface=GlobalInterface(my_mod))
+    sym_table.add(var3)
+    imported_symbols = sym_table.imported_symbols(my_mod)
+    assert var3 in imported_symbols
+    assert var2 in imported_symbols
+    # Passing something that is not a ContainerSymbol is an error
+    with pytest.raises(TypeError) as err:
+        sym_table.imported_symbols(var2)
+    assert "expects a ContainerSymbol but got an object of type" in \
+        str(err.value)
+    # Passing a ContainerSymbol that is not in the SymbolTable is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.imported_symbols(ContainerSymbol("another_mod"))
+    assert "Could not find 'another_mod' in " in str(err.value)
+    # Passing a ContainerSymbol that is not in the SymbolTable but that has
+    # the same name as one that is is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.imported_symbols(ContainerSymbol("my_mod"))
+    assert ("The 'my_mod' entry in this SymbolTable is not the supplied "
+            "ContainerSymbol" in str(err.value))
+
+
+def test_remove():
+    '''Test that the remove method removes ContainerSymbols from the symbol
+    table. Also checks that appropriate errors are raised when the method is
+    provided with wrong parameters or if there are DataSymbols that reference
+    the provided ContainerSymbol. '''
+    sym_table = SymbolTable()
+
+    # Declare a symbol
+    my_mod = ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    sym_table.add(DataSymbol("var1", DataType.REAL, shape=[5, 1],
+                             interface=GlobalInterface(my_mod)))
+    var1 = sym_table.lookup("var1")
+    assert var1
+    assert sym_table.imported_symbols(my_mod) == [var1]
+    # We should not be able to remove a Symbol that is not a ContainerSymbol
+    with pytest.raises(TypeError) as err:
+        sym_table.remove(var1)
+    assert "expects a ContainerSymbol object but got" in str(err.value)
+    # We should not be able to remove a Container if it is referenced
+    # by an existing Symbol
+    with pytest.raises(ValueError) as err:
+        sym_table.remove(my_mod)
+    assert ("Cannot remove ContainerSymbol 'my_mod' because symbols "
+            "['var1'] are imported from it" in str(err.value))
+    # Change the interface on var1
+    var1.interface = LocalInterface()
+    # We should now be able to remove the ContainerSymbol
+    sym_table.remove(my_mod)
+    with pytest.raises(KeyError) as err:
+        sym_table.lookup("my_mod")
+    assert "Could not find 'my_mod'" in str(err.value)
+    # Attempting to remove it a second time is an error
+    with pytest.raises(KeyError) as err:
+        sym_table.remove(my_mod)
+    assert ("Cannot remove Symbol 'my_mod' from symbol table because it does "
+            "not" in str(err.value))
+    # Attempt to supply something that is not a Symbol
+    with pytest.raises(TypeError) as err:
+        sym_table.remove("broken")
+    assert ("remove() expects a ContainerSymbol object but got: "
+            in str(err.value))
+    # Attempting to remove a Symbol that is not in the table but that has
+    # the same name as an entry in the table is an error
+    sym_table.add(ContainerSymbol("my_mod"))
+    with pytest.raises(InternalError) as err:
+        sym_table.remove(ContainerSymbol("my_mod"))
+    assert ("Symbol with name 'my_mod' in this symbol table is not the "
+            "same" in str(err.value))
 
 
 def test_swap_symbol_properties():
