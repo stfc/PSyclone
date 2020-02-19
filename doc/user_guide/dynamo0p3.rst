@@ -1278,29 +1278,35 @@ rules, along with PSyclone's naming conventions, are:
       ``orientation``) in the order specified in the metadata
 
       1) If it is a basis or differential basis function then we must pass
-         real arrays of kind ``r_def`` with intent ``in``:
+         real arrays of kind ``r_def`` with intent ``in``. For each shape
+	 specified in the ``gh_shape`` metadata entry:
 
-         1) If ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
-            rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``,
-            ``np_z``). The name of the argument is
-            ``"basis_"<field_function_space>`` or
-            ``"diff_basis_"<field_function_space>``, as appropriate.
+	 1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+	    and are named ``"basis_"<field_function_space>_<quadrature_arg_name>``
+	    or ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+	    as appropriate:
+	    
+            1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xy``,
+            ``np_z``).
 
-         2) If ``gh_shape`` is ``gh_evaluator`` then we pass one array for
+	    2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+	    then the  arrays have extent
+	    (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+	    ``nedges``).
+
+         2) If shape is ``gh_evaluator`` then we pass one array for
             each target function space (i.e. as specified by
-            ``gh_evaluator_targets``). Each of these arrays are of rank 3
+            ``gh_evaluator_targets``). Each of these arrays are of rank three
             with extent (``dimension``, ``number_of_dofs``,
             ``ndf_<target_function_space>``). The name of the argument is
             ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
             ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
             as appropriate.
 
-	 3) If ``gh_shape`` is ``gh_quadrature_face`` or ``gh_quadrature_edge``
-	    then basis and diff basis are again of rank 4 with extent
-	    (``dimension``, ``number_of_dofs``, ``np_xyz``, ``n_faces`` or
-	    ``n_edges``)
-	   
-         where ``dimension`` is 1 or 3 and depends upon the function space
+         where ``<quadrature_arg_name>`` is the name of the corresponding
+	 quadrature object being passed to the Invoke.
+	 ``dimension`` is 1 or 3 and depends upon the function space
          (see :ref:`dynamo0.3-function-space` above for more information) and
          whether or not it is a basis or a differential basis function (see
          the table below). ``number_of_dofs`` is the number of degrees of
@@ -1309,9 +1315,8 @@ rules, along with PSyclone's naming conventions, are:
          all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
          iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
          vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
-	 faces/edges in the reference element. The name of the argument is
-	 ``"basis_"<field_function_space>`` or
-	 ``"diff_basis_"<field_function_space>``, as appropriate.
+	 faces/edges obtained from the appropriate quadrature object supplied
+	 to the Invoke.
 
          .. tabularcolumns:: |l|c|l|
 
@@ -1347,20 +1352,29 @@ rules, along with PSyclone's naming conventions, are:
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
       integer array with dimensions ``(3, nfaces_re_h/v)``.
 
-6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+6) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+   each shape in the order specified in the ``gh_shape`` metadata:
 
    1) Include integer, scalar arguments with intent ``in`` that specify
       the extent of the basis/diff-basis arrays:
 
-      1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz``
-      2) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
-      3) If ``gh_shape`` is ``gh_quadrature_face``/``_edge`` then pass ``n_xyz``
-	 and ``n_faces``/``n_edges``
+      1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass
+	 ``np_xy_<quadrature_arg_name>`` and ``np_z_<quadrature_arg_name>``.
+      2) If ``gh_shape`` is ``gh_quadrature_face``/``_edge`` then pass
+	 ``nfaces``/``nedges_<quadrature_arg_name>`` and
+	 ``np_xyz_<quadrature_arg_name>``.
 
    2) Include weights which are real arrays of kind ``r_def``:
 
-      1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_Z(n_z)``
-      2) If ``gh_quadrature_face``/``_edge`` pass in ``w_XYZ(n_xy, n_z)``  
+      1) If ``gh_quadrature_XYoZ`` pass in
+	 ``weights_xz_<quadrature_arg_name>`` (rank one, extent
+	 ``np_xy_<quadrature_arg_name>``)
+	 and ``weights_z_<quadrature_arg_name>`` (rank one, extent
+	 ``np_z_<quadrature_arg_name>``).
+      2) If ``gh_quadrature_face``/``_edge`` pass in
+	 ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
+	 [``np_xyz_<quadrature_arg_name>``,
+	 ``nfaces/edges_<quadrature_arg_name>``)]. 
 
 Examples
 ^^^^^^^^
@@ -1413,6 +1427,30 @@ and at ``W1``)::
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
+
+If the meta-data specifies that a kernel requires both an evaluator
+and quadrature::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_read,  w0) /)
+     type(func_type) :: meta_funcs(1) =               &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape(2) = (/ gh_evaluator, gh_quadrature_face /)
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we will need to pass basis functions for both the evaluator and the
+quadrature (where ``qr_face`` is the name of the face-quadrature object
+passed to the Invoke)::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,              &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0,       &
+       basis_w0_on_w0, basis_w0_qr_face, ndf_w1,                          &
+       np_xyz_qr_face, nfaces_qr_face, weights_xyz_qr_face)
 
 If the metadata specifies that the kernel requires a property of the
 reference element::
