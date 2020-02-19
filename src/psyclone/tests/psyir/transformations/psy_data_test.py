@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import re
 import pytest
 
-from psyclone.psyir.nodes import PSyDataNode
+from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.psyGen import Loop, NameSpace
 from psyclone.tests.utilities import get_invoke
@@ -137,6 +137,90 @@ PSyDataEnd[var=psy_data]
 End Schedule""")
 
     assert correct in new_sched_str
+
+
+# -----------------------------------------------------------------------------
+def test_tree_correct():
+    '''Test that adding children and parents will result in the correct
+    relationship with the inserted node.
+    '''
+
+    # 1. No parent and no children:
+    # =============================
+    psy_node = PSyDataNode()
+
+    # We must have a single profile node with a schedule which has
+    # no children:
+    assert psy_node.parent is None
+    assert len(psy_node.children) == 1   # This is the Schedule
+    assert isinstance(psy_node.psy_data_body, Schedule)
+    assert psy_node.psy_data_body.parent == psy_node
+    assert not psy_node.psy_data_body.children
+
+    # 2. Parent, but no children:
+    # ===========================
+    parent = Node()
+    psy_node = PSyDataNode(parent=parent)
+
+    # We must have a single node connected to the parent, and an
+    # empty schedule for the ExtractNode:
+    assert psy_node.parent == parent
+    assert parent.children[0] == psy_node
+    assert len(psy_node.children) == 1
+    assert isinstance(psy_node.psy_data_body, Schedule)
+    assert psy_node.psy_data_body.parent is psy_node
+    assert not psy_node.psy_data_body.children
+
+    # 3. No parent, but children:
+    # ===========================
+    children = [Node(), Node()]
+    psy_node = PSyDataNode(children=children)
+
+    # The children must be connected to the schedule, which is
+    # connected to the ExtractNode:
+    assert psy_node.parent is None
+    assert len(psy_node.children) == 1
+    assert isinstance(psy_node.psy_data_body, Schedule)
+    assert psy_node.psy_data_body.parent is psy_node
+    assert len(psy_node.psy_data_body.children) == 2
+    assert psy_node.psy_data_body.children[0] is children[0]
+    assert psy_node.psy_data_body.children[1] is children[1]
+    assert children[0].parent == psy_node.psy_data_body
+    assert children[1].parent == psy_node.psy_data_body
+
+    # 4. Parent and children:
+    # =======================
+    parent = Node()
+    # The children must be added to the parent before creating the ExtractNode
+    parent.addchild(Node())
+    parent.addchild(Node())
+    # Add another child that must stay with the parent node
+    third_child = Node(parent=parent)
+    parent.addchild(third_child)
+    assert parent.children[2] is third_child
+    # Only move the first two children, leave the third where it is
+    children = [parent.children[0], parent.children[1]]
+    psy_node = PSyDataNode(parent=parent, children=children)
+
+    # Check all connections
+    assert psy_node.parent is parent
+    assert parent.children[0] is psy_node
+    assert len(psy_node.children) == 1
+    assert isinstance(psy_node.psy_data_body, Schedule)
+    schedule = psy_node.psy_data_body
+    assert schedule.parent is psy_node
+    assert len(schedule.children) == 2
+    for i in range(2):
+        assert schedule.children[i] is children[i]
+        assert children[i].parent is schedule
+    # The third child of the original parent is now the
+    # second child, next to the inserted ExtractNode
+    assert parent.children[1] is third_child
+    assert third_child.parent is parent
+
+    for child in children:
+        assert child in psy_node.psy_data_body.children
+        assert child.parent is psy_node.psy_data_body
 
 
 # -----------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -189,6 +189,9 @@ class PSyDataTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
+        # Create the instance of the required PSyIR node. The
+        # constructor of the node will insert the node
+        # between the list of nodes and their parents.
         # Pass the options to the constructor, used e.g. for the
         # 'create_driver' flag.
         self._node_class(parent=node_list[0].parent, children=node_list[:],
