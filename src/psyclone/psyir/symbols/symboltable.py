@@ -82,6 +82,19 @@ class SymbolTable(object):
         new_st._schedule = self._schedule
         return new_st
 
+    @staticmethod
+    def _normalize(key):
+        '''Validates and normalize the symboltable key strings.
+
+        :param str key: an input key.
+
+        :returns: the normalized key.
+        :rtype: str
+        '''
+        # The symbol table is currently case insensitive
+        new_key = key.lower()
+        return new_key
+
     def new_symbol_name(self, root_name=None):
         '''Create a symbol name that is not in the symbol table. If the
         `root_name` argument is not supplied or if it is an empty
@@ -125,7 +138,7 @@ class SymbolTable(object):
         :raises KeyError: if the symbol name is already in use.
 
         '''
-        key = new_symbol.name.lower()
+        key = self._normalize(new_symbol.name)
         if key in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
@@ -210,7 +223,7 @@ class SymbolTable(object):
         :raises KeyError: if the given name is not in the Symbol Table.
         '''
         try:
-            return self._symbols[name.lower()]
+            return self._symbols[self._normalize(name)]
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
@@ -271,7 +284,7 @@ class SymbolTable(object):
         :returns: Whether the Symbol Table contains the given key.
         :rtype: bool
         '''
-        return key.lower() in self._symbols
+        return self._normalize(key.lower()) in self._symbols
 
     def imported_symbols(self, csymbol):
         '''
