@@ -122,7 +122,7 @@ def test_invalid_default_kind(tmpdir):
 
     # Test invalid datatype
     content = _CONFIG_CONTENT + \
-        "default_precision = reality: r_def, integer: i_def, logical: l_def"
+        "default_kind = reality: r_def, integer: i_def, logical: l_def"
     config_file = tmpdir.join("config_dyn")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -138,7 +138,7 @@ def test_invalid_default_kind(tmpdir):
 
     # Test invalid kind (precision)
     content = _CONFIG_CONTENT + \
-        "default_precision = real: r_def, integer: , logical: l_def"
+        "default_kind = real: r_def, integer: , logical: l_def"
     config_file = tmpdir.join("config_dyn")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -158,6 +158,6 @@ def test_default_kind():
     functionality is introduced. '''
     config = Config()
     api_config = config.get().api_conf(TEST_API)
-    assert api_config.default_precision["real"] == "r_def"
-    assert api_config.default_precision["integer"] == "i_def"
-    assert api_config.default_precision["logical"] == "l_def"
+    assert api_config.default_kind["real"] == "r_def"
+    assert api_config.default_kind["integer"] == "i_def"
+    assert api_config.default_kind["logical"] == "l_def"

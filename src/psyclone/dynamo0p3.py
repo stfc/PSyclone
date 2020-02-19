@@ -1462,8 +1462,8 @@ class DynamoPSy(PSy):
                                          "columnwise_operator_proxy_type"]))
         psy_module.add(
             UseGen(psy_module, name="constants_mod", only=True,
-                   funcnames=[api_config.default_precision["real"],
-                              api_config.default_precision["integer"]]))
+                   funcnames=[api_config.default_kind["real"],
+                              api_config.default_kind["integer"]]))
 
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
@@ -1810,7 +1810,7 @@ class DynStencils(DynCollection):
 
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_extent_vars,
                                intent="in"))
 
@@ -1845,7 +1845,7 @@ class DynStencils(DynCollection):
 
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_direction_vars,
                                intent="in"))
 
@@ -1978,12 +1978,12 @@ class DynStencils(DynCollection):
                                    datatype="stencil_dofmap_type",
                                    entity_decls=[map_name+" => null()"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True,
                                entity_decls=[self.dofmap_name(arg) +
                                              "(:,:,:) => null()"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[self.dofmap_size_name(arg)]))
 
             stencil_type = arg.descriptor.stencil['type']
@@ -2007,7 +2007,7 @@ class DynStencils(DynCollection):
                                   only=True, funcnames=[stencil_name]))
                 parent.add(
                     DeclGen(parent, datatype="integer",
-                            kind=api_config.default_precision["integer"],
+                            kind=api_config.default_kind["integer"],
                             pointer=True,
                             entity_decls=[self.dofmap_name(arg) +
                                           "(:,:,:) => null()"]))
@@ -2027,7 +2027,7 @@ class DynStencils(DynCollection):
         for arg in self._kern_args:
             parent.add(DeclGen(
                 parent, datatype="integer",
-                kind=api_config.default_precision["integer"], intent="in",
+                kind=api_config.default_kind["integer"], intent="in",
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
                                     self.dofmap_size_name(arg)]),
                 entity_decls=[self.dofmap_name(arg)]))
@@ -2143,7 +2143,7 @@ class DynReferenceElement(DynCollection):
             nface_vars.append(self._nfaces_v_name)
 
         parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_precision["integer"],
+                           kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
 
         # Declare the necessary arrays
@@ -2161,7 +2161,7 @@ class DynReferenceElement(DynCollection):
         # Add declarations to the parent subroutine
         api_config = Config.get().api_conf("dynamo0.3")
         parent.add(DeclGen(parent, datatype="real",
-                           kind=api_config.default_precision["real"],
+                           kind=api_config.default_kind["real"],
                            allocatable=True, entity_decls=ref_element_arrays))
 
     def initialise(self, parent):
@@ -2388,7 +2388,7 @@ class DynDofmaps(DynCollection):
 
         if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_map_names))
 
         # Column-banded dofmaps
@@ -2396,7 +2396,7 @@ class DynDofmaps(DynCollection):
             [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
         if decl_bmap_names:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_bmap_names))
 
         # CMA operator indirection dofmaps
@@ -2404,7 +2404,7 @@ class DynDofmaps(DynCollection):
             [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
         if decl_ind_map_names:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_ind_map_names))
 
     def _stub_declarations(self, parent):
@@ -2424,10 +2424,10 @@ class DynDofmaps(DynCollection):
             ndf_name = get_fs_ndf_name(
                 self._unique_fs_maps[dmap].function_space)
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[ndf_name]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", dimension=ndf_name,
                                entity_decls=[dmap]))
         # Column-banded dofmaps
@@ -2442,10 +2442,10 @@ class DynDofmaps(DynCollection):
                     "collecting column-banded dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[ndf_name]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in",
                                dimension=",".join([ndf_name, "nlayers"]),
                                entity_decls=[dmap]))
@@ -2461,10 +2461,10 @@ class DynDofmaps(DynCollection):
                     "collecting indirection dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[dim_name]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", dimension=dim_name,
                                entity_decls=[dmap]))
 
@@ -2514,7 +2514,7 @@ class DynOrientations(DynCollection):
         for orient in self._orients:
             ndf_name = get_fs_ndf_name(orient.function_space)
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", dimension=ndf_name,
                                entity_decls=[orient.name]))
 
@@ -2533,7 +2533,7 @@ class DynOrientations(DynCollection):
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=declns))
 
 
@@ -2590,7 +2590,7 @@ class DynFunctionSpaces(DynCollection):
         if self._var_list:
             # Declare ndf and undf for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=self._var_list))
 
     def _invoke_declarations(self, parent):
@@ -2608,7 +2608,7 @@ class DynFunctionSpaces(DynCollection):
         if self._var_list:
             # Declare ndf and undf for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._var_list))
 
     def initialise(self, parent):
@@ -2714,13 +2714,13 @@ class DynFields(DynCollection):
                             "_v" + str(idx))
                     parent.add(
                         DeclGen(parent, datatype="real",
-                                kind=api_config.default_precision["real"],
+                                kind=api_config.default_kind["real"],
                                 dimension=undf_name,
                                 intent=intent, entity_decls=[text]))
             else:
                 parent.add(
                     DeclGen(parent, datatype="real",
-                            kind=api_config.default_precision["real"],
+                            kind=api_config.default_kind["real"],
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
@@ -2841,7 +2841,7 @@ class DynCellIterators(DynCollection):
         # one or more kernels that iterate over cells
         if not self._dofs_only:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[self._nlayers_name]))
 
     def _stub_declarations(self, parent):
@@ -2856,7 +2856,7 @@ class DynCellIterators(DynCollection):
 
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
@@ -2930,7 +2930,7 @@ class DynScalarArgs(DynCollection):
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
                 parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_precision["real"],
+                                   kind=api_config.default_kind["real"],
                                    entity_decls=self._real_scalars[intent],
                                    intent=intent))
 
@@ -2938,7 +2938,7 @@ class DynScalarArgs(DynCollection):
             if self._int_scalars[intent]:
                 parent.add(
                     DeclGen(parent, datatype="integer",
-                            kind=api_config.default_precision["integer"],
+                            kind=api_config.default_kind["integer"],
                             entity_decls=self._int_scalars[intent],
                             intent=intent))
 
@@ -2973,17 +2973,17 @@ class DynLMAOperators(DynCollection):
             self._kernel.arguments.args, arg_types=["gh_operator"])
         if lma_args:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
             ndf_name_to = get_fs_ndf_name(arg.function_space_to)
             ndf_name_from = get_fs_ndf_name(arg.function_space_from)
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_precision["real"],
+                               kind=api_config.default_kind["real"],
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -3104,7 +3104,7 @@ class DynCMAOperators(DynCollection):
                 parent, lhs=ncol_name,
                 rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
         parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_precision["integer"],
+                           kind=api_config.default_kind["integer"],
                            entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
@@ -3173,7 +3173,7 @@ class DynCMAOperators(DynCollection):
                 root_name=op_name+"_matrix", context="PSyVars",
                 label=op_name+"_matrix")
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_precision["real"],
+                               kind=api_config.default_kind["real"],
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
@@ -3184,7 +3184,7 @@ class DynCMAOperators(DynCollection):
                     context="PSyVars",
                     label=op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
 
     def _stub_declarations(self, parent):
@@ -3206,7 +3206,7 @@ class DynCMAOperators(DynCollection):
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
         parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_precision["integer"],
+                           kind=api_config.default_kind["integer"],
                            intent="in", entity_decls=["cell", "ncell_2d"]))
 
         for op_name in self._cma_ops:
@@ -3221,14 +3221,14 @@ class DynCMAOperators(DynCollection):
                     label=op_name+"_"+param)
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=_local_args))
             # Declare the array that holds the CMA operator
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_precision["real"],
+                               kind=api_config.default_kind["real"],
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
@@ -3414,25 +3414,25 @@ class DynMeshes(object):
                                    entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
-                        kind=api_config.default_precision["integer"],
+                        kind=api_config.default_kind["integer"],
                         entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[kern.ncell_fine,
                                              kern.ncellpercell]))
             # Declare variables to hold the colourmap information if required
             if kern.colourmap:
                 parent.add(
                     DeclGen(parent, datatype="integer",
-                            kind=api_config.default_precision["integer"],
+                            kind=api_config.default_kind["integer"],
                             pointer=True,
                             entity_decls=[kern.colourmap+"(:,:)"]))
                 parent.add(
                     DeclGen(parent, datatype="integer",
-                            kind=api_config.default_precision["integer"],
+                            kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var]))
 
         if not self._ig_kernels and self._needs_colourmap:
@@ -3447,11 +3447,11 @@ class DynMeshes(object):
                 root_name=base_name, context="PSyVars", label=base_name)
             # Add declarations for these variables
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True,
                                entity_decls=[colour_map+"(:,:)"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
 
     def initialise(self, parent):
@@ -3902,11 +3902,11 @@ class DynBasisFunctions(DynCollection):
 
         if var_dims:
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=var_dims))
         for basis in basis_arrays:
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_precision["real"],
+                               kind=api_config.default_kind["real"],
                                intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
@@ -3915,11 +3915,11 @@ class DynBasisFunctions(DynCollection):
                 if qr_shape not in self._qr_vars:
                     continue
                 parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_precision["real"],
+                                   kind=api_config.default_kind["real"],
                                    intent="in", dimension="np_xy",
                                    entity_decls=["weights_xy"]))
                 parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_precision["real"],
+                                   kind=api_config.default_kind["real"],
                                    intent="in", dimension="np_z",
                                    entity_decls=["weights_z"]))
             else:
@@ -4020,7 +4020,7 @@ class DynBasisFunctions(DynCollection):
                               "get_nodes()"]),
                 pointer=True))
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_precision["real"],
+                               kind=api_config.default_kind["real"],
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
 
@@ -4058,7 +4058,7 @@ class DynBasisFunctions(DynCollection):
         if var_dims:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=var_dims))
 
         basis_declarations = []
@@ -4072,7 +4072,7 @@ class DynBasisFunctions(DynCollection):
         # declare the basis function arrays
         if basis_declarations:
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_precision["real"],
+                               kind=api_config.default_kind["real"],
                                allocatable=True,
                                entity_decls=basis_declarations))
 
@@ -4231,14 +4231,14 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
-                    kind=api_config.default_precision["integer"],
+                    kind=api_config.default_kind["integer"],
                     entity_decls=[name+"_"+qr_arg_name
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
             parent.add(
                 DeclGen(parent, datatype="real",
-                        kind=api_config.default_precision["real"],
+                        kind=api_config.default_kind["real"],
                         pointer=True, entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
@@ -4392,7 +4392,7 @@ class DynBasisFunctions(DynCollection):
         if loop_var_list:
             # Declare any loop variables
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                entity_decls=sorted(loop_var_list)))
 
     def deallocate(self, parent):
@@ -4503,7 +4503,7 @@ class DynBoundaryConditions(DynCollection):
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                pointer=True,
                                entity_decls=[name+"(:,:) => null()"]))
 
@@ -4521,7 +4521,7 @@ class DynBoundaryConditions(DynCollection):
             name = "boundary_dofs_" + dofs.argument.name
             ndf_name = get_fs_ndf_name(dofs.function_space)
             parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_precision["integer"],
+                               kind=api_config.default_kind["integer"],
                                intent="in",
                                dimension=",".join([ndf_name, "2"]),
                                entity_decls=[name]))
@@ -6500,8 +6500,8 @@ class DynLoop(Loop):
 
         # Generate the upper and lower loop bounds
         # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
-        # TODO: Issue #696. Add precision when the support in Literal class
-        #                   is implemented.
+        # TODO: Issue #696. Add kind (precision) when the support in Literal
+        #                   class is implemented.
         self.start_expr = Literal(self._lower_bound_fortran(),
                                   DataType.INTEGER, parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(),
@@ -7030,8 +7030,8 @@ class DynKern(CodedKern):
                                  implicitnone=True)
         sub_stub.add(
             UseGen(sub_stub, name="constants_mod", only=True,
-                   funcnames=[api_config.default_precision["real"],
-                              api_config.default_precision["integer"]]))
+                   funcnames=[api_config.default_kind["real"],
+                              api_config.default_kind["integer"]]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
@@ -7069,7 +7069,7 @@ class DynKern(CodedKern):
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_precision["integer"],
+                           kind=api_config.default_kind["integer"],
                            entity_decls=["cell"]))
 
         parent_loop = self.parent.parent
