@@ -405,10 +405,10 @@ def test_driver_creation(tmpdir):
         assert line in driver_code
 
 
-@pytest.mark.xfail(reason="Loop var should not be stored - #641 and #644")
 def test_driver_loop_variables(tmpdir):
     '''Test that loop variables are not stored. ATM this test
-    also triggers #644 (scalars are considred to be arrays)
+    fails because of #641 but also because of #644 (scalars are considered
+    to be arrays)
 
     '''
     # Use tmpdir so that the driver is created in tmp
@@ -440,10 +440,11 @@ def test_driver_loop_variables(tmpdir):
     unexpected_lines = unexpected.split("\n")
 
     for line in unexpected_lines:
-        assert line not in driver_code
+        if line in driver_code:
+            pytest.xfail("#641 Loop variables are stored.")
+    assert False, "X-failing test working: #641 Loop variables."
 
 
-@pytest.mark.xfail(reason="Scalars not yet supported - #644")
 def test_driver_scalars(tmpdir):
     '''
     This tests the extraction and driver scalars.
@@ -486,7 +487,9 @@ def test_driver_scalars(tmpdir):
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
     # 'ordered_linex_in_text'.
-    ordered_lines_in_text(expected_lines, driver_code)
+    with pytest.raises(ValueError):
+        ordered_lines_in_text(expected_lines, driver_code)
+    pytest.xfail("#644 Scalars not supported yet.")
 
 
 @pytest.mark.xfail(reason="Grid properties not yet supported - #638")

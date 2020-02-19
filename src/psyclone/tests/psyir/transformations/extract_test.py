@@ -368,6 +368,18 @@ def test_single_node_dynamo0p3():
       ! ExtractEnd"""
     assert output in code
 
+    # TODO #646
+    # At this stage not all required parameters are passed via PSyData.
+    # This is an except of missing lines, which will cause this test to x-fail
+    not_yet_working = ['CALL psy_data%ProvideVariable("nlayers", nlayers)',
+                       'CALL psy_data%ProvideVariable("m1_proxy", m1_proxy)',
+                       'CALL psy_data%ProvideVariable("ndf_w1", ndf_w1)',
+                       'CALL psy_data%ProvideVariable("undf_w1", undf_w1)']
+    for line in not_yet_working:
+        if line not in code:
+            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+    assert False, "X-failing test suddenly working: #646 LFRic extraction."
+
 
 def test_node_list_dynamo0p3():
     ''' Test that applying Extract Transformation on a list of Nodes
@@ -411,6 +423,18 @@ def test_node_list_dynamo0p3():
       !
       ! ExtractEnd"""
     assert output in code
+
+    # TODO #646
+    # At this stage not all required parameters are passed via PSyData.
+    # This is an except of missing lines, which will cause this test to x-fail
+    not_yet_working = ['CALL psy_data%ProvideVariable("nlayers", nlayers)',
+                       'CALL psy_data%ProvideVariable("ndf_w2", ndf_w2)',
+                       'CALL psy_data%ProvideVariable("undf_w2", undf_w2)',
+                       'CALL psy_data%ProvideVariable("map_w2", map_w2)']
+    for line in not_yet_working:
+        if line not in code:
+            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+    assert False, "X-failing test suddenly working: #646 LFRic extraction."
 
 @pytest.mark.xfail(reason="Builtins not working (#637) and not all "
                           "parameters saved (#646)")
@@ -474,6 +498,7 @@ def test_extract_single_builtin_dynamo0p3():
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     etrans = LFRicExtractTrans()
+
     otrans = DynamoOMPParallelLoopTrans()
 
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
@@ -507,7 +532,7 @@ def test_extract_single_builtin_dynamo0p3():
 
     schedule, _ = otrans.apply(schedule.children[1])
     schedule, _ = etrans.apply(schedule.children[1])
-    code = str(psy.gen)
+    code_omp = str(psy.gen)
     output = """
       ! ExtractStart
       !
@@ -526,7 +551,19 @@ def test_extract_single_builtin_dynamo0p3():
       CALL psy_data%PostEnd
       !
       ! ExtractEnd"""
-    assert output in code
+    assert output in code_omp
+
+    # TODO #646
+    # At this stage not all required parameters are passed via PSyData.
+    # This is an except of missing lines, which will cause this test to x-fail
+    not_yet_working = ['CALL psy_data%ProvideVariable("f1", f1)',
+                       'CALL psy_data%ProvideVariable("f2", f2)']
+    for line in not_yet_working:
+        if line not in code:
+            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+        if line not in code_omp:
+            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+    assert False, "X-failing test suddenly working: #646 lfric extraction."
 
 
 def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
@@ -571,6 +608,18 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # TODO #646 (LFRic not fully supported) and #637 (no builtin support)
+    # This is an except of missing lines, which will cause this test to x-fail
+    not_yet_working = ['CALL psy_data%PreDeclareVariable("f2_post", f2)',
+                       'CALL psy_data%ProvideVariable("f2_post", f2)',
+                       'CALL psy_data%ProvideVariable("nlayers", nlayers)',
+                       'CALL psy_data%ProvideVariable("ndf_w2", ndf_w2)',
+                       'CALL psy_data%ProvideVariable("undf_w2", undf_w2)']
+    for line in not_yet_working:
+        if line not in code:
+            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+    assert False, "X-failing test suddenly working: #646 LFRic extraction."
 
 
 def test_extract_colouring_omp_dynamo0p3(tmpdir):
@@ -659,3 +708,16 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # TODO #646
+    # At this stage not all required parameters are passed via PSyData.
+    # This is an except of missing lines, which will cause this test to x-fail
+    not_yet_working = ['CALL psy_data%ProvideVariable("nlayers", nlayers)',
+                       'CALL psy_data%ProvideVariable("ndf_w2", ndf_w2)',
+                       'CALL psy_data%ProvideVariable("undf_w2", undf_w2)',
+                       'CALL psy_data%ProvideVariable("weights_z_qr", '
+                       'weights_z_qr)']
+    for line in not_yet_working:
+        if line not in code:
+            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+    assert False, "X-failing test suddenly working: #646 LFRic extraction."
