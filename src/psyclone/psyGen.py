@@ -2498,13 +2498,17 @@ class Kern(Node):
         local_var_name = self.local_reduction_name
         var_type = self._reduction_arg.type
         if var_type == "gh_real":
-            zero = "0.0_r_def"
-            kind_type = "r_def"
             data_type = "real"
+            data_value = "0.0"
+            kind_type = \
+                Config.get().api_conf("dynamo0.3").default_kind[data_type]
+            zero = "_".join([data_value, kind_type])
         elif var_type == "gh_integer":
-            zero = "0"
-            kind_type = None
             data_type = "integer"
+            data_value = "0"
+            kind_type = \
+                Config.get().api_conf("dynamo0.3").default_kind[data_type]
+            zero = "_".join([data_value, kind_type])
         else:
             raise GenerationError(
                 "zero_reduction variable should be one of ['gh_real', "
