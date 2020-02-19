@@ -38,7 +38,7 @@
 
 ''' This module contains the SymbolTable implementation. '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
@@ -251,6 +251,73 @@ class SymbolTable(object):
         '''
         return key.lower() in self._symbols
 
+    def imported_symbols(self, csymbol):
+        '''
+        Examines the contents of this symbol table to see which DataSymbols
+        (if any) are imported from the supplied ContainerSymbol (which must
+        be present in the SymbolTable).
+
+        :param csymbol: the ContainerSymbol to search for imports from.
+        :type csymbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :returns: list of DataSymbols that are imported from the supplied \
+                  ContainerSymbol. If none are found then the list is empty.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied object is not a ContainerSymbol.
+        :raises KeyError: if the supplied object is not in this SymbolTable.
+
+        '''
+        if not isinstance(csymbol, ContainerSymbol):
+            raise TypeError(
+                "imported_symbols() expects a ContainerSymbol but got an "
+                "object of type '{0}'".format(type(csymbol).__name__))
+        # self.lookup(name) will raise a KeyError if there is no symbol with
+        # that name in the table.
+        if self.lookup(csymbol.name) is not csymbol:
+            raise KeyError("The '{0}' entry in this SymbolTable is not the "
+                           "supplied ContainerSymbol.".format(csymbol.name))
+
+        return [symbol for symbol in self.global_datasymbols if
+                symbol.interface.container_symbol is csymbol]
+
+    def remove(self, symbol):
+        ''' Remove the supplied ContainerSymbol from the Symbol Table.
+        Support for removing other types of Symbol will be added as required.
+
+        :param symbol: the container symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :raises TypeError: if the supplied symbol is not a ContainerSymbol.
+        :raises KeyError: if the supplied symbol is not in the symbol table.
+        :raises ValueError: if the supplied container symbol is referenced \
+                            by one or more DataSymbols.
+        :raises InternalError: if the supplied symbol is not the same as the \
+                               entry with that name in this SymbolTable.
+        '''
+        if not isinstance(symbol, ContainerSymbol):
+            raise TypeError("remove() expects a ContainerSymbol object but "
+                            "got: '{0}'".format(type(symbol).__name__))
+        if symbol.name not in self._symbols:
+            raise KeyError("Cannot remove Symbol '{0}' from symbol table "
+                           "because it does not exist.".format(symbol.name))
+        # Sanity-check that the entry in the table is the symbol we've
+        # been passed.
+        if self._symbols[symbol.name] is not symbol:
+            raise InternalError(
+                "The Symbol with name '{0}' in this symbol table is not the "
+                "same Symbol object as the one that has been supplied to the "
+                "remove() method.".format(symbol.name))
+        # We can only remove a ContainerSymbol if no DataSymbols are
+        # being imported from it
+        if self.imported_symbols(symbol):
+            raise ValueError(
+                "Cannot remove ContainerSymbol '{0}' because symbols "
+                "{1} are imported from it - remove them first.".format(
+                    symbol.name,
+                    [sym.name for sym in self.imported_symbols(symbol)]))
+        self._symbols.pop(symbol.name)
+
     @property
     def argument_list(self):
         '''
@@ -400,6 +467,15 @@ class SymbolTable(object):
         return list(precision_symbols)
 
     @property
+    def containersymbols(self):
+        '''
+        :returns: a list of the ContainerSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        '''
+        return [sym for sym in self.symbols if isinstance(sym,
+                                                          ContainerSymbol)]
+
+    @property
     def iteration_indices(self):
         '''
         :returns: List of symbols representing kernel iteration indices.
@@ -453,19 +529,21 @@ class SymbolTable(object):
         # create one and add it.
         if external_container_name not in self:
             self.add(ContainerSymbol(external_container_name))
+        container_ref = self.lookup(external_container_name)
 
         # Copy the variable into the SymbolTable with the appropriate interface
         if globalvar.name not in self:
             new_symbol = globalvar.copy()
-            container_ref = self.lookup(external_container_name)
+            # Update the interface of this new symbol
             new_symbol.interface = GlobalInterface(container_ref)
             self.add(new_symbol, tag)
         else:
             # If it already exists it must refer to the same Container and have
             # the same tag.
-            if not (self.lookup(globalvar.name).is_global and
-                    self.lookup(globalvar.name).interface
-                    .container_symbol.name == external_container_name):
+            local_instance = self.lookup(globalvar.name)
+            if not (local_instance.is_global and
+                    local_instance.interface.container_symbol.name ==
+                    external_container_name):
                 raise KeyError(
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " name '{1}' is already used by another symbol."

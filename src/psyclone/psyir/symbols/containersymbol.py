@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,9 @@ class ContainerSymbol(Symbol):
         # always assign this interface to all ContainerSymbols, we may want
         # to pass the interface as a parameter when we have more than one.
         self._interface = FortranModuleInterface
+        # Whether or not there is a wildcard import of all public symbols
+        # from this container (e.g. an unqualified USE of a module in Fortran).
+        self._has_wildcard_import = False
 
     @property
     def container(self):
@@ -77,6 +80,32 @@ class ContainerSymbol(Symbol):
         else:
             string += "not linked>"
         return string
+
+    @property
+    def wildcard_import(self):
+        '''
+        :returns: whether or not there is a wildcard import of all public \
+                  symbols from this Container.
+        :rtype: bool
+
+        '''
+        return self._has_wildcard_import
+
+    @wildcard_import.setter
+    def wildcard_import(self, value):
+        '''
+        Set whether or not there is a wildcard import of all public symbols
+        from this Container symbol.
+
+        :param bool value: whether there is or is not a wildcard import.
+
+        :raises TypeError: if the supplied `value` is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("wildcard_import must be a bool but got: '{0}'".
+                            format(type(value).__name__))
+        self._has_wildcard_import = value
 
 
 # Classes below are not exposed in the psyclone.psyir.symbols

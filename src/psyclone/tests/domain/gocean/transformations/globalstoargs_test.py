@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''Tests the GlobalsToArgumentsTransformation for the  GOcean 1.0 API.'''
+''' Tests the GlobalsToArgumentsTransformation for the GOcean 1.0 API.'''
 
 from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.transformations import KernelGlobalsToArguments, \
+    TransformationError
 
 API = "gocean1.0"
 
@@ -51,8 +53,6 @@ BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 
 def test_globalstoargumentstrans_wrongapi():
     ''' Check the KernelGlobalsToArguments with an API other than GOcean1p0'''
-    from psyclone.transformations import KernelGlobalsToArguments, \
-        TransformationError
 
     trans = KernelGlobalsToArguments()
     path = os.path.join(BASEPATH, "dynamo0p3")
@@ -68,14 +68,65 @@ def test_globalstoargumentstrans_wrongapi():
            "type:" in str(err.value)
 
 
+@pytest.mark.xfail(reason="#649 symbols declared in outer, module scope but "
+                   "accessed inside kernel are not identified.")
+def test_globalstoargumentstrans_no_outer_module_import():
+    ''' Check that we reject kernels that access data that is declared in the
+    enclosing module. '''
+    trans = KernelGlobalsToArguments()
+    path = os.path.join(BASEPATH, "gocean1p0")
+    _, invoke_info = parse(os.path.join(path,
+                                        "single_invoke_kern_with_global.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(kernel)
+    assert ("accesses a variable that is not declared in local scope" in
+            str(err.value))
+
+
+def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
+    ''' Check that the transformation rejects kernels with undeclared symbols
+    and/or wildcard imports. '''
+    from psyclone.psyir.nodes import Node
+    trans = KernelGlobalsToArguments()
+    path = os.path.join(BASEPATH, "gocean1p0")
+    _, invoke_info = parse(os.path.join(
+        path, "single_invoke_kern_with_unqualified_use.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(kernel)
+    assert "contains undeclared symbol" in str(err.value)
+    assert "'rdt'" in str(err.value)
+    _, invoke_info = parse(os.path.join(
+        path, "single_invoke_kern_with_unqualified_use.f90"),
+                           api=API)
+    # monkeypatch the check that symbols have been declared in order
+    # to exercise the check on unqualified imports
+    rdt_sym = DataSymbol("rdt", DataType.REAL)
+    monkeypatch.setattr(Node, "find_symbol", lambda _1, _2: rdt_sym)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(kernel)
+    assert ("'kernel_with_use_code' has a wildcard import of symbols from "
+            "container 'model_mod'" in str(err.value))
+
+
+@pytest.mark.xfail(reason="Transformation does not set modified property "
+                   "of kernel - #663")
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoargumentstrans(monkeypatch):
     ''' Check the GlobalsToArguments transformation with a single kernel
     invoke and a global variable.'''
-    from psyclone.transformations import KernelGlobalsToArguments, \
-        TransformationError
     from psyclone.psyGen import Argument
     from psyclone.psyir.backend.fortran import FortranWriter
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     assert trans.name == "KernelGlobalsToArguments"
@@ -107,6 +158,8 @@ def test_globalstoargumentstrans(monkeypatch):
 
     # Test transforming a single kernel
     trans.apply(kernel)
+
+    assert kernel.modified
 
     # The transformation;
     # 1) Has imported the symbol into the InvokeSchedule
@@ -147,12 +200,11 @@ def test_globalstoargumentstrans(monkeypatch):
     assert invoke.schedule.symbol_table.lookup("rdt")
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoargumentstrans_constant(monkeypatch):
     ''' Check the GlobalsToArguments transformation when the global is
     also a constant value, in this case the argument should be read-only.'''
-    from psyclone.transformations import KernelGlobalsToArguments
     from psyclone.psyir.backend.fortran import FortranWriter
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
 
@@ -185,8 +237,6 @@ def test_globalstoargumentstrans_constant(monkeypatch):
 def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
     ''' Check the GlobalsToArguments transformation when the global is
     a type not supported by the GOcean infrastructure raises an Error'''
-    from psyclone.transformations import KernelGlobalsToArguments
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
 
@@ -212,12 +262,11 @@ def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
         "equivalent to the PSyIR DataType.CHARACTER type." in str(err.value)
 
 
-
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoarguments_multiple_kernels():
     ''' Check the KernelGlobalsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
-    from psyclone.transformations import KernelGlobalsToArguments
     from psyclone.psyir.backend.fortran import FortranWriter
     fwriter = FortranWriter()
 
@@ -271,10 +320,10 @@ def test_globalstoarguments_multiple_kernels():
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoarguments_noglobals():
     ''' Check the KernelGlobalsToArguments transformation can be applied to
     a kernel that does not contain any global without any effect '''
-    from psyclone.transformations import KernelGlobalsToArguments
 
     # Parse a file to get an initialised GOKernelsArguments object
     _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
@@ -295,8 +344,6 @@ def test_globalstoarguments_noglobals():
 def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     ''' Check the GlobalsToArguments transformation with a symbol name clash
     produces the expected error.'''
-    from psyclone.transformations import KernelGlobalsToArguments
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     # Construct a testing InvokeSchedule
@@ -324,11 +371,10 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
         " by another symbol." in str(err.value)
 
 # FIXEM: Probably we don't need this test anymore
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
     ''' Check the GlobalsToArguments transformation adds the module and global
     variable names into the NameSpaceManager to prevent clashes'''
-    from psyclone.transformations import KernelGlobalsToArguments
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     # Construct a testing InvokeSchedule
@@ -365,8 +411,6 @@ def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
 def test_globalstoargumentstrans_clash_namespace_before(monkeypatch):
     ''' Check the GlobalsToArguments generation will break if the global
     variable name has already been used in the NameSpaceManager'''
-    from psyclone.transformations import KernelGlobalsToArguments
-    from psyclone.psyir.symbols import DataSymbol
 
     trans = KernelGlobalsToArguments()
     # Construct a testing InvokeSchedule

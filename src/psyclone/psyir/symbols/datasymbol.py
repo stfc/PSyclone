@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -259,7 +259,7 @@ class DataSymbol(Symbol):
         if not isinstance(value, DataSymbolInterface):
             raise TypeError("The interface to a DataSymbol must be a "
                             "DataSymbolInterface but got '{0}'".
-                            format(type(value)))
+                            format(type(value).__name__))
         self._interface = value
 
     @property
