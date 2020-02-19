@@ -569,18 +569,7 @@ class Invoke(object):
         self._name_space_manager = NameSpaceFactory(reset=True).create()
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls)
-
-        # Add the name for the call to the list of reserved names. This
-        # ensures we don't get a name clash with any variables we subsequently
-        # generate.
-        if reserved_names:
-            reserved_names.append(self._name)
-        else:
-            reserved_names = [self._name]
-
-        for name in reserved_names:
-            self.schedule.symbol_table.add(Symbol(name))
+        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -891,11 +880,15 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+                 reserved_names=None):
 
         # Initialize class
         self._parent = None
         self._symbol_table = SymbolTable()  # Permament symbol table
+        if reserved_names:
+            for name in reserved_names:
+                self._symbol_table.add(Symbol(name))
         self._gen_symbol_table = None  # Symbol table used on each psy.gen call
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
@@ -1129,6 +1122,7 @@ class InvokeSchedule(Schedule):
                                                               queue_number)))
 
         # Restore symbol table
+        # import pdb; pdb.set_trace()
         self._symbol_table = symbol_table_before_gen
 
     @property
@@ -3540,15 +3534,18 @@ class Argument(object):
             # Use our namespace manager to create a unique name unless
             # the context and label match in which case return the
             # previous name.
-            tag = "AlgArgs_" + self._text
-            try:
-                self._name = \
-                    self._call.root.symbol_table.lookup_tag(tag).name
-            except KeyError:
-                self._name = \
-                    self._call.root.symbol_table.new_symbol_name(
-                        self._orig_name)
-                self._call.root.symbol_table.add(Symbol(self._name), tag=tag)
+            # There are unit-tests where we create Arguments without an
+            # associated call
+            if self._call:
+                tag = "AlgArgs_" + self._text
+                try:
+                    self._name = \
+                        self._call.root.symbol_table.lookup_tag(tag).name
+                except KeyError:
+                    self._name = \
+                        self._call.root.symbol_table.new_symbol_name(
+                            self._orig_name)
+                    self._call.root.symbol_table.add(Symbol(self._name), tag=tag)
 
         self._vector_size = 1
 

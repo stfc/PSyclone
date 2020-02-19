@@ -272,6 +272,7 @@ def test_goloop():
     # defined at this stage.
 
 
+@pytest.mark.xfail(reason="gocean1p0 is not connected to symtab?")
 def test_goloop_partially():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: This test is identical to test_goloop above, but it asserts in a

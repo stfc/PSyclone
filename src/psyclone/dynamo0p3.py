@@ -1791,8 +1791,12 @@ class DynStencils(DynCollection):
                      self._unique_extent_args]
         elif self._kernel:
             # A kernel is passed the size of the stencil map
-            names = [self.dofmap_size_name(arg) for arg in
-                     self._unique_extent_args]
+            if hasattr(self._kernel.root, 'symbol_table'):
+                symtab = self._kernel.root.symbol_table
+            else:
+                symtab = SymbolTable()
+            names = [self.dofmap_size_name(symtab, arg)
+                     for arg in self._unique_extent_args]
         else:
             raise InternalError("_unique_extent_vars: have neither Invoke "
                                 "or Kernel. Should be impossible.")
@@ -3125,6 +3129,11 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
+        if hasattr(self._kernel.root, 'symbol_table'):
+            symtab = self._kernel.root.symbol_table
+        else:
+            symtab = SymbolTable()
+
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
         parent.add(DeclGen(parent, datatype="integer", intent="in",
@@ -3136,8 +3145,7 @@ class DynCMAOperators(DynCollection):
             # get upset if this ordering is not followed)
             _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_"+param)
+                param_name = symtab.name_from_tag(op_name+"_"+param)
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
                                intent="in",
@@ -4708,10 +4716,10 @@ class DynInvokeSchedule(InvokeSchedule):
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
-    def __init__(self, arg):
+    def __init__(self, arg, reserved_names=None):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
         InvokeSchedule.__init__(self, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg)
+                                DynBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -7906,7 +7914,11 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        name = DynStencils.dofmap_size_name(arg)
+        if hasattr(self._kern.root, 'symbol_table'):
+            symtab = self._kern.root.symbol_table
+        else:
+            symtab = SymbolTable()
+        name = DynStencils.dofmap_size_name(symtab, arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -7918,7 +7930,11 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         '''
-        self._arglist.append(DynStencils.direction_name(arg))
+        if hasattr(self._kern.root, 'symbol_table'):
+            symtab = self._kern.root.symbol_table
+        else:
+            symtab = SymbolTable()
+        self._arglist.append(DynStencils.direction_name(symtab, arg))
 
     def stencil(self, arg):
         '''
@@ -7928,7 +7944,11 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        self._arglist.append(DynStencils.dofmap_name(arg))
+        if hasattr(self._kern.root, 'symbol_table'):
+            symtab = self._kern.root.symbol_table
+        else:
+            symtab = SymbolTable()
+        self._arglist.append(DynStencils.dofmap_name(symtab, arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
@@ -8483,7 +8503,8 @@ class DynKernelArguments(Arguments):
         # We have now completed the construction of the kernel arguments so
         # we can go back and update the names of any stencil size and/or
         # direction variable names to ensure there are no clashes.
-        if hasattr(self._parent_call.root, 'symbol_table'):
+        if self._parent_call and hasattr(self._parent_call.root,
+                                         'symbol_table'):
             symtab = self._parent_call.root.symbol_table
         else:
             symtab = SymbolTable()
@@ -8494,9 +8515,9 @@ class DynKernelArguments(Arguments):
                 if arg.stencil.extent_arg.varname:
                     # Ensure extent argument name is registered with
                     # namespace manager
-                    tag = "AlgArgs_" + arg.stencil.extent_arg.varname
+                    tag = "AlgArgs_" + arg.stencil.extent_arg.text
                     try:
-                        new_name = symtab.lookup_tag(tag)
+                        new_name = symtab.lookup_tag(tag).name
                     except KeyError:
                         new_name = symtab.new_symbol_name(
                             arg.stencil.extent_arg.varname)
@@ -8509,9 +8530,9 @@ class DynKernelArguments(Arguments):
                    VALID_STENCIL_DIRECTIONS:
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
-                    tag = "AlgArgs_" + arg.stencil.direction_arg.varname
+                    tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     try:
-                        new_name = symtab.lookup_tag(tag)
+                        new_name = symtab.lookup_tag(tag).name
                     except KeyError:
                         new_name = symtab.new_symbol_name(
                             arg.stencil.direction_arg.varname)
@@ -8764,7 +8785,7 @@ class DynKernelArguments(Arguments):
 
                 '''
                 var_name = DynStencils.dofmap_name(
-                    self._parent_call.root.symbol_table, arg)
+                    self._kern.root.symbol_table, arg)
                 self._arglist.append(var_name)
 
             def operator(self, arg):

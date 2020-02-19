@@ -331,9 +331,9 @@ class GOInvokeSchedule(InvokeSchedule):
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
-    def __init__(self, alg_calls):
+    def __init__(self, alg_calls, reserved_names=None):
         InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                                alg_calls)
+                                alg_calls, reserved_names)
 
         # Configuration of this InvokeSchedule - we default to having
         # constant loop bounds. If we end up having a long list

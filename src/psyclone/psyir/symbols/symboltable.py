@@ -100,6 +100,7 @@ class SymbolTable(object):
         or None.
 
         '''
+        #import pdb; pdb.set_trace()
         if root_name is not None and not isinstance(root_name, str):
             raise TypeError(
                 "Argument root_name should be of type str or NoneType but "
@@ -125,10 +126,11 @@ class SymbolTable(object):
         :raises KeyError: if the symbol name is already in use.
 
         '''
-        if new_symbol.name in self._symbols:
+        key = new_symbol.name.lower()
+        if key in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
-        self._symbols[new_symbol.name] = new_symbol
+        self._symbols[key] = new_symbol
 
         if tag:
             if tag in self._tags:
@@ -209,7 +211,7 @@ class SymbolTable(object):
         :raises KeyError: if the given name is not in the Symbol Table.
         '''
         try:
-            return self._symbols[name]
+            return self._symbols[name.lower()]
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
