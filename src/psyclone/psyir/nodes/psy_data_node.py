@@ -98,7 +98,6 @@ class PSyDataNode(Node):
         if children:
             # We need to store the position of the original children,
             # i.e. before they are added to a schedule
-            node_parent = children[0].parent
             node_position = children[0].position
 
         # A PSyData node always contains a Schedule
@@ -106,19 +105,21 @@ class PSyDataNode(Node):
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
 
-        if children:
+        if children and parent:
             # Correct the parent's list of children. Use a slice of the list
             # of nodes so that we're looping over a local copy of the list.
             # Otherwise things get confused when we remove children from
             # the list.
             for child in children[:]:
                 # Remove child from the parent's list of children
-                node_parent.children.remove(child)
+                parent.children.remove(child)
 
             # Add this node as a child of the parent
             # of the nodes being enclosed and at the original location
             # of the first of these nodes
-            node_parent.addchild(self, index=node_position)
+            parent.addchild(self, index=node_position)
+        elif parent:
+            parent.addchild(self)
 
         # Name and colour to use for this node - must be set after calling
         # the constructor
