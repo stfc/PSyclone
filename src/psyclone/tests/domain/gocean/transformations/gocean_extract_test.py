@@ -335,8 +335,9 @@ def test_driver_generation_flag(tmpdir, create_driver):
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
-    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
-                         "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -361,8 +362,9 @@ def test_driver_creation(tmpdir):
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
-    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-"
-                         "invoke_0_compute_kernel:compute_kernel_code:r0.f90")
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
     assert driver.isfile()
 
     with driver.open("r") as driver_file:
@@ -378,8 +380,8 @@ def test_driver_creation(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld_post
       REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld
       TYPE(PSyDataType) psy_data
-      CALL psy_data%OpenRead("psy_single_invoke_three_kernels", ''' \
-      '''"invoke_0_compute_kernel:compute_kernel_code:r0")
+      CALL psy_data%OpenRead("psy_extract_example_with_various_variable''' \
+      '''_access_patterns", "invoke_0_compute_kernel:compute_kernel_code:r0")
       CALL psy_data%ReadVariable("cu_fld_post", cu_fld_post)
       ALLOCATE (cu_fld, mold=cu_fld_post)
       cu_fld = 0.0
@@ -425,8 +427,10 @@ def test_driver_loop_variables(tmpdir):
     str(psy.gen)
 
     from os.path import isfile
-    driver = tmpdir.join("driver-psy_single_invoke_three_kernels-invoke_0"
-                         "_compute_kernel:compute_kernel_code:r0.f90")
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_0_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
+
     assert isfile(driver)
 
     with open(driver, "r") as driver_file:
