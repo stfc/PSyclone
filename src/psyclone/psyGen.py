@@ -887,14 +887,15 @@ class InvokeSchedule(Schedule):
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
 
-        # Initialize class
+        # Initialise class attributes
         self._parent = None
-        self._symbol_table = SymbolTable()  # Permament symbol table
+        self._symbol_table = SymbolTable()
         if reserved_names:
             for name in reserved_names:
                 self._symbol_table.add(Symbol(name))
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
+
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
 
@@ -1116,7 +1117,6 @@ class InvokeSchedule(Schedule):
                                                               queue_number)))
 
         # Restore symbol table
-        # import pdb; pdb.set_trace()
         self._symbol_table = symbol_table_before_gen
 
     @property
@@ -2493,14 +2493,9 @@ class Kern(Node):
         '''Generate a local variable name that is unique for the current
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
-        var_name = self._reduction_arg.name
-        sym_name = ""
-        try:
-            sym_name = self.root.symbol_table.lookup_tag(var_name).name
-        except KeyError:
-            sym_name = self.root.symbol_table.new_symbol_name("l_" + var_name)
-            self.root.symbol_table.add(Symbol(sym_name), tag=var_name)
-        return sym_name
+        tag = self._reduction_arg.name
+        name =  self.root.symbol_table.name_from_tag(tag, "l_" + tag)
+        return name
 
 
     def zero_reduction_variable(self, parent, position=None):
@@ -2591,11 +2586,8 @@ class Kern(Node):
         if self.reprod_reduction:
             idx_name = \
                 self.root.symbol_table.lookup_tag("omp_thread_index").name
-            try:
-                local_name = self.root.symbol_table.lookup_tag(name).name
-            except KeyError:
-                local_name = self.root.symbol_table.new_symbol_name("l_"+name)
-                self.root.symbol_table.add(Symbol(local_name), tag=name)
+            local_name = \
+                self.root.symbol_table.name_from_tag(name, "l_" + name)
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -3530,17 +3522,11 @@ class Argument(object):
             # the context and label match in which case return the
             # previous name.
             # There are unit-tests where we create Arguments without an
-            # associated call
+            # associated call.
             if self._call:
                 tag = "AlgArgs_" + self._text
-                try:
-                    self._name = \
-                        self._call.root.symbol_table.lookup_tag(tag).name
-                except KeyError:
-                    self._name = \
-                        self._call.root.symbol_table.new_symbol_name(
-                            self._orig_name)
-                    self._call.root.symbol_table.add(Symbol(self._name), tag=tag)
+                self._name = self._call.root.symbol_table.name_from_tag(
+                    tag, self._orig_name)
 
         self._vector_size = 1
 

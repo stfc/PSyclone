@@ -1704,14 +1704,8 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        try:
-            return self._invoke.schedule.symbol_table.lookup_tag(unique).name
-        except KeyError:
-            new_name = \
-                self._invoke.schedule.symbol_table.new_symbol_name(root_name)
-            self._invoke.schedule.symbol_table.add(
-                Symbol(new_name), tag=unique)
-            return new_name
+        return self._invoke.schedule.symbol_table.name_from_tag(
+            unique, root=root_name)
 
     @staticmethod
     def dofmap_name(symtab, arg):
@@ -1727,12 +1721,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        try:
-            return symtab.lookup_tag(unique).name
-        except KeyError:
-            new_name = symtab.new_symbol_name(root_name)
-            symtab.add(Symbol(new_name), tag=unique)
-            return new_name
+        return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
     def dofmap_size_name(symtab, arg):
@@ -1748,12 +1737,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
-        try:
-            return symtab.lookup_tag(unique).name
-        except KeyError:
-            new_name = symtab.new_symbol_name(root_name)
-            symtab.add(Symbol(new_name), tag=unique)
-            return new_name
+        return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
     def direction_name(symtab, arg):
@@ -1769,12 +1753,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name+"_direction"
         unique = DynStencils.stencil_unique_str(arg, "direction")
-        try:
-            return symtab.lookup_tag(unique).name
-        except KeyError:
-            new_name = symtab.new_symbol_name(root_name)
-            symtab.add(Symbol(new_name), tag=unique)
-            return new_name
+        return symtab.name_from_tag(unique, root=root_name)
 
     @property
     def _unique_extent_vars(self):
@@ -6066,11 +6045,7 @@ class DynLoop(Loop):
         else:
             # It's not an inter-grid kernel so there's only one mesh
             mesh_name = "mesh"
-        try:
-            mesh = self.root.symbol_table.lookup_tag(mesh_name).name
-        except KeyError:
-            mesh = self.root.symbol_table.new_symbol_name(mesh_name)
-            self.root.symbol_table.add(Symbol(mesh_name), tag=mesh_name)
+        mesh = self.root.symbol_table.name_from_tag(mesh_name)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -6642,7 +6617,6 @@ class DynKern(CodedKern):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
         from psyclone.parse.algorithm import KernelCall
-        self._parent = parent
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
                            parent, check=False)
@@ -6681,13 +6655,8 @@ class DynKern(CodedKern):
             # as a label.
             if qr_arg.varname:
                 tag = "AlgArgs_" + self._qr_text
-                try:
-                    self._qr_name = \
-                        self.root.symbol_table.lookup_tag(tag).name
-                except KeyError:
-                    self._qr_name = \
-                        self.root.symbol_table.new_symbol_name(qr_arg.varname)
-                    self.root.symbol_table.add(Symbol(self._qr_name), tag=tag)
+                self._qr_name = \
+                    self.root.symbol_table.name_from_tag(tag, qr_arg.varname)
             else:
                 self._qr_name = ""
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
@@ -7529,9 +7498,9 @@ class KernCallArgList(ArgOrdering):
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            component_name = self._kern.root.symbol_table.name_from_tag(
-                arg.name+"_"+component)
-            self._arglist.append(component_name)
+            self._arglist.append(
+                self._kern.root.symbol_table.name_from_tag(
+                    arg.name + "_" + component))
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
@@ -8515,12 +8484,8 @@ class DynKernelArguments(Arguments):
                     # Ensure extent argument name is registered with
                     # namespace manager
                     tag = "AlgArgs_" + arg.stencil.extent_arg.text
-                    try:
-                        new_name = symtab.lookup_tag(tag).name
-                    except KeyError:
-                        new_name = symtab.new_symbol_name(
-                            arg.stencil.extent_arg.varname)
-                        symtab.add(Symbol(new_name), tag=tag)
+                    root = arg.stencil.extent_arg.varname
+                    new_name = symtab.name_from_tag(tag, root)
                     arg.stencil.extent_arg.varname = new_name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
@@ -8530,12 +8495,8 @@ class DynKernelArguments(Arguments):
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
-                    try:
-                        new_name = symtab.lookup_tag(tag).name
-                    except KeyError:
-                        new_name = symtab.new_symbol_name(
-                            arg.stencil.direction_arg.varname)
-                        symtab.add(Symbol(new_name), tag=tag)
+                    root = arg.stencil.direction_arg.varname
+                    new_name = symtab.name_from_tag(tag, root)
                     arg.stencil.direction_arg.varname = new_name
 
         self._dofs = []
@@ -8783,9 +8744,8 @@ class DynKernelArguments(Arguments):
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
                 '''
-                var_name = DynStencils.dofmap_name(
-                    self._kern.root.symbol_table, arg)
-                self._arglist.append(var_name)
+                self._arglist.append(DynStencils.dofmap_name(
+                    self._kern.root.symbol_table, arg))
 
             def operator(self, arg):
                 '''

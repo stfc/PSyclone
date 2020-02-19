@@ -232,11 +232,33 @@ class SymbolTable(object):
             raise KeyError("Could not find the tag '{0}' in the Symbol Table."
                            "".format(tag))
 
-    def name_from_tag(self, tag):
+    def name_from_tag(self, tag, root=None):
+        '''
+        Given a tag, if it exists in the symbol table return the symbol name
+        associated with it, otherwise create a new symbol associated with this
+        tag (using the tag as name or optionallyt the provided root) and return
+        the name of the new symbol.
+
+        Note that this method creates generic Symbols without properties like
+        datatypes and just returns the name string (not the Symbol object).
+        This is commonly needed on the current psy-layer implementation but not
+        recommented on new style PSyIR. This method may be deprecated in the
+        future.
+
+        :param str tag: tag identifier.
+        :param str root: optional name of the new symbols if this needs to \
+            be created.
+
+        :returns: name associated with the given tag.
+        :rtype: str
+        '''
         try:
             return self.lookup_tag(tag).name
         except KeyError:
-            name = self.new_symbol_name(tag)
+            if root:
+                name = self.new_symbol_name(root)
+            else:
+                name = self.new_symbol_name(tag)
             self.add(Symbol(name), tag=tag)
             return name
 

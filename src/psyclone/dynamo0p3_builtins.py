@@ -130,7 +130,7 @@ class DynBuiltIn(BuiltIn):
         ''' Populate the state of this object using the supplied call
         object. '''
         from psyclone.dynamo0p3 import FSDescriptors
-        self._parent = parent
+        self._parent = parent  # Needed on the DynKernelArguments() below
         BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
