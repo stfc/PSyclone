@@ -101,7 +101,6 @@ class PSyDataNode(Node):
         if children:
             # We need to store the position of the original children,
             # i.e. before they are added to a schedule
-            node_parent = children[0].parent
             node_position = children[0].position
 
         # A PSyData node always contains a Schedule
@@ -109,19 +108,21 @@ class PSyDataNode(Node):
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
 
-        if children:
+        if children and parent:
             # Correct the parent's list of children. Use a slice of the list
             # of nodes so that we're looping over a local copy of the list.
             # Otherwise things get confused when we remove children from
             # the list.
             for child in children[:]:
                 # Remove child from the parent's list of children
-                node_parent.children.remove(child)
+                parent.children.remove(child)
 
             # Add this node as a child of the parent
             # of the nodes being enclosed and at the original location
             # of the first of these nodes
-            node_parent.addchild(self, index=node_position)
+            parent.addchild(self, index=node_position)
+        elif parent:
+            parent.addchild(self)
 
         # Name and colour to use for this node - must be set after calling
         # the constructor
@@ -136,8 +137,25 @@ class PSyDataNode(Node):
         # then remain unchanged).
         self._module_name = None
         self._region_name = None
-        # The region identifier caches the computed module- and
-        # region-name as a tuple of strings
+        # The region identifier caches the computed module- and region-name
+        # as a tuple of strings. This is required so that a derived class can
+        # query the actual name of region (e.g. during generation of a driver
+        # for an extract node). If the user does not define a name, i.e.
+        # module_name and region_name are empty, a unique name will be
+        # computed in gen_code(). If this name would then be stored in
+        # module_name and region_name, and gen() is called again, the
+        # names would not be computed again, since the code detects already
+        # defined module and region names. This can then result in duplicated
+        # region names: The test 'test_region' in profile_test triggers this.
+        # gen()) is called first after one profile region is applied, then
+        # another profile region is added, and gen() is called again. The
+        # second profile region would compute a new name, which then happens
+        # to be the same as the name computed for the first region in the
+        # first gen_code call (which indeed implies that the name of the
+        # first profile region is different the second time it is computed).
+        # So in order to guarantee that the computed module and region names
+        # are unique when gen_code is called more than once, we
+        # cannot store a computed name in module_name and region_name.
         self._region_identifier = ("", "")
 
         name = None
