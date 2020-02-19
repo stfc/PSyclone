@@ -464,20 +464,21 @@ def test_profile_kernels_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"call (?P<profile1>\w*)%PreStart\(\"multi_invoke_psy\", "
+                  r"TYPE\(PSyDataType\), save :: (?P<profile2>\w*) .*"
+                  r"TYPE\(PSyDataType\), save :: (?P<profile1>\w*) .*"
+                  r"call (?P=profile1)%PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0:testkern_code:r0\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   r"call (?P=profile1)%PostEnd.*"
-                  r"call (?P<profile2>\w*)%PreStart\(\"multi_invoke_psy\", "
+                  r"call (?P=profile2)%PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0:testkern_code:r1\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   r"call (?P=profile2)%PostEnd")
+
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
     # Check that the variables are different
