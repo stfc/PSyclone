@@ -547,7 +547,6 @@ def test_cma_mdata_matrix_2_scalar_args():
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2)",
         "arg_type(GH_REAL,                GH_READ)",
         1)
-    print(code)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     dkm = DynKernMetadata(ast, name=name)
@@ -689,7 +688,6 @@ def test_cma_asm_field(tmpdir, dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
@@ -729,7 +727,6 @@ def test_cma_asm_scalar(dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
@@ -771,7 +768,6 @@ def test_cma_asm_field_same_fs(dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
@@ -841,7 +837,6 @@ def test_cma_apply(tmpdir, dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
@@ -967,7 +962,6 @@ def test_cma_apply_same_space(dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
@@ -1041,7 +1035,6 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_opa_proxy%ncell_2d" in code
 
@@ -1080,7 +1073,6 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
-    print(code)
     assert ("      afield_proxy = afield%get_proxy()\n"
             "      lma_op1_proxy = lma_op1%get_proxy()\n"
             "      cma_op1_proxy = cma_op1%get_proxy()\n"

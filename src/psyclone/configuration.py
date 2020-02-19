@@ -774,28 +774,32 @@ class DynConfig(APISpecificConfig):
                         "[dynamo0.3] section of the config file: {0}".
                         format(str(err)), config=self._config)
             elif key == "default_precision":
-                # Set default precisions from config file
-                all_prec = self.create_dict_from_string(section[key])
+                # Set default kinds (precisions) from config file
+                all_kinds = self.create_dict_from_string(section[key])
                 from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES as \
                     dynamo0p3_datatypes
-                for dtype in all_prec:
-                    if dtype not in dynamo0p3_datatypes:
-                        raise ConfigurationError(
-                            "Invalid datatype \"{0}\" found in the "
-                            "\"[dynamo0.3]\" section of the configuration "
-                            "file \"{1}\".".format(dtype, config.filename))
-                    if not all_prec[dtype]:
-                        raise ConfigurationError(
-                            "Did not find default precision for \"{0}\" "
-                            "datatype in the \"[dynamo0.3]\" section of the "
-                            "configuration file \"{1}\"."
-                            .format(dtype, config.filename))
-                self._default_precision = all_prec
+                # Check for valid datatypes (filter to remove any empty value)
+                datatypes = list(filter(None, all_kinds.keys()))
+                if datatypes != dynamo0p3_datatypes:
+                    raise ConfigurationError(
+                        "Invalid datatype found in the '[dynamo0.3]' "
+                        "section of the configuration file '{0}'. "
+                        "Valid datatypes are: '{1}'."
+                        .format(config.filename, dynamo0p3_datatypes))
+                # Check for valid kinds (filter to remove any empty value)
+                datakinds = list(filter(None, all_kinds.values()))
+                if len(datakinds) != len(dynamo0p3_datatypes):
+                    raise ConfigurationError(
+                        "Did not find default kind for one or more "
+                        "datatypes in the '[dynamo0.3]' section "
+                        "of the configuration file '{0}'."
+                        .format(config.filename))
+                self._default_precision = all_kinds
             else:
                 raise ConfigurationError(
-                    "Invalid configuration option \"{0}\" found in the "
-                    "\"[dynamo0.3]\" section of the configuration file "
-                    "\"{1}\".".format(key, config.filename))
+                    "Invalid configuration option '{0}' found in the "
+                    "'[dynamo0.3]' section of the configuration file "
+                    "'{1}'.".format(key, config.filename))
 
     @property
     def compute_annexed_dofs(self):
@@ -803,7 +807,7 @@ class DynConfig(APISpecificConfig):
         Getter for whether or not we perform redundant computation over
         annexed dofs.
         :returns: True if we are to do redundant computation
-        :rtype: Boolean
+        :rtype: Bool
 
         '''
         return self._compute_annexed_dofs
@@ -811,7 +815,7 @@ class DynConfig(APISpecificConfig):
     @property
     def default_precision(self):
         '''
-        Getter for default precision (kind) for real, integer and logical
+        Getter for default kind (precision) for real, integer and logical
         datatypes in LFRic.
         :returns: The default precisions for main datatypes in LFRic.
         :rtype: Dictionary of strings

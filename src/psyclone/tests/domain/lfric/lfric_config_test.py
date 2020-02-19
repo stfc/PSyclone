@@ -61,7 +61,7 @@ REPROD_PAD_SIZE = 8
 COMPUTE_ANNEXED_DOFS = false
 '''
 
-# =============================================================================
+
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_instance():
     ''' The tests in this module all assume that there is no pre-existing
@@ -80,9 +80,7 @@ def clear_config_instance():
     # Enforce loading of the default config file
     Config._instance = None
 
-@pytest.fixture(scope="module",
-                params=["COMPUTE_ANNEXED_DOFS"])
-# =============================================================================
+
 def test_anx_dof_not_bool(tmpdir):
     ''' Check that we raise an error if the COMPUTE_ANNEXED_DOFS
     setting is not a Boolean '''
@@ -114,13 +112,13 @@ def test_invalid_config_key(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("Invalid configuration option \"default_species\" found "
-                "in the \"[dynamo0.3]\" section " in str(err.value))
+        assert ("Invalid configuration option \'default_species\' found "
+                "in the \'[dynamo0.3]\' section " in str(err.value))
 
 
-def test_invalid_default_precision(tmpdir):
+def test_invalid_default_kind(tmpdir):
     ''' Check that we raise an error if we supply an invalid
-    datatype or precision in the configuration file '''
+    datatype or kind (precision) in the configuration file '''
 
     # Test invalid datatype
     content = _CONFIG_CONTENT + \
@@ -133,10 +131,12 @@ def test_invalid_default_precision(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("Invalid datatype \"reality\" found in the "
-                "\"[dynamo0.3]\" section " in str(err.value))
+        assert ("Invalid datatype found in the \'[dynamo0.3]\' section "
+                in str(err.value))
+        assert ("Valid datatypes are: '['real', 'integer', 'logical']'"
+                in str(err.value))
 
-    # Test invalid precision
+    # Test invalid kind (precision)
     content = _CONFIG_CONTENT + \
         "default_precision = real: r_def, integer: , logical: l_def"
     config_file = tmpdir.join("config_dyn")
@@ -147,14 +147,14 @@ def test_invalid_default_precision(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("Did not find default precision for \"integer\" datatype "
-                "in the \"[dynamo0.3]\" section " in str(err.value))
+        assert ("Did not find default kind for one or more datatypes "
+                "in the \'[dynamo0.3]\' section " in str(err.value))
 
 
-def test_default_precision():
-    ''' Check that we load correct default precisions for all datatypes.
-    This test will be modified to test whether the default precisions
-    are in a list of allowed precisions for each datatype when the
+def test_default_kind():
+    ''' Check that we load correct default kinds (precisions) for all
+    datatypes. This test will be modified to test whether the default
+    kinds are in a list of allowed kinds for each datatype when the
     functionality is introduced. '''
     config = Config()
     api_config = config.get().api_conf(TEST_API)
