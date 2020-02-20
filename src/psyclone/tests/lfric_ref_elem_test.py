@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified: I. Kavcic, Met Office
 
 '''
 Module containing pytest tests for the reference-element functionality
