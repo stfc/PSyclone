@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -59,15 +59,15 @@ contains
                                     ndf_w1, undf_w1, map_w1, basis_w1, ndf_w2, &
                                     undf_w2, map_w2, diff_basis_w2, ndf_w3,    &
                                     undf_w3, map_w3, basis_w3, diff_basis_w3,  &
-                                    nqp, wqp)
+                                    nedges, nqp, wqp)
     use constants_mod, only: r_def
     implicit none
     integer :: nlayers, iscalar, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-               undf_w3, nqp
+               undf_w3, nqp, nedges
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: f1, f2, f3, f4
     integer, dimension(:) :: map_w1, map_w2, map_w3
-    real(kind=r_def), dimension(nqp,??) :: wqp
+    real(kind=r_def), dimension(nqp,nedges) :: wqp
     real(kind=r_def), dimension(:,:,:,:) :: basis_w1, diff_basis_w2, &
                                             basis_w3, diff_basis_w3
   end subroutine testkern_qr_edges_code

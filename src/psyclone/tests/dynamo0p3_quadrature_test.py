@@ -419,6 +419,9 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen)
     print(gen_code)
+    # Check that the qr-related variables are all declared
+    
+    # Check that the kernel call itself is correct
     assert (
         "CALL testkern_2qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, "
