@@ -116,7 +116,7 @@ class ExtractTrans(RegionTrans):
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
-        # GlobalSum classses as they are only generated when distributed
+        # GlobalSum classes as they are only generated when distributed
         # memory is enabled.
         if Config.get().distributed_memory:
             raise TransformationError(
