@@ -27,7 +27,7 @@ a four-kernel invoke and an OpenCL version of each of the kernels.
 
 Examples of the application of kernel transforms to kernels that access
 data and/or routines from other Fortran modules. Note that this is not
-yet supported and is the subject of Issues #323 and #342.
+yet fully supported and is the subject of Issues #490 and #342.
 
 ## Licence
 

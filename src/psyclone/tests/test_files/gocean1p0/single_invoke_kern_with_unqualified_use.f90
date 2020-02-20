@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,24 +29,30 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Author: A. R. Porter, STFC Daresbury Lab
 
-module alg
+program single_invoke_test
 
-contains
+  ! Fake Fortran program for testing the use of PSyclone with a kernel
+  ! that has a USE statement without an ONLY clause.
+  use kind_params_mod
+  use grid_mod
+  use field_mod
+  use kernel_with_unqualified_use_mod, only: kernel_with_use
+  implicit none
 
-  subroutine do_update(fld1, fld2)
-    use field_mod, only: r2d_field
-    use kern_use_var_mod, only: kern_use_var
-    use kern_call_kern_mod, only: kern_call_kern
-    use kern_nested_use_mod, only: kern_nested_use
-    implicit none
-    type(r2d_field), intent(inout) :: fld1, fld2
+  type(grid_type), target :: model_grid
+  type(r2d_field) :: oldu_fld, u_fld, cu_fld
 
-    call invoke(kern_use_var(fld1),   &
-                kern_call_kern(fld2), &
-                kern_nested_use(fld1))
+  ! Create the model grid
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
-  end subroutine do_update
+  ! Create fields on this grid
+  oldu_fld = r2d_field(model_grid, GO_T_POINTS)
+  u_fld = r2d_field(model_grid, GO_U_POINTS)
+  cu_fld = r2d_field(model_grid, GO_U_POINTS)
 
-end module alg
+  call invoke( kernel_with_use(oldu_fld, cu_fld, u_fld) )
+
+end program single_invoke_test
