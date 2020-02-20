@@ -3628,10 +3628,10 @@ class DynBasisFunctions(DynCollection):
                     # before so create a dictionary entry with an
                     # empty list
                     self._qr_vars[shape] = []
-                if rule.name not in self._qr_vars[shape]:
+                if rule.psy_name not in self._qr_vars[shape]:
                     # Add this qr argument to the list of those that
                     # have this shape
-                    self._qr_vars[shape].append(rule.name)
+                    self._qr_vars[shape].append(rule.psy_name)
 
             if "gh_evaluator" in call.eval_shapes:
                 # An evaluator consists of basis or diff basis functions
@@ -3780,7 +3780,7 @@ class DynBasisFunctions(DynCollection):
                 if shape in VALID_QUADRATURE_SHAPES:
                     # This is for quadrature - store the name of the
                     # qr variable
-                    entry["qr_var"] = call.qr_rules[shape].name
+                    entry["qr_var"] = call.qr_rules[shape].psy_name
                     # Quadrature are evaluated at pre-determined
                     # points rather than at the nodes of another FS.
                     # We put one entry of None in the list of target
@@ -4654,8 +4654,8 @@ class DynInvoke(Invoke):
         self._alg_unique_qr_args = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
-                if rule.text not in self._alg_unique_qr_args:
-                    self._alg_unique_qr_args.append(rule.text)
+                if rule.alg_name not in self._alg_unique_qr_args:
+                    self._alg_unique_qr_args.append(rule.alg_name)
         self._alg_unique_args.extend(self._alg_unique_qr_args)
         # we also need to work out the names to use for the qr
         # arguments within the psy layer. These are stored in the
@@ -4663,8 +4663,8 @@ class DynInvoke(Invoke):
         self._psy_unique_qr_vars = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
-                if rule.name not in self._psy_unique_qr_vars:
-                    self._psy_unique_qr_vars.append(rule.name)
+                if rule.psy_name not in self._psy_unique_qr_vars:
+                    self._psy_unique_qr_vars.append(rule.psy_name)
 
         # lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
@@ -6641,7 +6641,17 @@ class DynKern(CodedKern):
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
     instance or to generate a Kernel stub'''
-    QRRule = namedtuple("QRRule", ["text", "name", "args"])
+
+    # Namedtuple used to store information on each quadrature rule
+    # required by a kernel.
+    QRRule = namedtuple("QRRule",
+                        ["alg_name", # The actual argument text specifying the
+                                     # QR object in the Alg. layer.
+                         "psy_name",  # The psy-layer variable name for the QR
+                                      # object.
+                         "kernel_args" # List of kernel arguments associated
+                                       # with this QR rule.
+                        ])
 
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
@@ -6653,10 +6663,10 @@ class DynKern(CodedKern):
         self._qr_required = False
         # Whether this kernel requires basis functions
         self._basis_required = False
-        # What shapes of evaluator this kernel requires (if any)
+        # What shapes of evaluator/quadrature this kernel requires (if any)
         self._eval_shapes = []
         # The function spaces on which to *evaluate* basis/diff-basis
-        # functions if any are required for this kernel. Is a dict with
+        # functions if an evaluator is required for this kernel. Is a dict with
         # (mangled) FS names as keys and associated kernel argument as value.
         self._eval_targets = OrderedDict()
         # Will hold a dict of QRRule namedtuple objects, one for each QR
@@ -6882,6 +6892,12 @@ class DynKern(CodedKern):
 
     @property
     def qr_rules(self):
+        '''
+        :returns: details of each of the quadrature rules required by this \
+                  kernel.
+        :rtype: OrderedDict of :py:class:`psyclone.dynamo0p3.DynKern.QRRule` \
+                indexed by quadrature shape.
+        '''
         return self._qr_rules
 
     @property
@@ -7726,7 +7742,7 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = get_fs_basis_name(function_space,
-                                           qr_var=rule.name)
+                                           qr_var=rule.psy_name)
             self._arglist.append(basis_name)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -7752,7 +7768,7 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             diff_basis_name = get_fs_diff_basis_name(
-                function_space, qr_var=rule.name)
+                function_space, qr_var=rule.psy_name)
             self._arglist.append(diff_basis_name)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -7887,16 +7903,15 @@ class KernCallArgList(ArgOrdering):
                 self._nqp_positions.append(
                     {"horizontal": len(self._arglist) + 1,
                      "vertical": len(self._arglist) + 2})
-                self._arglist.extend(rule.args)
+                self._arglist.extend(rule.kernel_args)
             elif shape == "gh_quadrature_edge":
                 # TODO #705 support transformations supplying the number of
                 # quadrature points for edge quadrature.
-                self._arglist.extend(rule.args)
+                self._arglist.extend(rule.kernel_args)
             elif shape == "gh_quadrature_face":
                 # TODO #705 support transformations supplying the number of
                 # quadrature points for face quadrature.
-                self._nqp_positions.append({"xyz": len(self._arglist) + 1})
-                self._arglist.extend(rule.args)
+                self._arglist.extend(rule.kernel_args)
             else:
                 raise NotImplementedError(
                     "quad_rule: no support implemented for quadrature with a "
@@ -8299,10 +8314,10 @@ class KernStubArgList(ArgOrdering):
         self.field_bcs_kernel(function_space)
 
     def quad_rule(self):
-        ''' provide quadrature information for this kernel stub (necessary
-        arguments and declarations) '''
+        ''' Provide quadrature information for this kernel stub (necessary
+        arguments and declarations). '''
         for rule in self._kern.qr_rules.values():
-            self._arglist.extend(rule.args)
+            self._arglist.extend(rule.kernel_args)
 
     @property
     def arglist(self):
