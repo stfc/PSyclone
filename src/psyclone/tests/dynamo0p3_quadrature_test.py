@@ -244,8 +244,8 @@ def test_edge_qr(tmpdir, dist_mem):
             "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
-            "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xyz_qr, "
-            "nedges_qr, weights_xyz_qr)" in gen_code)
+            "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, nedges_qr, "
+            "np_xyz_qr, weights_xyz_qr)" in gen_code)
 
 
 def test_face_qr(tmpdir, dist_mem):
@@ -387,7 +387,7 @@ def test_face_qr(tmpdir, dist_mem):
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
-        "diff_basis_w3_qr, np_xyz_qr, nfaces_qr, weights_xyz_qr)\n"
+        "diff_basis_w3_qr, nfaces_qr, np_xyz_qr, weights_xyz_qr)\n"
         "      END DO\n")
     if dist_mem:
         compute_output += (
@@ -505,7 +505,7 @@ def test_dynbasisfunctions(monkeypatch):
     sched = invoke.schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
-    monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
+    monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
         _ = DynBasisFunctions(invoke)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
@@ -525,7 +525,7 @@ def test_dynbasisfns_setup(monkeypatch):
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     # Now we've created a DynBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
-    monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
+    monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
         dinf._setup_basis_fns_for_call(call)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
@@ -627,7 +627,7 @@ def test_dynkern_setup(monkeypatch):
     monkeypatch.setattr(KernelCall, "__init__",
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
-    monkeypatch.setattr(kern, "_eval_shape", value="gh_wrong_shape")
+    monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
     # Rather than try and mock-up a DynKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr.F90"),
@@ -635,9 +635,9 @@ def test_dynkern_setup(monkeypatch):
     name = "testkern_qr_type"
     dkm = DynKernMetadata(ast, name=name)
     # Finally, call the _setup() method
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
-    assert ("Internal error: evaluator shape 'gh_wrong_shape' is not "
+    assert ("Evaluator shape(s) {'gh_wrong_shape'} is/are not "
             "recognised" in str(excinfo.value))
 
 
@@ -689,10 +689,11 @@ def test_qr_basis_stub():
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
-        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
-        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
-        "basis_w2v, np_xy, np_z, weights_xy, weights_z)\n"
+        "basis_w0_qr_xyoz, ndf_w1, basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, "
+        "basis_w2_qr_xyoz, ndf_w3, basis_w3_qr_xyoz, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, basis_wtheta_qr_xyoz, ndf_w2h, basis_w2h_qr_xyoz, "
+        "ndf_w2v, undf_w2v, map_w2v, basis_w2v_qr_xyoz, np_xy_qr_xyoz, "
+        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -724,27 +725,27 @@ def test_qr_basis_stub():
         "      INTEGER, intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER, intent(in) :: np_xy, np_z\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) "
-        ":: basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) "
-        ":: basis_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) "
-        ":: basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) "
-        ":: basis_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,np_xy,"
-        "np_z) :: basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,np_xy,np_z) "
-        ":: basis_w2h\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,np_xy,np_z) "
-        ":: basis_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
+        "      INTEGER, intent(in) :: np_xy_qr_xyoz, np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), "
+        "dimension(1,ndf_w0,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w0_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w2_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_wtheta_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w2h_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w2v_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(generated_code)
     assert output in generated_code
 
 
@@ -757,8 +758,8 @@ def test_stub_basis_wrong_shape(monkeypatch):
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    monkeypatch.setattr(kernel, "_eval_shape",
-                        value="gh_quadrature_wrong")
+    monkeypatch.setattr(kernel, "_eval_shapes",
+                        value=["gh_quadrature_wrong"])
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
@@ -766,6 +767,10 @@ def test_stub_basis_wrong_shape(monkeypatch):
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    # Add a fake QR rule for the invalid shape (so that we can get to the bit
+    # of code we want to test)
+    kernel.qr_rules["gh_quadrature_wrong"] = kernel.QRRule("arg", "arg_name",
+                                                           [])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
     assert ("unrecognised shape (gh_quadrature_wrong) specified in "
@@ -784,8 +789,8 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    monkeypatch.setattr(kernel, "_eval_shape",
-                        value="gh_quadrature_wrong")
+    monkeypatch.setattr(kernel, "_eval_shapes",
+                        value=["gh_quadrature_wrong"])
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
@@ -793,6 +798,10 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    # Add a fake QR rule for the invalid shape (so that we can get to the bit
+    # of code we want to test)
+    kernel.qr_rules["gh_quadrature_wrong"] = kernel.QRRule("arg", "arg_name",
+                                                           [])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
     assert ("unrecognised shape (gh_quadrature_wrong) specified in "
