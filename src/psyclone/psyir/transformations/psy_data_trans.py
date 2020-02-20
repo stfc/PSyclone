@@ -189,11 +189,18 @@ class PSyDataTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
-        # Create the instance of the required PSyIR node. The
-        # constructor of the node will insert the node
-        # between the list of nodes and their parents.
-        # Pass the options to the constructor, used e.g. for the
-        # 'create_driver' flag.
+        # Create an instance of the required class that implements
+        # the code extraction using the PSyData API, e.g. a
+        # GOceanExtractNode. The base constructor of the extraction node
+        # will insert the node into the PSyIR between the
+        # nodes to be extracted and their parent. The nodes to
+        # be extracted will become children of the extraction node.
+        # We also pass the user-specified options to the constructor,
+        # so that the behaviour of the code extraction can be controlled.
+        # An example use case of this is the 'create_driver' flag, where
+        # the calling program can control if a stand-alone driver program
+        # should be created or not.
+
         self._node_class(parent=node_list[0].parent, children=node_list[:],
                          options=options)
         return schedule, keep
