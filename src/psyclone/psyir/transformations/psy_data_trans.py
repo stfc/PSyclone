@@ -193,11 +193,11 @@ class PSyDataTrans(RegionTrans):
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # GOceanExtractNode. The constructor of the extraction node
-        # will insert itself into the PSyIR between the specified
+        # GOceanExtractNode. The base constructor of the extraction node
+        # will insert the node into the PSyIR between the
         # nodes to be extracted and their parent. The nodes to
         # be extracted will become children of the extraction node.
-        # it also passes the user-specified options to the constructor,
+        # We also pass the user-specified options to the constructor,
         # so that the behaviour of the code extraction can be controlled.
         # An example use case of this is the 'create_driver' flag, where
         # the calling program can control if a stand-alone driver program
