@@ -636,7 +636,7 @@ def test_dynkern_setup(monkeypatch):
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
-    assert ("Evaluator shape(s) {'gh_wrong_shape'} is/are not "
+    assert ("Evaluator shape(s) ['gh_wrong_shape'] is/are not "
             "recognised" in str(excinfo.value))
 
 

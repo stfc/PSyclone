@@ -6660,8 +6660,9 @@ class DynKern(CodedKern):
         # (mangled) FS names as keys and associated kernel argument as value.
         self._eval_targets = OrderedDict()
         # Will hold a dict of QRRule namedtuple objects, one for each QR
-        # rule required by a kernel, indexed by shape.
-        self._qr_rules = {}
+        # rule required by a kernel, indexed by shape. Needs to be ordered
+        # because we must preserve the ordering specified in the metadata.
+        self._qr_rules = OrderedDict()
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
@@ -6815,7 +6816,7 @@ class DynKern(CodedKern):
         if invalid_shapes:
             raise InternalError(
                 "Evaluator shape(s) {0} is/are not recognised. "
-                "Must be one of {1}.".format(invalid_shapes,
+                "Must be one of {1}.".format(list(invalid_shapes),
                                              VALID_EVALUATOR_SHAPES))
 
         # If there are any quadrature rule(s), what are the names of the
