@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,14 +35,12 @@ program single_invoke
 
   ! Description: single function requiring face quadrature specified in
   ! an invoke call
-  use testkern_qr_faces, only: testkern_qr_type
+  use testkern_qr_faces_mod, only: testkern_qr_faces_type
   use inf,         only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
   type(quadrature_rule) :: qr
 
-  call invoke(                   &
-       testkern_qr_type(f1,f2,m1,m2,qr)   &
-          )
+  call invoke( testkern_qr_faces_type(f1,f2,m1,m2,qr) )
 
 end program single_invoke

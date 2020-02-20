@@ -258,7 +258,7 @@ def test_face_qr(tmpdir, dist_mem):
     generated_code = str(psy.gen)
     print(generated_code)
     output_decls = (
-        "      USE testkern_qr_faces, ONLY: testkern_qr_code\n"
+        "      USE testkern_qr_faces_mod, ONLY: testkern_qr_faces_code\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
         "quadrature_face_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n")
@@ -383,7 +383,8 @@ def test_face_qr(tmpdir, dist_mem):
             "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
     compute_output += (
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
+        "f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -404,7 +405,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
         "diff_basis_w3_qr)\n"
         "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_qr_type"
+        "    END SUBROUTINE invoke_0_testkern_qr_faces_type"
     )
     assert compute_output in generated_code
 

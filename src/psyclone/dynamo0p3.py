@@ -4278,7 +4278,7 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind="r_def",
-                        entity_decls=[decl+"(:) => null()"
+                        entity_decls=[decl+"(:,:) => null()"
                                       for decl in decl_list]))
             # Get the quadrature proxy
             proxy_name = self._name_space_manager.create_name(

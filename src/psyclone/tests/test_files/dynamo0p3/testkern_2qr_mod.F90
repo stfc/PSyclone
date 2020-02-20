@@ -57,9 +57,10 @@ contains
           nlayers, f1, f2, f3, f4,                                           &
           ndf_w1, undf_w1, map_w1, basis_w1_faces, basis_w1_edges,           &
           ndf_w2, undf_w2, map_w2, diff_basis_w2_faces, diff_basis_w2_edges, &
-          ndf_w3, undf_w3, map_w3, basis_w3_faces, diff_basis_w3_faces,      &
-          nqp_faces, nfaces, wqp_faces,                                      &
-          nqp_edges, nedges, wqp_edges)
+          ndf_w3, undf_w3, map_w3, basis_w3_faces, basis_w3_edges,           &
+          diff_basis_w3_faces, diff_basis_w3_edges,                          &
+          nfaces, nqp_faces, wqp_faces,                                      &
+          nedges, nqp_edges, wqp_edges)
     use constants_mod, only: r_def
     implicit none
     integer :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
@@ -67,8 +68,8 @@ contains
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: f1, f2, f3, f4
     integer, dimension(:) :: map_w1, map_w2, map_w3
-    real(kind=r_def), dimension(nqp,nfaces) :: wqp_faces
-    real(kind=r_def), dimension(nqp,nedges) :: wqp_edges
+    real(kind=r_def), dimension(nqp_faces,nfaces) :: wqp_faces
+    real(kind=r_def), dimension(nqp_edges,nedges) :: wqp_edges
     real(kind=r_def), dimension(3,ndf_w1,nqp_faces,nfaces) :: basis_w1_faces
     real(kind=r_def), dimension(3,ndf_w2,nqp_faces,nfaces) :: diff_basis_w2_faces
     real(kind=r_def), dimension(1,ndf_w3,nqp_faces,nfaces) :: basis_w3_faces
