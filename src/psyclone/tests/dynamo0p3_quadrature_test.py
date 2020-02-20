@@ -419,9 +419,41 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen_code = str(psy.gen)
-    print(gen_code)
     # Check that the qr-related variables are all declared
-    
+    assert ("      TYPE(quadrature_face_type), intent(in) :: qr_face\n"
+            "      TYPE(quadrature_edge_type), intent(in) :: qr_edge\n"
+            in gen_code)
+    assert ("REAL(KIND=r_def), allocatable :: basis_w1_qr_face(:,:,:,:), "
+            "basis_w1_qr_edge(:,:,:,:), diff_basis_w2_qr_face(:,:,:,:), "
+            "diff_basis_w2_qr_edge(:,:,:,:), basis_w3_qr_face(:,:,:,:), "
+            "diff_basis_w3_qr_face(:,:,:,:), basis_w3_qr_edge(:,:,:,:), "
+            "diff_basis_w3_qr_edge(:,:,:,:)" in gen_code)
+    assert ("      REAL(KIND=r_def), pointer :: weights_xyz_qr_edge(:,:) "
+            "=> null()\n"
+            "      INTEGER np_xyz_qr_edge, nedges_qr_edge\n"
+            "      REAL(KIND=r_def), pointer :: weights_xyz_qr_face(:,:) "
+            "=> null()\n"
+            "      INTEGER np_xyz_qr_face, nfaces_qr_face\n" in gen_code)
+    assert ("      TYPE(quadrature_edge_proxy_type) qr_edge_proxy\n"
+            "      TYPE(quadrature_face_proxy_type) qr_face_proxy\n"
+            in gen_code)
+    # Allocation and computation of (some of) the basis functions
+    assert ("      ALLOCATE (basis_w3_qr_face(dim_w3, ndf_w3, np_xyz_qr_face,"
+            " nfaces_qr_face))\n"
+            "      ALLOCATE (diff_basis_w3_qr_face(diff_dim_w3, ndf_w3, "
+            "np_xyz_qr_face, nfaces_qr_face))\n"
+            "      ALLOCATE (basis_w3_qr_edge(dim_w3, ndf_w3, np_xyz_qr_edge, "
+            "nedges_qr_edge))\n"
+            "      ALLOCATE (diff_basis_w3_qr_edge(diff_dim_w3, ndf_w3, "
+            "np_xyz_qr_edge, nedges_qr_edge))\n" in gen_code)
+    assert ("      CALL qr_face%compute_function(BASIS, m2_proxy%vspace, "
+            "dim_w3, ndf_w3, basis_w3_qr_face)\n"
+            "      CALL qr_face%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+            "diff_dim_w3, ndf_w3, diff_basis_w3_qr_face)\n"
+            "      CALL qr_edge%compute_function(BASIS, m2_proxy%vspace, "
+            "dim_w3, ndf_w3, basis_w3_qr_edge)\n"
+            "      CALL qr_edge%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+            "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
         "CALL testkern_2qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
