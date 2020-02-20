@@ -431,7 +431,6 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
         "nedges_qr_edge, np_xyz_qr_edge, weights_xyz_qr_edge)" in gen_code)
 
 
-
 def test_field_qr_deref(tmpdir):
     ''' Tests that a call, with a set of fields requiring
     quadrature, produces correct code when the quadrature is supplied as the

@@ -129,7 +129,7 @@ def test_eval_targets_err():
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because gh_shape=gh_quadrature_xyoz"
+            "an evaluator because gh_shape=['gh_quadrature_xyoz']"
             in str(err.value))
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
@@ -1498,11 +1498,13 @@ def test_diff_basis():
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, "
-        "diff_basis_w2, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
-        "undf_w2v, map_w2v, diff_basis_w2v, np_xy, np_z, weights_xy, "
-        "weights_z)\n"
+        "diff_basis_w0_qr_xyoz, ndf_w1, diff_basis_w1_qr_xyoz, "
+        "ndf_w2, undf_w2, map_w2, diff_basis_w2_qr_xyoz, "
+        "ndf_w3, diff_basis_w3_qr_xyoz, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, diff_basis_wtheta_qr_xyoz, ndf_w2h, "
+        "diff_basis_w2h_qr_xyoz, ndf_w2v, undf_w2v, map_w2v, "
+        "diff_basis_w2v_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -1534,23 +1536,26 @@ def test_diff_basis():
         "      INTEGER, intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER, intent(in) :: np_xy, np_z\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) "
-        ":: diff_basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) "
-        ":: diff_basis_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy,np_z) "
-        ":: diff_basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xy,np_z) "
-        ":: diff_basis_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,np_xy,"
-        "np_z) :: diff_basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,np_xy,np_z) "
-        ":: diff_basis_w2h\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,np_xy,np_z) "
-        ":: diff_basis_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
+        "      INTEGER, intent(in) :: np_xy_qr_xyoz, np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w0_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
+        "np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_wtheta_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2h_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2v_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -1781,7 +1786,6 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     shape is encountered. '''
     from psyclone.dynamo0p3 import DynBasisFunctions
     from psyclone.f2pygen import ModuleGen
-    from psyclone import dynamo0p3
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -1792,7 +1796,7 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     with pytest.raises(GenerationError) as err:
         dbasis._stub_declarations(ModuleGen(name="my_mod"))
     assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
-            "supported - got: ['unsupported-shape']" in str(err.value))
+            "supported - got: 'unsupported-shape'" in str(err.value))
 
 
 def test_dynbasisfns_declns(monkeypatch):

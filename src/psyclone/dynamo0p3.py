@@ -3648,10 +3648,6 @@ class DynBasisFunctions(DynCollection):
                         # add it to the list of target spaces
                         self._eval_targets[fs_name] = \
                             call.eval_targets[fs_name]
-#                else:
-#                    raise InternalError("Unrecognised evaluator shape: '{0}'. "
-#                                        "Should be one of {1}".format(
-#                                            shape, VALID_EVALUATOR_SHAPES))
 
             # Both quadrature and evaluators require basis and/or differential
             # basis functions. This helper routine populates self._basis_fns
@@ -3855,7 +3851,7 @@ class DynBasisFunctions(DynCollection):
             else:
                 raise GenerationError(
                     "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
-                    "yet supported - got: {0}".format(shape))
+                    "yet supported - got: '{0}'".format(shape))
 
     def _invoke_declarations(self, parent):
         '''
@@ -6666,9 +6662,6 @@ class DynKern(CodedKern):
         # Will hold a dict of QRRule namedtuple objects, one for each QR
         # rule required by a kernel, indexed by shape.
         self._qr_rules = {}
-        #self._qr_text = ""
-        #self._qr_name = None
-        #self._qr_args = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
@@ -6818,7 +6811,7 @@ class DynKern(CodedKern):
         self._is_intergrid = ktype.is_intergrid
 
         # Check that all specified evaluator shapes are recognised
-        invalid_shapes =  set(self._eval_shapes) - set(VALID_EVALUATOR_SHAPES)
+        invalid_shapes = set(self._eval_shapes) - set(VALID_EVALUATOR_SHAPES)
         if invalid_shapes:
             raise InternalError(
                 "Evaluator shape(s) {0} is/are not recognised. "
@@ -6826,9 +6819,11 @@ class DynKern(CodedKern):
                                              VALID_EVALUATOR_SHAPES))
 
         # If there are any quadrature rule(s), what are the names of the
-        # corresponding algorithm arguments?
-        qr_shapes = set(self._eval_shapes).intersection(
-            set(VALID_QUADRATURE_SHAPES))
+        # corresponding algorithm arguments? Can't use set() here because
+        # we need to preserve the ordering specified in the metadata.
+        qr_shapes = [shape for shape in self._eval_shapes if
+                     shape in VALID_QUADRATURE_SHAPES]
+
         for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
             # The quadrature-related arguments always come last
             qr_arg = args[idx]
@@ -6853,15 +6848,15 @@ class DynKern(CodedKern):
             if shape == "gh_quadrature_xyoz":
                 qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
             # elif self._eval_shape == "gh_quadrature_xoyoz":
-            #     self._qr_args = ["np_x", "np_y", "np_z",
-            #                      "weights_x", "weights_y", "weights_z"]
+            #     qr_args = ["np_x", "np_y", "np_z",
+            #                "weights_x", "weights_y", "weights_z"]
             elif shape == "gh_quadrature_face":
                 qr_args = ["nfaces", "np_xyz", "weights_xyz"]
             elif shape == "gh_quadrature_edge":
                 qr_args = ["nedges", "np_xyz", "weights_xyz"]
             else:
-                raise InternalError("unsupported shape ({0}) found in "
-                                    "DynKern._setup".format(shape))
+                raise InternalError("unsupported quadrature shape ({0}) found "
+                                    "in DynKern._setup".format(shape))
 
             # Append the name of the qr argument to the names of the qr-related
             # variables.
@@ -7893,9 +7888,12 @@ class KernCallArgList(ArgOrdering):
                      "vertical": len(self._arglist) + 2})
                 self._arglist.extend(rule.args)
             elif shape == "gh_quadrature_edge":
-                self._nqp_positions.append({"xyz": len(self._arglist) + 1})
+                # TODO #705 support transformations supplying the number of
+                # quadrature points for edge quadrature.
                 self._arglist.extend(rule.args)
             elif shape == "gh_quadrature_face":
+                # TODO #705 support transformations supplying the number of
+                # quadrature points for face quadrature.
                 self._nqp_positions.append({"xyz": len(self._arglist) + 1})
                 self._arglist.extend(rule.args)
             else:

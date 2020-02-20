@@ -164,9 +164,9 @@ def test_stub_generate_with_anyw2():
                       api=TEST_API)
     expected_output = (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
-        "np_xy,np_z) :: basis_any_w2\n"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_any_w2_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
-        "np_xy,np_z) :: diff_basis_any_w2")
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_any_w2_qr_xyoz")
     assert expected_output in str(result)
 
 
