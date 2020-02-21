@@ -939,7 +939,13 @@ class Node(object):
                     "The scope_limit node '{0}' provided to the find_symbol "
                     "method, is not an ancestor of this node '{1}'."
                     "".format(str(scope_limit), str(self)))
+
+        # Keep a list of (symbol table, container) tuples for containers that
+        # have wildcard imports into the current scope and therefore may
+        # contain the symbol we're searching for.
+        possible_containers = []
         test_node = self
+
         # Iterate over ancestor Nodes of this Node.
         while test_node:
             # For simplicity, test every Node for the existence of a
@@ -951,18 +957,39 @@ class Node(object):
                 try:
                     # If the reference matches a Symbol in this
                     # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(name)
+                    return (symbol_table.lookup(name), None)
                 except KeyError:
                     # The Reference Node does not match any Symbols in
-                    # this SymbolTable.
-                    pass
-            if test_node is scope_limit:
-                # The ancestor scope Node has been reached and nothing
-                # has matched so raise an exception.
+                    # this SymbolTable. Does this SymbolTable have any
+                    # wildcard imports?
+                    for csym in symbol_table.containersymbols:
+                        if csym.wildcard_import:
+                            possible_containers.append((symbol_table, csym))
+
+            if test_node is scope_limit or test_node.parent is None:
+                # The ancestor scope/top-level Node has been reached and
+                # nothing has matched.
                 break
+
             # Move on to the next ancestor.
             test_node = test_node.parent
+
+        if hasattr(test_node, "invoke") and test_node.invoke.invokes.container:
+            # We've reached the top-level InvokeSchedule without finding
+            # the symbol. Check the Container for the Invokes object.
+            symbol_table = test_node.invoke.invokes.container.symbol_table
+            for csym in symbol_table.containersymbols:
+                if csym.wildcard_import:
+                    possible_containers.append((symbol_table, csym))
+
+        if possible_containers:
+            print("No definition found for symbol {0} but there are wildcard\n"
+                  "imports from the following container(s):\n".format(name))
+            for _, csym in possible_containers:
+                print(csym)
+            return (None, possible_containers)
+
         # All requested Nodes have been checked but there has been no
-        # match so raise an exception.
+        # match and there are no wildcard imports so raise an exception.
         raise SymbolError(
             "No Symbol found for name '{0}'.".format(name))

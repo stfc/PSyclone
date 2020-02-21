@@ -232,12 +232,14 @@ class NemoInvoke(Invoke):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Module`
     :param str name: the name of this Invoke (program unit).
+    ARPDBG
     :param container: reference to the parent Container of this Invoke \
                       (if any).
     :type container: :py:class:`psyclone.psyGen.Container` or NoneType
     '''
-    def __init__(self, ast, name, container=None):
+    def __init__(self, ast, name, invokes):
         # pylint: disable=super-init-not-called
+        self._invokes = invokes
         self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
@@ -263,7 +265,6 @@ class NemoInvoke(Invoke):
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
         processor = NemoFparser2Reader()
-        #self._schedule = processor.generate_nemo_schedule(name, ast, self)
         self._schedule = processor.generate_schedule(name, ast, self)
 
     def update(self):
@@ -324,8 +325,7 @@ class NemoInvokes(Invokes):
             else:
                 sub_name = str(substmt.get_name())
 
-            my_invoke = NemoInvoke(subroutine, name=sub_name,
-                                   container=self._container)
+            my_invoke = NemoInvoke(subroutine, sub_name, self)
             self.invoke_map[sub_name] = my_invoke
             self.invoke_list.append(my_invoke)
 

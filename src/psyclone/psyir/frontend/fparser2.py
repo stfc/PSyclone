@@ -2072,21 +2072,20 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
         '''
-        # Once #667 is implemented we can simplify this logic by
-        # checking for the NEMO API. i.e. if api=="nemo": add local
-        # symbol else: add symbol from symbol table.
+        symbol, containers = parent.find_symbol(node.string)
+        if not symbol:
+            # We failed to find an explicit declaration of the named symbol
+            # but there are one or more ContainerSymbols from which it may be
+            # imported.
+            # TODO how to deal with this? We could create a new Symbol with
+            # some sort of 'fuzzy' interface but which SymbolTable should we
+            # put it in?
         symbol_table = _get_symbol_table(parent)
-        if symbol_table:
-            symbol = parent.find_symbol(node.string)
-        else:
-            # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Randomly choose a datatype as we don't
-            # know what it is. Remove this code when issue #500 is
-            # addressed.
-            symbol = DataSymbol(node.string, DataType.REAL)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
