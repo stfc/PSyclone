@@ -37,9 +37,9 @@
 of an Invoke into a stand-alone application."
 '''
 
+from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import ExtractNode, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -47,22 +47,36 @@ from psyclone.undoredo import Memento
 
 
 class ExtractTrans(RegionTrans):
-    ''' Provides a transformation to extract code represented by a \
-    subset of the Nodes in the PSyIR of a Schedule into a stand-alone \
-    program. Examples are given in descriptions of children classes \
-    DynamoExtractTrans and GOceanExtractTrans.
+    '''This transformation inserts an ExtractNode or a node derived
+    from ExtractNode into the PSyIR of a schedule. At code creation
+    time this node will use the PSyData API to create code that can
+    write the input and output parameters to a file. The node might
+    also create a stand-alone driver program that can read the created
+    file and then execute the instrumented region.
+    Examples are given in the derived classes DynamoExtractTrans and
+    GOceanExtractTrans.
 
-    After applying the transformation the Nodes marked for extraction are \
-    children of the ExtractNode. \
-    Nodes to extract can be individual constructs within an Invoke (e.g. \
-    Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
+    After applying the transformation the Nodes marked for extraction are
+    children of the ExtractNode.
+    Nodes to extract can be individual constructs within an Invoke (e.g.
+    Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
+
+    :param node_class: The Node class of which an instance will be inserted \
+        into the tree (defaults to ExtractNode), but can be any derived class.
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or \
+        derived class
+
     '''
     from psyclone.psyir import nodes
     from psyclone import psyGen
     # The types of node that this transformation can enclose
     valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, nodes.Literal, nodes.Reference)
+
+    def __init__(self, node_class=ExtractNode):
+        super(ExtractTrans, self).__init__()
+        self._node_class = node_class
 
     def __str__(self):
         return ("Create a sub-tree of the PSyIR that has ExtractNode "
@@ -102,7 +116,7 @@ class ExtractTrans(RegionTrans):
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
-        # GlobalSum classses as they are only generated when distributed
+        # GlobalSum classes as they are only generated when distributed
         # memory is enabled.
         if Config.get().distributed_memory:
             raise TransformationError(
@@ -112,7 +126,7 @@ class ExtractTrans(RegionTrans):
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
         from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import BuiltIn, Directive, \
+        from psyclone.psyGen import BuiltIn, Directive, Kern, \
             OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
@@ -155,7 +169,11 @@ class ExtractTrans(RegionTrans):
 
         :param nodes: a single Node or a list of Nodes.
         :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
+        :param options: a dictionary with options for transformations. \
+            This dictionary is passed on to the validate function and also \
+            to the constructor of the node that is being inserted. This way \
+            the derived API-specific extract transformation can pass on \
+            parameters to the API-specific node.
         :type options: dictionary of string:values or None
 
         :raises TransformationError: if the `nodes` argument is not of \
@@ -194,29 +212,24 @@ class ExtractTrans(RegionTrans):
         # the first child to be enclosed as that will be the position
         # of the ExtractNode.
         node_parent = node_list[0].parent
-        node_position = node_list[0].position
 
         # Create a Memento of the Schedule and the proposed
         # transformation
         schedule = node_list[0].root
-
         keep = Memento(schedule, self)
 
-        from psyclone.extractor import ExtractNode
-        extract_node = ExtractNode(parent=node_parent, children=node_list[:])
-
-        # Change all of the affected children so that they have the
-        # ExtractNode as their parent. Use a slice of the list of Nodes
-        # so that we're looping over a local copy of the list. Otherwise
-        # things get confused when we remove children from the list.
-        for child in node_list[:]:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
-            child.parent = extract_node
-
-        # Add the ExtractNode as a child of the parent of the Nodes being
-        # enclosed at the original location of the first of these Nodes
-        node_parent.addchild(extract_node,
-                             index=node_position)
+        # Create an instance of the required class that implements
+        # the code extraction using the PSyData API, e.g. a
+        # GOceanExtractNode. The constructor of the extraction node
+        # will insert itself into the PSyIR between the specified
+        # nodes to be extracted and their parent. The nodes to
+        # be extracted will become children of the extraction node.
+        # it also passes the user-specified options to the constructor,
+        # so that the behaviour of the code extraction can be controlled.
+        # An example use case of this is the 'create_driver' flag, where
+        # the calling program can control if a stand-alone driver program
+        # should be created or not.
+        self._node_class(parent=node_parent, children=node_list[:],
+                         options=options)
 
         return schedule, keep

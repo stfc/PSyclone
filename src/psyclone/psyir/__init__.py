@@ -31,3 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
+
+'''PSyclone Internal Representation module. Contains all nodes for the PSyIR,
+tools and basic transformations (in subdirectories).
+'''
+
+__all__ = []

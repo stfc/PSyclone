@@ -107,6 +107,7 @@ PSyclone User Guide
     line_length
     fortran_naming_conventions
     api
+    psy_data
     profiling
     psyke
     configuration
