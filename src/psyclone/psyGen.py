@@ -299,6 +299,7 @@ class Invokes(object):
     '''
     def __init__(self, alg_calls, invoke_cls, psy):
         self._psy = psy
+        self._container = None
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
@@ -308,6 +309,17 @@ class Invokes(object):
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
+
+    @property
+    def container(self):
+        '''
+        :returns: the Container representing the parent program unit \
+                  containing the various invokes represented by this Invokes \
+                  object.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+        '''
+        return self._container
 
     @property
     def psy(self):
