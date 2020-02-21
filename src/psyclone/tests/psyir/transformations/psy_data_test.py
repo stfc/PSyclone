@@ -218,10 +218,6 @@ def test_tree_correct():
     assert parent.children[1] is third_child
     assert third_child.parent is parent
 
-    for child in children:
-        assert child in psy_node.psy_data_body.children
-        assert child.parent is psy_node.psy_data_body
-
 
 # -----------------------------------------------------------------------------
 def test_c_code_creation():
