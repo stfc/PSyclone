@@ -69,6 +69,7 @@ class ProfileTrans(RegionTrans):
     >>> newschedule.view()
 
     '''
+    # TODO #655: Refactor this to use PSyDataTrans as base class.
     from psyclone import psyGen, profiler, psyir
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
@@ -145,8 +146,8 @@ class ProfileTrans(RegionTrans):
         schedule within a single profiler region.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
-                     :py:obj:`psyclone.psygen.Node`
+        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of\
+                     :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param (str, str) options["profile_name"]: an optional name to \
@@ -163,7 +164,7 @@ class ProfileTrans(RegionTrans):
         # single node.
         from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
         from psyclone.psyir.nodes import Node
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
+        if isinstance(nodes, list) and nodes and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Schedule):
             # We've been passed a Schedule so default to enclosing its
@@ -191,7 +192,6 @@ class ProfileTrans(RegionTrans):
             raise TransformationError("A ProfileNode cannot be inserted "
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
-        node_position = node_list[0].position
 
         # Perform validation checks
         self.validate(node_list, options)
@@ -211,21 +211,10 @@ class ProfileTrans(RegionTrans):
 
         # Create the ProfileNode. All of the supplied child nodes will have
         # the Profile's Schedule as their parent.
-        from psyclone.profiler import ProfileNode
-        profile_node = ProfileNode(parent=node_parent, children=node_list[:],
-                                   name=name)
 
-        # Correct the parent's list of children. Use a slice of the list of
-        # nodes so that we're looping over a local copy of the list. Otherwise
-        # things get confused when we remove children from the list.
-        for child in node_list[:]:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
-
-        # Add the Profile node as a child of the parent
-        # of the nodes being enclosed and at the original location
-        # of the first of these nodes
-        node_parent.addchild(profile_node,
-                             index=node_position)
+        from psyclone.psyir.nodes import ProfileNode
+        # The constructor of the ProfileNode will insert the profile node
+        # instance between the list of nodes provided and their parents.
+        ProfileNode(parent=node_parent, children=node_list[:], name=name)
 
         return schedule, keep

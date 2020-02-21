@@ -374,3 +374,80 @@ class DependencyTools(object):
                     return False
 
         return result
+
+    # -------------------------------------------------------------------------
+    def get_input_parameters(self, node_list, variables_info=None):
+        # pylint: disable=no-self-use
+        '''Return all variables that are input parameters, i.e. are
+        read (before potentially being written).
+
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param variables_info: optional variable usage information, \
+            can be used to avoid repeatedly collecting this information.
+        :type variables_info: \
+            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
+
+        :returns: a list of all variable names that are read.
+        :rtype: list of str
+
+        '''
+        # Collect the information about all variables used:
+        if not variables_info:
+            variables_info = VariablesAccessInfo(node_list)
+
+        input_list = []
+        for var_name in variables_info.all_vars:
+            # Take the first access (index 0) of this variable. Note that
+            # loop variables have a WRITE before a READ access, so they
+            # will be ignored
+            first_access = variables_info[var_name][0]
+            # If the first access is a write, the variable is not an input
+            # parameter and does not need to be saved.
+            if first_access.access_type != AccessType.WRITE:
+                input_list.append(var_name)
+
+        return input_list
+
+    # -------------------------------------------------------------------------
+    def get_output_parameters(self, node_list, variables_info=None):
+        # pylint: disable=no-self-use
+        '''Return all variables that are output parameters, i.e. are
+        written.
+
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param variables_info: optional variable usage information, \
+            can be used to avoid repeatedly collecting this information.
+        :type variables_info: \
+            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
+
+        :returns: a list of all variable names that are written.
+        :rtype: list of str
+
+        '''
+        # Collect the information about all variables used:
+        if not variables_info:
+            variables_info = VariablesAccessInfo(node_list)
+
+        return [var_name for var_name in variables_info.all_vars
+                if variables_info.is_written(var_name)]
+
+    # -------------------------------------------------------------------------
+    def get_in_out_parameters(self, node_list):
+        '''Return a 2-tuple of lists that contains all variables that are input
+        parameters (first entry) and output parameters (second entry).
+        This function calls get_input_parameter and get_output_parameter,
+        but avoids the repeated computation of the variable usage.
+
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: a 2-tuple of two lists, the first one containing \
+            the input parameters, the second the output paramters.
+        :rtype: 2-tuple of list of str
+
+        '''
+        variables_info = VariablesAccessInfo(node_list)
+        return (self.get_input_parameters(node_list, variables_info),
+                self.get_output_parameters(node_list, variables_info))
