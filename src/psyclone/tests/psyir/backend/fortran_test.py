@@ -242,21 +242,64 @@ def test_gen_datatype_error(monkeypatch):
 def test_fw_gen_use(fort_writer):
     '''Check the FortranWriter class gen_use method produces the expected
     declaration. Also check that an exception is raised if the symbol
-    does not describe a use statement.
+    does not describe a Container.
 
     '''
+    symbol_table = SymbolTable()
+    container_symbol = ContainerSymbol("my_module")
+    symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DataType.DEFERRED,
-                        interface=GlobalInterface(
-                            ContainerSymbol("my_module")))
-    result = fort_writer.gen_use(symbol)
+                        interface=GlobalInterface(container_symbol))
+    symbol_table.add(symbol)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1\n"
 
-    symbol = DataSymbol("dummy1", DataType.INTEGER)
+    container_symbol.wildcard_import = True
+    result = fort_writer.gen_use(container_symbol, symbol_table)
+    assert result == ("use my_module, only : dummy1\n"
+                      "use my_module\n")
+
+    symbol2 = DataSymbol("dummy2", DataType.DEFERRED,
+                         interface=GlobalInterface(container_symbol))
+    symbol_table.add(symbol2)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
+    assert result == ("use my_module, only : dummy1, dummy2\n"
+                      "use my_module\n")
+
+    # container2 has no symbols associated with it and has not been marked
+    # as having a wildcard import. It should therefore result in a USE
+    # with an empty 'ONLY' list (which serves to keep the module in scope
+    # while not accessing any data from it).
+    container2 = ContainerSymbol("my_mod2")
+    symbol_table.add(container2)
+    result = fort_writer.gen_use(container2, symbol_table)
+    assert result == "use my_mod2, only :\n"
+    # If we now add a wildcard import of this module then that's all we
+    # should get from the backend (as it makes the "only:" redundant)
+    container2.wildcard_import = True
+    result = fort_writer.gen_use(container2, symbol_table)
+    assert result == "use my_mod2\n"
+    # Wrong type for first argument
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer.gen_use(symbol)
-    assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
-            "be a Global instance but found 'LocalInterface'."
+        _ = fort_writer.gen_use(symbol2, symbol_table)
+    assert ("expects a ContainerSymbol as its first argument but got "
+            "'DataSymbol'" in str(excinfo.value))
+    # Wrong type for second argument
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(container2, symbol2)
+    assert ("expects a SymbolTable as its second argument but got 'DataSymbol'"
             in str(excinfo.value))
+    # Symbol not in SymbolTable
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(ContainerSymbol("my_mod3"), symbol_table)
+    assert ("the supplied symbol ('my_mod3') is not in the supplied "
+            "SymbolTable" in str(excinfo.value))
+    # A different ContainerSymbol with the same name as an entry in the
+    # SymbolTable should be picked up
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(ContainerSymbol("my_mod2"), symbol_table)
+    assert ("the supplied symbol ('my_mod2') is not the same object as the "
+            "entry" in str(excinfo.value))
 
 
 def test_fw_gen_vardecl(fort_writer):
@@ -467,8 +510,7 @@ def test_fw_container_2(fort_writer):
 
     assert (
         "module test\n"
-        "  use test2_mod, only : a\n"
-        "  use test2_mod, only : b\n"
+        "  use test2_mod, only : a, b\n"
         "  real :: c\n"
         "  real :: d\n\n"
         "  contains\n"
