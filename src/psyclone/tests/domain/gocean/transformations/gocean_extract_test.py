@@ -68,6 +68,7 @@ def ordered_lines_in_text(lines, text):
     '''Verifies that the specified lines occur in text in the
     specified same order, though not necessarily consecutive.
     If not, a ValueError will be raised.
+
     :param lines: The lines that must occur in this order in the text.
     :type lines: list of str
     :param str text: The text in which the lines must occur.
