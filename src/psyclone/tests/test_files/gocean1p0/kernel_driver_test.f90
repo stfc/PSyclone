@@ -51,10 +51,13 @@ module kernel_driver
   public compute_kernel_code
 
   type, extends(kernel_type) :: compute_kernel
-     type(go_arg), dimension(3) :: meta_args =    &
+     type(go_arg), dimension(6) :: meta_args =    &
           (/ go_arg(GO_WRITE,     GO_CU, GO_POINTWISE),   &
              go_arg(GO_READWRITE, GO_CT, GO_POINTWISE),   &
-             go_arg(GO_READ,      GO_CU, GO_POINTWISE)    &
+             go_arg(GO_READ,      GO_CU, GO_POINTWISE),   &
+             go_arg(GO_READ,      GO_CU, GO_POINTWISE),   &
+             go_Arg(GO_READ,      GO_GRID_DX_CONST),      &
+             go_Arg(GO_READ,      GO_GRID_LAT_U)          &
            /)
      integer :: ITERATES_OVER = GO_INTERNAL_PTS
      integer :: index_offset = GO_OFFSET_SW
@@ -66,15 +69,19 @@ module kernel_driver
 contains
 
   !===================================================
-  subroutine compute_kernel_code(i, j, out_f, inout_f, in_f)
+  subroutine compute_kernel_code(i, j, out_f, inout_f, in_f, &
+                                 dummy_field, dx_const, lat_u)
     implicit none
     integer,  intent(in) :: I, J
     real(go_wp), intent(out),   dimension(:,:) :: out_f
     real(go_wp), intent(inout), dimension(:,:) :: inout_f
     real(go_wp), intent(in),    dimension(:,:) :: in_f
+    real(go_wp), intent(in),    dimension(:,:) :: dummy_field
+    real(go_wp), intent(in)                    :: dx_const
+    real(go_wp), intent(in),    dimension(:,:) :: lat_u
 
-    out_f(i,j) = in_f(i,j)
-    inout_f(i,j) = inout_f(i,j) + in_f(i,j)
+    out_f(i,j) = in_f(i,j) + dx_const * lat_u(i,j)
+    inout_f(i,j) = inout_f(i,j) + in_f(i,j)*dummy_field(i,j)
 
   end subroutine compute_kernel_code
 

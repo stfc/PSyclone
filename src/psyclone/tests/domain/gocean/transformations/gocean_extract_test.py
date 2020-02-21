@@ -380,32 +380,36 @@ def test_driver_creation(tmpdir):
     # It is tested line by line since there is other code in between
     # which is not important, and the order might also change.
     expected = '''      IMPLICIT NONE
-      REAL(KIND=8), allocatable, dimension(:,:) :: u_fld
-      REAL(KIND=8), allocatable, dimension(:,:) :: p_fld_post
-      REAL(KIND=8), allocatable, dimension(:,:) :: p_fld
-      REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld_post
-      REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: gphiu
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: dx
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post
+
       TYPE(PSyDataType) psy_data
       CALL psy_data%OpenRead("psy_extract_example_with_various_variable''' \
       '''_access_patterns", "invoke_0_compute_kernel:compute_kernel_code:r0")
-      CALL psy_data%ReadVariable("cu_fld_post", cu_fld_post)
-      ALLOCATE (cu_fld, mold=cu_fld_post)
-      cu_fld = 0.0
-      CALL psy_data%ReadVariable("p_fld", p_fld)
-      CALL psy_data%ReadVariable("p_fld_post", p_fld_post)
-      CALL psy_data%ReadVariable("u_fld", u_fld)
+      CALL psy_data%ReadVariable("out_fld_post", out_fld_post)
+      ALLOCATE (out_fld, mold=out_fld_post)
+      out_fld = 0.0
+      CALL psy_data%ReadVariable("in_fld", in_fld)
+      CALL psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
+      CALL psy_data%ReadVariable("dx", dx)
       ! RegionStart
       DO j=2,jstop
         DO i=2,istop+1
-          CALL compute_kernel_code(i, j, cu_fld, p_fld, u_fld)
+          CALL compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, ''' \
+      '''dx, dx, gphiu)
         END DO
       END DO
       ! RegionEnd
       !
-      ! Check cu_fld
+      ! Check out_fld
       ! Check i
       ! Check j
-      ! Check p_fld'''
+      ! Check in_out_fld'''
 
     expected_lines = expected.split("\n")
 
