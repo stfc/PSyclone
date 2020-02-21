@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone LFRicExtractTrans
@@ -355,7 +356,7 @@ def test_single_node_dynamo0p3():
 
     # TODO #646
     # At this stage not all required parameters are passed via PSyData.
-    # This is an except of missing lines, which will cause this test to x-fail
+    # This is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL psy_data%ProvideVariable("nlayers", nlayers)',
                        'CALL psy_data%ProvideVariable("m1_proxy", m1_proxy)',
                        'CALL psy_data%ProvideVariable("ndf_w1", ndf_w1)',
@@ -411,7 +412,7 @@ def test_node_list_dynamo0p3():
 
     # TODO #646
     # At this stage not all required parameters are passed via PSyData.
-    # This is an except of missing lines, which will cause this test to x-fail
+    # This is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL psy_data%ProvideVariable("nlayers", nlayers)',
                        'CALL psy_data%ProvideVariable("ndf_w2", ndf_w2)',
                        'CALL psy_data%ProvideVariable("undf_w2", undf_w2)',
@@ -540,7 +541,7 @@ def test_extract_single_builtin_dynamo0p3():
 
     # TODO #646
     # At this stage not all required parameters are passed via PSyData.
-    # This is an except of missing lines, which will cause this test to x-fail
+    # This is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL psy_data%ProvideVariable("f1", f1)',
                        'CALL psy_data%ProvideVariable("f2", f2)']
     for line in not_yet_working:
@@ -595,7 +596,7 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # TODO #646 (LFRic not fully supported) and #637 (no builtin support)
-    # This is an except of missing lines, which will cause this test to x-fail
+    # This is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL psy_data%PreDeclareVariable("f2_post", f2)',
                        'CALL psy_data%ProvideVariable("f2_post", f2)',
                        'CALL psy_data%ProvideVariable("nlayers", nlayers)',
@@ -696,7 +697,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
 
     # TODO #646
     # At this stage not all required parameters are passed via PSyData.
-    # This is an except of missing lines, which will cause this test to x-fail
+    # This is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL psy_data%ProvideVariable("nlayers", nlayers)',
                        'CALL psy_data%ProvideVariable("ndf_w2", ndf_w2)',
                        'CALL psy_data%ProvideVariable("undf_w2", undf_w2)',
