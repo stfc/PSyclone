@@ -890,14 +890,17 @@ class Node(object):
             sched.ast = ast
         return sched
 
-    def find_symbol(self, name, scope_limit=None):
+    def find_or_create_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
-        associated with this node or one of its ancestors.  Raises an
-        exception if the symbol is not found. The scope_limit variable
-        further limits the symbol table search so that the search
-        through ancestor nodes stops when the scope_limit node is
-        reached i.e. ancestors of the scope_limit node are not
-        searched.
+        associated with this node or one of its ancestors.  If the symbol
+        is not found and there are no ContainerSymbols with wildcard imports
+        then an exception is raised. However, if there are one or more
+        ContainerSymbols with wildcard imports (which could therefore be
+        bringing the symbol into scope) then a new DataSymbol of unknown type
+        and interface is created and inserted in the most local SymbolTable.
+        The scope_limit variable further limits the symbol table search so
+        that the search through ancestor nodes stops when the scope_limit node
+        is reached i.e. ancestors of the scope_limit node are not searched.
 
         :param str name: the name of the symbol.
         :param scope_limit: optional Node which limits the symbol \
@@ -912,11 +915,15 @@ class Node(object):
         :returns: the matching symbol.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises SymbolError: if no matching symbol is found.
+        :raises SymbolError: if no matching symbol is found and there are \
+            no ContainerSymbols from which it might be brought into scope.
 
         '''
-        if scope_limit:
+        from psyclone.psyir.symbols import DataSymbol, DataType, \
+            UnresolvedInterface
 
+        if scope_limit:
+            # Validate the supplied scope_limit
             if not isinstance(scope_limit, Node):
                 raise TypeError(
                     "The scope_limit argument '{0}' provided to the "
@@ -944,6 +951,9 @@ class Node(object):
         # have wildcard imports into the current scope and therefore may
         # contain the symbol we're searching for.
         possible_containers = []
+        # Keep a reference to the most local SymbolTable in case we need to
+        # create a Symbol.
+        first_symbol_table = None
         test_node = self
 
         # Iterate over ancestor Nodes of this Node.
@@ -954,10 +964,12 @@ class Node(object):
             if hasattr(test_node, 'symbol_table'):
                 # This Node does have a SymbolTable.
                 symbol_table = test_node.symbol_table
+                if not first_symbol_table:
+                    first_symbol_table = symbol_table
                 try:
                     # If the reference matches a Symbol in this
                     # SymbolTable then return the Symbol.
-                    return (symbol_table.lookup(name), None)
+                    return symbol_table.lookup(name)
                 except KeyError:
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable. Does this SymbolTable have any
@@ -966,28 +978,29 @@ class Node(object):
                         if csym.wildcard_import:
                             possible_containers.append((symbol_table, csym))
 
-            if test_node is scope_limit or test_node.parent is None:
+            if test_node is scope_limit:
                 # The ancestor scope/top-level Node has been reached and
                 # nothing has matched.
                 break
 
-            # Move on to the next ancestor.
-            test_node = test_node.parent
-
-        if hasattr(test_node, "invoke") and test_node.invoke.invokes.container:
-            # We've reached the top-level InvokeSchedule without finding
-            # the symbol. Check the Container for the Invokes object.
-            symbol_table = test_node.invoke.invokes.container.symbol_table
-            for csym in symbol_table.containersymbols:
-                if csym.wildcard_import:
-                    possible_containers.append((symbol_table, csym))
+            if test_node.parent is None and hasattr(test_node, "invoke") \
+               and test_node.invoke.invokes.container:
+                # We've reached the top of the InvokeSchedule without finding
+                # a match - check the associated Container.
+                test_node = test_node.invoke.invokes.container
+            else:
+                # Move on to the next ancestor.
+                test_node = test_node.parent
 
         if possible_containers:
-            print("No definition found for symbol {0} but there are wildcard\n"
-                  "imports from the following container(s):\n".format(name))
-            for _, csym in possible_containers:
-                print(csym)
-            return (None, possible_containers)
+            # No symbol found but there are one or more Containers from which
+            # it may be being brought into scope. Therefore create a DataSymbol
+            # of unknown type and deferred interface and add it to the most
+            # local SymbolTable.
+            symbol = DataSymbol(name, DataType.DEFERRED,
+                                interface=UnresolvedInterface())
+            first_symbol_table.add(symbol)
+            return symbol
 
         # All requested Nodes have been checked but there has been no
         # match and there are no wildcard imports so raise an exception.

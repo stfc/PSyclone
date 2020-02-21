@@ -1630,23 +1630,12 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
-            # Once #667 is implemented we can simplify this logic by
-            # checking for the NEMO API. i.e. if api=="nemo": add local
-            # symbol else: add symbol from symbol table.
-            symbol_table = _get_symbol_table(parent)
             # Replace the CodeBlocks containing the Subscript_Triplets with
             # the index expressions
             cblocks = array.walk(CodeBlock)
             for idx, cblock in enumerate(cblocks):
                 posn = array.children.index(cblock)
-                if symbol_table:
-                    symbol = array.find_symbol(loop_vars[idx])
-                else:
-                    # The NEMO API does not generate symbol tables, so
-                    # create a new Symbol. Choose a datatype as we
-                    # don't know what it is. Remove this code when
-                    # issue #500 is addressed.
-                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
+                symbol = array.find_or_create_symbol(loop_vars[idx])
                 array.children[posn] = Reference(symbol, parent=array)
 
     def _where_construct_handler(self, node, parent):
@@ -1780,18 +1769,7 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            # Once #667 is implemented we can simplify this logic by
-            # checking for the NEMO API. i.e. if api=="nemo": add local
-            # symbol else: add symbol from symbol table.
-            symbol_table = _get_symbol_table(parent)
-            if symbol_table:
-                symbol = size_node.find_symbol(arrays[0].name)
-            else:
-                # The NEMO API does not generate symbol tables, so
-                # create a new Symbol. Choose a datatype as we
-                # don't know what it is. Remove this code when
-                # issue #500 is addressed.
-                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+            symbol = size_node.find_or_create_symbol(arrays[0].name)
 
             size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), DataType.INTEGER,
@@ -2077,15 +2055,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        symbol, containers = parent.find_symbol(node.string)
-        if not symbol:
-            # We failed to find an explicit declaration of the named symbol
-            # but there are one or more ContainerSymbols from which it may be
-            # imported.
-            # TODO how to deal with this? We could create a new Symbol with
-            # some sort of 'fuzzy' interface but which SymbolTable should we
-            # put it in?
-        symbol_table = _get_symbol_table(parent)
+        symbol = parent.find_or_create_symbol(node.string)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2125,18 +2095,8 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-        # Once #667 is implemented we can simplify this logic by
-        # checking for the NEMO API. i.e. if api=="nemo": add local
-        # symbol else: add symbol from symbol table.
-        symbol_table = _get_symbol_table(parent)
-        if symbol_table:
-            symbol = parent.find_symbol(reference_name)
-        else:
-            # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Randomly choose a datatype as we don't
-            # know what it is.  Remove this code when issue #500 is
-            # addressed.
-            symbol = DataSymbol(reference_name, DataType.REAL)
+        symbol = parent.find_or_create_symbol(reference_name)
+
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
