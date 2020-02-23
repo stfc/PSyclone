@@ -128,6 +128,8 @@ class GOceanExtractNode(ExtractNode):
         from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
             CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
             TypeDeclGen
+        from psyclone.gocean1p0 import GOSymbolTable
+        from psyclone.psyir.symbols import Symbol
 
         all_vars = list(set(input_list).union(set(output_list)))
         all_vars.sort()
@@ -141,16 +143,38 @@ class GOceanExtractNode(ExtractNode):
                      funcnames=["PSyDataType"])
         prog.add(use)
 
+        # Use a symbol table to make sure all variable names are unique
+        sym_table = GOSymbolTable()
+        sym = Symbol("PSyDataType")
+        sym_table.add(sym)
+
+        psy_data = sym_table.new_symbol_name("psy_data")
+        sym_table.add(Symbol(psy_data))
         var_decl = TypeDeclGen(prog, datatype="PSyDataType",
-                               entity_decls=["psy_data"])
+                               entity_decls=[psy_data])
         prog.add(var_decl)
 
         call = CallGen(prog,
-                       "psy_data%OpenRead(\"{0}\", \"{1}\")"
-                       .format(module_name, region_name))
+                       "{0}%OpenRead(\"{1}\", \"{2}\")"
+                       .format(psy_data, module_name, region_name))
         prog.add(call)
 
         post_suffix = self._post_name
+
+        # Variables might need to be renamed in order to guarantee unique
+        # variable names in the driver: An example of this would be if the
+        # user code contains a variable 'dx', and the kernel takes a
+        # property 'dx' as well. In the original code that is no problem,
+        # since the property is used via field%grid%dx. But the stand-alone
+        # driver renames field%grid%dx to dx, which can cause a name clash.
+        # Similar problems can exist with any user defined type, since all
+        # user defined types are rewritten to just use the field name.
+        # We use a mapping to support renaming of variables: it takes as
+        # key the variable as used in the original program (e.g. 'dx' from
+        # an expression like field%grid%dx), and maps it to a unique local
+        # name (e.g. dx_0).
+
+        rename_variable = {}
         for var_name in all_vars:
             # TODO #644: we need to identify arrays!!
             # Support GOcean properties, which are accessed via a
@@ -168,6 +192,10 @@ class GOceanExtractNode(ExtractNode):
                 # No derived type, so we can just use the
                 # variable name directly in the driver
                 local_name = var_name
+            unique_local_name = sym_table.new_symbol_name(local_name)
+            rename_variable[local_name] = unique_local_name
+            sym_table.add(Symbol(unique_local_name))
+            local_name = unique_local_name
 
             # TODO: #644 - we need to identify arrays!!
             # Any variable used needs to be defined. We also need
@@ -183,15 +211,15 @@ class GOceanExtractNode(ExtractNode):
                 # We only need the pre-variable, and we can read
                 # it from the file (which also allocate space for it)
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}\", {1})"
-                               .format(var_name, local_name))
+                               "{0}%ReadVariable(\"{1}\", {2})"
+                               .format(psy_data, var_name, local_name))
                 prog.add(call)
             elif is_input:
                 # Now must be input and output:
                 # First read the pre-variable (which is also allocated):
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}\", {1})"
-                               .format(var_name, local_name))
+                               "{0}%ReadVariable(\"{1}\", {2})"
+                               .format(psy_data, var_name, local_name))
                 prog.add(call)
                 # Then declare the post variable, and and read its values
                 # (ReadVariable will also allocate it)
@@ -199,8 +227,9 @@ class GOceanExtractNode(ExtractNode):
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}{2}\", {1}{2})"
-                               .format(var_name, local_name, post_suffix))
+                               "{0}%ReadVariable(\"{1}{3}\", {2}{3})"
+                               .format(psy_data, var_name, local_name,
+                                       post_suffix))
                 prog.add(call)
             else:
                 # Now the variable is output only. We need to read the
@@ -210,8 +239,9 @@ class GOceanExtractNode(ExtractNode):
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
                 call = CallGen(prog,
-                               "psy_data%ReadVariable(\"{0}{2}\", {1}{2})"
-                               .format(var_name, local_name, post_suffix))
+                               "{0}%ReadVariable(\"{1}{3}\", {2}{3})"
+                               .format(psy_data, var_name, local_name,
+                                       post_suffix))
                 prog.add(call)
                 decl = DeclGen(prog, "real", [local_name], kind="8",
                                dimension=":,:", allocatable=True)
@@ -239,8 +269,8 @@ class GOceanExtractNode(ExtractNode):
         # Similarly, for properties we cannot use e.g. 'fld%grid%dx'
         # anymore, we have to use e.g. a local variable 'dx' that has
         # been created. Since we are using the existing way of creating
-        # the code for the instrument region, we need to modify how
-        # those variables are created. We do this by temporarily
+        # the code for the instrumented region, we need to modify how
+        # these variables are created. We do this by temporarily
         # modifying the properties in the config file.
         api_config = Config.get().api_conf("gocean1.0")
         all_props = api_config.grid_properties
@@ -250,9 +280,10 @@ class GOceanExtractNode(ExtractNode):
 
         # 1) A grid property is defined like "{0}%grid%dx". This is
         #    changed to be just 'dx', i.e. the final component of
-        #    the current value.
-        #    (if a property is not used, it doesn't matter if we modify
-        #    its definition, so we just change all properties).
+        #    the current value (but we also take renaming into account,
+        #    so 'dx' might become 'dx_0').
+        #    If a property is not used, it doesn't matter if we modify
+        #    its definition, so we just change all properties.
         Property = namedtuple("Property", "fortran type")
         for name, prop in all_props.items():
             last_percent = prop.fortran.rfind("%")
@@ -260,7 +291,8 @@ class GOceanExtractNode(ExtractNode):
                 # Get the last field name, which will be the
                 # local variable name
                 local_name = prop.fortran[last_percent+1:]
-                all_props[name] = Property(local_name, prop.type)
+                unique_name = rename_variable.get(local_name, local_name)
+                all_props[name] = Property(unique_name, prop.type)
 
         # 2) grid_data is "{0}%data" --> this just becomes {0}
         #    (a_fld%data in the original program becomes just a_fld,

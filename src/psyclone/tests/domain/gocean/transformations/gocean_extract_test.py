@@ -379,13 +379,17 @@ def test_driver_creation(tmpdir):
 
     # This is an excerpt of the code that should get created.
     # It is tested line by line since there is other code in between
-    # which is not important, and the order might also change.
+    # which is not important, and the order might also change. It also
+    # tests if unique variable names are created in the driver: the user
+    # program contains a local variable 'dx', which clashes with the grid
+    # property dx. The grid property will be renamed to 'dx_0':
     expected = '''      IMPLICIT NONE
       REAL(KIND=8), allocatable, dimension(:,:) :: gphiu
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
       REAL(KIND=8), allocatable, dimension(:,:) :: in_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: dx
+      REAL(KIND=8), allocatable, dimension(:,:) :: dx_0
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post
 
@@ -398,11 +402,12 @@ def test_driver_creation(tmpdir):
       CALL psy_data%ReadVariable("in_fld", in_fld)
       CALL psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
       CALL psy_data%ReadVariable("dx", dx)
+      CALL psy_data%ReadVariable("in_fld%grid%dx", dx_0)
       ! RegionStart
       DO j=2,jstop
         DO i=2,istop+1
           CALL compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, ''' \
-      '''dx, dx, gphiu)
+      '''dx, dx_0, gphiu)
         END DO
       END DO
       ! RegionEnd
