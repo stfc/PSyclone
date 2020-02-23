@@ -76,9 +76,12 @@ class SymbolTable(object):
         appended to avoid clashes.
 
         :param root_name: optional name to use when creating a new \
-        symbol name. This will be appended with an integer if the name \
-        clashes with an existing symbol name.
+            symbol name. This will be appended with an integer if the name \
+            clashes with an existing symbol name.
         :type root_name: str or NoneType
+
+        :returns: a new unique symbol.
+        :rtype: str
 
         :raises TypeError: if the root_name argument is not a string \
         or None.
@@ -106,6 +109,10 @@ class SymbolTable(object):
         :raises KeyError: if the symbol name is already in use.
 
         '''
+        if not isinstance(new_symbol, Symbol):
+            raise InternalError("Symbol '{0}' is not a symbol, but '{1}'.'"
+                                .format(new_symbol, type(new_symbol)))
+
         if new_symbol.name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))

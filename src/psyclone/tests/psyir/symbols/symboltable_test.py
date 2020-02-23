@@ -136,6 +136,14 @@ def test_add():
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
+    # Test that an exception is raised if a non-symbol is added
+    with pytest.raises(InternalError) as error:
+        sym_table.add("string-not-synmbol")
+    assert "Symbol 'string-not-synmbol' is not a symbol, but" in \
+        str(error.value)
+    # Python2/3 give slightly different messages: type str vs class str
+    assert "'str'>'" in str(error.value)
+
 
 def test_imported_symbols():
     ''' Test the imported_symbols method. '''
