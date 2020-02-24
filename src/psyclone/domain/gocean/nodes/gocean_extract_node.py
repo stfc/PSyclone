@@ -124,7 +124,6 @@ class GOceanExtractNode(ExtractNode):
         :type output_list: list or str
         '''
 
-        from collections import namedtuple
         from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
             CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
             TypeDeclGen
@@ -284,7 +283,6 @@ class GOceanExtractNode(ExtractNode):
         #    so 'dx' might become 'dx_0').
         #    If a property is not used, it doesn't matter if we modify
         #    its definition, so we just change all properties.
-        Property = namedtuple("Property", "fortran type")
         for name, prop in all_props.items():
             last_percent = prop.fortran.rfind("%")
             if last_percent > -1:
@@ -292,12 +290,13 @@ class GOceanExtractNode(ExtractNode):
                 # local variable name
                 local_name = prop.fortran[last_percent+1:]
                 unique_name = rename_variable.get(local_name, local_name)
-                all_props[name] = Property(unique_name, prop.type)
+                all_props[name] = api_config.make_property(unique_name,
+                                                           prop.type)
 
         # 2) grid_data is "{0}%data" --> this just becomes {0}
         #    (a_fld%data in the original program becomes just a_fld,
         #    and a_fld is declared to be a plain Fortran 2d-array)
-        all_props["go_grid_data"] = Property("{0}", "array")
+        all_props["go_grid_data"] = api_config.make_property("{0}", "array")
 
         # Each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new

@@ -793,7 +793,8 @@ class GOceanConfig(APISpecificConfig):
         # a property, and 'type' is a string.
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
-        Property = namedtuple("Property", "fortran type")
+        # Store the namedtuple type to create all properties with
+        self._property = namedtuple("Property", "fortran type")
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -836,7 +837,8 @@ class GOceanConfig(APISpecificConfig):
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
-                        Property(fortran.strip(), variable_type.strip())
+                        self.make_property(fortran.strip(),
+                                           variable_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
                 for required in ["go_grid_xstop", "go_grid_ystop",
@@ -860,10 +862,33 @@ class GOceanConfig(APISpecificConfig):
                                          "\"{1}\".".format(key,
                                                            config.filename))
     # ---------------------------------------------------------------------
+    def make_property(self, dereference_format, type_name):
+        '''Creates a property (based on namedtuple) for a given Fortran
+        code to access a grid property, and the type.
+
+        :param str dereference_format: The Fortran code to access a property \
+            given a field name (which will be used to replace a {0} in the \
+            string with. E.g. "0}%whole%xstop").
+        :param str type_name: The type of the grid property, must be \
+            'scalar' or 'array'.
+
+        :returns: a namedtuple for a grid property given the Fortran
+            statement to access it and the type.
+
+        :raises InternalError: if type_name is not 'scalar' or 'array'
+        '''
+        if not type_name in ['array', 'scalar']:
+            from psyclone.errors import InternalError
+            raise InternalError("Type must be 'array' or 'scalar' but is "
+                                "'{0}'.".format(type_name))
+
+        return self._property(dereference_format, type_name)
+
+    # ---------------------------------------------------------------------
     @property
     def grid_properties(self):
         ''':returns: the dictionary containing the grid properties.
-        :type: a dictionary with values of pairs (dereference-format, type)
+        :rtype: a dictionary with values of pairs (dereference-format, type)
         '''
         return self._grid_properties
 
