@@ -1506,10 +1506,16 @@ def test_acc_parallel_not_a_loop():
     is not a loop '''
 
     acct = ACCParallelTrans()
-    # Attempt to (erroneously) apply the OpenACC Parallel transformation
-    # to the schedule rather than a loop
-    with pytest.raises(TransformationError):
+    # Provide an invalid node type (just the integer 1) to the OpenACC
+    # Parallel transformation
+    with pytest.raises(TransformationError) as error:
         _, _ = acct.apply(1)
+
+    assert "Argument must be a single Node in a Schedule, a Schedule or a " \
+           "list of Nodes in a Schedule but have been passed an object " \
+           "of type:" in str(error.value)
+    # Python2/3 differences in type string
+    assert "'int'>" in str(error.value)
 
 
 def test_acc_parallel_trans(tmpdir):
