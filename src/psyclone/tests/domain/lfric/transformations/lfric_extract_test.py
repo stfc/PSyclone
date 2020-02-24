@@ -552,7 +552,7 @@ def test_extract_single_builtin_dynamo0p3():
     assert False, "X-failing test suddenly working: #646 lfric extraction."
 
 
-def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
+def test_extract_kernel_and_builtin_dynamo0p3():
     ''' Test that extraction of a Kernel and a BuiltIny in an Invoke
     produces the correct result in Dynamo0.3 API. '''
     etrans = LFRicExtractTrans()
@@ -593,7 +593,8 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
 
     assert output in code
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    # TODO #706: Compilation for LFRic extraction not supported yet.
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # TODO #646 (LFRic not fully supported) and #637 (no builtin support)
     # This is an excerpt of missing lines, which will cause this test to x-fail
@@ -608,7 +609,7 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     assert False, "X-failing test suddenly working: #646 LFRic extraction."
 
 
-def test_extract_colouring_omp_dynamo0p3(tmpdir):
+def test_extract_colouring_omp_dynamo0p3():
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
@@ -693,7 +694,8 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir):
       ! ExtractEnd""")
     assert output in code
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    # TODO #706: Compilation for LFRic extraction not supported yet.
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # TODO #646
     # At this stage not all required parameters are passed via PSyData.
