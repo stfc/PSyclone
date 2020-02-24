@@ -252,16 +252,16 @@ class PSyDataNode(Node):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param options["pre-var-list"]: a list of variables to be extracted \
+        :param options["pre_var_list"]: a list of variables to be extracted \
             before the first child.
-        :type options["pre-var-list"]: list of str
-        :param options["post-var-list"]: a list of variables to be extracted \
+        :type options["pre_var_list"]: list of str
+        :param options["post_var_list"]: a list of variables to be extracted \
             after the last child.
-        :type options["post-var-list"]: list of str
-        :param str options["pre-var-postfix"]: an optional postfix that will \
-            be added to each variable name in the pre-var-list.
-        :param str options["post-var-postfix"]: an optional postfix that will \
-            be added to each variable name in the post-var-list.
+        :type options["post_var_list"]: list of str
+        :param str options["pre_var_postfix"]: an optional postfix that will \
+            be added to each variable name in the pre_var_list.
+        :param str options["post_var_postfix"]: an optional postfix that will \
+            be added to each variable name in the post_var_list.
 
         '''
         # TODO: #415 Support different classes of PSyData calls.
@@ -293,10 +293,10 @@ class PSyDataNode(Node):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre-var-list", [])
-        post_variable_list = options.get("post-var-list", [])
-        pre_suffix = options.get("pre-var-postfix", "")
-        post_suffix = options.get("post-var-postfix", "")
+        pre_variable_list = options.get("pre_var_list", [])
+        post_variable_list = options.get("post_var_list", [])
+        pre_suffix = options.get("pre_var_postfix", "")
+        post_suffix = options.get("post_var_postfix", "")
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
