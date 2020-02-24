@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 
 
-# Assume that apeg-dl_timer is 'next' to psyclone
+# Assume that drhook is 'next' to psyclone
 DRHOOK_ROOT?=../../../../drhook
 
 DRHOOK_INCLUDE?=$(DRHOOK_ROOT)/drhook/include
@@ -44,7 +44,7 @@ F90?=gfortran
 FFLAGS?=-g
 FFLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
 
-name=drhook
+name=drhook_psy
 libname=lib$(name).a
 
 default: $(libname)
