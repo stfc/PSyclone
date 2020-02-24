@@ -110,8 +110,8 @@ class ProfileNode(PSyDataNode):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        options = {'pre-var-list': [],
-                   'post-var-list': []}
+        options = {'pre_var_list': [],
+                   'post_var_list': []}
 
         super(ProfileNode, self).gen_code(parent, options)
 

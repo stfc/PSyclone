@@ -143,9 +143,9 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         dep = DependencyTools()
         self._input_list, self._output_list = dep.get_in_out_parameters(self)
-        options = {'pre-var-list': self._input_list,
-                   'post-var-list': self._output_list,
-                   'post-var-postfix': self._post_name}
+        options = {'pre_var_list': self._input_list,
+                   'post_var_list': self._output_list,
+                   'post_var_postfix': self._post_name}
 
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))

@@ -366,16 +366,16 @@ supported by ``PSyDataNode``:
 ================ =========================================
 Parameter Name   Description
 ================ =========================================
-pre-var-list     A list of the variable names to be
+pre_var_list     A list of the variable names to be
                  extracted before the instrumented region.
-post-var-list    A list of variable names to be extracted
+post_var_list    A list of variable names to be extracted
                  after the instrumented region.
-pre-var-postfix  An optional postfix that will be appended
+pre_var_postfix  An optional postfix that will be appended
                  to each variable name in the
-                 ``pre-var-list``.
-post-var-postfix an optional postfix that will be appended
+                 ``pre_var_list``.
+post_var_postfix an optional postfix that will be appended
                  to each variable name in the
-                 ``post-var-list``.
+                 ``post_var_list``.
 ================ =========================================
 
 If there is no variable to be provided by the PSyData API (i.e both
@@ -392,5 +392,5 @@ for more details.
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
-a ``PSyDataNode`` node. It also uses the ``post-var-postfix`` option
+a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
 as described under ``gen_code()`` above (see also :ref:`psyke_netcdf`).
