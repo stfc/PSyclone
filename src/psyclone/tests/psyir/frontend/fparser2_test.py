@@ -42,7 +42,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part
+    Type_Declaration_Stmt, Execution_Part, Name
 from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
     NaryOperation, IfBlock, Reference, Array, Container, Literal, Range
@@ -50,7 +50,8 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, _get_symbol_table
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    _get_symbol_table, check_literal, check_bound
 
 
 def process_declarations(code):
@@ -787,7 +788,7 @@ def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Name, Dimension_Attr_Spec
+    from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -860,7 +861,6 @@ def test_parse_array_dimensions_attributes():
 def test_deferred_array_size():
     ''' Check that we handle the case of an array being declared with an
     extent specified by a variable that is declared after it. '''
-    from fparser.two.Fortran2003 import Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, intent(in), dimension(n) :: array3\n"
@@ -1161,7 +1161,6 @@ def test_unary_op_handler_error():
 def test_binary_op_handler_error():
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
-    from fparser.two.Fortran2003 import Name
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b)")
@@ -1184,7 +1183,6 @@ def test_binary_op_handler_error():
 def test_nary_op_handler_error():
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
-    from fparser.two.Fortran2003 import Name
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b, mask)")
@@ -1231,31 +1229,16 @@ def test_handling_nested_intrinsic():
 def test_array_section():
     ''' Check that we correctly handle an array section '''
 
-    def check_array(node, ndims):
-        ''' xxx '''
-        assert isinstance(node, Array)
-        assert len(node.children) == ndims
+    def _array_create(code):
+        '''Utility function that takes the supplied executable code and
+        returns its PSyIR representation.
 
-    def check_range(array, dim):
-        ''' xxx '''
-        range_node = array.children[dim-1]
-        assert isinstance(range_node, Range)
+        :param str code: the executable code as a string.
+        
+        :returns: the executable code as PSyIR nodes.
+        :rtype: :py:class:`psyclone.psyir.nodes.node`
 
-    def check_bound(array, dim, index, operator):
-        ''' xxx '''
-        bound = array.children[dim-1].children[index]
-        assert isinstance(bound, BinaryOperation)
-        assert bound.operator == operator
-        reference = bound.children[0]
-        literal = bound.children[1]
-        assert isinstance(reference, Reference)
-        assert reference.symbol is array.symbol
-        assert isinstance(literal, Literal)
-        assert literal.datatype == DataType.INTEGER
-        assert literal.value == str(dim)
-
-    def array_create(code):
-        ''' xxx '''
+        '''
         processor = Fparser2Reader()
         fake_parent = Node()
         reader = FortranStringReader(code)
@@ -1263,24 +1246,58 @@ def test_array_section():
         processor.process_nodes(fake_parent, [fp2node])
         return fake_parent.children[0].children[0]
 
-    def check_literal(node, dim, index, value):
-        ''' xxx '''
-        literal = node.children[dim-1].children[index]
-        assert isinstance(literal, Literal)
-        assert literal.datatype == DataType.INTEGER
-        assert literal.value == str(value)
+    def _check_array(node, ndims):
+        '''Utility function that checks that the supplied node is an array and
+        has the expected number of dimensions.
 
-    def check_reference(node, dim, index, name):
-        ''' xxx '''
+        :param node: the node to check.
+        :type node: :py:class:`psyclone.psyir.nodes.array`
+        :param int ndims: the number of expected array dimensions.
+        
+        '''
+        assert isinstance(node, Array)
+        assert len(node.children) == ndims
+
+    def _check_range(array, dim):
+        '''Utility function that checks that the "dim" index of the supplied
+        array contains a range node. Assumes that the supplied
+        argument "array" is an array.
+
+        :param array: the node to check.
+        :type array: :py:class:`psyclone.psyir.nodes.array`
+        :param int dim: the array dimension index to check.
+
+        '''
+        range_node = array.children[dim-1]
+        assert isinstance(range_node, Range)
+
+
+    def _check_reference(node, dim, index, name):
+        '''Utility function to check that the supplied array has a reference
+        at dimension index "dim" and range index "index" with name
+        "name".
+
+        Assumes that the node argument is an array and that the
+        supplied dimension index is a Range node and that the supplied
+        range index is valid.
+
+        :param array: the node to check.
+        :type array: :py:class:`pysclone.psyir.node.array`
+        :param int dim: the dimension index to check.
+        :param int index: the index of the range to check (0 is the \
+            lower bound, 1 is the upper bound).
+        :param str name: the expected name of the reference.
+
+        '''
         reference = node.children[dim-1].children[index]
         assert isinstance(reference, Reference)
         assert reference.name == name
 
     # Simple one-dimensional
     for code in ["a(:) = 0.0", "a(::) = 0.0"]:
-        array_reference = array_create(code)
-        check_array(array_reference, ndims=1)
-        check_range(array_reference, dim=1)
+        array_reference = _array_create(code)
+        _check_array(array_reference, ndims=1)
+        _check_range(array_reference, dim=1)
         check_bound(array_reference, dim=1, index=0,
                     operator=BinaryOperation.Operator.LBOUND)
         check_bound(array_reference, dim=1, index=1,
@@ -1288,10 +1305,11 @@ def test_array_section():
         check_literal(array_reference, dim=1, index=2, value=1)
     # Simple multi-dimensional
     for code in ["a(:,:,:) = 0.0", "a(::,::,::) = 0.0"]:
-        array_reference = array_create(code)
-        check_array(array_reference, ndims=3)
+        array_reference = _array_create(code)
+        _check_array(array_reference, ndims=3)
         for dim in range(1, 4):
-            check_range(array_reference, dim=dim)
+            # Check each of the 3 dimensions (1, 2, 3)
+            _check_range(array_reference, dim=dim)
             check_bound(array_reference, dim=dim, index=0,
                         operator=BinaryOperation.Operator.LBOUND)
             check_bound(array_reference, dim=dim, index=1,
@@ -1299,45 +1317,45 @@ def test_array_section():
             check_literal(array_reference, dim=dim, index=2, value=1)
     # Simple values
     code = "a(1:, 1:2, 1:2:3, :2, :2:3, ::3, 1::3) = 0.0"
-    array_reference = array_create(code)
-    check_array(array_reference, ndims=7)
+    array_reference = _array_create(code)
+    _check_array(array_reference, ndims=7)
     # dim 1
-    check_range(array_reference, dim=1)
+    _check_range(array_reference, dim=1)
     check_literal(array_reference, dim=1, index=0, value=1)
     check_bound(array_reference, dim=1, index=1,
                 operator=BinaryOperation.Operator.UBOUND)
     check_literal(array_reference, dim=1, index=2, value=1)
     # dim 2
-    check_range(array_reference, dim=2)
+    _check_range(array_reference, dim=2)
     check_literal(array_reference, dim=2, index=0, value=1)
     check_literal(array_reference, dim=2, index=1, value=2)
     check_literal(array_reference, dim=2, index=2, value=1)
     # dim 3
-    check_range(array_reference, dim=3)
+    _check_range(array_reference, dim=3)
     check_literal(array_reference, dim=3, index=0, value=1)
     check_literal(array_reference, dim=3, index=1, value=2)
     check_literal(array_reference, dim=3, index=2, value=3)
     # dim 4
-    check_range(array_reference, dim=4)
+    _check_range(array_reference, dim=4)
     check_bound(array_reference, dim=4, index=0,
                 operator=BinaryOperation.Operator.LBOUND)
     check_literal(array_reference, dim=4, index=1, value=2)
     check_literal(array_reference, dim=4, index=2, value=1)
     # dim 5
-    check_range(array_reference, dim=5)
+    _check_range(array_reference, dim=5)
     check_bound(array_reference, dim=5, index=0,
                 operator=BinaryOperation.Operator.LBOUND)
     check_literal(array_reference, dim=5, index=1, value=2)
     check_literal(array_reference, dim=5, index=2, value=3)
     # dim 6
-    check_range(array_reference, dim=6)
+    _check_range(array_reference, dim=6)
     check_bound(array_reference, dim=6, index=0,
                 operator=BinaryOperation.Operator.LBOUND)
     check_bound(array_reference, dim=6, index=1,
                 operator=BinaryOperation.Operator.UBOUND)
     check_literal(array_reference, dim=6, index=2, value=3)
     # dim 7
-    check_range(array_reference, dim=7)
+    _check_range(array_reference, dim=7)
     check_literal(array_reference, dim=7, index=0, value=1)
     check_bound(array_reference, dim=7, index=1,
                 operator=BinaryOperation.Operator.UBOUND)
@@ -1345,31 +1363,39 @@ def test_array_section():
 
     # Simple variables
     code = "a(b:, b:c, b:c:d) = 0.0"
-    array_reference = array_create(code)
-    check_array(array_reference, ndims=3)
+    array_reference = _array_create(code)
+    _check_array(array_reference, ndims=3)
     # dim 1
-    check_range(array_reference, dim=1)
-    check_reference(array_reference, dim=1, index=0, name="b")
+    _check_range(array_reference, dim=1)
+    _check_reference(array_reference, dim=1, index=0, name="b")
     check_bound(array_reference, dim=1, index=1,
                 operator=BinaryOperation.Operator.UBOUND)
     check_literal(array_reference, dim=1, index=2, value=1)
     # dim 2
-    check_range(array_reference, dim=2)
-    check_reference(array_reference, dim=2, index=0, name="b")
-    check_reference(array_reference, dim=2, index=1, name="c")
+    _check_range(array_reference, dim=2)
+    _check_reference(array_reference, dim=2, index=0, name="b")
+    _check_reference(array_reference, dim=2, index=1, name="c")
     check_literal(array_reference, dim=2, index=2, value=1)
     # dim 3
-    check_range(array_reference, dim=3)
-    check_reference(array_reference, dim=3, index=0, name="b")
-    check_reference(array_reference, dim=3, index=1, name="c")
-    check_reference(array_reference, dim=3, index=2, name="d")
+    _check_range(array_reference, dim=3)
+    _check_reference(array_reference, dim=3, index=0, name="b")
+    _check_reference(array_reference, dim=3, index=1, name="c")
+    _check_reference(array_reference, dim=3, index=2, name="d")
 
     # Expressions
-    code = "x"
-    array_reference = array_create(code)
-    check_array(array_reference, ndims=3)
-    ****
-    
+    code = "a(b*c:b+c:b/c) = 0.0"
+    array_reference = _array_create(code)
+    _check_array(array_reference, ndims=1)
+    _check_range(array_reference, dim=1)
+    my_range = array_reference.children[0]
+    assert isinstance (my_range.children[0], BinaryOperation)
+    assert my_range.children[0].operator == BinaryOperation.Operator.MUL
+    assert isinstance (my_range.children[1], BinaryOperation)
+    assert my_range.children[1].operator == BinaryOperation.Operator.ADD
+    assert isinstance (my_range.children[2], BinaryOperation)
+    assert my_range.children[2].operator == BinaryOperation.Operator.DIV
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_array_product():
     ''' Check that we correctly handle array products. '''

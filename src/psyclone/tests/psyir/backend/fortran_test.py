@@ -44,7 +44,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
-from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal
+from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
+    BinaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
 from psyclone.tests.utilities import create_schedule
@@ -813,15 +814,31 @@ def test_fw_array(fort_writer):
     assert "a(2,n,3)=0.0" in result
 
 def test_fw_array_2(fort_writer):
-    '''Check the FortranWriter class gen_array method produces the expected
-    declaration.
+    '''Check the FortranWriter class array_node method produces the
+    expected code when an array section is specified.
 
     '''
     from psyclone.psyir.nodes import Array, Range
-    symbol = DataSymbol("a", DataType.REAL, shape=[10])
-    array = Array.create(symbol, [Range()])
-    result = fort_writer.gen_array(array)
-    assert result == "a(:)\n"
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10])
+    dim2_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("2", DataType.INTEGER))
+    dim1_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("1", DataType.INTEGER))
+    plus = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Reference(DataSymbol("b", DataType.REAL)),
+        Reference(DataSymbol("c", DataType.REAL)))
+    one = Literal("1", DataType.INTEGER)
+    three = Literal("3", DataType.INTEGER)
+    array = Array.create(symbol, [Range.create(one, dim1_bound_stop),
+                                  Range.create(dim2_bound_start, plus,
+                                               step=three)])
+    result = fort_writer.array_node(array)
+    assert result == "a(1:,:b + c:3)"
 
 # literal is already checked within previous tests
 
@@ -1007,18 +1024,17 @@ def test_fw_codeblock_1(fort_writer):
 def test_fw_codeblock_2(fort_writer):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
-    of a line (not a whole line). In this case the ":" in the array
-    access is a code block.
+    of a line (not a whole line). In this case the data initialisation
+    of the scalar "(/ 0.0 /)" is a code block.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: a(n,n,n)\n"
-        "    a(2,n,:) = 0.0\n"
+        "subroutine tmp()\n"
+        "  real a\n"
+        "  a = (/ 0.0 /)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
@@ -1028,7 +1044,7 @@ def test_fw_codeblock_2(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a(2,n,:)=0.0" in result
+    assert "a=(/0.0/)" in result
 
 
 def test_fw_codeblock_3(fort_writer):

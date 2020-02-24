@@ -128,15 +128,10 @@ def test_where_array_notation_rank():
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
-    # Give the Array one child that is not a CodeBlock
-    my_array.addchild(Literal("2", DataType.INTEGER, my_array))
-    with pytest.raises(NotImplementedError) as err:
-        processor._array_notation_rank(my_array)
-    assert ("that uses Fortran array notation is assumed to have at least "
-            "one CodeBlock as its child " in str(err.value))
-    my_array._children = []
-    my_array.addchild(CodeBlock([Fortran2003.Literal_Constant("1")],
-                                CodeBlock.Structure.EXPRESSION, my_array))
+    from psyclone.psyir.nodes import Range
+    my_array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10]),
+                            [Range(Literal("1", DataType.INTEGER),
+                                   Literal("10", DataType.INTEGER))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is supported"

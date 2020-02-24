@@ -92,6 +92,86 @@ def _get_symbol_table(node):
     return None
 
 
+def check_bound(array, dim, index, operator):
+    '''A Fortran array section with a missing lower bound implies the
+    access starts at the first element and a missing upper bound
+    implies the access ends at the last element e.g. a(:,:)
+    accesses all elements of array a and is equivalent to
+    a(lbound(a,1):ubound(a,1),lbound(a,2):ubound(a,2)). The PSyIR
+    does not support the shorthand notation, therefore the lbound
+    and ubound operators are used in the PSyIR.
+
+    This utility function checks that shorthand lower or upper
+    bound Fortran code is captured as longhand lbound and/or
+    ubound functions as expected in the PSyIR.
+
+    The supplied "array" argument is assumed to be an Array node,
+    the specified dimension "dim" is assumed to be a Range node
+    and the supplied range index "index" is assumed to be valid.
+
+    :param array: the node to check.
+    :type array: :py:class:`pysclone.psyir.node.array`
+    :param int dim: the dimension index to check.
+    :param int index: the index of the range to check (0 is the \
+        lower bound, 1 is the upper bound).
+    :param operator: the expected operator.
+    :type operator: \
+        :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
+        or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
+
+    '''
+    bound = array.children[dim-1].children[index]
+    assert isinstance(bound, BinaryOperation)
+    assert bound.operator == operator
+    reference = bound.children[0]
+    literal = bound.children[1]
+    assert isinstance(reference, Reference)
+    assert reference.symbol is array.symbol
+    assert isinstance(literal, Literal)
+    assert literal.datatype == DataType.INTEGER
+    assert literal.value == str(dim)
+
+
+def check_literal(node, dim, index, value):
+    '''Utility function to check that the supplied array has a literal at
+    dimension index "dim" and range index "index" with value
+    "value".
+
+    The step part of the range node has an integer literal with
+    value 1 by default.
+
+    Assumes that the node argument is an array and that the
+    supplied dimension index is a Range node and that the supplied
+    range index is valid.
+
+    :param array: the node to check.
+    :type array: :py:class:`pysclone.psyir.node.array`
+    :param int dim: the dimension index to check.
+    :param int index: the index of the range to check (0 is the \
+        lower bound, 1 is the upper bound).
+    :param int value: the expected value of the literal.
+
+    '''
+    literal = node.children[dim-1].children[index]
+    assert isinstance(literal, Literal)
+    assert literal.datatype == DataType.INTEGER
+    assert literal.value == str(value)
+
+
+def check_range(my_range):
+    ''' xxx Range node'''
+    array = my_range.parent
+    dim = array.children.index(my_range) + 1
+    # Check lower bound
+    check_bound(array, dim, index=0,
+                operator=BinaryOperation.Operator.LBOUND)
+    # Check upper bound
+    check_bound(array, dim, index=1,
+                operator=BinaryOperation.Operator.UBOUND)
+    # Check step
+    check_literal(array, dim, index=2, value=1)
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -1524,42 +1604,30 @@ class Fparser2Reader(object):
 
         :raises NotImplementedError: if the array node does not have any \
                                      children.
-        :raises NotImplementedError: if the Array does not have at least one \
-                                     CodeBlock as a child.
-        :raises NotImplementedError: if each CodeBlock child does not \
-                                     consist entirely of Subscript_Triplets.
-        :raises NotImplementedError: if any of the array slices have bounds \
-                                     (as this is not yet supported).
+
         '''
         if not array.children:
             raise NotImplementedError("An Array reference in the PSyIR must "
                                       "have at least one child but '{0}' has "
                                       "none".format(array.name))
-        # TODO #412. This code will need re-writing once array notation is
-        # supported in the PSyIR (becaues then we won't have any CodeBlocks).
-        cblocks = array.walk(CodeBlock)
-        if not cblocks:
-            raise NotImplementedError(
-                "A PSyIR Array node representing an array access that uses "
-                "Fortran array notation is assumed to have at least one "
-                "CodeBlock as its child but '{0}' has none.".
-                format(array.name))
-        # We only currently support array refs using the colon syntax,
-        # e.g. array(:, :). Each colon is represented in the fparser2
-        # parse tree by a Subscript_Triplet.
+        # Only array refs using basic colon syntax are currently
+        # supported e.g. (a(:,:)).  Each colon is represented in the
+        # PSyIR as a Range node with first argument being an lbound
+        # binary operator, the second argument being a ubound operator
+        # and the third argument being an integer Literal node with
+        # value 1 i.e. a(:,:) is represented as
+        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
+        # the PSyIR.
+        from psyclone.psyir.nodes import Range
         num_colons = 0
-        for cblock in cblocks:
-            for stmt in cblock.get_ast_nodes:
-                if not isinstance(stmt, Fortran2003.Subscript_Triplet):
-                    raise NotImplementedError(
-                        "Only array notation of the form my_array(:, :, ...) "
-                        "is supported but got: {0}".format(str(array)))
-                if any(stmt.items):
-                    raise NotImplementedError(
-                        "Bounds on array slices are not supported but found: "
-                        "'{0}'".format(str(array)))
+        for node in array.children:
+            if isinstance(node, Range):
+                # Found array syntax notation. Check that it is the
+                # simple ":" format.
+                check_range(node)
                 num_colons += 1
         return num_colons
+
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
@@ -1593,7 +1661,7 @@ class Fparser2Reader(object):
         for array in arrays:
             # Check that this is a supported array reference and that
             # all arrays are of the same rank
-            rank = self._array_notation_rank(array)
+            rank = len(array.children)
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
