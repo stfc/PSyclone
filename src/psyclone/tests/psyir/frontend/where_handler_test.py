@@ -134,8 +134,8 @@ def test_where_array_notation_rank():
                                    Literal("10", DataType.INTEGER))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
-    assert ("Only array notation of the form my_array(:, :, ...) is supported"
-            in str(err.value))
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
@@ -169,8 +169,9 @@ def test_array_notation_rank():
     processor.process_nodes(fake_parent, [fparser2spec])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(fake_parent[2].lhs)
-    assert "Bounds on array slices are not supported" in str(err.value)
-
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
+    
 
 def test_where_symbol_clash(parser):
     ''' Check that we raise the expected error if the code we are processing
@@ -223,7 +224,10 @@ def test_basic_where():
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
     assert ("ArrayReference[name:'dry']\n"
-            "Reference[name:'widx1']\n" in str(ifblock.condition))
+            "Reference[name:'widx1']\n"
+            "Reference[name:'widx2']\n"
+            "Reference[name:'widx3']\n"
+            in str(ifblock.condition))
 
 
 @pytest.mark.usefixtures("parser")

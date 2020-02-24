@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, Array, Node
+    Container, Assignment, Return, Array, Node, Range
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -120,16 +120,34 @@ def check_bound(array, dim, index, operator):
         or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
 
     '''
-    bound = array.children[dim-1].children[index]
-    assert isinstance(bound, BinaryOperation)
-    assert bound.operator == operator
-    reference = bound.children[0]
-    literal = bound.children[1]
-    assert isinstance(reference, Reference)
-    assert reference.symbol is array.symbol
-    assert isinstance(literal, Literal)
-    assert literal.datatype == DataType.INTEGER
-    assert literal.value == str(dim)
+    try:
+        bound = array.children[dim-1].children[index]
+        assert isinstance(bound, BinaryOperation), \
+                "Expecting BinaryOperation but found '{0}'." \
+                "".format(type(bound).__name__)
+        assert bound.operator == operator, \
+                "Expecting operator to be '{0}', but found '{1}'." \
+                "".format(str(operator), str(bound.operator))
+        reference = bound.children[0]
+        literal = bound.children[1]
+        assert isinstance(reference, Reference), \
+            "Expecting Reference but found '{0}'." \
+            "".format(type(reference).__name__)
+        assert reference.symbol is array.symbol, \
+            "Expecting Reference symbol '{0)' to be the same as array symbol " \
+            "'{1}'.".format(reference.symbol.name, array.symbol.name)
+        assert isinstance(literal, Literal), \
+            "Expecting Literal but found '{0}'." \
+            "".format(type(literal).__name__)
+        assert literal.datatype == DataType.INTEGER, \
+            "Expecting integer datatype but found '{0}'." \
+            "".format(literal.datatype)
+        assert literal.value == str(dim), \
+            "Expecting literal value '{0}' to be the same as the current array " \
+            "dimension '{1}'.".format(literal.value, str(dim))
+    except AssertionError as excinfo:
+        raise InternalError("psyir/frontend/fparser2.py:check_bound():"
+                            +str(excinfo))
 
 
 def check_literal(node, dim, index, value):
@@ -152,10 +170,20 @@ def check_literal(node, dim, index, value):
     :param int value: the expected value of the literal.
 
     '''
-    literal = node.children[dim-1].children[index]
-    assert isinstance(literal, Literal)
-    assert literal.datatype == DataType.INTEGER
-    assert literal.value == str(value)
+    try:
+        literal = node.children[dim-1].children[index]
+        assert isinstance(literal, Literal), \
+            "Expecting Literal but found '{0}'" \
+            "".format(type(literal).__name__)
+        assert literal.datatype == DataType.INTEGER, \
+            "Expecting integer datatype but found '{0}'." \
+            "".format(literal.datatype)
+        assert literal.value == str(value), \
+            "Expecting literal value '{0}' to be the same as '{1}'." \
+            "".format(literal.value, str(value))
+    except AssertionError as excinfo:
+        raise InternalError("psyir/frontend/fparser2.py:check_literal():"
+                            +str(excinfo))
 
 
 def check_range(my_range):
@@ -1624,7 +1652,12 @@ class Fparser2Reader(object):
             if isinstance(node, Range):
                 # Found array syntax notation. Check that it is the
                 # simple ":" format.
-                check_range(node)
+                try:
+                    check_range(node)
+                except InternalError:
+                    raise NotImplementedError(
+                        "Only array notation of the form my_array(:, :, ...) "
+                        "is supported.")
                 num_colons += 1
         return num_colons
 
@@ -1661,7 +1694,7 @@ class Fparser2Reader(object):
         for array in arrays:
             # Check that this is a supported array reference and that
             # all arrays are of the same rank
-            rank = len(array.children)
+            rank = len([child for child in array.children if isinstance(child, Range)])
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
@@ -1674,20 +1707,22 @@ class Fparser2Reader(object):
             # checking for the NEMO API. i.e. if api=="nemo": add local
             # symbol else: add symbol from symbol table.
             symbol_table = _get_symbol_table(parent)
-            # Replace the CodeBlocks containing the Subscript_Triplets with
-            # the index expressions
-            cblocks = array.walk(CodeBlock)
-            for idx, cblock in enumerate(cblocks):
-                posn = array.children.index(cblock)
-                if symbol_table:
-                    symbol = array.find_symbol(loop_vars[idx])
-                else:
-                    # The NEMO API does not generate symbol tables, so
-                    # create a new Symbol. Choose a datatype as we
-                    # don't know what it is. Remove this code when
-                    # issue #500 is addressed.
-                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
-                array.children[posn] = Reference(symbol, parent=array)
+
+            # Replace the PSyIR Ranges with indexing
+            range_idx = 0
+            for idx, child in enumerate(array.children):
+                if isinstance(child, Range):
+                    if symbol_table:
+                        symbol = array.find_symbol(loop_vars[range_idx])
+                    else:
+                        # The NEMO API does not generate symbol tables, so
+                        # create a new Symbol. Choose a datatype as we
+                        # don't know what it is. Remove this code when
+                        # issue #500 is addressed.
+                        symbol = DataSymbol(
+                            loop_vars[range_idx], DataType.INTEGER)
+                    array.children[idx] = Reference(symbol, parent=array)
+                    range_idx += 1
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -1890,6 +1925,7 @@ class Fparser2Reader(object):
             # We only had a single-statement WHERE
             self.process_nodes(sched, node.items[1:])
         # Convert all uses of array syntax to indexed accesses
+        # **** OK TO HERE ****
         self._array_syntax_to_indexed(sched, loop_vars)
         # Return the top-level loop generated by this handler
         return root_loop
