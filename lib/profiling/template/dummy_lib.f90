@@ -38,7 +38,7 @@ contains
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
     implicit none
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     character*(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
@@ -58,7 +58,7 @@ contains
   ! 
   subroutine PostEnd(this)
     implicit none
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     
     print *,"PostEnd called for module '", this%module_name, &
          "' region '", this%region_name, "'"

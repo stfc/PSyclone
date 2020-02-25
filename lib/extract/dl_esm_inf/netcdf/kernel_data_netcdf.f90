@@ -139,7 +139,7 @@ Contains
                         num_post_vars)
         use netcdf, only : nf90_create, NF90_CLOBBER
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
         integer :: retval
@@ -168,7 +168,7 @@ Contains
     subroutine OpenRead(this, module_name, kernel_name)
         use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer :: retval
 
@@ -185,7 +185,7 @@ Contains
     subroutine PreEndDeclaration(this)
         use netcdf, only : nf90_enddef
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         integer :: retval
         retval = CheckError(nf90_enddef(this%ncid))
         this%next_var_index = 1
@@ -198,7 +198,7 @@ Contains
     !! @param[inout] this The instance of the PSyDataType.
     subroutine PreEnd(this)
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
     end subroutine PreEnd
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
@@ -208,7 +208,7 @@ Contains
     !! @param[inout] this The instance of the PSyDataType.
     subroutine PostStart(this)
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
     end subroutine PostStart
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
@@ -218,7 +218,7 @@ Contains
     subroutine PostEnd(this)
         use netcdf, only : nf90_close
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         integer :: retval
         retval = CheckError(nf90_close(this%ncid))
     end subroutine PostEnd
@@ -233,7 +233,7 @@ Contains
     subroutine DeclareScalarInt(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(in) :: value
         integer :: retval
@@ -252,7 +252,7 @@ Contains
     subroutine WriteScalarInt(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(in) :: value
         integer :: retval
@@ -271,7 +271,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(out) :: value
         integer :: retval, varid
@@ -289,7 +289,7 @@ Contains
     subroutine DeclareScalarReal(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(in) :: value
         integer :: retval
@@ -308,7 +308,7 @@ Contains
     subroutine WriteScalarReal(this, name, value)
         use netcdf, only: nf90_put_var
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(in) :: value
         integer :: retval
@@ -327,7 +327,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(out) :: value
         integer :: retval, varid
@@ -345,7 +345,7 @@ Contains
     subroutine DeclareScalarDouble(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(in) :: value
         integer :: retval
@@ -363,7 +363,7 @@ Contains
     subroutine WriteScalarDouble(this, name, value)
         use netcdf, only: nf90_put_var
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(in) :: value
         integer :: retval
@@ -382,7 +382,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(out) :: value
         integer :: retval, varid
@@ -402,7 +402,7 @@ Contains
         use netcdf
         use field_mod, only : r2d_field
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: x_dimid, y_dimid, retval
@@ -430,7 +430,7 @@ Contains
         use netcdf
         use field_mod, only : r2d_field
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: retval
@@ -452,7 +452,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, dimension(:,:), allocatable, intent(out) :: value
         integer :: retval, varid

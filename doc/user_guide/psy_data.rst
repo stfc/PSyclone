@@ -84,7 +84,7 @@ shows the code created by PSyclone.
 ::
 
     USE psy_data_mod, ONLY: PSyDataType
-    TYPE(PSyDataType), save :: psy_data
+    TYPE(PSyDataType), target, save :: psy_data
 
     CALL psy_data%PreStart("update_field_mod", "update_field_code", 1, 1)
     CALL psy_data%PreDeclareVariable("a_fld", a_fld)
@@ -202,21 +202,21 @@ a detailed description) or any of the profiling wrapper libaries
         ...
         subroutine DeclareScalarInteger(this, name, value)
             implicit none
-            class(PSyDataType), intent(inout) :: this
+            class(PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
             integer, intent(in) :: value
         ...
         subroutine DeclareFieldDouble(this, name, value)
             use field_mod, only : r2d_field
             implicit none
-            class(PSyDataType), intent(inout) :: this
+            class(PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
             type(r2d_field), intent(in) :: value
         ...
         subroutine DeclareFieldDouble(this, name, value)
             use field_mod, only : r2d_field
             implicit none
-            class(PSyDataType), intent(inout) :: this
+            class(PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
             type(r2d_field), intent(in) :: value
         ...
