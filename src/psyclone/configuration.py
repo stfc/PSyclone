@@ -763,9 +763,9 @@ class DynConfig(APISpecificConfig):
                 'COMPUTE_ANNEXED_DOFS')
         except ValueError as err:
             raise ConfigurationError(
-                "error while parsing COMPUTE_ANNEXED_DOFS in the "
-                "[dynamo0.3] section of the config file: {0}".
-                format(str(err)), config=self._config)
+                "error while parsing COMPUTE_ANNEXED_DOFS in the [dynamo0.3] "
+                "section of the config file: {0}".format(str(err)),
+                config=self._config)
 
         # Parse setting for default kinds (precisions)
         if "default_kind" in section:
