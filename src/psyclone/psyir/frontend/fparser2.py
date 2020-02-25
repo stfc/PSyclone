@@ -2261,6 +2261,7 @@ class Fparser2Reader(object):
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
                 Literal(dimension, DataType.INTEGER))
+            lbound.parent = my_range
             my_range.children.append(lbound)
         if node.children[1]:
             self.process_nodes(parent=my_range, nodes=[node.children[1]])
@@ -2272,6 +2273,7 @@ class Fparser2Reader(object):
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
                 Literal(dimension, DataType.INTEGER))
+            ubound.parent = my_range
             my_range.children.append(ubound)
         if node.children[2]:
             self.process_nodes(parent=my_range, nodes=[node.children[2]])
@@ -2280,7 +2282,9 @@ class Fparser2Reader(object):
             # supported in the PSyIR so we create the equivalent code
             # by using a PSyIR integer literal with the value 1
             # a(...:...:) becomes a(...:...:1)
-            my_range.children.append(Literal("1", DataType.INTEGER))
+            literal = Literal("1", DataType.INTEGER)
+            my_range.children.append(literal)
+            literal.parent = my_range
         return my_range
 
     def _number_handler(self, node, parent):
