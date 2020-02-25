@@ -32,73 +32,84 @@
 ! Authors J. Henrichs, Bureau of Meteorology
 
 
-!> An implemention of profile_mod which wraps the use of Dr Hook.
+!> An implemention of the PSyData API for profiling which wraps the use of Dr Hook.
 
-module profile_mod
+module psy_data_mod
 
   use parkind1, only : jprb
-  type :: ProfileData
+  type :: PSyDataType
      ! The opaque DrHook handle for a specific region
      real(kind=jprb) :: zhook_handle
      ! The name of the subroutine and module to be used by DrHook
      character(:), allocatable :: name
-     ! True if this instance of ProfileData has the name already
+     ! True if this instance of PSyDataType has the name already
      ! initialised. This way the copy of subroutine name is only
-     ! done first time ProfileStart is called.
+     ! done first time PreStart is called.
      logical                   :: initialised = .false.
-  end type ProfileData
+  contains
+      ! The profiling API uses only the two following calls:
+      procedure :: PreStart, PostEnd
+  end type PSyDataType
 
 
 contains
   ! ---------------------------------------------------------------------------
-  ! The initialisation subroutine. It is not called directly from
-  ! any PSyclone created code, so a call to ProfileInit must be inserted
-  ! manually by the developer. In case of Dr Hook an initialisation is not
-  ! necessary.
-  !
+  !> The initialisation subroutine. It is not called directly from
+  !! any PSyclone created code, so a call to ProfileInit must be inserted
+  !! manually by the developer. In case of Dr Hook an initialisation is not
+  !! necessary.
+
   subroutine ProfileInit()
   end subroutine ProfileInit
 
   ! ---------------------------------------------------------------------------
-  ! Starts a profiling area. The module and region name can be used to create
-  ! a unique name for each region.
-  ! Parameters: 
-  ! module_name:  Name of the module in which the region is
-  ! region_name:  Name of the region (could be name of an invoke, or
-  !               subroutine name).
-  ! profile_data: Persistent data used by the profiling library.
-  subroutine ProfileStart(module_name, region_name, profile_data)
+  !> Starts a profiling area. The module and region name can be used to create
+  !! a unique name for each region.
+  !! Parameters:
+  !! @param[inout] this This PSyData instance.
+  !! @param[in] module_name Name of the module in which the region is
+  !! @param[in] region_name Name of the region (could be name of an invoke, or
+  !!            subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
+
+  subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                      num_post_vars)
     use yomhook, only : lhook, dr_hook
     implicit none
 
+    class(PSyDataType), intent(inout) :: this
     character*(*), intent(in) :: module_name, region_name
-    type(ProfileData), intent(inout) :: profile_data
+    integer, intent(in) :: num_pre_vars, num_post_vars
 
-    if (lhook .and. .not. profile_data%initialised) then
-      profile_data%name = module_name//":"//region_name
-      profile_data%initialised = .true.
+    if (lhook .and. .not. this%initialised) then
+      this%name = module_name//":"//region_name
+      this%initialised = .true.
     endif
-    if(lhook) call dr_hook(profile_data%name, 0, profile_data%zhook_handle)
-  end subroutine ProfileStart
+    if(lhook) call dr_hook(this%name, 0, this%zhook_handle)
+  end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a ProfileData type that corresponds to
-  ! to the ProfileStart call.
-  ! profile_data: Persistent data used by the profiling library.
+  !! Ends a profiling area. It takes a PSyDataType type that corresponds to
+  !! to the PreStart call.
+  !! this: This PSyData instance.
   ! 
-  subroutine ProfileEnd(profile_data)
+  subroutine PostEnd(this)
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    type(ProfileData), intent(inout) :: profile_data
+    class(PSyDataType), intent(inout) :: this
     
-    if(lhook) call dr_hook(profile_data%name, 1, profile_data%zhook_handle)
-  end subroutine ProfileEnd
+    if(lhook) call dr_hook(this%name, 1, this%zhook_handle)
+  end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
-  ! Called at the end of the execution of a program, usually to generate
-  ! all output for the profiling library. Not required in the case of Dr Hook.
+  !> Called at the end of the execution of a program, usually to generate
+  !! all output for the profiling library. Not required in the case of Dr Hook.
   subroutine ProfileFinalise()
   end subroutine ProfileFinalise
 
-end module profile_mod
+end module psy_data_mod

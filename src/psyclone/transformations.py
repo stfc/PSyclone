@@ -1974,7 +1974,8 @@ class GOConstLoopBoundsTrans(Transformation):
     a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
     generate loops where the bounds are obtained by de-referencing a field
     object, e.g.:
-    ::
+
+    .. code-block:: fortran
 
       DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
 
@@ -1982,7 +1983,8 @@ class GOConstLoopBoundsTrans(Transformation):
     provided with information on the relative trip-counts of the loops
     within an Invoke. With constant loop bounds switched on, PSyclone
     generates code like:
-    ::
+
+    .. code-block:: fortran
 
       ny = my_field%grid%subdomain%internal%ystop
       ...
@@ -2423,16 +2425,18 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
 class GOLoopSwapTrans(Transformation):
     ''' Provides a loop-swap transformation, e.g.:
-    ::
 
-      DO j=1, m
-         DO i=1, n
+    .. code-block:: fortran
+
+        DO j=1, m
+            DO i=1, n
 
     becomes:
-    ::
 
-      DO i=1, n
-         DO j=1, m
+    .. code-block:: fortran
+
+        DO i=1, n
+            DO j=1, m
 
     This transform is used as follows:
 

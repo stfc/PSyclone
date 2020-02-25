@@ -36,6 +36,7 @@
 '''This module contains the GOcean-specific extract transformation.
 '''
 
+from psyclone.domain.gocean.nodes import GOceanExtractNode
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -60,10 +61,17 @@ class GOceanExtractTrans(ExtractTrans):
     >>> newsched.view()
     '''
 
+    def __init__(self):
+        super(GOceanExtractTrans, self).__init__(GOceanExtractNode)
+
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
         return "GOceanExtractTrans"
+
+    def __str__(self):
+        return ("Create a sub-tree of the PSyIR that has GOceanExtractNode "
+                "at its root.")
 
     def validate(self, node_list, options=None):
         ''' Perform GOcean1.0 API specific validation checks before applying

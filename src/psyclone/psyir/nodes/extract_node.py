@@ -49,10 +49,10 @@ be added in Issue #298.
 '''
 
 from __future__ import absolute_import, print_function
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
-class ExtractNode(Node):
+class ExtractNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for \
     code extraction using the ExtractRegionTrans transformation. By \
@@ -66,27 +66,29 @@ class ExtractNode(Node):
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param options: a dictionary with options provided via transformations.
+    :type options: dictionary of string:values or None
 
     '''
-    def __init__(self, ast=None, children=None, parent=None):
-        # An ExtractNode always contains a Schedule
-        sched = self._insert_schedule(children, ast)
-        super(ExtractNode, self).__init__(ast, [sched], parent)
+    def __init__(self, ast=None, children=None, parent=None, options=None):
+        # At this stage options is only used in the GOceanExtractNode
+        # pylint: disable=unused-argument
+        super(ExtractNode, self).__init__(ast=ast, children=children,
+                                          parent=parent)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 
-    def __str__(self):
-        '''
-        Returns a string representation of the subtree starting at the \
-        Extract Node.
+        # Define a postfix that will be added to variable that are
+        # modified to make sure the names can be distinguished between pre-
+        # and post-variables (i.e. here input and output). A variable
+        # "myvar" will be stored as "myvar" with its input value, and
+        # "myvar_post" with its output value.
+        self._post_name = "_post"
 
-        :returns: the Extract Node with all its children.
-        :rtype: str
-        '''
-        result = "ExtractStart\n"
-        for child in self.extract_body:
-            result += str(child) + "\n"
-        return result + "ExtractEnd"
+        # Store the list of input- and output-variables, so that a driver
+        # generator can get the list of variables that are written.
+        self._input_list = []
+        self._output_list = []
 
     @property
     def extract_body(self):
@@ -94,18 +96,8 @@ class ExtractNode(Node):
         :returns: the Schedule associated with this ExtractNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :raises InternalError: if this node does not have a single Schedule as\
-                               its child.
         '''
-        from psyclone.psyir.nodes import Schedule
-        from psyclone.errors import InternalError
-        if len(self.children) != 1 or not \
-           isinstance(self.children[0], Schedule):
-            raise InternalError(
-                "ExtractNode malformed or incomplete. It should have a single "
-                "Schedule as a child but found: {0}".format(
-                    [type(child).__name__ for child in self.children]))
-        return self.children[0]
+        return super(ExtractNode, self).psy_data_body
 
     @property
     def dag_name(self):
@@ -117,25 +109,49 @@ class ExtractNode(Node):
         '''
         return "extract_" + str(self.position)
 
-    def gen_code(self, parent):
+    @property
+    def input_list(self):
         '''
-        Generates the code required for extraction of one or more Nodes. \
-        For now it inserts comments before and after the code belonging \
-        to all the children of this ExtractNode. These comments will be \
-        replaced by calls to write out arguments of extracted Node(s) or \
-        Kernel(s) in Issue #234.
+        :returns: the list of variables that are inputs to this \
+            extraction region.
+        :rtype: list of str
+        '''
+        return self._input_list
+
+    @property
+    def output_list(self):
+        '''
+        :returns: the list of variables that are outputs of this \
+            extraction region.
+        :rtype: list of str
+        '''
+        return self._output_list
+
+    def gen_code(self, parent):
+        # pylint: disable=arguments-differ
+        '''
+        Generates the code required for extraction of one or more Nodes.
+        It uses the PSyData API (via the base class PSyDataNode) to create
+        the required callbacks that will allow a library to write the
+        kernel data to a file.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
         '''
+
+        # Determine the variables to write:
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        dep = DependencyTools()
+        self._input_list, self._output_list = dep.get_in_out_parameters(self)
+        options = {'pre-var-list': self._input_list,
+                   'post-var-list': self._output_list,
+                   'post-var-postfix': self._post_name}
+
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
-        parent.add(CommentGen(
-            parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
-        for child in self.extract_body:
-            child.gen_code(parent)
+        super(ExtractNode, self).gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
