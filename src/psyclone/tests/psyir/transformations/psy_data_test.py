@@ -42,18 +42,8 @@ import pytest
 
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.psyGen import Loop, NameSpace
+from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_psydata_namespace():
-    '''This function is called before any test function. It
-    creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order
-    or number of tests run is changed, otherwise the created region
-    names will change.'''
-    PSyDataNode._namespace = NameSpace()
 
 
 # -----------------------------------------------------------------------------

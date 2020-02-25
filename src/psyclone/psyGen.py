@@ -417,108 +417,6 @@ class Invokes(object):
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
-class NameSpaceFactory(object):
-    # storage for the instance reference
-    _instance = None
-
-    def __init__(self, reset=False):
-        """ Create singleton instance """
-        # Check whether we already have an instance
-        if NameSpaceFactory._instance is None or reset:
-            # Create and remember instance
-            NameSpaceFactory._instance = NameSpace()
-
-    def create(self):
-        return NameSpaceFactory._instance
-
-
-class NameSpace(object):
-    '''keeps a record of reserved names and used names for clashes and
-        provides a new name if there is a clash. '''
-
-    def __init__(self, case_sensitive=False):
-        self._reserved_names = []
-        self._added_names = []
-        self._context = {}
-        self._case_sensitive = case_sensitive
-
-    def create_name(self, root_name=None, context=None, label=None):
-        '''Returns a unique name. If root_name is supplied, the name returned
-            is based on this name, otherwise one is made up.  If
-            context and label are supplied and a previous create_name
-            has been called with the same context and label then the
-            name provided by the previous create_name is returned.
-        '''
-        # make up a base name if one has not been supplied
-        if root_name is None:
-            root_name = "anon"
-        # if not case sensitive then make the name lower case
-        if not self._case_sensitive:
-            lname = root_name.lower()
-        else:
-            lname = root_name
-        # check context and label validity
-        if context is None and label is not None or \
-                context is not None and label is None:
-            raise RuntimeError(
-                "NameSpace:create_name() requires both context and label to "
-                "be set")
-
-        # if the same context and label have already been supplied
-        # then return the previous name
-        if context is not None and label is not None:
-            # labels may have spurious white space
-            label = label.strip()
-            if not self._case_sensitive:
-                label = label.lower()
-                context = context.lower()
-            if context in self._context:
-                if label in self._context[context]:
-                    # context and label have already been supplied
-                    return self._context[context][label]
-            else:
-                # initialise the context so we can add the label value later
-                self._context[context] = {}
-
-        # create our name
-        if lname not in self._reserved_names and \
-                lname not in self._added_names:
-            proposed_name = lname
-        else:
-            count = 1
-            proposed_name = lname + "_" + str(count)
-            while proposed_name in self._reserved_names or \
-                    proposed_name in self._added_names:
-                count += 1
-                proposed_name = lname+"_"+str(count)
-
-        # store our name
-        self._added_names.append(proposed_name)
-        if context is not None and label is not None:
-            self._context[context][label] = proposed_name
-
-        return proposed_name
-
-    def add_reserved_name(self, name):
-        ''' adds a reserved name. create_name() will not return this name '''
-        if not self._case_sensitive:
-            lname = name.lower()
-        else:
-            lname = name
-        # silently ignore if this is already a reserved name
-        if lname not in self._reserved_names:
-            if lname in self._added_names:
-                raise RuntimeError(
-                    "attempted to add a reserved name to a namespace that"
-                    " has already used that name")
-            self._reserved_names.append(lname)
-
-    def add_reserved_names(self, names):
-        ''' adds a list of reserved names '''
-        for name in names:
-            self.add_reserved_name(name)
-
-
 class Invoke(object):
     '''Manage an individual invoke call.
 
@@ -562,10 +460,6 @@ class Invoke(object):
         else:
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
-
-        # create our namespace manager - must be done before creating the
-        # schedule
-        self._name_space_manager = NameSpaceFactory(reset=True).create()
 
         if not reserved_names:
             reserved_names = []
@@ -1007,26 +901,6 @@ class InvokeSchedule(Schedule):
         for module_name, var_list in module_map.items():
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
-
-        # FIXME: Do we still need the code below?
-        # Add the SymbolTable symbols used into the NameSpaceManager to prevent
-        # clashes. Note that the global variables names are going to be used as
-        # arguments and are declared with 'AlgArgs' context.
-        # TODO: After #312 this will not be necessary.
-        #for module_name, var_list in module_map.items():
-            # self._name_space_manager.add_reserved_name(module_name)
-            # for var_name in var_list:
-                # newname = self._name_space_manager.create_name(
-                #     root_name=var_name,
-                #    context="AlgArgs",
-                #    label=var_name)
-                # There is a name clash with this variable name and we can not
-                # accept indexed names for global variables.
-                # TODO: #642 Improve global variables name clashes handling.
-                # if var_name != newname:
-                #    raise KeyError(
-                #        "The imported variable '{0}' is already defined in the"
-                #        " NameSpaceManager of the Invoke.".format(var_name))
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))

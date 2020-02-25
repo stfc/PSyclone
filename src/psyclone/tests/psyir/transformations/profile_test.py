@@ -46,7 +46,6 @@ from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import ProfileNode
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import NameSpace
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
@@ -65,7 +64,6 @@ def teardown_function():
     change.
     '''
     Profiler.set_options([])
-    Profiler._namespace = NameSpace()
 
 
 def test_malformed_profile_node(monkeypatch):

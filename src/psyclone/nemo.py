@@ -46,11 +46,11 @@ from fparser.two.utils import walk, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    InlinedKern, NameSpaceFactory
+    InlinedKern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -152,7 +152,6 @@ class NemoInvoke(Invoke):
         # symbol table to store information on the variable declarations.
         # TODO (#255) remove this workaround.
         self._loop_vars = []
-        self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
         # Find the section of the tree containing the execution part
@@ -314,7 +313,14 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         self._name_clashes_checked = False
 
         self.process_nodes(self, ast.content)
-        # self._symbol_table = SymbolTable()
+        # A better implementation of the Nemo API symbol table is looked
+        # at on PR #596, currently we just define a symbol table and the
+        # variables that Nemo needs for the implicit loops.
+        self._symbol_table = SymbolTable()
+        self._symbol_table.add(DataSymbol("jpi", DataType.INTEGER))
+        self._symbol_table.add(DataSymbol("jpj", DataType.INTEGER))
+        self._symbol_table.add(DataSymbol("jpk", DataType.INTEGER))
+
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 

@@ -56,8 +56,6 @@ class SymbolTable(object):
         belongs.
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule` or NoneType
     '''
-    # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
-    # NameSpace class functionality.
     def __init__(self, schedule=None):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
