@@ -757,59 +757,47 @@ class DynConfig(APISpecificConfig):
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._default_kind = {}
 
-        for key in section.keys():
-            # Do not handle any keys from the DEFAULT section
-            # since they are handled by Config(), not this class.
-            if key in config.get_default_keys():
-                continue
-            if key == "access_mapping":
-                # Handled in the base class APISpecificConfig
-                pass
-            elif key == "compute_annexed_dofs":
-                try:
-                    # Parse setting for redundant computation over annexed dofs
-                    self._compute_annexed_dofs = section.getboolean(
-                        'COMPUTE_ANNEXED_DOFS')
-                except ValueError as err:
-                    raise ConfigurationError(
-                        "error while parsing COMPUTE_ANNEXED_DOFS in the "
-                        "[dynamo0.3] section of the config file: {0}".
-                        format(str(err)), config=self._config)
-            elif key == "default_kind":
-                # Set default kinds (precisions) from config file
-                all_kinds = self.create_dict_from_string(section[key])
-                from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES as \
-                    dynamo0p3_datatypes
-                # Check for valid datatypes (filter to remove empty values)
-                datatypes = list(filter(None, all_kinds.keys()))
-                if datatypes != dynamo0p3_datatypes:
-                    raise ConfigurationError(
-                        "Invalid datatype found in the '[dynamo0.3]' "
-                        "section of the configuration file '{0}'. "
-                        "Valid datatypes are: '{1}'."
-                        .format(config.filename, dynamo0p3_datatypes))
-                # Check for valid kinds (filter to remove any empty values)
-                datakinds = list(filter(None, all_kinds.values()))
-                if len(datakinds) != len(dynamo0p3_datatypes):
-                    raise ConfigurationError(
-                        "Did not find default kind for one or more "
-                        "datatypes in the '[dynamo0.3]' section "
-                        "of the configuration file '{0}'."
-                        .format(config.filename))
-                self._default_kind = all_kinds
-            else:
+        # Parse setting for redundant computation over annexed dofs
+        try:
+            self._compute_annexed_dofs = section.getboolean(
+                'COMPUTE_ANNEXED_DOFS')
+        except ValueError as err:
+            raise ConfigurationError(
+                "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                "[dynamo0.3] section of the config file: {0}".
+                format(str(err)), config=self._config)
+
+        # Parse setting for default kinds (precisions)
+        if "default_kind" in section:
+            # Set default kinds (precisions) from config file
+            all_kinds = self.create_dict_from_string(section["default_kind"])
+            from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES
+            # Check for valid datatypes (filter to remove empty values)
+            datatypes = list(filter(None, all_kinds.keys()))
+            if datatypes != SUPPORTED_FORTRAN_DATATYPES:
                 raise ConfigurationError(
-                    "Invalid configuration option '{0}' found in the "
-                    "'[dynamo0.3]' section of the configuration file "
-                    "'{1}'.".format(key, config.filename))
+                    "Invalid datatype found in the '[dynamo0.3]' "
+                    "section of the configuration file '{0}'. "
+                    "Valid datatypes are: '{1}'."
+                    .format(config.filename, SUPPORTED_FORTRAN_DATATYPES))
+            # Check for valid kinds (filter to remove any empty values)
+            datakinds = list(filter(None, all_kinds.values()))
+            if len(datakinds) != len(SUPPORTED_FORTRAN_DATATYPES):
+                raise ConfigurationError(
+                    "Did not find default kind for one or more "
+                    "datatypes in the '[dynamo0.3]' section "
+                    "of the configuration file '{0}'."
+                    .format(config.filename))
+            self._default_kind = all_kinds
 
     @property
     def compute_annexed_dofs(self):
         '''
         Getter for whether or not we perform redundant computation over
         annexed dofs.
-        :returns: True if we are to do redundant computation
-        :rtype: Bool
+
+        :returns: true if we are to do redundant computation.
+        :rtype: bool
 
         '''
         return self._compute_annexed_dofs
@@ -819,8 +807,9 @@ class DynConfig(APISpecificConfig):
         '''
         Getter for default kind (precision) for real, integer and logical
         datatypes in LFRic.
-        :returns: The default kinds for main datatypes in LFRic.
-        :rtype: Dictionary of strings
+
+        :returns: the default kinds for main datatypes in LFRic.
+        :rtype: dict of str
         '''
         return self._default_kind
 

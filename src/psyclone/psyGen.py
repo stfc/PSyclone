@@ -71,6 +71,7 @@ VALID_ARG_TYPE_NAMES = []
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
+
 def object_index(alist, item):
     '''
     A version of the `list.index()` method that checks object identity

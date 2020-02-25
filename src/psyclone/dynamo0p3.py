@@ -4765,7 +4765,6 @@ class DynInvoke(Invoke):
         '''
         from psyclone.f2pygen import SubroutineGen, AssignGen, \
             DeclGen, CommentGen
-        api_config = Config.get().api_conf("dynamo0.3")
 
         # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
@@ -7021,8 +7020,7 @@ class DynKern(CodedKern):
         from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # create an empty PSy layer module
-        base_name = self._base_name
+        # Create an empty PSy layer module
         psy_module = ModuleGen(self._base_name+"_mod")
 
         # Create the subroutine

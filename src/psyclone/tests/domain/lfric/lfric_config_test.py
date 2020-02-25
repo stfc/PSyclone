@@ -100,22 +100,6 @@ def test_anx_dof_not_bool(tmpdir):
         assert "Not a boolean: tree" in str(err.value)
 
 
-def test_invalid_config_key(tmpdir):
-    ''' Check that we raise an error if we supply an invalid
-    configuration option '''
-    content = _CONFIG_CONTENT + "default_species = a: a_def"
-    config_file = tmpdir.join("config_dyn")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
-
-        assert ("Invalid configuration option \'default_species\' found "
-                "in the \'[dynamo0.3]\' section " in str(err.value))
-
-
 def test_invalid_default_kind(tmpdir):
     ''' Check that we raise an error if we supply an invalid
     datatype or kind (precision) in the configuration file '''
