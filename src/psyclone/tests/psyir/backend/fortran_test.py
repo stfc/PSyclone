@@ -816,7 +816,10 @@ def test_fw_array(fort_writer):
 
 def test_fw_range(fort_writer):
     '''Check the FortranWriter class range_node and array_node methods
-    produce the expected code when an array section is specified.
+    produce the expected code when an array section is specified. We
+    can't test the Range node in isolation as one of the checks in the
+    Range code requires access to the (Array) parent (to determine the
+    array index of a Range node).
 
     '''
     from psyclone.psyir.nodes import Array, Range

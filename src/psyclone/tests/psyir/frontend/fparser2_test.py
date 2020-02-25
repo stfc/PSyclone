@@ -51,7 +51,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    _get_symbol_table, check_literal, check_bound
+    _get_symbol_table, check_literal, check_bound, check_range
 
 
 def process_declarations(code):
@@ -92,6 +92,7 @@ contains
   end subroutine dummy_code
 end module dummy_mod
 '''
+
 
 # Function check_bound
 def test_check_bound():
@@ -164,8 +165,138 @@ def test_check_bound():
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    
+
+
+# Function check_literal
+def test_check_literal():
+    ''' Test the check_literal function.'''
+    one = Literal("1", DataType.INTEGER)
+    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("1", DataType.INTEGER))
+
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    # 1st dimension, second argument to range is an integer literal
+    # with value 1
+    check_literal(array_reference, 1, 1, 1)
+    with pytest.raises(InternalError) as excinfo:
+        # 1st dimension, first argument to range is an operator, not a literal
+        check_literal(array_reference, 1, 0, 1)
+    assert ("Expecting Literal but found 'BinaryOperation'"
+            in str(excinfo.value))
+
+    my_range = Range.create(operator, one)
+    # Range.create checks for valid datatype. Therefore change to
+    # invalid after creation.
+    my_range.children[1] = Literal("1.0", DataType.REAL)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        # 1st dimension, second argument to range is a real literal,
+        # not an integer literal.
+        check_literal(array_reference, 1, 1, 1)
+    assert ("Expecting integer datatype but found 'DataType.REAL'"
+            in str(excinfo.value))
+
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        # 1st dimension, second argument to range is a real literal,
+        # not an integer literal.
+        check_literal(array_reference, 1, 1, 2)
+    assert ("Expecting literal value '1' to be the same as '2'."
+            in str(excinfo.value))
+
+
+# Function check_range
+def test_check_range():
+    ''' Test the check_range function.'''
+    one = Literal("1", DataType.INTEGER)
+    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    lbound_op = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("1", DataType.INTEGER))
+    ubound_op = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol), Literal("1", DataType.INTEGER))
+
+    my_range = Range.create(lbound_op, ubound_op, one)
+    array_reference = Array.create(symbol, [my_range])
+    # Valid structure
+    check_range(my_range)
+
+    # Invalid start (as 1st argument should be lower bound)
+    my_range = Range.create(ubound_op, ubound_op, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_range(my_range)
+    assert ("Expecting operator to be 'Operator.LBOUND', but found "
+            "'Operator.UBOUND'." in str(excinfo.value))
+
+    # Invalid stop (as 2nd argument should be upper bound)
+    my_range = Range.create(lbound_op, lbound_op, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_range(my_range)
+    assert ("Expecting operator to be 'Operator.UBOUND', but found "
+            "'Operator.LBOUND'." in str(excinfo.value))
+
+    # Invalid step (as 3rd argument should be Literal)
+    my_range = Range.create(lbound_op, ubound_op, ubound_op)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_range(my_range)
+    assert ("Expecting Literal but found 'BinaryOperation'"
+            in str(excinfo.value))
+
 # Class Fparser2Reader
+
+# Static method _array_notation_rank
+def test_array_notation_rank():
+    '''Test the static method _array_notation_rank in the fparser2reader
+    class
+
+    '''
+    # An array with no dimensions raises an exception
+    symbol = DataSymbol("a", DataType.REAL, shape=[10])
+    array = Array(symbol, [])
+    with pytest.raises(NotImplementedError) as excinfo:
+        Fparser2Reader._array_notation_rank(array)
+    assert ("An Array reference in the PSyIR must have at least one child but "
+            "'a' has none" in str(excinfo.value))
+
+    # If array syntax notation is found, it must be for all elements
+    # in that dimension
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    lbound_op1 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("1", DataType.INTEGER))
+    ubound_op1 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol), Literal("1", DataType.INTEGER))
+    lbound_op3 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("3", DataType.INTEGER))
+    ubound_op3 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol), Literal("3", DataType.INTEGER))
+
+    range1 = Range.create(lbound_op1, ubound_op1)
+    range2 = Range.create(lbound_op3, ubound_op3)
+    one = Literal("1", DataType.INTEGER)
+    array = Array.create(symbol, [range1, one, range2])
+    result = Fparser2Reader._array_notation_rank(array)
+    # Two array dimensions use array notation.
+    assert result == 2
+
+    # Make one of the array notation dimensions differ from what is required.
+    range2 = Range.create(lbound_op3, one)
+    array = Array.create(symbol, [range1, one, range2])
+    with pytest.raises(NotImplementedError) as excinfo:
+        Fparser2Reader._array_notation_rank(array)
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(excinfo.value))
 
 
 # Method generate_container
