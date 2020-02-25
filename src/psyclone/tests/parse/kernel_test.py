@@ -345,3 +345,56 @@ def test_kerneltype_repr():
 
     tmp = KernelType(parse_tree)
     assert repr(tmp) == "KernelType(test_type, cells)"
+
+
+# Meta-data specifying quadrature
+DIFF_BASIS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(2) =                         &
+          (/ arg_type(gh_field,    gh_write,     w0),       &
+             arg_type(gh_operator, gh_readwrite, w1, w1)    &
+           /)
+     type(func_type), meta_funcs(2) =          &
+          (/ func_type(w0, gh_diff_basis),     &
+             func_type(w1, gh_basis)           &
+           /)
+     integer :: iterates_over = cells
+     integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)
+   contains
+     procedure, nopass :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_get_integer_case_insensitive():
+    ''' Test that the KernelType get_integer_array/variable methods work as
+    expected. '''
+    parse_tree = parse(DIFF_BASIS)
+
+    tmp = KernelType(parse_tree)
+    assert tmp.get_integer_array("gh_shape") == ['gh_quadrature_xyoz',
+                                                 'gh_quadrature_edge']
+    assert tmp.get_integer_array("GH_SHAPE") == ['gh_quadrature_xyoz',
+                                                 'gh_quadrature_edge']
+    assert tmp.get_integer_variable("GH_SHAPE") is None
+    assert tmp.get_integer_variable("gh_shape") is None
+
+    new_code = DIFF_BASIS.replace(
+        "integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)",
+        "integer :: gh_shape(3) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)")
+    with pytest.raises(ParseError) as err:
+        _ = parse(new_code)
+    assert "hohohoho" in str(err.value)
+
+    new_code = DIFF_BASIS.replace(
+        "integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)",
+        "integer :: gh_shape = gh_quadrature_face")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    assert tmp.get_integer_variable("GH_SHAPE") == "gh_quadrature_face"
+    assert tmp.get_integer_variable("Gh_Shape") == "gh_quadrature_face"

@@ -45,7 +45,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions
 from psyclone.tests.lfric_build import LFRicBuild
 

@@ -793,7 +793,7 @@ class KernelType(object):
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the
         integer variable with the supplied name. Return None if no
-        matching variable is found.
+        matching variable is found. The search is not case sensitive.
 
         :param str name: the name of the integer variable to find.
 
@@ -805,6 +805,8 @@ class KernelType(object):
         '''
         # Ensure the Fortran2003 parser is initialised
         _ = ParserFactory().create()
+        # Fortran is not case sensitive so nor is our matching
+        lower_name = name.lower()
 
         for statement, _ in fpapi.walk(self._ktype, -1):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
@@ -813,7 +815,7 @@ class KernelType(object):
                 # use fparser2 to parse the whole thing).
                 assign = Fortran2003.Assignment_Stmt(
                     statement.entity_decls[0])
-                if str(assign.items[0]) == name:
+                if str(assign.items[0]).lower() == lower_name:
                     if not isinstance(assign.items[2], Fortran2003.Name):
                         raise ParseError(
                             "get_integer_variable: RHS of assignment is not "
@@ -824,7 +826,7 @@ class KernelType(object):
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the values of the
         integer array variable with the supplied name. Returns an empty list
-        if no matching variable is found.
+        if no matching variable is found. The search is not case sensitive.
 
         :param str name: the name of the integer array to find.
 
@@ -839,6 +841,8 @@ class KernelType(object):
         '''
         # Ensure the classes are setup for the Fortran2003 parser
         _ = ParserFactory().create()
+        # Fortran is not case sensitive so nor is our matching
+        lower_name = name.lower()
 
         for statement, _ in fpapi.walk(self._ktype, -1):
             if not isinstance(statement, fparser1.typedecl_statements.Integer):
@@ -851,7 +855,7 @@ class KernelType(object):
             if not names:
                 raise InternalError("Unsupported assignment statement: '{0}'".
                                     format(str(assign)))
-            if str(names[0]) == name:
+            if str(names[0]).lower() == lower_name:
                 # This is the variable declaration we're looking for
                 if not isinstance(assign.items[2],
                                   Fortran2003.Array_Constructor):
