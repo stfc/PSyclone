@@ -350,6 +350,7 @@ def test_lookup():
     assert "Could not find 'notdeclared' in the Symbol Table." in \
         str(error.value)
 
+
 def test_lookup_tag():
     '''Test that the lookup_tag method retrieves symbols from the symbol table
     if the tag exists, otherwise it raises an error.'''
@@ -369,7 +370,6 @@ def test_lookup_tag():
         sym_table.lookup_tag("symbol_tag1")
     assert "Could not find the tag 'symbol_tag1' in the Symbol Table." in \
         str(error.value)
-
 
 
 def test_view(capsys):
@@ -694,11 +694,28 @@ def test_copy_external_global():
 
     # But if the symbol is different (e.g. points to a different container),
     # it should fail
-    container3 = ContainerSymbol("my_other")
+    container3 = ContainerSymbol("my_other_mod")
     var4 = DataSymbol("b", DataType.DEFERRED,
                       interface=GlobalInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_global(var4)
     assert "Couldn't copy 'b: <DataType.DEFERRED, Scalar, Global(container=" \
-           "'my_other')>' into the SymbolTable. The name 'b' is already used" \
-           " by another symbol." in str(error.value)
+           "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
+           " used by another symbol." in str(error.value)
+
+
+    # If a tag is given but this is already used, it should fail
+    symtab.add(Symbol("symbol"), tag="tag")
+    var5 = DataSymbol("c", DataType.DEFERRED,
+                      interface=GlobalInterface(container3))
+    with pytest.raises(KeyError) as error:
+        symtab.copy_external_global(var5, "tag")
+    assert "Symbol table already contains the tag 'tag' for symbol 'symbol'," \
+           " so it can not be associated to symbol 'c'." in str(error.value)
+
+    # If the tag does not already exist, the tag is associated with the new
+    # symbol
+    var6 = DataSymbol("d", DataType.DEFERRED,
+                      interface=GlobalInterface(container3))
+    symtab.copy_external_global(var6, "newtag")
+    assert symtab.lookup_tag("newtag").name == "d"
