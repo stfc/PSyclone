@@ -311,7 +311,6 @@ def test_scalar_float_arg_from_module():
     # Generate the code. 'a_scalar' should now come from a module instead of a
     # declaration.
     generated_code = str(psy.gen)
-    print(generated_code)
     expected_output = (
         "  MODULE psy_single_invoke_scalar_float_test\n"
         "    USE field_mod\n"
@@ -1606,11 +1605,13 @@ def test_gokernelargument_type():
     from psyclone.parse.kernel import Descriptor
     from psyclone.psyir.nodes import Node
 
+    # Create a dummy node with the symbol_table property
+    dummy_node = Node()
+    dummy_node.symbol_table = SymbolTable()
+
     # Create a dummy GOKernelArgument
     descriptor = Descriptor(None, "")
     arg = Arg("variable", "arg", "arg")
-    dummy_node = Node()
-    dummy_node.symbol_table = SymbolTable() # maybe use monkeypatch
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
     # If the descriptor does not have a type it defaults to 'scalar'

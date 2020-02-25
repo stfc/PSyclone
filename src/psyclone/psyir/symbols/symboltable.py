@@ -69,8 +69,13 @@ class SymbolTable(object):
         self._schedule = schedule
 
     def shallow_copy(self):
-        """
-        """
+        '''Create a copy of the symbol table where the top-level containers
+        are new (new symbols will not be stored on the original) but the
+        existing objects are the same.
+
+        :returns: a copy of this symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
         # pylint: disable=protected-access
         from copy import copy
         new_st = SymbolTable()
@@ -104,6 +109,7 @@ class SymbolTable(object):
         symbol name. This will be appended with an integer if the name \
         clashes with an existing symbol name.
         :type root_name: str or NoneType
+
         :returns: the new symbol name
         :rtype: str
 
@@ -247,7 +253,7 @@ class SymbolTable(object):
         '''
         Given a tag, if it exists in the symbol table return the symbol name
         associated with it, otherwise create a new symbol associated with this
-        tag (using the tag as name or optionallyt the provided root) and return
+        tag (using the tag as name or optionally the provided root) and return
         the name of the new symbol.
 
         Note that this method creates generic Symbols without properties like
@@ -539,6 +545,10 @@ class SymbolTable(object):
 
         :param globalvar: the variable to be copied in.
         :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param tag: a tag identifier for the new copy, by default no tag \
+            is given.
+        :type tag: str
+
 
         :raises TypeError: if the given variable is not a global variable.
         :raises KeyError: if the given variable name already exists in the \
@@ -582,7 +592,10 @@ class SymbolTable(object):
                     " name '{1}' is already used by another symbol."
                     "".format(globalvar, globalvar.name))
             if tag and self.lookup(globalvar.name) != self.lookup_tag(tag):
-                raise KeyError()
+                raise KeyError(
+                    "Couldn't copy '{0}' into the SymbolTable. The"
+                    " tag '{1}' is already used by another symbol."
+                    "".format(globalvar, tag))
 
     def view(self):
         '''

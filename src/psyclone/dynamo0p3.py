@@ -1713,6 +1713,8 @@ class DynStencils(DynCollection):
         Creates and registers a name for the stencil dofmap associated with
         the supplied kernel argument.
 
+        :param symtab: symbol table where the name is attached.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
@@ -1729,6 +1731,8 @@ class DynStencils(DynCollection):
         Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
+        :param symtab: symbol table where the name is attached.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
@@ -1745,6 +1749,8 @@ class DynStencils(DynCollection):
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
 
+        :param symtab: symbol table where the name is attached.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
@@ -1773,6 +1779,8 @@ class DynStencils(DynCollection):
             if hasattr(self._kernel.root, 'symbol_table'):
                 symtab = self._kernel.root.symbol_table
             else:
+                # When generating stubs we have kernels that are not attached
+                # to an InvokeSchedule, we use a dummy SymbolTable then.
                 symtab = SymbolTable()
             names = [self.dofmap_size_name(symtab, arg)
                      for arg in self._unique_extent_args]
@@ -1998,10 +2006,9 @@ class DynStencils(DynCollection):
         '''
         from psyclone.f2pygen import DeclGen
 
-        if hasattr(self._kernel.root, 'symbol_table'):
-            symtab = self._kernel.root.symbol_table
-        else:
-            symtab = SymbolTable()
+        # Stubs are not connected to an InvokeSchedule and can use a dummy
+        # symbol table.
+        symtab = SymbolTable()
         for arg in self._kern_args:
             parent.add(DeclGen(
                 parent, datatype="integer", intent="in",
@@ -2741,6 +2748,8 @@ class DynCellIterators(DynCollection):
             self._nlayers_name = \
                 self._invoke.schedule.symbol_table.name_from_tag("nlayers")
         else:
+            # If it is not connected to an invoke (e.g. Stubs) we will hardcode
+            # the name without adding into the SymbolTable.
             self._nlayers_name = "nlayers"
 
         # Store a reference to the first field/operator object that
@@ -3086,9 +3095,8 @@ class DynCMAOperators(DynCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_"+param)
-                param_names.append(param_name)
+                param_names.append(self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=param_names))
 
@@ -3107,10 +3115,9 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        if hasattr(self._kernel.root, 'symbol_table'):
-            symtab = self._kernel.root.symbol_table
-        else:
-            symtab = SymbolTable()
+        # Stubs are not connected to an InvokeSchedule and can use a dummy
+        # symbol table.
+        symtab = SymbolTable()
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
@@ -3212,11 +3219,9 @@ class DynMeshes(object):
             self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
-            _name_set.add(
-                self._schedule.symbol_table.name_from_tag(
+            _name_set.add(self._schedule.symbol_table.name_from_tag(
                     "mesh_{0}".format(fine_arg.name)))
-            _name_set.add(
-                self._schedule.symbol_table.name_from_tag(
+            _name_set.add(self._schedule.symbol_table.name_from_tag(
                     "mesh_{0}".format(coarse_arg.name)))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
@@ -3497,6 +3502,7 @@ class DynInterGrid(object):
         self.coarse = coarse_arg
         self.fine = fine_arg
 
+        # Get a reference to the InvokeSchedule SymbolTable
         symtab = self.coarse.call.root.symbol_table
 
         # Generate name for inter-mesh map
@@ -3821,9 +3827,8 @@ class DynBasisFunctions(DynCollection):
                 # our namespace manager to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    var_name = self._invoke.schedule.symbol_table.\
-                        name_from_tag(var+"_proxy")
-                    var_names.append(var_name)
+                    var_names.append(self._invoke.schedule.symbol_table.\
+                        name_from_tag(var+"_proxy"))
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -7878,6 +7883,7 @@ class KernStubArgList(ArgOrdering):
         '''
         Add stencil information associated with a kernel argument if the
         extent is unknown.
+
         :param arg: the meta-data description of the kernel argument with \
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -7885,6 +7891,8 @@ class KernStubArgList(ArgOrdering):
         if hasattr(self._kern.root, 'symbol_table'):
             symtab = self._kern.root.symbol_table
         else:
+            # If the kern is not attached to an InvokeSchedule, use a dummy
+            # SymbolTable
             symtab = SymbolTable()
         name = DynStencils.dofmap_size_name(symtab, arg)
         self._arglist.append(name)
@@ -7901,6 +7909,8 @@ class KernStubArgList(ArgOrdering):
         if hasattr(self._kern.root, 'symbol_table'):
             symtab = self._kern.root.symbol_table
         else:
+            # If the kern is not attached to an InvokeSchedule, use a dummy
+            # SymbolTable
             symtab = SymbolTable()
         self._arglist.append(DynStencils.direction_name(symtab, arg))
 
@@ -7915,6 +7925,8 @@ class KernStubArgList(ArgOrdering):
         if hasattr(self._kern.root, 'symbol_table'):
             symtab = self._kern.root.symbol_table
         else:
+            # If the kern is not attached to an InvokeSchedule, use a dummy
+            # SymbolTable
             symtab = SymbolTable()
         self._arglist.append(DynStencils.dofmap_name(symtab, arg))
 
@@ -8475,6 +8487,8 @@ class DynKernelArguments(Arguments):
                                          'symbol_table'):
             symtab = self._parent_call.root.symbol_table
         else:
+            # If the kern is not attached to an InvokeSchedule, use a dummy
+            # SymbolTable
             symtab = SymbolTable()
         for arg in self._args:
             if not arg.descriptor.stencil:
