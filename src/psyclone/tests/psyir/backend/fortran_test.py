@@ -813,32 +813,55 @@ def test_fw_array(fort_writer):
     result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
 
-def test_fw_array_2(fort_writer):
-    '''Check the FortranWriter class array_node method produces the
-    expected code when an array section is specified.
+
+def test_fw_range(fort_writer):
+    '''Check the FortranWriter class range_node and array_node methods
+    produce the expected code when an array section is specified.
 
     '''
     from psyclone.psyir.nodes import Array, Range
     symbol = DataSymbol("a", DataType.REAL, shape=[10, 10])
-    dim2_bound_start = BinaryOperation.create(
+    dim1_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
-        Literal("2", DataType.INTEGER))
+        Literal("1", DataType.INTEGER))
     dim1_bound_stop = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
         Reference(symbol),
         Literal("1", DataType.INTEGER))
+    dim2_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("2", DataType.INTEGER))
+    dim3_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("3", DataType.INTEGER))
+    dim3_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("3", DataType.INTEGER))
+    one = Literal("1", DataType.INTEGER)
+    two = Literal("2", DataType.INTEGER)
+    three = Literal("3", DataType.INTEGER)
     plus = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", DataType.REAL)),
         Reference(DataSymbol("c", DataType.REAL)))
-    one = Literal("1", DataType.INTEGER)
-    three = Literal("3", DataType.INTEGER)
     array = Array.create(symbol, [Range.create(one, dim1_bound_stop),
                                   Range.create(dim2_bound_start, plus,
                                                step=three)])
     result = fort_writer.array_node(array)
     assert result == "a(1:,:b + c:3)"
+
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    array = Array.create(
+        symbol,
+        [Range.create(dim1_bound_start, dim1_bound_stop),
+         Range.create(one, two, step=three),
+         Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
+    result = fort_writer.array_node(array)
+    assert result == "a(:,1:2:3,::3)"
 
 # literal is already checked within previous tests
 
