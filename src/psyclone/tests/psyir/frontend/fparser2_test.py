@@ -93,7 +93,78 @@ contains
 end module dummy_mod
 '''
 
+# Function check_bound
+def test_check_bound():
+    ''' Test the check_bound function.'''
+    one = Literal("1", DataType.INTEGER)
+    symbol = DataSymbol('a', DataType.REAL, shape=[20])
 
+    my_range = Range.create(one, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, None)
+    assert ("Expecting BinaryOperation but found 'Literal'"
+            in str(excinfo.value))
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, one, one)
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, BinaryOperation.Operator.UBOUND)
+    assert ("Expecting operator to be 'Operator.UBOUND', but found "
+            "'Operator.LBOUND'" in str(excinfo.value))
+
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
+    assert "Expecting Reference but found 'Literal'" in str(excinfo.value)
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(DataSymbol("x", DataType.INTEGER)), one)
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
+    assert ("Expecting Reference symbol 'x' to be the same as array "
+            "symbol 'a'" in str(excinfo.value))
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Node())
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
+    assert ("Expecting Literal but found 'Node'" in str(excinfo.value))
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("1.0", DataType.REAL))
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
+    assert ("Expecting integer datatype but found 'DataType.REAL'"
+            in str(excinfo.value))
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("2", DataType.INTEGER))
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(InternalError) as excinfo:
+        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
+    assert ("Expecting literal value '2' to be the same as the current "
+            "array dimension '1'." in str(excinfo.value))
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), Literal("1", DataType.INTEGER))
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
+    
 # Class Fparser2Reader
 
 

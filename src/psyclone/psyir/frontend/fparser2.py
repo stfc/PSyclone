@@ -137,7 +137,7 @@ def check_bound(array, dim, index, operator):
             "Expecting Reference but found '{0}'." \
             "".format(type(reference).__name__)
         assert reference.symbol is array.symbol, \
-            "Expecting Reference symbol '{0)' to be the same as array symbol " \
+            "Expecting Reference symbol '{0}' to be the same as array symbol " \
             "'{1}'.".format(reference.symbol.name, array.symbol.name)
         assert isinstance(literal, Literal), \
             "Expecting Literal but found '{0}'." \
