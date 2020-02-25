@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Author S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
@@ -49,6 +50,9 @@ from psyclone.psyir.nodes.reference import Reference, Array
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.extract_node import ExtractNode
+from psyclone.psyir.nodes.profile_node import ProfileNode
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.ranges import Range
 
 # The entities in the __all__ list are made available to import directly from
@@ -69,4 +73,7 @@ __all__ = [
         'Loop',
         'CodeBlock',
         'Container',
-        'Literal']
+        'Literal',
+        'ExtractNode',
+        'ProfileNode',
+        'PSyDataNode']

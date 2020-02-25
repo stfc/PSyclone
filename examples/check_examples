@@ -182,6 +182,22 @@ echo "TODO #490 and #342 and #663"
 #${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
 cd -
 
+echo "Running gocean/eg5"
+cd gocean/eg5
+${PSYCLONE} -api "gocean1.0" --profile invokes -l \
+            --config ../../../config/psyclone.cfg \
+            -opsy psy.f90 -oalg alg.f90 test.x90
+cd -
+
+echo "Running gocean/eg6"
+cd gocean/eg6
+${PSYCLONE} -nodm -l -api "gocean1.0"             \
+            --config ../../../config/psyclone.cfg \
+            -s ./extract_transform.py             \
+            -opsy psy.f90 -oalg alg.f90 test.x90
+
+cd -
+
 echo "Running example nemo/eg1"
 cd nemo/eg1
 ./runme_openmp.py
