@@ -1089,9 +1089,8 @@ class GOKern(CodedKern):
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = self.root.symbol_table.new_symbol_name(
+        sub_name = self.root.symbol_table.name_from_tag(
             self.name + "_set_args")
-        self.root.symbol_table.add(Symbol(sub_name))
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
