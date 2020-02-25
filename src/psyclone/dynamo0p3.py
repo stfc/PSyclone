@@ -1775,14 +1775,9 @@ class DynStencils(DynCollection):
             names = [arg.stencil.extent_arg.varname for arg in
                      self._unique_extent_args]
         elif self._kernel:
-            # A kernel is passed the size of the stencil map
-            if hasattr(self._kernel.root, 'symbol_table'):
-                symtab = self._kernel.root.symbol_table
-            else:
-                # When generating stubs we have kernels that are not attached
-                # to an InvokeSchedule, we use a dummy SymbolTable then.
-                symtab = SymbolTable()
-            names = [self.dofmap_size_name(symtab, arg)
+            # When generating stubs we have kernels that are not attached
+            # to an InvokeSchedule, we use a dummy SymbolTable then.
+            names = [self.dofmap_size_name(SymbolTable(), arg)
                      for arg in self._unique_extent_args]
         else:
             raise InternalError("_unique_extent_vars: have neither Invoke "
@@ -7888,13 +7883,9 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        if hasattr(self._kern.root, 'symbol_table'):
-            symtab = self._kern.root.symbol_table
-        else:
-            # If the kern is not attached to an InvokeSchedule, use a dummy
-            # SymbolTable
-            symtab = SymbolTable()
-        name = DynStencils.dofmap_size_name(symtab, arg)
+        # When generating stubs we have kernels that are not attached
+        # to an InvokeSchedule, we use a dummy SymbolTable then.
+        name = DynStencils.dofmap_size_name(SymbolTable(), arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -7906,13 +7897,9 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         '''
-        if hasattr(self._kern.root, 'symbol_table'):
-            symtab = self._kern.root.symbol_table
-        else:
-            # If the kern is not attached to an InvokeSchedule, use a dummy
-            # SymbolTable
-            symtab = SymbolTable()
-        self._arglist.append(DynStencils.direction_name(symtab, arg))
+        # When generating stubs we have kernels that are not attached
+        # to an InvokeSchedule, we use a dummy SymbolTable then.
+        self._arglist.append(DynStencils.direction_name(SymbolTable(), arg))
 
     def stencil(self, arg):
         '''
@@ -7922,13 +7909,9 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        if hasattr(self._kern.root, 'symbol_table'):
-            symtab = self._kern.root.symbol_table
-        else:
-            # If the kern is not attached to an InvokeSchedule, use a dummy
-            # SymbolTable
-            symtab = SymbolTable()
-        self._arglist.append(DynStencils.dofmap_name(symtab, arg))
+        # When generating stubs we have kernels that are not attached
+        # to an InvokeSchedule, we use a dummy SymbolTable then.
+        self._arglist.append(DynStencils.dofmap_name(SymbolTable(), arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
