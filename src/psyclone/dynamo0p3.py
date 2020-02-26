@@ -3848,9 +3848,22 @@ class DynBasisFunctions(DynCollection):
                 parent.add(DeclGen(parent, datatype="real", kind="r_def",
                                    intent="in", dimension="np_z"+qr_name,
                                    entity_decls=["weights_z"+qr_name]))
+            elif shape == "gh_quadrature_face":
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in",
+                                   dimension=",".join(["np_xyz"+qr_name,
+                                                       "nfaces"+qr_name]),
+                                   entity_decls=["weights_xyz"+qr_name]))
+            elif shape == "gh_quadrature_edge":
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in",
+                                   dimension=",".join(["np_xyz"+qr_name,
+                                                       "nedges"+qr_name]),
+                                   entity_decls=["weights_xyz"+qr_name]))
             else:
                 raise GenerationError(
-                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
+                    "Quadrature shapes other than GH_QUADRATURE_XYoZ, "
+                    "GH_QUADRATURE_FACE and GH_QUADRATURE_EDGE are not "
                     "yet supported - got: '{0}'".format(shape))
 
     def _invoke_declarations(self, parent):
@@ -6756,14 +6769,15 @@ class DynKern(CodedKern):
                     # direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
 
-        # initialise basis/diff basis so we can test whether quadrature
+        # Initialise basis/diff basis so we can test whether quadrature
         # or an evaluator is required
         self._setup_basis(ktype)
-        if self._basis_required and \
-           set(self._eval_shapes).intersection(set(VALID_QUADRATURE_SHAPES)):
-            # Basis functions on quadrature points are required so add
-            # a qr algorithm argument
-            args.append(Arg("variable", "qr"))
+        if self._basis_required:
+            for shape in self._eval_shapes:
+                if shape in VALID_QUADRATURE_SHAPES:
+                    # Add a quadrature argument for each required quadrature
+                    # rule.
+                    args.append(Arg("variable", "qr_"+shape))
         self._setup(ktype, "dummy_name", args, None)
 
     def _setup_basis(self, kmetadata):

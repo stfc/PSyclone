@@ -660,9 +660,86 @@ def test_enforce_op_bc_kernel_stub_gen():
     assert output in generated_code
 
 
-# note, we do not need a separate test for qr as it is implicitly
-# tested for in the above examples.
-# fields : intent
+def test_multi_qr_stub_gen():
+    ''' Test that the stub generator correctly handles a kernel requiring
+    more than one quadrature rule. '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_2qr_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    assert ("SUBROUTINE testkern_2qr_code(nlayers, field_1_w1, field_2_w2, "
+            "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, "
+            "basis_w1_qr_face, basis_w1_qr_edge, ndf_w2, undf_w2, map_w2, "
+            "diff_basis_w2_qr_face, diff_basis_w2_qr_edge, ndf_w3, undf_w3, "
+            "map_w3, basis_w3_qr_face, basis_w3_qr_edge, "
+            "diff_basis_w3_qr_face, diff_basis_w3_qr_edge, nfaces_qr_face, "
+            "np_xyz_qr_face, weights_xyz_qr_face, nedges_qr_edge, "
+            "np_xyz_qr_edge, weights_xyz_qr_edge)" in generated_code)
+    assert ("INTEGER, intent(in) :: np_xyz_qr_face, nfaces_qr_face, "
+            "np_xyz_qr_edge, nedges_qr_edge" in generated_code)
+    assert (
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "np_xyz_qr_face,nfaces_qr_face) :: basis_w1_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "np_xyz_qr_edge,nedges_qr_edge) :: basis_w1_qr_edge\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
+        "np_xyz_qr_face,nfaces_qr_face) :: diff_basis_w2_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
+        "np_xyz_qr_edge,nedges_qr_edge) :: diff_basis_w2_qr_edge\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xyz_qr_face,nfaces_qr_face) :: basis_w3_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        "np_xyz_qr_face,nfaces_qr_face) :: diff_basis_w3_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xyz_qr_edge,nedges_qr_edge) :: basis_w3_qr_edge\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        "np_xyz_qr_edge,nedges_qr_edge) :: diff_basis_w3_qr_edge"
+        in generated_code)
+    assert ("      REAL(KIND=r_def), intent(in), dimension(np_xyz_qr_face,"
+            "nfaces_qr_face) :: weights_xyz_qr_face\n"
+            "      REAL(KIND=r_def), intent(in), dimension(np_xyz_qr_edge,"
+            "nedges_qr_edge) :: weights_xyz_qr_edge\n" in generated_code)
+
+
+def test_qr_plus_eval_stub_gen():
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_qr_eval_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    gen_code = str(kernel.gen_stub)
+    assert (
+        "SUBROUTINE testkern_qr_eval_code(nlayers, field_1_w1, field_2_w2,"
+        " field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, basis_w1_qr_face, "
+        "basis_w1_on_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2_qr_face, "
+        "diff_basis_w2_on_w1, ndf_w3, undf_w3, map_w3, basis_w3_qr_face, "
+        "basis_w3_on_w1, diff_basis_w3_qr_face, diff_basis_w3_on_w1, "
+        "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face)"
+        in gen_code)
+    assert "INTEGER, intent(in) :: np_xyz_qr_face, nfaces_qr_face" in gen_code
+    assert (
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xyz_qr_face"
+        ",nfaces_qr_face) :: basis_w1_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w1) :: "
+        "basis_w1_on_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xyz_qr_face"
+        ",nfaces_qr_face) :: diff_basis_w2_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,ndf_w1) :: "
+        "diff_basis_w2_on_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xyz_qr_face"
+        ",nfaces_qr_face) :: basis_w3_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xyz_qr_face"
+        ",nfaces_qr_face) :: diff_basis_w3_qr_face\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w1) :: "
+        "basis_w3_on_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_w1) :: "
+        "diff_basis_w3_on_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xyz_qr_face,"
+        "nfaces_qr_face) :: weights_xyz_qr_face" in gen_code)
 
 
 SUB_NAME = '''
