@@ -614,8 +614,8 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         def _full_extent(node, operator):
-            '''Utility function that returns True if the supplied node represents
-            the first index of an array dimension (via the LBOUND
+            '''Utility function that returns True if the supplied node
+            represents the first index of an array dimension (via the LBOUND
             operator) or the last index of an array dimension (via the
             UBOUND operator).
 
@@ -638,7 +638,8 @@ class FortranWriter(PSyIRVisitor):
             my_range = node.parent
             array = my_range.parent
             array_index = array.children.index(my_range) + 1
-            if isinstance(node, BinaryOperation)  and \
+            # pylint: disable=too-many-boolean-expressions
+            if isinstance(node, BinaryOperation) and \
                node.operator == operator and \
                isinstance(node.children[0], Reference) and \
                node.children[0].name == array.name and \
@@ -675,7 +676,6 @@ class FortranWriter(PSyIRVisitor):
             step = self._visit(node.step)
             result += ":{0}".format(step)
         return result
-
 
     # pylint: disable=no-self-use
     def literal_node(self, node):

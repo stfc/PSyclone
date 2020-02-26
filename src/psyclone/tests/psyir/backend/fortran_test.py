@@ -52,6 +52,7 @@ from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile
 
+
 @pytest.fixture(scope="function", name="fort_writer")
 def fixture_fort_writer():
     '''Create and return a FortranWriter object with default settings.'''

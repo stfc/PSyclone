@@ -126,19 +126,19 @@ def check_bound(array, dim, index, operator):
     try:
         bound = array.children[dim-1].children[index]
         assert isinstance(bound, BinaryOperation), \
-                "Expecting BinaryOperation but found '{0}'." \
-                "".format(type(bound).__name__)
+            "Expecting BinaryOperation but found '{0}'." \
+            "".format(type(bound).__name__)
         assert bound.operator == operator, \
-                "Expecting operator to be '{0}', but found '{1}'." \
-                "".format(str(operator), str(bound.operator))
+            "Expecting operator to be '{0}', but found '{1}'." \
+            "".format(str(operator), str(bound.operator))
         reference = bound.children[0]
         literal = bound.children[1]
         assert isinstance(reference, Reference), \
             "Expecting Reference but found '{0}'." \
             "".format(type(reference).__name__)
         assert reference.symbol is array.symbol, \
-            "Expecting Reference symbol '{0}' to be the same as array symbol " \
-            "'{1}'.".format(reference.symbol.name, array.symbol.name)
+            "Expecting Reference symbol '{0}' to be the same as array " \
+            "symbol '{1}'.".format(reference.symbol.name, array.symbol.name)
         assert isinstance(literal, Literal), \
             "Expecting Literal but found '{0}'." \
             "".format(type(literal).__name__)
@@ -146,11 +146,11 @@ def check_bound(array, dim, index, operator):
             "Expecting integer datatype but found '{0}'." \
             "".format(literal.datatype)
         assert literal.value == str(dim), \
-            "Expecting literal value '{0}' to be the same as the current array " \
-            "dimension '{1}'.".format(literal.value, str(dim))
+            "Expecting literal value '{0}' to be the same as the current " \
+            "array dimension '{1}'.".format(literal.value, str(dim))
     except AssertionError as excinfo:
         raise InternalError("psyir/frontend/fparser2.py:check_bound():"
-                            +str(excinfo))
+                            + str(excinfo))
 
 
 def check_literal(node, dim, index, value):
@@ -189,7 +189,7 @@ def check_literal(node, dim, index, value):
             "".format(literal.value, str(value))
     except AssertionError as excinfo:
         raise InternalError("psyir/frontend/fparser2.py:check_literal():"
-                            +str(excinfo))
+                            + str(excinfo))
 
 
 def check_range(my_range):
@@ -1674,7 +1674,6 @@ class Fparser2Reader(object):
                 num_colons += 1
         return num_colons
 
-
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
         Utility function that modifies each Array object in the supplied PSyIR
@@ -2250,7 +2249,7 @@ class Fparser2Reader(object):
         '''
         dimension = str(len(parent.children)+1)
         my_range = Range(parent=parent)
-        my_range.children=[]
+        my_range.children = []
         if node.children[0]:
             self.process_nodes(parent=my_range, nodes=[node.children[0]])
         else:
