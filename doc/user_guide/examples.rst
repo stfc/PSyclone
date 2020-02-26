@@ -103,6 +103,44 @@ kernels (Issue #342). In addition, the transformation that adds
 parse tree and therefore does not inter-operate with the other kernel
 transformations that work on the PSyIR (Issue #490).
 
+Example 5: Profiling
+^^^^^^^^^^^^^^^^^^^^
+
+This example shows how to use the profiling support in PSyclone.
+It instruments two invoke statements and links in with the
+template profiling library included in PSyclone (see 
+:ref:`profiling_third_party_tools`). This library just
+prints out the name of the module and region before and after each
+invoke is executed. If you compile the profiling wrapper,
+this example will create a stand-alone program that can be
+executed.
+
+
+Example 6: Kernel data extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of kernel data extraction in PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based kernel extraction code.
+It uses the dl_esm_inf-specific extraction library 'netcdf'
+(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+available (including ``nc-config`` to detect installation-specific
+paths). You need to compile the NetCDF extraction library 
+(see :ref:`psyke_netcdf`).
+The makefile in this example will link with the compiled NetCDF 
+extraction library and NetCDF. You can execute the created
+binary and it will create two output netcdf files, one for
+each of the two invokes.
+
+It will also create two stand-alone driver programs (one for
+each invoke), that will read the corresponding NetCDF file,
+and then executes the original code.
+
+.. note::
+    At this stage the driver program will not compile
+    (see issue #644).
+
+
 LFRic
 ------
 

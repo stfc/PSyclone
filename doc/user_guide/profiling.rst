@@ -63,13 +63,17 @@ the application that incorporates the PSyclone-generated code.
 
 Profiling API
 -------------
-In order to be used with different profiling tools, PSyclone supports
-a simple profiling API. For each existing profiling tool a simple interface
-library needs to be implemented that maps the PSyclone profiling calls
+In order to be used with different profiling tools, PSyclone uses the
+PSyData API. For each existing profiling tool a simple interface
+library needs to be implemented that maps the PSyclone PSyData calls
 to the corresponding call for the profiling tool. 
 
-PSyclone utilises 4 profiling calls which are described in the following
-sub-sections.
+Since the profiling API does not need access to any fields or variables,
+PSyclone will only create calls to ``PreStart`` and ``PostEnd``
+(see :ref:`psy_data_transformation`).
+
+PSyclone utilises two additional profile-specific calls which are described in
+the following sub-sections.
 
 ProfileInit()
 ~~~~~~~~~~~~~
@@ -90,8 +94,8 @@ a call to ``MPI_Init()``.
 ProfileFinalise()
 ~~~~~~~~~~~~~~~~~
 At the end of the program the function ``ProfileFinalise()`` must be called.
-It will make sure that the measurements are printed or written to file
-correctly, and that the profiling tool is closed correctly. Again at
+It will make sure that the measurements are printed, files are flushed,
+and that the profiling tool is closed correctly. Again at
 this stage it is necessary to manually insert the call at an appropriate
 location::
 
@@ -103,32 +107,11 @@ And again the appropriate location might depend on the profiling library
 used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
-ProfileStart()/ProfileEnd()
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``ProfileStart`` and ``ProfileEnd`` functions define the beginning and
-end of a region to be measured. 
-In general it is up to the user what exactly a region is, arbitrary code
-can be enclosed, as long as it is guaranteed that each call of
-``ProfileStart`` is matched with exactly one corresponding call to
-``ProfileEnd``. PSyclone supplies one saved (static) variable of type
-``ProfileData`` to each matching Start/End pair.
-
-This is the code sequence which is created by PSyclone::
-
-    use profile_mod, only : ProfileData, ProfileStart, ProfileEnd
-    ...
-    type(ProfileData), save :: profiler_data
-    ...
-    call ProfileStart("Module", "Region", profiler_data)
-    ...
-    call ProfileEnd(profiler_data)
-
-PSyclone guarantees that different ProfileStart/End pairs have
-different ``ProfileData`` variables.
-
+Naming Profiling Regions
+~~~~~~~~~~~~~~~~~~~~~~~~
 By default PSyclone will generate appropriate names to uniquely
-determine a particular region (the "Module" and "Region" strings in the
-example above). Alternatively these names can be specified by the user
+determine a particular region (see :ref:`psy_data_type`). 
+Alternatively these names can be specified by the user
 when adding profiling via a transformation script.
 
 
@@ -408,10 +391,9 @@ For the `dynamo` and `gocean` api's,
       CONTAINS
       SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
         ...
-        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
-	                  profile_3)
-        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r1", &
-	                  profile)
+        CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
+	                             0, 0)
+        CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r1", 0, 0)
         IF (f2_proxy%is_dirty(depth=1)) THEN
           CALL f2_proxy%halo_exchange(depth=1)
         END IF 
@@ -421,31 +403,33 @@ For the `dynamo` and `gocean` api's,
         IF (m2_proxy%is_dirty(depth=1)) THEN
           CALL m2_proxy%halo_exchange(depth=1)
         END IF 
-        CALL ProfileEnd(profile)
-        CALL ProfileStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
-	                  profile_1)
+        CALL psy_data%PreEnd()
+        CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
+	                             0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
         ...
-        CALL ProfileStart("multi_functions_multi_invokes_psy", &
-	                  "invoke_0:testkern_code:r3", profile_2)
+        CALL psy_data_2%PreStart("multi_functions_multi_invokes_psy", &
+	                  "invoke_0:testkern_code:r3", 0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
         ...
-        CALL ProfileEnd(profile_2)
-        CALL ProfileEnd(profile_1)
+        CALL psy_data_2%PostEnd()
+        CALL psy_data_1%PostEnd()
         ...
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_qr_code(...)
         END DO 
         ...
-        CALL ProfileEnd(profile_3)
+        CALL psy_data_3%PostEnd()
         ...
       END SUBROUTINE invoke_0
     END MODULE container
 
+
+.. _profiling_third_party_tools:
 
 Interface to Third Party Profiling Tools 
 ----------------------------------------
@@ -464,21 +448,22 @@ that can be set in order to find third party profiling tools.
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
-module. The four profiling calls described
-in the section about the ProfilingAPI_ must be implemented,
-and an opaque, user-defined type ``ProfileData`` needs to be 
-provided in the module.
+module. The functions that need to be implemented are described in
+:ref:`ProfilingAPI`, including the opaque, user-defined type
+``PSyData``.
 
-Note that the ``ProfileEnd`` call does not have the module
-or region name as an argument. If this is
-required by the profiling library, this data must
-be stored in the ``ProfileData`` object so that it is
-available in the ``ProfileEnd`` call.
-
-The examples in the lib/profiling directory show various ways
+The examples in the ````lib/profiling directory show various ways
 in which the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
-an index used by the profiling tool in ``ProfileData``, or 
+an index used by the profiling tool in ``PSyData``, or 
 by storing pointers to the profiling data to be able to 
 print all results in a ProfileFinalise() subroutine.
 
+Most libraries in ``lib/profiling`` need to be linked in
+with the corresponding 3rd party profiling tool. The
+exception is the template library (``lib/profiling/template``)
+which is a
+stand-alone dummy implementation that will just print
+out the name of the module and region called before and
+after each instrumented region. It is used e.g. in
+``examples/gocean/eg5`` to create an executable example.

@@ -880,7 +880,7 @@ class GOLoop(Loop):
 
 
 # pylint: disable=too-few-public-methods
-class GOBuiltInCallFactory(object):
+class GOBuiltInCallFactory():
     ''' A GOcean-specific built-in call factory. No built-ins
         are supported in GOcean at the moment. '''
 
@@ -894,7 +894,7 @@ class GOBuiltInCallFactory(object):
 
 
 # pylint: disable=too-few-public-methods
-class GOKernCallFactory(object):
+class GOKernCallFactory():
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
     the user-supplied kernel routine. '''
@@ -967,7 +967,9 @@ class GOKern(CodedKern):
                 var_name = arg.name
 
             if arg.is_scalar():
-                var_accesses.add_access(var_name, arg.access, self)
+                # The argument is only a variable if it is not a constant:
+                if not arg.is_literal:
+                    var_accesses.add_access(var_name, arg.access, self)
             else:
                 # In case of an array for now add an arbitrary array
                 # reference so it is properly recognised as an array access
@@ -1638,7 +1640,7 @@ class GOKernelGridArgument(Argument):
         return None
 
 
-class GOStencil(object):
+class GOStencil():
     '''GOcean 1.0 stencil information for a kernel argument as obtained by
     parsing the kernel meta-data. The expected structure of the
     metadata and its meaning is provided in the description of the
