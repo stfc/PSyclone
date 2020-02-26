@@ -1,12 +1,12 @@
 
-module psy_data_mod
-  type :: PSyDataType
+module profile_psy_data_mod
+  type :: profile_PSyDataType
       character(:), allocatable :: module_name
       character(:), allocatable :: region_name
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
-  end type PSyDataType
+  end type profile_PSyDataType
 
   logical :: has_been_initialised = .false.
 
@@ -38,7 +38,7 @@ contains
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
     implicit none
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     character*(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
@@ -58,7 +58,7 @@ contains
   ! 
   subroutine PostEnd(this)
     implicit none
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     
     print *,"PostEnd called for module '", this%module_name, &
          "' region '", this%region_name, "'"
@@ -74,4 +74,4 @@ contains
     print *,"ProfileFinalise called"
   end subroutine ProfileFinalise
 
-end module psy_data_mod
+end module profile_psy_data_mod

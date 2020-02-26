@@ -68,6 +68,8 @@ class PSyDataNode(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
+    :param str options["class"]: the class of PSyData calls to create. \
+        This string becomes a prefix for all PSyData names.
     :param (str,str) options["region_name"]: an optional name to \
         use for this PSyDataNode, provided as a 2-tuple containing a \
         module name followed by a local name. The pair of strings should \
@@ -80,23 +82,36 @@ class PSyDataNode(Node):
     fortran_module = "psy_data_mod"
     # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
-    # The use statement that will be inserted. Any use of a module of the
-    # same name that doesn't match this will result in a NotImplementedError
-    # at code-generation time.
-    use_stmt = "use psy_data_mod, only: " + ", ".join(symbols)
 
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
-        # TODO: #415 Support different classes of PSyData calls.
-
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
+
+        if not options:
+            options = {}
+
+        # This string stores a prefix to be used with all PSyData symbols
+        # (i.e. function names, data types, module names), used in the
+        # method 'make_symbol'.
+        self._class_string = options.get("class", "")
+        if self._class_string:
+            self._class_string = self._class_string+"_"
+
         from psyclone.psyGen import NameSpaceFactory
-        self._var_name = NameSpaceFactory().create().create_name("psy_data")
+        self._var_name = NameSpaceFactory().create()\
+            .create_name(self.make_symbol(self.psy_data_var))
+        # The use statement that will be inserted. Any use of a module of the
+        # same name that doesn't match this will result in a
+        # NotImplementedError at code-generation time.
+        self.use_stmt = "use {0}, only: "\
+            .format(self.make_symbol("psy_data_mod")) + \
+            ", ".join(self.make_symbol(symbol) for symbol in
+                      PSyDataNode.symbols)
 
         if children:
             # We need to store the position of the original children,
@@ -158,9 +173,7 @@ class PSyDataNode(Node):
         # cannot store a computed name in module_name and region_name.
         self._region_identifier = ("", "")
 
-        name = None
-        if options:
-            name = options.get("region_name", None)
+        name = options.get("region_name", None)
 
         if name:
             # pylint: disable=too-many-boolean-expressions
@@ -176,6 +189,18 @@ class PSyDataNode(Node):
             self._region_name = name[1]
             self.set_region_identifier(self._module_name, self._region_name)
 
+    # -------------------------------------------------------------------------
+    def make_symbol(self, symbol):
+        '''Makes a symbol with the class-string as prefix, e.g. if the
+        class string is 'profile_', then the symbol "PSyDataType" will
+        become "profile_PSyDataType".
+
+        :param str symbol: The symbol name to get the class string prefixed.
+
+        :returns: The symbol with the class string as prefix.
+        :rtype: str
+        '''
+        return self._class_string + symbol
     # -------------------------------------------------------------------------
     @property
     def region_identifier(self):
@@ -300,10 +325,13 @@ class PSyDataNode(Node):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        use = UseGen(parent, self.fortran_module, only=True,
-                     funcnames=PSyDataNode.symbols)
+        symbols = [self.make_symbol(symbol) for symbol in PSyDataNode.symbols]
+        fortran_module = self.make_symbol(self.fortran_module)
+        use = UseGen(parent, fortran_module, only=True,
+                     funcnames=symbols)
         parent.add(use)
-        var_decl = TypeDeclGen(parent, datatype="PSyDataType",
+        var_decl = TypeDeclGen(parent,
+                               datatype=self.make_symbol("PSyDataType"),
                                entity_decls=[self._var_name],
                                save=True, target=True)
         parent.add(var_decl)
@@ -451,9 +479,10 @@ class PSyDataNode(Node):
         # aborting.
         # Get the existing use statements
         found = False
+        fortran_module = self.make_symbol(self.fortran_module)
         for node in node_list[:]:
             if isinstance(node, Fortran2003.Use_Stmt) and \
-               self.fortran_module == str(node.items[2]).lower():
+               fortran_module == str(node.items[2]).lower():
                 # Check that the use statement matches the one we would
                 # insert (i.e. the code doesn't already contain a module
                 # with the same name as that used by the PSyData API)
@@ -461,7 +490,7 @@ class PSyDataNode(Node):
                     raise NotImplementedError(
                         "Cannot add PSyData calls to '{0}' because it "
                         "already 'uses' a module named '{1}'".format(
-                            routine_name, self.fortran_module))
+                            routine_name, fortran_module))
                 found = True
                 # To make our check on name clashes below easier, remove
                 # the Name nodes associated with this use from our
@@ -474,7 +503,9 @@ class PSyDataNode(Node):
             # We don't already have a use for the PSyData module so
             # add one.
             reader = FortranStringReader(
-                "use psy_data_mod, only: PSyDataType")
+                "use {0}, only: {1}"
+                .format(self.make_symbol("psy_data_mod"),
+                        self.make_symbol("PSyDataType")))
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             use = Fortran2003.Use_Stmt(reader)
@@ -504,7 +535,7 @@ class PSyDataNode(Node):
                             "already contains a symbol that clashes with the "
                             "name of the PSyclone PSyData module "
                             "('{1}')". format(routine_name,
-                                              self.fortran_module))
+                                              fortran_module))
                     # Check for the names of PSyData variables
                     if text.startswith(self.psy_data_var):
                         raise NotImplementedError(
@@ -527,11 +558,13 @@ class PSyDataNode(Node):
             region_name = self._region_name
         else:
             region_name = "r{0}".format(region_idx)
-        var_name = "psy_data{0}".format(region_idx)
+        var_name = "{0}{1}".format(self.make_symbol("psy_data"),
+                                   region_idx)
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
-            "type(PSyDataType), target, save :: {0}".format(var_name))
+            "type({0}), target, save :: {1}"
+            .format(self.make_symbol("PSyDataType"), var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)

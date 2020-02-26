@@ -34,10 +34,10 @@
 
 !> A very simple stand-alone profiling library for PSyclone's
 !> profiling API.
-module psy_data_mod
+module profile_psy_data_mod
 
   !> The datatype to store information about a region.
-  type :: PSyDataType
+  type :: profile_PSyDataType
      !> Name of the module.
      character(:), allocatable :: module_name
      !> Name of the region.
@@ -58,14 +58,14 @@ module psy_data_mod
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
-  end type PSyDataType
+  end type profile_PSyDataType
 
   ! --------------------------------------------------------
   !> In order to store an array of pointers, Fortran requires
   !> a new type *sigh*
   type PSyDataTypePointer
      !> The actual pointer to the data in the user's program.
-     type(PSyDataType), pointer :: p
+     type(profile_PSyDataType), pointer :: p
   end  type PSyDataTypePointer
   ! --------------------------------------------------------
 
@@ -115,7 +115,7 @@ contains
                       num_post_vars)
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     character*(*)       :: module_name, region_name
     integer             :: count, count_rate
     integer, intent(in) :: num_pre_vars, num_post_vars
@@ -141,7 +141,7 @@ contains
   subroutine PostEnd(this)
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
 
     integer :: count, count_rate
     real *4 :: now, duration
@@ -179,7 +179,7 @@ contains
     implicit none
     integer                    :: i
     integer                    :: max_len, this_len
-    type(PSyDataType), pointer :: p
+    type(profile_PSyDataType), pointer :: p
     character                  :: tab = char(9)
     character(:), allocatable  :: heading
     character(:), allocatable  :: spaces
@@ -217,4 +217,4 @@ contains
     print *,"==========================================="
   end subroutine ProfileFinalise
 
-end module psy_data_mod
+end module profile_psy_data_mod
