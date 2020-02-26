@@ -75,7 +75,47 @@ class Matmul2CodeTrans(Transformation):
         return "Matmul2CodeTrans"
 
     def validate(self, node):
-        pass
+        '''Perform checks to ensure that it is valid to apply the
+        Matmul2CodeTran transformation to the supplied node.
+
+        :param node: the node that is being checked.
+        :type node: :py:class:`psyclone.psyGen.Operation`
+
+        :raises TransformationError: if the node argument is not the \
+        expected type.
+        :raises TransformationError: if the parent of the MATMUL \
+        operation is not an assignment.
+        :raises TransformationError: if the 2nd argument of the MATMUL \
+        operation is an array that is not 1 dimensional.
+
+        '''
+        # Check the supplied argument is a matvec node
+        if not isinstance(node, BinaryOperation):
+            raise TransformationError(
+                "The supplied node should be a MATMUL BinaryOperation but "
+                "found '{0}'.".format(type(node).__name__))
+        if node.operator != BinaryOperation.Operator.MATMUL:
+            raise TransformationError(
+                "The supplied node should be a MATMUL BinaryOperation but "
+                "found '{0}'.".format(node.operator))
+        # Check the matmul is the only code on the rhs of an assignment
+        # i.e. ... = matvec(a,b)
+        if not isinstance(node.parent, Assignment):
+            raise TransformationError(
+                "Matmul2CodeTrans only supports the transformation of a "
+                "MATMUL operation when it is the only operation on the rhs "
+                "of an assignment.")
+        # The dimension of the 2nd argument should be 1 as we only
+        # support the matvec version of matmul.
+        # This can't be properly tested until #688 is complete. For
+        # the moment perform the check only if the child is an array.
+        array = node.children[1]
+        if isinstance(array, Array) and not len(array.children) == 1:
+            raise TransformationError(
+                "Matmul2CodeTrans only supports the matrix vector form of "
+                "matmul which requires the 2nd argument to be a "
+                "one-dimensional array, but found {0} dimensions."
+                "".format(len(array.children)))
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
@@ -97,18 +137,10 @@ class Matmul2CodeTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node)
 
-        schedule = node.root
-        memento = Memento(schedule, self, node)
-
-        oper_parent = node.parent
-        assignment = node.ancestor(Assignment)
+        assignment = node.parent
 
         matrix = node.children[0]
         matrix_symbol = matrix.symbol
@@ -159,10 +191,7 @@ class Matmul2CodeTrans(Transformation):
             i_loop_name, Literal("1", DataType.INTEGER),
             Reference(matrix_bound), Literal("1", DataType.INTEGER),
             [assign, jloop])
-        # TODO: HACK finding parents
-        iloop.parent = node.parent.parent
-        node.parent.parent.children.insert(node.parent.position, iloop)
+        iloop.parent = assignment.parent
+        assignment.parent.children.insert(assignment.position, iloop)
         # remove original matmul
-        node.parent.parent.children.remove(node.parent)
-
-        return schedule, memento
+        assignment.parent.children.remove(assignment)

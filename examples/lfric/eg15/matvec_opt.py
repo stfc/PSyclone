@@ -101,6 +101,4 @@ def trans(psy):
                 print("Aborting to view the modifications to the matrix "
                       "vector kernel")
                 exit(1)
-        fortran_writer(kernel)
-        exit(1)
     return psy
