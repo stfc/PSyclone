@@ -43,6 +43,7 @@ from fparser.api import parse
 from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
 from psyclone.parse.utils import ParseError
+from psyclone.errors import InternalError
 
 # pylint: disable=invalid-name
 
@@ -371,25 +372,14 @@ end module dummy_mod
 '''
 
 
-def test_get_integer_case_insensitive():
-    ''' Test that the KernelType get_integer_array/variable methods work as
+def test_get_integer_variable():
+    ''' Test that the KernelType get_integer_variable method works as
     expected. '''
     parse_tree = parse(DIFF_BASIS)
-
     tmp = KernelType(parse_tree)
-    assert tmp.get_integer_array("gh_shape") == ['gh_quadrature_xyoz',
-                                                 'gh_quadrature_edge']
-    assert tmp.get_integer_array("GH_SHAPE") == ['gh_quadrature_xyoz',
-                                                 'gh_quadrature_edge']
+    # Check that we return None if the matched name is an array
     assert tmp.get_integer_variable("GH_SHAPE") is None
     assert tmp.get_integer_variable("gh_shape") is None
-
-    new_code = DIFF_BASIS.replace(
-        "integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)",
-        "integer :: gh_shape(3) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)")
-    with pytest.raises(ParseError) as err:
-        _ = parse(new_code)
-    assert "hohohoho" in str(err.value)
 
     new_code = DIFF_BASIS.replace(
         "integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)",
@@ -398,3 +388,122 @@ def test_get_integer_case_insensitive():
     tmp = KernelType(parse_tree)
     assert tmp.get_integer_variable("GH_SHAPE") == "gh_quadrature_face"
     assert tmp.get_integer_variable("Gh_Shape") == "gh_quadrature_face"
+
+
+def test_get_integer_variable_err():
+    ''' Tests that we raise the expected error if the meta-data contains
+    an integer literal instead of a name. '''
+    mdata = DIFF_BASIS.replace("= cells", "= 1")
+    ast = parse(mdata, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = KernelType(ast)
+    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
+            str(err.value))
+
+
+def test_get_integer_array():
+    ''' Test that the KernelType get_integer_array method works as
+    expected. '''
+    parse_tree = parse(DIFF_BASIS)
+    tmp = KernelType(parse_tree)
+    assert tmp.get_integer_array("gh_shape") == ['gh_quadrature_xyoz',
+                                                 'gh_quadrature_edge']
+    assert tmp.get_integer_array("GH_SHAPE") == ['gh_quadrature_xyoz',
+                                                 'gh_quadrature_edge']
+    new_code = DIFF_BASIS.replace(
+        "(/gh_quadrature_XYoZ, gh_quadrature_edge/)",
+        "[gh_quadrature_XYoZ, gh_quadrature_edge]")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    assert tmp.get_integer_array("GH_SHAPE") == ['gh_quadrature_xyoz',
+                                                 'gh_quadrature_edge']
+
+    new_code = DIFF_BASIS.replace("gh_shape(2)", "gh_shape(3)")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    with pytest.raises(ParseError) as err:
+        tmp.get_integer_array("gh_shape")
+    assert ("declared length of array 'gh_shape' is 3 but constructor only "
+            "contains 2 names: 'gh_shape" in str(err.value))
+
+    # Use variable name instead of integer to dimension array
+    new_code = DIFF_BASIS.replace("gh_shape(2)", "gh_shape(npts)")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    with pytest.raises(ParseError) as err:
+        tmp.get_integer_array("gh_shape")
+    assert ("array extent must be specified using an integer literal but "
+            "found 'npts' for array 'gh_shape'" in str(err.value))
+
+    # Only 1D arrays are supported
+    new_code = DIFF_BASIS.replace("gh_shape(2)", "gh_shape(2,2)")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    with pytest.raises(ParseError) as err:
+        tmp.get_integer_array("gh_shape")
+    assert ("array must be 1D but found an array with 2 dimensions for name "
+            "'gh_shape'" in str(err.value))
+
+    # Check that we return an empty list if the matched name is a scalar
+    new_code = DIFF_BASIS.replace(
+        "integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)",
+        "integer :: gh_shape = gh_quadrature_face")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    assert tmp.get_integer_array("gh_shape") == []
+
+
+def test_get_int_array_err1(monkeypatch):
+    ''' Tests that we raise the correct error if there is something wrong
+    with the assignment statement obtained from fparser2. '''
+    from fparser.two import Fortran2003
+    # This is difficult as we have to break the result returned by fparser2.
+    # We therefore create a valid KernelType object
+    ast = parse(DIFF_BASIS, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Next we create a valid fparser2 result
+    my_assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
+    # Break its `items` property by replacing the Name object with a string
+    # (tuples are immutable so make a new one)
+    broken_items = tuple(["invalid"] + list(my_assign.items[1:]))
+
+    # Use monkeypatch to ensure that that the Assignment_Stmt that
+    # is returned when we attempt to use fparser2 from within the
+    # routine under test now has the broken tuple of items.
+
+    def my_init(self, _):
+        ''' dummy class '''
+        self.items = broken_items
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert ("Unsupported assignment statement: 'invalid = [1, 2]'"
+            in str(err.value))
+
+
+def test_get_int_array_err2(monkeypatch):
+    ''' Check that we raise the appropriate error if we fail to parse the
+    array constructor expression. '''
+    from fparser.two import Fortran2003
+    # First create a valid KernelType object
+    ast = parse(DIFF_BASIS, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Create a valid fparser2 result
+    assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
+    # Break the array constructor expression (tuples are immutable so make a
+    # new one)
+    assign.items[2].items[1].items = tuple(["hello", "goodbye"])
+
+    # Use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test
+
+    def my_init(self, _):
+        ''' dummy class '''
+        self.items = assign.items
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert ("Failed to parse array constructor: '[hello, goodbye]'"
+            in str(err.value))

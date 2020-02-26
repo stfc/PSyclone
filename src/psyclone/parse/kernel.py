@@ -851,24 +851,62 @@ class KernelType(object):
             # fparser only goes down to the statement level. We use fparser2 to
             # parse the statement itself.
             assign = Fortran2003.Assignment_Stmt(statement.entity_decls[0])
-            names = walk(assign.items, Fortran2003.Name)
+            names = walk(assign.children, Fortran2003.Name)
             if not names:
                 raise InternalError("Unsupported assignment statement: '{0}'".
                                     format(str(assign)))
-            if str(names[0]).lower() == lower_name:
-                # This is the variable declaration we're looking for
-                if not isinstance(assign.items[2],
-                                  Fortran2003.Array_Constructor):
-                    raise ParseError(
-                        "get_integer_array: RHS of assignment is not "
-                        "an array constructor: '{0}'".format(str(assign)))
-                # fparser2 AST for Array_Constructor is:
-                # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
-                #                                      Name('w1'))), ']')
-                # Construct a list of the names in the array constructor
-                names = walk(assign.items[2].items, Fortran2003.Name)
-                if not names:
-                    raise InternalError("Failed to parse array constructor: "
-                                        "'{0}'".format(str(assign.items[2])))
-                return [str(name).lower() for name in names]
+
+            if str(names[0]).lower() != lower_name:
+                # This is not the variable declaration we're looking for
+                continue
+
+            if not isinstance(assign.children[0], Fortran2003.Part_Ref):
+                # Not an array declaration
+                return []
+
+            if not isinstance(assign.children[0].children[1],
+                              Fortran2003.Section_Subscript_List):
+                raise ParseError(
+                    "get_integer_array: expected array declaration to have a "
+                    "Section_Subscript_List but found '{0}' for: {1}".format(
+                        type(assign.children[0].children[1]).__name__,
+                        str(assign)))
+
+            dim_stmt = assign.children[0].children[1]
+            if len(dim_stmt.children) != 1:
+                raise ParseError(
+                    "get_integer_array: array must be 1D but found an array "
+                    "with {0} dimensions for name '{1}'".format(
+                        len(dim_stmt.children), name))
+            if not isinstance(dim_stmt.children[0],
+                              Fortran2003.Int_Literal_Constant):
+                raise ParseError(
+                    "get_integer_array: array extent must be specified using "
+                    "an integer literal but found '{0}' for array '{1}'".
+                    format(str(dim_stmt.children[0]), name))
+            # Get the declared size of the array
+            array_extent = int(str(dim_stmt.children[0]))
+
+            if not isinstance(assign.children[2],
+                              Fortran2003.Array_Constructor):
+                raise ParseError(
+                    "get_integer_array: RHS of assignment is not "
+                    "an array constructor: '{0}'".format(str(assign)))
+            # fparser2 AST for Array_Constructor is:
+            # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
+            #                                      Name('w1'))), ']')
+            # Construct a list of the names in the array constructor
+            names = walk(assign.children[2].children, Fortran2003.Name)
+            if not names:
+                raise InternalError("Failed to parse array constructor: "
+                                    "'{0}'".format(str(assign.items[2])))
+            if len(names) != array_extent:
+                # Ideally fparser would catch this but it isn't yet mature
+                # enough.
+                raise ParseError(
+                    "get_integer_array: declared length of array '{0}' is {1} "
+                    "but constructor only contains {2} names: '{3}'".format(
+                        name, array_extent, len(names), str(assign)))
+            return [str(name).lower() for name in names]
+        # No matching declaration for the provided name was found
         return []
