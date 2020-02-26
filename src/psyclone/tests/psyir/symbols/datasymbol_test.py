@@ -346,6 +346,19 @@ def test_datasymbol_interface():
     assert symbol.interface.container_symbol.name == "my_mod"
 
 
+def test_datasymbol_interface_setter():
+    ''' Check the interface setter on a DataSymbol. '''
+    my_mod = ContainerSymbol("my_mod")
+    symbol = DataSymbol("some_var", DataType.REAL,
+                        interface=GlobalInterface(my_mod))
+    assert symbol.interface.container_symbol.name == "my_mod"
+
+    with pytest.raises(TypeError) as err:
+        symbol.interface = "not valid"
+    assert ("interface to a DataSymbol must be a DataSymbolInterface but "
+            "got 'str'" in str(err.value))
+
+
 def test_datasymbol_interface_access():
     ''' Tests for the DataSymbolInterface.access setter. '''
     symbol = DataSymbol("some_var", DataType.REAL,

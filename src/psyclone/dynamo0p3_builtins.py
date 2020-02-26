@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -197,6 +197,11 @@ class DynBuiltIn(BuiltIn):
     def qr_required(self):
         ''' Built-ins do not currently require quadrature '''
         return False
+
+    @property
+    def reference_element(self):
+        ''' Built-ins do not require reference-element properties. '''
+        return None
 
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
