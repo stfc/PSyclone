@@ -547,12 +547,13 @@ def test_node_dag(tmpdir, have_graphviz):
     assert "unsupported graphviz file format" in str(excinfo.value)
 
 
-def test_find_symbol():
-    '''Test that the find_symbol method in a Node instance
+def test_find_or_create_symbol():
+    '''Test that the find_or_create_symbol method in a Node instance
     returns the associated symbol if there is one and raises an
     exception if not. Also test for an incorrect scope argument.
 
     '''
+    from psyclone.psyir.symbols import DataType, UnresolvedInterface
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
     sched = invoke.schedule
@@ -567,54 +568,86 @@ def test_find_symbol():
     assert field_old.symbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(field_old.find_symbol(field_old.name,
-                                            scope_limit=kernel_schedule),
-                      DataSymbol)
+    assert isinstance(field_old.find_or_create_symbol(
+        field_old.name, scope_limit=kernel_schedule), DataSymbol)
     assert field_old.symbol.name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope, so
     # the symbol should not be found as we limit the scope to the
     # immediate parent of the reference
     with pytest.raises(SymbolError) as excinfo:
-        _ = field_old.find_symbol(field_old.name, scope_limit=field_old.parent)
+        _ = field_old.find_or_create_symbol(field_old.name,
+                                            scope_limit=field_old.parent)
     assert "No Symbol found for name 'field_old'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    assert isinstance(alpha.find_symbol(alpha.name), DataSymbol)
+    assert isinstance(alpha.find_or_create_symbol(alpha.name), DataSymbol)
     container = kernel_schedule.root
     assert isinstance(container, Container)
-    assert (alpha.find_symbol(alpha.name) in
+    assert (alpha.find_or_create_symbol(alpha.name) in
             container.symbol_table.symbols)
 
     # Symbol in Container SymbolTable with KernelSchedule scope, so
     # the symbol should not be found as we limit the scope to the
     # kernel so do not search the container symbol table.
     with pytest.raises(SymbolError) as excinfo:
-        _ = alpha.find_symbol(alpha.name, scope_limit=kernel_schedule)
+        _ = alpha.find_or_create_symbol(alpha.name,
+                                        scope_limit=kernel_schedule)
     assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
-    assert (alpha.find_symbol(
+    assert (alpha.find_or_create_symbol(
         alpha.name, scope_limit=container).name == alpha.name)
 
-    # find_symbol method with invalid scope type
+    # find_or_create_symbol method with invalid scope type
     with pytest.raises(TypeError) as excinfo:
-        _ = alpha.find_symbol(alpha.name, scope_limit="hello")
-    assert ("The scope_limit argument 'hello' provided to the find_symbol "
-            "method, is not of type `Node`." in str(excinfo.value))
+        _ = alpha.find_or_create_symbol(alpha.name, scope_limit="hello")
+    assert ("The scope_limit argument 'hello' provided to the "
+            "find_or_create_symbol method, is not of type `Node`."
+            in str(excinfo.value))
 
-    # find_symbol method with invalid scope location
+    # find_or_create_symbol method with invalid scope location
     with pytest.raises(ValueError) as excinfo:
-        _ = alpha.find_symbol(alpha.name, scope_limit=alpha)
+        _ = alpha.find_or_create_symbol(alpha.name, scope_limit=alpha)
     assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
-            "find_symbol method, is not an ancestor of this node "
+            "find_or_create_symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
-    # Symbol not in any container (rename alpha to something that is
-    # not defined)
-    alpha._symbol._name = "undefined"
-    with pytest.raises(SymbolError) as excinfo:
-        _ = alpha.find_symbol(alpha.name)
-    assert "No Symbol found for name 'undefined'." in str(excinfo.value)
+
+def test_find_or_create_new_symbol():
+    ''' Check that the Node.find_or_create_symbol() method creates new
+    symbols when appropriate. '''
+    from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
+        ContainerSymbol, UnresolvedInterface
+    from psyclone.psyir.nodes import Reference, Assignment, Literal
+    from psyclone.psyGen import KernelSchedule
+    # Create some suitable PSyIR from scratch
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("tmp", DataType.REAL))
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    container = Container.create("container_name", symbol_table,
+                                 [kernel1])
+    xvar = DataSymbol("x", DataType.REAL)
+    xref = Reference(xvar)
+    assign = Assignment.create(xref, Literal("1.0", DataType.REAL))
+    kernel1.addchild(assign)
+    assign.parent = kernel1
+    container.view()
+    # We have no wildcard imports so there can be no symbol named 'undefined'
+    with pytest.raises(SymbolError) as err:
+        _ = assign.find_or_create_symbol("undefined")
+    assert "No Symbol found for name 'undefined'" in str(err.value)
+    # Add a wildcard import to the SymbolTable of the KernelSchedule
+    new_container = ContainerSymbol("some_mod")
+    new_container.wildcard_import = True
+    kernel1.symbol_table.add(new_container)
+    # Symbol not in any container but we do have wildcard imports so we
+    # get a new symbol back
+    new_symbol = assign.find_or_create_symbol("undefined")
+    assert new_symbol.name == "undefined"
+    assert isinstance(new_symbol.interface, UnresolvedInterface)
+    assert new_symbol.datatype == DataType.DEFERRED
+    assert "undefined" not in container.symbol_table
+    assert kernel1.symbol_table.lookup("undefined") is new_symbol

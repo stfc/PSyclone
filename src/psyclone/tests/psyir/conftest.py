@@ -46,6 +46,6 @@ def disable_declaration_check(request, monkeypatch):
     ''' By default a Reference checks that it has a corresponding entry in
     the Symbol Table. However, this could make constructing tests very
     long winded so this fixture simply disables the check. '''
-    monkeypatch.setattr(Node, "find_symbol",
+    monkeypatch.setattr(Node, "find_or_create_symbol",
                         lambda _1, name, _2=None: DataSymbol(name,
                                                              DataType.INTEGER))

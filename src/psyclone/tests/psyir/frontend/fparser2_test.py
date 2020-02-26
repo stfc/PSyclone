@@ -308,6 +308,7 @@ def test_generate_schedule_unmatching_arguments(parser):
         in str(error.value)
 
 
+@pytest.mark.usefixtures("disable_declaration_check")
 def test_process_declarations(f2008_parser):
     '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
@@ -1061,7 +1062,12 @@ def test_handling_part_ref():
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
-    fake_parent = Node()
+    fake_parent = KernelSchedule('assign')
+    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER,
+                                            shape=[10,10,10]))
+    fake_parent.symbol_table.add(DataSymbol('i', DataType.INTEGER))
+    fake_parent.symbol_table.add(DataSymbol('j', DataType.INTEGER))
+    fake_parent.symbol_table.add(DataSymbol('z', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2part_ref])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1

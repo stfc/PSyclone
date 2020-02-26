@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -311,6 +312,8 @@ def test_inout_parameters_nemo(parser):
     '''Test detection of input and output parameters in NEMO.
     '''
     reader = FortranStringReader('''program test
+                         integer :: ji, jj, jpi, jpj
+                         real :: a(5,5), c(5,5), b
                          do jj = 1, jpj   ! loop 0
                             do ji = 1, jpi
                                a(ji, jj) = b+c(ji, jj)

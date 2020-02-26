@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Node, Literal, CodeBlock
                                          ("1.0", DataType.REAL),
                                          (".tRue.", DataType.BOOLEAN),
                                          (".false.", DataType.BOOLEAN)])
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
     supported datatypes. Note that signed literals are represented in the
@@ -71,7 +71,7 @@ def test_handling_literal(code, dtype):
         assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_handling_invalid_logic_literal():
     ''' Test that a logic fparser2 literal with an invalid value produces
     an error.'''
