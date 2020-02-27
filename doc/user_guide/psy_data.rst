@@ -308,7 +308,7 @@ of ``PSyDataNode`` by providing additional parameters.
 
 There are two ways of passing options to the
 ``PSyDataNode``. The first one is used to pass
-parameter from the user's script to the constructor
+parameters from the user's transformation script to the constructor
 of the node inserted, the second for passing parameters
 from a derived node to the ``PSyDataNode`` base class.
 
@@ -318,9 +318,9 @@ Passing Parameters From the User to the Node Constructor
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Options can be passed from the user via the
 transformation to the node that will create the code.
-This is done by using the option dictionary that is
-a standard parameter for all validation- and
-application-calls of a transformations (see
+This is done by using the ``options`` dictionary that is
+a standard parameter for all ``validate`` and
+``apply`` calls of a transformation (see
 :ref:`transformations_application`). Besides using
 this dictionary for validation and application parameters,
 ``PSyDataTrans`` passes it to the constructor
@@ -330,25 +330,28 @@ can overwrite the default name given to a region (which
 can be somewhat cryptic due to the need to be unique).
 The region name is validated by ``PSyDataTrans``, and
 then passed to the node constructor. The ``PSyDataNode``
-stores the name as instance attributes, so that they can
+stores the name as an instance attributes, so that they can
 be used at code creation time (when ``gen_code`` is being
 called). Here the list of all options that the PSyData
-node supports in the option dictionary
+node supports in the option dictionary:
 
-==============   =========================================
-Parameter Name   Description
-==============   =========================================
-region_name      This allows to overwrite the region name
-                 used by the ``PSyDataNode``. It must
-                 be a pair of strings: the first one being
-                 the name of the module, the second the
-                 name of the region. The names are used
-                 e.g. by the ``ProfileNode`` to define
-                 a unique region name for a profiled
-                 code region, or by ``GOceanExtractNode``
-                 to define the file name for the output
-                 data- and driver-files.
-==============   =========================================
+.. table::
+    :widths: 2,10
+
+    =============== =========================================
+    Parameter Name  Description
+    =============== =========================================
+    region_name     Overwrites the region name
+                    used by the ``PSyDataNode``. It must
+                    be a pair of strings: the first one being
+                    the name of the module, the second the
+                    name of the region. The names are used
+                    e.g. by the ``ProfileNode`` to define
+                    a unique region name for a profiled
+                    code region, or by ``GOceanExtractNode``
+                    to define the file name for the output
+                    data- and driver-files.
+    =============== =========================================
 
 
 Passing Parameter From a Derived Node to the ``PSyDataNode``

@@ -66,7 +66,7 @@ class RegionTrans(Transformation):
     valid_node_types = ()
 
     def get_node_list(self, nodes):
-        '''This is a helper function for region based transformation.
+        '''This is a helper function for region based transformations.
         The parameter for any of those transformations is either a single
         node, a schedule, or a list of nodes. This function converts this
         into a list of nodes according to the parameter type. Note that the
@@ -80,6 +80,7 @@ class RegionTrans(Transformation):
 
         :returns: a list of nodes.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
         :raises TransformationError: if the supplied parameter is neither a \
             single Node, nor a Schedule, nor a list of Nodes.
 
@@ -95,12 +96,12 @@ class RegionTrans(Transformation):
             return [nodes]
 
         arg_type = str(type(nodes))
-        raise TransformationError("Error in {1}: "
+        raise TransformationError("Error in {0}: "
                                   "Argument must be a single Node in a "
                                   "Schedule, a Schedule or a list of Nodes "
                                   "in a Schedule but have been passed an "
-                                  "object of type: {0}".
-                                  format(arg_type, self.name))
+                                  "object of type: {1}".
+                                  format(self.name, arg_type))
 
     def validate(self, node_list, options=None):
         '''Checks that the nodes in node_list are valid for a region

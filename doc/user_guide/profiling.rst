@@ -310,7 +310,7 @@ A profile region derives its name from two components:
 
 `module_name`
     A string identifying the psy-layer containing this 
-    profile node
+    profile node.
 `region_name`
     A string identifying the invoke containing 
     this profile node and its location within the invoke
@@ -460,7 +460,7 @@ module. The functions that need to be implemented are described in
 :ref:`ProfilingAPI`, including the opaque, user-defined type
 ``PSyData``.
 
-The examples in the ``lib/profiling directory`` show various ways
+The examples in the ``lib/profiling`` directory show various ways
 in which the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
 an index used by the profiling tool in ``PSyData``, or 
