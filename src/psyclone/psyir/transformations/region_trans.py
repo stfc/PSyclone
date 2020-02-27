@@ -69,9 +69,11 @@ class RegionTrans(Transformation):
         '''This is a helper function for region based transformations.
         The parameter for any of those transformations is either a single
         node, a schedule, or a list of nodes. This function converts this
-        into a list of nodes according to the parameter type. Note that the
-        list might be a copy of the argument or the list of children of a
-        schedule, so the result list should not be modified.
+        into a list of nodes according to the parameter type. This function
+        will always return a copy, to avoid issues e.g. if a child list
+        of a node should be provided, and a transformation changes the order
+        in this list (which would then also change the order of the
+        nodes in the tree).
 
         :param nodes: can be a single node, a schedule or a list of nodes.
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or  \
@@ -85,12 +87,15 @@ class RegionTrans(Transformation):
             single Node, nor a Schedule, nor a list of Nodes.
 
         '''
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            return nodes
+        if isinstance(nodes, list) and \
+                all(isinstance(node, Node) for node in nodes):
+            # We still need to return a copy, since the user might have
+            # provided Node.children as parameter.
+            return nodes[:]
         if isinstance(nodes, Schedule):
             # We've been passed a Schedule so default to enclosing its
             # children.
-            return nodes.children
+            return nodes.children[:]
         if isinstance(nodes, Node):
             # Single node that's not a Schedule
             return [nodes]
