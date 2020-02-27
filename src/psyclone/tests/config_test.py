@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -62,7 +63,10 @@ DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 [dynamo0.3]
+access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                 gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
+default_kind = real: r_def, integer: i_def, logical: l_def
 '''
 
 
@@ -405,6 +409,21 @@ def test_broken_fmt(tmpdir):
                 "formatted correctly? (Error was: File contains no section "
                 "headers" in str(err.value))
 
+    # Test for general parsing error (here broken key-value mapping)
+    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
+                     "DEFAULT",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            config = Config()
+            config.load(config_file=str(config_file))
+        assert "Error was: Source contains parsing errors" in str(err.value)
+
 
 def test_default_missing(tmpdir):
     ''' Check that we produce a suitable error if the [DEFAULT] section
@@ -571,7 +590,7 @@ def test_invalid_access_mapping(tmpdir):
     'read', 'write', ...) raises an exception.
     '''
     # Test for an invalid key
-    content = _CONFIG_CONTENT + "access_mapping = gh_read:invalid"
+    content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
     config_file = tmpdir.join("config")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)

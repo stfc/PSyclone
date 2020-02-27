@@ -217,11 +217,14 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-        from configparser import ConfigParser, MissingSectionHeaderError
+        from configparser import ConfigParser, MissingSectionHeaderError, \
+            ParsingError
         self._config = ConfigParser()
         try:
             self._config.read(self._config_file)
-        except MissingSectionHeaderError as err:
+        # Check for missing section headers and general parsing errors
+        # (e.g. incomplete or incorrect key-value mapping)
+        except (MissingSectionHeaderError, ParsingError) as err:
             raise ConfigurationError(
                 "ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: {0})".format(str(err)),
@@ -653,7 +656,7 @@ class APISpecificConfig(object):
         self._access_mapping = {"read": "read", "write": "write",
                                 "readwrite": "readwrite", "inc": "inc",
                                 "sum": "sum"}
-        # Get the mapping and convert it into a directory. The input is in
+        # Get the mapping and convert it into a dictionary. The input is in
         # the format: key1:value1, key2=value2, ...
         mapping = section.get("ACCESS_MAPPING")
         if mapping:
@@ -756,33 +759,50 @@ class DynConfig(APISpecificConfig):
         self._compute_annexed_dofs = None
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._default_kind = {}
+        # Set mandatory keys
+        # TODO: to be fully populated here for LFRic (Dynamo0.3) API in #282
+        # when Dynamo0.1 API is removed.
+        self._mandatory_keys = []
 
-        # Parse setting for redundant computation over annexed dofs
-        try:
-            self._compute_annexed_dofs = section.getboolean(
-                'COMPUTE_ANNEXED_DOFS')
-        except ValueError as err:
-            raise ConfigurationError(
-                "error while parsing COMPUTE_ANNEXED_DOFS in the [dynamo0.3] "
-                "section of the config file: {0}".format(str(err)),
-                config=self._config)
+        # TODO: This "if" clause will become redundant in #282 as there will be
+        # just LFRic (Dynamo0.3) configuration
+        if section.name == "dynamo0.3":
+            # Define and check mandatory keys
+            self._mandatory_keys = ["access_mapping",
+                                    "COMPUTE_ANNEXED_DOFS", "default_kind"]
+            mdkeys = {key.lower() for key in self._mandatory_keys}
+            if not mdkeys.issubset(set(section.keys())):
+                raise ConfigurationError(
+                    "Missing mandatory configuration option in the "
+                    "'[dynamo0.3]' section of the configuration file '{0}'. "
+                    "Valid options are: '{1}'."
+                    .format(config.filename, self._mandatory_keys))
 
-        # Parse setting for default kinds (precisions)
-        if "default_kind" in section:
-            # Set default kinds (precisions) from config file
+            # Parse setting for redundant computation over annexed dofs
+            try:
+                self._compute_annexed_dofs = section.getboolean(
+                    "COMPUTE_ANNEXED_DOFS")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "[dynamo0.3] section of the config file: {0}"
+                    .format(str(err)), config=self._config)
+
+            # Parse setting for default kinds (precisions)
             all_kinds = self.create_dict_from_string(section["default_kind"])
+            # Set default kinds (precisions) from config file
             from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES
             # Check for valid datatypes (filter to remove empty values)
-            datatypes = list(filter(None, all_kinds.keys()))
-            if datatypes != SUPPORTED_FORTRAN_DATATYPES:
+            datatypes = set(filter(None, all_kinds.keys()))
+            if datatypes != set(SUPPORTED_FORTRAN_DATATYPES):
                 raise ConfigurationError(
                     "Invalid datatype found in the '[dynamo0.3]' "
                     "section of the configuration file '{0}'. "
                     "Valid datatypes are: '{1}'."
                     .format(config.filename, SUPPORTED_FORTRAN_DATATYPES))
             # Check for valid kinds (filter to remove any empty values)
-            datakinds = list(filter(None, all_kinds.values()))
-            if len(datakinds) != len(SUPPORTED_FORTRAN_DATATYPES):
+            datakinds = set(filter(None, all_kinds.values()))
+            if len(datakinds) != len(set(SUPPORTED_FORTRAN_DATATYPES)):
                 raise ConfigurationError(
                     "Did not find default kind for one or more "
                     "datatypes in the '[dynamo0.3]' section "

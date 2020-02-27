@@ -48,8 +48,7 @@ from psyclone.configuration import Config, ConfigurationError
 TEST_API = "dynamo0.3"
 
 
-# Valid configuration file content with only defaults and
-# annexed dofs for testing purposes
+# Valid configuration file content for testing purposes
 _CONFIG_CONTENT = '''\
 [DEFAULT]
 API = dynamo0.3
@@ -58,7 +57,10 @@ DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 [dynamo0.3]
+access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                 gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
+default_kind = real: r_def, integer: i_def, logical: l_def
 '''
 
 
@@ -81,9 +83,32 @@ def clear_config_instance():
     Config._instance = None
 
 
+def test_no_mandatory_option(tmpdir):
+    ''' Check that we raise an error if we do not provide mandatory
+    configuration options for LFRic (Dynamo0.3) API '''
+
+    # Test invalid datatype
+    content = re.sub(r"^default_kind = .*$",
+                     "",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("Missing mandatory configuration option in the "
+                "\'[dynamo0.3]\' section " in str(err.value))
+        assert ("Valid options are: '['access_mapping', "
+                "'COMPUTE_ANNEXED_DOFS', 'default_kind']" in str(err.value))
+
+
 def test_anx_dof_not_bool(tmpdir):
-    ''' Check that we raise an error if the COMPUTE_ANNEXED_DOFS
-    setting is not a Boolean '''
+    ''' Check that we raise an error if the COMPUTE_ANNEXED_DOFS option
+    value is not a Boolean '''
     content = re.sub(r"^COMPUTE_ANNEXED_DOFS = .*$",
                      "COMPUTE_ANNEXED_DOFS = tree",
                      _CONFIG_CONTENT,
@@ -101,12 +126,11 @@ def test_anx_dof_not_bool(tmpdir):
 
 
 def test_invalid_default_kind(tmpdir):
-    ''' Check that we raise an error if we supply an invalid
-    datatype or kind (precision) in the configuration file '''
+    ''' Check that we raise an error if we supply an invalid datatype or
+    kind (precision) in the configuration file '''
 
     # Test invalid datatype
-    content = _CONFIG_CONTENT + \
-        "default_kind = reality: r_def, integer: i_def, logical: l_def"
+    content = re.sub("real:", "reality:", _CONFIG_CONTENT, flags=re.MULTILINE)
     config_file = tmpdir.join("config_dyn")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -121,8 +145,7 @@ def test_invalid_default_kind(tmpdir):
                 in str(err.value))
 
     # Test invalid kind (precision)
-    content = _CONFIG_CONTENT + \
-        "default_kind = real: r_def, integer: , logical: l_def"
+    content = re.sub("integer: i_def,", "integer: ,", _CONFIG_CONTENT)
     config_file = tmpdir.join("config_dyn")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -140,8 +163,7 @@ def test_default_kind():
     datatypes. This test will be modified to test whether the default
     kinds are in a list of allowed kinds for each datatype when the
     functionality is introduced. '''
-    config = Config()
-    api_config = config.get().api_conf(TEST_API)
+    api_config = Config().get().api_conf(TEST_API)
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
