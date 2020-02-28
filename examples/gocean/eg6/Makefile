@@ -36,9 +36,16 @@ F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 
+# The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
+
+# The name of the executable
 EXEC = extract_test
+
+# The name of the stand-alone driver that will do the init invokes.
 DRIVER_INIT = driver-main-init
+
+# The name of the stand-alone driver that will call the update function.
 DRIVER_UPDATE = driver-main-update
 
 all:	$(EXEC)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,10 @@ from __future__ import absolute_import
 import re
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.psyGen import Loop, NameSpace
+from psyclone.psyGen import NameSpace
 from psyclone.tests.utilities import get_invoke
 
 
@@ -57,86 +58,27 @@ def clear_psydata_namespace():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_basic(capsys):
-    # pylint: disable=too-many-locals
-    '''Check basic functionality: node names, schedule view.
-    '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
-    schedule = invoke.schedule
+def test_basics(monkeypatch):
+    '''Tests some elementary functions.'''
+    psy_node = PSyDataNode()
+    assert "PSyDataStart[var=psy_data]\n"\
+        "PSyDataEnd[var=psy_data]" in str(psy_node)
 
-    data_trans = PSyDataTrans()
-    assert "Insert a PSyData node" in str(data_trans)
-    assert data_trans.name == "PSyDataTrans"
-    data_trans.apply(schedule)
+    monkeypatch.setattr(psy_node, "children", [])
+    with pytest.raises(InternalError) as error:
+        _ = psy_node.psy_data_body
+    assert "PSyData node malformed or incomplete" in str(error.value)
 
-    assert isinstance(invoke.schedule[0], PSyDataNode)
+    psy_node_rename = \
+        PSyDataNode(options={"region_name": ("module", "local")})
+    assert psy_node_rename.region_identifier == ("module", "local")
 
-    schedule.view()
-    out, _ = capsys.readouterr()
-
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = Loop().coloured_name(True)
-    data = invoke.schedule[0].coloured_name(True)
-
-    # Do one test based on schedule view, to make sure colouring
-    # and indentation is correct
-    expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    0: " + data + "[]\n"
-        "        " + sched + "[]\n"
-        "            0: " + loop + "[type='outer', field_space='go_cv', "
-        "it_space='go_internal_pts']\n")
-    assert expected in out
-
-    # Insert a DataTrans call between outer and inner loop.
-    # This tests that we find the subroutine node even
-    # if it is not the immediate parent.
-    new_sched, _ = data_trans.apply(invoke.schedule[0].psy_data_body[0]
-                                    .loop_body[0])
-
-    new_sched_str = str(new_sched)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-PSyDataStart[var=psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'jstop-1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-PSyDataStart[var=psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data_1]
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data]
-End Schedule""")
-
-    assert correct in new_sched_str
+    # Test incorrect rename type
+    with pytest.raises(InternalError) as error:
+        psy_node_rename = \
+            PSyDataNode(options={"region_name": 1})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(error.value)
 
 
 # -----------------------------------------------------------------------------
