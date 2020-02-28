@@ -87,9 +87,7 @@ def test_no_mandatory_option(tmpdir):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
 
-    # Test invalid datatype
-    content = re.sub(r"^default_kind = .*$",
-                     "",
+    content = re.sub(r"^default_kind = .*$", "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config_dyn")
@@ -130,7 +128,9 @@ def test_invalid_default_kind(tmpdir):
     kind (precision) in the configuration file '''
 
     # Test invalid datatype
-    content = re.sub("real:", "reality:", _CONFIG_CONTENT, flags=re.MULTILINE)
+    content = re.sub(r"real:", "reality:",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
     config_file = tmpdir.join("config_dyn")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
