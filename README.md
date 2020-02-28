@@ -55,4 +55,5 @@ src/psyclone/tests/ | Unit and functional tests using pytest
 
 [![Coverage Status](https://coveralls.io/repos/github/stfc/PSyclone/badge.svg?branch=master)](https://coveralls.io/github/stfc/PSyclone?branch=master)
 
+[![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 
