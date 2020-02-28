@@ -62,7 +62,7 @@ class LFRicExtractTrans(ExtractTrans):
     '''
 
     def __str__(self):
-        return "Inserts an ExtractNode in an LFRic-based tree."
+        return "Inserts an ExtractNode in an LFRic Schedule."
 
     @property
     def name(self):
