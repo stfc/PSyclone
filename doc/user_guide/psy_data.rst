@@ -330,7 +330,7 @@ can overwrite the default name given to a region (which
 can be somewhat cryptic due to the need to be unique).
 The region name is validated by ``PSyDataTrans``, and
 then passed to the node constructor. The ``PSyDataNode``
-stores the name as an instance attributes, so that they can
+stores the name as an instance attribute, so that they can
 be used at code creation time (when ``gen_code`` is being
 called). Here the list of all options that the PSyData
 node supports in the option dictionary:
