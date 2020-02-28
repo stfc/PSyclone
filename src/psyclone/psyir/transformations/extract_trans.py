@@ -86,7 +86,8 @@ class ExtractTrans(PSyDataTrans):
         return "ExtractTrans"
 
     def validate(self, node_list, options=None):
-        ''' Perform validation checks before applying the transformation
+        '''Performs validation checks common to all extract-based
+        transformations.
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -105,7 +106,7 @@ class ExtractTrans(PSyDataTrans):
                                      Directive.
         '''
 
-        # Now check ExtractTrans specific constraints.
+        # Check ExtractTrans specific constraints.
 
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.

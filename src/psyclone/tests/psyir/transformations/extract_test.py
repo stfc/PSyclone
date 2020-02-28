@@ -60,7 +60,7 @@ def test_extract_trans():
     assert etrans.name == "ExtractTrans"
 
     ltrans = LFRicExtractTrans()
-    assert str(ltrans) == "Inserts an ExtractNode in an LFRic-based tree."
+    assert str(ltrans) == "Inserts an ExtractNode in an LFRic Schedule."
 
 
 def test_malformed_extract_node(monkeypatch):

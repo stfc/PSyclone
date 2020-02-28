@@ -680,47 +680,6 @@ def test_transform_errors(capsys):
     schedule = invoke.schedule
     prt = ProfileTrans()
 
-    with pytest.raises(TransformationError) as excinfo:
-        prt.apply([schedule.children[0].children[0], schedule.children[1]])
-    assert "supplied nodes are not children of the same parent." \
-           in str(excinfo.value)
-
-    # Supply not a node object:
-    with pytest.raises(TransformationError) as excinfo:
-        prt.apply(5)
-    assert "Argument must be a single Node in a Schedule, a Schedule or a " \
-           "list of Nodes in a Schedule but have been passed an object of " \
-           "type: " in str(excinfo.value)
-    # Python 3 reports 'class', python 2 'type' - so just check for both
-    assert ("<type 'int'>" in str(excinfo.value) or "<class 'int'>"
-            in str(excinfo.value))
-
-    # Test that it will only allow correctly ordered nodes:
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[1], schedule.children[0]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[0], schedule.children[2]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
-    # Test 3 element lists: first various incorrect ordering:
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[0],
-                               schedule.children[2],
-                               schedule.children[1]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[1],
-                               schedule.children[0],
-                               schedule.children[2]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
     # Just to be sure: also check that the right order does indeed work!
     sched1, _ = prt.apply([schedule.children[0],
                            schedule.children[1],
