@@ -352,15 +352,14 @@ def test_single_kern_eval_op(tmpdir):
     assert dealloc in gen_code
 
 
-def test_two_qr(tmpdir):
+def test_two_qr_same_shape(tmpdir):
     ''' Check that we handle an invoke containing two kernels that each
-    require quadrature '''
+    require quadrature (with the same shape). '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.2_single_invoke_2qr.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -557,6 +556,45 @@ def test_two_identical_qr(tmpdir):
         "DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
         "diff_basis_w3_qr)")
     assert expected_dealloc in gen_code
+
+
+def test_two_qr_different_shapes(tmpdir):
+    ''' Check that we handle an invoke containing two kernels that each
+    require quadrature (with different shapes). '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.8_single_invoke_2qr_shapes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert "TYPE(quadrature_face_proxy_type) qrf_proxy" in gen_code
+    assert "TYPE(quadrature_xyoz_proxy_type) qr_proxy" in gen_code
+
+    assert "qr_proxy = qr%get_quadrature_proxy()" in gen_code
+    assert "np_xy_qr = qr_proxy%np_xy" in gen_code
+    assert "np_z_qr = qr_proxy%np_z" in gen_code
+    assert "weights_xy_qr => qr_proxy%weights_xy" in gen_code
+    assert "weights_z_qr => qr_proxy%weights_z" in gen_code
+
+    assert "qrf_proxy = qrf%get_quadrature_proxy()" in gen_code
+    assert "np_xyz_qrf = qrf_proxy%np_xyz" in gen_code
+    assert "nfaces_qrf = qrf_proxy%nfaces" in gen_code
+    assert "weights_xyz_qrf => qrf_proxy%weights_xyz" in gen_code
+
+    assert ("CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
+            "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+            "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
+            "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
+            "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)"
+            in gen_code)
+    assert ("CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), basis_w1_qrf, ndf_w2, undf_w2, map_w2(:,cell), "
+            "diff_basis_w2_qrf, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qrf,"
+            " diff_basis_w3_qrf, nfaces_qrf, np_xyz_qrf, weights_xyz_qrf)"
+            in gen_code)
 
 
 def test_anyw2(tmpdir):
