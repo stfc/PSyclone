@@ -1795,7 +1795,8 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
         dbasis, "_qr_vars", {"unsupported-shape": None})
     with pytest.raises(GenerationError) as err:
         dbasis._stub_declarations(ModuleGen(name="my_mod"))
-    assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
+    assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ, "
+            "GH_QUADRATURE_FACE and GH_QUADRATURE_EDGE are not yet "
             "supported - got: 'unsupported-shape'" in str(err.value))
 
 
