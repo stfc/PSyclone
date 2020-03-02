@@ -3936,7 +3936,6 @@ class DynBasisFunctions(DynCollection):
                                   funcnames=[
                                       QUADRATURE_TYPE_MAP[shp]["type"],
                                       QUADRATURE_TYPE_MAP[shp]["proxy_type"]]))
-            # TODO is there a nicer way of doing the following?
             self._initialise_xyz_qr(parent)
             self._initialise_xyoz_qr(parent)
             self._initialise_xoyoz_qr(parent)
@@ -4300,10 +4299,8 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
-            # Number of edges
-            #parent.add(
-            #    AssignGen(parent, lhs=
-            # Number of points in each dimension
+            # The dimensioning variables required for this quadrature
+            # (e.g. nedges, np_xyz)
             for qr_var in self.qr_dim_vars["edge"]:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
@@ -7001,7 +6998,7 @@ class DynKern(CodedKern):
     def eval_shapes(self):
         '''
         :return: the value(s) of GH_SHAPE for this kernel or an empty list \
-                 if none is specified.
+                 if none are specified.
         :rtype: list
         '''
         return self._eval_shapes
@@ -7929,7 +7926,9 @@ class KernCallArgList(ArgOrdering):
             else:
                 raise NotImplementedError(
                     "quad_rule: no support implemented for quadrature with a "
-                    "shape of '{0}'".format(shape))
+                    "shape of '{0}'. Supported shapes are: "
+                    "gh_quadrature_xyoz, gh_quadrature_edge and "
+                    "gh_quadrature_face.".format(shape))
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''
@@ -8329,7 +8328,7 @@ class KernStubArgList(ArgOrdering):
 
     def quad_rule(self):
         ''' Provide quadrature information for this kernel stub (necessary
-        arguments and declarations). '''
+        arguments). '''
         for rule in self._kern.qr_rules.values():
             self._arglist.extend(rule.kernel_args)
 
@@ -8589,7 +8588,8 @@ def check_args(call):
                 # a direction argument must be provided
                 stencil_arg_count += 1
 
-    # qr_argument
+    # Quadrature arguments - will have as many as there are distinct
+    # quadrature shapes specified in the metadata.
     qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
         set(VALID_QUADRATURE_SHAPES)))
 
