@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors L. Mitchell Imperial College, R. W. Ford and A. R. Porter STFC
-# Daresbury Lab
+# Authors: L. Mitchell Imperial College
+#          R. W. Ford and A. R. Porter STFC Daresbury Lab
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -835,8 +835,13 @@ class KernelType(object):
 
         :raises InternalError: if we fail to parse the LHS of the array \
                                declaration or the array constructor.
+        :raises ParseError: if the array is not of rank 1.
+        :raises ParseError: if the array extent is not specified using an \
+                            integer literal.
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
+        :raises ParseError: if the number of items in the array constructor \
+                            does not match the extent of the array.
 
         '''
         # Ensure the classes are setup for the Fortran2003 parser
@@ -866,7 +871,7 @@ class KernelType(object):
 
             if not isinstance(assign.children[0].children[1],
                               Fortran2003.Section_Subscript_List):
-                raise ParseError(
+                raise InternalError(
                     "get_integer_array: expected array declaration to have a "
                     "Section_Subscript_List but found '{0}' for: {1}".format(
                         type(assign.children[0].children[1]).__name__,

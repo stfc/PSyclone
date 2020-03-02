@@ -444,6 +444,16 @@ def test_get_integer_array():
     assert ("array must be 1D but found an array with 2 dimensions for name "
             "'gh_shape'" in str(err.value))
 
+    # Break RHS so that it is not an array constructor
+    new_code = DIFF_BASIS.replace(
+        "(/gh_quadrature_XYoZ, gh_quadrature_edge/)",
+        "gh_quadrature_XYoZ")
+    parse_tree = parse(new_code)
+    tmp = KernelType(parse_tree)
+    with pytest.raises(ParseError) as err:
+        tmp.get_integer_array("gh_shape")
+    assert "RHS of assignment is not an array constructor" in str(err.value)
+
     # Check that we return an empty list if the matched name is a scalar
     new_code = DIFF_BASIS.replace(
         "integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)",
@@ -453,9 +463,9 @@ def test_get_integer_array():
     assert tmp.get_integer_array("gh_shape") == []
 
 
-def test_get_int_array_err1(monkeypatch):
+def test_get_int_array_name_err(monkeypatch):
     ''' Tests that we raise the correct error if there is something wrong
-    with the assignment statement obtained from fparser2. '''
+    with the Name in the assignment statement obtained from fparser2. '''
     from fparser.two import Fortran2003
     # This is difficult as we have to break the result returned by fparser2.
     # We therefore create a valid KernelType object
@@ -482,7 +492,7 @@ def test_get_int_array_err1(monkeypatch):
             in str(err.value))
 
 
-def test_get_int_array_err2(monkeypatch):
+def test_get_int_array_constructor_err(monkeypatch):
     ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
     from fparser.two import Fortran2003
@@ -507,3 +517,30 @@ def test_get_int_array_err2(monkeypatch):
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert ("Failed to parse array constructor: '[hello, goodbye]'"
             in str(err.value))
+
+
+def test_get_int_array_section_subscript_err(monkeypatch):
+    ''' Check that we raise the appropriate error if the parse tree for the
+    LHS of the array declaration is broken. '''
+    from fparser.two import Fortran2003
+    # First create a valid KernelType object
+    ast = parse(DIFF_BASIS, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Create a valid fparser2 result
+    assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
+    # Break the array constructor expression by replacing the
+    # Section_Subscript_List with a str
+    assign.children[0].items = (assign.children[0].items[0], "hello")
+
+    # Use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test
+
+    def my_init(self, _):
+        ''' dummy constructor '''
+        self.items = assign.items
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert ("expected array declaration to have a Section_Subscript_List but "
+            "found" in str(err.value))
