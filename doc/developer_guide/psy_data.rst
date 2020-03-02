@@ -48,7 +48,7 @@ Profiling:
   By inserting callbacks before and after a region of code,
   performance measurements can be added. PSyclone provides
   wrapper libraries for some common performance profiling tools,
-  see :ref:`profiling` for details.
+  see :ref:`user_guide:profiling` for details.
 
 Kernel Data Extraction:
   PSyclone provides the ability to add callbacks that provide access
@@ -57,7 +57,7 @@ Kernel Data Extraction:
   a kernel, or to write a stand-alone driver that just calls one
   kernel, which can be used for performance tuning. An example
   library that extracts input- and output-data into a netcdf file
-  is included with PSyclone (see :ref:`psyke_netcdf`).
+  is included with PSyclone (see :ref:`user_guid:psyke_netcdf`).
 
 In-situ Visualisation:
   By giving access to output fields of a kernel, an in-situ visualisation
@@ -143,7 +143,7 @@ called ``PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
-(see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`psyke_netcdf` for
+(see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`user_guide:psyke_netcdf` for
 a detailed description) or any of the profiling wrapper libaries
 (all contained in ``lib/profiling``)
 
@@ -182,7 +182,7 @@ a detailed description) or any of the profiling wrapper libaries
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
-    see :ref:`psyke_netcdf`).
+    see :ref:`user_guid:psyke_netcdf`).
     
     ``name``
       This is the name of the variable as a string.
@@ -193,7 +193,7 @@ a detailed description) or any of the profiling wrapper libaries
     The same call is used for different arguments, so a generic
     interface is recommended to distinguish between
     the data types provided. The netcdf kernel writer 
-    (see :ref:`psyke_netcdf`) uses the following declaration
+    (see :ref:`user_guide:psyke_netcdf`) uses the following declaration
     (with types defined in the dl_esm_inf library)::    
     
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
@@ -321,7 +321,7 @@ transformation to the node that will create the code.
 This is done by using the ``options`` dictionary that is
 a standard parameter for all ``validate`` and
 ``apply`` calls of a transformation (see
-:ref:`transformations_application`). Besides using
+:ref:`user_guide:transformations_application`). Besides using
 this dictionary for validation and application parameters,
 ``PSyDataTrans`` passes it to the constructor
 of the node that is being inserted. An example
@@ -385,15 +385,15 @@ If there is no variable to be provided by the PSyData API (i.e both
 ``pre_variable_list`` and ``post_variable_list`` are empty), then the
 ``PSyDataNode`` will only create a call to ``PreStart`` and
 ``PostEnd``. This is utilised by the profiling node to make the profiling
-API libraries (see :ref:`ProfilingAPI`) independent of the infrastructure
+API libraries (see :ref:`user_guide:ProfilingAPI`) independent of the infrastructure
 library (since a call to ``ProvideVariable`` can contain API-specific
 variable types). It also reduces the number of calls required before
 and after the instrumented region which can affect overall
-performance and precision of any measurements, see :ref:`profiling`
+performance and precision of any measurements, see :ref:`user_guide:profiling`
 for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
-as described under ``gen_code()`` above (see also :ref:`psyke_netcdf`).
+as described under ``gen_code()`` above (see also :ref:`user_guide:psyke_netcdf`).
