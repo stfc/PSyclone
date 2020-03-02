@@ -586,7 +586,7 @@ def test_mappings():
 
 
 def test_invalid_access_mapping(tmpdir):
-    '''Test that providing an invalid an invalid access type (i.e. not
+    '''Test that providing an invalid access type (i.e. not
     'read', 'write', ...) raises an exception.
     '''
     # Test for an invalid key
@@ -618,5 +618,25 @@ def test_default_access_mapping(tmpdir):
         config.load(str(config_file))
 
         api_config = config.api_conf("dynamo0.3")
+        for access_mode in api_config.get_access_mapping().values():
+            assert isinstance(access_mode, AccessType)
+
+
+def test_access_mapping_order(tmpdir):
+    ''' Test that the order of the access mappings in the config file
+    does not affect the correct access type-mode conversion. '''
+    content = re.sub(r"gh_write: write, gh_readwrite: readwrite",
+                     "gh_readwrite: readwrite, gh_write: write",
+                     _CONFIG_CONTENT)
+    content = re.sub(r"gh_inc: inc, gh_sum: sum",
+                     "gh_sum: sum, gh_inc: inc", content)
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+
+        api_config = Config.get().api_conf("dynamo0.3")
         for access_mode in api_config.get_access_mapping().values():
             assert isinstance(access_mode, AccessType)

@@ -101,7 +101,7 @@ def test_no_mandatory_option(tmpdir):
         assert ("Missing mandatory configuration option in the "
                 "\'[dynamo0.3]\' section " in str(err.value))
         assert ("Valid options are: '['access_mapping', "
-                "'COMPUTE_ANNEXED_DOFS', 'default_kind']" in str(err.value))
+                "'compute_annexed_dofs', 'default_kind']" in str(err.value))
 
 
 def test_anx_dof_not_bool(tmpdir):
@@ -154,8 +154,11 @@ def test_invalid_default_kind(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("Did not find default kind for one or more datatypes "
-                "in the \'[dynamo0.3]\' section " in str(err.value))
+        assert ("Supplied kind parameters \'[\'l_def\', \'r_def\']\' in "
+                "the \'[dynamo0.3]\' section" in str(err.value))
+        assert ("do not define the default kind for one or more supported "
+                "datatypes \'[\'real\', \'integer\', \'logical\']\'."
+                in str(err.value))
 
 
 def test_default_kind():

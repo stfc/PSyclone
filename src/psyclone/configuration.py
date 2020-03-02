@@ -663,6 +663,8 @@ class APISpecificConfig(object):
             self._access_mapping = \
                 APISpecificConfig.create_dict_from_string(mapping)
         # Now convert the string type ("read" etc) to AccessType
+        # TODO (issue #710): Add checks for duplicate or missing access
+        # key-value pairs
         from psyclone.core.access_type import AccessType
         for api_access_name, access_type in self._access_mapping.items():
             try:
@@ -765,12 +767,12 @@ class DynConfig(APISpecificConfig):
         self._mandatory_keys = []
 
         # TODO: This "if" clause will become redundant in #282 as there will be
-        # just LFRic (Dynamo0.3) configuration
+        # just LFRic (Dynamo0.3) API configuration
         if section.name == "dynamo0.3":
             # Define and check mandatory keys
             self._mandatory_keys = ["access_mapping",
-                                    "COMPUTE_ANNEXED_DOFS", "default_kind"]
-            mdkeys = {key.lower() for key in self._mandatory_keys}
+                                    "compute_annexed_dofs", "default_kind"]
+            mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(
                     "Missing mandatory configuration option in the "
@@ -781,7 +783,7 @@ class DynConfig(APISpecificConfig):
             # Parse setting for redundant computation over annexed dofs
             try:
                 self._compute_annexed_dofs = section.getboolean(
-                    "COMPUTE_ANNEXED_DOFS")
+                    "compute_annexed_dofs")
             except ValueError as err:
                 raise ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
@@ -804,10 +806,12 @@ class DynConfig(APISpecificConfig):
             datakinds = set(filter(None, all_kinds.values()))
             if len(datakinds) != len(set(SUPPORTED_FORTRAN_DATATYPES)):
                 raise ConfigurationError(
-                    "Did not find default kind for one or more "
-                    "datatypes in the '[dynamo0.3]' section "
-                    "of the configuration file '{0}'."
-                    .format(config.filename))
+                    "Supplied kind parameters '{0}' in the '[dynamo0.3]' "
+                    "section of the configuration file '{1}' do not define "
+                    "the default kind for one or more supported "
+                    "datatypes '{2}'."
+                    .format(sorted(datakinds), config.filename,
+                            SUPPORTED_FORTRAN_DATATYPES))
             self._default_kind = all_kinds
 
     @property
