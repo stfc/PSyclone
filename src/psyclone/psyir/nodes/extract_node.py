@@ -71,8 +71,15 @@ class ExtractNode(PSyDataNode):
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
+        if options:
+            my_options = options.copy()
+        else:
+            my_options = {}
+        # If there is no value specified by in the constructor, default
+        # to the "profile" class.
+        my_options["class"] = my_options.get("class", "extract")
         super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=options)
+                                          parent=parent, options=my_options)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 

@@ -70,9 +70,17 @@ class GOceanExtractNode(ExtractNode):
     '''
     def __init__(self, ast=None, children=None, parent=None,
                  options=None):
+        if options:
+            my_options = options.copy()
+        else:
+            my_options = {}
+        # If there is no value specified by in the constructor, default
+        # to the "profile" class.
+        my_options["class"] = my_options.get("class", "extract")
+
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
                                                 parent=parent,
-                                                options=options)
+                                                options=my_options)
         if options:
             self._create_driver = options.get("create_driver", False)
         else:
@@ -138,8 +146,8 @@ class GOceanExtractNode(ExtractNode):
         prog = SubroutineGen(parent=module, name=module_name+"_code",
                              implicitnone=True)
         module.add(prog)
-        use = UseGen(prog, "psy_data_mod", only=True,
-                     funcnames=["PSyDataType"])
+        use = UseGen(prog, "extract_psy_data_mod", only=True,
+                     funcnames=["extract_PSyDataType"])
         prog.add(use)
 
         # Use a symbol table to make sure all variable names are unique
@@ -147,9 +155,9 @@ class GOceanExtractNode(ExtractNode):
         sym = Symbol("PSyDataType")
         sym_table.add(sym)
 
-        psy_data = sym_table.new_symbol_name("psy_data")
+        psy_data = sym_table.new_symbol_name("extract_psy_data")
         sym_table.add(Symbol(psy_data))
-        var_decl = TypeDeclGen(prog, datatype="PSyDataType",
+        var_decl = TypeDeclGen(prog, datatype="extract_PSyDataType",
                                entity_decls=[psy_data])
         prog.add(var_decl)
 

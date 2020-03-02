@@ -68,7 +68,7 @@ class ProfileNode(PSyDataNode):
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
         if options:
-            my_options = dict(options)
+            my_options = options.copy()
         else:
             my_options = {}
         # If there is no value specified by in the constructor, default
