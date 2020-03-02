@@ -3608,7 +3608,7 @@ class DynBasisFunctions(DynCollection):
         # are the various VALID_QUADRATURE_SHAPES, values are a list of
         # associated quadrature variables. (i.e. we have a list of
         # quadrature arguments for each shape.)
-        self._qr_vars = {}
+        self._qr_vars = OrderedDict()
         # The dict of target function spaces upon which we must provide
         # evaluators. Keys are the FS names, values are (FunctionSpace,
         # DynKernelArgument) tuples.
