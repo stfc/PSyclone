@@ -690,8 +690,8 @@ def test_multi_qr_stub_gen():
             "diff_basis_w3_qr_face, diff_basis_w3_qr_edge, nfaces_qr_face, "
             "np_xyz_qr_face, weights_xyz_qr_face, nedges_qr_edge, "
             "np_xyz_qr_edge, weights_xyz_qr_edge)" in generated_code)
-    assert ("INTEGER, intent(in) :: np_xyz_qr_face, nfaces_qr_face, "
-            "np_xyz_qr_edge, nedges_qr_edge" in generated_code)
+    assert ("INTEGER(KIND=i_def), intent(in) :: np_xyz_qr_face, "
+            "nfaces_qr_face, np_xyz_qr_edge, nedges_qr_edge" in generated_code)
     assert (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
         "np_xyz_qr_face,nfaces_qr_face) :: basis_w1_qr_face\n"
@@ -732,7 +732,8 @@ def test_qr_plus_eval_stub_gen():
         "basis_w3_on_w1, diff_basis_w3_qr_face, diff_basis_w3_on_w1, "
         "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face)"
         in gen_code)
-    assert "INTEGER, intent(in) :: np_xyz_qr_face, nfaces_qr_face" in gen_code
+    assert ("INTEGER(KIND=i_def), intent(in) :: np_xyz_qr_face, nfaces_qr_face"
+            in gen_code)
     assert (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xyz_qr_face"
         ",nfaces_qr_face) :: basis_w1_qr_face\n"

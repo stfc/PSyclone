@@ -4343,6 +4343,7 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
                     entity_decls=[name+"_"+qr_arg_name for name in qr_vars]))
             decl_list = [name+"_"+qr_arg_name+"(:,:) => null()"
                          for name in qr_ptr_vars]
@@ -4393,6 +4394,7 @@ class DynBasisFunctions(DynCollection):
                     root_name=name+"_"+qr_arg_name, context="PSyVars",
                     label=name+"_"+qr_arg_name))
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=decl_list))
 
             decl_list = []

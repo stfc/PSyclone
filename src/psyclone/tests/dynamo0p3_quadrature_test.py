@@ -223,6 +223,7 @@ def test_edge_qr(tmpdir, dist_mem):
     assert ("use quadrature_edge_mod, only: quadrature_edge_type, "
             "quadrature_edge_proxy_type\n" in gen_code)
     assert "type(quadrature_edge_type), intent(in) :: qr\n" in gen_code
+    assert "integer(kind=i_def) np_xyz_qr, nedges_qr" in gen_code
     assert (
         "      qr_proxy = qr%get_quadrature_proxy()\n"
         "      np_xyz_qr = qr_proxy%np_xyz\n"
@@ -257,7 +258,7 @@ def test_face_qr(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
-    print(generated_code)
+
     output_decls = (
         "      USE testkern_qr_faces_mod, ONLY: testkern_qr_faces_code\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
@@ -269,19 +270,20 @@ def test_face_qr(tmpdir, dist_mem):
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
-        "      INTEGER cell\n"
+        "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
+        "      INTEGER(KIND=i_def) dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
-        "      INTEGER np_xyz_qr, nfaces_qr\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) np_xyz_qr, nfaces_qr\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_face_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n")
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n")
     assert output_decls in generated_code
     init_output = (
         "      !\n"
@@ -431,10 +433,11 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
             "diff_basis_w3_qr_edge(:,:,:,:)" in gen_code)
     assert ("      REAL(KIND=r_def), pointer :: weights_xyz_qr_edge(:,:) "
             "=> null()\n"
-            "      INTEGER np_xyz_qr_edge, nedges_qr_edge\n"
+            "      INTEGER(KIND=i_def) np_xyz_qr_edge, nedges_qr_edge\n"
             "      REAL(KIND=r_def), pointer :: weights_xyz_qr_face(:,:) "
             "=> null()\n"
-            "      INTEGER np_xyz_qr_face, nfaces_qr_face\n" in gen_code)
+            "      INTEGER(KIND=i_def) np_xyz_qr_face, nfaces_qr_face\n"
+            in gen_code)
     assert ("      TYPE(quadrature_edge_proxy_type) qr_edge_proxy\n"
             "      TYPE(quadrature_face_proxy_type) qr_face_proxy\n"
             in gen_code)
@@ -764,7 +767,8 @@ def test_qr_basis_stub():
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, np_z_qr_xyoz\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "np_z_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), "
         "dimension(1,ndf_w0,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w0_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
