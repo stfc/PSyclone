@@ -98,8 +98,8 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
 
     # Check that we've declared the loop-related variables
     # and colour-map pointers
-    assert "integer, pointer :: cmap(:,:)" in gen
-    assert "integer ncolour" in gen
+    assert "integer(kind=i_def), pointer :: cmap(:,:)" in gen
+    assert "integer(kind=i_def) ncolour" in gen
     assert "integer colour" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -49,18 +49,16 @@
 !>
 module rtheta_bd_kernel_mod
 
+  use kernel_mod,            only : kernel_type
   use argument_mod,          only : arg_type, func_type, mesh_data_type, &
-                                    reference_element_data_type,         &
-                                    GH_FIELD, GH_READ, GH_READWRITE,     &
-                                    GH_BASIS, GH_DIFF_BASIS,             &
-                                    CELLS, GH_QUADRATURE_face,           &
+                                    GH_FIELD, GH_READ, GH_INC,           &
+                                    W2, Wtheta, GH_BASIS, GH_DIFF_BASIS, &
+                                    CELLS, GH_QUADRATURE_FACE,           &
                                     adjacent_face,                       &
-                                    normals_to_horizontal_faces,         &
-                                    outward_normals_to_horizontal_faces
+                                    reference_element_normal_to_face,    &
+                                    reference_element_out_face_normal
   use constants_mod,         only : r_def, i_def, l_def
   use cross_product_mod,     only : cross_product
-  use fs_continuity_mod,     only : W2, Wtheta
-  use kernel_mod,            only : kernel_type
   use planet_config_mod,     only : cp
   use reference_element_mod, only : reference_element_type
 
@@ -68,22 +66,21 @@ module rtheta_bd_kernel_mod
 
   private
 
-  !---------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
   ! Public types
-  !---------------------------------------------------------------------------
-  !> The type declaration for the kernel. Contains the metadata needed by the
-  !> PSy layer.
+  !-------------------------------------------------------------------------------
+  !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: rtheta_bd_kernel_type
     private
     type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_FIELD,   GH_READWRITE,  Wtheta),                       &
-         arg_type(GH_FIELD,   GH_READ,       Wtheta),                       &
-         arg_type(GH_FIELD,   GH_READ,       W2)                            &
-         /)
+        arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                         &
+        arg_type(GH_FIELD,   GH_READ,      Wtheta),                         &
+        arg_type(GH_FIELD,   GH_READ,      W2)                              &
+        /)
     type(func_type) :: meta_funcs(2) = (/                                   &
-         func_type(W2,     GH_BASIS),                                       &
-         func_type(Wtheta, GH_BASIS)                                        &
-         /)
+        func_type(W2, GH_BASIS),                                            &
+        func_type(Wtheta, GH_BASIS)                                         &
+        /)
     type(mesh_data_type) :: meta_mesh(1) = (/                               &
          mesh_data_type( adjacent_face )                                    &
          /)
@@ -92,108 +89,100 @@ module rtheta_bd_kernel_mod
          reference_element_data_type( outward_normals_to_horizontal_faces ) &
          /)
     integer :: iterates_over = CELLS
-    integer :: gh_shape = GH_QUADRATURE_face
+    integer :: gh_shape = GH_QUADRATURE_FACE
   contains
     procedure, nopass :: rtheta_bd_code
-  end type
+  end type rtheta_bd_kernel_type
 
-  !---------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
   ! Contained functions/subroutines
-  !---------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
   public rtheta_bd_code
 
-contains
-
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief Computes the boundary integral terms in the potential temperature.
+  !> @brief The subroutine which is called directly by the Psy layer.
   !>
   !! @param[in] nlayers Integer the number of layers
   !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-  !! @param[in] undf_w2 Number of unique degrees of freedom for w2
+  !! @param[in] undf_w2 Number of unique of degrees of freedom  for w2
   !! @param[in] stencil_w2_map W2 dofmaps for the stencil
   !! @param[in] stencil_w2_size Size of the W2 stencil (number of cells)
   !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
-  !! @param[in] undf_wtheta Number of unique degrees of freedom for
+  !! @param[in] undf_wtheta Number of unique of degrees of freedom for
   !!                        wtheta
-  !! @param[in] stencil_wtheta_map Wtheta dofmaps for the stencil
-  !! @param[in] stencil_wtheta_size Size of the wtheta stencil
-  !!                                (number of cells)
-  !! @param[in,out] r_theta_bd Right hand side of the thermodynamic equation
-  !! @param[in] theta Potential temperature field
-  !! @param[in] u Wind field
-  !! @param[in] nfaces_qr Number of faces in the quadrature rule
-  !! @param[in] nqp_f Number of quadrature points on horizontal faces
-  !! @param[in] wqp_f Quadrature weights on horizontal faces
-  !! @param[in] w2_basis_face 4-dim array holding w2 basis functions
+  !! @param[in] stencil_wtheta_map W2 dofmaps for the stencil
+  !! @param[in] stencil_wtheta_size Size of the W2 stencil (number of cells)
+  !! @param[inout] r_theta_bd Real array the data
+  !! @param[in] theta Potential temperature.
+  !! @param[in] u Wind field.
+  !! @param[in] nqp_v Integer, number of quadrature points in the vertical
+  !! @param[in] nqp_h_1d Integer, number of quadrature points in a single
+  !!                     horizontal direction.
+  !! @param[in] wqp_h Real array. Quadrature weights horizontal
+  !! @param[in] wqp_v Real array. Quadrature weights vertical
+  !! @param[in] w2_basis_face Real 5-dim array holding w2 basis functions
   !!                          evaluated at gaussian quadrature points on
-  !!                          horizontal faces
-  !! @param[in] wtheta_basis_face 4-dim array holding wtheta basis
+  !!                          horizontal faces.
+  !! @param[in] wtheta_basis_face Real 5-dim array holding wtheta basis
   !!                              functions evaluated at gaussian quadrature
-  !!                              points on horizontal faces
-  !! @param[in] nfaces_re_h Number of reference element faces bisected by a
-  !!                        horizontal plane
+  !!                              points on horizontal faces.
   !! @param[in] adjacent_face Vector containing information on neighbouring
-  !!                          face index for the current cell
-  !! @param[in] normals_to_horizontal_faces Vector of normals to the reference
-  !!                                        element horizontal faces
-  !! @param[in] outward_normals_to_horizontal_faces Vector of normals to the
-  !!                                                reference element horizontal
-  !!                                                "outward faces"
+  !!                          face index for the current cell.
+  !! @param[in] normal_to_face Vectors normal to the faces of the reference
+  !!                           element.
+  !! @param[in] out_face_normal Vectors normal to the faces of the reference
+  !!                            element.
   !!
-  subroutine rtheta_bd_code( nlayers,                     &
-                             ndf_w2, undf_w2,             &
-                             stencil_w2_map,              &
-                             stencil_w2_size,             &
-                             ndf_wtheta, undf_wtheta,     &
-                             stencil_wtheta_map,          &
-                             stencil_wtheta_size,         &
-                             r_theta_bd,                  &
-                             theta, u,                    &
-                             nfaces_qr, nqp_f, wqp_f,     &
-                             w2_basis_face,               &
-                             wtheta_basis_face,           &
-                             nfaces_re_h,                 &
-                             adjacent_face,               &
-                             normals_to_horizontal_faces, &
-                             outward_normals_to_horizontal_faces )
+  subroutine rtheta_bd_code( nlayers,                               &
+                             ndf_w2, undf_w2,                       &
+                             stencil_w2_map,                        &
+                             stencil_w2_size,                       &
+                             ndf_wtheta, undf_wtheta,               &
+                             stencil_wtheta_map,                    &
+                             stencil_wtheta_size,                   &
+                             r_theta_bd,                            &
+                             theta, u,                              &
+                             nqp_v, nqp_h_1d, wqp_v, w2_basis_face, &
+                             wtheta_basis_face,                     &
+                             adjacent_face,                         &
+                             normal_to_face, out_face_normal )
 
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: nfaces_qr, nqp_f
+    integer(kind=i_def), intent(in) :: nlayers, nqp_h_1d, nqp_v
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: undf_w2
     integer(kind=i_def), intent(in) :: ndf_wtheta, undf_wtheta
-    integer(kind=i_def), intent(in) :: nfaces_re_h
 
     integer(kind=i_def), intent(in) :: stencil_w2_size
     integer(kind=i_def), intent(in) :: stencil_wtheta_size
 
-    integer(kind=i_def), dimension(ndf_w2,stencil_w2_size),         intent(in) :: stencil_w2_map
-    integer(kind=i_def), dimension(ndf_wtheta,stencil_wtheta_size), intent(in) :: stencil_wtheta_map
+    integer(kind=i_def), dimension(ndf_w2, stencil_w2_size), intent(in)          :: stencil_w2_map
+    integer(kind=i_def), dimension(ndf_wtheta, stencil_wtheta_size), intent(in)  :: stencil_wtheta_map
 
-    real(kind=r_def), dimension(3,ndf_w2,nqp_f,nfaces_qr),     intent(in) :: w2_basis_face
-    real(kind=r_def), dimension(1,ndf_wtheta,nqp_f,nfaces_qr), intent(in) :: wtheta_basis_face
-    real(kind=r_def), dimension(nqp_f,nfaces_qr), intent(in)              :: wqp_f
+    real(kind=r_def), dimension(3,ndf_w2,nqp_h_1d,nqp_v,4), intent(in)     :: w2_basis_face
+    real(kind=r_def), dimension(1,ndf_wtheta,nqp_h_1d,nqp_v,4), intent(in) :: wtheta_basis_face
 
     integer(kind=i_def), intent(in) :: adjacent_face(:)
 
-    real(kind=r_def), intent(in) :: normals_to_horizontal_faces(:,:)
-    real(kind=r_def), intent(in) :: outward_normals_to_horizontal_faces(:,:)
+    real(kind=r_def), intent(in) :: normal_to_face(:,:)
+    real(kind=r_def), intent(in) :: out_face_normal(:,:)
 
     real(kind=r_def), dimension(undf_wtheta), intent(inout) :: r_theta_bd
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
     real(kind=r_def), dimension(undf_w2), intent(in)        :: u
 
-    ! Internal variables
-    integer(kind=i_def) :: df, k, face, face_next
-    integer(kind=i_def) :: qp
-    integer(kind=i_def) :: i_face
+    real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-    real(kind=r_def), dimension(ndf_wtheta) :: theta_e, theta_next_e
-    real(kind=r_def), dimension(ndf_wtheta) :: rtheta_bd_e
-    real(kind=r_def), dimension(ndf_w2)     :: u_e, u_next_e
+    ! Internal variables
+    integer(kind=i_def)               :: df, k, face, face_next
+    integer(kind=i_def)               :: qp1, qp2
+    integer(kind=i_def)               :: i_face
+
+    real(kind=r_def), dimension(ndf_wtheta)      :: theta_e, theta_next_e
+    real(kind=r_def), dimension(ndf_wtheta)      :: rtheta_bd_e
+    real(kind=r_def), dimension(ndf_w2)          :: u_e, u_next_e
 
     real(kind=r_def) :: u_at_uquad(3), u_next_at_uquad(3), face_next_inward_normal(3)
     real(kind=r_def) :: theta_at_uquad, theta_next_at_uquad
@@ -216,7 +205,7 @@ contains
         i_face = int(floor(real(mod(face_next, nfaces_re_h),r_def)/2.0_r_def) + 1.0_r_def)
         sign_face_next_outward = (-1.0_r_def)**i_face
         face_next_inward_normal(:) = -sign_face_next_outward &
-                                     * normals_to_horizontal_faces(:,face_next)
+                                       * normals_to_horizontal_faces(:,face_next)
 
         ! Computing theta and f in adjacent cells
 
@@ -255,21 +244,21 @@ contains
                                                face_next_inward_normal) + &
                                    theta_at_uquad      *                  &
                                    dot_product(u_at_uquad,                &
-                                       outward_normals_to_horizontal_faces(:, face)))
+                                   outward_normals_to_horizontal_faces(:, face)))
 
           if (upwind) then
-            flux_term = flux_term + 0.5_r_def *                                     &
-                            abs(dot_product(                                        &
-                                   u_at_uquad,                                      &
-                                   outward_normals_to_horizontal_faces(:, face))) * &
-                               (dot_product(                                        &
-                                   theta_at_uquad *                                 &
-                                   outward_normals_to_horizontal_faces(:, face),    &
-                                   outward_normals_to_horizontal_faces(:, face)) -  &
-                                dot_product(                                        &
-                                   theta_next_at_uquad *                            &
-                                   face_next_inward_normal,                         &
-                                   face_next_inward_normal))
+             flux_term = flux_term + 0.5_r_def *                                     &
+                             abs(dot_product(                                        &
+                                    u_at_uquad,                                      &
+                                    outward_normals_to_horizontal_faces(:, face))) * &
+                                (dot_product(                                        &
+                                    theta_at_uquad *                                 &
+                                    outward_normals_to_horizontal_faces(:, face),    &
+                                    outward_normals_to_horizontal_faces(:, face)) -  &
+                                 dot_product(                                        &
+                                    theta_next_at_uquad *                            &
+                                    face_next_inward_normal,                         &
+                                    face_next_inward_normal))
           end if
 
           do df = 1, ndf_wtheta
