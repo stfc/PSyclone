@@ -228,11 +228,30 @@ cd -
 
 echo "Running gocean/eg4"
 cd gocean/eg4
-${PSYCLONE} -api "gocean1.0" alg.f90
-# The following fails because PSyclone spots that one of the kernels
-# accesses data from a module and therefore cannot be transformed. TODO #323.
-echo "TODO #323"
-#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
+${PSYCLONE} -api "gocean1.0" -s ./ocl_transform.py alg_kern_use_var.f90
+# The following currently fail as work is in progress to support
+# transforming kernels that access data or routines from modules.
+echo "TODO #490 and #342 and #663"
+#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
+#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
+#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
+cd -
+
+echo "Running gocean/eg5"
+cd gocean/eg5
+${PSYCLONE} -api "gocean1.0" --profile invokes -l \
+            --config ../../../config/psyclone.cfg \
+            -opsy psy.f90 -oalg alg.f90 test.x90
+cd -
+
+echo "Running gocean/eg6"
+cd gocean/eg6
+${PSYCLONE} -nodm -l -api "gocean1.0"             \
+            --config ../../../config/psyclone.cfg \
+            -s ./extract_transform.py             \
+            -opsy psy.f90 -oalg alg.f90 test.x90
+
 cd -
 
 # ----------------------------------------------------------------- #
