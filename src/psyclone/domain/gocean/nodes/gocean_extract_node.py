@@ -66,21 +66,18 @@ class GOceanExtractNode(ExtractNode):
         in the current working directory with the name \
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
         corresponding values for this region. Defaults to False.
+    :param str options["class"]: a prefix to use for the PSyData module name \
+        (``prefix_psy_data_mod``) and the PSyDataType
+        (``prefix_PSyDataType``) - a "_" will be added automatically. \
+        It defaults to "extract", which is set in the base class if
+        not overwritten in the options dictionary.
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
                  options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "profile" class.
-        my_options["class"] = my_options.get("class", "extract")
-
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
                                                 parent=parent,
-                                                options=my_options)
+                                                options=options)
         if options:
             self._create_driver = options.get("create_driver", False)
         else:

@@ -50,12 +50,15 @@ class PSyDataNode(Node):
     # pylint: disable=too-many-instance-attributes, too-many-locals
     '''
     This class can be inserted into a schedule to instrument a set of nodes.
-    Instrument means that calls to an external library will be inserted
-    before and after the child nodes, which will give that library access
-    to fields and the fact that a region is executed. This can be used, for
-    example, to add performance profiling calls, in-situ visualisation
-    of data, or for writing fields to a file (e.g. for creating test
-    cases, or using driver to run a certain kernel only).
+    Instrument means that calls to an external library using the PSyData API
+    will be inserted before and after the child nodes, which will give that \
+    library access to fields and the fact that a region is executed. This \
+    can be used, for example, to add performance profiling calls, in-situ \
+    visualisation of data, or for writing fields to a file (e.g. for creating \
+    test cases, or using driver to run a certain kernel only). The node
+    allows specification of a class string which is used as a prefix for
+    the PSyData module name (prefix_psy_data_mod) and for the PSyDataType
+    (prefix_PSyDataType).
 
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
@@ -68,14 +71,16 @@ class PSyDataNode(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param str options["class"]: the class of PSyData calls to create. \
-        This string becomes a prefix for all PSyData names.
+    :param str options["class"]: a prefix to use for the PSyData module name \
+        (``prefix_psy_data_mod``) and the PSyDataType
+        (``prefix_PSyDataType``) - a "_" will be added automatically. \
+        It defaults to "", which means the module name used will just be \
+        ``psy_data_mode``, and the data type ``PSyDataType``.
     :param (str,str) options["region_name"]: an optional name to \
         use for this PSyDataNode, provided as a 2-tuple containing a \
         module name followed by a local name. The pair of strings should \
         uniquely identify a region unless aggregate information is required \
         (and is supported by the runtime library).
-
 
     '''
     # PSyData interface Fortran module
@@ -95,8 +100,8 @@ class PSyDataNode(Node):
         if not options:
             options = {}
 
-        # This string stores a prefix to be used with all PSyData symbols
-        # (i.e. function names, data types, module names), used in the
+        # This string stores a prefix to be used with all external PSyData
+        # symbols (i.e. data types and module name), used in the
         # method 'make_symbol'.
         self._class_string = options.get("class", "")
         if self._class_string:
@@ -105,8 +110,8 @@ class PSyDataNode(Node):
         from psyclone.psyGen import NameSpaceFactory
         self._var_name = NameSpaceFactory().create()\
             .create_name(self.make_symbol(self.psy_data_var))
-        # The use statement that will be inserted. Any use of a module of the
-        # same name that doesn't match this will result in a
+        # The use statement that will be inserted. Any use of a module
+        # of the same name that doesn't match this will result in a
         # NotImplementedError at code-generation time.
         self.use_stmt = "use {0}, only: "\
             .format(self.make_symbol("psy_data_mod")) + \

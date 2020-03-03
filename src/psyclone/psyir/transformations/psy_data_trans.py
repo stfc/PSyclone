@@ -169,6 +169,10 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param str options["class"]: a prefix to use for the PSyData module \
+            name (``prefix_psy_data_mod``) and the PSyDataType \
+            (``prefix_PSyDataType``) - a "_" will be added automatically. \
+            It defaults to "".
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
