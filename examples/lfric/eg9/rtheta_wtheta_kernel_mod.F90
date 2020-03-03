@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 !>          equations, in the absense of source terms this is
 !>          rtheta = -(theta*gamma*div(u) + theta u*grad(gamma))
 module rtheta_wtheta_kernel_mod
+
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                     &
                                     GH_FIELD, GH_READ, GH_INC,               &
@@ -54,6 +55,8 @@ use argument_mod,            only : arg_type, func_type,                     &
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -73,7 +76,7 @@ type, public, extends(kernel_type) :: rtheta_wtheta_kernel_type
   integer :: iterates_over = CELLS
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
-  procedure, nopass ::rtheta_wtheta_code
+  procedure, nopass :: rtheta_wtheta_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -121,6 +124,7 @@ subroutine rtheta_wtheta_code(nlayers,                                          
                        ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis,                      &
                        nqp_h, nqp_v, wqp_h, wqp_v )
 
+  implicit none
 
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
