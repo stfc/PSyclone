@@ -2238,16 +2238,22 @@ class Fparser2Reader(object):
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Subscript_Triplet`
-        :param parent: Parent node of the PSyIR node we are constructing.
+        :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: If the fparser node represents \
-            unsupported PSyIR features and should be placed in a CodeBlock.
-
-        :returns: PSyIR representation of node
+        :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
+        # The PSyIR stores array dimension information for the Array
+        # class in an ordered list. As we are processing the
+        # dimensions in order, the number of children already added to
+        # our parent indicates the current array dimension being
+        # processed (with 0 being the first dimension, 1 being the
+        # second etc). Fortran specifies the 1st dimension as being 1,
+        # the second dimension being 2, etc.). We therefore add 1 to
+        # the number of children added to out parent to determine the
+        # Fortran dimension value.
         dimension = str(len(parent.children)+1)
         my_range = Range(parent=parent)
         my_range.children=[]
