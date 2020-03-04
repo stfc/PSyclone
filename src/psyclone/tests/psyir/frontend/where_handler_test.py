@@ -171,7 +171,7 @@ def test_array_notation_rank():
         processor._array_notation_rank(fake_parent[2].lhs)
     assert ("Only array notation of the form my_array(:, :, ...) is "
             "supported." in str(err.value))
-    
+
 
 def test_where_symbol_clash(parser):
     ''' Check that we raise the expected error if the code we are processing

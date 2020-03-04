@@ -137,7 +137,7 @@ def test_check_bound():
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(InternalError) as excinfo:
         check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    assert ("Expecting Literal but found 'Node'" in str(excinfo.value))
+    assert "Expecting Literal but found 'Node'" in str(excinfo.value)
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
@@ -222,13 +222,13 @@ def test_check_range():
         Reference(symbol), Literal("1", DataType.INTEGER))
 
     my_range = Range.create(lbound_op, ubound_op, one)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     # Valid structure
     check_range(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
     my_range = Range.create(ubound_op, ubound_op, one)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     with pytest.raises(InternalError) as excinfo:
         check_range(my_range)
     assert ("Expecting operator to be 'Operator.LBOUND', but found "
@@ -236,7 +236,7 @@ def test_check_range():
 
     # Invalid stop (as 2nd argument should be upper bound)
     my_range = Range.create(lbound_op, lbound_op, one)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     with pytest.raises(InternalError) as excinfo:
         check_range(my_range)
     assert ("Expecting operator to be 'Operator.UBOUND', but found "
@@ -244,13 +244,14 @@ def test_check_range():
 
     # Invalid step (as 3rd argument should be Literal)
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     with pytest.raises(InternalError) as excinfo:
         check_range(my_range)
     assert ("Expecting Literal but found 'BinaryOperation'"
             in str(excinfo.value))
 
 # Class Fparser2Reader
+
 
 # Static method _array_notation_rank
 def test_array_notation_rank():
@@ -1426,7 +1427,6 @@ def test_handling_nested_intrinsic():
     assert not cblocks
 
 
-
 @pytest.mark.usefixtures("f2008_parser")
 def test_array_section():
     ''' Check that we correctly handle an array section '''
@@ -1436,7 +1436,7 @@ def test_array_section():
         returns its PSyIR representation.
 
         :param str code: the executable code as a string.
-        
+
         :returns: the executable code as PSyIR nodes.
         :rtype: :py:class:`psyclone.psyir.nodes.node`
 
@@ -1450,20 +1450,24 @@ def test_array_section():
 
     def _check_array(node, ndims):
         '''Utility function that checks that the supplied node is an array and
-        has the expected number of dimensions.
+        has the expected number of dimensions. Also checks that the
+        node is the parent of its children.
 
         :param node: the node to check.
         :type node: :py:class:`psyclone.psyir.nodes.array`
         :param int ndims: the number of expected array dimensions.
-        
+
         '''
         assert isinstance(node, Array)
         assert len(node.children) == ndims
+        for child in node.children:
+            assert child.parent is node
 
     def _check_range(array, dim):
         '''Utility function that checks that the "dim" index of the supplied
         array contains a range node. Assumes that the supplied
-        argument "array" is an array.
+        argument "array" is an array. Also checks that the parent
+        relationships are set up correctly.
 
         :param array: the node to check.
         :type array: :py:class:`psyclone.psyir.nodes.array`
@@ -1472,12 +1476,14 @@ def test_array_section():
         '''
         range_node = array.children[dim-1]
         assert isinstance(range_node, Range)
-
+        assert range_node.parent is array
+        for child in range_node.children:
+            assert child.parent is range_node
 
     def _check_reference(node, dim, index, name):
         '''Utility function to check that the supplied array has a reference
         at dimension index "dim" and range index "index" with name
-        "name".
+        "name". Also checks any parent relationships.
 
         Assumes that the node argument is an array and that the
         supplied dimension index is a Range node and that the supplied
@@ -1491,9 +1497,12 @@ def test_array_section():
         :param str name: the expected name of the reference.
 
         '''
-        reference = node.children[dim-1].children[index]
+        my_range = node.children[dim-1]
+        reference = my_range.children[index]
         assert isinstance(reference, Reference)
         assert reference.name == name
+        assert my_range.parent is node
+        assert reference.parent is my_range
 
     # Simple one-dimensional
     for code in ["a(:) = 0.0", "a(::) = 0.0"]:
@@ -1590,11 +1599,11 @@ def test_array_section():
     _check_array(array_reference, ndims=1)
     _check_range(array_reference, dim=1)
     my_range = array_reference.children[0]
-    assert isinstance (my_range.children[0], BinaryOperation)
+    assert isinstance(my_range.children[0], BinaryOperation)
     assert my_range.children[0].operator == BinaryOperation.Operator.MUL
-    assert isinstance (my_range.children[1], BinaryOperation)
+    assert isinstance(my_range.children[1], BinaryOperation)
     assert my_range.children[1].operator == BinaryOperation.Operator.ADD
-    assert isinstance (my_range.children[2], BinaryOperation)
+    assert isinstance(my_range.children[2], BinaryOperation)
     assert my_range.children[2].operator == BinaryOperation.Operator.DIV
 
 
