@@ -38,6 +38,7 @@
 # This is a simple bash script that executes all of the examples that
 # are distributed with PSyclone. Note that PSyclone must be installed
 # for this script to work (see ../README.md).
+# TODO #713. Replace this script with a Makefile.
 
 # abort if a command fails
 set -e
@@ -69,6 +70,7 @@ case $key in
     shift # past argument
     ;;
 # We could allow the user to specify which API to run the examples for
+# but #713 (replace this script with a Makefile) would be better.
 #    -a|--api)
 #    API="$2"
 #    shift # past argument
