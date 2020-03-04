@@ -1,15 +1,15 @@
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
+! LICENCE is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 ! -----------------------------------------------------------------------------
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,8 @@ use argument_mod,            only: arg_type,                     &
                                    GH_COARSE, GH_FINE
 
 implicit none
+
+private
 
 type, public, extends(kernel_type) :: prolong_kernel_type
    private

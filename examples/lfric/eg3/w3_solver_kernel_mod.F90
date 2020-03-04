@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,17 @@
 !> @brief Kernel which computes LHS of Galerkin projection and solves equation in W3 space
 
 module w3_solver_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 use argument_mod,            only : arg_type, func_type,             &
                                     GH_FIELD, GH_READ, GH_WRITE,     &
                                     W0, W3, GH_BASIS, GH_DIFF_BASIS, &
                                     CELLS 
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -71,7 +74,7 @@ type, public, extends(kernel_type) :: w3_solver_kernel_type
   integer :: gh_shape = gh_quadrature_XYoZ
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::solver_w3_code
+  procedure, nopass :: solver_w3_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -109,9 +112,9 @@ end function w3_solver_kernel_constructor
 !! @param[inout] chi_3 Real array, the z component of the w0 coordinate field
 !! @param[in] ascalar Example of a real, scalar argument
 subroutine solver_w3_code(nlayers,                                    &
-                          x, rhs, &
-                          chi_1, chi_2, chi_3, ascalar, &
-                          ndf_w3, undf_w3, map_w3, w3_basis, &
+                          x, rhs,                                     &
+                          chi_1, chi_2, chi_3, ascalar,               &
+                          ndf_w3, undf_w3, map_w3, w3_basis,          &
                           ndf_w0, undf_w0, map_w0, w0_diff_basis,     &
                           nqp_h, nqp_v, wqp_h, wqp_v                  &
                          )
@@ -122,11 +125,13 @@ subroutine solver_w3_code(nlayers,                                    &
   ! Needs to compute the integral of rho_df * P 
   ! P_analytic over a single column    
   
+  implicit none
+
   ! Arguments
-  integer, intent(in) :: nlayers, nqp_h, nqp_v
-  integer, intent(in) :: ndf_w3, undf_w3, ndf_w0, undf_w0
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w0), intent(in) :: map_w0
+  integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_w3, undf_w3, ndf_w0, undf_w0
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
   real(kind=r_def), intent(in) :: ascalar
   real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: w3_basis
   real(kind=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: w0_diff_basis  
@@ -138,8 +143,8 @@ subroutine solver_w3_code(nlayers,                                    &
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v  
 
   ! Internal variables
-  integer               :: df1, df2, k
-  integer               :: qp1, qp2
+  integer(kind=i_def) :: df1, df2, k
+  integer(kind=i_def) :: qp1, qp2
   
   real(kind=r_def) :: x_e(ndf_w3), rhs_e(ndf_w3)
   real(kind=r_def) :: integrand

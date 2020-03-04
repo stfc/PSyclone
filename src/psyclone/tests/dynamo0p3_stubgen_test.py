@@ -176,12 +176,12 @@ SIMPLE = (
     "    CONTAINS\n"
     "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
     " map_w1)\n"
-    "      USE constants_mod, ONLY: r_def\n"
+    "      USE constants_mod, ONLY: r_def, i_def\n"
     "      IMPLICIT NONE\n"
-    "      INTEGER, intent(in) :: nlayers\n"
-    "      INTEGER, intent(in) :: ndf_w1\n"
-    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER, intent(in) :: undf_w1\n"
+    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+    "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
     " field_1_w1\n"
     "    END SUBROUTINE simple_code\n"
@@ -208,14 +208,14 @@ SIMPLE_WITH_SCALARS = (
     "    CONTAINS\n"
     "    SUBROUTINE simple_with_scalars_code(nlayers, rscalar_1, field_2_w1, "
     "iscalar_3, ndf_w1, undf_w1, map_w1)\n"
-    "      USE constants_mod, ONLY: r_def\n"
+    "      USE constants_mod, ONLY: r_def, i_def\n"
     "      IMPLICIT NONE\n"
-    "      INTEGER, intent(in) :: nlayers\n"
-    "      INTEGER, intent(in) :: ndf_w1\n"
-    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER, intent(in) :: undf_w1\n"
+    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+    "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-    "      INTEGER, intent(in) :: iscalar_3\n"
+    "      INTEGER(KIND=i_def), intent(in) :: iscalar_3\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
     " field_2_w1\n"
     "    END SUBROUTINE simple_with_scalars_code\n"
@@ -236,17 +236,17 @@ SCALAR_SUMS = (
     "    CONTAINS\n"
     "    SUBROUTINE testkern_multiple_scalar_sums_code(nlayers, rscalar_1, "
     "iscalar_2, field_3_w3, rscalar_4, iscalar_5, ndf_w3, undf_w3, map_w3)\n"
-    "      USE constants_mod, ONLY: r_def\n"
+    "      USE constants_mod, ONLY: r_def, i_def\n"
     "      IMPLICIT NONE\n"
-    "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
     "      REAL(KIND=r_def), intent(inout) :: rscalar_1\n"
-    "      INTEGER, intent(inout) :: iscalar_2\n"
-    "      INTEGER, intent(in) :: ndf_w3\n"
-    "      INTEGER, intent(in) :: undf_w3\n"
+    "      INTEGER(KIND=i_def), intent(inout) :: iscalar_2\n"
+    "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+    "      INTEGER(KIND=i_def), intent(in) :: undf_w3\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_3_w3\n"
     "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
-    "      INTEGER, intent(inout) :: iscalar_5\n"
-    "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+    "      INTEGER(KIND=i_def), intent(inout) :: iscalar_5\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
     "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
     "  END MODULE testkern_multiple_scalar_sums_mod")
 
@@ -268,14 +268,14 @@ def test_stub_generate_with_scalar_sums():
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =    &
-          (/ arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_inc, w1), &
-             arg_type(gh_field,gh_read, w1)  &
+     type(arg_type), meta_args(3) =            &
+          (/ arg_type(gh_field, gh_write, w3), &
+             arg_type(gh_field, gh_inc,   w1), &
+             arg_type(gh_field, gh_read,  w1)  &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -309,16 +309,18 @@ def test_intent():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, field_1_w1, field_2_w1, "
-        "field_3_w1, ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "    SUBROUTINE dummy_code(nlayers, field_1_w3, field_2_w1, "
+        "field_3_w1, ndf_w3, undf_w3, map_w3, ndf_w1, undf_w1, map_w1)\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER, intent(in) :: undf_w1\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
-        "field_1_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w3, undf_w1\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
+        "field_1_w3\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
         "field_2_w1\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: "
@@ -332,16 +334,16 @@ def test_intent():
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =               &
-          (/ arg_type(gh_field,gh_write, w0),     &
-             arg_type(gh_field,gh_write, w1),     &
-             arg_type(gh_field,gh_write, w2),     &
-             arg_type(gh_field,gh_write, w3),     &
-             arg_type(gh_field,gh_write, wtheta), &
-             arg_type(gh_field,gh_write, w2h),    &
-             arg_type(gh_field,gh_write, w2v)     &
+     type(arg_type), meta_args(7) =                &
+          (/ arg_type(gh_field, gh_inc,   w0),     &
+             arg_type(gh_field, gh_inc,   w1),     &
+             arg_type(gh_field, gh_inc,   w2),     &
+             arg_type(gh_field, gh_write, w3),     &
+             arg_type(gh_field, gh_write, wtheta), &
+             arg_type(gh_field, gh_inc,   w2h),    &
+             arg_type(gh_field, gh_write, w2v)     &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -369,36 +371,39 @@ def test_spaces():
         "map_w2, ndf_w3, undf_w3, map_w3, ndf_wtheta, undf_wtheta, "
         "map_wtheta, ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, "
         "map_w2v)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
-        "      INTEGER, intent(in), dimension(ndf_w2h) :: map_w2h\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: undf_w0, undf_w1, undf_w2, undf_w3, "
-        "undf_wtheta, undf_w2h, undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2h\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2h) :: map_w2h\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2v) :: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w1, undf_w2, "
+        "undf_w3, undf_wtheta, undf_w2h, undf_w2v\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
         "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: "
         "field_3_w2\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
         "field_4_w3\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
         "field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2h) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) :: "
         "field_6_w2h\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
         "field_7_w2v\n"
@@ -415,7 +420,7 @@ module dummy_mod
              arg_type(gh_field, gh_inc,       any_space_7),               &
              arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -434,7 +439,6 @@ def test_any_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
     output = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -450,22 +454,25 @@ def test_any_spaces():
         "ndf_any_discontinuous_space_4_field_3, "
         "undf_any_discontinuous_space_4_field_3, "
         "map_any_discontinuous_space_4_field_3)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_any_discontinuous_space_1_field_1\n"
-        "      INTEGER, intent(in), dimension("
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: "
+        "ndf_any_discontinuous_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension("
         "ndf_any_discontinuous_space_1_field_1) :: "
         "map_any_discontinuous_space_1_field_1\n"
-        "      INTEGER, intent(in) :: ndf_any_discontinuous_space_4_field_3\n"
-        "      INTEGER, intent(in), dimension("
+        "      INTEGER(KIND=i_def), intent(in) :: "
+        "ndf_any_discontinuous_space_4_field_3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension("
         "ndf_any_discontinuous_space_4_field_3) :: "
         "map_any_discontinuous_space_4_field_3\n"
-        "      INTEGER, intent(in) :: ndf_any_space_7_field_2\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_7_field_2) :: "
-        "map_any_space_7_field_2\n"
-        "      INTEGER, intent(in) :: undf_any_discontinuous_space_1_field_1, "
-        "undf_any_space_7_field_2, undf_any_discontinuous_space_4_field_3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_7_field_2\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_any_space_7_field_2) :: map_any_space_7_field_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: "
+        "undf_any_discontinuous_space_1_field_1, undf_any_space_7_field_2, "
+        "undf_any_discontinuous_space_4_field_3\n"
         "      REAL(KIND=r_def), intent(in), dimension"
         "(undf_any_discontinuous_space_1_field_1) :: "
         "field_1_any_discontinuous_space_1_field_1\n"
@@ -483,12 +490,12 @@ def test_any_spaces():
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field*3,gh_write, w0) &
+     type(arg_type), meta_args(1) =           &
+          (/ arg_type(gh_field*3, gh_inc, w0) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -510,17 +517,17 @@ def test_vectors():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0_v1\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0_v2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0_v3\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
@@ -538,7 +545,7 @@ def test_arg_descriptor_vec_str():
     expected_output = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_write'\n"
+        "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w0'")
     assert expected_output in result
 
@@ -549,29 +556,34 @@ ORIENTATION_OUTPUT = (
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
     "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
     "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3)\n"
-    "      USE constants_mod, ONLY: r_def\n"
+    "      USE constants_mod, ONLY: r_def, i_def\n"
     "      IMPLICIT NONE\n"
-    "      INTEGER, intent(in) :: nlayers\n"
-    "      INTEGER, intent(in) :: ndf_w0\n"
-    "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-    "      INTEGER, intent(in) :: ndf_w2\n"
-    "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-    "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3\n"
+    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+    "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+    "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+    "      INTEGER(KIND=i_def), intent(in) :: "
+    "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
     "field_1_w0\n"
     "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
     "field_3_w2\n"
-    "      INTEGER, intent(in) :: cell\n"
-    "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+    "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+    "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
     "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
     "op_2_ncell_3d) :: op_2\n"
-    "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+    "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
     "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
     "op_4_ncell_3d) :: op_4\n"
-    "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
-    "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
-    "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
-    "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: "
+    "orientation_w0\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: "
+    "orientation_w1\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: "
+    "orientation_w2\n"
+    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: "
+    "orientation_w3\n"
     "    END SUBROUTINE dummy_orientation_code\n"
     "  END MODULE dummy_orientation_mod")
 
@@ -610,18 +622,18 @@ def test_enforce_bc_kernel_stub_gen():
         "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1_field_1, "
         "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
         "map_any_space_1_field_1, boundary_dofs_field_1)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
-        "map_any_space_1_field_1\n"
-        "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_any_space_1_field_1) :: map_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_any_space_1_field_1)"
         " :: field_1_any_space_1_field_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,2) :: "
-        "boundary_dofs_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_any_space_1_field_1,2) :: boundary_dofs_field_1\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
     assert output in str(generated_code)
@@ -641,20 +653,20 @@ def test_enforce_op_bc_kernel_stub_gen():
         "  MODULE enforce_operator_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, op_1_ncell_3d,"
-        " op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, "
+        "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, "
+        "op_1_ncell_3d, op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, "
         "boundary_dofs_op_1)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_op_1, "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_op_1, "
         "ndf_any_space_2_op_1\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: op_1_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension("
         "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1,2) :: "
-        "boundary_dofs_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_any_space_1_op_1,2) :: boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"
         "  END MODULE enforce_operator_bc_mod")
     assert output in generated_code
@@ -668,12 +680,12 @@ def test_enforce_op_bc_kernel_stub_gen():
 SUB_NAME = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w1) &
+     type(arg_type), meta_args(1) =         &
+          (/ arg_type(gh_field, gh_inc, w1) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => dummy
+     procedure, nopass :: code => dummy
   end type dummy_type
 contains
   subroutine dummy()
@@ -698,13 +710,13 @@ def test_sub_name():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w1, "
         "ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER, intent(in) :: undf_w1\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
         "field_1_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
@@ -756,11 +768,12 @@ def test_stub_stencil_extent():
         "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
-    result2 = "INTEGER, intent(in) :: field_2_stencil_size"
+    result2 = "INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size"
     assert result2 in generated_code
     assert (
-        "INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) "
-        ":: field_2_stencil_dofmap" in generated_code)
+        "INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap"
+        in generated_code)
 
 
 def test_stub_stencil_direction():
@@ -780,10 +793,10 @@ def test_stub_stencil_direction():
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
     result2 = (
-        "      INTEGER, intent(in) :: field_2_stencil_size\n"
-        "      INTEGER, intent(in) :: field_2_direction\n"
-        "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
-        "field_2_stencil_dofmap")
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size\n"
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_direction\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap")
     assert result2 in generated_code
 
 
@@ -805,9 +818,9 @@ def test_stub_stencil_vector():
         "map_w3)")
     assert result1 in generated_code
     result2 = (
-        "      INTEGER, intent(in) :: field_2_stencil_size\n"
-        "      INTEGER, intent(in), dimension(ndf_w3,field_2_stencil_size) "
-        ":: field_2_stencil_dofmap")
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w3,field_2_stencil_size) :: field_2_stencil_dofmap")
     assert result2 in generated_code
 
 
@@ -833,15 +846,15 @@ def test_stub_stencil_multi():
         "field_3_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
         "field_4_w3\n"
-        "      INTEGER, intent(in) :: field_2_stencil_size, "
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size, "
         "field_3_stencil_size, field_4_stencil_size\n"
-        "      INTEGER, intent(in) :: field_3_direction\n"
-        "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
-        "field_2_stencil_dofmap\n"
-        "      INTEGER, intent(in), dimension(ndf_w2,field_3_stencil_size) :: "
-        "field_3_stencil_dofmap\n"
-        "      INTEGER, intent(in), dimension(ndf_w3,field_4_stencil_size) :: "
-        "field_4_stencil_dofmap")
+        "      INTEGER(KIND=i_def), intent(in) :: field_3_direction\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2,field_3_stencil_size) :: field_3_stencil_dofmap\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w3,field_4_stencil_size) :: field_4_stencil_dofmap")
 
     assert result2 in generated_code
 

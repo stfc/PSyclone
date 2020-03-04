@@ -5,17 +5,54 @@
 !-------------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+!------------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
 
 module apply_variable_hx_kernel_mod
+
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_REAL,         &
                                     GH_READ, GH_WRITE,                      &
                                     ANY_SPACE_1, W3, W2,                    &
                                     CELLS 
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
+
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -37,7 +74,7 @@ type, public, extends(kernel_type) :: apply_variable_hx_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::apply_variable_hx_code
+  procedure, nopass :: apply_variable_hx_code
 end type
 type, public, extends(kernel_type) :: opt_apply_variable_hx_kernel_type
   private
@@ -77,10 +114,10 @@ public apply_variable_hx_code
 public opt_apply_variable_hx_code
 contains
 
-  type(apply_variable_hx_kernel_type) function apply_variable_hx_kernel_constructor() result(self)
+type(apply_variable_hx_kernel_type) function apply_variable_hx_kernel_constructor() result(self)
   return
 end function apply_variable_hx_kernel_constructor
-  type(opt_apply_variable_hx_kernel_type) function opt_apply_variable_hx_kernel_constructor() result(self)
+type(opt_apply_variable_hx_kernel_type) function opt_apply_variable_hx_kernel_constructor() result(self)
   return
 end function opt_apply_variable_hx_kernel_constructor
 
@@ -138,15 +175,16 @@ subroutine apply_variable_hx_code(cell,        &
                                   ndf_wt, undf_wt, map_wt)
  
   implicit none
+
   ! Arguments
-  integer,                    intent(in) :: cell, nlayers
-  integer,                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer,                    intent(in) :: undf_w2, ndf_w2
-  integer,                    intent(in) :: undf_w3, ndf_w3
-  integer,                    intent(in) :: undf_wt, ndf_wt
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def),                    intent(in) :: cell, nlayers
+  integer(kind=i_def),                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
+  integer(kind=i_def),                    intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                    intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                    intent(in) :: undf_wt, ndf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w2), intent(in)    :: x
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_inv
@@ -160,7 +198,7 @@ subroutine apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d_4), intent(in) :: m3
 
   ! Internal variables
-  integer                             :: df, k, ik, is, ie
+  integer(kind=i_def)                 :: df, k, ik, is, ie
   real(kind=r_def), dimension(ndf_w2) :: x_e
   real(kind=r_def), dimension(ndf_w3) :: lhs_e, p_e
   real(kind=r_def), dimension(ndf_wt) :: t_e
@@ -264,15 +302,16 @@ subroutine opt_apply_variable_hx_code(cell,        &
                                   ndf_wt, undf_wt, map_wt)
  
   implicit none
+
   ! Arguments
-  integer,                    intent(in) :: cell, nlayers
-  integer,                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer,                    intent(in) :: undf_w2, ndf_w2
-  integer,                    intent(in) :: undf_w3, ndf_w3
-  integer,                    intent(in) :: undf_wt, ndf_wt
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def),                    intent(in) :: cell, nlayers
+  integer(kind=i_def),                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
+  integer(kind=i_def),                    intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                    intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                    intent(in) :: undf_wt, ndf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w2), intent(in)    :: x
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_inv
@@ -286,7 +325,7 @@ subroutine opt_apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(1,1,ncell_3d_4), intent(in) :: m3
 
   ! Internal variables
-  integer                        :: df, k, ik
+  integer(kind=i_def)            :: df, k, ik
   real(kind=r_def), dimension(2) :: t_e
   real(kind=r_def)               :: div_u
 
