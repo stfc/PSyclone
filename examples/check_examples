@@ -50,6 +50,7 @@ export KSTUBGEN=${PWD}/../bin/genkernelstub
 # Ensure we use the configuration file distributed with PSyclone and
 # not a (potentially modified) local version.
 export PSYCLONE_CONFIG=${PWD}/../config/psyclone.cfg
+echo "Using the PSyclone configuration file: $PSYCLONE_CONFIG"
 
 # ----------------------------------------------------------------- #
 # Handle any command-line options. Currently we only support one.
