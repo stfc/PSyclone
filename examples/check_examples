@@ -209,7 +209,7 @@ cd gocean/eg2
 if [ $COMPILE -eq 1 ]
 then
     # Only do the full compile if requested (because it requires a Fortran
-    # compiler). Defaults to using gfortran.
+    # compiler). Defaults to using gfortran unless F90 is set.
     cd ../../../external/dl_esm_inf/finite_difference
     make distclean
     cd -
