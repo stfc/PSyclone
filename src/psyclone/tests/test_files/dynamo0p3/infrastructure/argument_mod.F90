@@ -141,6 +141,8 @@ module argument_mod
   integer, public, parameter :: outward_normals_to_horizontal_faces = 007
   integer, public, parameter :: normals_to_vertical_faces = 172
   integer, public, parameter :: outward_normals_to_vertical_faces = 008
+  integer, public, parameter :: normals_to_faces = 173
+  integer, public, parameter :: outward_normals_to_faces = 009
 
   type, public :: arg_type
      integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
