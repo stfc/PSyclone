@@ -95,7 +95,6 @@ end module dummy_mod
 '''
 
 
-# Function _check_bound_is_full_extent
 def test_check_bound_is_full_extent():
     ''' Test the _check_bound_is_full_extent function.'''
     one = Literal("1", DataType.INTEGER)
@@ -175,7 +174,6 @@ def test_check_bound_is_full_extent():
                                 BinaryOperation.Operator.LBOUND)
 
 
-# Function _check_literal
 def test_check_literal():
     ''' Test the _check_literal function.'''
     one = Literal("1", DataType.INTEGER)
@@ -210,14 +208,13 @@ def test_check_literal():
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
-        # 1st dimension, second argument to range is a real literal,
-        # not an integer literal.
+        # 1st dimension, second argument to range has an unexpected
+        # value.
         _check_literal(array_reference, 1, 1, 2)
     assert ("Expecting literal value '1' to be the same as '2'."
             in str(excinfo.value))
 
 
-# Function _check_range_is_full_extent
 def test_check_range_is_full_extent():
     ''' Test the _check_range_is_full_extent function.'''
     one = Literal("1", DataType.INTEGER)
@@ -260,7 +257,7 @@ def test_check_range_is_full_extent():
 
 # Class Fparser2Reader
 
-# Static method _array_notation_rank
+
 def test_array_notation_rank():
     '''Test the static method _array_notation_rank in the fparser2reader
     class
@@ -307,7 +304,6 @@ def test_array_notation_rank():
             "supported." in str(excinfo.value))
 
 
-# Method generate_container
 def test_generate_container(parser):
     ''' Test that generate_container creates a PSyIR container with the
     contents of the given fparser2 fortran module.'''
@@ -352,7 +348,6 @@ def test_generate_container_two_modules(parser):
     assert "Just one module definition per file supported." in str(error.value)
 
 
-# Method generate_schedule
 def test_generate_schedule_empty_subroutine(parser):
     ''' Tests the fp2Reader generate_schedule method with an empty
     subroutine.
@@ -1440,13 +1435,13 @@ def test_array_section():
     ''' Check that we correctly handle an array section '''
 
     def _array_create(code):
-        '''Utility function that takes the supplied executable code and
-        returns its PSyIR representation.
+        '''Utility function that takes the supplied Fortran code and returns
+        its PSyIR representation.
 
         :param str code: the executable code as a string.
         
         :returns: the executable code as PSyIR nodes.
-        :rtype: :py:class:`psyclone.psyir.nodes.node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         processor = Fparser2Reader()
@@ -1461,7 +1456,7 @@ def test_array_section():
         has the expected number of dimensions.
 
         :param node: the node to check.
-        :type node: :py:class:`psyclone.psyir.nodes.array`
+        :type node: :py:class:`psyclone.psyir.nodes.Array`
         :param int ndims: the number of expected array dimensions.
         
         '''
@@ -1474,10 +1469,13 @@ def test_array_section():
         argument "array" is an array.
 
         :param array: the node to check.
-        :type array: :py:class:`psyclone.psyir.nodes.array`
+        :type array: :py:class:`psyclone.psyir.nodes.Array`
         :param int dim: the array dimension index to check.
 
         '''
+        # Note, in Fortran the 1st dimension is 1, second is 2
+        # etc. Therefore to obtain the correct child index we need to
+        # subtract 1.
         range_node = array.children[dim-1]
         assert isinstance(range_node, Range)
 
@@ -1492,13 +1490,16 @@ def test_array_section():
         range index is valid.
 
         :param array: the node to check.
-        :type array: :py:class:`pysclone.psyir.node.array`
+        :type array: :py:class:`pysclone.psyir.node.Array`
         :param int dim: the dimension index to check.
         :param int index: the index of the range to check (0 is the \
             lower bound, 1 is the upper bound).
         :param str name: the expected name of the reference.
 
         '''
+        # Note, in Fortran the 1st dimension is 1, second is 2
+        # etc. Therefore to obtain the correct child index we need to
+        # subtract 1.
         reference = node.children[dim-1].children[index]
         assert isinstance(reference, Reference)
         assert reference.name == name
