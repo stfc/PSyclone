@@ -141,7 +141,7 @@ def test_check_bound_is_full_extent():
     with pytest.raises(NotImplementedError) as excinfo:
         _check_bound_is_full_extent(array_reference, 1, 0,
                                     BinaryOperation.Operator.LBOUND)
-    assert ("Expecting Literal but found 'Node'" in str(excinfo.value))
+    assert "Expecting Literal but found 'Node'" in str(excinfo.value)
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
@@ -227,13 +227,13 @@ def test_check_range_is_full_extent():
         Reference(symbol), Literal("1", DataType.INTEGER))
 
     my_range = Range.create(lbound_op, ubound_op, one)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     # Valid structure
     _check_range_is_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
     my_range = Range.create(ubound_op, ubound_op, one)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
         _check_range_is_full_extent(my_range)
     assert ("Expecting operator to be 'Operator.LBOUND', but found "
@@ -241,7 +241,7 @@ def test_check_range_is_full_extent():
 
     # Invalid stop (as 2nd argument should be upper bound)
     my_range = Range.create(lbound_op, lbound_op, one)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
         _check_range_is_full_extent(my_range)
     assert ("Expecting operator to be 'Operator.UBOUND', but found "
@@ -249,7 +249,7 @@ def test_check_range_is_full_extent():
 
     # Invalid step (as 3rd argument should be Literal)
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
-    array_reference = Array.create(symbol, [my_range])
+    _ = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
         _check_range_is_full_extent(my_range)
     assert ("Expecting Literal but found 'BinaryOperation'"
@@ -1439,7 +1439,7 @@ def test_array_section():
         its PSyIR representation.
 
         :param str code: the executable code as a string.
-        
+
         :returns: the executable code as PSyIR nodes.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -1458,7 +1458,7 @@ def test_array_section():
         :param node: the node to check.
         :type node: :py:class:`psyclone.psyir.nodes.Array`
         :param int ndims: the number of expected array dimensions.
-        
+
         '''
         assert isinstance(node, Array)
         assert len(node.children) == ndims
@@ -1601,11 +1601,11 @@ def test_array_section():
     _check_array(array_reference, ndims=1)
     _check_range(array_reference, dim=1)
     my_range = array_reference.children[0]
-    assert isinstance (my_range.children[0], BinaryOperation)
+    assert isinstance(my_range.children[0], BinaryOperation)
     assert my_range.children[0].operator == BinaryOperation.Operator.MUL
-    assert isinstance (my_range.children[1], BinaryOperation)
+    assert isinstance(my_range.children[1], BinaryOperation)
     assert my_range.children[1].operator == BinaryOperation.Operator.ADD
-    assert isinstance (my_range.children[2], BinaryOperation)
+    assert isinstance(my_range.children[2], BinaryOperation)
     assert my_range.children[2].operator == BinaryOperation.Operator.DIV
 
 
