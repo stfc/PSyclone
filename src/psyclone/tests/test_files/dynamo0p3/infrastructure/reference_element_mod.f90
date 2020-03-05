@@ -39,70 +39,137 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modifications: A. R. Porter, STFC Daresbury Lab
+! Modifications: A. R. Porter, STFC Daresbury Lab,
+!                I. Kavcic, Met Office
 
 module reference_element_mod
 
   use constants_mod, only: r_def, i_def
+
   implicit none
+
   private
 
   type, abstract, public :: reference_element_type
-   contains
+  contains
 
-     procedure, public :: get_number_horizontal_faces
-     procedure, public :: get_number_vertical_faces
-     procedure, public :: get_normals_to_horizontal_faces
-     procedure, public :: get_outward_normals_to_horizontal_faces
-     procedure, public :: get_normals_to_vertical_faces
-     procedure, public :: get_outward_normals_to_vertical_faces
-     
+    procedure, public :: get_number_horizontal_faces
+    procedure, public :: get_number_vertical_faces
+    procedure, public :: get_number_faces
+    procedure, public :: get_normals_to_horizontal_faces
+    procedure, public :: get_outward_normals_to_horizontal_faces
+    procedure, public :: get_normals_to_vertical_faces
+    procedure, public :: get_outward_normals_to_vertical_faces
+    procedure, public :: get_normals_to_faces
+    procedure, public :: get_outward_normals_to_faces
+
   end type reference_element_type
 
 contains
 
+  ! Gets the number of horizontal faces in the reference element
   integer function get_number_horizontal_faces(this)
+
     implicit none
+
     class(reference_element_type), intent(in)  :: this
+
     get_number_horizontal_faces = 0
+
   end function get_number_horizontal_faces
 
+  ! Gets the number of vertical faces in the reference element
   integer function get_number_vertical_faces(this)
+
     implicit none
+
     class(reference_element_type), intent(in)  :: this
+
     get_number_vertical_faces = 0
+
   end function get_number_vertical_faces
-  
+
+  ! Gets the number of all faces in the reference element
+  integer function get_number_faces(this)
+
+    implicit none
+
+    class(reference_element_type), intent(in)  :: this
+
+    get_number_faces = 0
+
+  end function get_number_faces
+
+  ! Gets the array of vectors normal to horizontal faces
   subroutine get_normals_to_horizontal_faces(this, normals)
+
     implicit none
+
     class(reference_element_type), intent(in)  :: this
     real(r_def), allocatable,      intent(out) :: normals(:,:)
 
     allocate( normals(1,1) )
+
   end subroutine get_normals_to_horizontal_faces
-  
+
+  ! Gets the array of vectors normal to "outward" horizontal faces
   subroutine get_outward_normals_to_horizontal_faces(this, normals)
+
     implicit none
+
     class(reference_element_type), intent(in)  :: this
     real(r_def), allocatable,      intent(out) :: normals(:,:)
 
     allocate( normals(1,1) )
+
   end subroutine get_outward_normals_to_horizontal_faces
-  
+
+  ! Gets the array of vectors normal to vertical faces
   subroutine get_normals_to_vertical_faces(this, normals)
+
     implicit none
+
     class(reference_element_type), intent(in)  :: this
     real(r_def), allocatable,      intent(out) :: normals(:,:)
 
     allocate( normals(1,1) )
+
   end subroutine get_normals_to_vertical_faces
-  
+
+  ! Gets the array of vectors normal to "outward" vertical faces
   subroutine get_outward_normals_to_vertical_faces(this, normals)
+
     implicit none
+
     class(reference_element_type), intent(in)  :: this
     real(r_def), allocatable,      intent(out) :: normals(:,:)
 
     allocate( normals(1,1) )
+
   end subroutine get_outward_normals_to_vertical_faces
-  
+
+  ! Gets the array of vectors normal to all faces
+  subroutine get_normals_to_faces(this, normals)
+
+    implicit none
+
+    class(reference_element_type), intent(in)  :: this
+    real(r_def), allocatable,      intent(out) :: normals(:,:)
+
+    allocate( normals(1,1) )
+
+  end subroutine get_normals_to_faces
+
+  ! Gets the array of vectors normal to all "outward" faces
+  subroutine get_outward_normals_to_faces(this, normals)
+
+    implicit none
+
+    class(reference_element_type), intent(in)  :: this
+    real(r_def), allocatable,      intent(out) :: normals(:,:)
+
+    allocate( normals(1,1) )
+
+  end subroutine get_outward_normals_to_faces
+
 end module reference_element_mod

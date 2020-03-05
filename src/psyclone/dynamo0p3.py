@@ -2122,18 +2122,18 @@ class DynReferenceElement(DynCollection):
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_v_name = self._name_space_manager.create_name(
+            self._nfaces_name = self._name_space_manager.create_name(
                 root_name="nfaces_re", context="PSyVars",
                 label="nfaces_re")
             if RefElementMetaData.Property.NORMALS_TO_FACES \
                in self._properties:
-                self._vert_face_normals_name = \
+                self._face_normals_name = \
                     self._name_space_manager.create_name(
                         root_name="normals_to_faces", context="PSyVars",
                         label="normals_to_faces")
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES\
                in self._properties:
-                self._vert_face_out_normals_name = \
+                self._face_out_normals_name = \
                     self._name_space_manager.create_name(
                         root_name="out_normals_to_faces",
                         context="PSyVars",
@@ -2273,7 +2273,7 @@ class DynReferenceElement(DynCollection):
                 CallGen(parent,
                         name="{0}%get_normals_to_faces({1})".format(
                             self._ref_elem_name,
-                            self._vert_face_normals_name)))
+                            self._face_normals_name)))
 
         if self._face_out_normals_name:
             parent.add(
@@ -2281,7 +2281,7 @@ class DynReferenceElement(DynCollection):
                     parent,
                     name="{0}%get_outward_normals_to_faces({1})".
                     format(self._ref_elem_name,
-                           self._vert_face_out_normals_name)))
+                           self._face_out_normals_name)))
 
 
 class DynDofmaps(DynCollection):
@@ -7931,7 +7931,7 @@ class KernCallArgList(ArgOrdering):
                     label="out_normals_to_faces")
                 self._arglist.append(name)
             elif (prop == RefElementMetaData.Property.
-                  NORMALS_TO_VERTICAL_FACES):
+                  NORMALS_TO_FACES):
                 name = self._name_space_manager.create_name(
                     root_name="normals_to_faces", context="PSyVars",
                     label="normals_to_faces")
