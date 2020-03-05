@@ -876,6 +876,8 @@ class RefElementMetaData(object):
         NORMALS_TO_VERTICAL_FACES = 2
         OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
+        NORMALS_TO_FACES = 5
+        OUTWARD_NORMALS_TO_FACES = 6
 
     def __init__(self, kernel_name, type_declns):
         from psyclone.parse.kernel import getkerneldescriptors
@@ -914,7 +916,7 @@ class RefElementMetaData(object):
             sorted_names = sorted([prop.name for prop in self.Property])
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_names))
+                "values are: '{1}'".format(arg, sorted_names))
 
 
 class DynKernMetadata(KernelType):
@@ -2067,10 +2069,13 @@ class DynReferenceElement(DynCollection):
         # as required.
         self._nfaces_h_name = ""
         self._nfaces_v_name = ""
+        self._nfaces_name = ""
         self._horiz_face_normals_name = ""
         self._horiz_face_out_normals_name = ""
         self._vert_face_normals_name = ""
         self._vert_face_out_normals_name = ""
+        self._face_normals_name = ""
+        self._face_out_normals_name = ""
 
         if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
@@ -2113,6 +2118,27 @@ class DynReferenceElement(DynCollection):
                         context="PSyVars",
                         label="out_normals_to_vert_faces")
 
+        if (RefElementMetaData.Property.NORMALS_TO_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
+                in self._properties):
+            self._nfaces_v_name = self._name_space_manager.create_name(
+                root_name="nfaces_re", context="PSyVars",
+                label="nfaces_re")
+            if RefElementMetaData.Property.NORMALS_TO_FACES \
+               in self._properties:
+                self._vert_face_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="normals_to_faces", context="PSyVars",
+                        label="normals_to_faces")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES\
+               in self._properties:
+                self._vert_face_out_normals_name = \
+                    self._name_space_manager.create_name(
+                        root_name="out_normals_to_faces",
+                        context="PSyVars",
+                        label="out_normals_to_faces")
+
     def _invoke_declarations(self, parent):
         '''
         Create the necessary declarations for the variables needed in order
@@ -2141,6 +2167,8 @@ class DynReferenceElement(DynCollection):
             nface_vars.append(self._nfaces_h_name)
         if self._nfaces_v_name:
             nface_vars.append(self._nfaces_v_name)
+        if self._nfaces_name:
+            nface_vars.append(self._nfaces_name)
 
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
@@ -2157,6 +2185,10 @@ class DynReferenceElement(DynCollection):
             ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
         if self._vert_face_out_normals_name:
             ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
+        if self._face_normals_name:
+            ref_element_arrays.append(self._face_normals_name+"(:,:)")
+        if self._face_out_normals_name:
+            ref_element_arrays.append(self._face_out_normals_name+"(:,:)")
 
         # Add declarations to the parent subroutine
         api_config = Config.get().api_conf("dynamo0.3")
@@ -2200,6 +2232,12 @@ class DynReferenceElement(DynCollection):
                     parent, lhs=self._nfaces_v_name,
                     rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
 
+        if self._nfaces_name:
+            parent.add(
+                AssignGen(
+                    parent, lhs=self._nfaces_name,
+                    rhs=self._ref_elem_name + "%get_number_faces()"))
+
         if self._horiz_face_normals_name:
             parent.add(
                 CallGen(parent,
@@ -2227,6 +2265,21 @@ class DynReferenceElement(DynCollection):
                 CallGen(
                     parent,
                     name="{0}%get_outward_normals_to_vertical_faces({1})".
+                    format(self._ref_elem_name,
+                           self._vert_face_out_normals_name)))
+
+        if self._face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_faces({1})".format(
+                            self._ref_elem_name,
+                            self._vert_face_normals_name)))
+
+        if self._face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_outward_normals_to_faces({1})".
                     format(self._ref_elem_name,
                            self._vert_face_out_normals_name)))
 
@@ -7835,6 +7888,15 @@ class KernCallArgList(ArgOrdering):
                 root_name="nfaces_re_v", context="PSyVars",
                 label="nfaces_re_v")
             self._arglist.append(nfaces_v)
+        # Provide no. of all faces if required
+        if RefElementMetaData.Property.NORMALS_TO_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES \
+           in self._kern.reference_element.properties:
+            nfaces = self._name_space_manager.create_name(
+                root_name="nfaces_re", context="PSyVars",
+                label="nfaces_re")
+            self._arglist.append(nfaces)
         # Now the arrays themselves, in the order specified in the
         # kernel metadata
         for prop in self._kern.reference_element.properties:
@@ -7862,11 +7924,23 @@ class KernCallArgList(ArgOrdering):
                     root_name="normals_to_vert_faces", context="PSyVars",
                     label="normals_to_vert_faces")
                 self._arglist.append(name)
+            elif (prop == RefElementMetaData.Property.
+                  OUTWARD_NORMALS_TO_FACES):
+                name = self._name_space_manager.create_name(
+                    root_name="out_normals_to_faces", context="PSyVars",
+                    label="out_normals_to_faces")
+                self._arglist.append(name)
+            elif (prop == RefElementMetaData.Property.
+                  NORMALS_TO_VERTICAL_FACES):
+                name = self._name_space_manager.create_name(
+                    root_name="normals_to_faces", context="PSyVars",
+                    label="normals_to_faces")
+                self._arglist.append(name)
             else:
                 raise InternalError(
                     "Unsupported reference-element property ('{0}') found when"
                     " generating arguments for kernel '{1}'. Supported "
-                    "properties are: {2}".format(
+                    "properties are: '{2}'".format(
                         str(prop), self._kern.name,
                         [str(sprop) for sprop in RefElementMetaData.Property]))
 
