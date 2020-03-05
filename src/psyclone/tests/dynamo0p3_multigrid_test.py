@@ -260,12 +260,13 @@ def test_field_prolong(tmpdir):
             "      USE mesh_mod, ONLY: mesh_type\n"
             "      TYPE(field_type), intent(inout) :: field1\n"
             "      TYPE(field_type), intent(in) :: field2\n"
-            "      INTEGER cell\n")
+            "      INTEGER(KIND=i_def) cell\n")
         assert expected in gen_code
 
         expected = (
-            "      INTEGER ncell_field1, ncpc_field1_field2\n"
-            "      INTEGER, pointer :: cell_map_field2(:,:) => null()\n"
+            "      INTEGER(KIND=i_def) ncell_field1, ncpc_field1_field2\n"
+            "      INTEGER(KIND=i_def), pointer :: "
+            "cell_map_field2(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: "
             "mmap_field1_field2 => null()\n"
             "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
@@ -352,14 +353,17 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
         assert defs in output
 
         defs2 = (
-            "      INTEGER nlayers\n"
+            "      INTEGER(KIND=i_def) nlayers\n"
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
-            "      INTEGER, pointer :: map_any_space_1_field1(:,:) => null(), "
+            "      INTEGER(KIND=i_def), pointer :: "
+            "map_any_space_1_field1(:,:) => null(), "
             "map_any_space_2_field2(:,:) => null()\n"
-            "      INTEGER ndf_any_space_1_field1, undf_any_space_1_field1, "
-            "ndf_any_space_2_field2, undf_any_space_2_field2\n"
-            "      INTEGER ncell_field2, ncpc_field2_field1\n"
-            "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
+            "      INTEGER(KIND=i_def) ndf_any_space_1_field1, "
+            "undf_any_space_1_field1, ndf_any_space_2_field2, "
+            "undf_any_space_2_field2\n"
+            "      INTEGER(KIND=i_def) ncell_field2, ncpc_field2_field1\n"
+            "      INTEGER(KIND=i_def), pointer :: "
+            "cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
             "null()\n"
             "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"

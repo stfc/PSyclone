@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,11 @@
 !! discontinuous systems an exact solver can be used.
 
 module solver_mod
-  use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL,  &
-                                      CG_SOLVER, BICG_SOLVER, JACOBI_SOLVER, &
-                                      GMRES_SOLVER, GCR_SOLVER, NO_PRE_COND
+
+  use constants_mod,           only : r_def, i_def, str_def, MAX_ITER,    &
+                                      SOLVER_TOL, CG_SOLVER, BICG_SOLVER, &
+                                      JACOBI_SOLVER, GMRES_SOLVER,        &
+                                      GCR_SOLVER, NO_PRE_COND
   use log_mod,                 only : log_event,         &
                                       log_scratch_space, &
                                       LOG_LEVEL_ERROR,   &
@@ -106,12 +108,12 @@ contains
     ! problems because PSyclone makes everything (inout)
     type(field_type), intent(inout)    :: chi(3)
 
-    integer, intent(in)                :: solver_type
+    integer(i_def),                  intent(in) :: solver_type
     type(quadrature_type), optional, intent(in) :: qr
     type(operator_type),   optional, intent(inout) :: mm
 
-    integer, parameter :: NUM_JACOBI_ITERS = 5
-    integer :: fs_l, fs_r
+    integer(i_def), parameter :: NUM_JACOBI_ITERS = 5
+    integer(i_def) :: fs_l, fs_r
     real(r_def) :: ascalar = 3.0
 
     fs_l = lhs%which_function_space()
@@ -195,9 +197,9 @@ contains
     real(kind=r_def)                   :: ts, tt
     ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
-    integer                            :: iter
+    integer(kind=i_def)                :: iter
     real(kind=r_def)                   :: const
-    integer                            :: rhs_fs
+    integer(kind=i_def)                :: rhs_fs
     type(function_space_type)          :: fs
 
     ! Compute the residual this is a global sum to the PSy ---
@@ -338,8 +340,8 @@ contains
     ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     real(kind=r_def)                   :: const
-    integer                            :: iter
-    integer                            :: rhs_fs
+    integer(kind=i_def)                :: iter
+    integer(kind=i_def)                :: rhs_fs
     type(function_space_type)          :: fs
 
     call invoke( X_innerproduct_X(rs_old, rhs) )
@@ -433,7 +435,7 @@ contains
 
     implicit none
 
-    integer,             intent(in)    :: n_iter
+    integer(kind=i_def), intent(in)    :: n_iter
     type(field_type),    intent(inout) :: lhs, rhs
     type(operator_type), intent(inout) :: mm
     type(mesh_type),     intent(in)    :: mesh
@@ -441,9 +443,9 @@ contains
 
     real(kind=r_def), parameter :: MU = 0.9_r_def
 
-    integer :: iter
-    integer                            :: rhs_fs
-    type( function_space_type )        :: fs
+    integer(kind=i_def) :: iter
+    integer(kind=i_def) :: rhs_fs
+    type( function_space_type ) :: fs
 
     rhs_fs = rhs%which_function_space()
 
@@ -505,8 +507,8 @@ contains
     ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     real(kind=r_def)                   :: const
-    integer                            :: iter, i, j, k, m
-    integer                            :: rhs_fs
+    integer(kind=i_def)                :: iter, i, j, k, m
+    integer(kind=i_def)                :: rhs_fs
     type(function_space_type)          :: fs
 
     rhs_fs = rhs%which_function_space()
@@ -675,8 +677,8 @@ contains
     ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     real(kind=r_def)                   :: const
-    integer                            :: iter, m, n
-    integer                            :: rhs_fs
+    integer(kind=i_def)                :: iter, m, n
+    integer(kind=i_def)                :: rhs_fs
     type(function_space_type)          :: fs
 
     rhs_fs = rhs%which_function_space()
@@ -771,9 +773,9 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout) :: y
-    type(field_type), intent(in)    :: x
-    integer,          intent(in)    :: pre_cond_type
+    type(field_type),    intent(inout) :: y
+    type(field_type),    intent(in)    :: x
+    integer(kind=i_def), intent(in)    :: pre_cond_type
 
     select case ( pre_cond_type )
       case ( DIAGONAL_PRE_COND )
