@@ -156,7 +156,7 @@ def _check_bound_is_full_extent(array, dim, index, operator):
             + str(excinfo))
 
 
-def check_literal(node, dim, index, value):
+def _check_literal(node, dim, index, value):
     '''Utility function to check that the supplied array has a literal at
     dimension index "dim" and range index "index" with value
     "value".
@@ -191,8 +191,8 @@ def check_literal(node, dim, index, value):
             "Expecting literal value '{0}' to be the same as '{1}'." \
             "".format(literal.value, str(value))
     except AssertionError as excinfo:
-        raise NotImplementedError("psyir/frontend/fparser2.py:check_literal():"
-                                  + str(excinfo))
+        raise NotImplementedError(
+            "psyir/frontend/fparser2.py:_check_literal():" + str(excinfo))
 
 
 def _check_range_is_full_extent(my_range):
@@ -203,8 +203,9 @@ def _check_range_is_full_extent(my_range):
     compared with "ubound(a,1)" and the step is compared with 1.
 
     If everything is OK then this routine silently returns, otherwise
-    an exception is raised by one of the functions (_check_bound or
-    check_literal) called by this function.
+    an exception is raised by one of the functions
+    (_check_bound_is_full_extent or _check_literal) called by this
+    function.
 
     :param my_range: the Range node to check.
     :type my_range: :py:class:`psyclone.psyir.node.Range`
@@ -223,7 +224,7 @@ def _check_range_is_full_extent(my_range):
     _check_bound_is_full_extent(
         array, dim, index=1, operator=BinaryOperation.Operator.UBOUND)
     # Check step
-    check_literal(array, dim, index=2, value=1)
+    _check_literal(array, dim, index=2, value=1)
 
 
 class Fparser2Reader(object):
