@@ -92,7 +92,7 @@ def _get_symbol_table(node):
     return None
 
 
-def check_bound(array, dim, index, operator):
+def _check_bound_is_full_extent(array, dim, index, operator):
     '''A Fortran array section with a missing lower bound implies the
     access starts at the first element and a missing upper bound
     implies the access ends at the last element e.g. a(:,:)
@@ -119,8 +119,8 @@ def check_bound(array, dim, index, operator):
         :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
         or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
 
-    :raises InternalError: if the supplied array does not have the \
-    expected properties.
+    :raises NotImplementedError: if the supplied array does not have \
+        the expected properties.
 
     '''
     try:
@@ -138,7 +138,8 @@ def check_bound(array, dim, index, operator):
             "".format(type(reference).__name__)
         assert reference.symbol is array.symbol, \
             "Expecting Reference symbol '{0}' to be the same as array " \
-            "symbol '{1}'.".format(reference.symbol.name, array.symbol.name)
+            "symbol '{1}'.".format(reference.symbol.name,
+                                   array.symbol.name)
         assert isinstance(literal, Literal), \
             "Expecting Literal but found '{0}'." \
             "".format(type(literal).__name__)
@@ -146,11 +147,13 @@ def check_bound(array, dim, index, operator):
             "Expecting integer datatype but found '{0}'." \
             "".format(literal.datatype)
         assert literal.value == str(dim), \
-            "Expecting literal value '{0}' to be the same as the current " \
-            "array dimension '{1}'.".format(literal.value, str(dim))
+            "Expecting literal value '{0}' to be the same as the " \
+            "current array dimension '{1}'.".format(literal.value,
+                                                    str(dim))
     except AssertionError as excinfo:
-        raise InternalError("psyir/frontend/fparser2.py:check_bound():"
-                            + str(excinfo))
+        raise NotImplementedError(
+            "psyir/frontend/fparser2.py:_check_bound_is_full_extent():"
+            + str(excinfo))
 
 
 def check_literal(node, dim, index, value):
@@ -166,14 +169,14 @@ def check_literal(node, dim, index, value):
     range index is valid.
 
     :param array: the node to check.
-    :type array: :py:class:`pysclone.psyir.node.array`
+    :type array: :py:class:`pysclone.psyir.node.Array`
     :param int dim: the dimension index to check.
     :param int index: the index of the range to check (0 is the \
         lower bound, 1 is the upper bound).
     :param int value: the expected value of the literal.
 
-    :raises InternalError: if the supplied argument does not have the \
-    required properties.
+    :raises NotImplementedError: if the supplied argument does not \
+        have the required properties.
 
     '''
     try:
@@ -188,29 +191,37 @@ def check_literal(node, dim, index, value):
             "Expecting literal value '{0}' to be the same as '{1}'." \
             "".format(literal.value, str(value))
     except AssertionError as excinfo:
-        raise InternalError("psyir/frontend/fparser2.py:check_literal():"
-                            + str(excinfo))
+        raise NotImplementedError("psyir/frontend/fparser2.py:check_literal():"
+                                  + str(excinfo))
 
 
-def check_range(my_range):
+def _check_range_is_full_extent(my_range):
     '''Utility function to check whether a Range object is equivalent to a
     ":" in Fortran array notation. The PSyIR representation of "a(:)"
     is "a(lbound(a,1):ubound(a,1):1). Therefore, for array a index 1,
     the lower bound is compared with "lbound(a,1)", the upper bound is
     compared with "ubound(a,1)" and the step is compared with 1.
 
+    If everything is OK then this routine silently returns, otherwise
+    an exception is raised by one of the functions (_check_bound or
+    check_literal) called by this function.
+
     :param my_range: the Range node to check.
     :type my_range: :py:class:`psyclone.psyir.node.Range`
 
     '''
+
     array = my_range.parent
+    # The array index of this range is determined by its position in
+    # the array list (+1 as the index starts from 0 but Fortran
+    # dimensions start from 1).
     dim = array.children.index(my_range) + 1
     # Check lower bound
-    check_bound(array, dim, index=0,
-                operator=BinaryOperation.Operator.LBOUND)
+    _check_bound_is_full_extent(
+        array, dim, index=0, operator=BinaryOperation.Operator.LBOUND)
     # Check upper bound
-    check_bound(array, dim, index=1,
-                operator=BinaryOperation.Operator.UBOUND)
+    _check_bound_is_full_extent(
+        array, dim, index=1, operator=BinaryOperation.Operator.UBOUND)
     # Check step
     check_literal(array, dim, index=2, value=1)
 
@@ -1666,8 +1677,8 @@ class Fparser2Reader(object):
                 # Found array syntax notation. Check that it is the
                 # simple ":" format.
                 try:
-                    check_range(node)
-                except InternalError:
+                    _check_range_is_full_extent(node)
+                except NotImplementedError:
                     raise NotImplementedError(
                         "Only array notation of the form my_array(:, :, ...) "
                         "is supported.")

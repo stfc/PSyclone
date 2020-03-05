@@ -41,17 +41,15 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name
+from fparser.two.Fortran2003 import Specification_Part, Type_Declaration_Stmt
 from psyclone.psyir.nodes import Node, Schedule, \
     CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, IfBlock, Reference, Array, Container, Literal, Range
+    NaryOperation, IfBlock, Reference, Array, Container, Literal
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    _get_symbol_table, check_literal, check_bound, check_range
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, _get_symbol_table
 
 
 def process_declarations(code):
@@ -94,210 +92,7 @@ end module dummy_mod
 '''
 
 
-# Function check_bound
-def test_check_bound():
-    ''' Test the check_bound function.'''
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
-
-    my_range = Range.create(one, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, None)
-    assert ("Expecting BinaryOperation but found 'Literal'"
-            in str(excinfo.value))
-
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, one, one)
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, BinaryOperation.Operator.UBOUND)
-    assert ("Expecting operator to be 'Operator.UBOUND', but found "
-            "'Operator.LBOUND'" in str(excinfo.value))
-
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    assert "Expecting Reference but found 'Literal'" in str(excinfo.value)
-
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", DataType.INTEGER)), one)
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    assert ("Expecting Reference symbol 'x' to be the same as array "
-            "symbol 'a'" in str(excinfo.value))
-
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Node())
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    assert "Expecting Literal but found 'Node'" in str(excinfo.value)
-
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1.0", DataType.REAL))
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    assert ("Expecting integer datatype but found 'DataType.REAL'"
-            in str(excinfo.value))
-
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("2", DataType.INTEGER))
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-    assert ("Expecting literal value '2' to be the same as the current "
-            "array dimension '1'." in str(excinfo.value))
-
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    check_bound(array_reference, 1, 0, BinaryOperation.Operator.LBOUND)
-
-
-# Function check_literal
-def test_check_literal():
-    ''' Test the check_literal function.'''
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
-
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    # 1st dimension, second argument to range is an integer literal
-    # with value 1
-    check_literal(array_reference, 1, 1, 1)
-    with pytest.raises(InternalError) as excinfo:
-        # 1st dimension, first argument to range is an operator, not a literal
-        check_literal(array_reference, 1, 0, 1)
-    assert ("Expecting Literal but found 'BinaryOperation'"
-            in str(excinfo.value))
-
-    my_range = Range.create(operator, one)
-    # Range.create checks for valid datatype. Therefore change to
-    # invalid after creation.
-    my_range.children[1] = Literal("1.0", DataType.REAL)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        # 1st dimension, second argument to range is a real literal,
-        # not an integer literal.
-        check_literal(array_reference, 1, 1, 1)
-    assert ("Expecting integer datatype but found 'DataType.REAL'"
-            in str(excinfo.value))
-
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        # 1st dimension, second argument to range is a real literal,
-        # not an integer literal.
-        check_literal(array_reference, 1, 1, 2)
-    assert ("Expecting literal value '1' to be the same as '2'."
-            in str(excinfo.value))
-
-
-# Function check_range
-def test_check_range():
-    ''' Test the check_range function.'''
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
-    lbound_op = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
-    ubound_op = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
-
-    my_range = Range.create(lbound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
-    # Valid structure
-    check_range(my_range)
-
-    # Invalid start (as 1st argument should be lower bound)
-    my_range = Range.create(ubound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_range(my_range)
-    assert ("Expecting operator to be 'Operator.LBOUND', but found "
-            "'Operator.UBOUND'." in str(excinfo.value))
-
-    # Invalid stop (as 2nd argument should be upper bound)
-    my_range = Range.create(lbound_op, lbound_op, one)
-    _ = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_range(my_range)
-    assert ("Expecting operator to be 'Operator.UBOUND', but found "
-            "'Operator.LBOUND'." in str(excinfo.value))
-
-    # Invalid step (as 3rd argument should be Literal)
-    my_range = Range.create(lbound_op, ubound_op, ubound_op)
-    _ = Array.create(symbol, [my_range])
-    with pytest.raises(InternalError) as excinfo:
-        check_range(my_range)
-    assert ("Expecting Literal but found 'BinaryOperation'"
-            in str(excinfo.value))
-
 # Class Fparser2Reader
-
-
-# Static method _array_notation_rank
-def test_array_notation_rank():
-    '''Test the static method _array_notation_rank in the fparser2reader
-    class
-
-    '''
-    # An array with no dimensions raises an exception
-    symbol = DataSymbol("a", DataType.REAL, shape=[10])
-    array = Array(symbol, [])
-    with pytest.raises(NotImplementedError) as excinfo:
-        Fparser2Reader._array_notation_rank(array)
-    assert ("An Array reference in the PSyIR must have at least one child but "
-            "'a' has none" in str(excinfo.value))
-
-    # If array syntax notation is found, it must be for all elements
-    # in that dimension
-    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
-    lbound_op1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
-    ubound_op1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
-    lbound_op3 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("3", DataType.INTEGER))
-    ubound_op3 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("3", DataType.INTEGER))
-
-    range1 = Range.create(lbound_op1, ubound_op1)
-    range2 = Range.create(lbound_op3, ubound_op3)
-    one = Literal("1", DataType.INTEGER)
-    array = Array.create(symbol, [range1, one, range2])
-    result = Fparser2Reader._array_notation_rank(array)
-    # Two array dimensions use array notation.
-    assert result == 2
-
-    # Make one of the array notation dimensions differ from what is required.
-    range2 = Range.create(lbound_op3, one)
-    array = Array.create(symbol, [range1, one, range2])
-    with pytest.raises(NotImplementedError) as excinfo:
-        Fparser2Reader._array_notation_rank(array)
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(excinfo.value))
 
 
 # Method generate_container
@@ -991,7 +786,7 @@ def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
+    from fparser.two.Fortran2003 import Name, Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -1064,6 +859,7 @@ def test_parse_array_dimensions_attributes():
 def test_deferred_array_size():
     ''' Check that we handle the case of an array being declared with an
     extent specified by a variable that is declared after it. '''
+    from fparser.two.Fortran2003 import Name
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, intent(in), dimension(n) :: array3\n"
@@ -1176,6 +972,7 @@ def test_handling_assignment_stmt():
     ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
@@ -1194,6 +991,7 @@ def test_handling_name():
     ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -1219,6 +1017,7 @@ def test_handling_parenthesis():
     ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=(x+1)")
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
 
@@ -1237,6 +1036,7 @@ def test_handling_part_ref():
     ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
@@ -1277,6 +1077,7 @@ def test_handling_intrinsics():
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
 
     # Test parsing all supported binary operators.
@@ -1327,6 +1128,7 @@ def test_handling_intrinsics():
 def test_intrinsic_no_args():
     ''' Check that an intrinsic with no arguments results in a
     NotImplementedError. '''
+    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b)")
@@ -1343,6 +1145,7 @@ def test_unary_op_handler_error():
     ''' Check that the unary op handler raises the expected error if the
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
+    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = exp(a)")
@@ -1364,6 +1167,7 @@ def test_unary_op_handler_error():
 def test_binary_op_handler_error():
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
+    from fparser.two.Fortran2003 import Execution_Part, Name
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b)")
@@ -1386,6 +1190,7 @@ def test_binary_op_handler_error():
 def test_nary_op_handler_error():
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
+    from fparser.two.Fortran2003 import Execution_Part, Name
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader("x = SUM(a, b, mask)")
@@ -1407,6 +1212,7 @@ def test_nary_op_handler_error():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_nested_intrinsic():
     ''' Check that we correctly handle nested intrinsic functions. '''
+    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader(
@@ -1428,188 +1234,9 @@ def test_handling_nested_intrinsic():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_array_section():
-    ''' Check that we correctly handle an array section '''
-
-    def _array_create(code):
-        '''Utility function that takes the supplied executable code and
-        returns its PSyIR representation.
-
-        :param str code: the executable code as a string.
-
-        :returns: the executable code as PSyIR nodes.
-        :rtype: :py:class:`psyclone.psyir.nodes.node`
-
-        '''
-        processor = Fparser2Reader()
-        fake_parent = Node()
-        reader = FortranStringReader(code)
-        fp2node = Execution_Part.match(reader)[0][0]
-        processor.process_nodes(fake_parent, [fp2node])
-        return fake_parent.children[0].children[0]
-
-    def _check_array(node, ndims):
-        '''Utility function that checks that the supplied node is an array and
-        has the expected number of dimensions. Also checks that the
-        node is the parent of its children.
-
-        :param node: the node to check.
-        :type node: :py:class:`psyclone.psyir.nodes.array`
-        :param int ndims: the number of expected array dimensions.
-
-        '''
-        assert isinstance(node, Array)
-        assert len(node.children) == ndims
-        for child in node.children:
-            assert child.parent is node
-
-    def _check_range(array, dim):
-        '''Utility function that checks that the "dim" index of the supplied
-        array contains a range node. Assumes that the supplied
-        argument "array" is an array. Also checks that the parent
-        relationships are set up correctly.
-
-        :param array: the node to check.
-        :type array: :py:class:`psyclone.psyir.nodes.array`
-        :param int dim: the array dimension index to check.
-
-        '''
-        range_node = array.children[dim-1]
-        assert isinstance(range_node, Range)
-        assert range_node.parent is array
-        for child in range_node.children:
-            assert child.parent is range_node
-
-    def _check_reference(node, dim, index, name):
-        '''Utility function to check that the supplied array has a reference
-        at dimension index "dim" and range index "index" with name
-        "name". Also checks any parent relationships.
-
-        Assumes that the node argument is an array and that the
-        supplied dimension index is a Range node and that the supplied
-        range index is valid.
-
-        :param array: the node to check.
-        :type array: :py:class:`pysclone.psyir.node.array`
-        :param int dim: the dimension index to check.
-        :param int index: the index of the range to check (0 is the \
-            lower bound, 1 is the upper bound).
-        :param str name: the expected name of the reference.
-
-        '''
-        my_range = node.children[dim-1]
-        reference = my_range.children[index]
-        assert isinstance(reference, Reference)
-        assert reference.name == name
-        assert my_range.parent is node
-        assert reference.parent is my_range
-
-    # Simple one-dimensional
-    for code in ["a(:) = 0.0", "a(::) = 0.0"]:
-        array_reference = _array_create(code)
-        _check_array(array_reference, ndims=1)
-        _check_range(array_reference, dim=1)
-        check_bound(array_reference, dim=1, index=0,
-                    operator=BinaryOperation.Operator.LBOUND)
-        check_bound(array_reference, dim=1, index=1,
-                    operator=BinaryOperation.Operator.UBOUND)
-        check_literal(array_reference, dim=1, index=2, value=1)
-    # Simple multi-dimensional
-    for code in ["a(:,:,:) = 0.0", "a(::,::,::) = 0.0"]:
-        array_reference = _array_create(code)
-        _check_array(array_reference, ndims=3)
-        for dim in range(1, 4):
-            # Check each of the 3 dimensions (1, 2, 3)
-            _check_range(array_reference, dim=dim)
-            check_bound(array_reference, dim=dim, index=0,
-                        operator=BinaryOperation.Operator.LBOUND)
-            check_bound(array_reference, dim=dim, index=1,
-                        operator=BinaryOperation.Operator.UBOUND)
-            check_literal(array_reference, dim=dim, index=2, value=1)
-    # Simple values
-    code = "a(1:, 1:2, 1:2:3, :2, :2:3, ::3, 1::3) = 0.0"
-    array_reference = _array_create(code)
-    _check_array(array_reference, ndims=7)
-    # dim 1
-    _check_range(array_reference, dim=1)
-    check_literal(array_reference, dim=1, index=0, value=1)
-    check_bound(array_reference, dim=1, index=1,
-                operator=BinaryOperation.Operator.UBOUND)
-    check_literal(array_reference, dim=1, index=2, value=1)
-    # dim 2
-    _check_range(array_reference, dim=2)
-    check_literal(array_reference, dim=2, index=0, value=1)
-    check_literal(array_reference, dim=2, index=1, value=2)
-    check_literal(array_reference, dim=2, index=2, value=1)
-    # dim 3
-    _check_range(array_reference, dim=3)
-    check_literal(array_reference, dim=3, index=0, value=1)
-    check_literal(array_reference, dim=3, index=1, value=2)
-    check_literal(array_reference, dim=3, index=2, value=3)
-    # dim 4
-    _check_range(array_reference, dim=4)
-    check_bound(array_reference, dim=4, index=0,
-                operator=BinaryOperation.Operator.LBOUND)
-    check_literal(array_reference, dim=4, index=1, value=2)
-    check_literal(array_reference, dim=4, index=2, value=1)
-    # dim 5
-    _check_range(array_reference, dim=5)
-    check_bound(array_reference, dim=5, index=0,
-                operator=BinaryOperation.Operator.LBOUND)
-    check_literal(array_reference, dim=5, index=1, value=2)
-    check_literal(array_reference, dim=5, index=2, value=3)
-    # dim 6
-    _check_range(array_reference, dim=6)
-    check_bound(array_reference, dim=6, index=0,
-                operator=BinaryOperation.Operator.LBOUND)
-    check_bound(array_reference, dim=6, index=1,
-                operator=BinaryOperation.Operator.UBOUND)
-    check_literal(array_reference, dim=6, index=2, value=3)
-    # dim 7
-    _check_range(array_reference, dim=7)
-    check_literal(array_reference, dim=7, index=0, value=1)
-    check_bound(array_reference, dim=7, index=1,
-                operator=BinaryOperation.Operator.UBOUND)
-    check_literal(array_reference, dim=7, index=2, value=3)
-
-    # Simple variables
-    code = "a(b:, b:c, b:c:d) = 0.0"
-    array_reference = _array_create(code)
-    _check_array(array_reference, ndims=3)
-    # dim 1
-    _check_range(array_reference, dim=1)
-    _check_reference(array_reference, dim=1, index=0, name="b")
-    check_bound(array_reference, dim=1, index=1,
-                operator=BinaryOperation.Operator.UBOUND)
-    check_literal(array_reference, dim=1, index=2, value=1)
-    # dim 2
-    _check_range(array_reference, dim=2)
-    _check_reference(array_reference, dim=2, index=0, name="b")
-    _check_reference(array_reference, dim=2, index=1, name="c")
-    check_literal(array_reference, dim=2, index=2, value=1)
-    # dim 3
-    _check_range(array_reference, dim=3)
-    _check_reference(array_reference, dim=3, index=0, name="b")
-    _check_reference(array_reference, dim=3, index=1, name="c")
-    _check_reference(array_reference, dim=3, index=2, name="d")
-
-    # Expressions
-    code = "a(b*c:b+c:b/c) = 0.0"
-    array_reference = _array_create(code)
-    _check_array(array_reference, ndims=1)
-    _check_range(array_reference, dim=1)
-    my_range = array_reference.children[0]
-    assert isinstance(my_range.children[0], BinaryOperation)
-    assert my_range.children[0].operator == BinaryOperation.Operator.MUL
-    assert isinstance(my_range.children[1], BinaryOperation)
-    assert my_range.children[1].operator == BinaryOperation.Operator.ADD
-    assert isinstance(my_range.children[2], BinaryOperation)
-    assert my_range.children[2].operator == BinaryOperation.Operator.DIV
-
-
-@pytest.mark.usefixtures("f2008_parser")
 def test_handling_array_product():
     ''' Check that we correctly handle array products. '''
+    from fparser.two.Fortran2003 import Execution_Part
     processor = Fparser2Reader()
     fake_parent = Node()
     reader = FortranStringReader(
@@ -1625,6 +1252,7 @@ def test_handling_if_stmt():
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
@@ -1643,6 +1271,7 @@ def test_handling_if_construct():
     ''' Test that fparser2 If_Construct is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''if (condition1 == 1) then
             branch1 = 1
@@ -1694,6 +1323,8 @@ def test_handling_if_construct_errors():
     ''' Test that unsupported If_Construct structures raise the proper
     errors.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
+
     reader = FortranStringReader(
         '''if (condition1) then
         elseif (condition2) then
@@ -1757,6 +1388,7 @@ def test_handling_complex_if_construct():
     ''' Test that nested If_Construct structures and empty bodies are
     handled properly.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''if (condition1) then
         elseif (condition2) then
@@ -1789,6 +1421,7 @@ def test_handling_case_construct():
     ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (selector)
             CASE (label1)
@@ -1828,7 +1461,7 @@ def test_handling_case_construct():
 def test_case_default():
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause. '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
+    from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
@@ -1865,6 +1498,7 @@ def test_case_default():
 def test_handling_case_list():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of conditions. '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
             CASE (label2, label3)
@@ -1896,6 +1530,7 @@ def test_handling_case_list():
 def test_handling_case_range():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a range. '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
             CASE (label4:label5)
@@ -1920,6 +1555,7 @@ def test_handling_case_range():
 def test_handling_case_range_list():
     ''' Test that the Case_Construct handler correctly processes CASE
     statements involving a list of ranges. '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader(
         '''SELECT CASE (my_var)
             CASE (:label1, label5:, label6)
@@ -1953,6 +1589,8 @@ def test_handling_invalid_case_construct():
     ''' Test that the Case_Construct handler raises the proper errors when
     it parses invalid or unsupported fparser2 trees.
     '''
+    from fparser.two.Fortran2003 import Execution_Part, Name
+
     # CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
         '''SELECT CASE (selector)
@@ -2014,6 +1652,7 @@ def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1+4")
     fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
 
@@ -2077,7 +1716,7 @@ def test_handling_unaryopbase():
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import UnaryOpBase
+    from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
     reader = FortranStringReader("x=-4")
     fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
     assert isinstance(fp2unaryop, UnaryOpBase)
@@ -2126,7 +1765,7 @@ def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Return_Stmt
+    from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
@@ -2144,6 +1783,7 @@ def test_handling_return_stmt():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_do_stmt():
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         do i=1,10
             a=a+1
@@ -2177,6 +1817,7 @@ def test_handling_end_subroutine_stmt():
 def test_do_construct():
     ''' Check that do loop constructs are converted to the expected
     PSyIR node'''
+    from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyGen import Loop
     reader = FortranStringReader('''
         do i = 1, 10 , 2\n
@@ -2201,6 +1842,7 @@ def test_do_construct():
 @pytest.mark.usefixtures("f2008_parser")
 def test_do_construct_while():
     ''' Check that do while constructs are placed in Codeblocks '''
+    from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader('''
         do while(a .gt. b)\n
             c = c + 1\n

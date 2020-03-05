@@ -867,6 +867,27 @@ def test_fw_range(fort_writer):
     result = fort_writer.array_node(array)
     assert result == "a(:,1:2:3,::3)"
 
+    # Make a) lbound and ubound come from a different array and b)
+    # switch lbound and ubound round. These bounds should then be
+    # output.
+    symbol_b = DataSymbol("b", DataType.REAL, shape=[10])
+    b_dim1_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol_b),
+        Literal("1", DataType.INTEGER))
+    b_dim1_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol_b),
+        Literal("1", DataType.INTEGER))
+    array = Array.create(
+        symbol,
+        [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
+         Range.create(one, two, step=three),
+         Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
+    result = fort_writer.array_node(array)
+    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
+                      "UBOUND(a, 3):LBOUND(a, 3):3)")
+
 # literal is already checked within previous tests
 
 
@@ -1052,7 +1073,7 @@ def test_fw_codeblock_2(fort_writer):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
     of a line (not a whole line). In this case the data initialisation
-    of the scalar "(/ 0.0 /)" is a code block.
+    of the array 'a' "(/ 0.0 /)" is a code block.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1060,7 +1081,7 @@ def test_fw_codeblock_2(fort_writer):
         "module test\n"
         "contains\n"
         "subroutine tmp()\n"
-        "  real a\n"
+        "  real a(1)\n"
         "  a = (/ 0.0 /)\n"
         "end subroutine tmp\n"
         "end module test")
