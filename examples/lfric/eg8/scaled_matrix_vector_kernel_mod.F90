@@ -9,7 +9,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications Copyright (c) 2017, Science and Technology Facilities Council
+! Modifications Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -39,16 +39,20 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module scaled_matrix_vector_kernel_mod
+
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     CELLS 
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -113,19 +117,20 @@ subroutine scaled_matrix_vector_code(cell,        &
                                      ndf2, undf2, map2)
 
   implicit none 
-  !Arguments
-  integer,                   intent(in)    :: cell, nlayers, ncell_3d
-  integer,                   intent(in)    :: undf1, ndf1
-  integer,                   intent(in)    :: undf2, ndf2
-  integer, dimension(ndf1),  intent(in)    :: map1
-  integer, dimension(ndf2),  intent(in)    :: map2
+
+  ! Arguments
+  integer(kind=i_def),                   intent(in)    :: cell, nlayers, ncell_3d
+  integer(kind=i_def),                   intent(in)    :: undf1, ndf1
+  integer(kind=i_def),                   intent(in)    :: undf2, ndf2
+  integer(kind=i_def), dimension(ndf1),  intent(in)    :: map1
+  integer(kind=i_def), dimension(ndf2),  intent(in)    :: map2
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
   real(kind=r_def), dimension(undf1),              intent(in)    :: y
 
-  !Internal variables
-  integer                           :: df, k, ik 
+  ! Internal variables
+  integer(kind=i_def)               :: df, k, ik
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
 

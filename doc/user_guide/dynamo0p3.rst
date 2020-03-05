@@ -246,7 +246,7 @@ the Kernel via an ``invoke``.
 
 For example::
 
-  integer :: extent = 2
+  integer(kind=i_def) :: extent = 2
   call invoke(kernel(field1, field2, extent))
 
 where ``field2`` has kernel metadata specifying that it has a stencil
@@ -277,15 +277,15 @@ supplied by the ``LFRic`` infrastructure via the
 For example::
 
   use flux_direction_mod, only : x_direction
-  integer :: direction = x_direction
-  integer :: extent = 2
+  integer(kind=i_def) :: direction = x_direction
+  integer(kind=i_def) :: extent = 2
   ! ...
   call invoke(kernel(field1, field2, extent, direction))
 
 ``direction`` may also be passed as a literal. For example::
 
   use flux_direction_mod, only : x_direction
-  integer :: extent = 2
+  integer(kind=i_def) :: extent = 2
   ! ...
   call invoke(kernel(field1, field2, extent, x_direction))
 
@@ -1223,7 +1223,7 @@ rules, along with PSyclone's naming conventions, are:
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an integer and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer and has intent ``in``.
+   is an integer of type ``i_def`` and has intent ``in``.
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
@@ -1251,8 +1251,8 @@ rules, along with PSyclone's naming conventions, are:
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
    4) If the current entry is an operator then first include a
-      dimension size. This is an integer. The name of this size is
-      ``<operator_name>"_ncell_3d"``. Next include the operator. This
+      dimension size. This is an integer of type ``i_def``. The name of this
+      size is ``<operator_name>"_ncell_3d"``. Next include the operator. This
       is a real array of type ``r_def`` and is 3 dimensional. The
       first two dimensions are the local degrees of freedom for the
       ``to`` and ``from`` function spaces respectively. The third
@@ -1266,16 +1266,17 @@ rules, along with PSyclone's naming conventions, are:
    lexicographic order)
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
-      for the function space. This is an integer and has intent ``in``. The
-      name of this argument is ``"ndf_"<field_function_space>``.
+      for the function space. This is an integer of type ``i_def`` and has
+      intent ``in``. The name of this argument is
+      ``"ndf_"<field_function_space>``.
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
-         space. This is an integer and has intent ``in``. The name of this
-         argument is ``"undf_"<field_function_space>``.
+         space. This is an integer of type ``i_def`` and has intent ``in``.
+         The name of this argument is ``"undf_"<field_function_space>``.
       2) Include the **dofmap** for this function space. This is an integer
-         array with intent ``in``. It has one dimension sized by the local
-         degrees of freedom for the function space.
+         array of type ``i_def`` with intent ``in``. It has one dimension
+         sized by the local degrees of freedom for the function space.
 
    3) For each operation on the function space (``basis``, ``diff_basis``,
       ``orientation``) in the order specified in the metadata
@@ -1323,8 +1324,8 @@ rules, along with PSyclone's naming conventions, are:
          +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.
-         The argument is an integer array with intent ``in``. There is
-         one dimension of size the local degrees of freedom for the
+         The argument is an integer array of type ``i_def`` with intent ``in``.
+         There is one dimension of size the local degrees of freedom for the
          function space. The name of the array is
          ``"orientation_"<field_function_space>``.
 
@@ -1338,9 +1339,9 @@ rules, along with PSyclone's naming conventions, are:
    in the order specified in the ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
-      array with dimensions ``(3, nfaces_re_h/v)``.
+      array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
-      integer array with dimensions ``(3, nfaces_re_h/v)``.
+      integer array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
@@ -1447,13 +1448,13 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
    intent ``in``.
 
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer and has intent ``in``.
+   is an integer of type ``i_def`` and has intent ``in``.
 
 3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer with intent ``in``.
+   an integer of type ``i_def`` with intent ``in``.
 
 4) Include the total number of cells, ``ncell_3d``, which is an integer
-   with intent ``in``.
+   of type ``i_def`` with intent ``in``.
 
 5) For each argument in the ``meta_args`` metadata array:
 
@@ -1468,29 +1469,33 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
       ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
 
       1) Include the number of rows in the banded matrix.  This is
-         an integer with intent ``in`` and is named as
+         an integer of type ``i_def`` with intent ``in`` and is named as
          ``"nrow_"<operator_name>``.
 
       2) If the from-space of the operator is *not* the same as the
          to-space then include the number of columns in the banded
-         matrix.  This is an integer with intent ``in`` and is named as
-         ``"ncol_"<operator_name>``.
+         matrix.  This is an integer of type ``i_def`` with intent ``in``
+         and is named as ``"ncol_"<operator_name>``.
 
       3) Include the bandwidth of the banded matrix. This is an
-         integer with intent ``in`` and is named as
+         integer of type ``i_def`` with intent ``in`` and is named as
          ``"bandwidth_"<operator_name>``.
 
       4) Include banded-matrix parameter ``alpha``. This is an integer
-         with intent ``in`` and is named as ``"alpha_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"alpha_"<operator_name>``.
 
       5) Include banded-matrix parameter ``beta``. This is an integer
-         with intent ``in`` and is named as ``"beta_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"beta_"<operator_name>``.
 
       6) Include banded-matrix parameter ``gamma_m``. This is an integer
-         with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"gamma_m_"<operator_name>``.
 
       7) Include banded-matrix parameter ``gamma_p``. This is an integer
-         with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"gamma_p_"<operator_name>``.
 
    3) If it is a field or scalar argument then include arguments following
           the same rules as for general-purpose kernels.
@@ -1501,24 +1506,25 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
    operator as it appears first in lexicographic order):
 
    1) Include the number of degrees of freedom per cell for the space.
-      This is an integer with intent ``in``. The name of this argument is
-      ``"ndf_"<arg_function_space>``.
+      This is an integer of type ``i_def`` with intent ``in``. The name
+      of this argument is ``"ndf_"<arg_function_space>``.
 
    2) If there is a field on this space then:
 
       1) Include the unique number of degrees of freedom for the
-         function space. This is an integer and has intent ``in``.
-         The name of this argument is ``"undf_"<field_function_space>``.
+         function space. This is an integer of type ``i_def`` and has
+         intent ``in``. The name of this argument is
+         ``"undf_"<field_function_space>``.
 
       2) Include the dofmap for this space. This is an integer array
-         with intent ``in``. It has one dimension sized by the local
-         degrees of freedom for the function space.
+         of type ``i_def`` with intent ``in``. It has one dimension
+         sized by the local degrees of freedom for the function space.
 
    3) If the CMA operator has this space as its to/from space then
       include the column-banded dofmap, the list of offsets for the
-      to/from-space. This is an integer array of rank 2. The first
-      dimension is ``"ndf_"<arg_function_space>```` and the second
-      is ``nlayers``.
+      to/from-space. This is an integer array of rank 2 and type
+      ``i_def``. The first dimension is ``"ndf_"<arg_function_space>``
+      and the second is ``nlayers``.
 
 
 Application/Inverse-Application
@@ -1536,7 +1542,7 @@ The full set of rules is then:
    intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer with intent ``in``.
+   an integer of type ``i_def`` with intent ``in``.
 
 3) For each argument in the ``meta_args`` metadata array:
 
@@ -1558,23 +1564,23 @@ The full set of rules is then:
    same operator as it appears first in lexicographic order):
 
    1) Include the number of degrees of freedom per cell for the associated
-      function space. This is an integer with intent ``in``. The name
-      of this argument is ``"ndf_"<field_function_space>``;
+      function space. This is an integer of type ``i_def`` with intent
+      ``in``. The name of this argument is ``"ndf_"<field_function_space>``;
 
    2) Include the number of unique degrees of freedom for the associated
-      function space. This is an integer with intent ``in``. The name
-      of this argument is ``"undf_"<field_function_space>``;
+      function space. This is an integer of type ``i_def`` with intent
+      ``in``. The name of this argument is ``"undf_"<field_function_space>``;
 
    3) Include the dofmap for this function space. This is a rank-1 integer
-      array with extent equal to the number of degrees of freedom of
-      the space (``"ndf_"<field_function_space>``).
+      array of type ``i_def`` with extent equal to the number of degrees of
+      freedom of the space (``"ndf_"<field_function_space>``).
 
 5) Include the indirection map for the to-space of the CMA operator.
-   This is a rank-1 integer array with extent ``nrow``.
+   This is a rank-1 integer array of type ``i_def`` with extent ``nrow``.
 
 6) If the from-space of the operator is *not* the same as the to-space
    then include the indirection map for the from-space of the CMA operator.
-   This is a rank-1 integer array with extent ``ncol``.
+   This is a rank-1 integer array of type ``i_def`` with extent ``ncol``.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
@@ -1586,7 +1592,7 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
    intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer with intent ``in``.
+   an integer of type ``i_def`` with intent ``in``.
 
 3) For each CMA operator or scalar argument specifed in metadata:
 
@@ -1610,18 +1616,18 @@ kernels with field data being followed by dofmap data. The rules for
 arguments to inter-grid kernels are as follows:
 
 1) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer and has intent ``in``.
+   is an integer of type ``i_def`` and has intent ``in``.
 
 2) Include the ``cell_map`` for the current cell (column). This is
-   an integer array of rank one and intent ``in`` which provides
-   the mapping from the coarse to the fine mesh. It has extent
-   `ncell_f_per_c`.
+   an integer array of rank one, type ``i_def`` and intent ``in``
+   which provides the mapping from the coarse to the fine mesh. It
+   has extent `ncell_f_per_c`.
 
 3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
-   This is an integer and has intent ``in``.
+   This is an integer of type ``i_def`` and has intent ``in``.
 
 4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
-   This is an integer and has intent ``in``.
+   This is an integer of type ``i_def`` and has intent ``in``.
 
 5) For each argument in the ``meta_args`` metadata array (which must be
    a field or field-vector):
@@ -1641,18 +1647,18 @@ arguments to inter-grid kernels are as follows:
           of the field on the fine mesh;
 
    3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
-      is an integer array of rank two with intent ``in``. The extent of
-      the first dimension is ``ndf_fine`` and that of the second is
-      ``ncell_f``.
+      is an integer array of rank two and type ``i_def`` with intent ``in``.
+      The extent of the first dimension is ``ndf_fine`` and that of the
+      second is ``ncell_f``.
 
    else, the dofmap is associated with an argument on the coarse mesh:
 
-   1) Include ``undf_coarse``, the number of unique DoFs
-      for the coarse field. This is an integer with intent ``in``;
+   1) Include ``undf_coarse``, the number of unique DoFs for the coarse
+      field. This is an integer of type ``i_def`` with intent ``in``;
 
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
-      in the coarse mesh. This is an integer array of rank one and has
-      intent ``in``.
+      in the coarse mesh. This is an integer array of rank one, type
+      ``i_def``and has intent ``in``.
 
 .. _dynamo0.3-built-ins:
 
