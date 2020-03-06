@@ -223,7 +223,7 @@ def test_duplicate_refelem_gen(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-
+    print(gen)
     assert gen.count(
         "real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:)"
         ", normals_to_vert_faces(:,:)") == 1
