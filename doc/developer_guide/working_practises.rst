@@ -316,7 +316,9 @@ bash script in the ``examples`` directory. Although this script has the
 option to do some limited compilation of generated code (via the
 ``--compile`` flag) this is currently not enabled on Travis. Note that
 a bash script is possibly not the best choice for implementing this
-functionality and it might be better handled by a Makefile.
+functionality and it might be better handled by a Makefile (issue #713).
+That would also allow support to be added for running the examples for
+a specific domain rather than for all of them.
 
 By default, the Travis configuration uses ``pip`` to install the
 dependencies required by PSyclone before running the test suite. This
