@@ -46,7 +46,7 @@ from __future__ import print_function, absolute_import
 import abc
 import os
 from enum import Enum
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, defaultdict, namedtuple
 import fparser
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -2065,18 +2065,29 @@ class DynReferenceElement(DynCollection):
             root_name="reference_element", context="PSyVars",
             label="reference_element")
 
-        # Create and store names for the number of horizontal/vertical faces
-        # as required.
+        # Initialise names for the properties of the reference element object:
+        # - Number of horizontal/vertical/all faces,
         self._nfaces_h_name = ""
         self._nfaces_v_name = ""
         self._nfaces_name = ""
+        # - Horizontal normals to faces,
         self._horiz_face_normals_name = ""
         self._horiz_face_out_normals_name = ""
+        # - Vertical normals to faces,
         self._vert_face_normals_name = ""
         self._vert_face_out_normals_name = ""
+        # - All normals to faces,
         self._face_normals_name = ""
         self._face_out_normals_name = ""
 
+        # Initialise lists/dictionaries to hold scalar and array properties
+        # of reference element for PSy-layer and kernel stub generation
+        self._ref_elem_arrays = defaultdict(str)
+        self._nface_vars = []
+        self._ref_elem_args = []
+
+        # Populate names of the reference element properties
+        # Provide no. of horizontal faces if required
         if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
@@ -2090,12 +2101,14 @@ class DynReferenceElement(DynCollection):
                     self._name_space_manager.create_name(
                         root_name="normals_to_horiz_faces", context="PSyVars",
                         label="normals_to_horiz_faces")
+                self._ref_elem_arrays[self._horiz_face_normals_name] = self._nfaces_h_name
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
                in self._properties:
                 self._horiz_face_out_normals_name = \
                     self._name_space_manager.create_name(
                         root_name="out_normals_to_horiz_faces",
                         context="PSyVars", label="out_normals_to_horiz_faces")
+                self._ref_elem_arrays[self._horiz_face_out_normals_name] = self._nfaces_h_name
 
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
@@ -2110,6 +2123,7 @@ class DynReferenceElement(DynCollection):
                     self._name_space_manager.create_name(
                         root_name="normals_to_vert_faces", context="PSyVars",
                         label="normals_to_vert_faces")
+                self._ref_elem_arrays[self._vert_face_normals_name] = self._nfaces_v_name
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
                in self._properties:
                 self._vert_face_out_normals_name = \
@@ -2117,6 +2131,7 @@ class DynReferenceElement(DynCollection):
                         root_name="out_normals_to_vert_faces",
                         context="PSyVars",
                         label="out_normals_to_vert_faces")
+                self._ref_elem_arrays[self._vert_face_out_normals_name] = self._nfaces_v_name
 
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
@@ -2131,6 +2146,7 @@ class DynReferenceElement(DynCollection):
                     self._name_space_manager.create_name(
                         root_name="normals_to_faces", context="PSyVars",
                         label="normals_to_faces")
+                self._ref_elem_arrays[self._face_normals_name] = self._nfaces_name
             if RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES\
                in self._properties:
                 self._face_out_normals_name = \
@@ -2138,6 +2154,15 @@ class DynReferenceElement(DynCollection):
                         root_name="out_normals_to_faces",
                         context="PSyVars",
                         label="out_normals_to_faces")
+                self._ref_elem_arrays[self._face_out_normals_name] = self._nfaces_name
+
+        # Remove duplicates from "nface_vars" using OrderedDict
+        self._nface_vars = list(OrderedDict.fromkeys(self._ref_elem_arrays.values()))
+        # Create final argument list
+        self._ref_elem_args = self._nface_vars + \
+                              list(self._ref_elem_arrays.keys())
+        ###print("self._ref_elem_args = ", self._ref_elem_args)
+     
 
     def _invoke_declarations(self, parent):
         '''
@@ -2162,39 +2187,15 @@ class DynReferenceElement(DynCollection):
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
         # Declare the necessary scalars
-        nface_vars = []
-        if self._nfaces_h_name:
-            nface_vars.append(self._nfaces_h_name)
-        if self._nfaces_v_name:
-            nface_vars.append(self._nfaces_v_name)
-        if self._nfaces_name:
-            nface_vars.append(self._nfaces_name)
-
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
-                           entity_decls=nface_vars))
+                           entity_decls=self._nface_vars))
 
-        # Declare the necessary arrays
-        ref_element_arrays = []
-        if self._horiz_face_normals_name:
-            ref_element_arrays.append(self._horiz_face_normals_name+"(:,:)")
-        if self._horiz_face_out_normals_name:
-            ref_element_arrays.append(
-                self._horiz_face_out_normals_name+"(:,:)")
-        if self._vert_face_normals_name:
-            ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
-        if self._vert_face_out_normals_name:
-            ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
-        if self._face_normals_name:
-            ref_element_arrays.append(self._face_normals_name+"(:,:)")
-        if self._face_out_normals_name:
-            ref_element_arrays.append(self._face_out_normals_name+"(:,:)")
-
-        # Add declarations to the parent subroutine
-        api_config = Config.get().api_conf("dynamo0.3")
+        # Declare the necessary arrays                     
+        array_decls = [i + "(:,:)" for i in self._ref_elem_arrays.keys()]
         parent.add(DeclGen(parent, datatype="real",
                            kind=api_config.default_kind["real"],
-                           allocatable=True, entity_decls=ref_element_arrays))
+                           allocatable=True, entity_decls=array_decls))                           
 
     def initialise(self, parent):
         '''
