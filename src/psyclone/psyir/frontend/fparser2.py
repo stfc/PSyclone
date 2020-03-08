@@ -1,4 +1,3 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2020, Science and Technology Facilities Council.
@@ -92,7 +91,7 @@ def _get_symbol_table(node):
     return None
 
 
-def _check_bound_is_full_extent(array, dim, index, operator):
+def _check_bound_is_full_extent(array, dim, operator):
     '''A Fortran array section with a missing lower bound implies the
     access starts at the first element and a missing upper bound
     implies the access ends at the last element e.g. a(:,:)
@@ -109,6 +108,12 @@ def _check_bound_is_full_extent(array, dim, index, operator):
     the specified dimension "dim" is assumed to be a Range node
     and the supplied range index "index" is assumed to be valid.
 
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be moved into fparser2_test.py as it is used there in a
+    different context.
+
     :param array: the node to check.
     :type array: :py:class:`pysclone.psyir.node.array`
     :param int dim: the dimension index to check.
@@ -123,6 +128,14 @@ def _check_bound_is_full_extent(array, dim, index, operator):
         the expected properties.
 
     '''
+    if operator == BinaryOperation.Operator.LBOUND:
+        index = 0
+    elif operator == BinaryOperation.Operator.UBOUND:
+        index = 1
+    else:
+        raise TypeError(
+            "Operator expected to be LBOUND or UBOUND but found '{0}'."
+            "".format(type(operator).__name__))
     try:
         bound = array.children[dim-1].children[index]
         assert isinstance(bound, BinaryOperation), \
@@ -168,6 +181,12 @@ def _check_literal(node, dim, index, value):
     supplied dimension index is a Range node and that the supplied
     range index is valid.
 
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be moved into fparser2_test.py as it is used there in a
+    different context.
+
     :param array: the node to check.
     :type array: :py:class:`pysclone.psyir.node.Array`
     :param int dim: the dimension index to check.
@@ -207,6 +226,11 @@ def _check_range_is_full_extent(my_range):
     (_check_bound_is_full_extent or _check_literal) called by this
     function.
 
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be removed.
+
     :param my_range: the Range node to check.
     :type my_range: :py:class:`psyclone.psyir.node.Range`
 
@@ -218,11 +242,9 @@ def _check_range_is_full_extent(my_range):
     # dimensions start from 1).
     dim = array.children.index(my_range) + 1
     # Check lower bound
-    _check_bound_is_full_extent(
-        array, dim, index=0, operator=BinaryOperation.Operator.LBOUND)
+    _check_bound_is_full_extent(array, dim, BinaryOperation.Operator.LBOUND)
     # Check upper bound
-    _check_bound_is_full_extent(
-        array, dim, index=1, operator=BinaryOperation.Operator.UBOUND)
+    _check_bound_is_full_extent(array, dim, BinaryOperation.Operator.UBOUND)
     # Check step
     _check_literal(array, dim, index=2, value=1)
 

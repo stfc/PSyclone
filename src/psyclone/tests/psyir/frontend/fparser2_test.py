@@ -102,23 +102,33 @@ def test_check_bound_is_full_extent():
 
     my_range = Range.create(one, one)
     array_reference = Array.create(symbol, [my_range])
-    with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0, None)
-    assert ("Expecting BinaryOperation but found 'Literal'"
+    with pytest.raises(TypeError) as excinfo:
+        _check_bound_is_full_extent(array_reference, 1, None)
+    assert ("Operator expected to be LBOUND or UBOUND but found 'NoneType'"
             in str(excinfo.value))
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        _check_bound_is_full_extent(array_reference, 1,
+                                    BinaryOperation.Operator.UBOUND)
+    assert ("Expecting BinaryOperation but found 'Literal'."
+            in str(excinfo.value))
+
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, one, one)
+    my_range = Range.create(operator, one)
+    array_reference = Array.create(symbol, [my_range])
+    with pytest.raises(NotImplementedError) as excinfo:
+        _check_bound_is_full_extent(array_reference, 1,
+                                    BinaryOperation.Operator.LBOUND)
+    assert ("Expecting operator to be 'Operator.LBOUND', but found "
+            "'Operator.UBOUND'" in str(excinfo.value))
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, one, one)
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0,
-                                    BinaryOperation.Operator.UBOUND)
-    assert ("Expecting operator to be 'Operator.UBOUND', but found "
-            "'Operator.LBOUND'" in str(excinfo.value))
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0,
+        _check_bound_is_full_extent(array_reference, 1,
                                     BinaryOperation.Operator.LBOUND)
     assert "Expecting Reference but found 'Literal'" in str(excinfo.value)
 
@@ -128,7 +138,7 @@ def test_check_bound_is_full_extent():
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0,
+        _check_bound_is_full_extent(array_reference, 1,
                                     BinaryOperation.Operator.LBOUND)
     assert ("Expecting Reference symbol 'x' to be the same as array "
             "symbol 'a'" in str(excinfo.value))
@@ -139,7 +149,7 @@ def test_check_bound_is_full_extent():
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0,
+        _check_bound_is_full_extent(array_reference, 1,
                                     BinaryOperation.Operator.LBOUND)
     assert "Expecting Literal but found 'Node'" in str(excinfo.value)
 
@@ -149,7 +159,7 @@ def test_check_bound_is_full_extent():
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0,
+        _check_bound_is_full_extent(array_reference, 1,
                                     BinaryOperation.Operator.LBOUND)
     assert ("Expecting integer datatype but found 'DataType.REAL'"
             in str(excinfo.value))
@@ -160,7 +170,7 @@ def test_check_bound_is_full_extent():
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
     with pytest.raises(NotImplementedError) as excinfo:
-        _check_bound_is_full_extent(array_reference, 1, 0,
+        _check_bound_is_full_extent(array_reference, 1,
                                     BinaryOperation.Operator.LBOUND)
     assert ("Expecting literal value '2' to be the same as the current "
             "array dimension '1'." in str(excinfo.value))
@@ -170,7 +180,7 @@ def test_check_bound_is_full_extent():
         Reference(symbol), Literal("1", DataType.INTEGER))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
-    _check_bound_is_full_extent(array_reference, 1, 0,
+    _check_bound_is_full_extent(array_reference, 1,
                                 BinaryOperation.Operator.LBOUND)
 
 
@@ -1509,10 +1519,10 @@ def test_array_section():
         array_reference = _array_create(code)
         _check_array(array_reference, ndims=1)
         _check_range(array_reference, dim=1)
-        _check_bound_is_full_extent(array_reference, dim=1, index=0,
-                                    operator=BinaryOperation.Operator.LBOUND)
-        _check_bound_is_full_extent(array_reference, dim=1, index=1,
-                                    operator=BinaryOperation.Operator.UBOUND)
+        _check_bound_is_full_extent(array_reference, 1,
+                                    BinaryOperation.Operator.LBOUND)
+        _check_bound_is_full_extent(array_reference, 1,
+                                    BinaryOperation.Operator.UBOUND)
         _check_literal(array_reference, dim=1, index=2, value=1)
     # Simple multi-dimensional
     for code in ["a(:,:,:) = 0.0", "a(::,::,::) = 0.0"]:
@@ -1522,11 +1532,11 @@ def test_array_section():
             # Check each of the 3 dimensions (1, 2, 3)
             _check_range(array_reference, dim=dim)
             _check_bound_is_full_extent(
-                array_reference, dim=dim, index=0,
-                operator=BinaryOperation.Operator.LBOUND)
+                array_reference, dim,
+                BinaryOperation.Operator.LBOUND)
             _check_bound_is_full_extent(
-                array_reference, dim=dim, index=1,
-                operator=BinaryOperation.Operator.UBOUND)
+                array_reference, dim,
+                BinaryOperation.Operator.UBOUND)
             _check_literal(array_reference, dim=dim, index=2, value=1)
     # Simple values
     code = "a(1:, 1:2, 1:2:3, :2, :2:3, ::3, 1::3) = 0.0"
@@ -1535,8 +1545,8 @@ def test_array_section():
     # dim 1
     _check_range(array_reference, dim=1)
     _check_literal(array_reference, dim=1, index=0, value=1)
-    _check_bound_is_full_extent(array_reference, dim=1, index=1,
-                                operator=BinaryOperation.Operator.UBOUND)
+    _check_bound_is_full_extent(array_reference, 1,
+                                BinaryOperation.Operator.UBOUND)
     _check_literal(array_reference, dim=1, index=2, value=1)
     # dim 2
     _check_range(array_reference, dim=2)
@@ -1550,28 +1560,28 @@ def test_array_section():
     _check_literal(array_reference, dim=3, index=2, value=3)
     # dim 4
     _check_range(array_reference, dim=4)
-    _check_bound_is_full_extent(array_reference, dim=4, index=0,
-                                operator=BinaryOperation.Operator.LBOUND)
+    _check_bound_is_full_extent(array_reference, 4,
+                                BinaryOperation.Operator.LBOUND)
     _check_literal(array_reference, dim=4, index=1, value=2)
     _check_literal(array_reference, dim=4, index=2, value=1)
     # dim 5
     _check_range(array_reference, dim=5)
-    _check_bound_is_full_extent(array_reference, dim=5, index=0,
-                                operator=BinaryOperation.Operator.LBOUND)
+    _check_bound_is_full_extent(array_reference, 5,
+                                BinaryOperation.Operator.LBOUND)
     _check_literal(array_reference, dim=5, index=1, value=2)
     _check_literal(array_reference, dim=5, index=2, value=3)
     # dim 6
     _check_range(array_reference, dim=6)
-    _check_bound_is_full_extent(array_reference, dim=6, index=0,
-                                operator=BinaryOperation.Operator.LBOUND)
-    _check_bound_is_full_extent(array_reference, dim=6, index=1,
-                                operator=BinaryOperation.Operator.UBOUND)
+    _check_bound_is_full_extent(array_reference, 6,
+                                BinaryOperation.Operator.LBOUND)
+    _check_bound_is_full_extent(array_reference, 6,
+                                BinaryOperation.Operator.UBOUND)
     _check_literal(array_reference, dim=6, index=2, value=3)
     # dim 7
     _check_range(array_reference, dim=7)
     _check_literal(array_reference, dim=7, index=0, value=1)
-    _check_bound_is_full_extent(array_reference, dim=7, index=1,
-                                operator=BinaryOperation.Operator.UBOUND)
+    _check_bound_is_full_extent(array_reference, 7,
+                                BinaryOperation.Operator.UBOUND)
     _check_literal(array_reference, dim=7, index=2, value=3)
 
     # Simple variables
@@ -1581,8 +1591,8 @@ def test_array_section():
     # dim 1
     _check_range(array_reference, dim=1)
     _check_reference(array_reference, dim=1, index=0, name="b")
-    _check_bound_is_full_extent(array_reference, dim=1, index=1,
-                                operator=BinaryOperation.Operator.UBOUND)
+    _check_bound_is_full_extent(array_reference, 1,
+                                BinaryOperation.Operator.UBOUND)
     _check_literal(array_reference, dim=1, index=2, value=1)
     # dim 2
     _check_range(array_reference, dim=2)
