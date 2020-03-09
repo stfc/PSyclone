@@ -135,14 +135,8 @@ class DynBuiltIn(BuiltIn):
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
-        try:
-            self._idx_name = \
-                self.root.symbol_table.lookup_with_tag("dof_loop_idx").name
-        except KeyError:
-            self._idx_name = self.root.symbol_table.new_symbol_name("df")
-            self.root.symbol_table.add(
-                DataSymbol(self._idx_name, DataType.INTEGER),
-                tag="dof_loop_idx")
+        self._idx_name = \
+            self.root.symbol_table.name_from_tag("dof_loop_idx", root="df")
         # Check that this built-in kernel is valid
         self._validate()
 

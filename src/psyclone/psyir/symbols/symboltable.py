@@ -551,10 +551,10 @@ class SymbolTable(object):
             is given.
         :type tag: str
 
-
         :raises TypeError: if the given variable is not a global variable.
         :raises KeyError: if the given variable name already exists in the \
             symbol table.
+
         '''
         if not isinstance(globalvar, DataSymbol):
             raise TypeError(
@@ -593,12 +593,21 @@ class SymbolTable(object):
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " name '{1}' is already used by another symbol."
                     "".format(globalvar, globalvar.name))
-            if tag and \
-               self.lookup(globalvar.name) != self.lookup_with_tag(tag):
-                raise KeyError(
-                    "Couldn't copy '{0}' into the SymbolTable. The"
-                    " tag '{1}' is already used by another symbol."
-                    "".format(globalvar, tag))
+            if tag:
+                # If the symbol already exist and a tag is given
+                try:
+                    tagged_symbol = self.lookup_with_tag(tag)
+                except KeyError:
+                    # If the tag was not used, it will now be attached
+                    # to the symbol.
+                    self._tags[tag] = self.lookup(globalvar.name)
+
+                # The tag can not refere to a different symbol
+                if self.lookup(globalvar.name) != self.lookup_with_tag(tag):
+                    raise KeyError(
+                        "Couldn't copy '{0}' into the SymbolTable. The"
+                        " tag '{1}' is already used by another symbol."
+                        "".format(globalvar, tag))
 
     def view(self):
         '''

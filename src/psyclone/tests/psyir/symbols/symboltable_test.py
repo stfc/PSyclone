@@ -686,6 +686,7 @@ def test_copy_external_global():
     assert symtab.lookup("b") != var2
     assert symtab.lookup("my_mod") != container2
     assert symtab.lookup("b").interface.container_symbol != container2
+
     # The new globalvar should reuse the available container reference
     assert symtab.lookup("a").interface.container_symbol == \
         symtab.lookup("b").interface.container_symbol
@@ -706,6 +707,11 @@ def test_copy_external_global():
            "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
            " used by another symbol." in str(error.value)
 
+    # If the symbol is the same but the given tag in not in the symbol table,
+    # the new tag should reference the existing symbol
+    symtab.copy_external_global(var3, tag="anothertag")
+    assert symtab.lookup_with_tag("anothertag").name == "b"
+
     # If a tag is given but this is already used, it should fail
     symtab.add(Symbol("symbol"), tag="tag")
     var5 = DataSymbol("c", DataType.DEFERRED,
@@ -714,6 +720,13 @@ def test_copy_external_global():
         symtab.copy_external_global(var5, "tag")
     assert "Symbol table already contains the tag 'tag' for symbol 'symbol'," \
            " so it can not be associated to symbol 'c'." in str(error.value)
+
+    # It should also fail if the symbol exist and the tag is given to another
+    # symbol
+    with pytest.raises(KeyError) as error:
+        symtab.copy_external_global(var3, "tag")
+    assert " into the SymbolTable. The tag 'tag' is already used by another" \
+        " symbol." in str(error.value)
 
     # If the tag does not already exist, the tag is associated with the new
     # symbol

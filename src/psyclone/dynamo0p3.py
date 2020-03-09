@@ -4759,16 +4759,9 @@ class DynInvoke(Invoke):
             # to know the number of OpenMP threads
             from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
-            try:
-                tag = "omp_num_threads"
-                nthreads_name = \
-                    self.schedule.symbol_table.lookup_with_tag(tag).name
-            except KeyError:
-                nthreads_name = \
-                    self.schedule.symbol_table.new_symbol_name("nthreads")
-                self.schedule.symbol_table.add(
-                    DataSymbol(nthreads_name, DataType.INTEGER),
-                    tag="omp_num_threads")
+            tag = "omp_num_threads"
+            nthreads_name = \
+                self.schedule.symbol_table.lookup_with_tag(tag).name
             invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
                                   funcnames=[omp_function_name]))
             # Note: There is no assigned kind for integer nthreads as this
@@ -6140,7 +6133,7 @@ class DynLoop(Loop):
                 raise GenerationError(
                     "Unsupported lower bound name '{0}' "
                     "found".format(self._lower_bound_name))
-            mesh_obj_name = self.root.symbol_table.lookup_with_tag("mesh").name
+            mesh_obj_name = self.root.symbol_table.name_from_tag("mesh")
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
                 + prev_space_index_str + ")+1"
 
