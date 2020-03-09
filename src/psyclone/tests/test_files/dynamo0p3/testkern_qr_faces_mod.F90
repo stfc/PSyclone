@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab.
 
 module testkern_qr_faces_mod
   use argument_mod
   use kernel_mod
+
+  implicit none
+  
   type, extends(kernel_type) :: testkern_qr_faces_type
      type(arg_type), dimension(4) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_write,w1), &
+          (/ arg_type(gh_field,  gh_inc,  w1), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w3)  &
@@ -59,17 +62,21 @@ contains
                                     undf_w2, map_w2, diff_basis_w2, ndf_w3,    &
                                     undf_w3, map_w3, basis_w3, diff_basis_w3,  &
                                     nfaces, nqp, wqp)
-    use constants_mod, only: r_def
+    use constants_mod, only: r_def, i_def
+    
     implicit none
-    integer :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-               undf_w3, nqp, nfaces
+    
+    integer(kind=i_def) :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
+                           undf_w3, nqp, nfaces
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
     real(kind=r_def), dimension(nqp,nfaces) :: wqp
     real(kind=r_def), dimension(3,ndf_w1,nqp,nfaces) :: basis_w1
     real(kind=r_def), dimension(3,ndf_w2,nqp,nfaces) :: diff_basis_w2
     real(kind=r_def), dimension(1,ndf_w3,nqp,nfaces) :: basis_w3
     real(kind=r_def), dimension(1,ndf_w3,nqp,nfaces) :: diff_basis_w3
+    
   end subroutine testkern_qr_faces_code
+  
 end module testkern_qr_faces_mod

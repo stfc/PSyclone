@@ -29,16 +29,19 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab.
 
 !> Test kernel requiring both quadrature and an evaluator.
 
 module testkern_qr_eval_mod
   use argument_mod
   use kernel_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_qr_eval_type
      type(arg_type), dimension(4) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_write,w1), &
+          (/ arg_type(gh_field,  gh_inc,  w1), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w3)  &
@@ -53,6 +56,7 @@ module testkern_qr_eval_mod
    contains
      procedure, nopass :: code => testkern_qr_eval_code
   end type testkern_qr_eval_type
+  
 contains
 
   subroutine testkern_qr_eval_code(                                            &
@@ -62,13 +66,16 @@ contains
           ndf_w3, undf_w3, map_w3, basis_w3_qr_face, basis_w3_on_w1,           &
           diff_basis_w3_qr_face, diff_basis_w3_on_w1,                          &
           nfaces_qr_face, np_xyz_qr_face, weights_qr_face)
-    use constants_mod, only: r_def
+    use constants_mod, only: r_def, i_def
+    
     implicit none
-    integer, intent(in) :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-                           undf_w3, np_xyz_qr_face, nfaces_qr_face
+    
+    integer(kind=i_def), intent(in) :: nlayers, ndf_w1, undf_w1, ndf_w2, &
+                                       undf_w2, ndf_w3, undf_w3,         &
+                                       np_xyz_qr_face, nfaces_qr_face
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
     real(kind=r_def), dimension(np_xyz_qr_face,nfaces_qr_face) :: weights_qr_face
     real(kind=r_def), dimension(3,ndf_w1,np_xyz_qr_face,nfaces_qr_face) :: basis_w1_qr_face
     real(kind=r_def), dimension(3,ndf_w2,np_xyz_qr_face,nfaces_qr_face) :: diff_basis_w2_qr_face
@@ -78,5 +85,7 @@ contains
     real(kind=r_def), dimension(3,ndf_w2,ndf_w1) :: diff_basis_w2_on_w1
     real(kind=r_def), dimension(1,ndf_w3,ndf_w1) :: basis_w3_on_w1
     real(kind=r_def), dimension(1,ndf_w3,ndf_w1) :: diff_basis_w3_on_w1
+    
   end subroutine testkern_qr_eval_code
+  
 end module testkern_qr_eval_mod

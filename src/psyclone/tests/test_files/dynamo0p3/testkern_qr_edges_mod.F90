@@ -32,11 +32,15 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 module testkern_qr_edges_mod
+
   use argument_mod
   use kernel_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_qr_edges_type
      type(arg_type), dimension(6) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_write,w1), &
+          (/ arg_type(gh_field,  gh_inc,  w1), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_real,   gh_read),     &
@@ -44,7 +48,7 @@ module testkern_qr_edges_mod
              arg_type(gh_integer,gh_read)      &
            /)
      type(func_type), dimension(3) :: meta_funcs =    &
-          (/ func_type(w1, gh_basis), &
+          (/ func_type(w1, gh_basis),      &
              func_type(w2, gh_diff_basis), &
              func_type(w3, gh_basis, gh_diff_basis)  &
            /)
@@ -53,6 +57,7 @@ module testkern_qr_edges_mod
    contains
      procedure, nopass :: code => testkern_qr_edges_code
   end type testkern_qr_edges_type
+
 contains
 
   subroutine testkern_qr_edges_code(nlayers, f1, f2, f3, ascalar, f4, iscalar, &
@@ -60,15 +65,18 @@ contains
                                     undf_w2, map_w2, diff_basis_w2, ndf_w3,    &
                                     undf_w3, map_w3, basis_w3, diff_basis_w3,  &
                                     nedges, nqp, wqp)
-    use constants_mod, only: r_def
+    use constants_mod, only: r_def, i_def
+
     implicit none
-    integer :: nlayers, iscalar, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-               undf_w3, nqp, nedges
+
+    integer(kind=i_def) :: nlayers, iscalar, ndf_w1, undf_w1, ndf_w2, &
+                           undf_w2, ndf_w3, undf_w3, nqp, nedges
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
     real(kind=r_def), dimension(nqp,nedges) :: wqp
     real(kind=r_def), dimension(:,:,:,:) :: basis_w1, diff_basis_w2, &
                                             basis_w3, diff_basis_w3
   end subroutine testkern_qr_edges_code
+
 end module testkern_qr_edges_mod
