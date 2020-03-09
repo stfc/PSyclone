@@ -160,7 +160,7 @@ def test_mdata_wrong_type_var():
 # Tests for generating the PSy-layer code
 
 
-def test_refelem_arglist_err():
+def test_refelem_args_err():
     ''' Check that the KernCallArgList.ref_element_properties method raises
     the expected error if it encounters an unsupported property. '''
     from psyclone.psyGen import Kern, InternalError
@@ -176,7 +176,7 @@ def test_refelem_arglist_err():
     with pytest.raises(InternalError) as err:
         kernel.arguments.raw_arg_list()
     assert ("Unsupported reference-element property ('Not a property') found "
-            "when generating arguments for kernel 'testkern_ref_elem_code'. "
+            "when generating kernel arguments. "
             "Supported properties are: '['Property." in str(err.value))
 
 
@@ -223,7 +223,7 @@ def test_duplicate_refelem_gen(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    print(gen)
+
     assert gen.count(
         "real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:)"
         ", normals_to_vert_faces(:,:)") == 1
@@ -281,7 +281,7 @@ def test_union_refelem_gen(tmpdir):
             "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "out_normals_to_horiz_faces, normals_to_vert_faces, "
+            "normals_to_vert_faces, out_normals_to_horiz_faces, "
             "out_normals_to_vert_faces)" in gen)
 
 

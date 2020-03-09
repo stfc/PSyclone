@@ -2058,7 +2058,6 @@ class DynReferenceElement(DynCollection):
         for call in self._calls:
             if call.reference_element:
                 self._properties.update(call.reference_element.properties)
-
         if not self._properties:
             return
 
@@ -2082,11 +2081,10 @@ class DynReferenceElement(DynCollection):
         self._face_normals_name = ""
         self._face_out_normals_name = ""
 
-        # Store number of faces for declarations and kernel call/stub arg list
-        self._nface_vars = []
-        # Store array properties for kern call/stub declarations
-        self._ref_elem_arrays = OrderedDict()
-        # Auxiliary defaultdict for speed (built-in checks for keys)
+        # Store argument properties for kernel calls and stub declarations
+        # and argument list
+        self._arg_properties = OrderedDict()
+        # Auxiliary defaultdict for speed (checks for existing kerys)
         args_dict = defaultdict(str)
 
         # Populate and check reference element properties
@@ -2127,25 +2125,25 @@ class DynReferenceElement(DynCollection):
                         label="normals_to_horiz_faces")
                 args_dict[self._horiz_face_normals_name] = self._nfaces_h_name
             # Provide horizontal normals to "outward" faces
-            elif prop == \
-                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
+            elif prop == (RefElementMetaData.Property.
+                          OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
                 self._horiz_face_out_normals_name = \
                     self._name_space_manager.create_name(
                         root_name="out_normals_to_horiz_faces",
                         context="PSyVars", label="out_normals_to_horiz_faces")
                 args_dict[self._horiz_face_out_normals_name] = \
-                     self._nfaces_h_name
+                    self._nfaces_h_name
             # Provide vertical normals to faces
-            elif prop == \
-                 RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES:
+            elif prop == (RefElementMetaData.Property.
+                          NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_normals_name = \
                     self._name_space_manager.create_name(
                         root_name="normals_to_vert_faces", context="PSyVars",
                         label="normals_to_vert_faces")
                 args_dict[self._vert_face_normals_name] = self._nfaces_v_name
             # Provide vertical normals to "outward" faces
-            elif prop == \
-                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES:
+            elif prop == (RefElementMetaData.Property.
+                          OUTWARD_NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_out_normals_name = \
                     self._name_space_manager.create_name(
                         root_name="out_normals_to_vert_faces",
@@ -2170,34 +2168,37 @@ class DynReferenceElement(DynCollection):
                 args_dict[self._face_out_normals_name] = self._nfaces_name
             else:
                 raise InternalError(
-                    "Unsupported reference-element property ('{0}') found when"
-                    " generating arguments. Supported "
-                    "properties are: '{2}'".format(
+                    "Unsupported reference-element property ('{0}') found "
+                    "when generating kernel arguments. Supported "
+                    "properties are: '{1}'".format(
                         str(prop),
                         [str(sprop) for sprop in RefElementMetaData.Property]))
 
-        # Sort args_dict items for compatibility with Python 2
-        self._ref_elem_arrays = OrderedDict(sorted(args_dict.items()))
-        # Remove duplicates from "nface_vars" using OrderedDict
-        self._nface_vars = sorted(list(OrderedDict.fromkeys(
-            self._ref_elem_arrays.values())))
-        print(self._nface_vars)
-        print(type(self._properties), self._properties)
-    # def nface_vars(self):
-    #     return self._nface_vars
-    #
-    # def ref_elem_arrays(self):
-    #     return self._ref_elem_arrays
+        # Sort array properties for compatibility with Python 2
+        self._arg_properties = OrderedDict(sorted(args_dict.items()))
 
     @property
-    def refelem_call_args(self):
+    def arg_properties(self):
+        ''' Returns the dictionary of reference element argument properties
+        for kernel calls and stub declarations where keys are the reference
+        element arrays and values are the relevant number of faces.
         '''
-        Create and return argument list of reference element properties
-        for kernel call and stub generation
+        return self._arg_properties
+
+    @classmethod
+    def call_args(cls, kern):
         '''
-        arg_dict = self._ref_elem_arrays
-        print(type(arg_dict))
-        return self._nface_vars + list(self._ref_elem_arrays.keys())
+        Create argument list for kernel call and stub.
+
+        :param kern: kernel to create the argument list for.
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :returns: sorted list of kernel call/stub arguments.
+        :rtype: list
+        '''
+        argdict = cls(kern).arg_properties
+        call_args = sorted(list(dict.fromkeys(argdict.values()))) + \
+            sorted(list(argdict.keys()))
+        return call_args
 
     def _invoke_declarations(self, parent):
         '''
@@ -2221,13 +2222,14 @@ class DynReferenceElement(DynCollection):
                         datatype="reference_element_type",
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
-        # Declare the necessary scalars
+        # Declare the necessary scalars (sort for compatibility with Python 2)
+        nface_vars = sorted(list(dict.fromkeys(self._arg_properties.values())))
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
-                           entity_decls=self._nface_vars))
+                           entity_decls=nface_vars))
 
         # Declare the necessary arrays
-        array_decls = [i + "(:,:)" for i in self._ref_elem_arrays.keys()]
+        array_decls = [i + "(:,:)" for i in self._arg_properties.keys()]
         parent.add(DeclGen(parent, datatype="real",
                            kind=api_config.default_kind["real"],
                            allocatable=True, entity_decls=array_decls))
@@ -6944,8 +6946,7 @@ class DynKern(CodedKern):
 
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
-        print("type(ktype.reference_element)")
-        print(type(ktype.reference_element))
+
     @property
     def cma_operation(self):
         ''' Returns the type of CMA operation performed by this kernel
@@ -7903,10 +7904,11 @@ class KernCallArgList(ArgOrdering):
         ''' Provide kernel arguments required by the reference-element
         properties specified in the kernel metadata.
 
-        :raises InternalError: if an unsupported reference-element property \
-                               is encountered.
         '''
-        self._arglist.extend(DynReferenceElement.refelem_call_args)
+        # Argument information is produced by a DynReferenceElement
+        # class method
+        refelem_args = DynReferenceElement.call_args(self._kern)
+        self._arglist.extend(refelem_args)
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
