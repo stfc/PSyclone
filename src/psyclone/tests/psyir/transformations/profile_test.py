@@ -58,10 +58,6 @@ def teardown_function():
     '''This function is called at the end of any test function. It disables
     any automatic profiling set. This is necessary in case of a test failure
     to make sure any further tests will not be ran with profiling enabled.
-    It also creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order or
-    number of tests run is changed, otherwise the created region names will
-    change.
     '''
     Profiler.set_options([])
 

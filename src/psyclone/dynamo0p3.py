@@ -3920,7 +3920,7 @@ class DynBasisFunctions(DynCollection):
                                 entity_decls=self._qr_vars[shape],
                                 intent="in"))
                 # For each of these we'll need a corresponding proxy, use
-                # our namespace manager to avoid clashes...
+                # the symbol_table to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
                     var_names.append(self._invoke.schedule.symbol_table.
@@ -6776,10 +6776,7 @@ class DynKern(CodedKern):
             # The quadrature-related arguments always come last
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
-            # use our namespace manager to create a unique name unless
-            # the context and label match and in this case return the
-            # previous name. We use the full text of the original
-            # as a label.
+            # use the symbol_table to create a unique symbol name.
             if qr_arg.varname:
                 tag = "AlgArgs_" + self._qr_text
                 self._qr_name = \
@@ -7786,7 +7783,7 @@ class KernCallArgList(ArgOrdering):
            in self._kern.reference_element.properties or \
            RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES \
            in self._kern.reference_element.properties:
-            # Query the namespace manager to get the variable name
+            # Query the symbol_table to get the variable name
             nfaces_h = symtab.name_from_tag("nfaces_re_h")
             self._arglist.append(nfaces_h)
         # Provide no. of vertical faces if required
@@ -8610,8 +8607,8 @@ class DynKernelArguments(Arguments):
                 continue
             if not arg.stencil.extent_arg.is_literal():
                 if arg.stencil.extent_arg.varname:
-                    # Ensure extent argument name is registered with
-                    # namespace manager
+                    # Ensure extent argument name is registered in the
+                    # symbol_table.
                     tag = "AlgArgs_" + arg.stencil.extent_arg.text
                     root = arg.stencil.extent_arg.varname
                     new_name = symtab.name_from_tag(tag, root)

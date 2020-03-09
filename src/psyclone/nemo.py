@@ -314,7 +314,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
 
         self.process_nodes(self, ast.content)
         # A better implementation of the Nemo API symbol table is looked
-        # at on PR #596, currently we just define a symbol table and the
+        # at in PR #596, currently we just define a symbol table and the
         # variables that Nemo needs for the implicit loops.
         self._symbol_table = SymbolTable()
         self._symbol_table.add(DataSymbol("jpi", DataType.INTEGER))

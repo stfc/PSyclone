@@ -3409,9 +3409,6 @@ class Argument(object):
             self._name = arg_info.text
             self._text = None
         else:
-            # Use our namespace manager to create a unique name unless
-            # the context and label match in which case return the
-            # previous name.
             # There are unit-tests where we create Arguments without an
             # associated call.
             if self._call:

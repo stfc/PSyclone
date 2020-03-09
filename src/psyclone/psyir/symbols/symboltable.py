@@ -55,6 +55,7 @@ class SymbolTable(object):
     :param schedule: reference to the Schedule to which this symbol table \
         belongs.
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule` or NoneType
+
     '''
     def __init__(self, schedule=None):
         # Dict of Symbol objects with the symbol names as keys. Make
@@ -75,6 +76,7 @@ class SymbolTable(object):
 
         :returns: a copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         # pylint: disable=protected-access
         from copy import copy
@@ -93,6 +95,7 @@ class SymbolTable(object):
 
         :returns: the normalized key.
         :rtype: str
+
         '''
         # The symbol table is currently case insensitive
         new_key = key.lower()
