@@ -103,7 +103,10 @@
         33) PR #702 for #660. Read the default KIND parameters for the LFRic
 	domain from the configuration file.
 	NOTE: this change requires that any local config file be updated as
-	      the new KIND mapping is mandatory.
+	the new KIND mapping is mandatory.
+
+	34) PR #704 for #699 and #697. Fixes gocean/eg2 and adds a
+	--compile option to the check_examples script.
 
 
 release 1.8.1 29th November 2019
