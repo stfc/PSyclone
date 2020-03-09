@@ -93,7 +93,7 @@ def _get_symbol_table(node):
 
 def _check_args(array, dim):
     '''Utility routine used by the _check_bound_is_full_extent and
-    _check_literal functions to check common arguments.
+    _check_array_range_literal functions to check common arguments.
 
     This routine is only in fparser2.py until #717 is complete as it
     is used to check that array syntax in a where statement is for the
@@ -129,6 +129,8 @@ def _check_args(array, dim):
             "most the number of dimensions of the array '{0}' but found "
             "'{1}'.".format(len(array.children), dim))
 
+    # The first child of the array (index 0) relates to the first
+    # dimension (dim 1), so we need to reduce dim by 1.
     if not isinstance(array.children[dim-1], Range):
         raise TypeError(
             "method _check_args 'array' argument index '{0}' "
@@ -136,7 +138,7 @@ def _check_args(array, dim):
             "".format(dim-1, type(array.children[dim-1]).__name__))
 
 
-def _check_bound_is_full_extent(array, dim, operator):
+def _is_bound_full_extent(array, dim, operator):
     '''A Fortran array section with a missing lower bound implies the
     access starts at the first element and a missing upper bound
     implies the access ends at the last element e.g. a(:,:)
@@ -183,42 +185,27 @@ def _check_bound_is_full_extent(array, dim, operator):
             "'operator' argument  expected to be LBOUND or UBOUND but "
             "found '{0}'.".format(type(operator).__name__))
 
-    try:
-        bound = array.children[dim-1].children[index]
-        assert isinstance(bound, BinaryOperation), \
-            "Expecting BinaryOperation but found '{0}'." \
-            "".format(type(bound).__name__)
-        assert bound.operator == operator, \
-            "Expecting operator to be '{0}', but found '{1}'." \
-            "".format(str(operator), str(bound.operator))
-        reference = bound.children[0]
-        literal = bound.children[1]
-        assert isinstance(reference, Reference), \
-            "Expecting Reference but found '{0}'." \
-            "".format(type(reference).__name__)
-        assert reference.symbol is array.symbol, \
-            "Expecting Reference symbol '{0}' to be the same as array " \
-            "symbol '{1}'.".format(reference.symbol.name,
-                                   array.symbol.name)
-        assert isinstance(literal, Literal), \
-            "Expecting Literal but found '{0}'." \
-            "".format(type(literal).__name__)
-        assert literal.datatype == DataType.INTEGER, \
-            "Expecting integer datatype but found '{0}'." \
-            "".format(literal.datatype)
-        assert literal.value == str(dim), \
-            "Expecting literal value '{0}' to be the same as the " \
-            "current array dimension '{1}'.".format(literal.value,
-                                                    str(dim))
-    except AssertionError as excinfo:
-        raise NotImplementedError(
-            "psyir/frontend/fparser2.py:_check_bound_is_full_extent():"
-            + str(excinfo))
+    # The first child of the array (index 0) relates to the first
+    # dimension (dim 1), so we need to reduce dim by 1.
+    bound = array.children[dim-1].children[index]
+
+    if not isinstance(bound, BinaryOperation):
+        return False
+
+    reference = bound.children[0]
+    literal = bound.children[1]
+    
+    if (bound.operator == operator and isinstance(reference, Reference) and
+        reference.symbol is array.symbol and isinstance(literal, Literal) and
+        literal.datatype == DataType.INTEGER and literal.value == str(dim)):
+        return True
+    return False
 
 
-def _check_literal(array, dim, index, value):
-    '''Utility function to check that the supplied array has a literal at
-    dimension index "dim" and range index "index" with value "value".
+def _is_array_range_literal(array, dim, index, value):
+    '''Utility function to check that the supplied array has an integer
+    literal at dimension index "dim" and range index "index" with
+    value "value".
 
     The step part of the range node has an integer literal with
     value 1 by default.
@@ -244,36 +231,30 @@ def _check_literal(array, dim, index, value):
 
     if not isinstance(index, int):
         raise TypeError(
-            "method _check_literal 'index' argument should be an "
+            "method _check_array_range_literal 'index' argument should be an "
             "int type but found '{0}'.".format(type(index).__name__))
 
     if index<0 or index>2:
         raise ValueError(
-            "method _check_literal 'index' argument should be 0, 1 or 2 "
+            "method _check_array_range_literal 'index' argument should be 0, 1 or 2 "
             "but found '{0}'.".format(index))
 
     if not isinstance(value, int):
         raise TypeError(
-            "method _check_literal 'value' argument should be an "
+            "method _check_array_range_literal 'value' argument should be an "
             "int type but found '{0}'.".format(type(value).__name__))
 
-    try:
-        literal = array.children[dim-1].children[index]
-        assert isinstance(literal, Literal), \
-            "Expecting Literal but found '{0}'" \
-            "".format(type(literal).__name__)
-        assert literal.datatype == DataType.INTEGER, \
-            "Expecting integer datatype but found '{0}'." \
-            "".format(literal.datatype)
-        assert literal.value == str(value), \
-            "Expecting literal value '{0}' to be the same as '{1}'." \
-            "".format(literal.value, str(value))
-    except AssertionError as excinfo:
-        raise NotImplementedError(
-            "psyir/frontend/fparser2.py:_check_literal():" + str(excinfo))
+    # The first child of the array (index 0) relates to the first
+    # dimension (dim 1), so we need to reduce dim by 1.
+    literal = array.children[dim-1].children[index]
 
+    if (isinstance(literal, Literal) and
+        literal.datatype == DataType.INTEGER and
+        literal.value == str(value)):
+        return True
+    return False
 
-def _check_range_is_full_extent(my_range):
+def _is_range_full_extent(my_range):
     '''Utility function to check whether a Range object is equivalent to a
     ":" in Fortran array notation. The PSyIR representation of "a(:)"
     is "a(lbound(a,1):ubound(a,1):1). Therefore, for array a index 1,
@@ -282,7 +263,7 @@ def _check_range_is_full_extent(my_range):
 
     If everything is OK then this routine silently returns, otherwise
     an exception is raised by one of the functions
-    (_check_bound_is_full_extent or _check_literal) called by this
+    (_check_bound_is_full_extent or _check_array_range_literal) called by this
     function.
 
     This routine is only in fparser2.py until #717 is complete as it
@@ -301,11 +282,14 @@ def _check_range_is_full_extent(my_range):
     # dimensions start from 1).
     dim = array.children.index(my_range) + 1
     # Check lower bound
-    _check_bound_is_full_extent(array, dim, BinaryOperation.Operator.LBOUND)
+    is_lower = _is_bound_full_extent(
+        array, dim, BinaryOperation.Operator.LBOUND)
     # Check upper bound
-    _check_bound_is_full_extent(array, dim, BinaryOperation.Operator.UBOUND)
-    # Check step
-    _check_literal(array, dim, index=2, value=1)
+    is_upper = _is_bound_full_extent(
+        array, dim, BinaryOperation.Operator.UBOUND)
+    # Check step (index 2 is the step index for the range function)
+    is_step = _is_array_range_literal(array, dim, 2, 1)
+    return (is_lower and is_upper and is_step)
 
 
 class Fparser2Reader(object):
@@ -1758,9 +1742,7 @@ class Fparser2Reader(object):
             if isinstance(node, Range):
                 # Found array syntax notation. Check that it is the
                 # simple ":" format.
-                try:
-                    _check_range_is_full_extent(node)
-                except NotImplementedError:
+                if not _is_range_full_extent(node):
                     raise NotImplementedError(
                         "Only array notation of the form my_array(:, :, ...) "
                         "is supported.")
