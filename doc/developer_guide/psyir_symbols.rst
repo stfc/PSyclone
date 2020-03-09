@@ -1,8 +1,3 @@
-.. psyclone documentation master file, created by
-   sphinx-quickstart on Mon Jan 27 12:50:29 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
@@ -38,31 +33,22 @@
    -----------------------------------------------------------------------------
    Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-.. toctree::
-   :maxdepth: 3
 
-   working_practises
-   psyir
-   psyir_symbols
-   psyir_backends
-   parsing
-   APIs
-   modules
-   transformations
-   system_specific_setup
-   coding-style
-   zz_bibliography
 
-..   tutorial
-..   FAQS
+PSyIR Symbols
+#############
 
-.. when generating latex the index and module index are generated
-   automatically and the entries below are rendered as plain text.
-.. only:: html
-	  
-    Indices and tables
-    ==================
+At the moment, root node schedules (e.g. `InvokeSchedules`, `KernelSchedules`
+and `Containers`) have a symbol table with the definition of the symbols used
+in their bodies.
 
-    * :ref:`genindex`
-    * :ref:`modindex`
-    * :ref:`search`
+.. note:: Some symbols are still hardwired as string inside some of the PSyIR
+    nodes. But this should be eventually replaced as we have no way to check
+    for name clashes with these symbols.
+
+When one wants to create a new symbol. The symbol table offers the
+`psyclone.psyir.symbols.SymbolTable.new_symbol_name` method ...
+
+There are two main ways to query the symbol table for symbols.
+
+.. note:: When 
