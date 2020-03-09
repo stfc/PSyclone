@@ -3,9 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
+! LICENCE is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 !
 ! BSD 3-Clause License
 !
@@ -101,13 +101,14 @@ subroutine compute_function(self, function_to_call, function_space, &
                             fspace_dim, ndf, basis)
 
   implicit none
+
   class(quadrature_face_type), intent(in)  :: self
   type(function_space_type),   intent(in)  :: function_space
   integer(kind=i_def),         intent(in)  :: function_to_call
   integer(kind=i_def),         intent(in)  :: fspace_dim
   integer(kind=i_def),         intent(in)  :: ndf
-  real(kind=r_def),            intent(out) :: basis(fspace_dim,ndf, &
-                                                    self%np_xyz,    &
+  real(kind=r_def),            intent(out) :: basis(fspace_dim, ndf, &
+                                                    self%np_xyz,     &
                                                     self%nfaces)
   basis(:,:,:,:) = 0.0_r_def
 

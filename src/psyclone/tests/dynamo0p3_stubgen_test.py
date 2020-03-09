@@ -739,6 +739,8 @@ def test_multi_qr_stub_gen():
 
 
 def test_qr_plus_eval_stub_gen():
+    ''' Test the stub generator for a kernel that requires both an evaluator
+    and quadrature. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_qr_eval_mod.F90"),
                       ignore_comments=False)

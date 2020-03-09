@@ -29,14 +29,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab.
 
 module testkern_2qr_mod
+
   use argument_mod
   use kernel_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_2qr_type
-     type(arg_type), dimension(4) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_write,w1), &
+     type(arg_type), dimension(4) :: meta_args = &
+          (/ arg_type(gh_field,  gh_inc, w1),  &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w3)  &
@@ -51,6 +55,7 @@ module testkern_2qr_mod
    contains
      procedure, nopass :: code => testkern_2qr_code
   end type testkern_2qr_type
+
 contains
 
   subroutine testkern_2qr_code(                                              &
@@ -61,13 +66,16 @@ contains
           diff_basis_w3_faces, diff_basis_w3_edges,                          &
           nfaces, nqp_faces, wqp_faces,                                      &
           nedges, nqp_edges, wqp_edges)
-    use constants_mod, only: r_def
+
+    use constants_mod, only: r_def, i_def
+
     implicit none
-    integer :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-               undf_w3, nqp_faces, nfaces, nqp_edges, nedges
+
+    integer(kind=i_def) :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
+                           undf_w3, nqp_faces, nfaces, nqp_edges, nedges
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
     real(kind=r_def), dimension(nqp_faces,nfaces) :: wqp_faces
     real(kind=r_def), dimension(nqp_edges,nedges) :: wqp_edges
     real(kind=r_def), dimension(3,ndf_w1,nqp_faces,nfaces) :: basis_w1_faces
@@ -78,5 +86,7 @@ contains
     real(kind=r_def), dimension(3,ndf_w2,nqp_edges,nedges) :: diff_basis_w2_edges
     real(kind=r_def), dimension(1,ndf_w3,nqp_edges,nedges) :: basis_w3_edges
     real(kind=r_def), dimension(1,ndf_w3,nqp_edges,nedges) :: diff_basis_w3_edges
+
   end subroutine testkern_2qr_code
+
 end module testkern_2qr_mod

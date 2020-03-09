@@ -840,6 +840,8 @@ class KernelType(object):
                             integer literal.
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
+        :raises InternalError: if the parse tree for the array constructor \
+                               does not have the expected structure.
         :raises ParseError: if the number of items in the array constructor \
                             does not match the extent of the array.
 
@@ -873,7 +875,7 @@ class KernelType(object):
                               Fortran2003.Section_Subscript_List):
                 raise InternalError(
                     "get_integer_array: expected array declaration to have a "
-                    "Section_Subscript_List but found '{0}' for: {1}".format(
+                    "Section_Subscript_List but found '{0}' for: '{1}'".format(
                         type(assign.children[0].children[1]).__name__,
                         str(assign)))
 
