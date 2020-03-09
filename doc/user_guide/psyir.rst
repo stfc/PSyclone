@@ -100,6 +100,55 @@ subclassed into a kernel-layer ``KernelSchedule``. In addition to
 ``BinaryOperation`` and ``NaryOperation``.
 
 
+Node Descriptions
+=================
+
+The Range node
+--------------
+
+The ``Range`` node is used to capture a range of integers via ``start``,
+``stop`` and ``step`` values. For example, ``start=2``, ``stop=6`` and
+``step=2`` indicates the values ``2``, ``4`` and ``6``.
+
+At the moment the only valid use of ``Range`` in the PSyIR is to
+describe a set of accesses to an Array dimension (so-called array
+notation in Fortran). Therefore, the parent of a ``Range`` node should
+only be an ``Array`` node.
+
+The ``Range`` node has three children nodes, the first child captures
+the start of the range, the second child captures the end of the range
+and the third captures the step within the range.
+
+The nodes for each of the children must return an integer. Potentially
+valid nodes are therefore ``Literal``, ``Reference``, ``Operation``
+and ``CodeBlock``.
+
+A common use case is to want to specify all the elements of the array
+dimension without knowing the dimensions size. In the PSyIR this is
+achieved by using the ``LBOUND``, and ``UBOUND`` binary operators::
+
+  one = Literal("1", DataType.INTEGER)
+  # Declare a 1D real array called 'a' with 10 elements
+  symbol = DataSymbol("a", DataType.REAL, shape=[10])
+  # Return the lower bound of the first dimension of array 'a'
+  lbound = BinaryOperation.create(
+      BinaryOperation.Operator.LBOUND,
+      Reference(symbol), one)
+  # Return the upper bound of the first dimension of array 'a'
+  ubound = BinaryOperation.create(
+      BinaryOperation.Operator.UBOUND,
+      Reference(symbol), one)
+  # Step defaults to 1 so no need to include it when creating range
+  my_range = Range.create(lbound, ubound)
+  # Create an access to all elements in the first dimension of array 'a'
+  array_access = Array.create(symbol, [my_range])
+
+In Fortran the above access ``array_access`` can be represented by
+``a(:)``. The Fortran front-ends and back-ends are aware of array
+notation. Therefore the Fortran frontend is able to convert array
+notation to PSyIR and the Fortran backend is able to convert PSyIR
+back to array notation.
+
 Text Representation
 ===================
 
