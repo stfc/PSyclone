@@ -1784,7 +1784,7 @@ class DynStencils(DynCollection):
                      self._unique_extent_args]
         elif self._kernel:
             # When generating stubs we have kernels that are not attached
-            # to an InvokeSchedule, we use a dummy SymbolTable then.
+            # to an InvokeSchedule, they can use their own SymbolTable.
             symtab = SymbolTable()
             names = [self.dofmap_size_name(symtab, arg)
                      for arg in self._unique_extent_args]
@@ -2026,7 +2026,7 @@ class DynStencils(DynCollection):
         from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # Stubs are not connected to an InvokeSchedule and can use a dummy
+        # Stubs are not connected to an InvokeSchedule and can use their own
         # symbol table.
         symtab = SymbolTable()
         for arg in self._kern_args:
@@ -3195,7 +3195,7 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        # Stubs are not connected to an InvokeSchedule and can use a dummy
+        # Stubs are not connected to an InvokeSchedule and can use their own
         # symbol table.
         symtab = SymbolTable()
 
@@ -6105,11 +6105,13 @@ class DynLoop(Loop):
     def _lower_bound_fortran(self):
         '''
         Create the associated Fortran code for the type of lower bound.
-        :returns: the Fortran code for the lower bound
+
+        :returns: the Fortran code for the lower bound.
         :rtype: str
+
         :raises GenerationError: if self._lower_bound_name is not "start"
                                  for sequential code.
-        :raises GenerationError: if self._lower_bound_name is unrecognised
+        :raises GenerationError: if self._lower_bound_name is unrecognised.
         '''
         if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
@@ -8014,7 +8016,7 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
         # When generating stubs we have kernels that are not attached
-        # to an InvokeSchedule, we use a dummy SymbolTable then.
+        # to an InvokeSchedule, they can use their own SymbolTable.
         name = DynStencils.dofmap_size_name(SymbolTable(), arg)
         self._arglist.append(name)
 
@@ -8028,7 +8030,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         # When generating stubs we have kernels that are not attached
-        # to an InvokeSchedule, we use a dummy SymbolTable then.
+        # to an InvokeSchedule, they can use their own SymbolTable.
         self._arglist.append(DynStencils.direction_name(SymbolTable(), arg))
 
     def stencil(self, arg):
@@ -8040,7 +8042,7 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
         # When generating stubs we have kernels that are not attached
-        # to an InvokeSchedule, we use a dummy SymbolTable then.
+        # to an InvokeSchedule, they can use their own SymbolTable.
         self._arglist.append(DynStencils.dofmap_name(SymbolTable(), arg))
 
     def operator(self, arg):
@@ -8600,7 +8602,7 @@ class DynKernelArguments(Arguments):
                                          'symbol_table'):
             symtab = self._parent_call.root.symbol_table
         else:
-            # If the kern is not attached to an InvokeSchedule, use a dummy
+            # If the kern is not attached to an InvokeSchedule, use their own
             # SymbolTable
             symtab = SymbolTable()
         for arg in self._args:

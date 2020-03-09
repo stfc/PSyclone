@@ -110,7 +110,7 @@ class SymbolTable(object):
         clashes with an existing symbol name.
         :type root_name: str or NoneType
 
-        :returns: the new symbol name
+        :returns: the new symbol name.
         :rtype: str
 
         :raises TypeError: if the root_name argument is not a string \
@@ -267,6 +267,7 @@ class SymbolTable(object):
 
         :returns: name associated with the given tag.
         :rtype: str
+
         '''
         try:
             return self.lookup_with_tag(tag).name

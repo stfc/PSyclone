@@ -947,20 +947,19 @@ class OMPLoopTrans(ParallelLoopTrans):
         # Add OMP common variables into the InvokeSchedule (root) symboltable
         # if they don't already exist
         if not isinstance(node.root, NemoInvokeSchedule):
+            symtab = node.root.symbol_table
             try:
-                node.root.symbol_table.lookup_with_tag("omp_thread_index")
+                symtab.lookup_with_tag("omp_thread_index")
             except KeyError:
-                thread_idx = node.root.symbol_table.new_symbol_name("th_idx")
-                node.root.symbol_table.add(
-                    DataSymbol(thread_idx, DataType.INTEGER),
-                    tag="omp_thread_index")
+                thread_idx = symtab.new_symbol_name("th_idx")
+                symtab.add(DataSymbol(thread_idx, DataType.INTEGER),
+                           tag="omp_thread_index")
             try:
-                node.root.symbol_table.lookup_with_tag("omp_num_threads")
+                symtab.lookup_with_tag("omp_num_threads")
             except KeyError:
-                nthread = node.root.symbol_table.new_symbol_name("nthreads")
-                node.root.symbol_table.add(
-                    DataSymbol(nthread, DataType.INTEGER),
-                    tag="omp_num_threads")
+                nthread = symtab.new_symbol_name("nthreads")
+                symtab.add(DataSymbol(nthread, DataType.INTEGER),
+                           tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -3933,7 +3932,7 @@ class KernelGlobalsToArguments(Transformation):
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(
-                globalvar, "AlgArgs_" + globalvar.name)
+                globalvar, tag="AlgArgs_" + globalvar.name)
 
             # Keep a reference to the original container so that we can
             # update it after the interface has been updated.
