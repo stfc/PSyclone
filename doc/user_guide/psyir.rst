@@ -127,21 +127,21 @@ A common use case is to want to specify all the elements of the array
 dimension without knowing the dimensions size. In the PSyIR this is
 achieved by using the ``LBOUND``, and ``UBOUND`` binary operators::
 
-  one = Literal("1", DataType.INTEGER)
-  # Declare a 1D real array called 'a' with 10 elements
-  symbol = DataSymbol("a", DataType.REAL, shape=[10])
-  # Return the lower bound of the first dimension of array 'a'
-  lbound = BinaryOperation.create(
-      BinaryOperation.Operator.LBOUND,
-      Reference(symbol), one)
-  # Return the upper bound of the first dimension of array 'a'
-  ubound = BinaryOperation.create(
-      BinaryOperation.Operator.UBOUND,
-      Reference(symbol), one)
-  # Step defaults to 1 so no need to include it when creating range
-  my_range = Range.create(lbound, ubound)
-  # Create an access to all elements in the first dimension of array 'a'
-  array_access = Array.create(symbol, [my_range])
+  > one = Literal("1", DataType.INTEGER)
+  > # Declare a 1D real array called 'a' with 10 elements
+  > symbol = DataSymbol("a", DataType.REAL, shape=[10])
+  > # Return the lower bound of the first dimension of array 'a'
+  > lbound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol), one)
+  > # Return the upper bound of the first dimension of array 'a'
+  > ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol), one)
+  > # Step defaults to 1 so no need to include it when creating range
+  > my_range = Range.create(lbound, ubound)
+  > # Create an access to all elements in the first dimension of array 'a'
+  > array_access = Array.create(symbol, [my_range])
 
 In Fortran the above access ``array_access`` can be represented by
 ``a(:)``. The Fortran front-ends and back-ends are aware of array
