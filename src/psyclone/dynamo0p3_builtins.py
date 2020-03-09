@@ -137,7 +137,7 @@ class DynBuiltIn(BuiltIn):
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
         try:
             self._idx_name = \
-                self.root.symbol_table.lookup_tag("dof_loop_idx").name
+                self.root.symbol_table.lookup_with_tag("dof_loop_idx").name
         except KeyError:
             self._idx_name = self.root.symbol_table.new_symbol_name("df")
             self.root.symbol_table.add(

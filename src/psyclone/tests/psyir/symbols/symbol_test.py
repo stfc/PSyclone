@@ -40,6 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import Symbol
 
+
 def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid
     arguments are given, otherwise raise relevant exceptions.'''

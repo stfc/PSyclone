@@ -70,8 +70,8 @@ class SymbolTable(object):
 
     def shallow_copy(self):
         '''Create a copy of the symbol table where the top-level containers
-        are new (new symbols will not be stored on the original) but the
-        existing objects are the same.
+        are new (symbols added to the new symbol table will not be added in
+        the original but the existing objects are still the same).
 
         :returns: a copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -87,7 +87,7 @@ class SymbolTable(object):
 
     @staticmethod
     def _normalize(key):
-        '''Validates and normalize the symboltable key strings.
+        '''Normalises the symboltable key strings.
 
         :param str key: an input key.
 
@@ -155,7 +155,6 @@ class SymbolTable(object):
                     " '{1}', so it can not be associated to symbol '{2}'.".
                     format(tag, self._tags[tag], new_symbol.name))
             self._tags[tag] = new_symbol
-
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
@@ -232,9 +231,9 @@ class SymbolTable(object):
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
 
-    def lookup_tag(self, tag):
+    def lookup_with_tag(self, tag):
         '''
-        Look up a tag in the symbol table.
+        Look up a symbol in the symbol table using the tag identifier.
 
         :param str tag: tag identifier.
 
@@ -270,7 +269,7 @@ class SymbolTable(object):
         :rtype: str
         '''
         try:
-            return self.lookup_tag(tag).name
+            return self.lookup_with_tag(tag).name
         except KeyError:
             if root:
                 name = self.new_symbol_name(root)
@@ -278,7 +277,6 @@ class SymbolTable(object):
                 name = self.new_symbol_name(tag)
             self.add(Symbol(name), tag=tag)
             return name
-
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
@@ -591,7 +589,8 @@ class SymbolTable(object):
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " name '{1}' is already used by another symbol."
                     "".format(globalvar, globalvar.name))
-            if tag and self.lookup(globalvar.name) != self.lookup_tag(tag):
+            if tag and \
+               self.lookup(globalvar.name) != self.lookup_with_tag(tag):
                 raise KeyError(
                     "Couldn't copy '{0}' into the SymbolTable. The"
                     " tag '{1}' is already used by another symbol."

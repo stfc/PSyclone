@@ -57,6 +57,7 @@ DYNAMO_API = "dynamo0.3"
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
 
+
 def test_node_list_error(tmpdir):
     ''' Test that applying Extract Transformation on objects which are not
     Nodes or a list of Nodes raises a TransformationError. Also raise

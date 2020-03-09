@@ -1611,7 +1611,7 @@ class OMPParallelDirective(OMPDirective):
         if reprod_red_call_list:
             # we will use a private thread index variable
             thread_idx = \
-                self.root.symbol_table.lookup_tag("omp_thread_index").name
+                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
             private_list.append(thread_idx)
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
@@ -2368,9 +2368,8 @@ class Kern(Node):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
-        name =  self.root.symbol_table.name_from_tag(tag, "l_" + tag)
+        name = self.root.symbol_table.name_from_tag(tag, "l_" + tag)
         return name
-
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -2418,7 +2417,7 @@ class Kern(Node):
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
             nthreads = \
-                self.root.symbol_table.lookup_tag("omp_num_threads").name
+                self.root.symbol_table.lookup_with_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
@@ -2447,8 +2446,9 @@ class Kern(Node):
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
                 format(reduction_access.api_specific_name(), api_strings))
-        thread_idx = self.root.symbol_table.lookup_tag("omp_thread_index").name
-        nthreads = self.root.symbol_table.lookup_tag("omp_num_threads").name
+        symtab = self.root.symbol_table
+        thread_idx = symtab.lookup_with_tag("omp_thread_index").name
+        nthreads = symtab.lookup_with_tag("omp_num_threads").name
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -2463,7 +2463,7 @@ class Kern(Node):
         thread.'''
         if self.reprod_reduction:
             idx_name = \
-                self.root.symbol_table.lookup_tag("omp_thread_index").name
+                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
             local_name = \
                 self.root.symbol_table.name_from_tag(name, "l_" + name)
             return local_name + "(1," + idx_name + ")"

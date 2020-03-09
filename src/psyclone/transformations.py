@@ -948,14 +948,14 @@ class OMPLoopTrans(ParallelLoopTrans):
         # if they don't already exist
         if not isinstance(node.root, NemoInvokeSchedule):
             try:
-                node.root.symbol_table.lookup_tag("omp_thread_index")
+                node.root.symbol_table.lookup_with_tag("omp_thread_index")
             except KeyError:
                 thread_idx = node.root.symbol_table.new_symbol_name("th_idx")
                 node.root.symbol_table.add(
                     DataSymbol(thread_idx, DataType.INTEGER),
                     tag="omp_thread_index")
             try:
-                node.root.symbol_table.lookup_tag("omp_num_threads")
+                node.root.symbol_table.lookup_with_tag("omp_num_threads")
             except KeyError:
                 nthread = node.root.symbol_table.new_symbol_name("nthreads")
                 node.root.symbol_table.add(

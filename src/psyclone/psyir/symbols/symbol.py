@@ -40,6 +40,7 @@
 
 import six
 
+
 class SymbolError(Exception):
     '''
     PSyclone-specific exception for use with errors relating to the Symbol and

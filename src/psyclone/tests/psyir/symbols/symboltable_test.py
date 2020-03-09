@@ -137,6 +137,7 @@ def test_add():
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
+
 def test_add_with_tags():
     '''Test that the add method with a tag inserts new symbols in the symbol
     table and raises appropiate errors.'''
@@ -162,6 +163,7 @@ def test_add_with_tags():
     assert ("Symbol table already contains the tag 'tag1' for symbol "
             "'symbol_tag1', so it can not be associated to symbol "
             "'var1'.") in str(error.value)
+
 
 def test_imported_symbols():
     ''' Test the imported_symbols method. '''
@@ -352,9 +354,9 @@ def test_lookup():
         str(error.value)
 
 
-def test_lookup_tag():
-    '''Test that the lookup_tag method retrieves symbols from the symbol table
-    if the tag exists, otherwise it raises an error.'''
+def test_lookup_with_tag():
+    '''Test that the lookup_with_tag method retrieves symbols from the symbol
+    table if the tag exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
 
     sym1 = Symbol("symbol_notag")
@@ -364,11 +366,11 @@ def test_lookup_tag():
     sym_table.add(sym2, tag="tag1")
     sym_table.add(sym3, tag="tag2")
 
-    assert sym_table.lookup_tag("tag1").name == "symbol_tag1"
-    assert sym_table.lookup_tag("tag2").name == "symbol_tag2"
+    assert sym_table.lookup_with_tag("tag1").name == "symbol_tag1"
+    assert sym_table.lookup_with_tag("tag2").name == "symbol_tag2"
 
     with pytest.raises(KeyError) as error:
-        sym_table.lookup_tag("symbol_tag1")
+        sym_table.lookup_with_tag("symbol_tag1")
     assert "Could not find the tag 'symbol_tag1' in the Symbol Table." in \
         str(error.value)
 
@@ -704,7 +706,6 @@ def test_copy_external_global():
            "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
            " used by another symbol." in str(error.value)
 
-
     # If a tag is given but this is already used, it should fail
     symtab.add(Symbol("symbol"), tag="tag")
     var5 = DataSymbol("c", DataType.DEFERRED,
@@ -719,13 +720,13 @@ def test_copy_external_global():
     var6 = DataSymbol("d", DataType.DEFERRED,
                       interface=GlobalInterface(container3))
     symtab.copy_external_global(var6, "newtag")
-    assert symtab.lookup_tag("newtag").name == "d"
-
+    assert symtab.lookup_with_tag("newtag").name == "d"
 
 
 def test_normalization():
     ''' Tests the SymbolTable normalize method lower cases the strings '''
     assert SymbolTable._normalize("aAbB") == "aabb"
+
 
 def test_shallow_copy():
     ''' Tests the SymbolTable shallow copy generated new top-level containers
@@ -746,7 +747,7 @@ def test_shallow_copy():
     symtab2 = symtab.shallow_copy()
     assert "symbol1" in symtab2
     assert symtab2.lookup("symbol1") == sym1
-    assert symtab2.lookup_tag("tag1") == sym2
+    assert symtab2.lookup_with_tag("tag1") == sym2
     assert symtab2._schedule == dummy
     assert sym1 in symtab2.argument_list
 
@@ -771,11 +772,11 @@ def test_name_from_tag():
     # If the tag does not exist, create a symbol with the tag as name
     assert symtab.name_from_tag("tag2") == "tag2"
     assert symtab.lookup("tag2").name == "tag2"
-    assert symtab.lookup_tag("tag2").name == "tag2"
+    assert symtab.lookup_with_tag("tag2").name == "tag2"
 
     # If the tag does not exist and a root name is givem create a new symbol
     # with the given name as root
     assert symtab.name_from_tag("tag3", root="newsymbol") == "newsymbol"
     assert symtab.lookup("newsymbol").name == "newsymbol"
-    assert symtab.lookup_tag("tag3").name == "newsymbol"
+    assert symtab.lookup_with_tag("tag3").name == "newsymbol"
     assert symtab.name_from_tag("tag4", root="newsymbol") == "newsymbol_1"

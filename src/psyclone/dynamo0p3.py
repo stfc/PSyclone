@@ -1785,7 +1785,8 @@ class DynStencils(DynCollection):
         elif self._kernel:
             # When generating stubs we have kernels that are not attached
             # to an InvokeSchedule, we use a dummy SymbolTable then.
-            names = [self.dofmap_size_name(SymbolTable(), arg)
+            symtab = SymbolTable()
+            names = [self.dofmap_size_name(symtab, arg)
                      for arg in self._unique_extent_args]
         else:
             raise InternalError("_unique_extent_vars: have neither Invoke "
@@ -3172,8 +3173,8 @@ class DynCMAOperators(DynCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_"+param))
+                param_names.append(self._invoke.schedule.symbol_table.
+                                   name_from_tag(op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
@@ -3469,7 +3470,7 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                colour_map =  self._schedule.symbol_table.name_from_tag("cmap")
+                colour_map = self._schedule.symbol_table.name_from_tag("cmap")
                 ncolour = \
                     self._schedule.symbol_table.name_from_tag("ncolour")
                 # Get the number of colours
@@ -3922,8 +3923,8 @@ class DynBasisFunctions(DynCollection):
                 # our namespace manager to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    var_names.append(self._invoke.schedule.symbol_table.\
-                        name_from_tag(var+"_proxy"))
+                    var_names.append(self._invoke.schedule.symbol_table.
+                                     name_from_tag(var+"_proxy"))
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -4761,7 +4762,7 @@ class DynInvoke(Invoke):
             try:
                 tag = "omp_num_threads"
                 nthreads_name = \
-                    self.schedule.symbol_table.lookup_tag(tag).name
+                    self.schedule.symbol_table.lookup_with_tag(tag).name
             except KeyError:
                 nthreads_name = \
                     self.schedule.symbol_table.new_symbol_name("nthreads")
@@ -5936,7 +5937,7 @@ class DynLoop(Loop):
         elif self._loop_type == "dofs":
             try:
                 self._variable_name = \
-                    self.root.symbol_table.lookup_tag("dof_loop_idx").name
+                    self.root.symbol_table.lookup_with_tag("dof_loop_idx").name
             except KeyError:
                 self._variable_name = \
                     self.root.symbol_table.new_symbol_name("df")
@@ -6137,7 +6138,7 @@ class DynLoop(Loop):
                 raise GenerationError(
                     "Unsupported lower bound name '{0}' "
                     "found".format(self._lower_bound_name))
-            mesh_obj_name = self.root.symbol_table.lookup_tag("mesh").name
+            mesh_obj_name = self.root.symbol_table.lookup_with_tag("mesh").name
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
                 + prev_space_index_str + ")+1"
 
@@ -6866,7 +6867,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
-            cmap = self.root.symbol_table.lookup_tag("cmap").name
+            cmap = self.root.symbol_table.lookup_with_tag("cmap").name
         return cmap
 
     @property
@@ -6891,7 +6892,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
-            ncols = self.root.symbol_table.lookup_tag("ncolour").name
+            ncols = self.root.symbol_table.lookup_with_tag("ncolour").name
         return ncols
 
     @property

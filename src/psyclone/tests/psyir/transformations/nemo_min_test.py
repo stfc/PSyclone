@@ -47,6 +47,7 @@ from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
 
+
 def test_initialise():
     '''Check that variables are set up as expected when an instance of the
     class is created and that the str and name methods work as expected.

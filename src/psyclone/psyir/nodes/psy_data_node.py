@@ -103,10 +103,9 @@ class PSyDataNode(Node):
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
-        if parent and hasattr(self.parent.root, 'symbol_table'):
-            self._var_name = self.parent.root.symbol_table.new_symbol_name(
-            "psy_data")
-            self.parent.root.symbol_table.add(Symbol(self._var_name))
+        if parent and hasattr(self.root, 'symbol_table'):
+            self._var_name = self.root.symbol_table.new_symbol_name("psy_data")
+            self.root.symbol_table.add(Symbol(self._var_name))
 
         if children and parent:
             # Correct the parent's list of children. Use a slice of the list
