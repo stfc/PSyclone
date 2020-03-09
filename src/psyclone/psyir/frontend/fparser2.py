@@ -119,11 +119,11 @@ def _check_args(array, dim):
         raise TypeError(
             "method _check_args 'dim' argument should be an "
             "int type but found '{0}'.".format(type(dim).__name__))
-    if dim<1:
+    if dim < 1:
         raise ValueError(
             "method _check_args 'dim' argument should be at "
             "least 1 but found '{0}'.".format(dim))
-    if dim>len(array.children):
+    if dim > len(array.children):
         raise ValueError(
             "method _check_args 'dim' argument should be at "
             "most the number of dimensions of the array '{0}' but found "
@@ -194,10 +194,13 @@ def _is_bound_full_extent(array, dim, operator):
 
     reference = bound.children[0]
     literal = bound.children[1]
-    
-    if (bound.operator == operator and isinstance(reference, Reference) and
-        reference.symbol is array.symbol and isinstance(literal, Literal) and
-        literal.datatype == DataType.INTEGER and literal.value == str(dim)):
+
+    if (bound.operator == operator
+            and isinstance(reference, Reference) and
+            reference.symbol is array.symbol
+            and isinstance(literal, Literal) and
+            literal.datatype == DataType.INTEGER
+            and literal.value == str(dim)):
         return True
     return False
 
@@ -234,10 +237,10 @@ def _is_array_range_literal(array, dim, index, value):
             "method _check_array_range_literal 'index' argument should be an "
             "int type but found '{0}'.".format(type(index).__name__))
 
-    if index<0 or index>2:
+    if index < 0 or index > 2:
         raise ValueError(
-            "method _check_array_range_literal 'index' argument should be 0, 1 or 2 "
-            "but found '{0}'.".format(index))
+            "method _check_array_range_literal 'index' argument should be "
+            "0, 1 or 2 but found '{0}'.".format(index))
 
     if not isinstance(value, int):
         raise TypeError(
@@ -249,10 +252,11 @@ def _is_array_range_literal(array, dim, index, value):
     literal = array.children[dim-1].children[index]
 
     if (isinstance(literal, Literal) and
-        literal.datatype == DataType.INTEGER and
-        literal.value == str(value)):
+            literal.datatype == DataType.INTEGER and
+            literal.value == str(value)):
         return True
     return False
+
 
 def _is_range_full_extent(my_range):
     '''Utility function to check whether a Range object is equivalent to a
