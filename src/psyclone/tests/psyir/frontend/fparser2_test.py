@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, DataType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _check_literal, _check_bound_is_full_extent, \
-    _check_range_is_full_extent
+    _check_range_is_full_extent, _check_args
 
 
 def process_declarations(code):
@@ -94,18 +94,57 @@ contains
 end module dummy_mod
 '''
 
+def test_check_args():
+    ''' Test the _check_args function. '''
 
-def test_check_bound_is_full_extent():
-    ''' Test the _check_bound_is_full_extent function.'''
+    with pytest.raises(TypeError) as excinfo:
+        _check_args(None, None)
+    assert ("'array' argument should be an Array type but found 'NoneType'."
+            in str(excinfo.value))
+    
     one = Literal("1", DataType.INTEGER)
     symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    array_reference = Array.create(symbol, [one])
 
+    with pytest.raises(TypeError) as excinfo:
+        _check_args(array_reference, None)
+    assert ("'dim' argument should be an int type but found 'NoneType'."
+            in str(excinfo.value))
+
+    with pytest.raises(ValueError) as excinfo:
+        _check_args(array_reference, 0)
+    assert ("'dim' argument should be at least 1 but found '0'."
+            in str(excinfo.value))
+
+    with pytest.raises(ValueError) as excinfo:
+        _check_args(array_reference, 2)
+    assert ("'dim' argument should be at most the number of dimensions of "
+            "the array '1' but found '2'." in str(excinfo.value))
+    
+    with pytest.raises(TypeError) as excinfo:
+        _check_args(array_reference, 1)
+    assert ("'array' argument index '0' should be a Range type but "
+            "found 'Literal'." in str(excinfo.value))
+
+    
+def test_check_bound_is_full_extent():
+    ''' Test the _check_bound_is_full_extent function.'''
+
+    # Check that _check_bound_is_full_extent calls the check_args function.
+    with pytest.raises(TypeError) as excinfo:
+        _check_bound_is_full_extent(None, None, None)
+    assert ("'array' argument should be an Array type but found 'NoneType'."
+            in str(excinfo.value))
+    
+    one = Literal("1", DataType.INTEGER)
+    symbol = DataSymbol('a', DataType.REAL, shape=[20])
     my_range = Range.create(one, one)
     array_reference = Array.create(symbol, [my_range])
+
     with pytest.raises(TypeError) as excinfo:
         _check_bound_is_full_extent(array_reference, 1, None)
-    assert ("Operator expected to be LBOUND or UBOUND but found 'NoneType'"
-            in str(excinfo.value))
+    assert ("'operator' argument  expected to be LBOUND or UBOUND but found "
+            "'NoneType'" in str(excinfo.value))
 
     with pytest.raises(NotImplementedError) as excinfo:
         _check_bound_is_full_extent(array_reference, 1,
@@ -186,14 +225,41 @@ def test_check_bound_is_full_extent():
 
 def test_check_literal():
     ''' Test the _check_literal function.'''
+    
+    # Check that _check_literal calls the _check_args function.
+    with pytest.raises(TypeError) as excinfo:
+        _check_literal(None, None, None, None)
+    assert ("'array' argument should be an Array type but found 'NoneType'."
+            in str(excinfo.value))
+
     one = Literal("1", DataType.INTEGER)
     symbol = DataSymbol('a', DataType.REAL, shape=[20])
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", DataType.INTEGER))
-
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
+
+    with pytest.raises(TypeError) as excinfo:
+        _check_literal(array_reference, 1, None, None)
+    assert ("'index' argument should be an int type but found 'NoneType'."
+            in str(excinfo.value))
+
+    with pytest.raises(ValueError) as excinfo:
+        _check_literal(array_reference, 1, -1, None)
+    assert ("'index' argument should be 0, 1 or 2 but found '-1'."
+            in str(excinfo.value))
+
+    with pytest.raises(ValueError) as excinfo:
+        _check_literal(array_reference, 1, 3, None)
+    assert ("'index' argument should be 0, 1 or 2 but found '3'."
+            in str(excinfo.value))
+
+    with pytest.raises(TypeError) as excinfo:
+        _check_literal(array_reference, 1, 2, None)
+    assert ("'value' argument should be an int type but found 'NoneType'."
+            in str(excinfo.value))
+
     # 1st dimension, second argument to range is an integer literal
     # with value 1
     _check_literal(array_reference, 1, 1, 1)

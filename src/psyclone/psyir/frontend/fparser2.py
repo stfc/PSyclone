@@ -91,6 +91,51 @@ def _get_symbol_table(node):
     return None
 
 
+def _check_args(array, dim):
+    '''Utility routine used by the _check_bound_is_full_extent and
+    _check_literal functions to check common arguments.
+
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be removed.
+
+    :param array: the node to check.
+    :type array: :py:class:`pysclone.psyir.node.array`
+    :param int dim: the dimension index to use.
+
+    :raises TypeError: if the supplied arguments are of the wrong type.
+    :raises ValueError: if the value of the supplied dim argument is \
+        less than 1 or greater than the number of dimensions in the \
+        supplied array argument.
+
+    '''
+    if not isinstance(array, Array):
+        raise TypeError(
+            "method _check_args 'array' argument should be an "
+            "Array type but found '{0}'.".format(type(array).__name__))
+
+    if not isinstance(dim, int):
+        raise TypeError(
+            "method _check_args 'dim' argument should be an "
+            "int type but found '{0}'.".format(type(dim).__name__))
+    if dim<1:
+        raise ValueError(
+            "method _check_args 'dim' argument should be at "
+            "least 1 but found '{0}'.".format(dim))
+    if dim>len(array.children):
+        raise ValueError(
+            "method _check_args 'dim' argument should be at "
+            "most the number of dimensions of the array '{0}' but found "
+            "'{1}'.".format(len(array.children), dim))
+
+    if not isinstance(array.children[dim-1], Range):
+        raise TypeError(
+            "method _check_args 'array' argument index '{0}' "
+            "should be a Range type but found '{1}'."
+            "".format(dim-1, type(array.children[dim-1]).__name__))
+
+
 def _check_bound_is_full_extent(array, dim, operator):
     '''A Fortran array section with a missing lower bound implies the
     access starts at the first element and a missing upper bound
@@ -104,9 +149,9 @@ def _check_bound_is_full_extent(array, dim, operator):
     bound Fortran code is captured as longhand lbound and/or
     ubound functions as expected in the PSyIR.
 
-    The supplied "array" argument is assumed to be an Array node,
-    the specified dimension "dim" is assumed to be a Range node
-    and the supplied range index "index" is assumed to be valid.
+    The supplied "array" argument is assumed to be an Array node and
+    the contents of the specified dimension "dim" is assumed to be a
+    Range node.
 
     This routine is only in fparser2.py until #717 is complete as it
     is used to check that array syntax in a where statement is for the
@@ -116,26 +161,28 @@ def _check_bound_is_full_extent(array, dim, operator):
 
     :param array: the node to check.
     :type array: :py:class:`pysclone.psyir.node.array`
-    :param int dim: the dimension index to check.
-    :param int index: the index of the range to check (0 is the \
-        lower bound, 1 is the upper bound).
-    :param operator: the expected operator.
+    :param int dim: the dimension index to use.
+    :param operator: the operator to check.
     :type operator: \
         :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
         or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
 
+    :raises TypeError: if the supplied arguments are of the wrong type.
     :raises NotImplementedError: if the supplied array does not have \
         the expected properties.
 
     '''
+    _check_args(array, dim)
+
     if operator == BinaryOperation.Operator.LBOUND:
         index = 0
     elif operator == BinaryOperation.Operator.UBOUND:
         index = 1
     else:
         raise TypeError(
-            "Operator expected to be LBOUND or UBOUND but found '{0}'."
-            "".format(type(operator).__name__))
+            "'operator' argument  expected to be LBOUND or UBOUND but "
+            "found '{0}'.".format(type(operator).__name__))
+
     try:
         bound = array.children[dim-1].children[index]
         assert isinstance(bound, BinaryOperation), \
@@ -169,17 +216,12 @@ def _check_bound_is_full_extent(array, dim, operator):
             + str(excinfo))
 
 
-def _check_literal(node, dim, index, value):
+def _check_literal(array, dim, index, value):
     '''Utility function to check that the supplied array has a literal at
-    dimension index "dim" and range index "index" with value
-    "value".
+    dimension index "dim" and range index "index" with value "value".
 
     The step part of the range node has an integer literal with
     value 1 by default.
-
-    Assumes that the node argument is an array and that the
-    supplied dimension index is a Range node and that the supplied
-    range index is valid.
 
     This routine is only in fparser2.py until #717 is complete as it
     is used to check that array syntax in a where statement is for the
@@ -191,15 +233,32 @@ def _check_literal(node, dim, index, value):
     :type array: :py:class:`pysclone.psyir.node.Array`
     :param int dim: the dimension index to check.
     :param int index: the index of the range to check (0 is the \
-        lower bound, 1 is the upper bound).
+        lower bound, 1 is the upper bound and 2 is the step).
     :param int value: the expected value of the literal.
 
     :raises NotImplementedError: if the supplied argument does not \
         have the required properties.
 
     '''
+    _check_args(array, dim)
+
+    if not isinstance(index, int):
+        raise TypeError(
+            "method _check_literal 'index' argument should be an "
+            "int type but found '{0}'.".format(type(index).__name__))
+
+    if index<0 or index>2:
+        raise ValueError(
+            "method _check_literal 'index' argument should be 0, 1 or 2 "
+            "but found '{0}'.".format(index))
+
+    if not isinstance(value, int):
+        raise TypeError(
+            "method _check_literal 'value' argument should be an "
+            "int type but found '{0}'.".format(type(value).__name__))
+
     try:
-        literal = node.children[dim-1].children[index]
+        literal = array.children[dim-1].children[index]
         assert isinstance(literal, Literal), \
             "Expecting Literal but found '{0}'" \
             "".format(type(literal).__name__)
