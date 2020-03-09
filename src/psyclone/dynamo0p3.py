@@ -8367,8 +8367,8 @@ class KernStubArgList(ArgOrdering):
                     self._arglist.append(basis_name)
             else:
                 raise InternalError(
-                    "Unrecognised evaluator shape ({0}). Expected one of: {1}".
-                    format(shape, VALID_EVALUATOR_SHAPES))
+                    "Unrecognised evaluator shape ('{0}'). Expected one of: "
+                    "{1}".format(shape, VALID_EVALUATOR_SHAPES))
 
     def diff_basis(self, function_space):
         '''
@@ -8379,7 +8379,8 @@ class KernStubArgList(ArgOrdering):
                                differential basis function
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
 
-        :raises GenerationError: if the evaluator shape is not recognised.
+        :raises InternalError: if the evaluator shape is not recognised.
+
         '''
         for shape in self._kern.eval_shapes:
             if shape in VALID_QUADRATURE_SHAPES:
@@ -8401,10 +8402,9 @@ class KernStubArgList(ArgOrdering):
                         function_space, on_space=target[0])
                     self._arglist.append(diff_basis_name)
             else:
-                raise GenerationError(
-                    "Internal error: unrecognised evaluator shape ({0}). "
-                    "Expected one of: {1}".format(shape,
-                                                  VALID_EVALUATOR_SHAPES))
+                raise InternalError("Unrecognised evaluator shape ('{0}'). "
+                                    "Expected one of: {1}".format(
+                                        shape, VALID_EVALUATOR_SHAPES))
 
     def orientation(self, function_space):
         '''

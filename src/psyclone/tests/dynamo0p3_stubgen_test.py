@@ -155,6 +155,28 @@ def test_kernstubarglist_arglist_error():
         "called?") in str(excinfo.value)
 
 
+def test_kernstubarglist_eval_shape_error():
+    ''' Check that we raise the expected exception if we call the basis() or
+    diff_basis() methods and one of the kernel's evaluator shapes is
+    invalid. '''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_faces_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    create_arg_list = KernStubArgList(kernel)
+    # Break the list of qr rules
+    kernel.eval_shapes.insert(0, "broken")
+    with pytest.raises(InternalError) as err:
+        create_arg_list.basis(None)
+    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
+            "['gh_quadrature_xyoz'" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        create_arg_list.diff_basis(None)
+    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
+            "['gh_quadrature_xyoz'" in str(err.value))
+
+
 def test_stub_generate_with_anyw2():
     '''check that the stub generate produces the expected output when we
     have any_w2 fields. In particular, check basis functions as these
