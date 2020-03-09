@@ -1841,10 +1841,10 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     dbasis = DynBasisFunctions(kernel)
     monkeypatch.setattr(
         dbasis, "_qr_vars", {"unsupported-shape": None})
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(InternalError) as err:
         dbasis._stub_declarations(ModuleGen(name="my_mod"))
-    assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ, "
-            "GH_QUADRATURE_FACE and GH_QUADRATURE_EDGE are not yet "
+    assert ("Quadrature shapes other than ['gh_quadrature_xyoz', "
+            "'gh_quadrature_face', 'gh_quadrature_edge'] are not yet "
             "supported - got: 'unsupported-shape'" in str(err.value))
 
 
@@ -1857,11 +1857,20 @@ def test_dynbasisfns_declns(monkeypatch):
     kernel = DynKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
+    # Missing name for qr variable
+    dbasis._basis_fns[0]['qr_var'] = None
+    with pytest.raises(InternalError) as err:
+        dbasis._basis_fn_declns()
+    assert ("Quadrature 'gh_quadrature_xyoz' is required but have no name for "
+            "the associated Quadrature object" in str(err.value))
+    dbasis._basis_fns[0]['qr_var'] = "qr_xyoz"
+    # Invalid quadrature shape
     dbasis._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should"
             in str(err.value))
+    # No Kernel object
     monkeypatch.setattr(dbasis, "_kernel", None)
     dbasis._basis_fns[0]['type'] = "basis"
     with pytest.raises(InternalError) as err:
@@ -1873,6 +1882,7 @@ def test_dynbasisfns_declns(monkeypatch):
         dbasis._basis_fn_declns()
     assert ("differential basis functions but do not have either a Kernel or "
             "an Invoke. Should be" in str(err.value))
+    # Unsupported type of basis function
     for fun in dbasis._basis_fns:
         fun['type'] = "broken"
     with pytest.raises(InternalError) as err:

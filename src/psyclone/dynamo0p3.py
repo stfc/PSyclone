@@ -314,12 +314,12 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     '''
     if basis_fn["shape"] not in VALID_QUADRATURE_SHAPES:
         raise InternalError(
-            "Unrecognised shape ({0}) specified in "
+            "Unrecognised shape ('{0}') specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
             "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
 
     if basis_fn["qr_var"]:
-        qr_var = "_"+basis_fn["qr_var"]
+        qr_var = "_" + basis_fn["qr_var"]
     else:
         # We have no name for the QR variable (as will be the case when
         # generating a kernel stub) so invent one.
@@ -346,7 +346,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
                       "np_xyz"+qr_var, "nedges"+qr_var]
     else:
         raise NotImplementedError(
-            "unrecognised shape ({0}) specified in "
+            "Unrecognised shape '{0}' specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
             "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
     return alloc_args
@@ -1025,7 +1025,7 @@ class DynKernMetadata(KernelType):
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
-                            "In the dynamo0.3 API any kernel requiring "
+                            "In the Dynamo0.3 API any kernel requiring "
                             "quadrature or an evaluator ({0}) must also "
                             "supply the shape of that evaluator by setting "
                             "'gh_shape' in the kernel meta-data but "
@@ -1034,7 +1034,7 @@ class DynKernMetadata(KernelType):
                     shape_set = set(self._eval_shapes)
                     if not shape_set.issubset(set(VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
-                            "In the dynamo0.3 API a kernel requiring either "
+                            "In the Dynamo0.3 API a kernel requiring either "
                             "quadrature or an evaluator must request one or "
                             "more valid gh_shapes (one of {0}) but got '{1}' "
                             "for kernel '{2}'".
@@ -3875,7 +3875,7 @@ class DynBasisFunctions(DynCollection):
                     # This is for quadrature - store the name of the
                     # qr variable
                     entry["qr_var"] = call.qr_rules[shape].psy_name
-                    # Quadrature are evaluated at pre-determined
+                    # Quadrature weights are evaluated at pre-determined
                     # points rather than at the nodes of another FS.
                     # We put one entry of None in the list of target
                     # spaces to facilitate cases where we loop over
@@ -3915,12 +3915,18 @@ class DynBasisFunctions(DynCollection):
         :param parent: the f2pygen node representing the Kernel stub.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if an unsupported quadrature shape is found.
+
         '''
         from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._qr_vars and not self._eval_targets:
             return
+
+        # The quadrature shapes that this method supports
+        supported_shapes = ["gh_quadrature_xyoz", "gh_quadrature_face",
+                            "gh_quadrature_edge"]
 
         # Get the lists of dimensioning variables and basis arrays
         var_dims, basis_arrays = self._basis_fn_declns()
@@ -3962,10 +3968,9 @@ class DynBasisFunctions(DynCollection):
                                                        "nedges"+qr_name]),
                                    entity_decls=["weights_xyz"+qr_name]))
             else:
-                raise GenerationError(
-                    "Quadrature shapes other than GH_QUADRATURE_XYoZ, "
-                    "GH_QUADRATURE_FACE and GH_QUADRATURE_EDGE are not "
-                    "yet supported - got: '{0}'".format(shape))
+                raise InternalError(
+                    "Quadrature shapes other than {0} are not yet "
+                    "supported - got: '{1}'".format(supported_shapes, shape))
 
     def _invoke_declarations(self, parent):
         '''
@@ -4042,8 +4047,8 @@ class DynBasisFunctions(DynCollection):
             self._initialise_xyz_qr(parent)
             self._initialise_xyoz_qr(parent)
             self._initialise_xoyoz_qr(parent)
-            self._initialise_face_qr(parent)
-            self._initialise_edge_qr(parent)
+            self._initialise_face_or_edge_qr(parent, "face")
+            self._initialise_face_or_edge_qr(parent, "edge")
 
         if self._eval_targets:
             parent.add(CommentGen(parent, ""))
@@ -4135,6 +4140,8 @@ class DynBasisFunctions(DynCollection):
                                encountered.
         :raises InternalError: if an unrecognised evaluator shape is \
                                encountered.
+        :raises InternalError: if there is no name for the quadrature object \
+                               when generating PSy-layer code.
         '''
         # Dictionary of basis arrays where key values are the array names and
         # entries are a list of dimensions.
@@ -4184,12 +4191,12 @@ class DynBasisFunctions(DynCollection):
 
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
 
-                if not basis_fn["qr_var"]:
-                    # If we're doing kernel-stub generation then we won't
-                    # have a name for the qr object so invent one.
-                    qr_var = "qr_" + basis_fn["shape"].split("_")[-1]
-                else:
-                    qr_var = basis_fn["qr_var"]
+                qr_var = basis_fn["qr_var"]
+                if not qr_var:
+                    raise InternalError(
+                        "Quadrature '{0}' is required but have no name for the"
+                        " associated Quadrature object.".format(
+                            basis_fn["shape"]))
 
                 if is_diff_basis:
                     op_name = get_fs_operator_name("gh_diff_basis",
@@ -4250,7 +4257,7 @@ class DynBasisFunctions(DynCollection):
 
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
-        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         # This shape is not yet supported so we do nothing
         return
@@ -4262,7 +4269,7 @@ class DynBasisFunctions(DynCollection):
 
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
-        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
@@ -4311,102 +4318,59 @@ class DynBasisFunctions(DynCollection):
 
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
-        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         # This shape is not yet supported so we do nothing
         return
 
-    def _initialise_face_qr(self, parent):
+    def _initialise_face_or_edge_qr(self, parent, qr_type):
         '''
-        Add in the initialisation of variables needed for face
+        Add in the initialisation of variables needed for face or edge
         quadrature.
 
-        :param parent: the node in the f2pygen AST representing the PSy \
-                       subroutine in which to insert the initialisation.
-        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
-
-        '''
-        from psyclone.f2pygen import AssignGen, DeclGen
-
-        if "gh_quadrature_face" not in self._qr_vars:
-            return
-
-        qr_vars = ["np_xyz", "nfaces"]
-        qr_ptr_vars = ["weights_xyz"]
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        for qr_arg_name in self._qr_vars["gh_quadrature_face"]:
-
-            # We generate unique names for the integers holding the numbers
-            # of quadrature points by appending the name of the quadrature
-            # argument
-            parent.add(
-                DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"],
-                    entity_decls=[name+"_"+qr_arg_name for name in qr_vars]))
-            decl_list = [name+"_"+qr_arg_name+"(:,:) => null()"
-                         for name in qr_ptr_vars]
-            parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind=api_config.default_kind["real"],
-                        entity_decls=decl_list))
-            # Get the quadrature proxy
-            proxy_name = qr_arg_name + "_proxy"
-            parent.add(
-                AssignGen(parent, lhs=proxy_name,
-                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
-            # Number of points in each dimension & no. of faces
-            for qr_var in qr_vars:
-                parent.add(
-                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
-            # Pointers to the weights arrays
-            for qr_var in qr_ptr_vars:
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
-
-    def _initialise_edge_qr(self, parent):
-        '''
-        Add in the initialisation of variables needed for edge
-        quadrature.
-
-        :param parent: the node in the AST representing the PSy subroutine
+        :param parent: the node in the AST representing the PSy subroutine \
                        in which to insert the initialisation
-        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param str qr_type: whether to generate initialisation code for "face"\
+                            or "edge" quadrature.
+
+        :raises InternalError: if `qr_type` is not "face" or "edge"
+
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
 
-        if "gh_quadrature_edge" not in self._qr_vars:
+        if qr_type not in ["face", "edge"]:
+            raise InternalError(
+                "_initialise_face_or_edge_qr: qr_type argument must be either "
+                "'face' or 'edge' but got: '{0}'".format(qr_type))
+
+        quadrature_name = "gh_quadrature_" + qr_type
+
+        if quadrature_name not in self._qr_vars:
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
 
-        for qr_arg_name in self._qr_vars["gh_quadrature_edge"]:
+        for qr_arg_name in self._qr_vars[quadrature_name]:
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
             # argument
-            decl_list = []
-            for name in self.qr_dim_vars["edge"]:
-                decl_list.append(self._name_space_manager.create_name(
-                    root_name=name+"_"+qr_arg_name, context="PSyVars",
-                    label=name+"_"+qr_arg_name))
+            decl_list = [self._name_space_manager.create_name(
+                root_name=name+"_"+qr_arg_name, context="PSyVars",
+                label=name+"_"+qr_arg_name)
+                         for name in self.qr_dim_vars[qr_type]]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=decl_list))
 
-            decl_list = []
-            for name in self.qr_weight_vars["edge"]:
-                decl_list.append(self._name_space_manager.create_name(
-                    root_name=name+"_"+qr_arg_name, context="PSyVars",
-                    label=name+"_"+qr_arg_name))
+            decl_list = [self._name_space_manager.create_name(
+                root_name=name+"_"+qr_arg_name, context="PSyVars",
+                label=name+"_"+qr_arg_name)+"(:,:) => null()"
+                         for name in self.qr_weight_vars[qr_type]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind=api_config.default_kind["real"],
-                        entity_decls=[decl+"(:,:) => null()"
-                                      for decl in decl_list]))
+                        entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = self._name_space_manager.create_name(
                 root_name=qr_arg_name+"_proxy", context="PSyVars",
@@ -4415,13 +4379,13 @@ class DynBasisFunctions(DynCollection):
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
             # The dimensioning variables required for this quadrature
-            # (e.g. nedges, np_xyz)
-            for qr_var in self.qr_dim_vars["edge"]:
+            # (e.g. nedges/nfaces, np_xyz)
+            for qr_var in self.qr_dim_vars[qr_type]:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
                               rhs=proxy_name+"%"+qr_var))
             # Pointers to the weights arrays
-            for qr_var in self.qr_weight_vars["edge"]:
+            for qr_var in self.qr_weight_vars[qr_type]:
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=qr_var+"_"+qr_arg_name,
@@ -6783,16 +6747,15 @@ class DynKern(CodedKern):
     information to generate appropriate PSy layer code for the Kernel
     instance or to generate a Kernel stub'''
 
-    # Namedtuple used to store information on each quadrature rule
+    # namedtuple used to store information on each quadrature rule
     # required by a kernel.
+    #
+    # alg_name: The actual argument text specifying the QR object in the
+    #           Alg. layer.
+    # psy_name: The PSy-layer variable name for the QR object.
+    # kernel_args: List of kernel arguments associated with this QR rule.
     QRRule = namedtuple("QRRule",
-                        ["alg_name", # The actual argument text specifying the
-                                     # QR object in the Alg. layer.
-                         "psy_name",  # The psy-layer variable name for the QR
-                                      # object.
-                         "kernel_args" # List of kernel arguments associated
-                                       # with this QR rule.
-                        ])
+                        ["alg_name", "psy_name", "kernel_args"])
 
     def __init__(self):
         if False:  # pylint: disable=using-constant-test

@@ -526,7 +526,7 @@ def test_dynbasisfunctions(monkeypatch):
     from psyclone import dynamo0p3
     with pytest.raises(InternalError) as excinfo:
         _ = dynamo0p3.qr_basis_alloc_args("size1", basis_dict)
-    assert ("Unrecognised shape (gh_wrong_shape) specified "
+    assert ("Unrecognised shape ('gh_wrong_shape') specified "
             in str(excinfo.value))
 
     # Monkey-patch it so that it doesn't have any quadrature args
@@ -537,6 +537,13 @@ def test_dynbasisfunctions(monkeypatch):
     evaluator._initialise_xyz_qr(None)
     evaluator._initialise_xyoz_qr(None)
     evaluator._initialise_xoyoz_qr(None)
+    evaluator._initialise_face_or_edge_qr(None, "face")
+    evaluator._initialise_face_or_edge_qr(None, "edge")
+
+    with pytest.raises(InternalError) as err:
+        evaluator._initialise_face_or_edge_qr(None, "Face")
+    assert ("qr_type argument must be either 'face' or 'edge' but got: "
+            "'Face'" in str(err.value))
 
     # Check that the constructor raises an internal error if it encounters
     # a shape it doesn't recognise
@@ -816,7 +823,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
                                                            [])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
-    assert ("unrecognised shape (gh_quadrature_wrong) specified in "
+    assert ("Unrecognised shape 'gh_quadrature_wrong' specified in "
             "dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))
 
 
@@ -847,5 +854,5 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
                                                            [])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
-    assert ("unrecognised shape (gh_quadrature_wrong) specified in "
+    assert ("Unrecognised shape 'gh_quadrature_wrong' specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be" in str(excinfo.value))
