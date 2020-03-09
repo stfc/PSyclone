@@ -6747,8 +6747,8 @@ class DynKern(CodedKern):
     information to generate appropriate PSy layer code for the Kernel
     instance or to generate a Kernel stub'''
 
-    # namedtuple used to store information on each quadrature rule
-    # required by a kernel.
+    # An instance of this `namedtuple` is used to store information on each of
+    # the quadrature rules required by a kernel.
     #
     # alg_name: The actual argument text specifying the QR object in the
     #           Alg. layer.
@@ -6890,16 +6890,16 @@ class DynKern(CodedKern):
         '''
         Internal setup of kernel information.
 
-        :param ktype: Object holding information on the parsed meta-data for \
+        :param ktype: object holding information on the parsed metadata for \
                       this kernel.
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         :param str module_name: the name of the Fortran module that contains \
-                                the source of this Kernel
-        :param args: List of Arg objects produced by the parser for the \
-                     arguments of this kernel call
-        :type args: List of :py:class:`psyclone.parse.algorithm.Arg` objects
+                                the source of this Kernel.
+        :param args: list of Arg objects produced by the parser for the \
+                     arguments of this kernel call.
+        :type args: list of :py:class:`psyclone.parse.algorithm.Arg` objects
         :param parent: the parent of this kernel call in the generated \
-                       AST (will be a loop object)
+                       AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         '''
@@ -6940,11 +6940,13 @@ class DynKern(CodedKern):
         qr_shapes = [shape for shape in self._eval_shapes if
                      shape in VALID_QUADRATURE_SHAPES]
 
+        # The quadrature-related arguments to a kernel always come last so
+        # construct an enumerator with start value -<no. of qr rules>
         for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
-            # The quadrature-related arguments always come last
+
             qr_arg = args[idx]
 
-            # use our namespace manager to create a unique name unless
+            # Use our namespace manager to create a unique name unless
             # the context and label match and in this case return the
             # previous name. We use the full text of the original
             # as a label.
@@ -6955,7 +6957,10 @@ class DynKern(CodedKern):
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
-                qr_name = "qr_"+shape.split("_")[-1]
+                qr_base_name = "qr_"+shape.split("_")[-1]
+                qr_name = self._name_space_manager.create_name(
+                    root_name=qr_base_name, context="AlgArgs",
+                    label=qr_base_name)
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
@@ -6971,8 +6976,8 @@ class DynKern(CodedKern):
             elif shape == "gh_quadrature_edge":
                 qr_args = ["nedges", "np_xyz", "weights_xyz"]
             else:
-                raise InternalError("unsupported quadrature shape ({0}) found "
-                                    "in DynKern._setup".format(shape))
+                raise InternalError("Unsupported quadrature shape ('{0}') "
+                                    "found in DynKern._setup".format(shape))
 
             # Append the name of the qr argument to the names of the qr-related
             # variables.
@@ -7000,8 +7005,9 @@ class DynKern(CodedKern):
         '''
         :returns: details of each of the quadrature rules required by this \
                   kernel.
-        :rtype: OrderedDict of :py:class:`psyclone.dynamo0p3.DynKern.QRRule` \
-                indexed by quadrature shape.
+        :rtype: OrderedDict containing \
+                :py:class:`psyclone.dynamo0p3.DynKern.QRRule` indexed by \
+                quadrature shape.
         '''
         return self._qr_rules
 
@@ -7609,14 +7615,9 @@ class ArgOrdering(object):
         ''' Add kernel arguments relating to properties of the reference
         element. '''
 
+    @abc.abstractmethod
     def quad_rule(self):
-        '''
-        Add qr information
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.quad_rule() must be implemented by subclass")
+        ''' Add kernel arguments required for quadrature. '''
 
     def banded_dofmap(self, function_space):
         '''
@@ -8005,6 +8006,10 @@ class KernCallArgList(ArgOrdering):
         Adds the necessary arguments to the self._arglist list.
 
         '''
+        # The QR shapes that this routine supports
+        supported_qr_shapes = ["gh_quadrature_xyoz", "gh_quadrature_edge",
+                               "gh_quadrature_face"]
+
         for shape, rule in self._kern.qr_rules.items():
 
             if shape == "gh_quadrature_xyoz":
@@ -8025,9 +8030,8 @@ class KernCallArgList(ArgOrdering):
             else:
                 raise NotImplementedError(
                     "quad_rule: no support implemented for quadrature with a "
-                    "shape of '{0}'. Supported shapes are: "
-                    "gh_quadrature_xyoz, gh_quadrature_edge and "
-                    "gh_quadrature_face.".format(shape))
+                    "shape of '{0}'. Supported shapes are: {1}.".format(
+                        shape, supported_qr_shapes))
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''

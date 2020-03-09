@@ -507,8 +507,8 @@ def test_internal_qr_err(monkeypatch):
                            api=API)
     with pytest.raises(InternalError) as excinfo:
         _ = PSyFactory(API).create(invoke_info)
-    assert ("internal error: unsupported quadrature shape "
-            "(gh_quadrature_wrong) found" in str(excinfo.value))
+    assert ("internal error: Unsupported quadrature shape "
+            "('gh_quadrature_wrong') found" in str(excinfo.value))
 
 
 def test_dynbasisfunctions(monkeypatch):

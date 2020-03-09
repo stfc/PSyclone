@@ -5290,8 +5290,7 @@ def test_argordering_exceptions():
         for method in [create_arg_list.cell_map,
                        create_arg_list.cell_position,
                        create_arg_list.mesh_height,
-                       create_arg_list.mesh_ncell2d,
-                       create_arg_list.quad_rule]:
+                       create_arg_list.mesh_ncell2d]:
             with pytest.raises(NotImplementedError):
                 method()
         for method in [create_arg_list.field_vector,
@@ -5376,6 +5375,27 @@ def test_kerncallarglist_args_error(dist_mem):
     assert (
         "KernCallArgList: the generate() method should be called before "
         "the arglist() method") in str(excinfo.value)
+
+
+def test_kerncallarglist_quad_rule_error(dist_mem):
+    '''Check that we raise the expected exception if we encounter an
+    unsupported quadrature shape in the quad_rule() method.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "6_multiple_QR_per_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    create_arg_list = KernCallArgList(loop.loop_body[0])
+    # Add an invalid shape to the dict of qr rules
+    create_arg_list._kern.qr_rules["broken"] = None
+    with pytest.raises(NotImplementedError) as err:
+        create_arg_list.quad_rule()
+    assert ("no support implemented for quadrature with a shape of 'broken'"
+            in str(err.value))
 
 
 def test_multi_anyw2():
