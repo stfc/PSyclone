@@ -34,7 +34,6 @@
    Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 
-
 PSyIR Symbols
 #############
 
@@ -46,9 +45,45 @@ in their bodies.
     nodes. But this should be eventually replaced as we have no way to check
     for name clashes with these symbols.
 
-When one wants to create a new symbol. The symbol table offers the
-`psyclone.psyir.symbols.SymbolTable.new_symbol_name` method ...
 
-There are two main ways to query the symbol table for symbols.
+When one wants to define a new symbol in the symbol table, in order to avoid
+any clashes, the recommended way is to us the `new_symbol_name` method:
 
-.. note:: When 
+.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
+
+
+However, if this variable need to be retrieved later on, one must keep track
+the returned name or use a unique tag to uniquely identify the variable
+internally (the tag is not displayed in the generated code). Therefore, to
+create a new symbol and associate the symbol with a tag, the following lines
+can be used:
+
+.. code-block:: python
+
+    variable = node.symbol_table.new_symbol_name("variable_name")
+    node.symbol_table.add(DataSymbol(variable, DataType.INTEGER),
+                          tag="variable_with_the_result_x")
+
+
+Then, there are two ways to retrieve the symbol from a symbol table. Using the
+`name` or using the `tag` as lookup keys. This is done with the two following
+methods:
+
+.. automethod:: psyclone.psyir.symbols.SymbolTable.lookup
+
+.. automethod:: psyclone.psyir.symbols.SymbolTable.lookup_with_tag
+
+
+.. note:: Often, specially in the dynamo0p3 API, we have no way of knowing if
+    a symbol has already been defined before it is first used. In this cases
+    we can use a try/catch around the `lookup_with_tag` method and in case of
+    KeyError (the tag was not found) declare the symbol.
+
+    Since this action is needed often, the Symbol Table provide the following
+    method:
+
+    .. automethod:: psyclone.psyir.symbols.SymbolTable.name_from_tag
+
+    However, it is recommended to avoid the method for new code as ideally
+    the method will be deprecated in favor of a finer control of when
+    variables are defined and used.
