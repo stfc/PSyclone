@@ -7907,8 +7907,9 @@ class KernCallArgList(ArgOrdering):
         '''
         # Argument information is produced by a DynReferenceElement
         # class method
-        refelem_args = DynReferenceElement.call_args(self._kern)
-        self._arglist.extend(refelem_args)
+        if self._kern.reference_element.properties:
+            refelem_args = DynReferenceElement.call_args(self._kern)
+            self._arglist.extend(refelem_args)
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
