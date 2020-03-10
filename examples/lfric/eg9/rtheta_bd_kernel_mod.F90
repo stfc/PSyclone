@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 !> equation for the nonlinear equations This consists of:
 !> rtheta_bd = theta * gamma * u * normal.
 module rtheta_bd_kernel_mod
+
     use kernel_mod,            only : kernel_type
     use argument_mod,          only : arg_type, func_type, mesh_data_type, &
                                       GH_FIELD, GH_READ, GH_INC,           &
@@ -53,14 +54,14 @@ module rtheta_bd_kernel_mod
                                       adjacent_face,                       &
                                       reference_element_normal_to_face,    &
                                       reference_element_out_face_normal
-    use constants_mod,         only : r_def, i_def
+    use constants_mod,         only : r_def, i_def, l_def
     use cross_product_mod,     only : cross_product
     use planet_config_mod,     only : cp
     use reference_element_mod, only : reference_element_type
 
-
-
     implicit none
+
+    private
 
     !-------------------------------------------------------------------------------
     ! Public types
@@ -68,24 +69,28 @@ module rtheta_bd_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: rtheta_bd_kernel_type
         private
-        type(arg_type) :: meta_args(3) = (/                            &
-            arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                &
-            arg_type(GH_FIELD,   GH_READ,      Wtheta),                &
-            arg_type(GH_FIELD,   GH_READ,      W2)                     &
+        type(arg_type) :: meta_args(3) = (/                                     &
+            arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                         &
+            arg_type(GH_FIELD,   GH_READ,      Wtheta),                         &
+            arg_type(GH_FIELD,   GH_READ,      W2)                              &
             /)
-        type(func_type) :: meta_funcs(2) = (/                          &
-            func_type(W2, GH_BASIS),                                   &
-            func_type(Wtheta, GH_BASIS)                                &
+        type(func_type) :: meta_funcs(2) = (/                                   &
+            func_type(W2, GH_BASIS),                                            &
+            func_type(Wtheta, GH_BASIS)                                         &
             /)
+	    type(mesh_data_type) :: meta_mesh(1) = (/                               &
+	         mesh_data_type( adjacent_face )                                    &
+	         /)
+	    type(reference_element_data_type) :: meta_reference_element(2) = (/     &
+	         reference_element_data_type( normals_to_horizontal_faces ),        &
+	         reference_element_data_type( outward_normals_to_horizontal_faces ) &
+	         /)
         integer :: iterates_over = CELLS
+        ! TODO: Change "GH_QUADRATURE_XYoZ" to "GH_QUADRATURE_face" and update
+        !       kernel when issues #193 and #195 are completed
         integer :: gh_shape = GH_QUADRATURE_XYoZ
-        type(mesh_data_type) :: meta_init(3) = (/                      &
-            mesh_data_type( adjacent_face ),                           &
-            mesh_data_type( reference_element_normal_to_face ),        &
-            mesh_data_type( reference_element_out_face_normal )        &
-          /)
     contains
-        procedure, nopass ::rtheta_bd_code
+        procedure, nopass :: rtheta_bd_code
     end type
 
     !-------------------------------------------------------------------------------
@@ -173,10 +178,10 @@ contains
         real(kind=r_def), dimension(3,ndf_w2,nqp_h_1d,nqp_v,4), intent(in)     :: w2_basis_face
         real(kind=r_def), dimension(1,ndf_wtheta,nqp_h_1d,nqp_v,4), intent(in) :: wtheta_basis_face
 
-        integer(i_def), intent(in) :: adjacent_face(:)
+        integer(kind=i_def), intent(in) :: adjacent_face(:)
 
-        real(r_def), intent(in) :: normal_to_face(:,:)
-        real(r_def), intent(in) :: out_face_normal(:,:)
+        real(kind=r_def), intent(in) :: normal_to_face(:,:)
+        real(kind=r_def), intent(in) :: out_face_normal(:,:)
 
         real(kind=r_def), dimension(undf_wtheta), intent(inout) :: r_theta_bd
         real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
@@ -197,7 +202,7 @@ contains
         real(kind=r_def) :: theta_at_uquad, theta_next_at_uquad
         real(kind=r_def) :: bdary_term, gamma_wtheta, sign_face_next_outward, flux_term
 
-        logical          :: upwind = .false.
+        logical(kind=l_def) :: upwind = .false.
 
         ! Assumes same number of horizontal qp in x and y
 
