@@ -277,34 +277,117 @@ a detailed description) or any of the profiling wrapper libaries
 
 .. _psy_data_transformation:
 
-PSyData Transformation and ``PSyDataNode``
--------------------------------------------
-The base transformation to create the PSyData callbacks is
-``PSyDataTrans``:
+``PSyDataTrans``
+----------------
+Any transformation that uses the PSyData API works
+by inserting a special node into the PSyclone tree representation
+of the program. Only at program creation time is the
+actual code created that implements the API. The
+``PSyDataTrans`` transformation contained in
+``psyir/transformations/psy_data_trans.py`` is the base
+class for other transformations like profiling and
+kernel data extraction. All derived transformations
+mostly add specific validations, and provide
+parameters to ``PSyDataTrans``, including the class
+of the node to insert. After passing validation,
+``PSyDataTrans`` creates an instance of the class
+requested, and inserts it into the tree.
 
-.. autoclass:: psyclone.psyir.transformations.psy_data_trans.PSyDataTrans
+.. autoclass:: psyclone.psyir.transformations.PSyDataTrans
     :members:
 
-It is very similar to the profile transformation and kernel extraction
-transformations. These transforms insert a special node into the AST,
-which at code creation time will generate the code to give access to
-the data fields. Both profile and kernel extraction
-nodes use ``PSyDataNode`` as a base class, which will create the 
-PSyData calls as described above. The difference is that these
-classes will provide different parameters to the ``PSyDataNode``,
-resulting in different code being created:
+``PSyDataNode``
+----------------
+This is the base class for any node that is being inserted
+into PSyclone's program tree to use the PSyData API.
+The derived classes will typically control the behaviour
+of ``PSyDataNode`` by providing additional parameters.
 
-.. autoclass:: psyclone.psyir.nodes.psy_data_node.PSyDataNode
+.. autoclass:: psyclone.psyir.nodes.PSyDataNode
     :members:
 
-The behaviour of the ``PSyDataNode`` is controlled using the ``option``
-dictionary, as documented above. If there is no variable to be provided
-(i.e both ``pre_variable_list`` and ``post_variable_list`` are empty),
-then the ``PSyDataNode`` will only create a call to ``PreStart`` and 
+There are two ways of passing options to the
+``PSyDataNode``. The first one is used to pass
+parameters from the user's transformation script to the constructor
+of the node inserted, the second for passing parameters
+from a derived node to the ``PSyDataNode`` base class.
+
+.. _psy_data_parameters_to_constructor:
+
+Passing Parameters From the User to the Node Constructor
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Options can be passed from the user via the
+transformation to the node that will create the code.
+This is done by using the ``options`` dictionary that is
+a standard parameter for all ``validate`` and
+``apply`` calls of a transformation (see
+:ref:`transformations_application`). Besides using
+this dictionary for validation and application parameters,
+``PSyDataTrans`` passes it to the constructor
+of the node that is being inserted. An example
+of a parameter is the ``region_name``, where the user
+can overwrite the default name given to a region (which
+can be somewhat cryptic due to the need to be unique).
+The region name is validated by ``PSyDataTrans``, and
+then passed to the node constructor. The ``PSyDataNode``
+stores the name as an instance attribute, so that they can
+be used at code creation time (when ``gen_code`` is being
+called). Below is the list of all options that the PSyData
+node supports in the option dictionary:
+
+.. table::
+    :widths: 2,10
+
+    =============== =========================================
+    Parameter Name  Description
+    =============== =========================================
+    region_name     Overwrites the region name
+                    used by the ``PSyDataNode``. It must
+                    be a pair of strings: the first one being
+                    the name of the module, the second the
+                    name of the region. The names are used
+                    e.g. by the ``ProfileNode`` to define
+                    a unique region name for a profiled
+                    code region, or by ``GOceanExtractNode``
+                    to define the file name for the output
+                    data- and driver-files.
+    =============== =========================================
+
+
+Passing Parameter From a Derived Node to the ``PSyDataNode``
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+The ``PSyDataTrans.gen_code`` function also accepts
+an option dictionary, which is used by derived nodes
+to control code creation. The ``gen_code`` function
+is called internally, not directly by the user. If
+the ``gen_code`` function of a node derived from
+``PSyDataNode`` is called, it can define this
+option directory to pass the parameters to the ``PSyDataNode``'s
+``gen_code`` function. Here are the options that are currently
+supported by ``PSyDataNode``:
+
+================ =========================================
+Parameter Name   Description
+================ =========================================
+pre_var_list     A list of the variable names to be
+                 extracted before the instrumented region.
+post_var_list    A list of variable names to be extracted
+                 after the instrumented region.
+pre_var_postfix  An optional postfix that will be appended
+                 to each variable name in the
+                 ``pre_var_list``.
+post_var_postfix an optional postfix that will be appended
+                 to each variable name in the
+                 ``post_var_list``.
+================ =========================================
+
+If there is no variable to be provided by the PSyData API (i.e both
+``pre_variable_list`` and ``post_variable_list`` are empty), then the
+``PSyDataNode`` will only create a call to ``PreStart`` and
 ``PostEnd``. This is utilised by the profiling node to make the profiling
 API libraries (see :ref:`ProfilingAPI`) independent of the infrastructure
-library, which will contain API-specific parameters in any call to
-``ProvideVariable``. It also reduces the number of calls required before
+library (since a call to ``ProvideVariable`` can contain API-specific
+variable types). It also reduces the number of calls required before
 and after the instrumented region which can affect overall
 performance and precision of any measurements, see :ref:`profiling`
 for more details.
@@ -312,6 +395,5 @@ for more details.
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
-a ``PSyDataNode`` node. It also uses ``post-var-postfix`` option
+a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
 as described under ``gen_code()`` above (see also :ref:`psyke_netcdf`).
-

@@ -61,6 +61,9 @@ class LFRicExtractTrans(ExtractTrans):
     >>> newsched.view()
     '''
 
+    def __str__(self):
+        return "Inserts an ExtractNode in an LFRic Schedule."
+
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
