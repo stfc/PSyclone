@@ -61,11 +61,8 @@ class Literal(Node):
     :raises TypeError: if the supplied value is not a string.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
                         'true' or 'false'.
-    '''
-    # A Literal cannot have DEFERRED type
-    VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
-                        DataType.CHARACTER, DataType.BOOLEAN]
 
+    '''
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
 
@@ -74,20 +71,17 @@ class Literal(Node):
             raise TypeError("The datatype of a Literal must be an instance of"
                             " psyir.symbols.DataType but got '{0}'".format(
                                 type(datatype).__name__))
-        if datatype not in self.VALID_DATA_TYPES:
-            raise ValueError("The datatype of a Literal must be one of {0} "
-                             "but got '{1}'".format(self.VALID_DATA_TYPES,
-                                                    datatype))
         if not isinstance(value, six.string_types):
             raise TypeError("Literals must be supplied with "
                             "a value encoded as a string but got: {0}".
                             format(type(value).__name__))
 
-        if datatype is DataType.BOOLEAN:
-            if value not in ("true", "false"):
-                raise ValueError(
-                    "A DataType.BOOLEAN Literal can only be: 'true' or "
-                    "'false' but got '{0}' instead.".format(value))
+        if (isintance(datatype, ScalarType) and
+                datatype.type_name == ScalarType.Name.BOOLEAN and
+                value not in ("true", "false")):
+            raise ValueError(
+                "A scalar boolean literal can only be: 'true' or "
+                "'false' but found '{0}'.".format(value))
 
         self._datatype = datatype
         self._value = value

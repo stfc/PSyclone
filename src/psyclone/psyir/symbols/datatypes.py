@@ -51,13 +51,6 @@ from enum import Enum
 #    DEFERRED = 5
 
 
-# Mapping from PSyIR data types to intrinsic Python types
-#TYPE_MAP_TO_PYTHON = {DataType.INTEGER: int,
-#                      DataType.CHARACTER: str,
-#                      DataType.BOOLEAN: bool,
-#                      DataType.REAL: float}
-
-
 class DataType():
     '''Base class from which all types are derived.'''
 
@@ -109,8 +102,17 @@ class ScalarType(DataType):
                 "ScalarType.Precision but found '{0}'."
                 "".format(type(precision).__name__))
         
-        self._type_name = type_name
-        self._precision = precision
+        self.type_name = type_name
+        self.precision = precision
+
+    def __str__(self):
+        '''Construct a text representation of this scalar datatype.
+
+        :returns: description of this scalar datatype.
+        :rtype: str
+
+        '''
+        return ("{0}({1})".format(self.type_name, self.precision))
 
 
 class ArrayType(DataType):
@@ -166,3 +168,11 @@ class ArrayType(DataType):
 #integer_type = IntegerType(precision)
 #integer_one = Literal("1", integer_type)
 #integer_two = Literal("2", integer_type)
+# Mapping from PSyIR data types to intrinsic Python types
+
+TYPE_MAP_TO_PYTHON = {ScalarType.Name.INTEGER: int,
+                      ScalarType.Name.CHARACTER: str,
+                      ScalarType.Name.BOOLEAN: bool,
+                      ScalarType.Name.REAL: float}
+
+
