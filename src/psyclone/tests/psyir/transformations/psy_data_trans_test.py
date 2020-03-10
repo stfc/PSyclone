@@ -44,7 +44,7 @@ from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_basic(capsys):
+def test_psy_data_trans_basic(capsys):
     # pylint: disable=too-many-locals
     '''Check basic functionality: node names, schedule view.
     '''
