@@ -65,15 +65,16 @@ class GOceanExtractNode(ExtractNode):
         program at code-generation time. If set, the driver will be created \
         in the current working directory with the name \
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
-        corresponding values for this region.
+        corresponding values for this region. Defaults to False.
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
                  options=None):
         super(GOceanExtractNode, self).__init__(ast=ast, children=children,
-                                                parent=parent)
+                                                parent=parent,
+                                                options=options)
         if options:
-            self._create_driver = options.get("create-driver", False)
+            self._create_driver = options.get("create_driver", False)
         else:
             self._create_driver = False
 
@@ -220,7 +221,7 @@ class GOceanExtractNode(ExtractNode):
         # So we need to make sure that the field parameters
         # are changed from "fld%data" to just "fld". This is
         # achieved by temporary changing the value of the
-        # go_grid_data property (e.g. "{0}%data") to just "{0}".
+        # "go_grid_data" property (e.g. "{0}%data") to just "{0}".
         api_config = Config.get().api_conf("gocean1.0")
         props = api_config.grid_properties
         old_data_property = props["go_grid_data"]
