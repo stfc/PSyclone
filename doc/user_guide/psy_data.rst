@@ -293,7 +293,7 @@ of the node to insert. After passing validation,
 ``PSyDataTrans`` creates an instance of the class
 requested, and inserts it into the tree.
 
-.. autoclass:: psyclone.psyir.transformations.psy_data_trans.PSyDataTrans
+.. autoclass:: psyclone.psyir.transformations.PSyDataTrans
     :members:
 
 ``PSyDataNode``
@@ -303,7 +303,7 @@ into PSyclone's program tree to use the PSyData API.
 The derived classes will typically control the behaviour
 of ``PSyDataNode`` by providing additional parameters.
 
-.. autoclass:: psyclone.psyir.nodes.psy_data_node.PSyDataNode
+.. autoclass:: psyclone.psyir.nodes.PSyDataNode
     :members:
 
 There are two ways of passing options to the
@@ -332,7 +332,7 @@ The region name is validated by ``PSyDataTrans``, and
 then passed to the node constructor. The ``PSyDataNode``
 stores the name as an instance attribute, so that they can
 be used at code creation time (when ``gen_code`` is being
-called). Here the list of all options that the PSyData
+called). Below is the list of all options that the PSyData
 node supports in the option dictionary:
 
 .. table::

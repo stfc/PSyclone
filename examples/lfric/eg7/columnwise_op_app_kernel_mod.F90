@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,8 @@ use argument_mod,            only : arg_type, func_type,                    &
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -151,6 +153,7 @@ contains
     integer(kind=i_def) :: i,j, mu_i,mu_j
     ! Smallest/largest index in a particular row
     integer(kind=i_def) :: j_minus, j_plus
+
     do i=1, nrow
        ! Assumes that the first entry in the dofmaps is the smallest
        mu_i = map1(1) + indirection_dofmap_to(i) - 1

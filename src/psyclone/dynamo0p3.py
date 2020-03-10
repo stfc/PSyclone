@@ -123,11 +123,14 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
-# ---------- Datatypes (scalars, fields, operators) ------------------------- #
+# ---------- API datatypes (scalars, fields, operators) --------------------- #
 GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
+
+# ---------- Fortran datatypes ------------------------- #
+SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -1445,9 +1448,11 @@ class DynamoPSy(PSy):
 
         '''
         from psyclone.f2pygen import ModuleGen, UseGen
-        # create an empty PSy layer module
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
-        # include required infrastructure modules
+        # Include required infrastructure modules
         psy_module.add(UseGen(psy_module, name="field_mod", only=True,
                               funcnames=["field_type", "field_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
@@ -1455,8 +1460,11 @@ class DynamoPSy(PSy):
                                          "operator_proxy_type",
                                          "columnwise_operator_type",
                                          "columnwise_operator_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
-                              funcnames=["r_def"]))
+        psy_module.add(
+            UseGen(psy_module, name="constants_mod", only=True,
+                   funcnames=[api_config.default_kind["real"],
+                              api_config.default_kind["integer"]]))
+
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
@@ -1798,8 +1806,11 @@ class DynStencils(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_extent_vars,
                                intent="in"))
 
@@ -1830,8 +1841,11 @@ class DynStencils(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_direction_vars,
                                intent="in"))
 
@@ -1943,6 +1957,8 @@ class DynStencils(DynCollection):
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
         from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if not self._kern_args:
             return
 
@@ -1961,10 +1977,13 @@ class DynStencils(DynCollection):
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="stencil_dofmap_type",
                                    entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True,
                                entity_decls=[self.dofmap_name(arg) +
                                              "(:,:,:) => null()"]))
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[self.dofmap_size_name(arg)]))
 
             stencil_type = arg.descriptor.stencil['type']
@@ -1986,9 +2005,12 @@ class DynStencils(DynCollection):
                                str(STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=[stencil_name]))
-                parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                                   entity_decls=[self.dofmap_name(arg) +
-                                                 "(:,:,:) => null()"]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[self.dofmap_name(arg) +
+                                          "(:,:,:) => null()"]))
 
     def _declare_maps_stub(self, parent):
         '''
@@ -2000,10 +2022,12 @@ class DynStencils(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         for arg in self._kern_args:
             parent.add(DeclGen(
-                parent, datatype="integer", intent="in",
+                parent, datatype="integer",
+                kind=api_config.default_kind["integer"], intent="in",
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
                                     self.dofmap_size_name(arg)]),
                 entity_decls=[self.dofmap_name(arg)]))
@@ -2099,6 +2123,7 @@ class DynReferenceElement(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._properties:
             return
@@ -2118,6 +2143,7 @@ class DynReferenceElement(DynCollection):
             nface_vars.append(self._nfaces_v_name)
 
         parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
 
         # Declare the necessary arrays
@@ -2132,7 +2158,10 @@ class DynReferenceElement(DynCollection):
         if self._vert_face_out_normals_name:
             ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
 
-        parent.add(DeclGen(parent, datatype="real", kind="r_def",
+        # Add declarations to the parent subroutine
+        api_config = Config.get().api_conf("dynamo0.3")
+        parent.add(DeclGen(parent, datatype="real",
+                           kind=api_config.default_kind["real"],
                            allocatable=True, entity_decls=ref_element_arrays))
 
     def initialise(self, parent):
@@ -2351,28 +2380,32 @@ class DynDofmaps(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
         decl_map_names = \
             [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
 
         if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_map_names))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=decl_map_names))
 
         # Column-banded dofmaps
         decl_bmap_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
         if decl_bmap_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_bmap_names))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=decl_bmap_names))
 
         # CMA operator indirection dofmaps
         decl_ind_map_names = \
             [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
         if decl_ind_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_ind_map_names))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=decl_ind_map_names))
 
     def _stub_declarations(self, parent):
         '''
@@ -2383,15 +2416,20 @@ class DynDofmaps(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
             ndf_name = get_fs_ndf_name(
                 self._unique_fs_maps[dmap].function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=ndf_name, entity_decls=[dmap]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", dimension=ndf_name,
+                               entity_decls=[dmap]))
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":
@@ -2403,9 +2441,12 @@ class DynDofmaps(DynCollection):
                     "Invalid direction ('{0}') found for CMA operator when "
                     "collecting column-banded dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in",
                                dimension=",".join([ndf_name, "nlayers"]),
                                entity_decls=[dmap]))
         # CMA operator indirection dofmaps
@@ -2419,10 +2460,13 @@ class DynDofmaps(DynCollection):
                     "Invalid direction ('{0}') found for CMA operator when "
                     "collecting indirection dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[dim_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=dim_name, entity_decls=[dmap]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[dim_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", dimension=dim_name,
+                               entity_decls=[dmap]))
 
 
 class DynOrientations(DynCollection):
@@ -2465,10 +2509,14 @@ class DynOrientations(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for orient in self._orients:
             ndf_name = get_fs_ndf_name(orient.function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=ndf_name, entity_decls=[orient.name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", dimension=ndf_name,
+                               entity_decls=[orient.name]))
 
     def _invoke_declarations(self, parent):
         '''
@@ -2480,11 +2528,13 @@ class DynOrientations(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=declns))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=declns))
 
 
 class DynFunctionSpaces(DynCollection):
@@ -2535,10 +2585,13 @@ class DynFunctionSpaces(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._var_list:
             # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=self._var_list))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=self._var_list))
 
     def _invoke_declarations(self, parent):
         '''
@@ -2550,9 +2603,12 @@ class DynFunctionSpaces(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._var_list:
             # Declare ndf and undf for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._var_list))
 
     def initialise(self, parent):
@@ -2643,6 +2699,8 @@ class DynFields(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         fld_args = psyGen.args_filter(self._kernel.args,
                                       arg_types=["gh_field"])
         for fld in fld_args:
@@ -2654,12 +2712,15 @@ class DynFields(DynCollection):
                     text = (fld.name + "_" +
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
-                    parent.add(DeclGen(parent, datatype="real",
-                                       kind="r_def", dimension=undf_name,
-                                       intent=intent, entity_decls=[text]))
+                    parent.add(
+                        DeclGen(parent, datatype="real",
+                                kind=api_config.default_kind["real"],
+                                dimension=undf_name,
+                                intent=intent, entity_decls=[text]))
             else:
                 parent.add(
-                    DeclGen(parent, datatype="real", kind="r_def",
+                    DeclGen(parent, datatype="real",
+                            kind=api_config.default_kind["real"],
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
@@ -2774,10 +2835,13 @@ class DynCellIterators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that iterate over cells
         if not self._dofs_only:
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[self._nlayers_name]))
 
     def _stub_declarations(self, parent):
@@ -2788,9 +2852,12 @@ class DynCellIterators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[self._nlayers_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
         '''
@@ -2858,17 +2925,22 @@ class DynScalarArgs(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=api_config.default_kind["real"],
                                    entity_decls=self._real_scalars[intent],
                                    intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=self._int_scalars[intent],
-                                   intent=intent))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=self._int_scalars[intent],
+                            intent=intent))
 
     def _stub_declarations(self, parent):
         '''
@@ -2895,18 +2967,23 @@ class DynLMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
         if lma_args:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=["cell"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
             ndf_name_to = get_fs_ndf_name(arg.function_space_to)
             ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -3009,6 +3086,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3026,6 +3104,7 @@ class DynCMAOperators(DynCollection):
                 parent, lhs=ncol_name,
                 rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
         parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
                            entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
@@ -3063,6 +3142,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3092,7 +3172,8 @@ class DynCMAOperators(DynCollection):
             cma_name = self._name_space_manager.create_name(
                 root_name=op_name+"_matrix", context="PSyVars",
                 label=op_name+"_matrix")
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
@@ -3103,6 +3184,7 @@ class DynCMAOperators(DynCollection):
                     context="PSyVars",
                     label=op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
 
     def _stub_declarations(self, parent):
@@ -3115,6 +3197,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -3122,8 +3205,9 @@ class DynCMAOperators(DynCollection):
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
-        parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=["cell", "ncell_2d"]))
+        parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
+                           intent="in", entity_decls=["cell", "ncell_2d"]))
 
         for op_name in self._cma_ops:
             # Declare the associated scalar arguments before the array because
@@ -3137,13 +3221,14 @@ class DynCMAOperators(DynCollection):
                     label=op_name+"_"+param)
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
-                               intent="in",
-                               entity_decls=_local_args))
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=_local_args))
             # Declare the array that holds the CMA operator
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
@@ -3305,6 +3390,7 @@ class DynMeshes(object):
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # Since we're now generating code, any transformations must
         # have been applied so we can set-up colourmap information
@@ -3328,20 +3414,26 @@ class DynMeshes(object):
                                    entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
+                        kind=api_config.default_kind["integer"],
                         entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[kern.ncell_fine,
                                              kern.ncellpercell]))
             # Declare variables to hold the colourmap information if required
             if kern.colourmap:
-                parent.add(DeclGen(parent, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=[kern.colourmap+"(:,:)"]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=[kern.ncolours_var]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[kern.colourmap+"(:,:)"]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=[kern.ncolours_var]))
 
         if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
@@ -3355,9 +3447,11 @@ class DynMeshes(object):
                 root_name=base_name, context="PSyVars", label=base_name)
             # Add declarations for these variables
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                pointer=True,
                                entity_decls=[colour_map+"(:,:)"]))
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
 
     def initialise(self, parent):
@@ -3798,6 +3892,7 @@ class DynBasisFunctions(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._qr_vars and not self._eval_targets:
             return
@@ -3806,21 +3901,25 @@ class DynBasisFunctions(DynCollection):
         var_dims, basis_arrays = self._basis_fn_declns()
 
         if var_dims:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=var_dims))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=var_dims))
         for basis in basis_arrays:
             parent.add(DeclGen(parent, datatype="real",
-                               kind="r_def", intent="in",
+                               kind=api_config.default_kind["real"],
+                               intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
         for qr_shape in VALID_QUADRATURE_SHAPES:
             if qr_shape.lower() == "gh_quadrature_xyoz":
                 if qr_shape not in self._qr_vars:
                     continue
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=api_config.default_kind["real"],
                                    intent="in", dimension="np_xy",
                                    entity_decls=["weights_xy"]))
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=api_config.default_kind["real"],
                                    intent="in", dimension="np_z",
                                    entity_decls=["weights_z"]))
             else:
@@ -3876,6 +3975,8 @@ class DynBasisFunctions(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
             AllocateGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         basis_declarations = []
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
@@ -3918,7 +4019,8 @@ class DynBasisFunctions(DynCollection):
                 rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
 
@@ -3956,6 +4058,7 @@ class DynBasisFunctions(DynCollection):
         if var_dims:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=var_dims))
 
         basis_declarations = []
@@ -3969,7 +4072,8 @@ class DynBasisFunctions(DynCollection):
         # declare the basis function arrays
         if basis_declarations:
             parent.add(DeclGen(parent, datatype="real",
-                               allocatable=True, kind="r_def",
+                               kind=api_config.default_kind["real"],
+                               allocatable=True,
                                entity_decls=basis_declarations))
 
         # Compute the values for any basis arrays
@@ -4114,6 +4218,7 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
             return
@@ -4126,13 +4231,15 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
                     entity_decls=[name+"_"+qr_arg_name
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
             parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind="r_def", entity_decls=decl_list))
+                DeclGen(parent, datatype="real",
+                        kind=api_config.default_kind["real"],
+                        pointer=True, entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
             parent.add(
@@ -4173,6 +4280,8 @@ class DynBasisFunctions(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen, DoGen, \
             DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         loop_var_list = set()
         op_name_list = []
         # add calls to compute the values of any basis arrays
@@ -4283,6 +4392,7 @@ class DynBasisFunctions(DynCollection):
         if loop_var_list:
             # Declare any loop variables
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=sorted(loop_var_list)))
 
     def deallocate(self, parent):
@@ -4388,9 +4498,13 @@ class DynBoundaryConditions(DynCollection):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(DeclGen(parent, datatype="integer", pointer="True",
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True,
                                entity_decls=[name+"(:,:) => null()"]))
 
     def _stub_declarations(self, parent):
@@ -4401,10 +4515,14 @@ class DynBoundaryConditions(DynCollection):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             ndf_name = get_fs_ndf_name(dofs.function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in",
                                dimension=",".join([ndf_name, "2"]),
                                entity_decls=[name]))
 
@@ -4668,7 +4786,7 @@ class DynInvoke(Invoke):
         # Initialise all quantities required by this PSy routine (invoke)
 
         if self.schedule.reductions(reprod=True):
-            # we have at least one reproducible reduction so we need
+            # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
             from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
@@ -4676,6 +4794,9 @@ class DynInvoke(Invoke):
                 root_name="nthreads", context="PSyVars", label="nthreads")
             invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
                                   funcnames=[omp_function_name]))
+            # Note: There is no assigned kind for integer nthreads as this
+            # would imply assigning kind to th_idx and other elements of
+            # the psyGen OMPParallelDirective
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[nthreads_name]))
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -5836,7 +5957,7 @@ class DynLoop(Loop):
         # the name of the nlayers and ndf variables
         self._name_space_manager = NameSpaceFactory().create()
 
-        # set our variable name at initialisation as it might be
+        # Set our variable name at initialisation as it might be
         # required by other classes before code generation
         if self._loop_type == "colours":
             self._variable_name = "colour"
@@ -6377,7 +6498,9 @@ class DynLoop(Loop):
                                   "parallel region.")
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
+        # TODO: Issue #696. Add kind (precision) when the support in Literal
+        #                   class is implemented.
         self.start_expr = Literal(self._lower_bound_fortran(),
                                   DataType.INTEGER, parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(),
@@ -6895,16 +7018,18 @@ class DynKern(CodedKern):
 
         '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
-        # create an empty PSy layer module
-        base_name = self._base_name
+        # Create an empty PSy layer module
         psy_module = ModuleGen(self._base_name+"_mod")
 
         # Create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
-        sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
-                            funcnames=["r_def"]))
+        sub_stub.add(
+            UseGen(sub_stub, name="constants_mod", only=True,
+                   funcnames=[api_config.default_kind["real"],
+                              api_config.default_kind["integer"]]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
@@ -6939,7 +7064,10 @@ class DynKern(CodedKern):
 
         '''
         from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
                            entity_decls=["cell"]))
 
         parent_loop = self.parent.parent
