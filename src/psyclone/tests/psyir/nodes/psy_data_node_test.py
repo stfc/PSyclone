@@ -58,7 +58,7 @@ def clear_psydata_namespace():
 
 
 # -----------------------------------------------------------------------------
-def test_basics(monkeypatch):
+def test_psy_data_node_basics(monkeypatch):
     '''Tests some elementary functions.'''
     psy_node = PSyDataNode()
     assert "PSyDataStart[var=psy_data]\n"\
@@ -82,7 +82,7 @@ def test_basics(monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_tree_correct():
+def test_psy_data_node_tree_correct():
     '''Test that adding children and parents will result in the correct
     relationship with the inserted node.
     '''
@@ -162,7 +162,7 @@ def test_tree_correct():
 
 
 # -----------------------------------------------------------------------------
-def test_c_code_creation():
+def test_psy_data_node_c_code_creation():
     '''Tests the handling when trying to create C code, which is not supported
     at this stage.
     '''
@@ -175,7 +175,7 @@ def test_c_code_creation():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_invokes_gocean1p0():
+def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -216,7 +216,7 @@ def test_psy_data_invokes_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_options():
+def test_psy_data_node_options():
     '''Check that the options for PSyData work as expected.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",

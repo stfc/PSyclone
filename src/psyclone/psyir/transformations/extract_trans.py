@@ -86,7 +86,7 @@ class ExtractTrans(PSyDataTrans):
         return "ExtractTrans"
 
     def validate(self, node_list, options=None):
-        '''Performs validation checks common to all extract-based
+        '''Performs validation checks specific to extract-based
         transformations.
 
         :param node_list: the list of Node(s) we are checking.
@@ -156,4 +156,6 @@ class ExtractTrans(PSyDataTrans):
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
+        # Performs validation checks specific to PSyData-based
+        # transformations.
         super(ExtractTrans, self).validate(node_list, options)

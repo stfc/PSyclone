@@ -332,7 +332,7 @@ The region name is validated by ``PSyDataTrans``, and
 then passed to the node constructor. The ``PSyDataNode``
 stores the name as an instance attribute, so that they can
 be used at code creation time (when ``gen_code`` is being
-called). Here the list of all options that the PSyData
+called). Below is the list of all options that the PSyData
 node supports in the option dictionary:
 
 .. table::
