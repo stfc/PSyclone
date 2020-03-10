@@ -35,8 +35,9 @@
 
 program single_invoke
 
-  ! Description: single kernel (requiring two properties of the reference
-  ! element with the common number of faces) specified in an invoke call
+  ! Description: single kernel (requiring all normals and outward normals to
+  ! faces of the reference element with the common number of faces) specified
+  ! in an invoke call
   use testkern_ref_elem_all_faces_mod, only: testkern_ref_elem_all_faces_type
 
   implicit none

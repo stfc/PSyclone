@@ -874,9 +874,9 @@ class RefElementMetaData(object):
         '''
         NORMALS_TO_HORIZONTAL_FACES = 1
         NORMALS_TO_VERTICAL_FACES = 2
-        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
-        OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
-        NORMALS_TO_FACES = 5
+        NORMALS_TO_FACES = 3
+        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 4
+        OUTWARD_NORMALS_TO_VERTICAL_FACES = 5
         OUTWARD_NORMALS_TO_FACES = 6
 
     def __init__(self, kernel_name, type_declns):
@@ -2047,6 +2047,7 @@ class DynReferenceElement(DynCollection):
 
     :raises InternalError: if an unsupported reference-element property \
                            is encountered.
+
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, node):
@@ -2067,24 +2068,24 @@ class DynReferenceElement(DynCollection):
             label="reference_element")
 
         # Initialise names for the properties of the reference element object:
-        # - Number of horizontal/vertical/all faces,
+        # Number of horizontal/vertical/all faces,
         self._nfaces_h_name = ""
         self._nfaces_v_name = ""
         self._nfaces_name = ""
-        # - Horizontal normals to faces,
+        # Horizontal normals to faces,
         self._horiz_face_normals_name = ""
         self._horiz_face_out_normals_name = ""
-        # - Vertical normals to faces,
+        # Vertical normals to faces,
         self._vert_face_normals_name = ""
         self._vert_face_out_normals_name = ""
-        # - All normals to faces,
+        # All normals to faces.
         self._face_normals_name = ""
         self._face_out_normals_name = ""
 
         # Store argument properties for kernel calls and stub declarations
         # and argument list
         self._arg_properties = OrderedDict()
-        # Auxiliary defaultdict for speed (checks for existing kerys)
+        # Auxiliary defaultdict for speed (checks for existing keys)
         args_dict = defaultdict(str)
 
         # Populate and check reference element properties
@@ -2168,20 +2169,21 @@ class DynReferenceElement(DynCollection):
                 args_dict[self._face_out_normals_name] = self._nfaces_name
             else:
                 raise InternalError(
-                    "Unsupported reference-element property ('{0}') found "
-                    "when generating kernel arguments. Supported "
-                    "properties are: '{1}'".format(
-                        str(prop),
-                        [str(sprop) for sprop in RefElementMetaData.Property]))
+                    "Unsupported reference-element property ('{0}') found when"
+                    " generating kernel arguments. Supported properties are: "
+                    "{1}".format(str(prop), [str(sprop) for sprop in
+                                             RefElementMetaData.Property]))
 
         # Sort array properties for compatibility with Python 2
         self._arg_properties = OrderedDict(sorted(args_dict.items()))
 
     @property
     def arg_properties(self):
-        ''' Returns the dictionary of reference element argument properties
+        '''
+        Returns the dictionary of reference element argument properties
         for kernel calls and stub declarations where keys are the reference
         element arrays and values are the relevant number of faces.
+
         '''
         return self._arg_properties
 
@@ -2192,9 +2194,11 @@ class DynReferenceElement(DynCollection):
 
         :param kern: kernel to create the argument list for.
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-        :returns: sorted list of kernel call/stub arguments.
+        :return: sorted list of kernel call/stub arguments.
         :rtype: list
+
         '''
+        # Use classmethod to avoid instantiating the class for argument list
         argdict = cls(kern).arg_properties
         call_args = sorted(list(dict.fromkeys(argdict.values()))) + \
             sorted(list(argdict.keys()))
@@ -2203,7 +2207,7 @@ class DynReferenceElement(DynCollection):
     def _invoke_declarations(self, parent):
         '''
         Create the necessary declarations for the variables needed in order
-        to provide properties of the reference element.
+        to provide properties of the reference element in a Kernel call.
 
         :param parent: node in the f2pygen AST to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -2229,10 +2233,40 @@ class DynReferenceElement(DynCollection):
                            entity_decls=nface_vars))
 
         # Declare the necessary arrays
-        array_decls = [i + "(:,:)" for i in self._arg_properties.keys()]
+        array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
         parent.add(DeclGen(parent, datatype="real",
                            kind=api_config.default_kind["real"],
                            allocatable=True, entity_decls=array_decls))
+
+    def _stub_declarations(self, parent):
+        '''
+        Create the necessary declarations for the variables needed in order
+        to provide properties of the reference element in a Kernel stub.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if not self._properties:
+            return
+
+        # Declare the necessary scalars (sort for compatibility with Python 2)
+        for nface in sorted(list(dict.fromkeys(
+                self._arg_properties.values()))):
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[nface]))
+
+        # Declare the necessary arrays
+        for arr in self._arg_properties.keys():
+            dimension = ",".join(["3", self._arg_properties[arr]])
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
+                               intent="in", dimension=dimension,
+                               entity_decls=[arr]))
 
     def initialise(self, parent):
         '''
@@ -7126,7 +7160,8 @@ class DynKern(CodedKern):
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
-                         DynOrientations, DynBoundaryConditions]:
+                         DynOrientations, DynBoundaryConditions,
+                         DynReferenceElement]:
             entities(self).declarations(sub_stub)
 
         # Create the arglist
@@ -8042,13 +8077,6 @@ class KernStubArgList(ArgOrdering):
                 "Kernel {0} is an inter-grid kernel and stub generation "
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
-        # We don't support Kernels requiring properties of the reference
-        # element
-        if kern.reference_element.properties:
-            raise NotImplementedError(
-                "Kernel {0} requires properties of the reference element "
-                "which is not yet supported for stub generation.")
-
         self._first_arg = True
         self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
@@ -8305,6 +8333,17 @@ class KernStubArgList(ArgOrdering):
         same as for fields with the function space set to the 'to' space of
         the operator. '''
         self.field_bcs_kernel(function_space)
+
+    def ref_element_properties(self):
+        ''' Provide kernel arguments required by the reference-element
+        properties specified in the kernel metadata.
+
+        '''
+        # Argument information is produced by a DynReferenceElement
+        # class method
+        if self._kern.reference_element.properties:
+            refelem_args = DynReferenceElement.call_args(self._kern)
+            self._arglist.extend(refelem_args)
 
     def quad_rule(self):
         ''' provide quadrature information for this kernel stub (necessary

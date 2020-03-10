@@ -45,7 +45,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
@@ -71,7 +71,7 @@ module testkern_refelem_mod
      procedure, nopass :: code => testkern_refelem_code
   end type testkern_refelem_type
 contains
-  subroutine testkern_refelem_code(a, b, c, d)
+  subroutine testkern_refelem_code(a, b)
   end subroutine testkern_refelem_code
 end module testkern_refelem_mod
 '''
@@ -81,7 +81,7 @@ end module testkern_refelem_mod
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
+    '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
 
 
@@ -160,7 +160,7 @@ def test_mdata_wrong_type_var():
 # Tests for generating the PSy-layer code
 
 
-def test_refelem_args_err():
+def test_refelem_arglist_err():
     ''' Check that the KernCallArgList.ref_element_properties method raises
     the expected error if it encounters an unsupported property. '''
     from psyclone.psyGen import Kern, InternalError
@@ -176,8 +176,8 @@ def test_refelem_args_err():
     with pytest.raises(InternalError) as err:
         kernel.arguments.raw_arg_list()
     assert ("Unsupported reference-element property ('Not a property') found "
-            "when generating kernel arguments. "
-            "Supported properties are: '['Property." in str(err.value))
+            "when generating kernel arguments. Supported properties are: "
+            "['Property" in str(err.value))
 
 
 def test_refelem_gen(tmpdir):
@@ -223,7 +223,6 @@ def test_duplicate_refelem_gen(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-
     assert gen.count(
         "real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:)"
         ", normals_to_vert_faces(:,:)") == 1
@@ -308,3 +307,139 @@ def test_all_faces_refelem_gen(tmpdir):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re, normals_to_faces, "
             "out_normals_to_faces)" in gen)
+
+
+# Tests for generating the kernel stub code
+
+
+def test_refelem_stub_gen():
+    ''' Check that correct kernel stub code is produced when the kernel
+    metadata contain reference element properties. '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_ref_elem_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    gen = str(kernel.gen_stub)
+
+    output = (
+        "  MODULE testkern_ref_elem_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE testkern_ref_elem_code(nlayers, rscalar_1, "
+        "field_2_w1, field_3_w2, field_4_w2, field_5_w3, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3, "
+        "nfaces_re_h, nfaces_re_v, normals_to_horiz_faces, "
+        "normals_to_vert_faces)\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, undf_w3\n"
+        "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+        "field_2_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_4_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
+        "field_5_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nfaces_re_h\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nfaces_re_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re_h) :: "
+        "normals_to_horiz_faces\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re_v) :: "
+        "normals_to_vert_faces\n"
+        "    END SUBROUTINE testkern_ref_elem_code\n"
+        "  END MODULE testkern_ref_elem_mod")
+    assert output in gen
+
+
+def test_refelem_stub_arglist_err():
+    ''' Check that the KernStubArgList.ref_element_properties method raises
+    the expected error if it encounters an unsupported property. '''
+    from psyclone.psyGen import InternalError
+    from psyclone.dynamo0p3 import KernStubArgList
+    # Create the Kernel object
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_ref_elem_all_faces_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # Break the list of ref-element properties required by the Kernel
+    kernel.reference_element.properties.append("Wrong property")
+    with pytest.raises(InternalError) as err:
+        create_arg_list = KernStubArgList(kernel)
+        create_arg_list.generate()
+    assert "('Wrong property') " in str(err.value)
+    assert (
+        "Supported properties are: ['Property.NORMALS_TO_HORIZONTAL_FACES', "
+        "'Property.NORMALS_TO_VERTICAL_FACES', 'Property.NORMALS_TO_FACES', "
+        "'Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES', "
+        "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
+        "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
+
+
+REF_ELEM_QUAD_MDATA = '''
+module testkern_refelem_quad_mod
+  type, extends(kernel_type) :: testkern_refelem_quad_type
+    type(arg_type), dimension(2) :: meta_args =  &
+        (/ arg_type(gh_field, gh_read,  w1),     &
+           arg_type(gh_field, gh_write, wtheta) /)
+    type(func_type), meta_funcs(2) = &
+        (/ func_type(w1, gh_basis),  &
+           func_type(wtheta, gh_basis) /)
+    type(reference_element_data_type), dimension(2) ::          &
+      meta_reference_element =                                  &
+        (/ reference_element_data_type(normals_to_faces),       &
+           reference_element_data_type(outward_normals_to_faces) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_xyoz
+   contains
+     procedure, nopass :: code => testkern_refelem_quad_code
+  end type testkern_refelem_quad_type
+contains
+  subroutine testkern_refelem_quad_code()
+  end subroutine testkern_refelem_quad_code
+end module testkern_refelem_quad_mod
+'''
+
+
+def test_refelem_quad_stub_gen():
+    ''' Check that correct stub code is produced when the kernel metadata
+    contain reference element and quadrature properties (quadrature
+    properties should be placed at the end of subroutine argument list). '''
+    ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    gen = str(kernel.gen_stub)
+
+    output1 = (
+        "  SUBROUTINE testkern_refelem_quad_code(nlayers, field_1_w1, "
+        "field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1, ndf_wtheta, "
+        "undf_wtheta, map_wtheta, basis_wtheta, nfaces_re, normals_to_faces, "
+        "out_normals_to_faces, np_xy, np_z, weights_xy, weights_z)")
+    assert output1 in gen
+    output2 = (
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy, np_z\n"
+        "      REAL(KIND=r_def), intent(in), "
+        "dimension(3,ndf_w1,np_xy,np_z) :: basis_w1\n"
+        "      REAL(KIND=r_def), intent(in), "
+        "dimension(1,ndf_wtheta,np_xy,np_z) :: basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nfaces_re\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re) :: "
+        "normals_to_faces\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re) :: "
+        "out_normals_to_faces")
+    assert output2 in gen

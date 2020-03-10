@@ -68,14 +68,22 @@ contains
 
     implicit none
 
-    integer(kind=i_def), intent(in) :: nlayers, nfaces_re
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
     real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(:), intent(out) :: fld1
-    real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
-    integer(kind=i_def), intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer(kind=i_def), dimension(:), intent(in) :: map_w1, map_w2, map_w3
-    real(kind=r_def), dimension(3, nfaces_re), intent(in) :: normals
-    real(kind=r_def), dimension(3, nfaces_re), intent(in) :: out_normals
+    real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w2) :: fld2
+    real(kind=r_def), intent(in), dimension(undf_w2) :: fld3
+    real(kind=r_def), intent(in), dimension(undf_w3) :: fld4
+    integer(kind=i_def), intent(in) :: nfaces_re
+    real(kind=r_def), intent(in), dimension(3,nfaces_re) :: normals
+    real(kind=r_def), intent(in), dimension(3,nfaces_re) :: out_normals
 
   end subroutine testkern_ref_elem_all_faces_code
 
