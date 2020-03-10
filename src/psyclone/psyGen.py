@@ -342,7 +342,6 @@ class Invokes(object):
         opencl_num_queues = 1
         generate_ocl_init = False
         for invoke in self.invoke_list:
-            invoke.gen_code(parent)
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
             # calls. We do it here as this enables us to prevent
@@ -358,6 +357,7 @@ class Invokes(object):
                             kern.opencl_options['queue_number'])
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
+            invoke.gen_code(parent)
         if generate_ocl_init:
             self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
 

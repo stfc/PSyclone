@@ -1089,8 +1089,8 @@ class GOKern(CodedKern):
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = self.root.symbol_table.name_from_tag(
-            self.name + "_set_args")
+        sub_name = self.root.symbol_table.lookup_with_tag(
+            self.name + "_set_args").name
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
@@ -1137,7 +1137,11 @@ class GOKern(CodedKern):
         argsetter_st.add(Symbol(kobj))
         args = [kobj] + [arg.name for arg in self._arguments.args]
 
-        sub_name = argsetter_st.new_symbol_name(self.name + "_set_args")
+        # Declare the subroutine in the Invoke SymbolTable and the argsetter
+        # subroutine SymbolTable.
+        sub_name = self.root.symbol_table.new_symbol_name(
+            self.name + "_set_args")
+        self.root.symbol_table.add(Symbol(sub_name), tag=sub_name)
         argsetter_st.add(Symbol(sub_name))
         sub = SubroutineGen(parent, name=sub_name, args=args)
         parent.add(sub)
