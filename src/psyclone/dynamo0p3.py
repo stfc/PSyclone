@@ -67,7 +67,7 @@ from psyclone.psyir.symbols import DataType
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
 # any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
