@@ -316,7 +316,7 @@ def test_refelem_stub_gen():
     ''' Check that correct kernel stub code is produced when the kernel
     metadata contain reference element properties. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_ref_elem_mod.f90"),
+                                   "testkern_ref_elem_mod.F90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -369,7 +369,7 @@ def test_refelem_stub_arglist_err():
     from psyclone.dynamo0p3 import KernStubArgList
     # Create the Kernel object
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_ref_elem_all_faces_mod.f90"),
+                                   "testkern_ref_elem_all_faces_mod.F90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

@@ -857,17 +857,3 @@ def test_stub_stencil_multi():
         "dimension(ndf_w3,field_4_stencil_size) :: field_4_stencil_dofmap")
 
     assert result2 in generated_code
-
-
-def test_kernel_stub_no_reference_element():
-    '''Check that we raise an exception if the kernel-stub generator
-    encounters a kernel that requires properties of the reference element. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_ref_elem_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = str(kernel.gen_stub)
-    assert ("requires properties of the reference element which is not yet "
-            "supported" in str(excinfo.value))

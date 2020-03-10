@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: I. Kavcic, Met Office
+! Authors: I. Kavcic, Met Office and A. R. Porter, STFC Daresbury Lab
 
 module testkern_ref_elem_all_faces_mod
 
