@@ -264,8 +264,8 @@ class VariablesAccessInfo(dict):
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
                   which to initialise this object.
-    :type nodes: None, :py:class:`psyclone.node` or a list of \
-                 :py:class:`psyclone.node`s.
+    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or a list of \
+                 :py:class:`psyclone.psyir.nodes.Node`.
 
     '''
     def __init__(self, nodes=None):
