@@ -59,7 +59,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType, Symbol, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -3302,9 +3302,9 @@ class DynMeshes(object):
 
             # Create and store the names of the associated mesh objects
             _name_set.add(self._schedule.symbol_table.name_from_tag(
-                    "mesh_{0}".format(fine_arg.name)))
+                "mesh_{0}".format(fine_arg.name)))
             _name_set.add(self._schedule.symbol_table.name_from_tag(
-                    "mesh_{0}".format(coarse_arg.name)))
+                "mesh_{0}".format(coarse_arg.name)))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()

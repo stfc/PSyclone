@@ -45,7 +45,6 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
-from psyclone.psyir.symbols import DataSymbol, DataType
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API

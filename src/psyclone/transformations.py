@@ -2897,7 +2897,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyir.symbols import DataSymbol, DataType
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -3912,7 +3911,6 @@ class KernelGlobalsToArguments(Transformation):
 
         '''
         from psyclone.psyir.symbols import ArgumentInterface
-        from psyclone.psyir.symbols import DataType
 
         self.validate(node)
 
