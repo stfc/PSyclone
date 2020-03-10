@@ -54,12 +54,10 @@ class MyRegionTrans(RegionTrans):
 
     def apply(self, node, options=None):
         '''Dummy only to make this not abstract.'''
-        return
 
     @property
     def name(self):
         '''Dummy only to make this not abstract.'''
-        return "RegionTrans"
 
 
 # -----------------------------------------------------------------------------

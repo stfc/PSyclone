@@ -1,23 +1,57 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
 !
-!-------------------------------------------------------------------------------
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+!------------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
 
 !> @brief Kernel which computes the fluxes for the split transport scheme
-
 module conservative_flux_kernel_mod
 
 use argument_mod,  only : arg_type, func_type,                  &
                           GH_FIELD, GH_WRITE, GH_READ,          &
                           W0, W2, W3, GH_BASIS, CELLS
-use constants_mod, only : r_def
+use constants_mod, only : r_def, i_def
 use kernel_mod,    only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -36,7 +70,7 @@ type, public, extends(kernel_type) :: conservative_flux_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::conservative_flux_code
+  procedure, nopass :: conservative_flux_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -114,31 +148,33 @@ subroutine conservative_flux_code( nlayers,              &
 
   use timestepping_config_mod,      only: dt
 
-  !Arguments
-  integer, intent(in)                                   :: nlayers
-  integer, intent(in)                                   :: ndf_w3
-  integer, intent(in)                                   :: undf_w3
-  integer, dimension(ndf_w3), intent(in)                :: map_w3
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def), intent(in)                       :: nlayers
+  integer(kind=i_def), intent(in)                       :: ndf_w3
+  integer(kind=i_def), intent(in)                       :: undf_w3
+  integer(kind=i_def), dimension(ndf_w3), intent(in)    :: map_w3
   real(kind=r_def), dimension(undf_w3), intent(in)      :: rho
   real(kind=r_def), dimension(undf_w3), intent(in)      :: a0_coeffs
   real(kind=r_def), dimension(undf_w3), intent(in)      :: a1_coeffs
   real(kind=r_def), dimension(undf_w3), intent(in)      :: a2_coeffs
-  integer, intent(in)                                   :: ndf_w2
-  integer, intent(in)                                   :: undf_w2
-  integer, dimension(ndf_w2), intent(in)                :: map_w2
+  integer(kind=i_def), intent(in)                       :: ndf_w2
+  integer(kind=i_def), intent(in)                       :: undf_w2
+  integer(kind=i_def), dimension(ndf_w2), intent(in)    :: map_w2
   real(kind=r_def), dimension(undf_w2), intent(inout)   :: flux
   real(kind=r_def), dimension(undf_w2), intent(in)      :: dep_pts
   real(kind=r_def), dimension(undf_w2), intent(in)      :: u_piola
-  integer, intent(in)                                   :: rho_stencil_length, a0_stencil_length
-  integer, intent(in)                                   :: a1_stencil_length, a2_stencil_length
-  integer, intent(in)                                   :: rho_direction, a0_direction
-  integer, intent(in)                                   :: a1_direction, a2_direction
-  integer, intent(in)                                   :: rho_stencil_map(1:rho_stencil_length)
-  integer, intent(in)                                   :: a0_stencil_map(1:a0_stencil_length)
-  integer, intent(in)                                   :: a1_stencil_map(1:a1_stencil_length)
-  integer, intent(in)                                   :: a2_stencil_map(1:a2_stencil_length)
+  integer(kind=i_def), intent(in)                       :: rho_stencil_length, a0_stencil_length
+  integer(kind=i_def), intent(in)                       :: a1_stencil_length, a2_stencil_length
+  integer(kind=i_def), intent(in)                       :: rho_direction, a0_direction
+  integer(kind=i_def), intent(in)                       :: a1_direction, a2_direction
+  integer(kind=i_def), intent(in)                       :: rho_stencil_map(1:rho_stencil_length)
+  integer(kind=i_def), intent(in)                       :: a0_stencil_map(1:a0_stencil_length)
+  integer(kind=i_def), intent(in)                       :: a1_stencil_map(1:a1_stencil_length)
+  integer(kind=i_def), intent(in)                       :: a2_stencil_map(1:a2_stencil_length)
 
-  !Internal variables
+  ! Internal variables
   real(kind=r_def) :: mass_total
   real(kind=r_def) :: departure_dist
   real(kind=r_def) :: rho_local(1:rho_stencil_length)
@@ -152,23 +188,23 @@ subroutine conservative_flux_code( nlayers,              &
   real(kind=r_def) :: right_integration_limit
   real(kind=r_def) :: subgrid_coeffs(3)
 
-  integer, allocatable :: index_array(:)
-  integer, allocatable :: local_density_index(:)
+  integer(kind=i_def), allocatable :: index_array(:)
+  integer(kind=i_def), allocatable :: local_density_index(:)
 
-  integer :: stencil_ordering(1:rho_stencil_length)
-  integer :: k
-  integer :: df1
-  integer :: ii
-  integer :: edge_option
-  integer :: n_cells_to_sum
+  integer(kind=i_def) :: stencil_ordering(1:rho_stencil_length)
+  integer(kind=i_def) :: k
+  integer(kind=i_def) :: df1
+  integer(kind=i_def) :: ii
+  integer(kind=i_def) :: edge_option
+  integer(kind=i_def) :: n_cells_to_sum
 
 
   call calc_stencil_ordering(rho_stencil_length,stencil_ordering)
 
-  if (direction .EQ. x_direction ) then
+  if (direction == x_direction ) then
     edge_option = 0
     df1=1
-  elseif (direction .EQ. y_direction) then
+  elseif (direction == y_direction) then
     edge_option = 0
     df1=2
   endif
