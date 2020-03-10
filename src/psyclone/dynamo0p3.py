@@ -1783,8 +1783,8 @@ class DynStencils(DynCollection):
             names = [arg.stencil.extent_arg.varname for arg in
                      self._unique_extent_args]
         elif self._kernel:
-            # When generating stubs we have kernels that are not attached
-            # to an InvokeSchedule, they can use their own SymbolTable.
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
             symtab = SymbolTable()
             names = [self.dofmap_size_name(symtab, arg)
                      for arg in self._unique_extent_args]
@@ -2026,8 +2026,8 @@ class DynStencils(DynCollection):
         from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # Stubs are not connected to an InvokeSchedule and can use their own
-        # symbol table.
+        # TODO 719 The symtab is not connected to other parts of the
+        # Stub generation.
         symtab = SymbolTable()
         for arg in self._kern_args:
             parent.add(DeclGen(
@@ -3195,8 +3195,8 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        # Stubs are not connected to an InvokeSchedule and can use their own
-        # symbol table.
+        # TODO 719 The symtab is not connected to other parts of the
+        # Stub generation.
         symtab = SymbolTable()
 
         # CMA operators always need the current cell index and the number
@@ -7954,7 +7954,11 @@ class KernStubArgList(ArgOrdering):
         self._first_arg = True
         self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
+        # TODO 719 The stub_symtab is not connected to other parts of the
+        # Stub generation. Also the symboltable already has an
+        # argument_list that may be able to replace the _arglist below.
         self._arglist = []
+        self._stub_symtab = SymbolTable()
 
     def cell_position(self):
         ''' Add cell position to the argument list. '''
@@ -8005,9 +8009,7 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        # When generating stubs we have kernels that are not attached
-        # to an InvokeSchedule, they can use their own SymbolTable.
-        name = DynStencils.dofmap_size_name(SymbolTable(), arg)
+        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -8019,9 +8021,8 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         '''
-        # When generating stubs we have kernels that are not attached
-        # to an InvokeSchedule, they can use their own SymbolTable.
-        self._arglist.append(DynStencils.direction_name(SymbolTable(), arg))
+        self._arglist.append(DynStencils.direction_name(
+            self._stub_symtab, arg))
 
     def stencil(self, arg):
         '''
@@ -8031,9 +8032,7 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        # When generating stubs we have kernels that are not attached
-        # to an InvokeSchedule, they can use their own SymbolTable.
-        self._arglist.append(DynStencils.dofmap_name(SymbolTable(), arg))
+        self._arglist.append(DynStencils.dofmap_name(self._stub_symtab, arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
@@ -8592,8 +8591,8 @@ class DynKernelArguments(Arguments):
                                          'symbol_table'):
             symtab = self._parent_call.root.symbol_table
         else:
-            # If the kern is not attached to an InvokeSchedule, use their own
-            # SymbolTable
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
             symtab = SymbolTable()
         for arg in self._args:
             if not arg.descriptor.stencil:
