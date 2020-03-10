@@ -3725,10 +3725,9 @@ class NemoExplicitLoopTrans(Transformation):
         loop_stop = loop_type["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #255 we need some sort of type/declarations table to check that
-        # we don't already have a declaration for a variable of this name.
-        # For the moment we keep a list of variables we have created in
-        # Invoke._loop_vars.
+        # TODO #500 When the Nemo API will have a SymbolTable implemented,
+        # we should remove the _loop_vars attribute and add the symbols
+        # into the symboltable instead.
         if loop._variable_name not in invoke._loop_vars:
             invoke._loop_vars.append(loop_var)
             prog_unit = loop.ast.get_root()

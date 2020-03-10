@@ -150,7 +150,7 @@ class NemoInvoke(Invoke):
         self._ast = ast
         # A temporary workaround for the fact that we don't yet have a
         # symbol table to store information on the variable declarations.
-        # TODO (#255) remove this workaround.
+        # TODO (#500) remove this workaround.
         self._loop_vars = []
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
