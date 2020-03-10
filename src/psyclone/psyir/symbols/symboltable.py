@@ -262,7 +262,7 @@ class SymbolTable(object):
         datatypes and just returns the name string (not the Symbol object).
         This is commonly needed on the current psy-layer implementation but not
         recommented on new style PSyIR. This method may be deprecated in the
-        future.
+        future. (TODO #720)
 
         :param str tag: tag identifier.
         :param str root: optional name of the new symbols if this needs to \
