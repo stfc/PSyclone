@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     DataType, ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, \
     REAL4_TYPE, REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, \
-    INTEGER4_TYPE, BOOLEAN_SINGLE_TYPE, DeferredType
+    INTEGER4_TYPE, BOOLEAN_SINGLE_TYPE, CHARACTER1_TYPE, DeferredType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
@@ -70,9 +70,8 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
                       DataSymbol)
 
-    char_type = ScalarType(ScalarType.Name.CHARACTER, ScalarType.Precision.SINGLE)
-    assert isinstance(DataSymbol('a', char_type), DataSymbol)
-    assert isinstance(DataSymbol('a', char_type,
+    assert isinstance(DataSymbol('a', CHARACTER1_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', CHARACTER1_TYPE,
                                  constant_value="hello"), DataSymbol)
     assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE, constant_value=False),
@@ -112,102 +111,44 @@ def test_datasymbol_init_errors():
     with invalid arguments. '''
     # Test with invalid arguments
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', 'invalidtype', [], 'local')
+        DataSymbol('a', 'invalidtype')
     assert ("datatype of a DataSymbol must be specified using a DataType "
             "but got: 'str'" in str(error.value))
 
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', 3, [], 'local')
+        DataSymbol('a', 3)
     assert ("datatype of a DataSymbol must be specified using a DataType "
             "but got:" in str(error.value))
-
-    dim = DataSymbol('dim', DataType.INTEGER, [])
-    with pytest.raises(TypeError) as error:
-        DataSymbol('a', DataType.REAL, shape=dim)
-    assert "DataSymbol shape attribute must be a list." in str(error.value)
-
-    with pytest.raises(TypeError) as error:
-        DataSymbol('a', DataType.REAL, ['invalidshape'])
-    assert ("DataSymbol shape list elements can only be 'DataSymbol', "
-            "'integer' or DataSymbol.Extent.") in str(error.value)
-
-    with pytest.raises(TypeError) as error:
-        bad_dim = DataSymbol('dim', DataType.REAL, [])
-        DataSymbol('a', DataType.REAL, [bad_dim])
-    assert ("Symbols that are part of another symbol shape can "
-            "only be scalar integers, but found") in str(error.value)
-
-    with pytest.raises(TypeError) as error:
-        bad_dim = DataSymbol('dim', DataType.INTEGER, [3])
-        DataSymbol('a', DataType.REAL, [bad_dim])
-    assert ("Symbols that are part of another symbol shape can "
-            "only be scalar integers, but found") in str(error.value)
-
-
-def test_datasymbol_precision_errors():
-    ''' Check that invalid precision settings raise the appropriate errors in
-    the DataSymbol constructor. '''
-    with pytest.raises(ValueError) as err:
-        DataSymbol('a', DataType.INTEGER, precision=0)
-    assert ("The precision of a DataSymbol when specified as an integer number"
-            " of bytes must be > 0" in str(err.value))
-    with pytest.raises(ValueError) as err:
-        DataSymbol('a', DataType.CHARACTER, precision=1)
-    assert ("A DataSymbol of DataType.CHARACTER type cannot have an associated"
-            " precision" in str(err.value))
-    with pytest.raises(ValueError) as err:
-        DataSymbol('a', DataType.BOOLEAN, precision=1)
-    assert ("A DataSymbol of DataType.BOOLEAN type cannot have an associated "
-            "precision" in str(err.value))
-    not_int = DataSymbol('b', DataType.REAL)
-    with pytest.raises(ValueError) as err:
-        DataSymbol('a', DataType.INTEGER, precision=not_int)
-    assert ("A DataSymbol representing the precision of another DataSymbol "
-            "must be of either 'deferred' or scalar, integer type "
-            in str(err.value))
-    not_scalar = DataSymbol('b', DataType.INTEGER, [2, 2])
-    with pytest.raises(ValueError) as err:
-        DataSymbol('a', DataType.INTEGER, precision=not_scalar)
-    assert ("A DataSymbol representing the precision of another DataSymbol "
-            "must be of either 'deferred' or scalar, integer type but"
-            in str(err.value))
-    with pytest.raises(TypeError) as err:
-        DataSymbol('a', DataType.INTEGER, precision="not-valid")
-    assert ("DataSymbol precision must be one of integer, DataSymbol.Precision"
-            " or DataSymbol but got" in str(err.value))
 
 
 def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
-    symbol = DataSymbol("sname", DataType.REAL)
-    assert "sname: <DataType.REAL, Scalar, Local>" in str(symbol)
+    symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
+    assert "sname: <Name.REAL, Precision.SINGLE, Local>" in str(symbol)
 
-    sym1 = DataSymbol("s1", DataType.INTEGER)
-    assert "s1: <DataType.INTEGER, Scalar, Local>" in str(sym1)
+    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
+    assert "s1: <Name.INTEGER, Precision.SINGLE, Local>" in str(sym1)
 
-    sym2 = DataSymbol("s2", DataType.REAL,
-                      [DataSymbol.Extent.ATTRIBUTE, 2, sym1])
-    assert "s2: <DataType.REAL, Array['ATTRIBUTE', 2, s1], Local>" \
-        in str(sym2)
+    array_type = ArrayType(REAL_SINGLE_TYPE,
+                           [ArrayType.Extent.ATTRIBUTE, 2, sym1])
+    sym2 = DataSymbol("s2", array_type)
+    print (str(sym2))
+    assert ("s2: <Name.REAL, Precision.SINGLE, shape=['ATTRIBUTE', 2, s1], "
+            "Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
-    sym3 = DataSymbol("s3", DataType.REAL, interface=GlobalInterface(my_mod))
-    assert ("s3: <DataType.REAL, Scalar, Global(container='my_mod')"
+    sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
+                      interface=GlobalInterface(my_mod))
+    assert ("s3: <Name.REAL, Precision.SINGLE, Global(container='my_mod')>"
             in str(sym3))
 
-    sym2._shape.append('invalid')
-    with pytest.raises(InternalError) as error:
-        _ = str(sym2)
-    assert ("DataSymbol shape list elements can only be 'DataSymbol', "
-            "'integer' or 'None', but found") in str(error.value)
+    sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
+    assert "s3: <Name.INTEGER, Precision.SINGLE, Local, constant_value=Literal" \
+           "[value:'12', Name.INTEGER, Precision.SINGLE]>" in str(sym3)
 
-    sym3 = DataSymbol("s3", DataType.INTEGER, constant_value=12)
-    assert "s3: <DataType.INTEGER, Scalar, Local, constant_value=Literal" \
-           "[value:'12', DataType.INTEGER]>" in str(sym3)
-
-    sym4 = DataSymbol("s4", DataType.INTEGER, interface=UnresolvedInterface())
-    assert "s4: <DataType.INTEGER, Scalar, Unresolved>" in str(sym4)
+    sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE, interface=UnresolvedInterface())
+    assert "s4: <Name.INTEGER, Precision.SINGLE, Unresolved>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():

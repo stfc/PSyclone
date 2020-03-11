@@ -357,25 +357,8 @@ class DataSymbol(Symbol):
             self._constant_value = None
 
     def __str__(self):
-        ret = self.name + ": <" + str(self.datatype) + ", "
-        if self.is_array:
-            ret += "Array["
-            for dimension in self.shape:
-                if isinstance(dimension, DataSymbol):
-                    ret += dimension.name
-                elif isinstance(dimension, int):
-                    ret += str(dimension)
-                elif isinstance(dimension, DataSymbol.Extent):
-                    ret += "'{0}'".format(dimension.name)
-                else:
-                    raise InternalError(
-                        "DataSymbol shape list elements can only be "
-                        "'DataSymbol', 'integer' or 'None', but found '{0}'."
-                        "".format(type(dimension)))
-                ret += ", "
-            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
-        else:
-            ret += "Scalar"
+        from psyclone.psyir.symbols import ArrayType
+        ret = self.name + ": <" + str(self.datatype)
         ret += ", " + str(self._interface)
         if self.is_constant:
             ret += ", constant_value={0}".format(self.constant_value)

@@ -177,8 +177,22 @@ class ArrayType(DataType):
         :rtype: str
 
         '''
-        return ("{0}, {1}, shape={2}".format(self.name, self.precision,
-                                             self.shape))
+        from psyclone.psyir.symbols import DataSymbol
+        dims = []
+        for dimension in self.shape:
+            if isinstance(dimension, DataSymbol):
+                dims.append(dimension.name)
+            elif isinstance(dimension, int):
+                dims.append(str(dimension))
+            elif isinstance(dimension, ArrayType.Extent):
+                dims.append("'{0}'".format(dimension.name))
+            else:
+                raise InternalError(
+                    "DataSymbol shape list elements can only be "
+                    "'DataSymbol', 'integer' or 'None', but found '{0}'."
+                    "".format(type(dimension)))
+        return ("{0}, {1}, shape=[{2}]".format(self.name, self.precision,
+                                               ", ".join(dims)))
 
 
 # Create common scalar datatypes
@@ -200,6 +214,7 @@ BOOLEAN_DOUBLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
                               ScalarType.Precision.DOUBLE)
 BOOLEAN4_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 4)
 BOOLEAN8_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 8)
+CHARACTER1_TYPE = ScalarType(ScalarType.Name.CHARACTER, 1)
 
 #class StructureType(DataType):
 #    ''' xxx '''
@@ -226,5 +241,3 @@ TYPE_MAP_TO_PYTHON = {ScalarType.Name.INTEGER: int,
                       ScalarType.Name.CHARACTER: str,
                       ScalarType.Name.BOOLEAN: bool,
                       ScalarType.Name.REAL: float}
-
-
