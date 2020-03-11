@@ -515,15 +515,15 @@ def test_derived_type_deref_naming():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
-    print(generated_code)
+
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1_my_field\n"
-        "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
+        "      TYPE(field_type), intent(in) :: f1_my_field, f1_my_field_1, "
+        "m1, m2\n")
     assert output in generated_code
 
 
@@ -987,7 +987,7 @@ def test_invoke_name():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_important_invoke" in gen
 
 
@@ -999,7 +999,7 @@ def test_multi_kern_named_invoke():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_some_name" in gen
 
 
@@ -1012,7 +1012,7 @@ def test_named_multi_invokes():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_my_first(" in gen
     assert "SUBROUTINE invoke_my_second(" in gen
 
@@ -1026,9 +1026,9 @@ def test_named_invoke_name_clash():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
-    assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
+    assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
 
 
 def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
@@ -1684,7 +1684,6 @@ def test_omp_dag_names():
     assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"
     omp_directive = super(OMPParallelDirective, omp_par_node)
     assert omp_directive.dag_name == "OMP_directive_1"
-    print(type(omp_directive))
     directive = super(OMPDirective, omp_par_node)
     assert directive.dag_name == "directive_1"
 

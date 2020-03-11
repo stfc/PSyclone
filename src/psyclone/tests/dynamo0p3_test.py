@@ -3386,6 +3386,7 @@ def test_intent_multi_kern(): ### Not required any more as all field types are i
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         output = str(psy.gen)
+        print(output) ### Check!
         assert "TYPE(field_type), intent(inout) :: g, f\n" in output
         assert "TYPE(field_type), intent(inout) :: b, h\n" in output
         assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
@@ -3434,7 +3435,7 @@ def test_derived_type_arg(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     # Check the four integer variables are named and declared correctly
     expected = (
         "    SUBROUTINE invoke_0(f1, my_obj_iflag, f2, m1, m2, "
@@ -3566,7 +3567,7 @@ def test_single_stencil_xory1d(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, "
         "f4, f2_extent, f2_direction)")
@@ -3621,7 +3622,7 @@ def test_single_stencil_literal(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, "
                "f3, f4)")
     assert output1 in result
@@ -3686,7 +3687,7 @@ def test_single_stencil_xory1d_literal(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
                "f1, f2, f3, f4)")
     assert output1 in result
@@ -3743,7 +3744,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
                "f1, f2, f3, f4)")
     assert output1 in result
@@ -3798,7 +3799,7 @@ def test_multiple_stencils(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
         "f4, f2_extent, f3_extent, f3_direction)")
@@ -3883,7 +3884,7 @@ def test_multiple_stencil_same_name(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
         "f4, extent, f3_direction)")
@@ -3952,7 +3953,7 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "SUBROUTINE invoke_0_testkern_stencil_multi_2_type(f1, f2, f3, "
         "f4, extent, direction)")
@@ -4111,7 +4112,7 @@ def test_extent_name_clash(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-######    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
         "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
@@ -4191,7 +4192,7 @@ def test_two_stencils_same_field(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0(f1_w1, f2_w2, f3_w2, f4_w3, f1_w3, "
         "f2_extent, extent)")
@@ -4257,7 +4258,7 @@ def test_stencils_same_field_literal_extent(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
@@ -4446,7 +4447,7 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_multi_field_same_stencil_type("
         "f0, f1, f2, f3, f4, extent, direction)")
@@ -4566,7 +4567,7 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
@@ -4655,7 +4656,7 @@ def test_stencil_args_unique_1(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     # we use f2_stencil_size for extent and nlayers for direction
     # as arguments
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
@@ -4704,7 +4705,7 @@ def test_stencil_args_unique_2(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0(f1, f2, f3, f4, f2_info, "
                "f2_info_2, f2_info_1, f2_info_3)")
     assert output1 in result

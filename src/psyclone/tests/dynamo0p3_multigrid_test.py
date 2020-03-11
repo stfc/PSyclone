@@ -197,7 +197,7 @@ def test_only_field_args():
         "mesh_arg=GH_FINE  ),  &\n"
         "       arg_type(GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
-    print(code)
+
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
@@ -338,7 +338,6 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
     for distmem in [False, True]:
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         output = str(psy.gen)
-        print(output)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
