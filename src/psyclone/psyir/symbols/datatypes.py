@@ -38,17 +38,6 @@
 
 from enum import Enum
 
-#class DataType(Enum):
-#    '''
-#    Enumeration of the different datatypes that are supported by the
-#    PSyIR.
-#    '''
-#    INTEGER = 1
-#    REAL = 2
-#    BOOLEAN = 3
-#    CHARACTER = 4
-#    DEFERRED = 5
-
 
 class DataType():
     '''Base class from which all types are derived.'''
@@ -82,7 +71,7 @@ class ScalarType(DataType):
 
     class Precision(Enum):
         '''Enumeration of the different types of 'default' precision that may
-        be specified for a Symbol.
+        be specified for a scalar datatype.
 
         '''
         SINGLE = 1
@@ -138,6 +127,16 @@ class ArrayType(DataType):
     :raises TypeError: if the arguments are of the wrong type.
 
     '''
+    class Extent(Enum):
+        '''
+        Enumeration of array shape extents that are unspecified at compile
+        time. When the extent must exist and is accessible via the run-time
+        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
+        current scope (e.g. the array may need to be allocated/malloc'd) it
+        is 'DEFERRED'.
+        '''
+        DEFERRED = 1
+        ATTRIBUTE = 2
 
     def __init__(self, datatype, shape):
 
@@ -182,7 +181,7 @@ class ArrayType(DataType):
                                              self.shape))
 
 
-# Create common datatypes
+# Create common scalar datatypes
 REAL_SINGLE_TYPE = ScalarType(ScalarType.Name.REAL,
                               ScalarType.Precision.SINGLE)
 REAL_DOUBLE_TYPE = ScalarType(ScalarType.Name.REAL,
@@ -220,8 +219,9 @@ BOOLEAN8_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 8)
 #integer_type = IntegerType(precision)
 #integer_one = Literal("1", integer_type)
 #integer_two = Literal("2", integer_type)
-# Mapping from PSyIR data types to intrinsic Python types
 
+# Mapping from PSyIR scalar data types to intrinsic Python types
+# ignoring precision.
 TYPE_MAP_TO_PYTHON = {ScalarType.Name.INTEGER: int,
                       ScalarType.Name.CHARACTER: str,
                       ScalarType.Name.BOOLEAN: bool,

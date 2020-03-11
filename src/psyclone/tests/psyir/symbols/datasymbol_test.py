@@ -43,7 +43,9 @@ import pytest
 
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    DataType
+    DataType, ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, \
+    REAL4_TYPE, REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, \
+    INTEGER4_TYPE, BOOLEAN_SINGLE_TYPE, DeferredType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
@@ -53,61 +55,56 @@ def test_datasymbol_initialisation():
     '''Test that a DataSymbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 
-    real_single_type = ScalarType(ScalarType.Name.REAL,
-                                  ScalarType.Precision.SINGLE)
-    real_double_type = ScalarType(ScalarType.Name.REAL,
-                                  ScalarType.Precision.DOUBLE)
-    real4_type = ScalarType(ScalarType.Name.REAL,
-                                  ScalarType.Precision.DOUBLE)
-
     # Test with valid arguments
-    assert isinstance(DataSymbol('a', real_single_type), DataSymbol)
-    assert isinstance(DataSymbol('a', real_double_type), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, precision=4), DataSymbol)
-    kind = DataSymbol('r_def', DataType.INTEGER)
-    assert isinstance(DataSymbol('a', DataType.REAL, precision=kind),
+    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', REAL_DOUBLE_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', REAL4_TYPE), DataSymbol)
+    kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
+    real_kind_type = ScalarType(ScalarType.Name.REAL, kind)
+    assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
     # real constants are not currently supported
-    assert isinstance(DataSymbol('a', DataType.INTEGER), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.INTEGER, constant_value=0),
+    assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', INTEGER_DOUBLE_TYPE, constant_value=0),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.INTEGER, precision=4),
+    assert isinstance(DataSymbol('a', INTEGER4_TYPE),
                       DataSymbol)
 
-    assert isinstance(DataSymbol('a', DataType.CHARACTER), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.CHARACTER,
+    char_type = ScalarType(ScalarType.Name.CHARACTER, ScalarType.Precision.SINGLE)
+    assert isinstance(DataSymbol('a', char_type), DataSymbol)
+    assert isinstance(DataSymbol('a', char_type,
                                  constant_value="hello"), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.BOOLEAN), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.BOOLEAN, constant_value=False),
+    assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE, constant_value=False),
                       DataSymbol)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    assert isinstance(DataSymbol('a', array_type), DataSymbol)
 
-    assert isinstance(DataSymbol('a', DataType.REAL,
-                                 [DataSymbol.Extent.ATTRIBUTE]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, [3]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL,
-                                 [3, DataSymbol.Extent.ATTRIBUTE]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, []), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, [], precision=8),
-                      DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, [],
+    array_type = ArrayType(REAL_SINGLE_TYPE, [3])
+    assert isinstance(DataSymbol('a', array_type), DataSymbol)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [3, ArrayType.Extent.ATTRIBUTE])
+    assert isinstance(DataSymbol('a', array_type), DataSymbol)
+    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE,
                                  interface=ArgumentInterface()), DataSymbol)
     assert isinstance(
-        DataSymbol('a', DataType.REAL, [],
+        DataSymbol('a', REAL_SINGLE_TYPE,
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)), DataSymbol)
     assert isinstance(
-        DataSymbol('a', DataType.REAL, [],
+        DataSymbol('a', REAL_SINGLE_TYPE,
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READ)), DataSymbol)
     my_mod = ContainerSymbol("my_mod")
     assert isinstance(
-        DataSymbol('a', DataType.DEFERRED, interface=GlobalInterface(my_mod)),
+        DataSymbol('a', DeferredType(), interface=GlobalInterface(my_mod)),
         DataSymbol)
-    dim = DataSymbol('dim', DataType.INTEGER, [])
-    assert isinstance(DataSymbol('a', DataType.REAL, [dim]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL,
-                                 [3, dim, DataSymbol.Extent.ATTRIBUTE]),
-                      DataSymbol)
+    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [dim])
+    assert isinstance(DataSymbol('a', array_type), DataSymbol)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [3, dim, ArrayType.Extent.ATTRIBUTE])
+    assert isinstance(DataSymbol('a', array_type), DataSymbol)
 
 
 def test_datasymbol_init_errors():

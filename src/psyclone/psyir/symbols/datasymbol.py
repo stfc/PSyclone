@@ -84,25 +84,6 @@ class DataSymbol(Symbol):
     :raises ValueError: if the provided parameters contain invalid values.
 
     '''
-    class Precision(Enum):
-        '''
-        Enumeration of the different types of 'default' precision that may
-        be specified for a Symbol.
-        '''
-        SINGLE = 1
-        DOUBLE = 2
-
-    class Extent(Enum):
-        '''
-        Enumeration of array shape extents that are unspecified at compile
-        time. When the extent must exist and is accessible via the run-time
-        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
-        current scope (e.g. the array may need to be allocated/malloc'd) it
-        is 'DEFERRED'.
-        '''
-        DEFERRED = 1
-        ATTRIBUTE = 2
-
     def __init__(self, name, datatype, constant_value=None, interface=None):
 
         super(DataSymbol, self).__init__(name)
@@ -170,6 +151,7 @@ class DataSymbol(Symbol):
         :raises TypeError: if value is not of the correct type.
         :raises NotImplementedError: if the specified data type is invalid.
         '''
+        from psyclone.psyir.symbols import DataType
         if not isinstance(value, DataType):
             raise TypeError(
                 "The datatype of a DataSymbol must be specified using a "
@@ -188,7 +170,11 @@ class DataSymbol(Symbol):
                   represents a scalar.
         :rtype: list
         '''
-        return self._shape
+        from psyclone.psyir.symbols import ArrayType
+        if isinstance(self._datatype, ArrayType):
+            return self._datatype.shape
+        else:
+            return []
 
     @property
     def interface(self):
@@ -341,7 +327,7 @@ class DataSymbol(Symbol):
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
                 try:
-                    lookup = TYPE_MAP_TO_PYTHON[self.datatype]
+                    lookup = TYPE_MAP_TO_PYTHON[self.datatype.name]
                 except KeyError:
                     raise ValueError(
                         "Error setting constant value for symbol '{0}'. "
@@ -354,9 +340,8 @@ class DataSymbol(Symbol):
                         " constant value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
-                ### if self.datatype == DataType.BOOLEAN:
-                if True:
-                    raise Exception("FIXME")
+                from psyclone.psyir.symbols import ScalarType
+                if self.datatype.name == ScalarType.Name.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:
