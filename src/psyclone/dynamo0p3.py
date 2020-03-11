@@ -98,13 +98,13 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
 
 # Lists of function spaces that have
 # a) scalar basis functions;
-SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta"]
+SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta", "wchi"]
 # b) vector basis functions;
 VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
 # c) scalar differential basis functions;
 SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
 # d) vector differential basis functions.
-VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta"]
+VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta", "wchi"]
 
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis

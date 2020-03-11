@@ -1838,3 +1838,6 @@ def test_dynbasisfns_declns(monkeypatch):
         dbasis._basis_fn_declns()
     assert ("Unrecognised type of basis function: 'broken'. Should be "
             "either 'basis' or 'diff-basis'" in str(err.value))
+
+
+# TODO: Add tests for dimensions of basis/diff basis on all function spaces
