@@ -124,3 +124,33 @@ PSyDataEnd[var=psy_data]
 End Schedule""")
 
     assert correct in new_sched_str
+
+
+# -----------------------------------------------------------------------------
+def test_class_definitions():
+    '''Tests if the class-prefix can be set and behaves as expected.
+    '''
+
+    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                             "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    data_trans = PSyDataTrans()
+    data_trans.apply(schedule)
+    code = str(psy.gen)
+
+    # By default, no prefix should be used:
+    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "CALL psy_data" in code
+
+    # This puts the new PSyDataNode with prefix "extract" around the
+    # previous PSyDataNode, but the prefix was not used previously.
+    data_trans.apply(schedule, {"class": "extract"})
+    code = str(psy.gen)
+    assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
+        in code
+    assert "CALL extract_psy_data" in code
+    # The old call must still be there (e.g. not somehow be changed
+    # by setting the prefix)
+    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "CALL psy_data" in code
