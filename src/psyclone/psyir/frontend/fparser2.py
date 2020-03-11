@@ -50,7 +50,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType
+    DataType, ScalarType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -58,10 +58,10 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 # Mapping from Fortran data types to PSyIR types
-TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
-                         "character": DataType.CHARACTER,
-                         "logical": DataType.BOOLEAN,
-                         "real": DataType.REAL}
+TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Name.INTEGER,
+                         "character": ScalarType.Name.CHARACTER,
+                         "logical": ScalarType.Name.BOOLEAN,
+                         "real": ScalarType.Name.REAL}
 
 
 def _get_symbol_table(node):

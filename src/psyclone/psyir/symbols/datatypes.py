@@ -62,8 +62,8 @@ class DeferredType(DataType):
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
 
-    :param type_name: the name of this scalar type.
-    :type type_name: :py:class:`pyclone.psyir.datatypes.ScalarType.Name`
+    :param name: the name of this scalar type.
+    :type name: :py:class:`pyclone.psyir.datatypes.ScalarType.Name`
     :param precision: the precision of this scalar type.
     :type precision: :py:class:`psyclone.psyir.datatypes.ScalarType.Precision`
 
@@ -89,20 +89,20 @@ class ScalarType(DataType):
         SINGLE = 1
         DOUBLE = 2
 
-    def __init__(self, type_name, precision):
+    def __init__(self, name, precision):
         
-        if not isinstance(type_name, ScalarType.Name):
+        if not isinstance(name, ScalarType.Name):
             raise TypeError(
-                "ScalarType expected 'type_name' argument to be of type "
+                "ScalarType expected 'name' argument to be of type "
                 "ScalarType.Name but found '{0}'."
-                "".format(type(type_name).__name__))
+                "".format(type(name).__name__))
         if not isinstance(precision, ScalarType.Precision):
             raise TypeError(
                 "ScalarType expected 'precision' argument to be of type "
                 "ScalarType.Precision but found '{0}'."
                 "".format(type(precision).__name__))
         
-        self.type_name = type_name
+        self.name = name
         self.precision = precision
 
     def __str__(self):
@@ -112,7 +112,7 @@ class ScalarType(DataType):
         :rtype: str
 
         '''
-        return ("{0}({1})".format(self.type_name, self.precision))
+        return ("{0}, {1}".format(self.name, self.precision))
 
 
 class ArrayType(DataType):
@@ -121,7 +121,7 @@ class ArrayType(DataType):
     :param datatype: the datatype of the array elements.
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType`
     :param shape: the shape of the array.
-    :type shape: list of ???
+    :type shape: list of int ...
 
     :raises TypeError: if the arguments are of the wrong type.
 
@@ -140,8 +140,20 @@ class ArrayType(DataType):
                 "list but found '{0}'."
                 "".format(type(shape).__name__))
 
-        self._datatype = datatype
-        self._shape = shape
+        self.shape = shape
+        self.name = datatype.name
+        self.precision = datatype.precision
+
+
+    def __str__(self):
+        '''Construct a text representation of this array datatype.
+
+        :returns: description of this array datatype.
+        :rtype: str
+
+        '''
+        return ("{0}, {1}, shape={2}".format(self.name, self.precision,
+                                             self.shape))
 
 
 #class StructureType(DataType):
@@ -158,13 +170,7 @@ class ArrayType(DataType):
 #        self._datatypes = datatypes
 
 
-#1 Example of current implementation
-#scalar_type = ScalarType(ScalarType.Precision.SINGLE,
-#                         ScalarType.Name.REAL)
-#integer_one = Literal("1", scalar_type)
-#integer_two = Literal("2", scalar_type)
-
-#2 Sergi's suggestion
+#1 Sergi's implementation suggestion
 #integer_type = IntegerType(precision)
 #integer_one = Literal("1", integer_type)
 #integer_two = Literal("2", integer_type)

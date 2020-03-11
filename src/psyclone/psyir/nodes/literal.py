@@ -40,7 +40,7 @@
 
 import six
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, ScalarType, ArrayType
 
 
 class Literal(Node):
@@ -67,17 +67,18 @@ class Literal(Node):
         super(Literal, self).__init__(parent=parent)
 
         # Checks for the datatype
-        if not isinstance(datatype, DataType):
-            raise TypeError("The datatype of a Literal must be an instance of"
-                            " psyir.symbols.DataType but got '{0}'".format(
-                                type(datatype).__name__))
+        if not isinstance(datatype, (ScalarType, ArrayType)):
+            raise TypeError(
+                "The datatype of a Literal must be an instance of "
+                "psyir.symbols.ScalarType or psyir.symbols.ArrayType "
+                "but found '{0}'".format(type(datatype).__name__))
         if not isinstance(value, six.string_types):
-            raise TypeError("Literals must be supplied with "
-                            "a value encoded as a string but got: {0}".
-                            format(type(value).__name__))
+            raise TypeError(
+                "Literals must be supplied with a value encoded as a string "
+                "but found '{0}'".format(type(value).__name__))
 
-        if (isintance(datatype, ScalarType) and
-                datatype.type_name == ScalarType.Name.BOOLEAN and
+        if (isinstance(datatype, ScalarType) and
+                datatype.name == ScalarType.Name.BOOLEAN and
                 value not in ("true", "false")):
             raise ValueError(
                 "A scalar boolean literal can only be: 'true' or "
