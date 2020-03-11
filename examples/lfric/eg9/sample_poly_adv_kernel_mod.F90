@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,8 @@ use timestepping_config_mod,  only: dt
 
 implicit none
 
+private
+
 ! Precomputed operators, these are the same for all model columns
 real(kind=r_def), allocatable,    private :: coeff_matrix(:,:)
 integer(kind=i_def), allocatable, private :: dof_stencil(:,:)
@@ -95,7 +97,7 @@ type, public, extends(kernel_type) :: sample_poly_adv_kernel_type
   integer :: iterates_over = CELLS
   integer :: gh_shape = GH_EVALUATOR
 contains
-  procedure, nopass ::sample_poly_adv_code
+  procedure, nopass :: sample_poly_adv_code
 end type
 
 !-------------------------------------------------------------------------------
