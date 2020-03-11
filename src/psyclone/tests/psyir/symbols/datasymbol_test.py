@@ -53,11 +53,16 @@ def test_datasymbol_initialisation():
     '''Test that a DataSymbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 
+    real_single_type = ScalarType(ScalarType.Name.REAL,
+                                  ScalarType.Precision.SINGLE)
+    real_double_type = ScalarType(ScalarType.Name.REAL,
+                                  ScalarType.Precision.DOUBLE)
+    real4_type = ScalarType(ScalarType.Name.REAL,
+                                  ScalarType.Precision.DOUBLE)
+
     # Test with valid arguments
-    assert isinstance(DataSymbol('a', DataType.REAL), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL,
-                                 precision=DataSymbol.Precision.DOUBLE),
-                      DataSymbol)
+    assert isinstance(DataSymbol('a', real_single_type), DataSymbol)
+    assert isinstance(DataSymbol('a', real_double_type), DataSymbol)
     assert isinstance(DataSymbol('a', DataType.REAL, precision=4), DataSymbol)
     kind = DataSymbol('r_def', DataType.INTEGER)
     assert isinstance(DataSymbol('a', DataType.REAL, precision=kind),

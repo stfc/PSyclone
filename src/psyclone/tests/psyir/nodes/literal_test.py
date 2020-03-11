@@ -41,7 +41,9 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import DataType, ScalarType, ArrayType
+from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
+    REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, \
+    BOOLEAN_SINGLE_TYPE
 
 
 def test_literal_init():
@@ -49,9 +51,7 @@ def test_literal_init():
     ArrayType and different precisions.
 
     '''
-    scalar_type = ScalarType(
-        ScalarType.Name.REAL, ScalarType.Precision.DOUBLE)
-    array_type = ArrayType(scalar_type, [10,10])
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10,10])
     literal = Literal("1", array_type)
     assert literal.value == "1"
     assert isinstance(literal.datatype, ArrayType)
@@ -59,14 +59,12 @@ def test_literal_init():
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
     assert literal.datatype.shape == [10,10]
 
-    scalar_type = ScalarType(
-        ScalarType.Name.BOOLEAN, ScalarType.Precision.SINGLE)
-    literal = Literal("true", scalar_type)
+    literal = Literal("true", BOOLEAN_SINGLE_TYPE)
     assert literal.value == "true"
     assert literal.datatype.name == ScalarType.Name.BOOLEAN
     assert literal.datatype.precision == ScalarType.Precision.SINGLE
 
-    literal = Literal("false", scalar_type)
+    literal = Literal("false", BOOLEAN_SINGLE_TYPE)
     assert literal.value == "false"
     assert literal.datatype.name == ScalarType.Name.BOOLEAN
     assert literal.datatype.precision == ScalarType.Precision.SINGLE
@@ -83,28 +81,24 @@ def test_literal_init_invalid():
             in str(err.value))
 
     # Test invalid value type
-    integer_type = ScalarType(
-        ScalarType.Name.INTEGER, ScalarType.Precision.SINGLE)
     with pytest.raises(TypeError) as err:
-        Literal(1, integer_type)
+        Literal(1, INTEGER_SINGLE_TYPE)
     assert ("Literals must be supplied with a value encoded as a string but "
             "found" in str(err.value))
 
     # Test invalid boolean value
-    boolean_type = ScalarType(
-        ScalarType.Name.BOOLEAN, ScalarType.Precision.SINGLE)
     with pytest.raises(ValueError) as err:
-        Literal("invalid", boolean_type)
+        Literal("invalid", BOOLEAN_SINGLE_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
             "but found 'invalid'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
-        Literal("TRUE", boolean_type)
+        Literal("TRUE", BOOLEAN_SINGLE_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
             "but found 'TRUE'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
-        Literal("False", boolean_type)
+        Literal("False", BOOLEAN_SINGLE_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
         "but found 'False'." in str(err.value))
 
@@ -122,17 +116,13 @@ def test_literal_node_str():
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     
     # scalar literal
-    integer_type = ScalarType(
-        ScalarType.Name.INTEGER, ScalarType.Precision.SINGLE)
-    literal = Literal("1", integer_type)
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert (coloredtext+"[value:'1', Name.INTEGER, Precision.SINGLE]"
             in literal.node_str())
 
     # array literal
-    scalar_type = ScalarType(
-        ScalarType.Name.REAL, ScalarType.Precision.DOUBLE)
-    array_type = ArrayType(scalar_type, [10,10])
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10,10])
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert (coloredtext+"[value:'1', Name.REAL, Precision.DOUBLE, "
@@ -142,9 +132,7 @@ def test_literal_node_str():
 def test_literal_can_be_printed():
     '''Test that a Literal instance can always be printed (i.e. is
     initialised fully)'''
-    scalar_type = ScalarType(
-        ScalarType.Name.REAL, ScalarType.Precision.DOUBLE)
-    array_type = ArrayType(scalar_type, [10,10])
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10,10])
     literal = Literal("1", array_type)
     assert ("Literal[value:'1', Name.REAL, Precision.DOUBLE, shape=[10, 10]]"
             in str(literal))

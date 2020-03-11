@@ -40,7 +40,6 @@
 
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
 from psyclone.errors import InternalError
 
 
@@ -104,58 +103,12 @@ class DataSymbol(Symbol):
         DEFERRED = 1
         ATTRIBUTE = 2
 
-    def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None, precision=None):
+    def __init__(self, name, datatype, constant_value=None, interface=None):
 
         super(DataSymbol, self).__init__(name)
 
         self._datatype = None
         self.datatype = datatype
-
-        # Check that the supplied 'precision' is valid
-        if precision is not None:
-            if datatype not in [DataType.REAL, DataType.INTEGER]:
-                raise ValueError(
-                    "A DataSymbol of {0} type cannot have an associated "
-                    "precision".format(datatype))
-            if not isinstance(precision,
-                              (int, DataSymbol.Precision, DataSymbol)):
-                raise TypeError(
-                    "DataSymbol precision must be one of integer, "
-                    "DataSymbol.Precision or DataSymbol but got '{0}'"
-                    "".format(type(precision).__name__))
-            if isinstance(precision, int) and precision <= 0:
-                raise ValueError(
-                    "The precision of a DataSymbol when specified as an "
-                    "integer number of bytes must be > 0 but got {0}"
-                    "".format(precision))
-            if (isinstance(precision, DataSymbol) and
-                    (precision.datatype not in [DataType.INTEGER,
-                                                DataType.DEFERRED]
-                     or precision.is_array)):
-                raise ValueError(
-                    "A DataSymbol representing the precision of another "
-                    "DataSymbol must be of either 'deferred' or scalar, "
-                    "integer type but got: {0}".format(str(precision)))
-        self.precision = precision
-
-        if shape is None:
-            shape = []
-        elif not isinstance(shape, list):
-            raise TypeError("DataSymbol shape attribute must be a list.")
-
-        for dimension in shape:
-            if isinstance(dimension, DataSymbol):
-                if dimension.datatype != DataType.INTEGER or dimension.shape:
-                    raise TypeError(
-                        "DataSymbols that are part of another symbol shape can"
-                        " only be scalar integers, but found '{0}'."
-                        "".format(str(dimension)))
-            elif not isinstance(dimension, (self.Extent, int)):
-                raise TypeError(
-                    "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'integer' or DataSymbol.Extent.")
-        self._shape = shape
 
         # The following attributes have setter methods (with error checking)
         self._interface = None
@@ -175,7 +128,9 @@ class DataSymbol(Symbol):
 
         :raises NotImplementedError: if the deferred symbol is not a Global.
         '''
-        if self.datatype == DataType.DEFERRED:
+        ### if self.datatype == DataType.DEFERRED:
+        if True:
+            raise Exception("FIXME")
             if self.is_global:
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
@@ -384,6 +339,7 @@ class DataSymbol(Symbol):
                             " {1}".format(self.name, node))
                 self._constant_value = new_value
             else:
+                from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
                 try:
                     lookup = TYPE_MAP_TO_PYTHON[self.datatype]
                 except KeyError:
@@ -398,7 +354,9 @@ class DataSymbol(Symbol):
                         " constant value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
-                if self.datatype == DataType.BOOLEAN:
+                ### if self.datatype == DataType.BOOLEAN:
+                if True:
+                    raise Exception("FIXME")
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:

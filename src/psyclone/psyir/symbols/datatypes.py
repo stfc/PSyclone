@@ -38,7 +38,6 @@
 
 from enum import Enum
 
-
 #class DataType(Enum):
 #    '''
 #    Enumeration of the different datatypes that are supported by the
@@ -90,18 +89,31 @@ class ScalarType(DataType):
         DOUBLE = 2
 
     def __init__(self, name, precision):
-        
+        from psyclone.psyir.symbols.datasymbol import DataSymbol
         if not isinstance(name, ScalarType.Name):
             raise TypeError(
                 "ScalarType expected 'name' argument to be of type "
                 "ScalarType.Name but found '{0}'."
                 "".format(type(name).__name__))
-        if not isinstance(precision, ScalarType.Precision):
+        if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
             raise TypeError(
                 "ScalarType expected 'precision' argument to be of type "
-                "ScalarType.Precision but found '{0}'."
+                "int, ScalarType.Precision or DataSymbol, but found '{0}'."
                 "".format(type(precision).__name__))
-        
+        if isinstance(precision, int) and precision <= 0:
+            raise ValueError(
+                "The precision of a DataSymbol when specified as an "
+                "integer number of bytes must be > 0 but found '{0}'."
+                "".format(precision))
+        if (isinstance(precision, DataSymbol) and
+                not (isinstance(precision.datatype, ScalarType) and
+                     precision.datatype.name == ScalarType.Name.INTEGER) and
+                not (isinstance(precision.datatype, DeferredType))):
+            raise ValueError(
+                "A DataSymbol representing the precision of another "
+                "DataSymbol must be of either 'deferred' or scalar, "
+                "integer type but got: {0}".format(str(precision)))
+
         self.name = name
         self.precision = precision
 
@@ -140,6 +152,20 @@ class ArrayType(DataType):
                 "list but found '{0}'."
                 "".format(type(shape).__name__))
 
+        # TBD
+        #for dimension in shape:
+        #    if isinstance(dimension, DataSymbol):
+        #        if dimension.datatype != DataType.INTEGER or dimension.shape:
+        #            raise TypeError(
+        #                "DataSymbols that are part of another symbol shape can"
+        #                " only be scalar integers, but found '{0}'."
+        #                "".format(str(dimension)))
+        #    elif not isinstance(dimension, (self.Extent, int)):
+        #        raise TypeError(
+        #            "DataSymbol shape list elements can only be "
+        #            "'DataSymbol', 'integer' or DataSymbol.Extent.")
+        #self._shape = shape
+
         self.shape = shape
         self.name = datatype.name
         self.precision = datatype.precision
@@ -155,6 +181,26 @@ class ArrayType(DataType):
         return ("{0}, {1}, shape={2}".format(self.name, self.precision,
                                              self.shape))
 
+
+# Create common datatypes
+REAL_SINGLE_TYPE = ScalarType(ScalarType.Name.REAL,
+                              ScalarType.Precision.SINGLE)
+REAL_DOUBLE_TYPE = ScalarType(ScalarType.Name.REAL,
+                              ScalarType.Precision.DOUBLE)
+REAL4_TYPE = ScalarType(ScalarType.Name.REAL, 4)
+REAL8_TYPE = ScalarType(ScalarType.Name.REAL, 8)
+INTEGER_SINGLE_TYPE = ScalarType(ScalarType.Name.INTEGER,
+                              ScalarType.Precision.SINGLE)
+INTEGER_DOUBLE_TYPE = ScalarType(ScalarType.Name.INTEGER,
+                              ScalarType.Precision.DOUBLE)
+INTEGER4_TYPE = ScalarType(ScalarType.Name.INTEGER, 4)
+INTEGER8_TYPE = ScalarType(ScalarType.Name.INTEGER, 8)
+BOOLEAN_SINGLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
+                              ScalarType.Precision.SINGLE)
+BOOLEAN_DOUBLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
+                              ScalarType.Precision.DOUBLE)
+BOOLEAN4_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 4)
+BOOLEAN8_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 8)
 
 #class StructureType(DataType):
 #    ''' xxx '''
