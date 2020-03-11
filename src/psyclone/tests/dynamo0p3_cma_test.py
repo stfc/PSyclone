@@ -655,7 +655,7 @@ def test_cma_asm(tmpdir, dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
@@ -692,7 +692,7 @@ def test_cma_asm_field(tmpdir, dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
@@ -731,7 +731,7 @@ def test_cma_asm_scalar(dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
@@ -772,7 +772,7 @@ def test_cma_asm_field_same_fs(dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "

@@ -482,8 +482,7 @@ def test_field(tmpdir):
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -561,8 +560,7 @@ def test_field_deref(tmpdir, dist_mem):
 
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
+        "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
@@ -687,9 +685,7 @@ def test_field_fs(tmpdir):
         "m3, m4, f5, m5)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(inout) :: f3\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4, f5, "
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, m4, f5, "
         "m5\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
@@ -870,8 +866,7 @@ def test_real_scalar(tmpdir):
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -957,8 +952,7 @@ def test_int_scalar(tmpdir):
         "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER(KIND=i_def), intent(in) :: iflag\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1044,8 +1038,7 @@ def test_two_real_scalars(tmpdir):
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a, b\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1129,8 +1122,7 @@ def test_two_int_scalars(tmpdir):
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER(KIND=i_def), intent(in) :: iflag, istep\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1223,8 +1215,7 @@ def test_two_scalars(tmpdir):
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istep\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1318,8 +1309,7 @@ def test_vector_field():
 
     assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
             generated_code)
-    assert "TYPE(field_type), intent(inout) :: f1, chi(3)" in generated_code
-    assert "TYPE(field_type), intent(in) :: f2" in generated_code
+    assert "TYPE(field_type), intent(in) :: f1, chi(3), f2" in generated_code
 
 
 def test_vector_field_2(tmpdir):
@@ -1352,9 +1342,8 @@ def test_vector_field_deref():
         generated_code = str(psy.gen)
         assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, box_chi, f2)" in
                 generated_code)
-        assert ("TYPE(field_type), intent(inout) :: f1, box_chi(3)" in
+        assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
                 generated_code)
-        assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
 
 def test_orientation():
@@ -1960,7 +1949,7 @@ def test_mkern_invoke_vec_fields():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    assert ("TYPE(field_type), intent(inout) :: f1, chi(3), chi(3)"
+    assert ("TYPE(field_type), intent(in) :: f1, chi(3), chi(3)"
             not in generated_code)
     # 2nd test for duplication of name vector-field declaration
     assert ("TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
@@ -3387,7 +3376,7 @@ def test_upper_bound_inner(monkeypatch):
     assert ubound == "mesh%get_last_inner_cell(1)"
 
 
-def test_intent_multi_kern():
+def test_intent_multi_kern(): ### Not required any more as all field types are in!!!
     ''' Test that we correctly generate argument declarations when the
     same fields are passed to different kernels with different intents '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4122,7 +4111,7 @@ def test_extent_name_clash(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+######    print(result)
     output1 = (
         "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
         "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
@@ -4135,10 +4124,9 @@ def test_extent_name_clash(dist_mem):
     assert ("INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_stencil_size\n"
             in result)
     output3 = (
-        "      TYPE(field_type), intent(inout) :: f2_stencil_map, "
-        "f3_stencil_map\n"
-        "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
-        "stencil_cross_1, f3, f3_stencil_dofmap\n")
+        "      TYPE(field_type), intent(in) :: f2_stencil_map, f2, "
+        "f2_stencil_dofmap, stencil_cross_1, f3_stencil_map, f3, "
+        "f3_stencil_dofmap\n")
     assert output3 in result
     output4 = (
         "      INTEGER(KIND=i_def) f3_stencil_size_1\n"

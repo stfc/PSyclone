@@ -2675,20 +2675,27 @@ class DynFields(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import TypeDeclGen
-        # Add the subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declns_by_intent("gh_field")
-        for intent in FORTRAN_INTENT_NAMES:
-            if fld_args[intent]:
-                if intent == "out":
-                    # The data part of a field might have intent(out) but
-                    # in order to preserve the state of the whole
-                    # derived-type object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                parent.add(TypeDeclGen(parent, datatype="field_type",
-                                       entity_decls=fld_args[intent],
-                                       intent=fort_intent))
+        # Add the Invoke subroutine argument declarations for fields
+        fld_args = self._invoke.unique_declarations(datatype="gh_field")
+        if fld_args:
+            parent.add(TypeDeclGen(parent, datatype="field_type",
+                                   entity_decls=fld_args,
+                                   intent="in"))
+
+        # # Add the subroutine argument declarations for fields
+        # fld_args = self._invoke.unique_declns_by_intent("gh_field")
+        # for intent in FORTRAN_INTENT_NAMES:
+            # if fld_args[intent]:
+                # if intent == "out":
+                    # # The data part of a field might have intent(out) but
+                    # # in order to preserve the state of the whole
+                    # # derived-type object it must be declared as inout.
+                    # fort_intent = "inout"
+                # else:
+                    # fort_intent = intent
+                # parent.add(TypeDeclGen(parent, datatype="field_type",
+                                       # entity_decls=fld_args[intent],
+                                       # intent=fort_intent))
 
     def _stub_declarations(self, parent):
         '''
@@ -2999,21 +3006,27 @@ class DynLMAOperators(DynCollection):
         '''
         from psyclone.f2pygen import TypeDeclGen
 
-        op_declarations_dict = self._invoke.unique_declns_by_intent(
-            "gh_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                parent.add(
-                    TypeDeclGen(parent, datatype="operator_type",
-                                entity_decls=op_declarations_dict[intent],
-                                intent=fort_intent))
+        op_args = self._invoke.unique_declarations(datatype="gh_operator")
+        if op_args:
+            parent.add(TypeDeclGen(parent, datatype="operator_type",
+                                   entity_decls=op_args,
+                                   intent="in"))
+
+        # op_declarations_dict = self._invoke.unique_declns_by_intent(
+            # "gh_operator")
+        # for intent in FORTRAN_INTENT_NAMES:
+            # if op_declarations_dict[intent]:
+                # if intent == "out":
+                    # # The data part of an operator might have intent(out) but
+                    # # in order to preserve the state of the whole derived-type
+                    # # object it must be declared as inout.
+                    # fort_intent = "inout"
+                # else:
+                    # fort_intent = intent
+                # parent.add(
+                    # TypeDeclGen(parent, datatype="operator_type",
+                                # entity_decls=op_declarations_dict[intent],
+                                # intent=fort_intent))
 
 
 class DynCMAOperators(DynCollection):
@@ -3148,24 +3161,31 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        # Add subroutine argument declarations for CMA operators that are
-        # read or written (as with normal/LMA operators, they are never 'inc'
-        # because they are discontinuous)
-        cma_op_declarations_dict = self._invoke.unique_declns_by_intent(
-            "gh_columnwise_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if cma_op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                parent.add(
-                    TypeDeclGen(parent, datatype="columnwise_operator_type",
-                                entity_decls=cma_op_declarations_dict[intent],
-                                intent=fort_intent))
+        cma_op_args = self._invoke.unique_declarations(datatype="gh_columnwise_operator")
+        if cma_op_args:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="columnwise_operator_type",
+                                   entity_decls=cma_op_args,
+                                   intent="in"))
+
+        # # Add subroutine argument declarations for CMA operators that are
+        # # read or written (as with normal/LMA operators, they are never 'inc'
+        # # because they are discontinuous)
+        # cma_op_declarations_dict = self._invoke.unique_declns_by_intent(
+            # "gh_columnwise_operator")
+        # for intent in FORTRAN_INTENT_NAMES:
+            # if cma_op_declarations_dict[intent]:
+                # if intent == "out":
+                    # # The data part of an operator might have intent(out) but
+                    # # in order to preserve the state of the whole derived-type
+                    # # object it must be declared as inout.
+                    # fort_intent = "inout"
+                # else:
+                    # fort_intent = intent
+                # parent.add(
+                    # TypeDeclGen(parent, datatype="columnwise_operator_type",
+                                # entity_decls=cma_op_declarations_dict[intent],
+                                # intent=fort_intent))
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
