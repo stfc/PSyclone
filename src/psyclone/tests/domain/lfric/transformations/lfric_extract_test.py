@@ -85,8 +85,8 @@ def test_node_list_error(tmpdir):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(invoke0)
     assert ("Error in LFRicExtractTrans: Argument must be "
-            "a single Node in a Schedule or a list of Nodes in a Schedule "
-            "but have been passed an object of type: "
+            "a single Node in a Schedule, a Schedule or a list of Nodes in a "
+            "Schedule but have been passed an object of type: "
             "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
 
     # Supply Nodes in incorrect order or duplicate Nodes
@@ -112,7 +112,7 @@ def test_node_list_error(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_distmem_error():
+def test_distmem_error(monkeypatch):
     ''' Test that applying ExtractRegionTrans with distributed memory
     enabled raises a TransformationError. '''
     etrans = LFRicExtractTrans()
@@ -128,6 +128,11 @@ def test_distmem_error():
             "not supported.") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
+    # We have to disable distributed memory, otherwise an earlier test
+    # will be triggered
+    from psyclone.configuration import Config
+    config = Config.get()
+    monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
@@ -135,12 +140,18 @@ def test_distmem_error():
             "transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
+    # This will set config.distributed_mem to True again.
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            DYNAMO_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
+
+    # We have to disable distributed memory again (get_invoke before
+    # will set it to true), otherwise an earlier test will be triggered
+    monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
+
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
             "cannot be enclosed by a LFRicExtractTrans "
             "transformation") in str(excinfo.value)
