@@ -3376,23 +3376,6 @@ def test_upper_bound_inner(monkeypatch):
     assert ubound == "mesh%get_last_inner_cell(1)"
 
 
-def test_intent_multi_kern(): ### Not required any more as all field types are in!!!
-    ''' Test that we correctly generate argument declarations when the
-    same fields are passed to different kernels with different intents '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        output = str(psy.gen)
-        print(output) ### Check!
-        assert "TYPE(field_type), intent(inout) :: g, f\n" in output
-        assert "TYPE(field_type), intent(inout) :: b, h\n" in output
-        assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-        assert "TYPE(quadrature_xyoz_type), intent(in) :: qr\n" in output
-
-
 def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type gh_sum '''
