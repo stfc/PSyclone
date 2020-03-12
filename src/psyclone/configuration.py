@@ -57,6 +57,8 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
+# pylint: disable=too-many-lines
+
 
 class ConfigurationError(Exception):
     '''
@@ -112,6 +114,9 @@ class Config(object):
     # The default name to use when creating new names in the
     # PSyIR symbol table.
     _default_psyir_root_name = "psyir_tmp"
+
+    # The list of valid PSyData class prefixes
+    _valid_psy_data_prefix = []
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -312,6 +317,14 @@ class Config(object):
             self._psyir_root_name = Config._default_psyir_root_name
         else:
             self._psyir_root_name = self._config['DEFAULT']['PSYIR_ROOT_NAME']
+
+        # Read the valid PSyData class prefixes:
+        try:
+            # Convert it to a list of strings:
+            self._valid_psy_data_prefix = \
+                self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
+        except KeyError:
+            self._valid_psy_data_prefix = []
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
@@ -631,6 +644,12 @@ class Config(object):
             raise ValueError("include_paths must be a list but got: {0}".
                              format(type(path_list)))
 
+    @property
+    def valid_psy_data_prefix(self):
+        ''':returns: The list of all valid class prefixes.
+        :rtype: list of str'''
+        return self._valid_psy_data_prefix
+
     def get_default_keys(self):
         '''Returns all keys from the default section.
         :returns list: List of all keys of the default section as strings.
@@ -929,6 +948,7 @@ class GOceanConfig(APISpecificConfig):
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
                                                            config.filename))
+
     # ---------------------------------------------------------------------
     def make_property(self, dereference_format, type_name):
         '''Creates a property (based on namedtuple) for a given Fortran
@@ -945,7 +965,7 @@ class GOceanConfig(APISpecificConfig):
 
         :raises InternalError: if type_name is not 'scalar' or 'array'
         '''
-        if not type_name in ['array', 'scalar']:
+        if type_name not in ['array', 'scalar']:
             from psyclone.errors import InternalError
             raise InternalError("Type must be 'array' or 'scalar' but is "
                                 "'{0}'.".format(type_name))

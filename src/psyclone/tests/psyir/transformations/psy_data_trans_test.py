@@ -37,8 +37,10 @@
 
 from __future__ import absolute_import
 
+import pytest
+
 from psyclone.psyir.nodes import PSyDataNode
-from psyclone.psyir.transformations import PSyDataTrans
+from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
 
@@ -154,3 +156,8 @@ def test_class_definitions():
     # by setting the prefix)
     assert "TYPE(PSyDataType), target, save :: psy_data" in code
     assert "CALL psy_data" in code
+
+    with pytest.raises(TransformationError) as err:
+        data_trans.apply(schedule, {"class": "invalid-class"})
+    assert "Error in 'class' parameter: found 'invalid-class', expected " \
+        "one of " in str(err.value)

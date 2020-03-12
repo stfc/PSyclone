@@ -36,6 +36,7 @@
 '''Contains the PSyData transformation.
 '''
 
+from psyclone.configuration import Config
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -137,6 +138,13 @@ class PSyDataTrans(RegionTrans):
                         "tuple containing two non-empty strings."
                         "".format(self.name))
                 # pylint: enable=too-many-boolean-expressions
+            if "class" in options:
+                prefix = options["class"]
+                if prefix not in Config.get().valid_psy_data_prefix:
+                    raise TransformationError(
+                        "Error in 'class' parameter: found '{0}', expected "
+                        "one of {1}"
+                        .format(prefix, Config.get().valid_psy_data_prefix))
 
         super(PSyDataTrans, self).validate(node_list, options)
 

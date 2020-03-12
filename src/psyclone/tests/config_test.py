@@ -62,6 +62,7 @@ DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
+VALID_PSY_DATA_PREFIXES = profile extract
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
@@ -640,3 +641,29 @@ def test_access_mapping_order(tmpdir):
         api_config = Config.get().api_conf("dynamo0.3")
         for access_mode in api_config.get_access_mapping().values():
             assert isinstance(access_mode, AccessType)
+
+
+def test_psy_data_prefix(tmpdir):
+    ''' Check the handling of PSyData class prefixes.'''
+    config_file = tmpdir.join("config.correct")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(_CONFIG_CONTENT)
+        new_cfg.close()
+        config = Config()
+        config.load(config_file=str(config_file))
+
+        assert "profile" in config.valid_psy_data_prefix
+        assert "extract" in config.valid_psy_data_prefix
+        assert len(config.valid_psy_data_prefix) == 2
+
+    # Now handle a config file without psy data prefixes:
+    # This should not raise an exception, but define an empty list
+    content = re.sub(r"VALID_PSY_DATA_PREFIXES", "NO-PSY-DATA",
+                     _CONFIG_CONTENT)
+    config_file = tmpdir.join("config.no_psydata")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+        assert config.valid_psy_data_prefix
