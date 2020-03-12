@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !-------------------------------------------------------------------------------
 
@@ -100,17 +100,17 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)    :: lhs
-    type(field_type), intent(inout)    :: rhs
+    type(field_type), intent(in)       :: lhs
+    type(field_type), intent(in)       :: rhs
     type(mesh_type),  intent(in)       :: mesh
 
     ! Chi is really intent(in) but this currently causes
     ! problems because PSyclone makes everything (inout)
-    type(field_type), intent(inout)    :: chi(3)
+    type(field_type), intent(in)       :: chi(3)
 
     integer(i_def),                  intent(in) :: solver_type
     type(quadrature_type), optional, intent(in) :: qr
-    type(operator_type),   optional, intent(inout) :: mm
+    type(operator_type),   optional, intent(in) :: mm
 
     integer(i_def), parameter :: NUM_JACOBI_ITERS = 5
     integer(i_def) :: fs_l, fs_r
@@ -183,9 +183,9 @@ contains
 
     implicit none
 
-    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: lhs
     type(field_type),    intent(in)    :: rhs
-    type(operator_type), intent(inout) :: mm
+    type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
 
     ! The temporary fields
@@ -326,9 +326,9 @@ contains
 
     implicit none
 
-    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: lhs
     type(field_type),    intent(in)    :: rhs
-    type(operator_type), intent(inout) :: mm
+    type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
 
     ! The temporary fields
@@ -436,8 +436,8 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in)    :: n_iter
-    type(field_type),    intent(inout) :: lhs, rhs
-    type(operator_type), intent(inout) :: mm
+    type(field_type),    intent(in)    :: lhs, rhs
+    type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
     type(field_type)                   :: Ax, lumped_weight, res
 
@@ -494,9 +494,9 @@ contains
 
     implicit none
 
-    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: lhs
     type(field_type),    intent(in)    :: rhs
-    type(operator_type), intent(inout) :: mm
+    type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
     ! The temporary fields
     type(field_type)                   :: Ax, r, s, w, v(GCRK)
@@ -664,9 +664,9 @@ contains
 
     implicit none
 
-    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: lhs
     type(field_type),    intent(in)    :: rhs
-    type(operator_type), intent(inout) :: mm
+    type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
 
     ! The temporary fields
@@ -773,7 +773,7 @@ contains
 
     implicit none
 
-    type(field_type),    intent(inout) :: y
+    type(field_type),    intent(in)    :: y
     type(field_type),    intent(in)    :: x
     integer(kind=i_def), intent(in)    :: pre_cond_type
 

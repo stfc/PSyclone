@@ -1,9 +1,42 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
 !
 !-------------------------------------------------------------------------------
 
@@ -99,7 +132,7 @@ contains
 
     implicit none
 
-    type( field_type ), intent( inout ) :: right_hand_side
+    type( field_type ), intent( in )    :: right_hand_side
 
     type( field_proxy_type)             :: rhs_proxy
     integer :: cell
@@ -141,7 +174,7 @@ contains
 
     implicit none
 
-    type( field_type ), intent( inout ) :: rhs
+    type( field_type ), intent( in ) :: rhs
 
     type( field_proxy_type) :: rhs_p
     integer :: cell
@@ -179,8 +212,8 @@ contains
 
   subroutine invoke_matrix_vector(x,Ax)
     use matrix_vector_mod, only : matrix_vector_code
-    type(field_type), intent(inout) :: x
-    type(field_type), intent(inout) :: Ax
+    type(field_type), intent(in) :: x
+    type(field_type), intent(in) :: Ax
 
     integer                 :: cell
     integer, pointer        :: map(:)
@@ -225,8 +258,8 @@ contains
   real(kind=dp) function inner_prod(x,y)
     use log_mod, only : log_event, LOG_LEVEL_ERROR
     implicit none
-    type( field_type ), intent( inout ) :: x,y
-    type( field_proxy_type)             ::  x_p,y_p
+    type( field_type ), intent( in ) :: x,y
+    type( field_proxy_type)          :: x_p,y_p
 
     integer                          :: i
 

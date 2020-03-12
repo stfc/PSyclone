@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -107,8 +107,8 @@ subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
   implicit none
 
   integer(i_def),      intent(in)    :: n_iter
-  type(field_type),    intent(inout) :: lhs, rhs
-  type(operator_type), intent(inout) :: mm
+  type(field_type),    intent(in)    :: lhs, rhs
+  type(operator_type), intent(in)    :: mm
   integer(i_def),      intent(in)    :: mesh
   type(field_type)                   :: Ax, diagonal, res
 

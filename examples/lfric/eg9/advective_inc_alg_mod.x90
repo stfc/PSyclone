@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !>@brief Computes the advective increment of the prognostic equations
 module advective_inc_alg_mod
@@ -82,7 +82,7 @@ contains
     implicit none
 
     type(field_type), intent(in)        :: theta, wind
-    type(field_type), intent(inout)     :: rtheta
+    type(field_type), intent(in)        :: rtheta
     type(quadrature_xyoz_type)          :: qr
     type(quadrature_rule_gaussian_type) :: quadrature_rule
     type(field_type), pointer           :: chi(:) => null()
