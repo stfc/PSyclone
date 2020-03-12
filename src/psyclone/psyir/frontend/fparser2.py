@@ -122,12 +122,12 @@ def _check_args(array, dim):
     if dim < 1:
         raise ValueError(
             "method _check_args 'dim' argument should be at "
-            "least 1 but found '{0}'.".format(dim))
+            "least 1 but found {0}.".format(dim))
     if dim > len(array.children):
         raise ValueError(
             "method _check_args 'dim' argument should be at "
             "most the number of dimensions of the array '{0}' but found "
-            "'{1}'.".format(len(array.children), dim))
+            "{1}.".format(len(array.children), dim))
 
     # The first child of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
@@ -169,9 +169,11 @@ def _is_bound_full_extent(array, dim, operator):
         :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
         or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
 
+    :returns: True if the supplied array has the expected properties, \
+        otherwise returns False.
+    :rtype: bool
+
     :raises TypeError: if the supplied arguments are of the wrong type.
-    :raises NotImplementedError: if the supplied array does not have \
-        the expected properties.
 
     '''
     _check_args(array, dim)
@@ -195,6 +197,7 @@ def _is_bound_full_extent(array, dim, operator):
     reference = bound.children[0]
     literal = bound.children[1]
 
+    # pylint: disable=too-many-boolean-expressions
     if (bound.operator == operator
             and isinstance(reference, Reference) and
             reference.symbol is array.symbol
@@ -202,6 +205,7 @@ def _is_bound_full_extent(array, dim, operator):
             literal.datatype == DataType.INTEGER
             and literal.value == str(dim)):
         return True
+    # pylint: enable=too-many-boolean-expressions
     return False
 
 
@@ -229,6 +233,13 @@ def _is_array_range_literal(array, dim, index, value):
     :raises NotImplementedError: if the supplied argument does not \
         have the required properties.
 
+    :returns: True if the supplied array has the expected properties, \
+        otherwise returns False.
+    :rtype: bool
+
+    :raises TypeError: if the supplied arguments are of the wrong type.
+    :raises ValueError: if the index argument has an incorrect value.
+
     '''
     _check_args(array, dim)
 
@@ -240,7 +251,7 @@ def _is_array_range_literal(array, dim, index, value):
     if index < 0 or index > 2:
         raise ValueError(
             "method _check_array_range_literal 'index' argument should be "
-            "0, 1 or 2 but found '{0}'.".format(index))
+            "0, 1 or 2 but found {0}.".format(index))
 
     if not isinstance(value, int):
         raise TypeError(
@@ -293,7 +304,7 @@ def _is_range_full_extent(my_range):
         array, dim, BinaryOperation.Operator.UBOUND)
     # Check step (index 2 is the step index for the range function)
     is_step = _is_array_range_literal(array, dim, 2, 1)
-    return (is_lower and is_upper and is_step)
+    return is_lower and is_upper and is_step
 
 
 class Fparser2Reader(object):

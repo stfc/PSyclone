@@ -123,9 +123,10 @@ The nodes for each of the children must return an integer. Potentially
 valid nodes are therefore ``Literal``, ``Reference``, ``Operation``
 and ``CodeBlock``.
 
-A common use case is to want to specify all the elements of the array
-dimension without knowing the dimensions size. In the PSyIR this is
-achieved by using the ``LBOUND``, and ``UBOUND`` binary operators::
+A common use case is to want to specify all the elements of a given
+array dimension without knowing the extent of that dimension. In the
+PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND`` binary
+operators::
 
   > one = Literal("1", DataType.INTEGER)
   > # Declare a 1D real array called 'a' with 10 elements

@@ -114,13 +114,13 @@ def test_check_args():
 
     with pytest.raises(ValueError) as excinfo:
         _check_args(array_reference, 0)
-    assert ("'dim' argument should be at least 1 but found '0'."
+    assert ("'dim' argument should be at least 1 but found 0."
             in str(excinfo.value))
 
     with pytest.raises(ValueError) as excinfo:
         _check_args(array_reference, 2)
     assert ("'dim' argument should be at most the number of dimensions of "
-            "the array '1' but found '2'." in str(excinfo.value))
+            "the array '1' but found 2." in str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(array_reference, 1)
@@ -246,12 +246,12 @@ def test_is_array_range_literal():
 
     with pytest.raises(ValueError) as excinfo:
         _is_array_range_literal(array_reference, 1, -1, None)
-    assert ("'index' argument should be 0, 1 or 2 but found '-1'."
+    assert ("'index' argument should be 0, 1 or 2 but found -1."
             in str(excinfo.value))
 
     with pytest.raises(ValueError) as excinfo:
         _is_array_range_literal(array_reference, 1, 3, None)
-    assert ("'index' argument should be 0, 1 or 2 but found '3'."
+    assert ("'index' argument should be 0, 1 or 2 but found 3."
             in str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
