@@ -38,6 +38,7 @@
 # This is a simple bash script that executes all of the examples that
 # are distributed with PSyclone. Note that PSyclone must be installed
 # for this script to work (see ../README.md).
+# TODO #713. Replace this script with a Makefile.
 
 # abort if a command fails
 set -e
@@ -46,6 +47,52 @@ set -e
 # kernel-stub generator
 export PSYCLONE=${PWD}/../bin/psyclone
 export KSTUBGEN=${PWD}/../bin/genkernelstub
+
+# Ensure we use the configuration file distributed with PSyclone and
+# not a (potentially modified) local version.
+export PSYCLONE_CONFIG=${PWD}/../config/psyclone.cfg
+echo "Using the PSyclone configuration file: $PSYCLONE_CONFIG"
+
+# ----------------------------------------------------------------- #
+# Handle any command-line options. Currently we only support one.
+# This code taken from https://stackoverflow.com/questions/192249/
+# how-do-i-parse-command-line-arguments-in-bash
+COMPILE=0
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -c|--compile)
+    COMPILE=1
+    shift # past argument
+    ;;
+# We could allow the user to specify which API to run the examples for
+# but #713 (replace this script with a Makefile) would be better.
+#    -a|--api)
+#    API="$2"
+#    shift # past argument
+#    shift # past value
+#    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+if [ $COMPILE -eq 1 ]
+then
+    echo "Compilation enabled for those examples that support it."
+else
+    echo "No compilation will be performed."
+fi
+
+# ----------------------------------------------------------------- #
+# Now we run the examples...
 
 echo "Running examples psyir"
 cd psyir
@@ -148,6 +195,8 @@ ${PSYCLONE} -s ./acc_parallel_dm.py -nodm \
   -oalg /dev/null
 cd -
 
+# ----------------------------------------------------------------- #
+
 echo "Running gocean/eg1"
 cd gocean/eg1
 python runme.py
@@ -159,11 +208,22 @@ cd -
 
 echo "Running gocean/eg2"
 cd gocean/eg2
-# We don't do the full compile because that requires a Fortran compiler
-# and the dl_esm_inf library
-${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
-${PSYCLONE} -api "gocean1.0" -s ./acc_prof_transform.py alg.f90
-cd -
+if [ $COMPILE -eq 1 ]
+then
+    # Only do the full compile if requested (because it requires a Fortran
+    # compiler). The Makefiles default to using gfortran unless the F90
+    # environment variable is set.
+    cd ../../../external/dl_esm_inf/finite_difference
+    make distclean
+    cd -
+    make allclean
+    make
+else
+    # Otherwise, just run the PSyclone parts of the example
+    ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+    ${PSYCLONE} -api "gocean1.0" -s ./acc_prof_transform.py alg.f90
+fi
+cd ../..
 
 echo "Running gocean/eg3"
 cd gocean/eg3
@@ -198,6 +258,8 @@ ${PSYCLONE} -nodm -l -api "gocean1.0"             \
 
 cd -
 
+# ----------------------------------------------------------------- #
+
 echo "Running example nemo/eg1"
 cd nemo/eg1
 ./runme_openmp.py
@@ -214,14 +276,18 @@ ${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
 cd -
 echo "Running example nemo/eg4"
 cd nemo/eg4
-for file in "copy_stencil.f90" \
-		"hori_diff.f90" \
-		"tridiagonal_solve.f90" \
+# As part of #714 (support for ranges and expressions in array-shape
+# declarations), the two files named below should be included back
+# in the list over files.
+echo "TODO #714 skipping copy_stencil.f90 and hori_diff.f90"
+for file in "tridiagonal_solve.f90" \
 		"if_example.f90"; do
     echo "file" ${file} "..."
     ${PSYCLONE} -api "nemo" -s ./sir_trans.py ${file} -opsy /dev/null
 done
 cd -
+
+# ----------------------------------------------------------------- #
 
 echo "Running transformation examples"
 cd transformations/inline

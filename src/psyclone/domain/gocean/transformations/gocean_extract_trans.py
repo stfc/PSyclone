@@ -81,10 +81,24 @@ class GOceanExtractTrans(ExtractTrans):
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param bool options["create_driver"]: whether or not to create a \
+            driver program at code-generation time. If set, the driver will \
+            be created in the current working directory with the name \
+            "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
+            corresponding values for this region. This flag is forwarded to \
+            the GoceanExtractNode. Its default value is False.
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this data-extraction region, provided as a 2-tuple \
+            containing a module name followed by a local name. The pair of \
+            strings should uniquely identify a region unless aggregate \
+            information is required (and is supported by the runtime \
+            library). This option is forwarded to the PSyDataNode (where it \
+            changes the region names) and to the GOceanExtractNode (where it \
+            changes the name of the created output files and the name of the \
+            driver program).
 
         :raises TransformationError: if transformation is applied to an \
-                                     inner Loop without its parent outer \
-                                     Loop.
+            inner Loop without its parent outer Loop.
         '''
 
         # First check constraints on Nodes in the node_list inherited from

@@ -97,6 +97,8 @@ example::
     my_transform.validate(node, {"node-type-check": False})
 
 
+.. _transformations_application:
+
 Application
 +++++++++++
 Each transformation provides a function ``apply`` which will

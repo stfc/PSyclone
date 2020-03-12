@@ -44,6 +44,8 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.transformations import ExtractTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
@@ -52,11 +54,13 @@ from psyclone.psyir.nodes import ExtractNode
 
 def test_extract_trans():
     '''Tests basic functions in ExtractTrans.'''
-    from psyclone.psyir.transformations import ExtractTrans
     etrans = ExtractTrans()
     assert str(etrans) == "Create a sub-tree of the PSyIR that has " \
                           "ExtractNode at its root."
     assert etrans.name == "ExtractTrans"
+
+    ltrans = LFRicExtractTrans()
+    assert str(ltrans) == "Inserts an ExtractNode in an LFRic Schedule."
 
 
 def test_malformed_extract_node(monkeypatch):
