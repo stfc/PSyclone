@@ -96,7 +96,6 @@ def test_variable_access_info():
     assert not vai.is_read()
     assert vai.is_written()
     assert not vai.is_read_only()
-    assert not vai.is_array()
 
     # Now we have one write access, which we should not be able to
     # change to write again:
@@ -151,17 +150,6 @@ def test_variable_access_info_read_write():
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
-
-    vai_array = VariableAccessInfo("array")
-    vai_array.add_access(AccessType.READ, 2, Node(), [1])
-    vai_array.add_access(AccessType.WRITE, 3, Node(), ["i"])
-    assert vai_array.is_array()
-
-    # Adding a non-array access marks this as not array:
-    # TODO #500: once we have a symboltable, this test
-    # needs to be adjusted.
-    vai_array.add_access(AccessType.WRITE, 3, Node())
-    assert not vai_array.is_array()
 
 
 # -----------------------------------------------------------------------------

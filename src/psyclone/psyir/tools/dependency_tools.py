@@ -360,8 +360,10 @@ class DependencyTools(object):
                 continue
             if var_name in variables_to_ignore:
                 continue
+            # Find the symbol for this variable
+            symbol = loop.find_or_create_symbol(var_name)
             var_info = var_accesses[var_name]
-            if var_info.is_array():
+            if symbol.is_array:
                 # Handle arrays
                 par_able = self.is_array_parallelisable(loop_variable,
                                                         var_info)
