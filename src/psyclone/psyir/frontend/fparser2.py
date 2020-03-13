@@ -1605,13 +1605,12 @@ class Fparser2Reader(object):
         # notation.
         for assign in assigns:
             _ = self._array_notation_rank(assign.lhs)
-        # TODO #500 if the supplied code accidentally omits array
+        # TODO #717 if the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
         # identify it as a scalar and the code produced from the
         # PSyIR (using e.g. the Fortran backend) will not
-        # compile. In practise most scalars are likely to be local
-        # and so we can check for their declarations. However,
-        # those imported from a module will still be missed.
+        # compile. We need to implement robust identification of the
+        # types of all symbols in the PSyIR fragment.
         arrays = parent.walk(Array)
         first_rank = None
         for array in arrays:

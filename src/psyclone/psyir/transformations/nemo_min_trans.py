@@ -38,9 +38,8 @@ MIN operator to PSyIR code. This could be useful if the MIN operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
 
-The implementation is NEMO-specific as NEMO code generation does not
-currently create a symbol table, see issue #500. Once this has been
-implemented the transformation can be modified to work for all APIs.
+This implementation is no longer NEMO-specific and should be modified
+(and renamed) to work for all APIs (#725).
 
 '''
 from __future__ import absolute_import

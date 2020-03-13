@@ -38,9 +38,8 @@ ABS operator to PSyIR code. This could be useful if the ABS operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
 
-The implementation is NEMO-specific as NEMO code generation does not
-currently create a symbol table, see issue #500. Once this has been
-implemented the transformation can be modified to work for all APIs.
+This implementation is no longer NEMO-specific and should be modified
+(and renamed) to work for all APIs (#725).
 
 '''
 from __future__ import absolute_import
@@ -129,8 +128,7 @@ class NemoAbsTrans(NemoOperatorTrans):
         # that the ABS Operator returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
         # or there may be errors (arguments are of different types)
-        # but this can't be checked as we don't have access to a
-        # symbol table (see #500) and don't have the appropriate
+        # but this can't be checked as we don't have the appropriate
         # methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_abs")
         symbol_res_var = DataSymbol(res_var, DataType.REAL)
