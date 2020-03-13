@@ -56,7 +56,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, DataType
+from psyclone.psyir.symbols import SymbolTable, DataType, ScalarType, \
+    INTEGER_SINGLE_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -437,11 +438,11 @@ class GOLoop(Loop):
                 format(self._loop_type, VALID_LOOP_TYPES))
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_SINGLE_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         if not GOLoop._bounds_lookup:
@@ -657,7 +658,7 @@ class GOLoop(Loop):
                 index_offset = go_kernels[0].index_offset
 
             if not index_offset:
-                return Literal("not_yet_set", DataType.INTEGER, self)
+                return Literal("not_yet_set", INTEGER_SINGLE_TYPE, self)
 
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
@@ -676,7 +677,7 @@ class GOLoop(Loop):
             # but it helps to fix all of the test cases.
             if stop == "2-1":
                 stop = "1"
-            return Literal(stop, DataType.INTEGER, self)
+            return Literal(stop, INTEGER_SINGLE_TYPE, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -694,11 +695,11 @@ class GOLoop(Loop):
             # must go.
             data = api_config.grid_properties["go_grid_data"].fortran \
                 .format(self.field_name)
-            stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
+            stop.addchild(Literal(data, INTEGER_SINGLE_TYPE, parent=stop))
             if self._loop_type == "inner":
-                stop.addchild(Literal("1", DataType.INTEGER, parent=stop))
+                stop.addchild(Literal("1", INTEGER_SINGLE_TYPE, parent=stop))
             elif self._loop_type == "outer":
-                stop.addchild(Literal("2", DataType.INTEGER, parent=stop))
+                stop.addchild(Literal("2", INTEGER_SINGLE_TYPE, parent=stop))
             return stop
 
         # Loop bounds are pulled from the field object which
@@ -724,7 +725,7 @@ class GOLoop(Loop):
         stop = stop_format.format(self.field_name)
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
-        return Literal(stop, DataType.INTEGER, self)
+        return Literal(stop, INTEGER_SINGLE_TYPE, self)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -755,7 +756,7 @@ class GOLoop(Loop):
                 index_offset = go_kernels[0].index_offset
 
             if not index_offset:
-                return Literal("not_yet_set", DataType.INTEGER, self)
+                return Literal("not_yet_set", INTEGER_SINGLE_TYPE, self)
 
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
@@ -773,11 +774,11 @@ class GOLoop(Loop):
             # but it helps with fixing all of the test cases.
             if start == "2-1":
                 start = "1"
-            return Literal(start, DataType.INTEGER, self)
+            return Literal(start, INTEGER_SINGLE_TYPE, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", DataType.INTEGER, self)
+            return Literal("1", INTEGER_SINGLE_TYPE, self)
 
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
@@ -799,7 +800,7 @@ class GOLoop(Loop):
                              .format(key, self._loop_type)].fortran
         start = start_format.format(self.field_name)
         # TODO 363 - update once the PSyIR supports derived types
-        return Literal(start, DataType.INTEGER, self)
+        return Literal(start, INTEGER_SINGLE_TYPE, self)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -2125,15 +2126,16 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if (dtype != DataType.INTEGER or shape_len != 0):
-                if shape_len == 0:
-                    shape_str = "a scalar"
-                else:
-                    shape_str = "an array"
-                raise GenerationError(
-                    "GOcean 1.0 API kernels {0} argument should be a scalar "
-                    "integer but got {1} of type '{2}'{3}."
-                    "".format(posstr, shape_str, str(dtype), kname_str))
+            if isinstance(dtype, ScalarType) and dtype.name == ScalarType.Name.INTEGER:
+                shape_str = "a scalar"
+            elif isinstance(dtype, ArrayType) or shape_len != 0:
+                shape_str = "an array"
+            else:
+                shape_str = "unknown"
+            raise GenerationError(
+                "GOcean 1.0 API kernels {0} argument should be a scalar "
+                "integer but got {1} of type '{2}'{3}."
+                "".format(posstr, shape_str, str(dtype), kname_str))
 
     @property
     def iteration_indices(self):
