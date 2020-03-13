@@ -39,10 +39,11 @@
 ''' This module contains the IfBlock node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.errors import InternalError, GenerationError
 
 
-class IfBlock(Node):
+class IfBlock(Statement):
     '''
     Node representing an if-block within the PSyIR. It has two mandatory
     children: the first one represents the if-condition and the second one

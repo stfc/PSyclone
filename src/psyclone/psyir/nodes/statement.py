@@ -42,9 +42,4 @@ from psyclone.psyir.nodes.node import Node
 class Statement(Node):
     '''
     Abstract node representing a general PSyIR Statement.
-
-    :param parent: the parent node of this Return in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
-    def __init__(self, parent=None):
-        super(Statement, self).__init__(parent=parent)

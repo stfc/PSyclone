@@ -39,13 +39,14 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError, GenerationError
 
 
-class Assignment(Node):
+class Assignment(Statement):
     '''
     Node representing an Assignment statement. As such it has a LHS and RHS
     as children 0 and 1 respectively.

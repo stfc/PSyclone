@@ -38,10 +38,10 @@
 
 ''' This module contains the Return node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
 
 
-class Return(Node):
+class Return(Statement):
     '''
     Node representing a Return statement (subroutine break without return
     value).

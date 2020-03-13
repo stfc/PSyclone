@@ -39,11 +39,11 @@
 ''' This module contains the Literal node implementation.'''
 
 import six
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import DataType
 
 
-class Literal(Node):
+class Literal(DataNode):
     '''
     Node representing a Literal. The value and datatype properties of
     this node are immutable.

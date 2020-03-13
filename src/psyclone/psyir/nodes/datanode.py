@@ -43,9 +43,4 @@ class DataNode(Node):
     '''
     Abstract node representing a general PSyIR expression that represents a
     value, which has a datatype.
-
-    :param parent: the parent node of this Return in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
-    def __init__(self, parent=None):
-        super(DataNode, self).__init__(parent=parent)

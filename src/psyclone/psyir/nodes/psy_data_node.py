@@ -42,11 +42,11 @@ or profiling.'''
 from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.statement import Statement
 
 
 # =============================================================================
-class PSyDataNode(Node):
+class PSyDataNode(Statement):
     # pylint: disable=too-many-instance-attributes, too-many-locals
     '''
     This class can be inserted into a schedule to instrument a set of nodes.

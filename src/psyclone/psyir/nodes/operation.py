@@ -43,11 +43,12 @@ import abc
 from enum import Enum
 import six
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.errors import GenerationError
 
 
 @six.add_metaclass(abc.ABCMeta)
-class Operation(Node):
+class Operation(Statement):
     '''
     Abstract base class for PSyIR nodes representing operators.
 

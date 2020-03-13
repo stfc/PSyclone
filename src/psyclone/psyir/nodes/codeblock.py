@@ -38,11 +38,11 @@
 
 ''' This module contains the CodeBlock node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
 from enum import Enum
+from psyclone.psyir.nodes.statement import Statement
 
 
-class CodeBlock(Node):
+class CodeBlock(Statement):
     '''Node representing some generic Fortran code that PSyclone does not
     attempt to manipulate. As such it is a leaf in the PSyIR and therefore
     has no children.

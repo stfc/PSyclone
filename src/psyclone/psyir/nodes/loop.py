@@ -39,12 +39,13 @@
 ''' This module contains the Loop node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.core.access_info import AccessType
 from psyclone.errors import InternalError, GenerationError
 
 
-class Loop(Node):
+class Loop(Statement):
     '''
     Node representing a loop within the PSyIR. It has 4 mandatory children:
     the first one represents the loop lower bound, the second one represents

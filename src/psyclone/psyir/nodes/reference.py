@@ -40,13 +40,14 @@
 nodes.'''
 
 from __future__ import absolute_import
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol
 from psyclone.errors import GenerationError
 
 
-class Reference(Node):
+class Reference(DataNode):
     '''
     Node representing a Reference Expression.
 
