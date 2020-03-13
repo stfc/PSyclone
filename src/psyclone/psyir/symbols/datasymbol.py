@@ -109,9 +109,8 @@ class DataSymbol(Symbol):
 
         :raises NotImplementedError: if the deferred symbol is not a Global.
         '''
-        ### if self.datatype == DataType.DEFERRED:
-        if True:
-            raise Exception("FIXME")
+        from psyclone.psyir.symbols import DeferredType
+        if isinstance(self.datatype, DeferredType):
             if self.is_global:
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
@@ -303,17 +302,19 @@ class DataSymbol(Symbol):
 
         '''
         from psyclone.psyir.nodes import Node, Literal, Operation, Reference
+        from psyclone.psyir.symbols import ScalarType, ArrayType
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(
                     "Error setting constant value for symbol '{0}'. A "
                     "DataSymbol with an ArgumentInterface can not have a "
                     "constant value.".format(self.name))
-            if self.is_array:
+            if not isinstance(self.datatype, (ScalarType, ArrayType)):
                 raise ValueError(
                     "Error setting constant value for symbol '{0}'. A "
-                    "DataSymbol with a constant value must be a scalar but "
-                    "a shape was found.".format(self.name))
+                    "DataSymbol with a constant value must be a scalar or an "
+                    "array but found '{1}'.".format(
+                        self.name, type(self.datatype).__name__))
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
@@ -325,7 +326,13 @@ class DataSymbol(Symbol):
                             " {1}".format(self.name, node))
                 self._constant_value = new_value
             else:
-                from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
+                from psyclone.psyir.symbols.datatypes import DeferredType, \
+                    TYPE_MAP_TO_PYTHON
+                if isinstance(self.datatype, DeferredType):
+                    raise ValueError(
+                        "Error setting constant value for symbol '{0}'. "
+                        "Constant values are not supported for deferred "
+                        "datatypes.".format(self.name))
                 try:
                     lookup = TYPE_MAP_TO_PYTHON[self.datatype.name]
                 except KeyError:
@@ -374,7 +381,7 @@ class DataSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return DataSymbol(self.name, self.datatype, shape=self.shape[:],
+        return DataSymbol(self.name, self.datatype.copy(),
                           constant_value=self.constant_value,
                           interface=self.interface)
 
@@ -392,11 +399,10 @@ class DataSymbol(Symbol):
             raise TypeError("Argument should be of type 'DataSymbol' but found"
                             " '{0}'.".format(type(symbol_in).__name__))
 
-        self._datatype = symbol_in.datatype
+        self._datatype = symbol_in.datatype.copy()
         self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
-        self.precision = symbol_in.precision
 
 
 class DataSymbolInterface(object):

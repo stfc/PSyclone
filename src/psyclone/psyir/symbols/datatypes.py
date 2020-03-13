@@ -39,12 +39,26 @@
 from enum import Enum
 
 
-class DataType():
+class DataType(object):
     '''Base class from which all types are derived.'''
+
+    def copy(self):
+        '''Create a new instance of this type with the same properties as the
+        current instance.
+
+        '''
+        return DataType()
 
 
 class DeferredType(DataType):
     '''Indicates that the type is unknown at this point.'''
+
+    def copy(self):
+        '''Create a new instance of this type with the same properties as the
+        current instance.
+
+        '''
+        return DeferredType()
 
 
 class ScalarType(DataType):
@@ -115,6 +129,13 @@ class ScalarType(DataType):
         '''
         return ("{0}, {1}".format(self.name, self.precision))
 
+    def copy(self):
+        '''Create a new instance of this type with the same properties as the
+        current instance.
+
+        '''
+        return ScalarType(self.name, self.precision)
+
 
 class ArrayType(DataType):
     '''Describes an array datatype.
@@ -168,7 +189,7 @@ class ArrayType(DataType):
         self.shape = shape
         self.name = datatype.name
         self.precision = datatype.precision
-
+        self._datatype = datatype
 
     def __str__(self):
         '''Construct a text representation of this array datatype.
@@ -193,6 +214,15 @@ class ArrayType(DataType):
                     "".format(type(dimension)))
         return ("{0}, {1}, shape=[{2}]".format(self.name, self.precision,
                                                ", ".join(dims)))
+
+        return ArrayType(self.datatype, self.shape)
+
+    def copy(self):
+        '''Create a new instance of this type with the same properties as the
+        current instance.
+
+        '''        
+        return ArrayType(self._datatype.copy(), self.shape[:])
 
 
 # Create common scalar datatypes
