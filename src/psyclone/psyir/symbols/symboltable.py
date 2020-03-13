@@ -407,8 +407,8 @@ class SymbolTable(object):
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
-            if isinstance(sym.precision, DataSymbol):
-                precision_symbols.add(sym.precision)
+            if isinstance(sym.datatype.precision, DataSymbol):
+                precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
 
     @property

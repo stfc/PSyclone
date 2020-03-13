@@ -60,6 +60,9 @@ class DeferredType(DataType):
         '''
         return DeferredType()
 
+    def __str__(self):
+        ''' xxx '''
+        return "Deferred Type"
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
