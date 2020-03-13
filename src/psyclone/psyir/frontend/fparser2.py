@@ -50,7 +50,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, ScalarType
+    DataType, ScalarType, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -657,22 +657,18 @@ class Fparser2Reader(object):
 
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
-            datatype = None
-            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec): 
+                fort_type = str(type_spec.items[0]).lower()
                 try:
-                    fort_type = str(type_spec.items[0]).lower()
-                    datatype = TYPE_MAP_FROM_FORTRAN[fort_type]
+                    data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
                 except KeyError:
-                    pass
-
+                    raise NotImplementedError(
+                        "Could not process {0}. Only 'real', 'integer', "
+                        "'logical' and 'character' intrinsic types are "
+                        "supported.".format(str(decl.items)))
                 # Check for a KIND specification
-                precision = self._process_kind_selector(parent.symbol_table,
-                                                        type_spec)
-            if datatype is None:
-                raise NotImplementedError(
-                    "Could not process {0}. Only 'real', 'integer', "
-                    "'logical' and 'character' intrinsic types are "
-                    "supported.".format(str(decl.items)))
+                precision = self._process_kind_selector(
+                    parent.symbol_table, type_spec)
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -799,12 +795,20 @@ class Fparser2Reader(object):
 
                 sym_name = str(name).lower()
 
+                if not precision:
+                    precision = ScalarType.Precision.SINGLE
+                if entity_shape:
+                    # array
+                    datatype = ArrayType(ScalarType(data_name, precision),
+                                         entity_shape)
+                else:
+                    # scalar
+                    datatype = ScalarType(data_name, precision)
+                
                 if sym_name not in parent.symbol_table:
                     parent.symbol_table.add(DataSymbol(sym_name, datatype,
-                                                       shape=entity_shape,
                                                        constant_value=ct_expr,
-                                                       interface=interface,
-                                                       precision=precision))
+                                                       interface=interface))
                 else:
                     # The symbol table already contains an entry with this name
                     # so update its interface information.
@@ -2129,9 +2133,9 @@ class Fparser2Reader(object):
         '''
         # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
-            return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)
+            return Literal(str(node.items[0]), INTEGER_SINGLE_TYPE, parent=parent)
         if isinstance(node, Fortran2003.Real_Literal_Constant):
-            return Literal(str(node.items[0]), DataType.REAL, parent=parent)
+            return Literal(str(node.items[0]), REAL_SINGLE_TYPE, parent=parent)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()
 
