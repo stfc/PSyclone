@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern, NameSpaceFactory
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node, Loop, Schedule
+from psyclone.psyir.nodes import Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -142,85 +142,6 @@ class NemoFparser2Reader(Fparser2Reader):
             return NemoImplicitLoop(child, parent=parent)
         return super(NemoFparser2Reader,
                      self)._create_child(child, parent=parent)
-
-    def generate_nemo_schedule(self, name, module_ast, invoke):
-        '''
-        Create a NemoInvokeSchedule from the supplied fparser2 parse tree.
-
-        :param str name: name of the subroutine represented by the schedule.
-        :param module_ast: fparser2 parse tree for the routine.
-        :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :param invoke: the NemoInvoke to which this Schedule belongs.
-        :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
-
-        :returns: PSyIR schedule representing the kernel.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
-
-        :raises GenerationError: unable to generate a kernel schedule from \
-                                 the provided fpaser2 parse tree.
-        '''
-        from psyclone.psyGen import GenerationError
-
-        new_schedule = self._create_schedule(name, invoke)
-
-        try:
-            if isinstance(module_ast, (Fortran2003.Subroutine_Subprogram,
-                                       Fortran2003.Main_Program)):
-                routine_name = module_ast.content[0].get_name()
-            elif isinstance(module_ast, Fortran2003.Function_Subprogram):
-                # TODO fparser/#225 Function_Stmt does not have a get_name()
-                # method. Once it does we can remove this branch and handle
-                # it in the one above.
-                routine_name = module_ast.content[0].items[1]
-            else:
-                raise NotImplementedError(
-                    "Expected either Fortran2003.Main_Program, "
-                    "Subroutine_Subprogram or Function_Subprogram but "
-                    "got: {0}".format(type(module_ast).__name__))
-            if str(routine_name) != name:
-                raise ValueError()
-            subroutine = module_ast
-        except (ValueError, IndexError):
-            raise GenerationError("Unexpected parse tree. Could not find "
-                                  "subroutine: {0}".format(name))
-
-        # Set pointer from schedule into fparser2 tree
-        # TODO #435 remove this line once fparser2 tree not needed
-        new_schedule._ast = subroutine
-
-        try:
-            sub_spec = self._first_type_match(subroutine.content,
-                                              Fortran2003.Specification_Part)
-            decl_list = sub_spec.content
-            # TODO this if test can be removed once fparser/#211 is fixed
-            # such that routine arguments are always contained in a
-            # Dummy_Arg_List, even if there's only one of them.
-            from fparser.two.Fortran2003 import Dummy_Arg_List
-            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
-                arg_list = subroutine.content[0].items[2].items
-            else:
-                # Routine has no arguments
-                arg_list = []
-        except ValueError:
-            # Subroutine without declarations, continue with empty lists.
-            decl_list = []
-            arg_list = []
-        finally:
-            self.process_declarations(new_schedule, decl_list, arg_list)
-
-        try:
-            sub_exec = self._first_type_match(subroutine.content,
-                                              Fortran2003.Execution_Part)
-            # TODO remove once fparser/#102 is done
-            # pylint: disable=protected-access
-            sub_exec._parent = subroutine
-        except ValueError:
-            pass
-        else:
-            self.process_nodes(new_schedule, sub_exec.content, sub_exec)
-
-        return new_schedule
 
 
 class NemoInvoke(Invoke):

@@ -553,7 +553,6 @@ def test_find_or_create_symbol():
     exception if not. Also test for an incorrect scope argument.
 
     '''
-    from psyclone.psyir.symbols import DataType, UnresolvedInterface
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
     sched = invoke.schedule
@@ -634,11 +633,13 @@ def test_find_or_create_new_symbol():
     assign = Assignment.create(xref, Literal("1.0", DataType.REAL))
     kernel1.addchild(assign)
     assign.parent = kernel1
-    container.view()
     # We have no wildcard imports so there can be no symbol named 'undefined'
     with pytest.raises(SymbolError) as err:
         _ = assign.find_or_create_symbol("undefined")
     assert "No Symbol found for name 'undefined'" in str(err.value)
+    # We should be able to find the 'tmp' symbol in the parent Container
+    sym = assign.find_or_create_symbol("tmp")
+    assert sym.datatype == DataType.REAL
     # Add a wildcard import to the SymbolTable of the KernelSchedule
     new_container = ContainerSymbol("some_mod")
     new_container.wildcard_import = True
