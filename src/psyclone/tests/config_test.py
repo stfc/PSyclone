@@ -666,4 +666,4 @@ def test_psy_data_prefix(tmpdir):
         new_cfg.close()
         config = Config()
         config.load(str(config_file))
-        assert config.valid_psy_data_prefix
+        assert not config.valid_psy_data_prefix
