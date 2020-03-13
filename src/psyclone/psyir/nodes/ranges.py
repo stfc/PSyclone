@@ -36,7 +36,7 @@
 ''' Module containing the definition of the Range node. '''
 
 from psyclone.psyir.nodes import Node, Literal
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, ScalarType, INTEGER_SINGLE_TYPE
 
 
 class Range(Node):
@@ -92,7 +92,7 @@ class Range(Node):
             step.parent = erange
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", DataType.INTEGER, parent=erange)
+            erange.step = Literal("1", INTEGER_SINGLE_TYPE, parent=erange)
         return erange
 
     @staticmethod
@@ -113,7 +113,8 @@ class Range(Node):
             raise TypeError(
                 "The {0} value of a Range must be a sub-class of "
                 "Node but got: {1}".format(name, type(value).__name__))
-        if isinstance(value, Literal) and value.datatype != DataType.INTEGER:
+        if (isinstance(value, Literal) and
+                value.datatype.name != ScalarType.Name.INTEGER):
             raise TypeError(
                 "If the {0} value of a Range is a Literal then it "
                 "must be of type INTEGER but got {1}".format(

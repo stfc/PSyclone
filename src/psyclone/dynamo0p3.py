@@ -59,7 +59,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, NameSpaceFactory, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, INTEGER_SINGLE_TYPE
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -5972,11 +5972,11 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_SINGLE_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         # At this stage we don't know what our loop bounds are
@@ -6502,9 +6502,9 @@ class DynLoop(Loop):
         # TODO: Issue #696. Add kind (precision) when the support in Literal
         #                   class is implemented.
         self.start_expr = Literal(self._lower_bound_fortran(),
-                                  DataType.INTEGER, parent=self)
+                                  INTEGER_SINGLE_TYPE, parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(),
-                                 DataType.INTEGER, parent=self)
+                                 INTEGER_SINGLE_TYPE, parent=self)
 
         Loop.gen_code(self, parent)
 

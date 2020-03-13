@@ -41,7 +41,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
-from psyclone.psyir.symbols import DataSymbol, DataType
+from psyclone.psyir.symbols import DataSymbol, DataType, ArrayType, \
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -63,7 +64,7 @@ def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("rname", DataType.INTEGER)
+    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     ref = Reference(symbol, assignment)
@@ -75,7 +76,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("rname", DataType.INTEGER)
+    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     ref = Reference(symbol, assignment)
@@ -87,7 +88,7 @@ def test_reference_optional_parent():
     argument is not supplied.
 
     '''
-    ref = Reference(DataSymbol("rname", DataType.REAL))
+    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
     assert ref.parent is None
 
 
@@ -98,8 +99,8 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", DataType.INTEGER,
-                        [DataSymbol.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    symbol = DataSymbol("aname", array_type)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     array = Array(symbol, parent=assignment)
@@ -111,7 +112,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", DataType.INTEGER)
+    symbol = DataSymbol("aname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     array = Array(symbol, assignment)
@@ -123,11 +124,12 @@ def test_array_create():
     creates an Array instance.
 
     '''
-    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10, 10, 10])
-    symbol_i = DataSymbol("i", DataType.INTEGER)
-    symbol_j = DataSymbol("j", DataType.INTEGER)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", DataType.INTEGER)]
+                Literal("1", INTEGER_SINGLE_TYPE)]
     array = Array.create(symbol_temp, children)
     check_links(array, children)
     result = FortranWriter().array_node(array)
@@ -139,11 +141,11 @@ def test_array_create_invalid1():
     if the provided symbol is not an array.
 
     '''
-    symbol_i = DataSymbol("i", DataType.INTEGER)
-    symbol_j = DataSymbol("j", DataType.INTEGER)
-    symbol_temp = DataSymbol("temp", DataType.REAL)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    symbol_temp = DataSymbol("temp", REAL_SINGLE_TYPE)
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", DataType.INTEGER)]
+                Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create(symbol_temp, children)
     assert ("expecting the symbol to be an array, not a scalar."
@@ -156,11 +158,12 @@ def test_array_create_invalid2():
     the number of indices provided to the create method.
 
     '''
-    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10])
-    symbol_i = DataSymbol("i", DataType.INTEGER)
-    symbol_j = DataSymbol("j", DataType.INTEGER)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", DataType.INTEGER)]
+                Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create(symbol_temp, children)
     assert ("the symbol should have the same number of dimensions as indices "
@@ -182,14 +185,14 @@ def test_array_create_invalid3():
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create(DataSymbol("temp", DataType.REAL), "invalid")
+        _ = Array.create(DataSymbol("temp", REAL_SINGLE_TYPE), "invalid")
     assert ("children argument in create method of Array class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create(DataSymbol("temp", DataType.REAL),
-                         [Reference(DataSymbol("i", DataType.INTEGER)),
+        _ = Array.create(DataSymbol("temp", REAL_SINGLE_TYPE),
+                         [Reference(DataSymbol("i", INTEGER_SINGLE_TYPE)),
                           "invalid"])
     assert (
         "child of children argument in create method of Array class "

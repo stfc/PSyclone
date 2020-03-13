@@ -42,7 +42,8 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, Reference
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataType, DataSymbol, INTEGER_SINGLE_TYPE, \
+    REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -74,8 +75,8 @@ def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
-    op2 = Literal("1", DataType.INTEGER, parent=binary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation",
@@ -88,13 +89,15 @@ def test_binaryoperation_can_be_printed():
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
-    op1 = Literal("1", DataType.INTEGER, parent=binary_operation)
-    op2 = Literal("2", DataType.INTEGER, parent=binary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
-    assert "Literal[value:'1', DataType.INTEGER]\n" in str(binary_operation)
-    assert "Literal[value:'2', DataType.INTEGER]" in str(binary_operation)
+    assert ("Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+            in str(binary_operation))
+    assert ("Literal[value:'2', Name.INTEGER, Precision.SINGLE]"
+            in str(binary_operation))
 
 
 def test_binaryoperation_create():
@@ -102,8 +105,8 @@ def test_binaryoperation_create():
     creates a BinaryOperation instance.
 
     '''
-    lhs = Reference(DataSymbol("tmp1", DataType.REAL))
-    rhs = Reference(DataSymbol("tmp2", DataType.REAL))
+    lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, lhs, rhs)
     check_links(binaryoperation, [lhs, rhs])
@@ -116,8 +119,8 @@ def test_binaryoperation_create_invalid():
     expected exception if the provided input is invalid.
 
     '''
-    ref1 = Reference(DataSymbol("tmp1", DataType.REAL))
-    ref2 = Reference(DataSymbol("tmp2", DataType.REAL))
+    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
     add = BinaryOperation.Operator.ADD
 
     # oper not a BinaryOperation.Operator.
@@ -165,7 +168,7 @@ def test_unaryoperation_operator():
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    ref1 = Reference(DataSymbol("a", DataType.REAL))
+    ref1 = Reference(DataSymbol("a", REAL_SINGLE_TYPE))
     unary_operation = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                             ref1)
     coloredtext = colored("UnaryOperation",
@@ -178,10 +181,11 @@ def test_unaryoperation_can_be_printed():
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
-    op1 = Literal("1", DataType.INTEGER, parent=unary_operation)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert "Literal[value:'1', DataType.INTEGER]" in str(unary_operation)
+    assert ("Literal[value:'1', Name.INTEGER, Precision.SINGLE]"
+            in str(unary_operation))
 
 
 def test_unaryoperation_create():
@@ -189,7 +193,7 @@ def test_unaryoperation_create():
     creates a UnaryOperation instance.
 
     '''
-    child = Reference(DataSymbol("tmp", DataType.REAL))
+    child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
     oper = UnaryOperation.Operator.SIN
     unaryoperation = UnaryOperation.create(oper, child)
     check_links(unaryoperation, [child])
@@ -205,7 +209,7 @@ def test_unaryoperation_create_invalid():
     # oper not a UnaryOperator.Operator.
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create("invalid",
-                                  Reference(DataSymbol("tmp", DataType.REAL)))
+                                  Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)))
     assert ("oper argument in create method of UnaryOperation class should "
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
@@ -221,11 +225,11 @@ def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    nary_operation.addchild(Literal("1", DataType.INTEGER,
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
-    nary_operation.addchild(Literal("1", DataType.INTEGER,
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
-    nary_operation.addchild(Literal("1", DataType.INTEGER,
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
 
     coloredtext = colored("NaryOperation",
@@ -238,16 +242,19 @@ def test_naryoperation_can_be_printed():
     initialised fully)'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     assert "NaryOperation[operator:'MAX']" in str(nary_operation)
-    nary_operation.addchild(Literal("1", DataType.INTEGER,
+    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
-    nary_operation.addchild(Literal("2", DataType.INTEGER,
+    nary_operation.addchild(Literal("2", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
-    nary_operation.addchild(Literal("3", DataType.INTEGER,
+    nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
     # Check the node children are also printed
-    assert "Literal[value:'1', DataType.INTEGER]\n" in str(nary_operation)
-    assert "Literal[value:'2', DataType.INTEGER]\n" in str(nary_operation)
-    assert "Literal[value:'3', DataType.INTEGER]" in str(nary_operation)
+    assert ("Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+            in str(nary_operation))
+    assert ("Literal[value:'2', Name.INTEGER, Precision.SINGLE]\n"
+            in str(nary_operation))
+    assert ("Literal[value:'3', Name.INTEGER, Precision.SINGLE]"
+            in str(nary_operation))
 
 
 def test_naryoperation_create():
@@ -255,9 +262,9 @@ def test_naryoperation_create():
     creates an NaryOperation instance.
 
     '''
-    children = [Reference(DataSymbol("tmp1", DataType.REAL)),
-                Reference(DataSymbol("tmp2", DataType.REAL)),
-                Reference(DataSymbol("tmp3", DataType.REAL))]
+    children = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
     oper = NaryOperation.Operator.MAX
     naryoperation = NaryOperation.create(oper, children)
     check_links(naryoperation, children)
@@ -287,7 +294,7 @@ def test_naryoperation_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(NaryOperation.Operator.SUM,
                                  [Reference(DataSymbol(
-                                     "tmp1", DataType.REAL)), "invalid"])
+                                     "tmp1", REAL_SINGLE_TYPE)), "invalid"])
     assert (
         "child of children argument in create method of NaryOperation class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))

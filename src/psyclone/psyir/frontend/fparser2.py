@@ -50,7 +50,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, ScalarType, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
+    DataType, ScalarType, ArrayType, DeferredType, REAL_SINGLE_TYPE, \
+    INTEGER_SINGLE_TYPE
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -762,10 +763,10 @@ class Fparser2Reader(object):
                 for idx, extent in enumerate(entity_shape):
                     if extent is None:
                         if allocatable:
-                            entity_shape[idx] = DataSymbol.Extent.DEFERRED
+                            entity_shape[idx] = ArrayType.Extent.DEFERRED
                         else:
-                            entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
-                    elif not isinstance(extent, DataSymbol.Extent) and \
+                            entity_shape[idx] = ArrayType.Extent.ATTRIBUTE
+                    elif not isinstance(extent, ArrayType.Extent) and \
                             allocatable:
                         # We have an allocatable array with a defined extent.
                         # This is invalid Fortran.
@@ -979,21 +980,22 @@ class Fparser2Reader(object):
         lower_name = name.lower()
         try:
             kind_symbol = symbol_table.lookup(lower_name)
-            if kind_symbol.datatype not in [DataType.INTEGER,
-                                            DataType.DEFERRED]:
+            if not (isinstance(kind_symbol.datatype, DeferredType) or
+                    (isinstance(kind_symbol.datatype, ScalarType) and 
+                     kind_symbol.datatype.name == ScalarType.Name.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
-                    "variable '{0}' used as a kind parameter but its "
-                    "type ('{1}') is not 'deferred' or 'integer'.".
+                    "variable '{0}' used as a kind parameter but it "
+                    "is not a 'deferred' or 'scalar integer' type.".
                     format(lower_name, kind_symbol.datatype))
             # A KIND parameter must be of type integer so set it here (in case
             # it was previously 'deferred')
-            kind_symbol.datatype = DataType.INTEGER
+            kind_symbol.datatype.name = ScalarType.Name.INTEGER
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, DataType.INTEGER,
+            kind_symbol = DataSymbol(lower_name, INTEGER_SINGLE_TYPE,
                                      interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol

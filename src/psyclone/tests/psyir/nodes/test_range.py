@@ -37,7 +37,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
+    DataSymbol, INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
 from psyclone.psyir.nodes import Range, Literal, Reference, Node
 from psyclone.psyGen import InternalError
 
@@ -87,8 +88,8 @@ def test_range_init(parser):
 def test_range_create():
     ''' Check that the Range.create() method behaves as intended. '''
     parent = Node()
-    start = Literal("1", DataType.INTEGER)
-    stop = Literal("10", DataType.INTEGER)
+    start = Literal("1", INTEGER_SINGLE_TYPE)
+    stop = Literal("10", INTEGER_SINGLE_TYPE)
     # No parent and no step
     erange = Range.create(start, stop)
     assert erange.children[0] is start
@@ -99,7 +100,7 @@ def test_range_create():
     assert erange2.parent is parent
     assert erange2.children[2].value == "1"
     # Parent and step supplied
-    erange3 = Range.create(start, stop, step=Literal("5", DataType.INTEGER),
+    erange3 = Range.create(start, stop, step=Literal("5", INTEGER_SINGLE_TYPE),
                            parent=parent)
     assert erange3.parent is parent
     assert erange3.children[2].value == "5"
@@ -116,27 +117,28 @@ def test_range_setter_errors(prop):
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = 1")
     assert "must be a sub-class of Node but got" in str(err.value)
-    val = Literal("1.0", DataType.REAL)
+    val = Literal("1.0", REAL_SINGLE_TYPE)
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = val")
     assert ("value of a Range is a Literal then it must be of type "
-            "INTEGER but got DataType.REAL" in str(err.value))
+            "INTEGER but got Name.REAL, Precision.SINGLE" in str(err.value))
 
 
 def test_range_literals_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are Literals. '''
-    start = Literal("10", DataType.INTEGER)
-    stop = Literal("20", DataType.INTEGER)
+    start = Literal("10", INTEGER_SINGLE_TYPE)
+    stop = Literal("20", INTEGER_SINGLE_TYPE)
     erange = Range.create(start, stop)
     assert erange.children[0] is start
     assert erange.children[1] is stop
     # We didn't supply an increment so check that one was created
     assert isinstance(erange.children[2], Literal)
-    assert erange.children[2].datatype == DataType.INTEGER
+    assert erange.children[2].datatype.name == ScalarType.Name.INTEGER
+    assert erange.children[2].datatype.precision == ScalarType.Precision.SINGLE
     assert erange.children[2].value == "1"
     # Create another one with a specified step
-    erange2 = Range.create(start, stop, Literal("5", DataType.INTEGER))
+    erange2 = Range.create(start, stop, Literal("5", INTEGER_SINGLE_TYPE))
     assert erange2.children[0] is start
     assert erange2.children[1] is stop
     assert erange2.step.value == "5"
@@ -149,18 +151,18 @@ def test_range_references_props():
     from psyclone.psyir.nodes import BinaryOperation
     sched = KernelSchedule("test_sched")
     sym_table = sched.symbol_table
-    start_symbol = DataSymbol("istart", DataType.INTEGER)
-    stop_symbol = DataSymbol("istop", DataType.INTEGER)
-    step_symbol = DataSymbol("istep", DataType.INTEGER)
+    start_symbol = DataSymbol("istart", INTEGER_SINGLE_TYPE)
+    stop_symbol = DataSymbol("istop", INTEGER_SINGLE_TYPE)
+    step_symbol = DataSymbol("istep", INTEGER_SINGLE_TYPE)
     sym_table.add(start_symbol)
     sym_table.add(stop_symbol)
     sym_table.add(step_symbol)
     startvar = Reference(start_symbol)
     stopvar = Reference(stop_symbol)
     start = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                   startvar, Literal("1", DataType.INTEGER))
+                                   startvar, Literal("1", INTEGER_SINGLE_TYPE))
     stop = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                  stopvar, Literal("1", DataType.INTEGER))
+                                  stopvar, Literal("1", INTEGER_SINGLE_TYPE))
     step = Reference(step_symbol)
     erange = Range.create(start, stop, step)
     assert erange.start is start
@@ -177,8 +179,8 @@ def test_range_str():
     with pytest.raises(InternalError) as err:
         str(erange)
     assert "Malformed Range: all children must be sub-" in str(err.value)
-    erange2 = Range.create(Literal("1", DataType.INTEGER),
-                           Literal("10", DataType.INTEGER))
+    erange2 = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
+                           Literal("10", INTEGER_SINGLE_TYPE))
     assert 'Range[]' in erange2.node_str(colour=False)
     assert 'Range' in erange2.node_str(colour=True)
     assert erange2.node_str(colour=False) == str(erange2)
@@ -190,10 +192,11 @@ def test_range_view(capsys):
     from psyclone.psyir.nodes import Array
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     # Create the PSyIR for 'my_array(1, 1:10)'
-    erange = Range.create(Literal("1", DataType.INTEGER),
-                          Literal("10", DataType.INTEGER))
-    array = Array.create(DataSymbol("my_array", DataType.REAL, [10, 10]),
-                         [Literal("1", DataType.INTEGER),
+    erange = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
+                          Literal("10", INTEGER_SINGLE_TYPE))
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10])
+    array = Array.create(DataSymbol("my_array", array_type),
+                         [Literal("1", INTEGER_SINGLE_TYPE),
                           erange])
     array.view()
     stdout, _ = capsys.readouterr()
@@ -204,8 +207,12 @@ def test_range_view(capsys):
     rangestr = colored("Range", SCHEDULE_COLOUR_MAP[erange._colour_key])
     indent = "    "
     assert (arrayref + "[name:'my_array']\n" +
-            indent + literal + "[value:'1', DataType.INTEGER]\n" +
+            indent + literal +
+            "[value:'1', Name.INTEGER, Precision.SINGLE]\n" +
             indent + rangestr + "[]\n" +
-            2*indent + literal + "[value:'1', DataType.INTEGER]\n" +
-            2*indent + literal + "[value:'10', DataType.INTEGER]\n" +
-            2*indent + literal + "[value:'1', DataType.INTEGER]\n" in stdout)
+            2*indent + literal +
+            "[value:'1', Name.INTEGER, Precision.SINGLE]\n" +
+            2*indent + literal +
+            "[value:'10', Name.INTEGER, Precision.SINGLE]\n" +
+            2*indent + literal +
+            "[value:'1', Name.INTEGER, Precision.SINGLE]\n" in stdout)
