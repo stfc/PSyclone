@@ -354,28 +354,32 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: PSyIR container representing the given module_ast.
+        :returns: PSyIR container representing the given module_ast or None \
+                  if there's no module in the parse tree.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: unable to generate a Container from the \
                                  provided fpaser2 parse tree.
         '''
-        # Assume just 1 Fortran module definition in the file
-        if len(module_ast.content) > 1:
+        # Assume just 1 or 0 Fortran module definitions in the file
+        modules = walk(module_ast, Fortran2003.Module_Stmt)
+        if len(modules) > 1:
             raise GenerationError(
                 "Could not process {0}. Just one module definition per file "
                 "supported.".format(str(module_ast)))
+        if not modules:
+            return None
 
-        module = module_ast.content[0]
-        mod_content = module.content
-        mod_name = str(mod_content[0].items[1])
+        module = modules[0].parent
+        mod_name = str(modules[0].children[1])
 
         # Create a container to capture the module information
         new_container = Container(mod_name)
 
         # Parse the declarations if it has any
-        if isinstance(mod_content[1], Fortran2003.Specification_Part):
-            decl_list = mod_content[1].content
+        spec_part = walk(module, Fortran2003.Specification_Part)
+        if spec_part:
+            decl_list = spec_part[0].content
             self.process_declarations(new_container, decl_list, [])
 
         return new_container
@@ -424,41 +428,33 @@ class Fparser2Reader(object):
 
         new_schedule = self._create_schedule(name, invoke)
 
-        try:
-            if isinstance(module_ast, Fortran2003.Module) or \
-                   (isinstance(module_ast, Fortran2003.Program) and
-                    isinstance(module_ast.content[0], Fortran2003.Module)):
-                # We have a module so create a Container
-                new_container = self.generate_container(module_ast)
-                new_schedule.parent = new_container
-                new_container.children.append(new_schedule)
-                # Now find the named subroutine
-                mod_content = module_ast.content[0].content
-                subroutines = first_type_match(
-                    mod_content, Fortran2003.Module_Subprogram_Part)
-                subroutine = search_subroutine(subroutines.content, name)
-            elif isinstance(module_ast, (Fortran2003.Subroutine_Subprogram,
-                                         Fortran2003.Main_Program)):
-                if str(module_ast.content[0].get_name()) != name:
-                    raise ValueError("ARPDBG")
-                subroutine = module_ast
-            elif isinstance(module_ast, Fortran2003.Function_Subprogram):
+        routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
+                                     Fortran2003.Main_Program,
+                                     Fortran2003.Function_Subprogram))
+        for routine in routines:
+            if isinstance(routine, Fortran2003.Function_Subprogram):
                 # TODO fparser/#225 Function_Stmt does not have a get_name()
-                # method. Once it does we can remove this branch and handle
-                # it in the one above.
-                routine_name = module_ast.content[0].items[1]
-                if str(routine_name) != name:
-                    raise ValueError("ARPDBG2")
-                subroutine = module_ast
+                # method. Once it does we can remove this branch.
+                routine_name = str(routine.children[0].children[1])
             else:
-                raise NotImplementedError(
-                    "Expected either Fortran2003.Module, Program, "
-                    "Main_Program or "
-                    "Subroutine_Subprogram but got: {0}".format(
-                        type(module_ast).__name__))
-        except (ValueError, IndexError):
+                routine_name = str(routine.children[0].get_name())
+            if routine_name == name:
+                subroutine = routine
+                break
+        else:
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
+
+        # Is the routine enclosed within a module?
+        current = routine.parent
+        while current:
+            if isinstance(current, Fortran2003.Module):
+                # We have a parent module so create a Container
+                new_container = self.generate_container(current)
+                new_schedule.parent = new_container
+                new_container.children.append(new_schedule)
+                break
+            current = current.parent
 
         # Set pointer from schedule into fparser2 tree
         # TODO #435 remove this line once fparser2 tree not needed
@@ -1718,8 +1714,7 @@ class Fparser2Reader(object):
             # because the code doesn't use explicit array syntax. At least one
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
-            # TODO #500 remove this check once the SymbolTable is working for
-            # the NEMO API.
+            # TODO #717. Look-up the shape of the array in the SymbolTable.
             raise NotImplementedError("Only WHERE constructs using explicit "
                                       "array notation (e.g. my_array(:, :)) "
                                       "are supported.")
@@ -1733,31 +1728,31 @@ class Fparser2Reader(object):
         # Create a set of all of the symbol names in the fparser2 parse
         # tree so that we can find any clashes. We go as far back up the tree
         # as we can before searching for all instances of Fortran2003.Name.
-        # TODO #500 - replace this by using the SymbolTable instead.
-        # pylint: disable=protected-access
+        # We can't just rely on looking in our symbol tables because there
+        # may be CodeBlocks that access symbols that are e.g. imported from
+        # modules without being explicitly named.
         name_list = walk(node.get_root(), Fortran2003.Name)
         all_names = {str(name) for name in name_list}
-        # pylint: enable=protected-access
 
-        # find the first symbol table attached to an ancestor
-        symbol_table = _get_symbol_table(parent)
+        # To ensure consistency we always add new symbols to the highest-level
+        # symbol table.
+        symbol_table = parent.root.symbol_table
 
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
-            # TODO #500 we should be using the SymbolTable for the new loop
-            # variable but that doesn't currently work for NEMO. As part of
-            # #500 we should handle clashes gracefully rather than
-            # simply aborting.
-            loop_vars[idx-1] = "widx{0}".format(idx)
-            if loop_vars[idx-1] in all_names:
-                raise InternalError(
-                    "Cannot create Loop with variable '{0}' because code "
-                    "already contains a symbol with that name.".format(
-                        loop_vars[idx-1]))
-            if symbol_table:
-                symbol_table.add(DataSymbol(loop_vars[idx-1],
-                                            DataType.INTEGER))
+
+            loop_var = symbol_table.new_symbol_name(
+                "widx{0}".format(idx))
+            # Ensure there's no clash with the list of names we obtained
+            # from the parse tree.
+            count = 0
+            while loop_var in all_names:
+                loop_var += "_{0}".format(count)
+            loop_vars[idx-1] = loop_var
+
+            symbol_table.add(DataSymbol(loop_vars[idx-1], DataType.INTEGER))
+
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.

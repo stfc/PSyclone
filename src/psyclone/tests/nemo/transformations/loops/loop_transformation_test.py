@@ -50,8 +50,6 @@ from psyclone import nemo
 API = "nemo"
 
 
-@pytest.mark.xfail(reason="New loop Symbols not added to SymbolTable. To "
-                   "be replaced as part of #412.")
 def test_implicit_loop_trans():
     ''' Check that we get the correct schedule when we apply the explicit
     loop transformation to an implicit loop. '''

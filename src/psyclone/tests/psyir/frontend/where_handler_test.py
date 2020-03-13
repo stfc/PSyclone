@@ -181,14 +181,26 @@ def test_array_notation_rank():
 def test_where_symbol_clash(parser):
     ''' Check that we raise the expected error if the code we are processing
     already contains a symbol with the same name as one of the loop variables
-    we want to introduce. TODO #500 - update this test once we're using the
-    SymbolTable to manage symbol names.
+    we want to introduce.
     '''
-    with pytest.raises(InternalError) as err:
-        process_where("WHERE (widx1(:, :, :))\n"
-                      "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                      "END WHERE\n", Fortran2003.Where_Construct)
-    assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
+    from psyclone.psyir.symbols import DataSymbol, DataType
+    reader = FortranStringReader("SUBROUTINE widx_array()\n"
+                                 "LOGICAL :: widx1(3,3,3)\n"
+                                 "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
+                                 "WHERE (widx1(:, :, :))\n"
+                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+                                 "END WHERE\n"
+                                 "END SUBROUTINE widx_array\n")
+    fparser2spec = parser(reader)
+    processor = Fparser2Reader()
+    sched = processor.generate_schedule("widx_array", fparser2spec)
+    var = sched.symbol_table.lookup("widx1")
+    assert isinstance(var, DataSymbol)
+    assert var.datatype is DataType.BOOLEAN
+    # Check that we have a new symbol for the loop variable
+    loop_var = sched.symbol_table.lookup("widx1_0")
+    assert loop_var.datatype is DataType.INTEGER
+
     reader = FortranStringReader("module my_test\n"
                                  "implicit none\n"
                                  "integer :: dummy\n"
@@ -204,9 +216,15 @@ def test_where_symbol_clash(parser):
                                  "end module my_test\n")
     fparser2spec = parser(reader)
     processor = Fparser2Reader()
-    with pytest.raises(InternalError) as err:
-        processor.generate_schedule("widx1", fparser2spec)
-    assert "Cannot create Loop with variable 'widx1' because" in str(err.value)
+    sched = processor.generate_schedule("widx1", fparser2spec)
+    # Get the container symbol table
+    sym_table = sched.parent.symbol_table
+    loop_var = sym_table.lookup("widx1_0")
+    assert loop_var.datatype is DataType.INTEGER
+    loop_var = sym_table.lookup("widx2")
+    assert loop_var.datatype is DataType.INTEGER
+    loop_var = sym_table.lookup("widx3")
+    assert loop_var.datatype is DataType.INTEGER
 
 
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
@@ -343,29 +361,3 @@ def test_where_ordering():
     assert isinstance(fake_parent[1], Loop)
     assert isinstance(fake_parent[2], CodeBlock)
     assert isinstance(fake_parent[3], Loop)
-
-
-def test_where_with_symboltable(f2008_parser):
-    '''Tests that the code works as expected when the PSyIR has a symbol
-    table.
-
-    '''
-    reader = FortranStringReader(
-        "module my_test\n"
-        "contains\n"
-        "subroutine my_sub()\n"
-        "  logical, dimension(5,5) :: mask\n"
-        "  real, dimension(5,5) :: value\n"
-        "  where (mask(:,:))\n"
-        "    value(:,:) = 0.0\n"
-        "  end where\n"
-        "end subroutine my_sub\n"
-        "end module my_test\n")
-    fparser2spec = f2008_parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("my_sub", fparser2spec)
-    # Check that the temporary variables are stored in the symbol
-    # table.
-    symbol_table = result.symbol_table
-    assert symbol_table.lookup("widx1")
-    assert symbol_table.lookup("widx2")

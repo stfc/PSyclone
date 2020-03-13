@@ -79,7 +79,7 @@ class NemoAbsTrans(NemoOperatorTrans):
         self._classes = (UnaryOperation,)
         self._operators = (UnaryOperation.Operator.ABS,)
 
-    def apply(self, node, symbol_table, options=None):
+    def apply(self, node, options=None):
         '''Apply the ABS intrinsic conversion transformation to the specified
         node. This node must be an ABS UnaryOperation. The ABS
         UnaryOperation is converted to equivalent inline code. This is
@@ -103,20 +103,12 @@ class NemoAbsTrans(NemoOperatorTrans):
         where ``X`` could be an arbitrarily complex PSyIR expression
         and ``...`` could be arbitrary PSyIR code.
 
-        A symbol table is required as the NEMO api does not currently
-        contain a symbol table and one is required in order to create
-        temporary variables whose names do not clash with existing
-        code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO api.
-
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
 
         :param node: an ABS UnaryOperation node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
-        :param symbol_table: the symbol table.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -125,10 +117,11 @@ class NemoAbsTrans(NemoOperatorTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, symbol_table)
+        self.validate(node)
 
         schedule = node.root
-        memento = Memento(schedule, self, [node, symbol_table])
+        symbol_table = schedule.symbol_table
+        memento = Memento(schedule, self, [node])
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)

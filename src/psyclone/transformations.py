@@ -3642,6 +3642,7 @@ class NemoExplicitLoopTrans(Transformation):
         from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
+        from psyclone.psyir.symbols import DataSymbol, DataType
 
         self.validate(loop, options)
 
@@ -3678,27 +3679,25 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # Get a reference to the Invoke to which this loop belongs
-        invoke = loop.root.invoke
-        nsm = invoke._name_space_manager
+        # Get a reference to the highest-level symbol table
+        symbol_table = loop.root.symbol_table
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
-                                   label=base_name)
+        # TODO we need a tag associated with this symbol so that we
+        # can properly avoid clashes with existing variables.
+        # loop_var = symbol_table.new_symbol_name(base_name)
+        loop_var = base_name
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
-        name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #255 we need some sort of type/declarations table to check that
-        # we don't already have a declaration for a variable of this name.
-        # For the moment we keep a list of variables we have created in
-        # Invoke._loop_vars.
-        if loop._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(loop_var)
+
+        if loop_var not in symbol_table:
+            symbol_table.add(DataSymbol(loop_var, DataType.INTEGER))
+
             prog_unit = loop.ast.get_root()
             spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
             if not spec_list:
@@ -3719,6 +3718,8 @@ class NemoExplicitLoopTrans(Transformation):
                     FortranStringReader("integer :: {0}".format(loop_var)))
                 decln.parent = spec
                 spec.content.append(decln)
+
+        name = Fortran2003.Name(FortranStringReader(loop_var))
 
         # Modify the line containing the implicit do by replacing every
         # occurrence of the outermost ':' with the new loop variable name.
@@ -3772,7 +3773,6 @@ class NemoExplicitLoopTrans(Transformation):
         astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
-        loop = None
         # Return the new NemoLoop object that we have created
         return psyir_parent.children[0], keep
 

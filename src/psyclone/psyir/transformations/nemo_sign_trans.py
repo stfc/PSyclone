@@ -81,7 +81,7 @@ class NemoSignTrans(NemoOperatorTrans):
         self._classes = (BinaryOperation,)
         self._operators = (BinaryOperation.Operator.SIGN,)
 
-    def apply(self, node, symbol_table, options=None):
+    def apply(self, node, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified
         node. This node must be a SIGN BinaryOperation. The SIGN
         BinaryOperation is converted to equivalent inline code. This
@@ -111,12 +111,6 @@ class NemoSignTrans(NemoOperatorTrans):
         ``ABS`` has been replaced with inline code by the NemoAbsTrans
         transformation.
 
-        A symbol table is required as the NEMO API does not currently
-        contain a symbol table and one is required in order to create
-        temporary variables whose names do not clash with existing
-        code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO API.
-
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
@@ -133,10 +127,11 @@ class NemoSignTrans(NemoOperatorTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, symbol_table)
+        self.validate(node)
 
         schedule = node.root
-        memento = Memento(schedule, self, [node, symbol_table])
+        symbol_table = schedule.symbol_table
+        memento = Memento(schedule, self, [node])
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
