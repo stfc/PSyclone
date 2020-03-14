@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
@@ -42,7 +42,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError
+from psyclone.psyir.symbols import ContainerSymbol, SymbolError, \
+    INTEGER_SINGLE_TYPE
 from psyclone.psyGen import KernelSchedule, GenerationError
 
 
@@ -238,7 +239,7 @@ def test_use_local_symbol_error():
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.
-    fake_parent.symbol_table.add(DataSymbol("fred", DataType.INTEGER,
+    fake_parent.symbol_table.add(DataSymbol("fred", INTEGER_SINGLE_TYPE,
                                             interface=LocalInterface()))
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: fred\n")

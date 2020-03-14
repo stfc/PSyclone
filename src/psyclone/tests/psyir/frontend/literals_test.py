@@ -42,15 +42,15 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, ScalarType
 from psyclone.psyir.nodes import Node, Literal, CodeBlock
 
 
-@pytest.mark.parametrize("code, dtype", [("'hello'", DataType.CHARACTER),
-                                         ("1", DataType.INTEGER),
-                                         ("1.0", DataType.REAL),
-                                         (".tRue.", DataType.BOOLEAN),
-                                         (".false.", DataType.BOOLEAN)])
+@pytest.mark.parametrize("code, dtype", [("'hello'", ScalarType.Name.CHARACTER),
+                                         ("1", ScalarType.Name.INTEGER),
+                                         ("1.0", ScalarType.Name.REAL),
+                                         (".tRue.", ScalarType.Name.BOOLEAN),
+                                         (".false.", ScalarType.Name.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
@@ -64,8 +64,8 @@ def test_handling_literal(code, dtype):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype == dtype
-    if dtype != DataType.BOOLEAN:
+    assert literal.datatype.name == dtype
+    if dtype != ScalarType.Name.BOOLEAN:
         assert literal.value == code
     else:
         assert literal.value == code.lower()[1:-1]  # Remove wrapping dots

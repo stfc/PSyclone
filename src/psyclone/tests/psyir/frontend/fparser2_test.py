@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Node, Schedule, \
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError, DataType
+    ArgumentInterface, SymbolError, DataType, ScalarType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, _get_symbol_table
 
 
@@ -320,25 +320,32 @@ def test_process_declarations(f2008_parser):
     reader = FortranStringReader("integer :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l1").name == 'l1'
-    assert fake_parent.symbol_table.lookup("l1").datatype == DataType.INTEGER
-    assert fake_parent.symbol_table.lookup("l1").shape == []
-    assert fake_parent.symbol_table.lookup("l1").is_local
-    assert not fake_parent.symbol_table.lookup("l1").precision
+    l1_var = fake_parent.symbol_table.lookup("l1")
+    assert l1_var.name == 'l1'
+    assert isinstance(l1_var.datatype, ScalarType)
+    assert l1_var.datatype.name == ScalarType.Name.INTEGER
+    assert l1_var.datatype.precision == ScalarType.Precision.SINGLE
+    assert l1_var.is_local
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l2").name == "l2"
-    assert fake_parent.symbol_table.lookup("l2").datatype == DataType.REAL
-    assert not fake_parent.symbol_table.lookup("l2").precision
+    l2_var = fake_parent.symbol_table.lookup("l2")
+    assert l2_var.name == "l2"
+    assert isinstance(l2_var.datatype, ScalarType)
+    assert l2_var.datatype.name == ScalarType.Name.REAL
+    assert l2_var.datatype.precision == ScalarType.Precision.SINGLE
+    assert l2_var.is_local
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("b").name == "b"
-    assert fake_parent.symbol_table.lookup("b").datatype == DataType.BOOLEAN
-    assert not fake_parent.symbol_table.lookup("b").precision
+    b_var = fake_parent.symbol_table.lookup("b")
+    assert b_var.name == "b"
+    assert isinstance(b_var.datatype, ScalarType)
+    assert b_var.datatype.name == ScalarType.Name.BOOLEAN
+    assert b_var.datatype.precision == ScalarType.Precision.SINGLE
+    assert b_var.is_local
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -422,10 +429,12 @@ def test_process_array_declarations():
     reader = FortranStringReader("integer :: l3(l1)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
-    assert fake_parent.symbol_table.lookup("l3").datatype == DataType.INTEGER
-    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
-    assert not fake_parent.symbol_table.lookup("l3").precision
+    l3_var = fake_parent.symbol_table.lookup("l3")
+    assert l3_var.name == 'l3'
+    assert isinstance(l3_var.datatype, ArrayType)
+    assert l3_var.datatype.name == ScalarType.Name.INTEGER
+    assert len(l3_var.datatype.shape) == 1
+    assert l3_var.datatype.precision == ScalarType.Precision.SINGLE
 
     reader = FortranStringReader("integer :: l4(l1, 2)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -684,13 +693,13 @@ def test_wrong_type_kind_param():
 
 
 @pytest.mark.parametrize("vartype, kind, precision",
-                         [("real", "1.0d0", DataSymbol.Precision.DOUBLE),
-                          ("real", "1.0D7", DataSymbol.Precision.DOUBLE),
+                         [("real", "1.0d0", ScalarType.Precision.DOUBLE),
+                          ("real", "1.0D7", ScalarType.Precision.DOUBLE),
                           ("real", "1_t_def", None),
-                          ("real", "1.0", DataSymbol.Precision.SINGLE),
-                          ("real", "1.0E3", DataSymbol.Precision.SINGLE),
+                          ("real", "1.0", ScalarType.Precision.SINGLE),
+                          ("real", "1.0E3", ScalarType.Precision.SINGLE),
                           # 32-bit integer
-                          ("integer", "1", DataSymbol.Precision.SINGLE),
+                          ("integer", "1", ScalarType.Precision.SINGLE),
                           # 64-bit integer
                           ("integer", str(1 << 31 + 4)+"_t_def", None)])
 @pytest.mark.usefixtures("f2008_parser")

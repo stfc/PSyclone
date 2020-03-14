@@ -517,13 +517,14 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if sym.datatype != DataType.INTEGER or sym.shape:
+                        if (sym.datatype.name != ScalarType.Name.INTEGER or
+                                isintance(sym.datatype, ArrayType)):
                             _unsupported_type_error(dimensions)
                     except KeyError:
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't
                         # currently know where it is declared).
-                        sym = DataSymbol(dim_name, DataType.INTEGER,
+                        sym = DataSymbol(dim_name, INTEGER_SINGLE_TYPE,
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
                     shape.append(sym)
@@ -613,7 +614,7 @@ class Fparser2Reader(object):
                     if sym_name not in parent.symbol_table:
                         parent.symbol_table.add(
                             DataSymbol(sym_name,
-                                       datatype=DataType.DEFERRED,
+                                       DeferredType(),
                                        interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
@@ -2062,7 +2063,7 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is. Remove this code when issue #500 is
             # addressed.
-            symbol = DataSymbol(node.string, DataType.REAL)
+            symbol = DataSymbol(node.string, REAL_SINGLE_TYPE)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2113,7 +2114,7 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is.  Remove this code when issue #500 is
             # addressed.
-            symbol = DataSymbol(reference_name, DataType.REAL)
+            symbol = DataSymbol(reference_name, REAL_SINGLE_TYPE)
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
