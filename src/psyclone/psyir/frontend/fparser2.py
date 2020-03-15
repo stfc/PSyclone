@@ -126,7 +126,7 @@ def _check_args(array, dim):
     if dim > len(array.children):
         raise ValueError(
             "method _check_args 'dim' argument should be at "
-            "most the number of dimensions of the array '{0}' but found "
+            "most the number of dimensions of the array ({0}) but found "
             "{1}.".format(len(array.children), dim))
 
     # The first child of the array (index 0) relates to the first

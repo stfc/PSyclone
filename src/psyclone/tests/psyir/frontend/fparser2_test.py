@@ -120,7 +120,7 @@ def test_check_args():
     with pytest.raises(ValueError) as excinfo:
         _check_args(array_reference, 2)
     assert ("'dim' argument should be at most the number of dimensions of "
-            "the array '1' but found 2." in str(excinfo.value))
+            "the array (1) but found 2." in str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(array_reference, 1)
