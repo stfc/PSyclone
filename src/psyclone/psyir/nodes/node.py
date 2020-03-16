@@ -985,14 +985,8 @@ class Node(object):
                 # nothing has matched.
                 break
 
-            if test_node.parent is None and hasattr(test_node, "invoke") \
-               and test_node.invoke.invokes.container:
-                # We've reached the top of the InvokeSchedule without finding
-                # a match - check the associated Container.
-                test_node = test_node.invoke.invokes.container
-            else:
-                # Move on to the next ancestor.
-                test_node = test_node.parent
+            # Move on to the next ancestor.
+            test_node = test_node.parent
 
         if possible_containers:
             # No symbol found but there are one or more Containers from which

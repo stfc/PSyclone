@@ -618,9 +618,9 @@ def test_find_or_create_symbol():
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new
     symbols when appropriate. '''
-    from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
+    from psyclone.psyir.symbols import SymbolTable, DataType, \
         ContainerSymbol, UnresolvedInterface
-    from psyclone.psyir.nodes import Reference, Assignment, Literal
+    from psyclone.psyir.nodes import Assignment, Literal
     from psyclone.psyGen import KernelSchedule
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
@@ -652,3 +652,23 @@ def test_find_or_create_new_symbol():
     assert new_symbol.datatype == DataType.DEFERRED
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
+
+
+def test_nemo_find_container_symbol(parser):
+    ''' Check that find_or_create_symbol() works for the NEMO API when the
+    searched-for symbol is declared in the parent module. '''
+    from fparser.common.readfortran import FortranFileReader
+    from psyclone.psyir.nodes import BinaryOperation
+    from psyclone.psyir.symbols import DataType
+    reader = FortranFileReader(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))),
+            "test_files", "gocean1p0", "kernel_with_global_mod.f90"))
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    # Get a node from the schedule
+    bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
+    # Use it as the starting point for the search
+    symbol = bops[0].find_or_create_symbol("alpha")
+    assert symbol.datatype == DataType.REAL

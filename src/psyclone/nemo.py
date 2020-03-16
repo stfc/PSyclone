@@ -153,10 +153,9 @@ class NemoInvoke(Invoke):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Module`
     :param str name: the name of this Invoke (program unit).
-    ARPDBG
-    :param container: reference to the parent Container of this Invoke \
-                      (if any).
-    :type container: :py:class:`psyclone.psyGen.Container` or NoneType
+    :param invokes: the Invokes object that holds this Invoke.
+    :type invokes: :py:class:`psyclone.psyGen.NemoInvokes`
+
     '''
     def __init__(self, ast, name, invokes):
         # pylint: disable=super-init-not-called
@@ -165,10 +164,6 @@ class NemoInvoke(Invoke):
         self._name = name
         # Store the whole fparser2 AST
         self._ast = ast
-        # A temporary workaround for the fact that we don't yet have a
-        # symbol table to store information on the variable declarations.
-        # TODO (#255) remove this workaround.
-        self._loop_vars = []
         self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
