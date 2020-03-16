@@ -144,6 +144,12 @@ class UnaryOperation(Operation):
         super(UnaryOperation, self).__init__(operation, parent)
         self._text_name = "UnaryOperation"
 
+    _children_valid_format = "DataNode"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return possition == 0 and isinstance(child, DataNode)
+
     @staticmethod
     def create(oper, child):
         '''Create a UnaryOperation instance given oper and child instances.
@@ -253,6 +259,12 @@ class BinaryOperation(Operation):
         super(BinaryOperation, self).__init__(operator, parent)
         self._text_name = "BinaryOperation"
 
+    _children_valid_format = "DataNode, DataNode"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return possition in (0,1) and isinstance(child, DataNode)
+
     def math_equal(self, other):
         ''':param other: the node to compare self with.
         :type other: py:class:`psyclone.psyir.nodes.Node`
@@ -339,6 +351,12 @@ class NaryOperation(Operation):
     def __init__(self, operator, parent=None):
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
+
+    _children_valid_format = "DataNode, DataNode, +[DataNode]"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return isinstance(child, DataNode)
 
     @staticmethod
     def create(oper, children):

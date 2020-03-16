@@ -42,6 +42,7 @@ nodes.'''
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol
 from psyclone.errors import GenerationError
@@ -65,6 +66,12 @@ class Reference(DataNode):
                             "but found '{0}'.".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
+
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
 
     @property
     def symbol(self):
@@ -137,6 +144,12 @@ class Array(Reference):
         super(Array, self).__init__(symbol, parent=parent)
         self._text_name = "ArrayReference"
         self._colour_key = "Reference"
+
+    _children_valid_format = "+[DataNode | Range]"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return isinstance(child, (DataNode, Range))
 
     @staticmethod
     def create(symbol, children):

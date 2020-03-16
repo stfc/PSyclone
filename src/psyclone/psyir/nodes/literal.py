@@ -92,6 +92,12 @@ class Literal(DataNode):
         self._datatype = datatype
         self._value = value
 
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
+
     @property
     def datatype(self):
         '''
