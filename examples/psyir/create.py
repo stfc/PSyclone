@@ -49,7 +49,7 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container
+    Container, Range, Array
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ArgumentInterface, DataType, GlobalInterface
@@ -68,6 +68,11 @@ SYMBOL_TABLE.add(TMP_SYMBOL)
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
 SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, DataType.INTEGER))
 SYMBOL_TABLE.specify_argument_list([ARG1])
+
+# Create an array
+ARRAY_NAME = SYMBOL_TABLE.new_symbol_name(root_name="a")
+ARRAY = DataSymbol(ARRAY_NAME, DataType.REAL, shape=[10])
+SYMBOL_TABLE.add(ARRAY)
 
 # Nodes which do not have Nodes as children
 ZERO = Literal("0.0", DataType.REAL)
@@ -89,12 +94,23 @@ BINARYOPERATION = BinaryOperation.create(OPER, ONE, UNARYOPERATION)
 OPER = NaryOperation.Operator.MAX
 NARYOPERATION = NaryOperation.create(OPER, [TMP1, TMP2, ONE])
 
+# Array reference using a range
+LBOUND = BinaryOperation.create(
+    BinaryOperation.Operator.LBOUND,
+    Reference(ARRAY), INT_ONE)
+UBOUND = BinaryOperation.create(
+    BinaryOperation.Operator.UBOUND,
+    Reference(ARRAY), INT_ONE)
+MY_RANGE = Range.create(LBOUND, UBOUND)
+TMPARRAY = Array.create(ARRAY, [MY_RANGE])
+
 # Assignments
 ASSIGN1 = Assignment.create(TMP1, ZERO)
 ASSIGN2 = Assignment.create(TMP2, ZERO)
 ASSIGN3 = Assignment.create(TMP2, BINARYOPERATION)
 ASSIGN4 = Assignment.create(TMP1, TMP2)
 ASSIGN5 = Assignment.create(TMP1, NARYOPERATION)
+ASSIGN6 = Assignment.create(TMPARRAY, ZERO)
 
 # If statement
 IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
@@ -105,7 +121,7 @@ LOOP = Loop.create(INDEX_NAME, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE,
-                                        [ASSIGN2, LOOP, ASSIGN5])
+                                        [ASSIGN2, LOOP, ASSIGN5, ASSIGN6])
 
 # Container
 CONTAINER_SYMBOL_TABLE = SymbolTable()
