@@ -99,11 +99,11 @@ class ChildrenList(list):
     def __init__(self, validation_function, validation_text):
         self._validation_function = validation_function
         self._validation_text = validation_text
-        super().__init__()
+        super(ChildrenList, self).__init__()
 
     def __setitem__(self, index, item):
         if self._validation_function(index, item):
-            super().__setitem__(index, item)
+            super(ChildrenList, self).__setitem__(index, item)
         else:
             raise KeyError()
 
