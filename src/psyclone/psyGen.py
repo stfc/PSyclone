@@ -285,7 +285,7 @@ class PSy(object):
 
 
 class Invokes(object):
-    '''Manage the invoke calls
+    '''Manage the invoke calls.
 
     :param alg_calls: a list of invoke metadata extracted by the \
         parser.
@@ -299,7 +299,6 @@ class Invokes(object):
     '''
     def __init__(self, alg_calls, invoke_cls, psy):
         self._psy = psy
-        self._container = None
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
@@ -309,17 +308,6 @@ class Invokes(object):
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
-
-    @property
-    def container(self):
-        '''
-        :returns: the Container representing the parent program unit \
-                  containing the various invokes represented by this Invokes \
-                  object.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
-
-        '''
-        return self._container
 
     @property
     def psy(self):
@@ -1275,12 +1263,6 @@ class Directive(Node):
             if data_movement == "analyse":
                 # Identify the inputs and outputs to the region (variables that
                 # are read and written).
-                var_info = VariablesAccessInfo()
-                self.reference_accesses(var_info)
-                for var in var_info.all_vars:
-                    print(var)
-                # TODO replace/reimplement get_inputs_outputs with
-                # VariablesAccessInfo
                 processor = Fparser2Reader()
                 readers, writers, readwrites = processor.get_inputs_outputs(
                     fp_parent.content[ast_start_index:ast_end_index+1])
