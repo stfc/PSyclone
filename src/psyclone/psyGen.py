@@ -1147,6 +1147,12 @@ class Directive(Node):
         self._text_name = "Directive"
         self._colour_key = "Directive"
 
+    _children_valid_format = "Schedule"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return possition == 0 and isinstance(child, Schedule)
+
     @property
     def dir_body(self):
         '''
@@ -2162,6 +2168,12 @@ class GlobalSum(Node):
         self._text_name = "GlobalSum"
         self._colour_key = "GlobalSum"
 
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
+
     @property
     def scalar(self):
         ''' Return the scalar field that this global sum acts on '''
@@ -2231,6 +2243,12 @@ class HaloExchange(Node):
         self._vector_index = vector_index
         self._text_name = "HaloExchange"
         self._colour_key = "HaloExchange"
+
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
 
     @property
     def vector_index(self):
@@ -2409,6 +2427,12 @@ class Kern(Node):
         else:
             self._reduction = False
             self._reduction_arg = None
+
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
 
     @property
     def args(self):

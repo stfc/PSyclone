@@ -39,6 +39,7 @@
 ''' This module contains the Schedule node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
 
 
 class Schedule(Node):
@@ -55,6 +56,12 @@ class Schedule(Node):
         Node.__init__(self, children=children, parent=parent)
         self._text_name = "Schedule"
         self._colour_key = "Schedule"
+
+    _children_valid_format = "*[Statements]"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return isinstance(child, Statement)
 
     @property
     def dag_name(self):
