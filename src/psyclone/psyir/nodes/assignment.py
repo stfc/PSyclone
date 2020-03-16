@@ -51,12 +51,19 @@ class Assignment(Statement):
     '''
     Node representing an Assignment statement. As such it has a LHS and RHS
     as children 0 and 1 respectively.
+
+    :param ast: node in the fparser2 AST representing the assignment.
+    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
+    :param parent: the parent node of this Assignment in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
     _children_valid_format = "DataNode, DataNode"
 
+    def __init__(self, ast=None, parent=None):
+        super(Assignment, self).__init__(ast=ast, parent=parent)
+
     @staticmethod
     def _validate_child(possition, child):
-        # TODO: this still allows things like e.g. assign to literal
         return possition < 2 and isinstance(child, DataNode)
 
     @property
