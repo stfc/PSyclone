@@ -46,6 +46,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, DataType, SymbolTable
+from psyclone.psyir.nodes import BinaryOperation, Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -599,6 +600,81 @@ class FortranWriter(PSyIRVisitor):
         for child in node.children:
             args.append(str(self._visit(child)))
         result = "{0}({1})".format(node.name, ",".join(args))
+        return result
+
+    def range_node(self, node):
+        '''This method is called when a Range instance is found in the PSyIR
+        tree.
+
+        :param node: a Range PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Range`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        def _full_extent(node, operator):
+            '''Utility function that returns True if the supplied node
+            represents the first index of an array dimension (via the LBOUND
+            operator) or the last index of an array dimension (via the
+            UBOUND operator).
+
+            This function is required as, whilst Fortran supports an
+            implicit lower and/or upper bound e.g. a(:), the PSyIR
+            does not. Therefore the a(:) example is represented as
+            a(lbound(a,1):ubound(a,1):1). In order to output implicit
+            upper and/or lower bounds (so that we output e.g. a(:), we
+            must therefore recognise when the lbound and/or ubound
+            matches the above pattern.
+
+            :param node: the node to check.
+            :type node: :py:class:`psyclone.psyir.nodes.Range`
+            :param operator: an lbound or ubound operator.
+            :type operator: either :py:class:`Operator.LBOUND` or \
+                :py:class:`Operator.UBOUND` from \
+                :py:class:`psyclone.psyir.nodes.BinaryOperation`
+
+            '''
+            my_range = node.parent
+            array = my_range.parent
+            array_index = array.children.index(my_range) + 1
+            # pylint: disable=too-many-boolean-expressions
+            if isinstance(node, BinaryOperation) and \
+               node.operator == operator and \
+               isinstance(node.children[0], Reference) and \
+               node.children[0].name == array.name and \
+               isinstance(node.children[1], Literal) and \
+               node.children[1].datatype == DataType.INTEGER and \
+               node.children[1].value == str(array_index):
+                return True
+            return False
+
+        if _full_extent(node.start, BinaryOperation.Operator.LBOUND):
+            # The range starts for the first element in this
+            # dimension. This is the default in Fortran so no need to
+            # output anything.
+            start = ""
+        else:
+            start = self._visit(node.start)
+
+        if _full_extent(node.stop, BinaryOperation.Operator.UBOUND):
+            # The range ends with the last element in this
+            # dimension. This is the default in Fortran so no need to
+            # output anything.
+            stop = ""
+        else:
+            stop = self._visit(node.stop)
+        result = "{0}:{1}".format(start, stop)
+
+        if isinstance(node.step, Literal) and \
+           node.step.datatype == DataType.INTEGER and \
+           node.step.value == "1":
+            # Step is 1. This is the default in Fortran so no need to
+            # output any text.
+            pass
+        else:
+            step = self._visit(node.step)
+            result += ":{0}".format(step)
         return result
 
     # pylint: disable=no-self-use
