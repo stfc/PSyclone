@@ -93,6 +93,7 @@ class ScalarType(DataType):
         '''
         SINGLE = 1
         DOUBLE = 2
+        UNDEFINED = 3
 
     def __init__(self, name, precision):
         from psyclone.psyir.symbols.datasymbol import DataSymbol
@@ -229,24 +230,32 @@ class ArrayType(DataType):
 
 
 # Create common scalar datatypes
+REAL_TYPE = ScalarType(ScalarType.Name.REAL,
+                       ScalarType.Precision.UNDEFINED)
 REAL_SINGLE_TYPE = ScalarType(ScalarType.Name.REAL,
                               ScalarType.Precision.SINGLE)
 REAL_DOUBLE_TYPE = ScalarType(ScalarType.Name.REAL,
                               ScalarType.Precision.DOUBLE)
 REAL4_TYPE = ScalarType(ScalarType.Name.REAL, 4)
 REAL8_TYPE = ScalarType(ScalarType.Name.REAL, 8)
+INTEGER_TYPE = ScalarType(ScalarType.Name.INTEGER,
+                          ScalarType.Precision.UNDEFINED)
 INTEGER_SINGLE_TYPE = ScalarType(ScalarType.Name.INTEGER,
                               ScalarType.Precision.SINGLE)
 INTEGER_DOUBLE_TYPE = ScalarType(ScalarType.Name.INTEGER,
                               ScalarType.Precision.DOUBLE)
 INTEGER4_TYPE = ScalarType(ScalarType.Name.INTEGER, 4)
 INTEGER8_TYPE = ScalarType(ScalarType.Name.INTEGER, 8)
+BOOLEAN_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
+                          ScalarType.Precision.UNDEFINED)
 BOOLEAN_SINGLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
                               ScalarType.Precision.SINGLE)
 BOOLEAN_DOUBLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
                               ScalarType.Precision.DOUBLE)
 BOOLEAN4_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 4)
 BOOLEAN8_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 8)
+CHARACTER_TYPE = ScalarType(ScalarType.Name.CHARACTER,
+                            ScalarType.Precision.UNDEFINED)
 CHARACTER1_TYPE = ScalarType(ScalarType.Name.CHARACTER, 1)
 
 #class StructureType(DataType):

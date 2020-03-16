@@ -43,10 +43,12 @@ from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
 from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
-    ArrayType, TYPE_MAP_TO_PYTHON, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, \
-    REAL4_TYPE, REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, \
-    INTEGER4_TYPE, INTEGER8_TYPE, BOOLEAN_SINGLE_TYPE, BOOLEAN_DOUBLE_TYPE, \
-    BOOLEAN4_TYPE, BOOLEAN8_TYPE, CHARACTER1_TYPE, DeferredType
+    ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
+    REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
+    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
+    BOOLEAN_TYPE, BOOLEAN_SINGLE_TYPE, BOOLEAN_DOUBLE_TYPE, \
+    BOOLEAN4_TYPE, BOOLEAN8_TYPE, CHARACTER_TYPE, CHARACTER1_TYPE, \
+    DeferredType
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.symbols import DataSymbol'

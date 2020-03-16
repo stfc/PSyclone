@@ -51,7 +51,7 @@ from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
     DataType, ScalarType, ArrayType, DeferredType, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE
+    INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -518,13 +518,13 @@ class Fparser2Reader(object):
                     try:
                         sym = symbol_table.lookup(dim_name)
                         if (sym.datatype.name != ScalarType.Name.INTEGER or
-                                isintance(sym.datatype, ArrayType)):
+                                isinstance(sym.datatype, ArrayType)):
                             _unsupported_type_error(dimensions)
                     except KeyError:
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't
                         # currently know where it is declared).
-                        sym = DataSymbol(dim_name, INTEGER_SINGLE_TYPE,
+                        sym = DataSymbol(dim_name, INTEGER_TYPE,
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
                     shape.append(sym)
@@ -798,7 +798,7 @@ class Fparser2Reader(object):
                 sym_name = str(name).lower()
 
                 if not precision:
-                    precision = ScalarType.Precision.SINGLE
+                    precision = ScalarType.Precision.UNDEFINED
                 if entity_shape:
                     # array
                     datatype = ArrayType(ScalarType(data_name, precision),
@@ -935,13 +935,15 @@ class Fparser2Reader(object):
                 if isinstance(kind_arg, Fortran2003.Real_Literal_Constant):
                     import re
                     if re.search("d[0-9]", str(kind_arg).lower()):
-                        return DataSymbol.Precision.DOUBLE
-                    return DataSymbol.Precision.SINGLE
+                        return ScalarType.Precision.DOUBLE
+                    elif re.search("e[0-9]", str(kind_arg).lower()):
+                        return ScalarType.Precision.SINGLE
+                    return ScalarType.Precision.UNDEFINED
 
                 if isinstance(kind_arg, Fortran2003.Int_Literal_Constant):
                     # An integer with no explict kind specifier must be of
                     # default precision
-                    return DataSymbol.Precision.SINGLE
+                    return ScalarType.Precision.UNDEFINED
 
             raise NotImplementedError(
                 "Only real and integer literals are supported "
@@ -996,7 +998,7 @@ class Fparser2Reader(object):
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, INTEGER_SINGLE_TYPE,
+            kind_symbol = DataSymbol(lower_name, INTEGER_TYPE,
                                      interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
@@ -1540,18 +1542,11 @@ class Fparser2Reader(object):
             raise NotImplementedError("An Array reference in the PSyIR must "
                                       "have at least one child but '{0}' has "
                                       "none".format(array.name))
-        # TODO #412. This code will need re-writing once array notation is
-        # supported in the PSyIR (becaues then we won't have any CodeBlocks).
-        cblocks = array.walk(CodeBlock)
-        if not cblocks:
-            raise NotImplementedError(
-                "A PSyIR Array node representing an array access that uses "
-                "Fortran array notation is assumed to have at least one "
-                "CodeBlock as its child but '{0}' has none.".
-                format(array.name))
         # We only currently support array refs using the colon syntax,
-        # e.g. array(:, :). Each colon is represented in the fparser2
-        # parse tree by a Subscript_Triplet.
+        # e.g. array(:, :).
+        for dim in array.children:
+            print (type(dim))
+        exit(1)
         num_colons = 0
         for cblock in cblocks:
             for stmt in cblock.get_ast_nodes:
@@ -1623,7 +1618,7 @@ class Fparser2Reader(object):
                     # create a new Symbol. Choose a datatype as we
                     # don't know what it is. Remove this code when
                     # issue #500 is addressed.
-                    symbol = DataSymbol(loop_vars[idx], DataType.INTEGER)
+                    symbol = DataSymbol(loop_vars[idx], INTEGER_TYPE)
                 array.children[posn] = Reference(symbol, parent=array)
 
     def _where_construct_handler(self, node, parent):
@@ -1751,7 +1746,7 @@ class Fparser2Reader(object):
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
             # Add loop lower bound
-            loop.addchild(Literal("1", DataType.INTEGER, parent=loop))
+            loop.addchild(Literal("1", INTEGER_TYPE, parent=loop))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
@@ -1768,13 +1763,13 @@ class Fparser2Reader(object):
                 # create a new Symbol. Choose a datatype as we
                 # don't know what it is. Remove this code when
                 # issue #500 is addressed.
-                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+                symbol = DataSymbol(arrays[0].name, INTEGER_TYPE)
 
             size_node.addchild(Reference(symbol, parent=size_node))
-            size_node.addchild(Literal(str(idx), DataType.INTEGER,
+            size_node.addchild(Literal(str(idx), INTEGER_TYPE,
                                        parent=size_node))
             # Add loop increment
-            loop.addchild(Literal("1", DataType.INTEGER, parent=loop))
+            loop.addchild(Literal("1", INTEGER_TYPE, parent=loop))
             # Fourth child of a Loop must be a Schedule
             sched = Schedule(parent=loop)
             loop.addchild(sched)
@@ -2063,7 +2058,7 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is. Remove this code when issue #500 is
             # addressed.
-            symbol = DataSymbol(node.string, REAL_SINGLE_TYPE)
+            symbol = DataSymbol(node.string, REAL_TYPE)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2114,7 +2109,7 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is.  Remove this code when issue #500 is
             # addressed.
-            symbol = DataSymbol(reference_name, REAL_SINGLE_TYPE)
+            symbol = DataSymbol(reference_name, REAL_TYPE)
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
@@ -2136,9 +2131,9 @@ class Fparser2Reader(object):
         '''
         # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
-            return Literal(str(node.items[0]), INTEGER_SINGLE_TYPE, parent=parent)
+            return Literal(str(node.items[0]), INTEGER_TYPE, parent=parent)
         if isinstance(node, Fortran2003.Real_Literal_Constant):
-            return Literal(str(node.items[0]), REAL_SINGLE_TYPE, parent=parent)
+            return Literal(str(node.items[0]), REAL_TYPE, parent=parent)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()
 
@@ -2156,7 +2151,7 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        return Literal(str(node.items[0]), DataType.CHARACTER, parent=parent)
+        return Literal(str(node.items[0]), CHARACTER_TYPE, parent=parent)
 
     def _bool_literal_handler(self, node, parent):
         '''
@@ -2175,9 +2170,9 @@ class Fparser2Reader(object):
         # pylint: disable=no-self-use
         value = str(node.items[0]).lower()
         if value == ".true.":
-            return Literal("true", DataType.BOOLEAN, parent=parent)
+            return Literal("true", BOOLEAN_TYPE, parent=parent)
         if value == ".false.":
-            return Literal("false", DataType.BOOLEAN, parent=parent)
+            return Literal("false", BOOLEAN_TYPE, parent=parent)
         raise GenerationError(
             "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))
