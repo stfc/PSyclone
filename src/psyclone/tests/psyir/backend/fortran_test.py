@@ -44,12 +44,14 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
-from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal
+from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
+    BinaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile
+
 
 @pytest.fixture(scope="function", name="fort_writer")
 def fixture_fort_writer():
@@ -696,7 +698,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
-def test_fw_naryopeator(fort_writer, tmpdir):
+def test_fw_naryoperator(fort_writer, tmpdir):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
 
@@ -719,7 +721,7 @@ def test_fw_naryopeator(fort_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
+def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
     ''' Check that the FortranWriter class nary_operation method raises
     the expected error if it encounters an unknown operator.
 
@@ -811,6 +813,80 @@ def test_fw_array(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
+
+
+def test_fw_range(fort_writer):
+    '''Check the FortranWriter class range_node and array_node methods
+    produce the expected code when an array section is specified. We
+    can't test the Range node in isolation as one of the checks in the
+    Range code requires access to the (Array) parent (to determine the
+    array index of a Range node).
+
+    '''
+    from psyclone.psyir.nodes import Array, Range
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10])
+    dim1_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("1", DataType.INTEGER))
+    dim1_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("1", DataType.INTEGER))
+    dim2_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("2", DataType.INTEGER))
+    dim3_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("3", DataType.INTEGER))
+    dim3_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("3", DataType.INTEGER))
+    one = Literal("1", DataType.INTEGER)
+    two = Literal("2", DataType.INTEGER)
+    three = Literal("3", DataType.INTEGER)
+    plus = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Reference(DataSymbol("b", DataType.REAL)),
+        Reference(DataSymbol("c", DataType.REAL)))
+    array = Array.create(symbol, [Range.create(one, dim1_bound_stop),
+                                  Range.create(dim2_bound_start, plus,
+                                               step=three)])
+    result = fort_writer.array_node(array)
+    assert result == "a(1:,:b + c:3)"
+
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    array = Array.create(
+        symbol,
+        [Range.create(dim1_bound_start, dim1_bound_stop),
+         Range.create(one, two, step=three),
+         Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
+    result = fort_writer.array_node(array)
+    assert result == "a(:,1:2:3,::3)"
+
+    # Make a) lbound and ubound come from a different array and b)
+    # switch lbound and ubound round. These bounds should then be
+    # output.
+    symbol_b = DataSymbol("b", DataType.REAL, shape=[10])
+    b_dim1_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol_b),
+        Literal("1", DataType.INTEGER))
+    b_dim1_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol_b),
+        Literal("1", DataType.INTEGER))
+    array = Array.create(
+        symbol,
+        [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
+         Range.create(one, two, step=three),
+         Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
+    result = fort_writer.array_node(array)
+    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
+                      "UBOUND(a, 3):LBOUND(a, 3):3)")
 
 # literal is already checked within previous tests
 
@@ -996,18 +1072,17 @@ def test_fw_codeblock_1(fort_writer):
 def test_fw_codeblock_2(fort_writer):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
-    of a line (not a whole line). In this case the ":" in the array
-    access is a code block.
+    of a line (not a whole line). In this case the data initialisation
+    of the array 'a' "(/ 0.0 /)" is a code block.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: a(n,n,n)\n"
-        "    a(2,n,:) = 0.0\n"
+        "subroutine tmp()\n"
+        "  real a(1)\n"
+        "  a = (/ 0.0 /)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
@@ -1017,7 +1092,7 @@ def test_fw_codeblock_2(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a(2,n,:)=0.0" in result
+    assert "a=(/0.0/)" in result
 
 
 def test_fw_codeblock_3(fort_writer):
