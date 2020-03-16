@@ -39,7 +39,6 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
-from collections import UserList
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
