@@ -52,5 +52,11 @@ class Return(Statement):
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)
 
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
+
     def __str__(self):
         return "Return[]\n"

@@ -69,6 +69,12 @@ class CodeBlock(Statement):
         # The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
+    _children_valid_format = "<LeafNode>"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return False
+
     def __init__(self, fp2_nodes, structure, parent=None):
         super(CodeBlock, self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated

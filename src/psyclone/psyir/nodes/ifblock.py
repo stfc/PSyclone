@@ -39,7 +39,9 @@
 ''' This module contains the IfBlock node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.errors import InternalError, GenerationError
 
 
@@ -75,6 +77,13 @@ class IfBlock(Statement):
                             annotation, IfBlock.valid_annotations))
         self._text_name = "If"
         self._colour_key = "If"
+
+    _children_valid_format = "DataNode, Schedule [, Schedule]"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return (possition == 0 and isinstance(child, DataNode)) or (
+            possition in (1, 2) and isinstance(child, Schedule))
 
     @property
     def condition(self):

@@ -60,6 +60,13 @@ class Container(Node):
         self._name = name
         self._symbol_table = SymbolTable(self)
 
+    _children_valid_format = "*[Container | KernelSchedule]"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        from psyclone.psyGen import KernelSchedule
+        return isinstance(child, (Container, KernelSchedule))
+
     @staticmethod
     def create(name, symbol_table, children):
         '''Create a Container instance given a name, a symbol table and a
