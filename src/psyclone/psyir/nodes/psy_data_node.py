@@ -43,6 +43,7 @@ from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.schedule import Schedule
 
 
 # =============================================================================
@@ -175,6 +176,12 @@ class PSyDataNode(Statement):
             self._module_name = name[0]
             self._region_name = name[1]
             self.set_region_identifier(self._module_name, self._region_name)
+
+    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return possition == 0 and isinstance(child, Schedule)
 
     # -------------------------------------------------------------------------
     @property

@@ -39,6 +39,7 @@
 ''' This module contains the Loop node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.core.access_info import AccessType
@@ -110,6 +111,13 @@ class Loop(Statement):
 
         self._variable_name = variable_name
         self._id = ""
+
+    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return (possition in (0, 1, 2) and isinstance(child, DataNode)) or (
+            possition == 3 and isinstance(child, Schedule))
 
     @staticmethod
     def create(var_name, start, stop, step, children):
