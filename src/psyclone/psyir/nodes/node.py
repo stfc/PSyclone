@@ -96,7 +96,8 @@ except ImportError:
 
 
 class ChildrenList(list):
-    def __init__(self, validation_function, validation_text):
+    def __init__(self, node, validation_function, validation_text):
+        self._node_reference = node
         self._validation_function = validation_function
         self._validation_text = validation_text
         super(ChildrenList, self).__init__()
@@ -105,7 +106,10 @@ class ChildrenList(list):
         if self._validation_function(index, item):
             super(ChildrenList, self).__setitem__(index, item)
         else:
-            raise KeyError()
+            raise KeyError("Item '{0}' can't be child {1} of '{2}'. "
+                "The valid format is: '{3}'.".format(
+                    item.__class__.__name__, index, self._node_reference,
+                    self._validation_text))
 
 
 class Node(object):
@@ -144,7 +148,7 @@ class Node(object):
         return True
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        self._children = ChildrenList(self._validate_child,
+        self._children = ChildrenList(self, self._validate_child,
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
