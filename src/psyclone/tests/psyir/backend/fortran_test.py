@@ -435,35 +435,14 @@ def test_fw_exception(fort_writer):
     unsupported PSyIR node is found.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
-        "  integer :: a,b,c\n"
-        "  a = b/c\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = create_schedule(code, "tmp")
+    # 'unsupported' should be a node that neither its generic classes nor
+    # itself have a visitor implemented.
+    unsupported = Node()
 
-    # pylint: disable=abstract-method
-    # modify the reference to b to be something unsupported
-    class Unsupported(Node):
-        '''A PSyIR node that will not be supported by the Fortran visitor.'''
-    # pylint: enable=abstract-method
-
-    unsupported = Unsupported()
-    assignment = schedule[0]
-    binary_operation = assignment.rhs
-    # The assignment.rhs method has no setter so access the reference
-    # directly instead via children.
-    assignment.children[1] = unsupported
-    unsupported.children = binary_operation.children
-
-    # Generate Fortran from the PSyIR schedule
+    # Generate Fortran from the given PSyIR
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer(schedule)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
+        _ = fort_writer(unsupported)
+    assert "Unsupported node 'Node' found" in str(excinfo.value)
 
 
 def test_fw_container_1(fort_writer, monkeypatch):

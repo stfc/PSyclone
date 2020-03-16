@@ -39,6 +39,7 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
+from collections import UserList
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
@@ -95,6 +96,19 @@ except ImportError:
         return text
 
 
+class ChildrenList(list):
+    def __init__(self, validation_function, validation_text):
+        self._validation_function = validation_function
+        self._validation_text = validation_text
+        super().__init__()
+
+    def __setitem__(self, index, item):
+        if self._validation_function(index, item):
+            super().__setitem__(index, item)
+        else:
+            raise KeyError()
+
+
 class Node(object):
     '''
     Base class for a node in the PSyIR (schedule).
@@ -124,11 +138,17 @@ class Node(object):
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
 
+    _children_valid_format = "*[Node]"
+
+    @staticmethod
+    def _validate_child(possition, child):
+        return True
+
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        if not children:
-            self._children = []
-        else:
-            self._children = children
+        self._children = ChildrenList(self._validate_child,
+                                      self._children_valid_format)
+        if children:
+            self._children.extend(children)
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
