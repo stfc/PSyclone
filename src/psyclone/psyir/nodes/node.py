@@ -606,7 +606,12 @@ class Node(object):
 
     @children.setter
     def children(self, my_children):
-        self._children = my_children
+        if my_children:
+            self._children = ChildrenList(self, self._validate_child,
+                                          self._children_valid_format)
+            self._children.extend(my_children)
+        else:
+            self._children = None
 
     @property
     def parent(self):
