@@ -51,7 +51,7 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
@@ -934,11 +934,11 @@ class GOKern(CodedKern):
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
+        Node.__init__(self)
         if False:  # pylint: disable=using-constant-test
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
         # Create those member variables required for testing and to keep
         # pylint happy
-        self._children = []
         self._name = ""
         self._index_offset = ""
         # Get a reference to the namespace manager

@@ -47,7 +47,7 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import SymbolTable
-from psyclone.psyir.nodes import Node, Schedule, Loop
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 
 
@@ -2371,7 +2371,7 @@ class HaloExchange(Node):
         return self.node_str(False)
 
 
-class Kern(Node):
+class Kern(Statement):
     '''
     Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
@@ -2391,7 +2391,7 @@ class Kern(Node):
                              duplicated.
     '''
     def __init__(self, parent, call, name, arguments):
-        Node.__init__(self, children=[], parent=parent)
+        super(Kern, self).__init__(self, parent=parent)
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over

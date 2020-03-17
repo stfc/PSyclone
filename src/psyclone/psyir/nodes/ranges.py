@@ -103,7 +103,10 @@ class Range(Node):
                                     annotations=annotations)
         # Initialise the list of children so that the start/stop/step setters
         # can be called in any order
-        self._children = [None, None, None]
+        default_start = Literal("1", DataType.INTEGER)
+        default_stop = Literal("1", DataType.INTEGER)
+        default_step = Literal("1", DataType.INTEGER)
+        self.children = [default_start, default_stop, default_step]
 
     @staticmethod
     def create(start, stop, step=None, parent=None):
