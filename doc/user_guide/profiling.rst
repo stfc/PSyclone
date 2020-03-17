@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -58,22 +58,13 @@ tool-specific API. It is the responsibility of the user to
 supply the corresponding compiler command line options when building
 the application that incorporates the PSyclone-generated code.
 
+.. _required_profiling_calls:
 
-.. _ProfilingAPI:
-
-Profiling API
--------------
-In order to be used with different profiling tools, PSyclone uses the
-PSyData API. For each existing profiling tool a simple interface
-library needs to be implemented that maps the PSyclone PSyData calls
-to the corresponding call for the profiling tool. 
-
-Since the profiling API does not need access to any fields or variables,
-PSyclone will only create calls to ``PreStart`` and ``PostEnd``
-(see :ref:`psy_data_transformation`).
-
-PSyclone utilises two additional profile-specific calls which are described in
-the following sub-sections.
+Required Modifications to the Program
+-------------------------------------
+In order to guarantee that any profiling library is properly
+initialised, PSyclone's profiling wrappers utilise two additional
+function calls that the user must manually insert into the program:
 
 ProfileInit()
 ~~~~~~~~~~~~~
@@ -107,6 +98,7 @@ And again the appropriate location might depend on the profiling library
 used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
+
 Profiling Command Line Options
 ------------------------------
 PSyclone offers two command line options to automatically instrument
@@ -130,7 +122,7 @@ end of each loop.
 
 .. note:: It is still the responsibility of the user to manually
     add the calls to ``ProfileInit`` and ``ProfileFinalise`` to the
-    code base.
+    code base (see :ref:`required_profiling_calls`).
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created

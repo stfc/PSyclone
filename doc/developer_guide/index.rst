@@ -48,6 +48,7 @@
    modules
    transformations
    psy_data
+   profiling
    system_specific_setup
    coding-style
    zz_bibliography

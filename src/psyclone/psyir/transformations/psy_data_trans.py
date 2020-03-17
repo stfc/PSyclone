@@ -65,6 +65,10 @@ class PSyDataTrans(RegionTrans):
     >>> # Enclose all children within a single PSyData region
     >>> newschedule, _ = data_trans.apply(schedule.children)
     >>> newschedule.view()
+    >>> # Or to use a class-prefix string and different region name:
+    >>> newschedule, _ = data_trans.apply(schedule.children,
+    >>>                                   {"class": "my_prefix",
+    >>>                                    "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
@@ -102,6 +106,10 @@ class PSyDataTrans(RegionTrans):
 
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param str options["class"]: a prefix to use for the PSyData module \
+            name (``PREFIX_psy_data_mod``) and the PSyDataType \
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
+            It defaults to "".
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
@@ -178,8 +186,8 @@ class PSyDataTrans(RegionTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param str options["class"]: a prefix to use for the PSyData module \
-            name (``prefix_psy_data_mod``) and the PSyDataType \
-            (``prefix_PSyDataType``) - a "_" will be added automatically. \
+            name (``PREFIX_psy_data_mod``) and the PSyDataType \
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
             It defaults to "".
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \

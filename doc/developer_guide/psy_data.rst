@@ -42,56 +42,88 @@ PSyData API
 PSyclone provides transformations that will insert callbacks to
 an external library at runtime. These callbacks allow third-party
 libraries to access data structures at specified locations in the
-code. Some example use cases are:
+code.
 
-Profiling:
-  By inserting callbacks before and after a region of code,
-  performance measurements can be added. PSyclone provides
-  wrapper libraries for some common performance profiling tools,
-  see :ref:`user_guide:profiling` for details.
-
-Kernel Data Extraction:
-  PSyclone provides the ability to add callbacks that provide access
-  to all input variables before, and output variables after a kernel
-  invocation. This can be used to automatically create tests for
-  a kernel, or to write a stand-alone driver that just calls one
-  kernel, which can be used for performance tuning. An example
-  library that extracts input- and output-data into a netcdf file
-  is included with PSyclone (see :ref:`user_guid:psyke_netcdf`).
-
-In-situ Visualisation:
-  By giving access to output fields of a kernel, an in-situ visualisation
-  library can be used to plot fields while a (PSyclone-processed)
-  application is running. There is no example library available at
-  this stage, but the API has been designed with this application in mind.
-
-Access Verification:
-  The callbacks can be used to make sure a field declared as read-only
-  is not modified during a kernel (either because of an incorrect
-  declaration, or because memory is overwritten). A checksum can be
-  used to detect any changes to a read-only field. Again, this is 
-  a feature for the future and not available at this stage.
-
-The PsyData API should be general enough to allow these and other
-applications to be developed and used.
-
-API
----
-The callbacks are inserted into the code by the PSyData transformation,
-see :ref:`psy_data_transformation` for details. The following example
-shows the code created by PSyclone.
-
-::
+Introduction
+------------
+The PSyData API imports a user-defined data type from a PSyData
+module and creates an instance of this data type for each code
+region. It then adds a sequence of calls to methods in that
+instance. A simple example::
 
     USE psy_data_mod, ONLY: PSyDataType
     TYPE(PSyDataType), target, save :: psy_data
 
     CALL psy_data%PreStart("update_field_mod", "update_field_code", 1, 1)
-    CALL psy_data%PreDeclareVariable("a_fld", a_fld)
-    CALL psy_data%PreDeclareVariable("b_fld", b_fld)
-    CALL psy_data%PreEndDeclaration
-    CALL psy_data%ProvideVariable("a_fld", a_fld)
-    CALL psy_data%PreEnd
+
+In order to allow several different callback libraries to be used
+at the same time, for example to allow in-situ visualisation at
+the same time as checking that read-only values are indeed not modified,
+different module names and data types must be used.
+
+PSyData divides its application into different classes. For example,
+the class "profile" combines all profiling tools (e.g. DrHook or the
+NVIDIA profiling tools). This class name is used as a prefix for
+the module name and the user type. So if a profiling application
+is linked the above code will be::
+
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    TYPE(profile_PSyDataType), target, save :: profile_psy_data
+
+    CALL profile_psy_data%PreStart("update_field_mod", "update_field_code", 1, 1)
+
+While adding the class prefix to the name of the instance variable
+is not necessary, it helps readability of the created code. The list
+of valid classes is specified in the configuration file:
+
+    [DEFAULT]
+    ...
+    VALID_PSY_DATA_PREFIXES = profile extract
+
+The classes supported at the moment are:
+
+.. tabularcolumns:: |l|L|
+
+======================= =======================================================
+Class Prefix            Description
+======================= =======================================================
+profile                 All libraries related to profiling tools like DrHook,
+                        NVIDIA's profiling tools etc. See
+                        :ref:`user_guide:profiling` for details.
+extract                 For libraries that allow kernel data extraction. See
+                        :ref:`user_guide:psyke` for details.
+======================= =======================================================
+
+If you want to add additional class prefixes, just add them to the
+config file that you are using. 
+
+.. Note:: 
+    Transformations for profiling or kernel extraction allow
+    to overwrite the default-prefix (see 
+    :ref:`psy_data_parameters_to_constructor`).
+    This can be used to link with
+    two different libraries of the same class at the same time, 
+    e.g. you could use ``drhook_profile`` and ``nvidia_profile``
+    as class prefix. Though this also requires that the
+    corresponding wrapper libraries are modified to use this
+    new prefix.
+
+
+API
+---
+The callbacks are inserted into the code by the PSyData transformation,
+see :ref:`psy_data_transformation` for details. The following example
+shows the code created by PSyclone for an extraction transformation::
+
+    USE extract_psy_data_mod, ONLY: extract_PSyDataType
+    TYPE(extract_PSyDataType), target, save :: extract_psy_data
+
+    CALL extract_psy_data%PreStart("update_field_mod", "update_field_code", 1, 1)
+    CALL extract_psy_data%PreDeclareVariable("a_fld", a_fld)
+    CALL extract_psy_data%PreDeclareVariable("b_fld", b_fld)
+    CALL extract_psy_data%PreEndDeclaration
+    CALL extract_psy_data%ProvideVariable("a_fld", a_fld)
+    CALL extract_psy_data%PreEnd
 
     ! Begin of PSY-layer kernel call:
     DO j=1,jstop+1
@@ -101,13 +133,17 @@ shows the code created by PSyclone.
     END DO 
     ! End of PSY-layer kernel call
     
-    CALL psy_data%PostStart
-    CALL psy_data%ProvideVariable("b_fld", b_fld)
-    CALL psy_data%PostEnd
+    CALL extract_psy_data%PostStart
+    CALL extract_psy_data%ProvideVariable("b_fld", b_fld)
+    CALL extract_psy_data%PostEnd
 
+In the following documentation the string ``PREFIX_`` is used
+to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
 The following code sequence will typically be created:
 
-#. A static variable of type ``PSyDataType`` is declared.
+#. A user defined type ``PREFIX_PSyDataType`` is imported from the module
+   ``PREFIX_psy_data_mod``.
+#. A static variable of type ``PREFIX_PSyDataType`` is declared.
 #. ``PreStart`` is called to indicate that a new that a new instrumented code
    region is started.
 #. ``PreDeclareVariable`` is called for each variable passed to the data API
@@ -130,16 +166,16 @@ The following code sequence will typically be created:
 .. note::
     Depending on the options provided to the PSyData transformation
     some of the calls might not be created. For example, for a performance
-    profiling library no variables will be declared or written.
+    profiling library no variables will be declared or provided.
 
 The following sections describe the API in detail.
 
 .. _psy_data_type:
 
-``PSyDataType``
-+++++++++++++++
+``PREFIX_PSyDataType``
+++++++++++++++++++++++
 The library using the PSyData API must provide a user-defined data type
-called ``PSyDataType``. It is up to the application how this variable is
+called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
@@ -150,7 +186,7 @@ a detailed description) or any of the profiling wrapper libaries
 .. method:: PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)
 
     This is the first method called when the instrumented region is
-    executed. It takes 4 parameters (besides the implicit ``PSyDataType``
+    executed. It takes 4 parameters (besides the implicit ``PREFIX_PSyDataType``
     instance):
     
     ``module_name``
@@ -171,7 +207,7 @@ a detailed description) or any of the profiling wrapper libaries
       The sum ``num_pre_vars+num_post_vars`` is the number of
       variable declarations that will follow.
     
-    Typically the static ``PSyDataType`` instance can be used to store
+    Typically the static ``PREFIX_PSyDataType`` instance can be used to store
     the module and kernel names if they are required later, or to allocate
     arrays to store variable data.
 
@@ -202,21 +238,21 @@ a detailed description) or any of the profiling wrapper libaries
         ...
         subroutine DeclareScalarInteger(this, name, value)
             implicit none
-            class(PSyDataType), intent(inout), target :: this
+            class(extract_PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
             integer, intent(in) :: value
         ...
         subroutine DeclareFieldDouble(this, name, value)
             use field_mod, only : r2d_field
             implicit none
-            class(PSyDataType), intent(inout), target :: this
+            class(extract_PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
             type(r2d_field), intent(in) :: value
         ...
         subroutine DeclareFieldDouble(this, name, value)
             use field_mod, only : r2d_field
             implicit none
-            class(PSyDataType), intent(inout), target :: this
+            class(extract_PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
             type(r2d_field), intent(in) :: value
         ...
@@ -254,7 +290,7 @@ a detailed description) or any of the profiling wrapper libaries
 .. method:: PostStart(this)
 
     This is the first call after the instrumented region. It does not take
-    any parameters, but the static ``PSyDataType`` instance can be used
+    any parameters, but the static ``PREFIX_PSyDataType`` instance can be used
     to store the name and number of variables if required. This will be
     followed by calls to ``ProvideVariable``, which is described above.
 
@@ -351,6 +387,9 @@ node supports in the option dictionary:
                     code region, or by ``GOceanExtractNode``
                     to define the file name for the output
                     data- and driver-files.
+    class           A prefix to be used for the module name,
+                    the user-defined data type and the
+                    variables declared for the API.
     =============== =========================================
 
 
