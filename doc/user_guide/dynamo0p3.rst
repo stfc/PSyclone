@@ -34,6 +34,8 @@
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
+.. highlight:: fortran
+
 .. _dynamo0.3-api:
 
 Dynamo0.3 API
@@ -167,8 +169,7 @@ Kernels that have CMA operators as arguments are given in the
 There are three recognised Kernel types involving CMA operations;
 construction, application (including inverse application) and
 matrix-matrix. The following example sketches-out what the use
-of such kernels might look like in the Algorithm layer:
-::
+of such kernels might look like in the Algorithm layer::
 
   use field_mod, only: field_type
   use operator_mod, only : operator_type, columnwise_operator_type
@@ -213,9 +214,7 @@ information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
 the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
 must be passed to the kernel from the Algorithm layer in the form of a
 `quadrature_type` object. This must be the last argument passed to the
-kernel, e.g.:
-
-::
+kernel, e.g.::
 
       type( quadrature_type )   :: qr
       ...
@@ -520,21 +519,20 @@ Metadata
 
 The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
-4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
-
-::
+4) 'meta_mesh', 5) 'gh_shape', 6) 'iterates_over' and 7) 'procedure'::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
+    type(mesh_data_type) :: meta_mesh(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These six metadata elements are discussed in order in the following
+These various metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -558,9 +556,7 @@ the meta_args array must correspond to the number of **scalars**,
 
 For example, if there are a total of 2 **scalar** / **field** /
 **operator** entities being passed to the Kernel then the meta_args
-array will be of size 2 and there will be two ``arg_type`` entries:
-
-::
+array will be of size 2 and there will be two ``arg_type`` entries::
 
   type(arg_type) :: meta_args(2) = (/                                  &
        arg_type( ... ),                                                &
@@ -628,9 +624,7 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
   currently supported in PSyclone. This metadata indicates that values
   are summed over calls to Kernel code.
 
-For example:
-
-::
+For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_REAL,  GH_SUM),                                     &
@@ -658,9 +652,7 @@ lives on. More details about the supported function spaces are in
 subsection :ref:`dynamo0.3-function-space`.
 
 For example, the metadata for a kernel that applies a Column-wise
-operator to a field might look like:
-
-::
+operator to a field might look like::
 
   type(arg_type) :: meta_args(3) = (/                     &
        arg_type(GH_FIELD, GH_INC, W1),                    &
@@ -924,9 +916,7 @@ if the associated field is read within a Kernel i.e. it only makes
 sense to specify stencil metadata if the first entry is ``GH_FIELD``
 and the second entry is ``GH_READ``.
 
-Stencil metadata is written in the following format:
-
-::
+Stencil metadata is written in the following format::
 
   STENCIL(type)
 
@@ -948,19 +938,17 @@ layer as part of the ``invoke`` call (see Section
 
 For example, the following stencil (with ``extent=2``):
 
-::
+.. code-block:: none
 
   | 4 | 2 | 1 | 3 | 5 |
 
-would be declared as
-
-::
+would be declared as::
 
   STENCIL(X1D)
 
-and the following stencil (with ``extent=2``)
+and the following stencil (with ``extent=2``):
 
-::
+.. code-block:: none
 
   |   |   | 9 |   |   |
   |   |   | 5 |   |   |
@@ -968,15 +956,11 @@ and the following stencil (with ``extent=2``)
   |   |   | 4 |   |   |
   |   |   | 8 |   |   |
 
-would be declared as
-
-::
+would be declared as::
 
   STENCIL(CROSS)
 
-Below is an example of stencil information within the full kernel metadata.
-
-::
+Below is an example of stencil information within the full kernel metadata::
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
@@ -999,9 +983,7 @@ required for inter-grid kernels which perform prolongation or
 restriction operations on fields (or field vectors) existing on grids
 of different resolutions.
 
-Mesh metadata is written in the following format:
-
-::
+Mesh metadata is written in the following format::
 
   mesh_arg=type
 
@@ -1009,9 +991,7 @@ where ``type`` may be one of ``GH_COARSE`` or ``GH_FINE``. Any kernel
 having a field argument with this metadata is assumed to be an
 inter-grid kernel and, as such, all of its other arguments (which
 must also be fields) must have it specified too. An example of the
-metadata for such a kernel is given below:
-
-::
+metadata for such a kernel is given below::
 
   type(arg_type) :: meta_args(2) = (/                                                  &
       arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
@@ -1032,8 +1012,7 @@ recognised kernel types involving CMA operators.
 
 Column-wise operators are constructed from cell-wise (local) operators.
 Therefore, in order to **assemble** a CMA operator, a kernel must have at
-least one read-only LMA operator, e.g.:
-::
+least one read-only LMA operator, e.g.::
 
    type(arg_type) :: meta_args(2) = (/                                       &
         arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
@@ -1042,8 +1021,7 @@ least one read-only LMA operator, e.g.:
 
 CMA operators (and their inverse) are **applied** to fields. Therefore any
 kernel of this type must have one read-only CMA operator, one read-only
-field and a field that is updated, e.g.:
-::
+field and a field that is updated, e.g.::
 
    type(arg_type) :: meta_args(3) = (/                                      &
         arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
@@ -1053,8 +1031,7 @@ field and a field that is updated, e.g.:
 
 **Matrix-matrix** kernels compute the product/linear combination of CMA
 operators. They must therefore have one such operator that is updated while
-the rest are read-only. They may also have read-only scalar arguments, e.g.:
-::
+the rest are read-only. They may also have read-only scalar arguments, e.g.::
 
    type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
@@ -1075,9 +1052,7 @@ The (optional) second component of kernel metadata specifies
 whether any quadrature or evaluator data is required for a given
 function space. (If no quadrature or evaluator data is required then
 this metadata should be omitted.) Consider the
-following kernel metadata:
-
-::
+following kernel metadata::
 
     type, extends(kernel_type) :: testkern_operator_type
       type(arg_type), dimension(3) :: meta_args =     &
@@ -1148,6 +1123,35 @@ outward_normals_to_horizontal_faces  Array of outward-pointing normals for each
 outward_normals_to_vertical_faces    Array of outward-pointing normals for each
                                      vertical face indexed as (component, face).
 ===================================  ===========================================
+
+meta_mesh
+#########
+
+A kernel that requires properties of the LFRic mesh object specifies
+those properties through the ``meta_mesh`` metadata entry. (If no
+mesh properties are required then this metadata should be omitted.)
+Consider the following example kernel metadata::
+
+  type, extends(kernel_type) :: testkern_type
+    type(arg_type), dimension(2) :: meta_args = &
+        (/ arg_type(gh_field, gh_read, w1),     &
+	   arg_type(gh_field, gh_write, w0) /)
+    type(mesh_data_type), dimension(1) ::       &
+      meta_mesh =                               &
+        (/ mesh_data_type(adjacent_face) /)
+  contains
+    procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+This metadata specifies that the ``testkern_type`` kernel requires one
+property of the mesh. There is currently one supported property:
+
+======================= ==================================================
+Name                    Description
+======================= ==================================================
+adjacent_face           Local ID of a neighbouring face in each adjacent
+                        cell indexed as (face).
+======================= ==================================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1343,7 +1347,18 @@ rules, along with PSyclone's naming conventions, are:
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
       integer array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
 
-6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+6) If the ``adjacent_face`` mesh property is required then:
+
+   1) If the kernel does *not* require face quadrature (see (7) below), pass
+      the number of cell faces obtained from the reference element
+      (``nfaces_re``). This is an integer of kind ``i_def``.
+   2) Pass a rank-1, integer array of kind ``i_def``. If the kernel
+      requires face quadrature (see (7) below) then the extent of this
+      array is the number of faces obtained from that quadrature
+      object. Otherwise, the extent is the number of faces obtained from the
+      reference element and supplied in the preceeding argument.
+
+7) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
    1) Include integer, scalar arguments with intent ``in`` that specify
       the extent of the basis/diff-basis arrays:
@@ -1357,8 +1372,6 @@ rules, along with PSyclone's naming conventions, are:
 
 Examples
 ^^^^^^^^
-
-.. highlight:: fortran
 
 For instance, if a kernel has only one written argument and requires an
 evaluator then its metadata might be::
@@ -1756,7 +1769,7 @@ X_plus_Y
 **X_plus_Y** (*field3*, *field1*, *field2*)
 
 
-Sums two fields (Z = X + Y): ::
+Sums two fields (Z = X + Y)::
 
   field3(:) = field1(:) + field2(:)
 
@@ -1771,7 +1784,7 @@ inc_X_plus_Y
 
 **inc_X_plus_Y** (*field1*, *field2*)
 
-Adds the second field to the first and returns it (X = X + Y): ::
+Adds the second field to the first and returns it (X = X + Y)::
 
   field1(:) = field1(:) + field2(:)
 
@@ -1785,7 +1798,7 @@ aX_plus_Y
 
 **aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs Z = aX + Y: ::
+Performs Z = aX + Y::
 
   field3(:) = scalar*field1(:) + field2(:)
 
@@ -1800,7 +1813,7 @@ inc_aX_plus_Y
 
 **inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
 
-Performs X = aX + Y (increments the first field): ::
+Performs X = aX + Y (increments the first field)::
 
   field1(:) = scalar*field1(:) + field2(:)
 
@@ -1815,7 +1828,7 @@ inc_X_plus_bY
 
 **inc_X_plus_bY** (*field1*, *scalar*, *field2*)
 
-Performs X = X + bY (increments the first field): ::
+Performs X = X + bY (increments the first field)::
 
   field1(:) = field1(:) + scalar*field2(:)
 
@@ -1830,7 +1843,7 @@ aX_plus_bY
 
 **aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
 
-Performs Z = aX + bY: ::
+Performs Z = aX + bY::
 
   field3(:) = scalar1*field1(:) + scalar2*field2(:)
 
@@ -1845,7 +1858,7 @@ inc_aX_plus_bY
 
 **inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
-Performs X = aX + bY (increments the first field): ::
+Performs X = aX + bY (increments the first field)::
 
   field1(:) = scalar1*field1(:) + scalar2*field2(:)
 
@@ -1866,7 +1879,7 @@ X_minus_Y
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
 Subtracts the second field from the first and stores the result in the
-third (Z = X - Y): ::
+third (Z = X - Y)::
 
   field3(:) = field1(:) - field2(:)
 
@@ -1881,7 +1894,7 @@ inc_X_minus_Y
 
 **inc_X_minus_Y** (*field1*, *field2*)
 
-Subtracts the second field from the first and returns it (X = X - Y): ::
+Subtracts the second field from the first and returns it (X = X - Y)::
 
   field1(:) = field1(:) - field2(:)
 
@@ -1895,7 +1908,7 @@ aX_minus_Y
 
 **aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs Z = aX - Y: ::
+Performs Z = aX - Y::
 
   field3(:) = scalar*field1(:) - field2(:)
 
@@ -1910,7 +1923,7 @@ X_minus_bY
 
 **X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
 
-Performs Z = X - bY: ::
+Performs Z = X - bY::
 
   field3(:) = field1(:) - scalar*field2(:)
 
@@ -1925,7 +1938,7 @@ inc_X_minus_bY
 
 **inc_X_minus_bY** (*field1*, *scalar*, *field2*)
 
-Performs X = X - bY (increments the first field): ::
+Performs X = X - bY (increments the first field)::
 
   field1(:) = field1(:) - scalar*field2(:)
 
@@ -1946,7 +1959,7 @@ X_times_Y
 **X_times_Y** (*field3*, *field1*, *field2*)
 
 Multiplies two fields together and returns the result in a third
-field (Z = X*Y): ::
+field (Z = X*Y)::
 
   field3(:) = field1(:)*field2(:)
 
@@ -1960,7 +1973,7 @@ inc_X_times_Y
 
 **inc_X_times_Y** (*field1*, *field2*)
 
-Multiplies the first field by the second and returns it (X = X*Y): ::
+Multiplies the first field by the second and returns it (X = X*Y)::
 
   field1(:) = field1(:)*field2(:)
 
@@ -1974,7 +1987,7 @@ inc_aX_times_Y
 
 **inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
-Performs X = a*X*Y (increments the first field): ::
+Performs X = a*X*Y (increments the first field)::
 
   field1(:) = scalar*field1(:)*field2(:)
 
@@ -1996,7 +2009,7 @@ a_times_X
 **a_times_X** (*field2*, *scalar*, *field1*)
 
 Multiplies a field by a scalar and stores the result in a second
-field (Y = a*X): ::
+field (Y = a*X)::
 
   field2(:) = scalar*field1(:)
 
@@ -2011,7 +2024,7 @@ inc_a_times_X
 
 **inc_a_times_X** (*scalar*, *field*)
 
-Multiplies a field by a scalar value and returns the field (X = a*X): ::
+Multiplies a field by a scalar value and returns the field (X = a*X)::
 
   field(:) = scalar*field(:)
 
@@ -2032,7 +2045,7 @@ X_divideby_Y
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
 Divides the first field by the second and returns the result in the
-third (Z = X/Y): ::
+third (Z = X/Y)::
 
   field3(:) = field1(:)/field2(:)
 
@@ -2046,7 +2059,7 @@ inc_X_divideby_Y
 
 **inc_X_divideby_Y** (*field1*, *field2*)
 
-Divides the first field by the second and returns it (X = X/Y): ::
+Divides the first field by the second and returns it (X = X/Y)::
 
   field1(:) = field1(:)/field2(:)
 
@@ -2066,7 +2079,7 @@ setval_c
 
 **setval_c** (*field*, *constant*)
 
-Sets all elements of the field *field* to the value *constant* (X = c): ::
+Sets all elements of the field *field* to the value *constant* (X = c)::
 
   field(:) = constant
 
@@ -2082,7 +2095,7 @@ setval_X
 
 **setval_X** (*field2*, *field1*)
 
-Sets a field *field2* equal to field *field1* (Y = X): ::
+Sets a field *field2* equal to field *field1* (Y = X)::
 
   field2(:) = field1(:)
 
@@ -2102,7 +2115,7 @@ inc_X_powreal_a
 
 **inc_X_powreal_a** (*field*, *rscalar*)
 
-Raises a field to a real scalar value and returns the field (X = X**a): ::
+Raises a field to a real scalar value and returns the field (X = X**a)::
 
   field(:) = field(:)**rscalar
 
@@ -2116,7 +2129,7 @@ inc_X_powint_n
 
 **inc_X_powint_n** (*field*, *iscalar*)
 
-Raises a field to an integer scalar value and returns the field (X = X**n): ::
+Raises a field to an integer scalar value and returns the field (X = X**n)::
 
   field(:) = field(:)**iscalar
 
@@ -2136,7 +2149,7 @@ X_innerproduct_Y
 
 **X_innerproduct_Y** (*innprod*, *field1*, *field2*)
 
-Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+Computes the inner product of the fields *field1* and *field2*, *i.e.*::
 
   innprod = SUM(field1(:)*field2(:))
 
@@ -2154,7 +2167,7 @@ X_innerproduct_X
 
 **X_innerproduct_X** (*innprod*, *field*)
 
-Computes the inner product of the field *field1* by itself, *i.e.*: ::
+Computes the inner product of the field *field1* by itself, *i.e.*::
 
   innprod = SUM(field(:)*field(:))
 
@@ -2178,7 +2191,7 @@ sum_X
 **sum_X** (*sumfld*, *field*)
 
 Sums all of the elements of the field *field* and returns the result
-in the scalar variable *sumfld*: ::
+in the scalar variable *sumfld*::
 
   sumfld = SUM(field(:))
 
@@ -2198,9 +2211,7 @@ In the Dynamo0.3 API, boundary conditions for a field or LMA operator can
 be enforced by the algorithm developer by calling the Kernels
 ``enforce_bc_type`` or ``enforce_operator_bc_type``,
 respectively. These kernels take a field or operator as input and apply
-boundary conditions. For example:
-
-::
+boundary conditions. For example::
 
   call invoke( kernel_type(field1, field2),      &
                enforce_bc_type(field1),          &
