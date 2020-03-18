@@ -43,9 +43,11 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
-    Assignment, Literal, Reference, BinaryOperation, IfBlock
+    Assignment, Literal, Reference, BinaryOperation, IfBlock, Range
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import DataType, DataSymbol, ScalarType, \
+    ArrayType, REAL_TYPE, INTEGER_TYPE
 
 
 def process_where(code, fparser_cls):
@@ -66,6 +68,7 @@ def process_where(code, fparser_cls):
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
+
     if fparser_cls is Fortran2003.Execution_Part:
         processor.process_nodes(sched, fparser2spec.content)
     else:
@@ -121,22 +124,20 @@ def test_where_array_notation_rank():
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
     '''
-    from psyclone.psyir.symbols import DataType, DataSymbol
-    my_array = Array(DataSymbol("my_array", DataType.REAL), None)
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("my_array", array_type)
+    my_array = Array(symbol)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
-    # Give the Array one child that is not a CodeBlock
-    my_array.addchild(Literal("2", DataType.INTEGER, my_array))
-    with pytest.raises(NotImplementedError) as err:
-        processor._array_notation_rank(my_array)
-    assert ("that uses Fortran array notation is assumed to have at least "
-            "one CodeBlock as its child " in str(err.value))
+    # Child should be a Range() Node as it us used to represent
+    # Fortran ':'. Place a Literal instead to force an exception.
+    one = Literal("1", INTEGER_TYPE)
     my_array._children = []
-    my_array.addchild(CodeBlock([Fortran2003.Literal_Constant("1")],
-                                CodeBlock.Structure.EXPRESSION, my_array))
+    my_array.addchild(one)
+    one.parent = my_array
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is supported"

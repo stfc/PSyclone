@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, Array, Node
+    Container, Assignment, Return, Array, Node, Range
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -1543,22 +1543,21 @@ class Fparser2Reader(object):
                                       "have at least one child but '{0}' has "
                                       "none".format(array.name))
         # We only currently support array refs using the colon syntax,
-        # e.g. array(:, :).
-        for dim in array.children:
-            print (type(dim))
-        exit(1)
+        # e.g. array(:, :) (with optional other indices not using
+        # colon syntax).
         num_colons = 0
-        for cblock in cblocks:
-            for stmt in cblock.get_ast_nodes:
-                if not isinstance(stmt, Fortran2003.Subscript_Triplet):
-                    raise NotImplementedError(
-                        "Only array notation of the form my_array(:, :, ...) "
-                        "is supported but got: {0}".format(str(array)))
-                if any(stmt.items):
+        for dim in array.children:
+            if isinstance(dim, Range):
+                num_colons += 1
+                if array.children[0] or array.children[1]:
                     raise NotImplementedError(
                         "Bounds on array slices are not supported but found: "
                         "'{0}'".format(str(array)))
-                num_colons += 1
+        if num_colons == 0:
+            raise NotImplementedError(
+                "Only array notation of the form my_array(:, :, ...) "
+                "is supported but got: {0}".format(str(array)))
+
         return num_colons
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
@@ -1694,7 +1693,7 @@ class Fparser2Reader(object):
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
         fake_parent = Schedule()
-        self.process_nodes(fake_parent, logical_expr)
+        self.process_nodes(fake_parent, [logical_expr])
         arrays = fake_parent[0].walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
