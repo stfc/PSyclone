@@ -1067,7 +1067,7 @@ class GOKern(CodedKern):
         parent.add(AssignGen(parent, lhs=local_size,
                              rhs="(/{0}, 1/)".format(loc_size_value)))
 
-        # Create Kernel name variable
+        # Retrieve kernel name
         kernel = \
             self.root.symbol_table.lookup_with_tag("kernel_" + self.name).name
         # Generate code to ensure data is on device
@@ -1141,8 +1141,9 @@ class GOKern(CodedKern):
         # subroutine SymbolTable.
         sub_name = self.root.symbol_table.new_symbol_name(
             self.name + "_set_args")
-        self.root.symbol_table.add(Symbol(sub_name), tag=sub_name)
-        argsetter_st.add(Symbol(sub_name))
+        sub_symbol = Symbol(sub_name)
+        self.root.symbol_table.add(sub_symbol, tag=sub_name)
+        argsetter_st.add(sub_symbol)
         sub = SubroutineGen(parent, name=sub_name, args=args)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
