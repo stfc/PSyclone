@@ -132,16 +132,14 @@ def test_where_array_notation_rank():
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
-    # Child should be a Range() Node as it us used to represent
-    # Fortran ':'. Place a Literal instead to force an exception.
-    one = Literal("1", INTEGER_TYPE)
-    my_array._children = []
-    my_array.addchild(one)
-    one.parent = my_array
+    from psyclone.psyir.nodes import Range
+    my_array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10]),
+                            [Range(Literal("1", DataType.INTEGER),
+                                   Literal("10", DataType.INTEGER))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
-    assert ("Only array notation of the form my_array(:, :, ...) is supported"
-            in str(err.value))
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
@@ -175,7 +173,8 @@ def test_array_notation_rank():
     processor.process_nodes(fake_parent, [fparser2spec])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(fake_parent[2].lhs)
-    assert "Bounds on array slices are not supported" in str(err.value)
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
 
 
 def test_where_symbol_clash(parser):
@@ -229,7 +228,10 @@ def test_basic_where():
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
     assert ("ArrayReference[name:'dry']\n"
-            "Reference[name:'widx1']\n" in str(ifblock.condition))
+            "Reference[name:'widx1']\n"
+            "Reference[name:'widx2']\n"
+            "Reference[name:'widx3']\n"
+            in str(ifblock.condition))
 
 
 @pytest.mark.usefixtures("parser")

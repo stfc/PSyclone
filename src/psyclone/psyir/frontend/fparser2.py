@@ -1,4 +1,3 @@
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2020, Science and Technology Facilities Council.
@@ -93,6 +92,222 @@ def _get_symbol_table(node):
     return None
 
 
+def _check_args(array, dim):
+    '''Utility routine used by the _check_bound_is_full_extent and
+    _check_array_range_literal functions to check common arguments.
+
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be removed.
+
+    :param array: the node to check.
+    :type array: :py:class:`pysclone.psyir.node.array`
+    :param int dim: the dimension index to use.
+
+    :raises TypeError: if the supplied arguments are of the wrong type.
+    :raises ValueError: if the value of the supplied dim argument is \
+        less than 1 or greater than the number of dimensions in the \
+        supplied array argument.
+
+    '''
+    if not isinstance(array, Array):
+        raise TypeError(
+            "method _check_args 'array' argument should be an "
+            "Array type but found '{0}'.".format(type(array).__name__))
+
+    if not isinstance(dim, int):
+        raise TypeError(
+            "method _check_args 'dim' argument should be an "
+            "int type but found '{0}'.".format(type(dim).__name__))
+    if dim < 1:
+        raise ValueError(
+            "method _check_args 'dim' argument should be at "
+            "least 1 but found {0}.".format(dim))
+    if dim > len(array.children):
+        raise ValueError(
+            "method _check_args 'dim' argument should be at "
+            "most the number of dimensions of the array ({0}) but found "
+            "{1}.".format(len(array.children), dim))
+
+    # The first child of the array (index 0) relates to the first
+    # dimension (dim 1), so we need to reduce dim by 1.
+    if not isinstance(array.children[dim-1], Range):
+        raise TypeError(
+            "method _check_args 'array' argument index '{0}' "
+            "should be a Range type but found '{1}'."
+            "".format(dim-1, type(array.children[dim-1]).__name__))
+
+
+def _is_bound_full_extent(array, dim, operator):
+    '''A Fortran array section with a missing lower bound implies the
+    access starts at the first element and a missing upper bound
+    implies the access ends at the last element e.g. a(:,:)
+    accesses all elements of array a and is equivalent to
+    a(lbound(a,1):ubound(a,1),lbound(a,2):ubound(a,2)). The PSyIR
+    does not support the shorthand notation, therefore the lbound
+    and ubound operators are used in the PSyIR.
+
+    This utility function checks that shorthand lower or upper
+    bound Fortran code is captured as longhand lbound and/or
+    ubound functions as expected in the PSyIR.
+
+    The supplied "array" argument is assumed to be an Array node and
+    the contents of the specified dimension "dim" is assumed to be a
+    Range node.
+
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be moved into fparser2_test.py as it is used there in a
+    different context.
+
+    :param array: the node to check.
+    :type array: :py:class:`pysclone.psyir.node.array`
+    :param int dim: the dimension index to use.
+    :param operator: the operator to check.
+    :type operator: \
+        :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
+        or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
+
+    :returns: True if the supplied array has the expected properties, \
+        otherwise returns False.
+    :rtype: bool
+
+    :raises TypeError: if the supplied arguments are of the wrong type.
+
+    '''
+    _check_args(array, dim)
+
+    if operator == BinaryOperation.Operator.LBOUND:
+        index = 0
+    elif operator == BinaryOperation.Operator.UBOUND:
+        index = 1
+    else:
+        raise TypeError(
+            "'operator' argument  expected to be LBOUND or UBOUND but "
+            "found '{0}'.".format(type(operator).__name__))
+
+    # The first child of the array (index 0) relates to the first
+    # dimension (dim 1), so we need to reduce dim by 1.
+    bound = array.children[dim-1].children[index]
+
+    if not isinstance(bound, BinaryOperation):
+        return False
+
+    reference = bound.children[0]
+    literal = bound.children[1]
+
+    # pylint: disable=too-many-boolean-expressions
+    if (bound.operator == operator
+            and isinstance(reference, Reference) and
+            reference.symbol is array.symbol
+            and isinstance(literal, Literal) and
+            literal.datatype == DataType.INTEGER
+            and literal.value == str(dim)):
+        return True
+    # pylint: enable=too-many-boolean-expressions
+    return False
+
+
+def _is_array_range_literal(array, dim, index, value):
+    '''Utility function to check that the supplied array has an integer
+    literal at dimension index "dim" and range index "index" with
+    value "value".
+
+    The step part of the range node has an integer literal with
+    value 1 by default.
+
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be moved into fparser2_test.py as it is used there in a
+    different context.
+
+    :param array: the node to check.
+    :type array: :py:class:`pysclone.psyir.node.Array`
+    :param int dim: the dimension index to check.
+    :param int index: the index of the range to check (0 is the \
+        lower bound, 1 is the upper bound and 2 is the step).
+    :param int value: the expected value of the literal.
+
+    :raises NotImplementedError: if the supplied argument does not \
+        have the required properties.
+
+    :returns: True if the supplied array has the expected properties, \
+        otherwise returns False.
+    :rtype: bool
+
+    :raises TypeError: if the supplied arguments are of the wrong type.
+    :raises ValueError: if the index argument has an incorrect value.
+
+    '''
+    _check_args(array, dim)
+
+    if not isinstance(index, int):
+        raise TypeError(
+            "method _check_array_range_literal 'index' argument should be an "
+            "int type but found '{0}'.".format(type(index).__name__))
+
+    if index < 0 or index > 2:
+        raise ValueError(
+            "method _check_array_range_literal 'index' argument should be "
+            "0, 1 or 2 but found {0}.".format(index))
+
+    if not isinstance(value, int):
+        raise TypeError(
+            "method _check_array_range_literal 'value' argument should be an "
+            "int type but found '{0}'.".format(type(value).__name__))
+
+    # The first child of the array (index 0) relates to the first
+    # dimension (dim 1), so we need to reduce dim by 1.
+    literal = array.children[dim-1].children[index]
+
+    if (isinstance(literal, Literal) and
+            literal.datatype == DataType.INTEGER and
+            literal.value == str(value)):
+        return True
+    return False
+
+
+def _is_range_full_extent(my_range):
+    '''Utility function to check whether a Range object is equivalent to a
+    ":" in Fortran array notation. The PSyIR representation of "a(:)"
+    is "a(lbound(a,1):ubound(a,1):1). Therefore, for array a index 1,
+    the lower bound is compared with "lbound(a,1)", the upper bound is
+    compared with "ubound(a,1)" and the step is compared with 1.
+
+    If everything is OK then this routine silently returns, otherwise
+    an exception is raised by one of the functions
+    (_check_bound_is_full_extent or _check_array_range_literal) called by this
+    function.
+
+    This routine is only in fparser2.py until #717 is complete as it
+    is used to check that array syntax in a where statement is for the
+    full extent of the dimension. Once #717 is complete this routine
+    can be removed.
+
+    :param my_range: the Range node to check.
+    :type my_range: :py:class:`psyclone.psyir.node.Range`
+
+    '''
+
+    array = my_range.parent
+    # The array index of this range is determined by its position in
+    # the array list (+1 as the index starts from 0 but Fortran
+    # dimensions start from 1).
+    dim = array.children.index(my_range) + 1
+    # Check lower bound
+    is_lower = _is_bound_full_extent(
+        array, dim, BinaryOperation.Operator.LBOUND)
+    # Check upper bound
+    is_upper = _is_bound_full_extent(
+        array, dim, BinaryOperation.Operator.UBOUND)
+    # Check step (index 2 is the step index for the range function)
+    is_step = _is_array_range_literal(array, dim, 2, 1)
+    return is_lower and is_upper and is_step
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -161,8 +376,10 @@ class Fparser2Reader(object):
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
+            Fortran2003.Subscript_Triplet: self._subscript_triplet_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
+            Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
             utils.BinaryOpBase: self._binary_op_handler,
@@ -1517,11 +1734,10 @@ class Fparser2Reader(object):
 
     @staticmethod
     def _array_notation_rank(array):
-        '''
-        Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section of the
-        array that is specified. e.g. for a reference "a(:, 2, :)" the rank
-        of the sub-section is 2.
+        '''Check that the supplied candidate array reference uses supported
+        array notation syntax and return the rank of the sub-section
+        of the array that uses array notation. e.g. for a reference
+        "a(:, 2, :)" the rank of the sub-section is 2.
 
         :param array: the array reference to check.
         :type array: :py:class:`psyclone.psyir.nodes.Array`
@@ -1531,33 +1747,30 @@ class Fparser2Reader(object):
 
         :raises NotImplementedError: if the array node does not have any \
                                      children.
-        :raises NotImplementedError: if the Array does not have at least one \
-                                     CodeBlock as a child.
-        :raises NotImplementedError: if each CodeBlock child does not \
-                                     consist entirely of Subscript_Triplets.
-        :raises NotImplementedError: if any of the array slices have bounds \
-                                     (as this is not yet supported).
+
         '''
         if not array.children:
             raise NotImplementedError("An Array reference in the PSyIR must "
                                       "have at least one child but '{0}' has "
                                       "none".format(array.name))
-        # We only currently support array refs using the colon syntax,
-        # e.g. array(:, :) (with optional other indices not using
-        # colon syntax).
+        # Only array refs using basic colon syntax are currently
+        # supported e.g. (a(:,:)).  Each colon is represented in the
+        # PSyIR as a Range node with first argument being an lbound
+        # binary operator, the second argument being a ubound operator
+        # and the third argument being an integer Literal node with
+        # value 1 i.e. a(:,:) is represented as
+        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
+        # the PSyIR.
         num_colons = 0
-        for dim in array.children:
-            if isinstance(dim, Range):
-                num_colons += 1
-                if array.children[0] or array.children[1]:
+        for node in array.children:
+            if isinstance(node, Range):
+                # Found array syntax notation. Check that it is the
+                # simple ":" format.
+                if not _is_range_full_extent(node):
                     raise NotImplementedError(
-                        "Bounds on array slices are not supported but found: "
-                        "'{0}'".format(str(array)))
-        if num_colons == 0:
-            raise NotImplementedError(
-                "Only array notation of the form my_array(:, :, ...) "
-                "is supported but got: {0}".format(str(array)))
-
+                        "Only array notation of the form my_array(:, :, ...) "
+                        "is supported.")
+                num_colons += 1
         return num_colons
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
@@ -1592,7 +1805,8 @@ class Fparser2Reader(object):
         for array in arrays:
             # Check that this is a supported array reference and that
             # all arrays are of the same rank
-            rank = self._array_notation_rank(array)
+            rank = len([child for child in array.children if
+                        isinstance(child, Range)])
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
@@ -1605,20 +1819,21 @@ class Fparser2Reader(object):
             # checking for the NEMO API. i.e. if api=="nemo": add local
             # symbol else: add symbol from symbol table.
             symbol_table = _get_symbol_table(parent)
-            # Replace the CodeBlocks containing the Subscript_Triplets with
-            # the index expressions
-            cblocks = array.walk(CodeBlock)
-            for idx, cblock in enumerate(cblocks):
-                posn = array.children.index(cblock)
-                if symbol_table:
-                    symbol = array.find_symbol(loop_vars[idx])
-                else:
-                    # The NEMO API does not generate symbol tables, so
-                    # create a new Symbol. Choose a datatype as we
-                    # don't know what it is. Remove this code when
-                    # issue #500 is addressed.
-                    symbol = DataSymbol(loop_vars[idx], INTEGER_TYPE)
-                array.children[posn] = Reference(symbol, parent=array)
+            # Replace the PSyIR Ranges with the loop variables
+            range_idx = 0
+            for idx, child in enumerate(array.children):
+                if isinstance(child, Range):
+                    if symbol_table:
+                        symbol = array.find_symbol(loop_vars[range_idx])
+                    else:
+                        # The NEMO API does not generate symbol tables, so
+                        # create a new Symbol. Choose a datatype as we
+                        # don't know what it is. Remove this code when
+                        # issue #500 is addressed.
+                        symbol = DataSymbol(
+                            loop_vars[range_idx], DataType.INTEGER)
+                    array.children[idx] = Reference(symbol, parent=array)
+                    range_idx += 1
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -2112,6 +2327,68 @@ class Fparser2Reader(object):
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
+
+    def _subscript_triplet_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Subscript_Triplet to the PSyIR
+        representation.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Subscript_Triplet`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+        '''
+        # The PSyIR stores array dimension information for the Array
+        # class in an ordered list. As we are processing the
+        # dimensions in order, the number of children already added to
+        # our parent indicates the current array dimension being
+        # processed (with 0 being the first dimension, 1 being the
+        # second etc). Fortran specifies the 1st dimension as being 1,
+        # the second dimension being 2, etc.). We therefore add 1 to
+        # the number of children added to out parent to determine the
+        # Fortran dimension value.
+        dimension = str(len(parent.children)+1)
+        my_range = Range(parent=parent)
+        my_range.children = []
+        if node.children[0]:
+            self.process_nodes(parent=my_range, nodes=[node.children[0]])
+        else:
+            # There is no lower bound, it is implied. This is not
+            # supported in the PSyIR so we create the equivalent code
+            # by using the PSyIR lbound function:
+            # a(:...) becomes a(lbound(a,1):...)
+            lbound = BinaryOperation.create(
+                BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
+                Literal(dimension, DataType.INTEGER))
+            lbound.parent = my_range
+            my_range.children.append(lbound)
+        if node.children[1]:
+            self.process_nodes(parent=my_range, nodes=[node.children[1]])
+        else:
+            # There is no upper bound, it is implied. This is not
+            # supported in the PSyIR so we create the equivalent code
+            # by using the PSyIR ubound function:
+            # a(...:) becomes a(...:ubound(a,1))
+            ubound = BinaryOperation.create(
+                BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
+                Literal(dimension, DataType.INTEGER))
+            ubound.parent = my_range
+            my_range.children.append(ubound)
+        if node.children[2]:
+            self.process_nodes(parent=my_range, nodes=[node.children[2]])
+        else:
+            # There is no step, it is implied. This is not
+            # supported in the PSyIR so we create the equivalent code
+            # by using a PSyIR integer literal with the value 1
+            # a(...:...:) becomes a(...:...:1)
+            literal = Literal("1", DataType.INTEGER)
+            my_range.children.append(literal)
+            literal.parent = my_range
+        return my_range
 
     def _number_handler(self, node, parent):
         '''

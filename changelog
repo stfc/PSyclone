@@ -108,6 +108,10 @@
 	34) PR #704 for #699 and #697. Fixes gocean/eg2 and adds a
 	--compile option to the check_examples script.
 
+        35) PR #684 for #655. Re-factor psy-data-based transformations.
+
+	36) PR #700 for #687. Adds support for Fortran array syntax
+	to the PSyIR Fortran front-/back-ends.
 
 release 1.8.1 29th November 2019
 
