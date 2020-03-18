@@ -111,6 +111,25 @@ config file that you are using.
 
 API
 ---
+The PSyData API consists of two calls that allow initialisation and
+shut down of a wrapper library. These two calls must be inserted
+manually into the program, and their location might depend on 
+the wrapper library used - e.g. some libraries might need to be
+initialised before ``MPI_Init`` is called, others might need to
+be called after. Similarly the shutdown function might need to
+be called before or after ``MPI_Finalize``.
+
+.. method:: PREFIX_PSyDataInit()
+    Initialises the wrapper library used. It takes no parameters, and must
+    called exactly once before any other PSyData-related function
+    is invoked.
+
+.. method:: PREFIX_PSyDataShutdown()
+    Cleanly shuts down the wrapper library used. It takes no parameters,
+    and must called exactly once. No more PSyData-related functions
+    must be called after PSyDataShutdown has been called.
+
+
 The callbacks are inserted into the code by the PSyData transformation,
 see :ref:`psy_data_transformation` for details. The following example
 shows the code created by PSyclone for an extraction transformation::

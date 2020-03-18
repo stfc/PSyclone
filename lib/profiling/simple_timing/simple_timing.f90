@@ -79,7 +79,7 @@ module profile_psy_data_mod
   !> How many entries in all_data have been used
   integer :: used_entries
 
-  !> Keeps track if ProfileInit has been called.
+  !> Keeps track if profile_PSyDataInit has been called.
   logical :: has_been_initialised = .false.
 
 contains
@@ -89,13 +89,13 @@ contains
   !> any PSyclone created code, so the user has to manually insert a
   !> call to this subroutine. But the simple timing library will
   !> actually call this function itself if it has not been called previously.
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     implicit none
 
     used_entries         = 0
     has_been_initialised = .true.
 
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -121,7 +121,7 @@ contains
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
-       call ProfileInit()
+       call profile_PSyDataInit()
     endif
 
     ! Note that the actual initialisation of this
@@ -175,7 +175,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> The finalise function prints the results. This subroutine must be called,
   !> otherwise no results will be printed.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     implicit none
     integer                    :: i
     integer                    :: max_len, this_len
@@ -215,6 +215,6 @@ contains
                 p%min, tab, p%sum/p%count, tab, p%max
     end do
     print *,"==========================================="
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod

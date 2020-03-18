@@ -66,33 +66,34 @@ In order to guarantee that any profiling library is properly
 initialised, PSyclone's profiling wrappers utilise two additional
 function calls that the user must manually insert into the program:
 
-ProfileInit()
-~~~~~~~~~~~~~
+profile_PSyDataInit()
+~~~~~~~~~~~~~~~~~~~~~
 This method needs to be called once to initialise the profiling tool.
 At this stage this call is not automatically inserted by PSyclone, so
 it is the responsibility of the user to add the call to an appropriate
 location in the application::
 
-   use profile_mod, only : ProfileInit
+   use profile_psy_data_mod, only : profile_PSyDataInit
    ...
-   call ProfileInit()
+   call profile_PSyDataInit()
 
 The 'appropriate' location might depend on the profiling library used. 
 For example, it might be necessary to invoke this before or after
 a call to ``MPI_Init()``.
 
 
-ProfileFinalise()
-~~~~~~~~~~~~~~~~~
-At the end of the program the function ``ProfileFinalise()`` must be called.
+profile_PSyDataShutdown()
+~~~~~~~~~~~~~~~~~~~~~~~~~
+At the end of the program the function ``profile_PSyDataShutdown()``
+must be called.
 It will make sure that the measurements are printed, files are flushed,
 and that the profiling tool is closed correctly. Again at
 this stage it is necessary to manually insert the call at an appropriate
 location::
 
-    use profile_mod, only : ProfileFinalise
+    use profile_psy_data_mod, only : profile_PSyDataShutdown
     ...
-    call ProfileFinalise()
+    call profile_PSyDataShutdown()
 
 And again the appropriate location might depend on the profiling library
 used (e.g. before or after a call to ``MPI_Finalize()``).
@@ -106,14 +107,13 @@ code with profiling regions. It can create profile regions around
 a full invoke (including all kernel calls in this invoke), and/or
 around each individual kernel. 
 
-The option ``--profile invokes`` will automatically add a call to 
-``ProfileStart`` and ``ProfileEnd`` at the beginning and end of every
+The option ``--profile invokes`` will automatically add calls to 
+start and end a profile region at the beginning and end of every
 invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
-The option ``--profile kernels`` will add a call to ``ProfileStart``
-before each loop created by PSyclone, and a ``ProfileEnd`` call at the
-end of each loop.
+The option ``--profile kernels`` will surround each outer loop
+created by PSyclone with start and end profiling calls.
 
 .. note:: In some APIs (for example dynamo when using distributed
           memory) additional minor code might get included in a
@@ -121,7 +121,8 @@ end of each loop.
           (expensive calls like HaloExchange are excluded).
 
 .. note:: It is still the responsibility of the user to manually
-    add the calls to ``ProfileInit`` and ``ProfileFinalise`` to the
+    add the calls to ``profile_PSyDataInit`` and 
+    ``profile_PSyDataShutdown`` to the
     code base (see :ref:`required_profiling_calls`).
 
 PSyclone will modify the schedule of each invoke to insert the

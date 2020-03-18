@@ -16,11 +16,11 @@ contains
   !> any PSyclone created code, but for most existing profiling libraries the
   !> application will have to call it. In this dummy library it is called once
   !> from ProfileStart.
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     implicit none
-    print *,"ProfileInit called"
+    print *,"profile_PSyDataInit called"
     has_been_initialised = .true.
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -43,7 +43,7 @@ contains
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
-       call ProfileInit()
+       call profile_PSyDataInit()
     endif
     print *, "PreStart called for module '", module_name,  &
          "' region '", region_name, "'"
@@ -69,9 +69,9 @@ contains
   !> for most profiling libraries, otherwise no results will be produced.
   !> This call must be added to the program explicitly, it is not called
   !> automatically.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     implicit none
-    print *,"ProfileFinalise called"
-  end subroutine ProfileFinalise
+    print *,"profile_PSyDataShutdown called"
+  end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod

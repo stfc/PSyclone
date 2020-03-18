@@ -55,12 +55,12 @@ module profile_psy_data_mod
 contains
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
-  !! any PSyclone created code, so a call to ProfileInit must be inserted
-  !! manually by the developer. In case of Dr Hook an initialisation is not
-  !! necessary.
+  !! any PSyclone created code, so a call to profile_PSyDataInit must be
+  !! inserted manually by the developer. In case of Dr Hook an initialisation
+  !! is not necessary.
 
-  subroutine ProfileInit()
-  end subroutine ProfileInit
+  subroutine profile_PSyDataInit()
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -109,7 +109,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> Called at the end of the execution of a program, usually to generate
   !! all output for the profiling library. Not required in the case of Dr Hook.
-  subroutine ProfileFinalise()
-  end subroutine ProfileFinalise
+  subroutine profile_PSyDataShutdown()
+  end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod

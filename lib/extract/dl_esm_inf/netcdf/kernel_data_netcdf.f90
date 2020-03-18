@@ -124,6 +124,18 @@ Contains
     end function CheckError
 
     ! -------------------------------------------------------------------------
+    !> This is a one-time init function. It is not required for the kernel
+    !! extraction and is therefore empty.
+    subroutine extract_PSyDataInit()
+    end subroutine extract_PSyDataInit
+
+    ! -------------------------------------------------------------------------
+    !> This is a one-time shutdown function. It is not required for the kernel
+    !! extraction and is therefore empty.
+    subroutine extract_PSyDataShutdown()
+    end subroutine extract_PSyDataShutdown
+
+    ! -------------------------------------------------------------------------
     !> This subroutine is the first function called when data is written out
     !! before an instrumented region of code.
     !! @param[inout] this The instance of the extract_PsyDataType.

@@ -50,16 +50,16 @@ module profile_psy_data_mod
 contains
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
-  !! any PSyclone created code, so a call to ProfileInit must be inserted
-  !! manually by the developer.
+  !! any PSyclone created code, so a call to profile_PSyDataInit must be
+  !! inserted manually by the developer.
   !!
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     use dl_timer, only :timer_init
 
     implicit none
     call timer_init()
 
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -108,11 +108,11 @@ contains
   ! ---------------------------------------------------------------------------
   !> Called at the end of the execution of a program, usually to generate
   !! all output for the profiling library. Calls timer_report in dl_timer.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     use dl_timer, only : timer_report
     implicit none
     call timer_report()
 
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod

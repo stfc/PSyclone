@@ -103,16 +103,16 @@ module profile_psy_data_mod
   end interface nvtxRangePop
 
   ! Only the routines making up the PSyclone profiling API are public
-  public ProfileInit, ProfileFinalise
+  public profile_PSyDataInit, profile_PSyDataShutdown
 
 contains
 
   !> An optional initialisation subroutine. This is not used for the NVTX
   !! library.
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     implicit none
     return
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
@@ -173,9 +173,9 @@ contains
 
   !> The finalise function would normally print the results. However, this
   !> is unnecessary for the NVTX library so we do nothing.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     implicit none
     return
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
 end module profile_psy_data_mod
