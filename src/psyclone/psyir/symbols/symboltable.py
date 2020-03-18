@@ -138,9 +138,8 @@ class SymbolTable(object):
 
         :param new_symbol: the symbol to add to the symbol table.
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param tag: a tag identifier for the new symbol, by default no tag \
-            is given.
-        :type tag: str
+        :param str tag: a tag identifier for the new symbol, by default no \
+            tag is given.
 
         :raises KeyError: if the symbol name is already in use.
 
@@ -244,6 +243,7 @@ class SymbolTable(object):
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises KeyError: if the given tag is not in the Symbol Table.
+
         '''
         try:
             return self._tags[tag]
@@ -547,9 +547,8 @@ class SymbolTable(object):
 
         :param globalvar: the variable to be copied in.
         :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param tag: a tag identifier for the new copy, by default no tag \
+        :param str tag: a tag identifier for the new copy, by default no tag \
             is given.
-        :type tag: str
 
         :raises TypeError: if the given variable is not a global variable.
         :raises KeyError: if the given variable name already exists in the \
@@ -594,15 +593,15 @@ class SymbolTable(object):
                     " name '{1}' is already used by another symbol."
                     "".format(globalvar, globalvar.name))
             if tag:
-                # If the symbol already exist and a tag is given
+                # If the symbol already exists and a tag is provided
                 try:
-                    tagged_symbol = self.lookup_with_tag(tag)
+                    self.lookup_with_tag(tag)
                 except KeyError:
                     # If the tag was not used, it will now be attached
                     # to the symbol.
                     self._tags[tag] = self.lookup(globalvar.name)
 
-                # The tag can not refere to a different symbol
+                # The tag should not refer to a different symbol
                 if self.lookup(globalvar.name) != self.lookup_with_tag(tag):
                     raise KeyError(
                         "Couldn't copy '{0}' into the SymbolTable. The"

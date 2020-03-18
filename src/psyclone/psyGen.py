@@ -882,9 +882,12 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
-        # During gen_code, use a duplicate of the symbol_table so that changes
-        # made are not permanent. The original symbol table is restored at the
-        # end of this method.
+        # The gen_code method generates new Symbol names, however, we want
+        # subsequent calls to invoke.gen_code() to produce the exact same code.
+        # To make this possible gen_code uses a duplicate of the symbol_table
+        # instead of the original one (so new symbols are not conserved outside
+        # gen_code). The original symbol table is restored at the end of this
+        # method.
         symbol_table_before_gen = self.symbol_table
         self._symbol_table = self.symbol_table.shallow_copy()
 
@@ -911,8 +914,7 @@ class InvokeSchedule(Schedule):
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
 
-            # Declare variables needed on a OpenCL PSy-layer invoke (this
-            # must be an exact match because they are looked up later on)
+            # Declare variables needed on a OpenCL PSy-layer invoke
             nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
             self.symbol_table.add(DataSymbol(nqueues, DataType.INTEGER),
                                   tag="opencl_num_cmd_queues")

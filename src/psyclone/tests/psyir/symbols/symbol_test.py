@@ -56,7 +56,7 @@ def test_symbol_initialisation():
 
 
 def test_symbol_str():
-    '''Test that a ContainerSymbol instance can be stringified'''
+    '''Test that a Symbol instance can be stringified'''
 
     sym = Symbol("my_symbol")
     assert str(sym) == "my_symbol"

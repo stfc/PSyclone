@@ -64,6 +64,7 @@ class Symbol(object):
     :param str name: name of the symbol.
 
     :raises TypeError: if the name is not a string.
+
     '''
 
     def __init__(self, name):

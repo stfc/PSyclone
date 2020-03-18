@@ -944,8 +944,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
 
-        # Add OMP common variables into the InvokeSchedule (root) symboltable
-        # if they don't already exist
+        # Add variable names for OMP functions into the InvokeSchedule (root)
+        # symboltable if they don't already exist
         if not isinstance(node.root, NemoInvokeSchedule):
             symtab = node.root.symbol_table
             try:
@@ -3710,7 +3710,7 @@ class NemoExplicitLoopTrans(Transformation):
         loop_stop = loop_type["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #500 When the Nemo API will have a SymbolTable implemented,
+        # TODO #500 When the Nemo API has the SymbolTable implemented,
         # we should remove the _loop_vars attribute and add the symbols
         # into the symboltable instead.
         if loop._variable_name not in invoke._loop_vars:
