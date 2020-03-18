@@ -1721,7 +1721,8 @@ class DynStencils(DynCollection):
         Creates and registers a name for the stencil dofmap associated with
         the supplied kernel argument.
 
-        :param symtab: symbol table where the name is attached.
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -1739,7 +1740,8 @@ class DynStencils(DynCollection):
         Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
-        :param symtab: symbol table where the name is attached.
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -1757,7 +1759,8 @@ class DynStencils(DynCollection):
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
 
-        :param symtab: symbol table where the name is attached.
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
