@@ -662,16 +662,23 @@ class Fparser2Reader(object):
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
 
-        # Is the routine enclosed within a module?
-        current = routine.parent
-        while current:
-            if isinstance(current, Fortran2003.Module):
-                # We have a parent module so create a Container
-                new_container = self.generate_container(current)
-                new_schedule.parent = new_container
-                new_container.children.append(new_schedule)
-                break
-            current = current.parent
+        # Check whether or not we need to create a Container for this schedule
+        container = None
+        if invoke and invoke.invokes.container:
+            # We already have a Container so we'll add this schedule to it
+            container = invoke.invokes.container
+        else:
+            # Is the routine enclosed within a module?
+            current = subroutine.parent
+            while current:
+                if isinstance(current, Fortran2003.Module):
+                    # We have a parent module so create a Container
+                    container = self.generate_container(current)
+                    break
+                current = current.parent
+        if container:
+            new_schedule.parent = container
+            container.children.append(new_schedule)
 
         # Set pointer from schedule into fparser2 tree
         # TODO #435 remove this line once fparser2 tree not needed

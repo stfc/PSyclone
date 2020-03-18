@@ -61,8 +61,9 @@ class NemoFparser2Reader(Fparser2Reader):
         '''
         Create an empty KernelSchedule.
 
-        :param str name: Name of the subroutine represented by the kernel.
-        :param invoke: TODO
+        :param str name: name of the subroutine represented by the kernel.
+        :param invoke: the Invoke object to which this Schedule belongs.
+        :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
 
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
