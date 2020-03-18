@@ -1763,8 +1763,6 @@ class ParallelRegionTrans(RegionTrans):
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
 
-        :raises TransformationError: if the nodes argument is not of the \
-                                     correct type.
         :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
@@ -1774,19 +1772,7 @@ class ParallelRegionTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        from psyclone.psyir.nodes import Node
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Node):
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {0} transformation. "
-                                      "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {1}".
-                                      format(self.name, arg_type))
+        node_list = self.get_node_list(nodes)
         self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1813,11 +1799,11 @@ class ParallelRegionTrans(RegionTrans):
                                      children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the region directive's Schedule as their parent. Use a slice
-        # of the list of nodes so that we're looping over a local
-        # copy of the list. Otherwise things get confused when
-        # we remove children from the list.
-        for child in node_list[:]:
+        # the region directive's Schedule as their parent. Note
+        # that node_list is a copy, so we can remove children
+        # from the tree without affecting the content of
+        # node_list
+        for child in node_list:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
             child.parent = directive.dir_body
