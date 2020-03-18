@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2019, Science and Technology Facilities Council.
+   Copyright (c) 2020, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -37,24 +37,25 @@
 PSyIR Symbols
 #############
 
-At the moment, root node schedules (e.g. `InvokeSchedules`, `KernelSchedules`
-and `Containers`) have a symbol table with the definition of the symbols used
-in their bodies.
+At the moment, root nodes (e.g. `InvokeSchedules`, `KernelSchedules`
+and `Containers`) have a symbol table which contains the symbols used by their
+descendant nodes.
+
 
 .. note:: Some symbols are still hardwired as strings inside some of the PSyIR
-    nodes. But these should be eventually replaced as we have no way to check
-    for name clashes with these symbols.
+    nodes, but there are issues raised to replace these.
 
 When one wants to define a new symbol in the symbol table, in order to avoid
-any clashes, the recommended way is to us the `new_symbol_name` method:
+any clashes, the recommended way is to use the `new_symbol_name` method:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
 
-However, if this variable need to be retrieved later on, one must keep track
-of the returned name or use a tag to uniquely identify the variable
-internally (the tag is not displayed in the generated code). Therefore, to
-create a new symbol and associate it with a tag, the following lines
-can be used:
+However, if this variable needs to be retrieved later on, one must keep track
+of the symbol or the returned name. As this is not always feasable when
+accessed from different routines, there is also the option to provide a tag to
+uniquely identify the symbol internally (the tag is not displayed in the
+generated code). Therefore, to create a new symbol and associate it with a
+tag, the following lines can be used:
 
 .. code-block:: python
 
@@ -70,15 +71,15 @@ methods:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.lookup_with_tag
 
-Sometimes, specially in the dynamo0p3 API, we have no way of knowing if
-a symbol has already been defined before it is first used. In this cases
-we can use a try/catch around the `lookup_with_tag` method and if a 
-KeyError is raised (the tag was not found), then proceed to declare the
-symbol. Since this action is often needed, the Symbol Table provides the
-following helper method that encapsulates the described behaviour:
+Sometimes, particularly in the dynamo0p3 API, we have no way of knowing if
+a symbol has already been defined. In this case we can use a try/catch around
+the `lookup_with_tag` method and if a KeyError is raised (the tag was not
+found), then proceed to declare the symbol. As this situan occurs frquently
+the Symbol Table provides the following helper method that encapsulates the
+described behaviour:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.name_from_tag
 
-.. warning:: It is recommended to avoid the `name_from_tag` method for new
-    code as ideally the method will be deprecated in favor of a finer control
+.. warning:: The `name_from_tag` method should not be used for new
+    code as the method will be deprecated in favour of a finer control
     of when variables are defined and used.
