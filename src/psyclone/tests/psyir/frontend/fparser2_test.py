@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import Node, Schedule, \
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError, DataType
+    ArgumentInterface, SymbolError, DataType, ScalarType, ArrayType, \
+    INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args
@@ -103,8 +104,9 @@ def test_check_args():
     assert ("'array' argument should be an Array type but found 'NoneType'."
             in str(excinfo.value))
 
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [20])
+    symbol = DataSymbol('a', array_type)
     array_reference = Array.create(symbol, [one])
 
     with pytest.raises(TypeError) as excinfo:
@@ -137,8 +139,9 @@ def test_is_bound_full_extent():
     assert ("'array' argument should be an Array type but found 'NoneType'."
             in str(excinfo.value))
 
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [20])
+    symbol = DataSymbol('a', array_type)
     my_range = Range.create(one, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -172,7 +175,7 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", DataType.INTEGER)), one)
+        Reference(DataSymbol("x", INTEGER_TYPE)), one)
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -192,17 +195,17 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1.0", DataType.REAL))
+        Reference(symbol), Literal("1.0", REAL_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
-    # Expecting integer datatype but found DataType.REAL
+    # Expecting integer but found real
     assert not _is_bound_full_extent(array_reference, 1,
                                      BinaryOperation.Operator.LBOUND)
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("2", DataType.INTEGER))
+        Reference(symbol), Literal("2", INTEGER_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -213,7 +216,7 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -231,11 +234,12 @@ def test_is_array_range_literal():
     assert ("'array' argument should be an Array type but found 'NoneType'."
             in str(excinfo.value))
 
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [20])
+    symbol = DataSymbol('a', array_type)
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -270,7 +274,7 @@ def test_is_array_range_literal():
 
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
-    my_range.children[1] = Literal("1.0", DataType.REAL)
+    my_range.children[1] = Literal("1.0", REAL_TYPE)
     array_reference = Array.create(symbol, [my_range])
 
     # 1st dimension, second argument to range is a real literal,
@@ -286,14 +290,15 @@ def test_is_array_range_literal():
 
 def test_is_range_full_extent():
     ''' Test the _is_range_full_extent function.'''
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [2])
+    symbol = DataSymbol('a', array_type)
     lbound_op = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     ubound_op = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
 
     my_range = Range.create(lbound_op, ubound_op, one)
     _ = Array.create(symbol, [my_range])
@@ -324,7 +329,8 @@ def test_array_notation_rank():
 
     '''
     # An array with no dimensions raises an exception
-    symbol = DataSymbol("a", DataType.REAL, shape=[10])
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("a", array_type)
     array = Array(symbol, [])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
@@ -333,23 +339,24 @@ def test_array_notation_rank():
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension
-    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    symbol = DataSymbol("a", array_type)
     lbound_op1 = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     ubound_op1 = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     lbound_op3 = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("3", DataType.INTEGER))
+        Reference(symbol), Literal("3", INTEGER_TYPE))
     ubound_op3 = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("3", DataType.INTEGER))
+        Reference(symbol), Literal("3", INTEGER_TYPE))
 
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
-    one = Literal("1", DataType.INTEGER)
+    one = Literal("1", INTEGER_TYPE)
     array = Array.create(symbol, [range1, one, range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.

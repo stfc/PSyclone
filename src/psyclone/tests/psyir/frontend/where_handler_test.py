@@ -133,9 +133,10 @@ def test_where_array_notation_rank():
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
     from psyclone.psyir.nodes import Range
-    my_array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10]),
-                            [Range(Literal("1", DataType.INTEGER),
-                                   Literal("10", DataType.INTEGER))])
+    array_type = ArrayType(REAL_TYPE, [10])
+    my_array = Array.create(DataSymbol("my_array", array_type),
+                            [Range(Literal("1", INTEGER_TYPE),
+                                   Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "

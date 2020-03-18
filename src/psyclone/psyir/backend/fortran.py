@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, DataType, SymbolTable
+    ContainerSymbol, DataType, ScalarType, ArrayType, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 

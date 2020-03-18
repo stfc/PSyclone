@@ -203,7 +203,7 @@ def _is_bound_full_extent(array, dim, operator):
             and isinstance(reference, Reference) and
             reference.symbol is array.symbol
             and isinstance(literal, Literal) and
-            literal.datatype == DataType.INTEGER
+            literal.datatype.name == ScalarType.Name.INTEGER
             and literal.value == str(dim)):
         return True
     # pylint: enable=too-many-boolean-expressions
@@ -264,7 +264,7 @@ def _is_array_range_literal(array, dim, index, value):
     literal = array.children[dim-1].children[index]
 
     if (isinstance(literal, Literal) and
-            literal.datatype == DataType.INTEGER and
+            literal.datatype.name == ScalarType.Name.INTEGER and
             literal.value == str(value)):
         return True
     return False
@@ -1379,7 +1379,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=loop, nodes=[limits_list[2]])
         else:
             # Default loop increment is 1
-            default_step = Literal("1", DataType.INTEGER, parent=loop)
+            default_step = Literal("1", INTEGER_TYPE, parent=loop)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -1831,10 +1831,9 @@ class Fparser2Reader(object):
                         # don't know what it is. Remove this code when
                         # issue #500 is addressed.
                         symbol = DataSymbol(
-                            loop_vars[range_idx], DataType.INTEGER)
+                            loop_vars[range_idx], INTEGER_TYPE)
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
-
     def _where_construct_handler(self, node, parent):
         '''
         Construct the canonical PSyIR representation of a WHERE construct or
@@ -1908,7 +1907,7 @@ class Fparser2Reader(object):
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
         fake_parent = Schedule()
-        self.process_nodes(fake_parent, [logical_expr])
+        self.process_nodes(fake_parent, logical_expr)
         arrays = fake_parent[0].walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
@@ -1954,7 +1953,7 @@ class Fparser2Reader(object):
                         loop_vars[idx-1]))
             if symbol_table:
                 symbol_table.add(DataSymbol(loop_vars[idx-1],
-                                            DataType.INTEGER))
+                                            INTEGER_TYPE))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
@@ -2363,7 +2362,7 @@ class Fparser2Reader(object):
             # a(:...) becomes a(lbound(a,1):...)
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
-                Literal(dimension, DataType.INTEGER))
+                Literal(dimension, INTEGER_TYPE))
             lbound.parent = my_range
             my_range.children.append(lbound)
         if node.children[1]:
@@ -2375,7 +2374,7 @@ class Fparser2Reader(object):
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
-                Literal(dimension, DataType.INTEGER))
+                Literal(dimension, INTEGER_TYPE))
             ubound.parent = my_range
             my_range.children.append(ubound)
         if node.children[2]:
@@ -2385,7 +2384,7 @@ class Fparser2Reader(object):
             # supported in the PSyIR so we create the equivalent code
             # by using a PSyIR integer literal with the value 1
             # a(...:...:) becomes a(...:...:1)
-            literal = Literal("1", DataType.INTEGER)
+            literal = Literal("1", INTEGER_TYPE)
             my_range.children.append(literal)
             literal.parent = my_range
         return my_range
