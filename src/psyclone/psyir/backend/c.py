@@ -76,8 +76,9 @@ class CWriter(PSyIRVisitor):
         '''
         code = ""
         try:
-            code = code + TYPE_MAP_TO_C[symbol.datatype] + " "
-        except KeyError:
+            name = symbol.datatype.name
+            code = code + TYPE_MAP_TO_C[name] + " "
+        except AttributeError, KeyError:
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
                 "type '{1}' is currently not supported."

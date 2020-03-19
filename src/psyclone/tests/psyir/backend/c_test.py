@@ -46,7 +46,9 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType, \
+    ScalarType, ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, \
+    BOOLEAN_TYPE
 
 
 def test_cw_gen_declaration():
@@ -57,29 +59,29 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = DataSymbol("dummy1", DataType.INTEGER)
+    symbol = DataSymbol("dummy1", INTEGER_TYPE)
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = DataSymbol("dummy1", DataType.CHARACTER)
+    symbol = DataSymbol("dummy1", CHARACTER_TYPE)
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = DataSymbol("dummy1", DataType.BOOLEAN)
+    symbol = DataSymbol("dummy1", BOOLEAN_TYPE)
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = DataSymbol("dummy2", DataType.REAL,
-                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
+    array_type = ArrayType(REAL_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
     # Array with unknown access
-    symbol = DataSymbol("dummy2", DataType.INTEGER,
-                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2],
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)
@@ -104,7 +106,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = DataSymbol("dummy1", DataType.INTEGER)
+    symbol = DataSymbol("dummy1", INTEGER_TYPE)
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
@@ -137,17 +139,17 @@ def test_cw_literal():
 
     cwriter = CWriter()
 
-    lit = Literal('1', DataType.INTEGER)
+    lit = Literal('1', INTEGER_TYPE)
     assert cwriter(lit) == '1'
 
     # Test that D scientific notation is replaced by 'e'
-    lit = Literal("3e5", DataType.REAL, None)
+    lit = Literal("3e5", REAL_TYPE, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3d5", DataType.REAL, None)
+    lit = Literal("3d5", REAL_TYPE, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3D5", DataType.REAL, None)
+    lit = Literal("3D5", REAL_TYPE, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3D+5", DataType.REAL, None)
+    lit = Literal("3D+5", REAL_TYPE, None)
     assert cwriter(lit) == '3e+5'
 
 
@@ -158,8 +160,8 @@ def test_cw_assignment_and_reference():
 
     '''
 
-    assignment = Assignment.create(Reference(DataSymbol('a', DataType.REAL)),
-                                   Reference(DataSymbol('b', DataType.REAL)))
+    assignment = Assignment.create(Reference(DataSymbol('a', REAL_TYPE)),
+                                   Reference(DataSymbol('b', REAL_TYPE)))
     # Generate C from the PSyIR schedule
     cwriter = CWriter()
     result = cwriter(assignment)
@@ -182,9 +184,9 @@ def test_cw_array():
     '''
     cwriter = CWriter()
 
-    symbol = DataSymbol('a', DataType.REAL)
+    symbol = DataSymbol('a', REAL_TYPE)
     arr = Array(symbol)
-    lit = Literal('0.0', DataType.REAL)
+    lit = Literal('0.0', REAL_TYPE)
     assignment = Assignment.create(arr, lit)
 
     # An array without any children (dimensions) should produce an error.
@@ -194,10 +196,10 @@ def test_cw_array():
         in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
-    arr.addchild(Reference(DataSymbol('b', DataType.INTEGER), parent=arr))
-    arr.addchild(Literal('1', DataType.INTEGER, parent=arr))
+    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE), parent=arr))
+    arr.addchild(Literal('1', INTEGER_TYPE, parent=arr))
     uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
-                                Literal('2', DataType.INTEGER))
+                                Literal('2', INTEGER_TYPE))
     uop.parent = arr
     arr.addchild(uop)
 
@@ -223,7 +225,7 @@ def test_cw_ifblock():
            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference(DataSymbol('a', DataType.REAL), parent=ifblock))
+    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE), parent=ifblock))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert("IfBlock malformed or incomplete. It should have "
@@ -234,7 +236,7 @@ def test_cw_ifblock():
     ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
 
-    condition = Reference(DataSymbol('b', DataType.REAL))
+    condition = Reference(DataSymbol('b', REAL_TYPE))
     then_content = [Return()]
     else_content = [Return()]
     ifblock2 = IfBlock.create(condition, then_content, else_content)
@@ -292,7 +294,7 @@ def test_cw_unaryoperator():
            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
-    ref1 = Literal("a", DataType.CHARACTER, unary_operation)
+    ref1 = Literal("a", CHARACTER_TYPE, unary_operation)
     unary_operation.addchild(ref1)
     assert cwriter(unary_operation) == '(-a)'
 
@@ -340,8 +342,8 @@ def test_cw_binaryoperator():
            "exactly 2 children, but found 0." in str(err.value))
 
     # Test with children
-    ref1 = Reference(DataSymbol("a", DataType.REAL))
-    ref2 = Reference(DataSymbol("b", DataType.REAL))
+    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    ref2 = Reference(DataSymbol("b", REAL_TYPE))
     binary_operation = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                               ref1, ref2)
     assert cwriter(binary_operation) == '(a + b)'
@@ -415,10 +417,10 @@ def test_cw_size():
     ''' Check the CWriter class SIZE method raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
-    arr = Array(DataSymbol('a', DataType.INTEGER))
-    lit = Literal('1', DataType.INTEGER)
+    arr = Array(DataSymbol('a', INTEGER_TYPE))
+    lit = Literal('1', INTEGER_TYPE)
     size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
-    lhs = Reference(DataSymbol('length', DataType.INTEGER))
+    lhs = Reference(DataSymbol('length', INTEGER_TYPE))
     assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:

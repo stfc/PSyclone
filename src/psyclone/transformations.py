@@ -2863,7 +2863,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyir.symbols import DataSymbol, DataType
+            from psyclone.psyir.symbols import DataSymbol, DataType, \
+                ScalarType, INTEGER_TYPE
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -2874,11 +2875,12 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                               len(symbol_table.argument_list)))
             # Perform some basic checks on the argument to make sure
             # it is the expected type
-            if symbol.datatype != DataType.INTEGER or \
-               symbol.shape or symbol.is_constant:
+            if not isinstance(symbol.datatype, ScalarType) or \
+               (symbol.datatype.name != ScalarType.Name.INTEGER) or \
+               symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(symbol))
+                    "but found '{0}'.".format(type(symbol.datatype)))
 
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
@@ -2887,7 +2889,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", DataType.INTEGER,
+            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
                                       constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -3895,7 +3897,7 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_datasymbols[:]:
 
             # Resolve the data type information if it is not available
-            if globalvar.datatype == DataType.DEFERRED:
+            if isinstance(globalvar.datatype, DeferredType):
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
@@ -3924,9 +3926,9 @@ class KernelGlobalsToArguments(Transformation):
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype == DataType.REAL:
+            if globalvar.datatype.name == ScalarType.Name.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype == DataType.INTEGER:
+            elif globalvar.datatype.name == ScalarType.Name.INTEGER:
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(

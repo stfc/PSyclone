@@ -39,7 +39,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoAbsTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
-    ArgumentInterface
+    ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, \
     BinaryOperation, Literal
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -75,11 +75,11 @@ def example_psyir(create_expression):
     '''
     symbol_table = SymbolTable()
     name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, DataType.REAL, interface=ArgumentInterface(
+    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg1)
     name2 = symbol_table.new_symbol_name()
-    local = DataSymbol(name2, DataType.REAL)
+    local = DataSymbol(name2, REAL_TYPE)
     symbol_table.add(local)
     symbol_table.specify_argument_list([arg1])
     var1 = Reference(arg1)
@@ -95,7 +95,7 @@ def example_psyir(create_expression):
                          [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", DataType.REAL)), "arg * 3.14")])
+                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
 def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     argument to ABS is a simple argument and when it is an
@@ -143,12 +143,12 @@ def test_correct_expr(tmpdir):
     operation = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", DataType.REAL)))
+            Literal("3.14", REAL_TYPE)))
     assignment = operation.parent
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", DataType.REAL), operation)
+                                 Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 op1, Literal("2.0", DataType.REAL))
+                                 op1, Literal("2.0", REAL_TYPE))
     op2.parent = assignment
     assignment.children[1] = op2
     writer = FortranWriter()
@@ -190,10 +190,10 @@ def test_correct_2abs(tmpdir):
     operation = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", DataType.REAL)))
+            Literal("3.14", REAL_TYPE)))
     assignment = operation.parent
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                   Literal("1.0", DataType.REAL))
+                                   Literal("1.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  operation, abs_op)
     op1.parent = assignment

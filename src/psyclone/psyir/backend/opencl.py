@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
-# Modified A. R. Porter, STFC Daresbury Lab.
+# Modified A. R. Porter and R. W. Ford, STFC Daresbury Lab.
 
 '''OpenCL PSyIR backend. Extends the C PSyIR back-end to generate
 OpenCL code from PSyIR nodes.
@@ -41,7 +41,7 @@ OpenCL code from PSyIR nodes.
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, ScalarType
 
 
 class OpenCLWriter(CWriter):
@@ -99,7 +99,8 @@ class OpenCLWriter(CWriter):
 
         :raises VisitorError: if symbol is not a scalar integer
         '''
-        if symbol.shape or symbol.datatype != DataType.INTEGER:
+        if (not isinstance(symbol.datatype, ScalarType) or \
+                symbol.datatype.name != ScalarType.Name.INTEGER):
             raise VisitorError(
                 "OpenCL work-item identifiers must be scalar integer symbols "
                 "but found {0}.".format(str(symbol)))

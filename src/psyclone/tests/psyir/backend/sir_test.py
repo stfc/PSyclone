@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -684,8 +684,8 @@ def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.literal_node(rhs)
     assert (
-        "PSyIR type 'DataType.{0}' has no representation in the SIR backend."
-        "".format(datatype) in str(excinfo.value))
+        "PSyIR type 'Name.{0}, Precision.UNDEFINED' has no representation in "
+        "the SIR backend.".format(datatype) in str(excinfo.value))
 
 
 # (1/5) Method unaryoperation_node
@@ -758,8 +758,8 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.unaryoperation_node(rhs)
-    assert ("PSyIR type 'DataType.BOOLEAN' does not work with the '-' "
-            "operator." in str(excinfo.value))
+    assert ("PSyIR type 'Name.BOOLEAN, Precision.UNDEFINED' does not work "
+            "with the '-' operator." in str(excinfo.value))
 
 
 # (1/4) Method ifblock_node

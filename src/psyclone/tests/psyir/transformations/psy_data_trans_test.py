@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -89,15 +90,15 @@ def test_psy_data_trans_basic(capsys):
 Constant loop bounds=True]:
 PSyDataStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'jstop-1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Name.INTEGER, Precision.SINGLE]
+Literal[value:'jstop-1', Name.INTEGER, Precision.SINGLE]
+Literal[value:'1', Name.INTEGER, Precision.SINGLE]
 Schedule:
 PSyDataStart[var=psy_data_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Name.INTEGER, Precision.SINGLE]
+Literal[value:'istop', Name.INTEGER, Precision.SINGLE]
+Literal[value:'1', Name.INTEGER, Precision.SINGLE]
 Schedule:
 kern call: compute_cv_code
 End Schedule
@@ -106,14 +107,14 @@ PSyDataEnd[var=psy_data_1]
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Name.INTEGER, Precision.SINGLE]
+Literal[value:'jstop+1', Name.INTEGER, Precision.SINGLE]
+Literal[value:'1', Name.INTEGER, Precision.SINGLE]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Name.INTEGER, Precision.SINGLE]
+Literal[value:'istop+1', Name.INTEGER, Precision.SINGLE]
+Literal[value:'1', Name.INTEGER, Precision.SINGLE]
 Schedule:
 kern call: bc_ssh_code
 End Schedule

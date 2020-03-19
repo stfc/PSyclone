@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.nemo_operator_trans import \
     NemoOperatorTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
     Reference, Literal, IfBlock
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataType, DataSymbol, REAL_TYPE
 
 
 class NemoAbsTrans(NemoOperatorTrans):
@@ -140,10 +140,10 @@ class NemoAbsTrans(NemoOperatorTrans):
         # symbol table (see #500) and don't have the appropriate
         # methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_abs")
-        symbol_res_var = DataSymbol(res_var, DataType.REAL)
+        symbol_res_var = DataSymbol(res_var, REAL_TYPE)
         symbol_table.add(symbol_res_var)
         tmp_var = symbol_table.new_symbol_name("tmp_abs")
-        symbol_tmp_var = DataSymbol(tmp_var, DataType.REAL)
+        symbol_tmp_var = DataSymbol(tmp_var, REAL_TYPE)
         symbol_table.add(symbol_tmp_var)
 
         # Replace operation with a temporary (res_X).
@@ -159,7 +159,7 @@ class NemoAbsTrans(NemoOperatorTrans):
 
         # if condition: tmp_var>0.0
         lhs = Reference(symbol_tmp_var)
-        rhs = Literal("0.0", DataType.REAL)
+        rhs = Literal("0.0", REAL_TYPE)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
                                               lhs, rhs)
 
@@ -171,7 +171,7 @@ class NemoAbsTrans(NemoOperatorTrans):
         # else_body: res_var=-1.0*tmp_var
         lhs = Reference(symbol_res_var)
         lhs_child = Reference(symbol_tmp_var)
-        rhs_child = Literal("-1.0", DataType.REAL)
+        rhs_child = Literal("-1.0", REAL_TYPE)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child,
                                      rhs_child)
         else_body = [Assignment.create(lhs, rhs)]

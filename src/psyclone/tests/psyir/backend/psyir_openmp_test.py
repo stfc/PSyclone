@@ -40,7 +40,7 @@
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import Assignment, Reference
-from psyclone.psyir.symbols import DataSymbol, DataType
+from psyclone.psyir.symbols import DataSymbol, DataType, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import create_schedule, get_invoke
@@ -112,8 +112,8 @@ def replace_child_with_assignment(node):
     '''
 
     # Create a simple 'a=b' assignment statement for all tests
-    lhs = Reference(DataSymbol('a', DataType.REAL))
-    rhs = Reference(DataSymbol('b', DataType.REAL))
+    lhs = Reference(DataSymbol('a', REAL_TYPE))
+    rhs = Reference(DataSymbol('b', REAL_TYPE))
     assignment = Assignment.create(lhs, rhs)
     assignment.parent = node
     node.children[0] = assignment
