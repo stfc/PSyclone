@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
 # Modified by: J. Henrichs, Bureau of Meteorology
-#              A. R. Porter, STFC Daresbury Lab
+#              A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.
@@ -43,14 +43,14 @@ it needs to be extended for generating pure C code.
 '''
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, ScalarType
 
 
 # Mapping from PSyIR types to C data types
-TYPE_MAP_TO_C = {DataType.INTEGER: "int",
-                 DataType.CHARACTER: "char",
-                 DataType.BOOLEAN: "bool",
-                 DataType.REAL: "double"}
+TYPE_MAP_TO_C = {ScalarType.Name.INTEGER: "int",
+                 ScalarType.Name.CHARACTER: "char",
+                 ScalarType.Name.BOOLEAN: "bool",
+                 ScalarType.Name.REAL: "double"}
 
 
 class CWriter(PSyIRVisitor):

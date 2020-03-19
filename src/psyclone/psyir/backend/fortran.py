@@ -112,7 +112,7 @@ def gen_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
-        elif isinstance(index, DataSymbol.Extent):
+        elif isinstance(index, ArrayType.Extent):
             # unknown extent
             dims.append(":")
         else:

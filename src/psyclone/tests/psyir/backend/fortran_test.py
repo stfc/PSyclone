@@ -47,7 +47,9 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     BinaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
+    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType, \
+    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, \
+    BOOLEAN_TYPE
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile
@@ -64,19 +66,19 @@ def test_gen_intent():
     strings.
 
     '''
-    symbol = DataSymbol("dummy", DataType.INTEGER,
+    symbol = DataSymbol("dummy", INTEGER_TYPE,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     assert gen_intent(symbol) is None
-    symbol = DataSymbol("dummy", DataType.INTEGER,
+    symbol = DataSymbol("dummy", INTEGER_TYPE,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     assert gen_intent(symbol) == "in"
-    symbol = DataSymbol("dummy", DataType.INTEGER,
+    symbol = DataSymbol("dummy", INTEGER_TYPE,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.WRITE))
     assert gen_intent(symbol) == "out"
-    symbol = DataSymbol("dummy", DataType.INTEGER,
+    symbol = DataSymbol("dummy", INTEGER_TYPE,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
@@ -87,7 +89,7 @@ def test_gen_intent_error(monkeypatch):
     access type is found.
 
     '''
-    symbol = DataSymbol("dummy", DataType.INTEGER,
+    symbol = DataSymbol("dummy", INTEGER_TYPE,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(symbol.interface, "_access", "UNSUPPORTED")
@@ -101,11 +103,11 @@ def test_gen_dims():
     strings.
 
     '''
-    arg = DataSymbol("arg", DataType.INTEGER,
+    arg = DataSymbol("arg", INTEGER_TYPE,
                      interface=ArgumentInterface(
                          ArgumentInterface.Access.UNKNOWN))
-    symbol = DataSymbol("dummy", DataType.INTEGER,
-                        shape=[arg, 2, DataSymbol.Extent.ATTRIBUTE],
+    array_type = ArrayType(INTEGER_TYPE, [arg, 2, ArrayType.Extent.ATTRIBUTE])
+    symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     assert gen_dims(symbol) == ["arg", "2", ":"]
@@ -116,44 +118,158 @@ def test_gen_dims_error(monkeypatch):
     entry is not supported.
 
     '''
-    symbol = DataSymbol("dummy", DataType.INTEGER,
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
-    monkeypatch.setattr(symbol, "_shape", ["invalid"])
+    monkeypatch.setattr(array_type, "shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_dims(symbol)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
-    "datatype,result",
-    [(DataType.REAL, "real"),
-     (DataType.INTEGER, "integer"),
-     (DataType.CHARACTER, "character"),
-     (DataType.BOOLEAN, "logical")])
-def test_gen_datatype(datatype, result):
-    '''Check the gen_datatype function produces the expected datatypes.'''
-    symbol = DataSymbol("dummy", datatype)
-    assert gen_datatype(symbol) == result
+    "type_name,result",
+    [(ScalarType.Name.REAL, "real"),
+     (ScalarType.Name.INTEGER, "integer"),
+     (ScalarType.Name.CHARACTER, "character"),
+     (ScalarType.Name.BOOLEAN, "logical")])
+def test_gen_datatype_default_precision(type_name, result):
+    '''Check the gen_datatype function produces the expected datatypes
+    when no explicit precision is provided for a scalar and an array
+    with all supported datatypes.
+
+    Note, in the future PSyclone should be extended to set default
+    precision in a config file.
+
+    '''
+    scalar_type = ScalarType(type_name, ScalarType.Precision.UNDEFINED)
+    array_type = ArrayType(scalar_type, [10, 10])
+    for my_type in [scalar_type, array_type]:
+        symbol = DataSymbol("dummy", my_type)
+        assert gen_datatype(symbol) == result
 
 
 @pytest.mark.parametrize(
-    "datatype,precision,result",
-    [(DataType.REAL, None, "real"),
-     (DataType.INTEGER, 8, "integer*8"),
-     (DataType.REAL, 16, "real*16"),
-     (DataType.REAL, DataSymbol.Precision.DOUBLE, "double precision"),
-     (DataType.INTEGER, DataSymbol("i_def", DataType.INTEGER),
-      "integer(kind=i_def)"),
-     (DataType.REAL, DataSymbol("r_def", DataType.INTEGER),
-      "real(kind=r_def)")])
-def test_gen_datatype_precision(datatype, precision, result):
-    '''Check the gen_datatype function produces the expected datatypes when
-    precision is specified.
+    "type_name,precision,result",
+    [(ScalarType.Name.REAL, ScalarType.Precision.SINGLE, "real"),
+     (ScalarType.Name.REAL, ScalarType.Precision.DOUBLE, "double precision"),
+     (ScalarType.Name.INTEGER, ScalarType.Precision.SINGLE, "integer"),
+     (ScalarType.Name.INTEGER, ScalarType.Precision.DOUBLE, "integer"),
+     (ScalarType.Name.CHARACTER, ScalarType.Precision.SINGLE, "character"),
+     (ScalarType.Name.CHARACTER, ScalarType.Precision.DOUBLE, "character"),
+     (ScalarType.Name.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),
+     (ScalarType.Name.BOOLEAN, ScalarType.Precision.DOUBLE, "logical")])
+def test_gen_datatype_relative_precision(type_name, precision, result):
+    '''Check the gen_datatype function produces the expected datatypes
+    when relative precision is provided for a scalar and an array with
+    all supported datatypes.
 
     '''
-    symbol = DataSymbol("dummy", datatype, precision=precision)
-    assert gen_datatype(symbol) == result
+    scalar_type = ScalarType(type_name, precision=precision)
+    array_type = ArrayType(scalar_type, [10, 10])
+    for my_type in [scalar_type, array_type]:
+        symbol = DataSymbol("dummy", my_type)
+        assert gen_datatype(symbol) == result
+
+
+@pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])
+@pytest.mark.parametrize("type_name,fort_name",
+                         [(ScalarType.Name.INTEGER, "integer"),
+                          (ScalarType.Name.BOOLEAN, "logical")])
+def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
+    '''Check the gen_datatype function produces the expected datatypes
+    when explicit precision is provided for a scalar and an array with
+    an integer or logical datatype. All should pass except 32. Other
+    types are tested separately.
+
+    '''
+    symbol_name = "dummy"
+    scalar_type = ScalarType(type_name, precision=precision)
+    array_type = ArrayType(scalar_type, [10, 10])
+    for my_type in [scalar_type, array_type]:
+        symbol = DataSymbol(symbol_name, my_type)
+        if precision in [32]:
+            with pytest.raises(VisitorError) as excinfo:
+                gen_datatype(symbol)
+            assert ("Datatype '{0}' in symbol '{1}' supports fixed precision "
+                    "of [1, 2, 4, 8, 16] but found '{2}'."
+                    "".format(fort_name, symbol_name, precision)
+                    in str(excinfo.value))
+        else:
+            assert (gen_datatype(symbol) ==
+                    "{0}*{1}".format(fort_name, precision))
+
+
+@pytest.mark.parametrize(
+    "precision", [1, 2, 4, 8, 16, 32])
+def test_gen_datatype_absolute_precision_real(precision):
+    '''Check the gen_datatype function produces the expected datatypes
+    when explicit precision is provided for a scalar and an array with
+    a real datatype. All should pass except 1, 2 and 32.
+
+    '''
+    symbol_name = "dummy"
+    scalar_type = ScalarType(ScalarType.Name.REAL, precision=precision)
+    array_type = ArrayType(scalar_type, [10, 10])
+    for my_type in [scalar_type, array_type]:
+        symbol = DataSymbol(symbol_name, my_type)
+        if precision in [1, 2, 32]:
+            with pytest.raises(VisitorError) as excinfo:
+                gen_datatype(symbol)
+            assert ("Datatype 'real' in symbol '{0}' supports fixed precision "
+                    "of [4, 8, 16] but found '{1}'."
+                    "".format(symbol_name, precision) in str(excinfo.value))
+        else:
+            assert gen_datatype(symbol) == "real*{0}".format(precision)
+
+
+def test_gen_datatype_absolute_precision_character():
+    '''Check the gen_datatype function produces the expected datatypes
+    when explicit precision is provided for a scalar and an array with
+    a character datatype. All should fail.
+
+    '''
+    symbol_name = "dummy"
+    scalar_type = ScalarType(ScalarType.Name.CHARACTER, precision=4)
+    array_type = ArrayType(scalar_type, [10, 10])
+    for my_type in [scalar_type, array_type]:
+        symbol = DataSymbol(symbol_name, my_type)
+        with pytest.raises(VisitorError) as excinfo:
+            gen_datatype(symbol)
+        assert ("Explicit precision not supported for datatype '{0}' in "
+                "symbol '{1}' in Fortran backend."
+                "".format("character", symbol_name) in str(excinfo.value))
+
+
+@pytest.mark.parametrize(
+    "type_name,result",
+    [(ScalarType.Name.REAL, "real"),
+     (ScalarType.Name.INTEGER, "integer"),
+     (ScalarType.Name.CHARACTER, "character"),
+     (ScalarType.Name.BOOLEAN, "logical")])
+def test_gen_datatype_kind_precision(type_name, result):
+    '''Check the gen_datatype function produces the expected datatypes
+    when precision is provided via another symbol for a scalar and an
+    array with all supported data types.
+
+    '''
+    precision_name = "prec_def"
+    symbol_name = "dummy"
+    precision = DataSymbol(precision_name, INTEGER_TYPE)
+    scalar_type = ScalarType(type_name, precision=precision)
+    array_type = ArrayType(scalar_type, [10, 10])
+    for my_type in [scalar_type, array_type]:
+        symbol = DataSymbol(symbol_name, my_type)
+        if type_name == ScalarType.Name.CHARACTER:
+            with pytest.raises(VisitorError) as excinfo:
+                gen_datatype(symbol)
+            assert ("kind not supported for datatype '{0}' in symbol '{1}' "
+                    "in Fortran backend.".format("character", symbol_name)
+                    in str(excinfo.value))
+        else:
+            assert (gen_datatype(symbol) ==
+                    "{0}(kind={1})".format(result, precision_name))
 
 
 # Commented this test out until #11 is addressed.
