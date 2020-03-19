@@ -96,20 +96,45 @@ except ImportError:
 
 
 class ChildrenList(list):
+    '''
+    Customized list to keep track of the children nodes. It is initialised with
+    a callback function that allows the validation of the inserted children.
+    Since this is a subclass of the standard list, all operations (e.g. append,
+    insert, extend, comparions, list arithmetic operations) are conserved and
+    making use of the validation.
+
+    :param node: reference to the node where the list belongs.
+    :type node: :py:class:`psyclone.psyir.nodes.node`
+    :param validation_function: callback function to the validation method.
+    :type validation_function: \
+            function(int, :py:class:`psyclone.psyir.nodes.node`)
+    :param str validation_text: textual representation of the valid children.
+
+    '''
     def __init__(self, node, validation_function, validation_text):
+        super(ChildrenList, self).__init__()
         self._node_reference = node
         self._validation_function = validation_function
         self._validation_text = validation_text
-        super(ChildrenList, self).__init__()
 
     def __setitem__(self, index, item):
+        '''
+        Validates the provided index and item before continuing setting the
+        item to the list using the generic list __setitem__ method.
+
+        :param int index: position where the item is inserted into.
+        :param item: object to be added into the list.
+
+        :raises AttributeError: if the given index and item are not valid \
+            children for this list.
+        '''
         if self._validation_function(index, item):
             super(ChildrenList, self).__setitem__(index, item)
         else:
-            raise KeyError("Item '{0}' can't be child {1} of '{2}'. "
-                "The valid format is: '{3}'.".format(
-                    item.__class__.__name__, index, self._node_reference,
-                    self._validation_text))
+            raise AttributeError(
+                "Item '{0}' can't be child {1} of '{2}'. The valid format is: "
+                "'{3}'.".format(item.__class__.__name__, index,
+                                self._node_reference, self._validation_text))
 
 
 class Node(object):
@@ -140,12 +165,8 @@ class Node(object):
     START_POSITION = 0
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
-
+    # Textual representation of the valid children for this node
     _children_valid_format = "*[Node]"
-
-    @staticmethod
-    def _validate_child(possition, child):
-        return True
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
         self._children = ChildrenList(self, self._validate_child,
@@ -175,6 +196,20 @@ class Node(object):
         self._text_name = self.__class__.__name__
         # Which colour to use from the SCHEDULE_COLOUR_MAP
         self._colour_key = self.__class__.__name__
+
+    @staticmethod
+    def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        #pylint: disable=unused-argument
+        return True
 
     def coloured_name(self, colour=True):
         '''
