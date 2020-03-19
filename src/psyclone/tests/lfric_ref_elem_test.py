@@ -63,9 +63,9 @@ module testkern_refelem_mod
            arg_type(gh_field, gh_inc, w0) /)
     type(reference_element_data_type), dimension(3) ::               &
       meta_reference_element =                                       &
-        (/ reference_element_data_type(normals_to_horizontal_faces), &
-           reference_element_data_type(normals_to_vertical_faces),   &
-           reference_element_data_type(outward_normals_to_faces) /)
+        (/ reference_element_data_type(outward_normals_to_faces),    &
+           reference_element_data_type(normals_to_horizontal_faces), &
+           reference_element_data_type(normals_to_vertical_faces) /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_refelem_code
@@ -94,9 +94,9 @@ def test_mdata_parse():
     name = "testkern_refelem_type"
     dkm = DynKernMetadata(ast, name=name)
     assert dkm.reference_element.properties == \
-        [RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
-         RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES,
-         RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES]
+        [RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES,
+         RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
+         RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES]
 
 
 def test_mdata_invalid_property():
@@ -110,7 +110,7 @@ def test_mdata_invalid_property():
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
     assert ("property: 'not_a_property'. Supported values are: "
-            "'['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
+            "['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
             in str(err.value))
 
 
@@ -176,8 +176,8 @@ def test_refelem_arglist_err():
     with pytest.raises(InternalError) as err:
         kernel.arguments.raw_arg_list()
     assert ("Unsupported reference-element property ('Not a property') found "
-            "when generating kernel arguments. Supported properties are: "
-            "['Property" in str(err.value))
+            "when generating arguments for kernel 'testkern_ref_elem_code'. "
+            "Supported properties are: ['Property" in str(err.value))
 
 
 def test_refelem_gen(tmpdir):
@@ -382,9 +382,10 @@ def test_refelem_stub_arglist_err():
     assert "('Wrong property') " in str(err.value)
     assert (
         "Supported properties are: ['Property.NORMALS_TO_HORIZONTAL_FACES', "
-        "'Property.NORMALS_TO_VERTICAL_FACES', 'Property.NORMALS_TO_FACES', "
+        "'Property.NORMALS_TO_VERTICAL_FACES', "
         "'Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES', "
         "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
+        "'Property.NORMALS_TO_FACES', "
         "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
 
 

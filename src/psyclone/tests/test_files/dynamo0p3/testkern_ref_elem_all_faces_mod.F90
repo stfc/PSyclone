@@ -36,7 +36,7 @@ module testkern_ref_elem_all_faces_mod
   use argument_mod
   use kernel_mod
   use constants_mod
- 
+
   implicit none
 
   type, extends(kernel_type) :: testkern_ref_elem_all_faces_type
@@ -49,8 +49,8 @@ module testkern_ref_elem_all_faces_mod
              /)
      type(reference_element_data_type), dimension(2) ::     &
           meta_reference_element =                          &
-          (/ reference_element_data_type(normals_to_faces), &
-             reference_element_data_type(outward_normals_to_faces) /)
+          (/ reference_element_data_type(outward_normals_to_faces), &
+             reference_element_data_type(normals_to_faces) /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_ref_elem_all_faces_code

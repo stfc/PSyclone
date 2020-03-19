@@ -1347,13 +1347,12 @@ rules, along with PSyclone's naming conventions, are:
    ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
-      array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``. For all
-      ``normals_to_faces`` pass a rank-2 integer array of type ``i_def`` with
-      dimensions ``(3, nfaces_re)``.
+      array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
       integer array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
-      For all ``outward_normals_to_faces`` pass a rank-2 integer array of
-      type ``i_def`` with dimensions ``(3, nfaces_re)``.
+   3) For all the ``normals_to_faces`` or ``outward_normals_to_faces`` pass
+      a rank-2 integer array of type ``i_def`` with dimensions
+      ``(3, nfaces_re)``.
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
