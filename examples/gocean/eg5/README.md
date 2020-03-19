@@ -15,6 +15,7 @@ profile wrapper libraries:
 - simple_timing
 - dl_timer
 - drhook
+
 By default (``make`` without an argument) the ``template`` library will 
 be used, which just prints the name of the regions called.
 In order to test any of the other libraries, just use the
@@ -32,23 +33,24 @@ libraries yourself, and modify the ``Makefile`` in this directory
 to specify the required linking parameters. The ``Makefile``
 supports the following environment variables that can be defined
 to find the various software packages:
+
 DL_DIR:
    The location of the dl_esm_inf library, it defaults to
    ``../../../external/dl_esm_inf/finite_difference/src``,
    which is the version included in PSyclone.
 DL_TIMER_DIR:
     The location of the apeg-dl_timer library. It defaults to
-    ``../../../../apeg-dl_timer``, i.e. it assumes that apeg-dl_timer
+    ``../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
     is installed next to PSyclone.
 DRHOOK_DIR:
     The location of DrHook. It defaults to
-    ``../../../../drhook``, i.e. it assumed that DrHook is
+    ``../../../../drhook``, i.e. it is assumed that DrHook is
     installed next to PSyclone.
 
 The makefile here will invoke psyclone with the ``--profile invokes``
 flag, which will add profiling around the two invokes used in the example.
 
-.. Note:
+.. note:
     The actual runtime is extremly short, so likely the profiling
     tool used will report 0 seconds for each of the invokes.
 
