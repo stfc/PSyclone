@@ -598,9 +598,12 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        print ("ARRAY NODE")
         args = []
         for child in node.children:
+            print ("CHILD IS {0}".format(type(child)))
             args.append(str(self._visit(child)))
+        print ("ARRAY NODE AFTER CHILDREN")
         result = "{0}({1})".format(node.name, ",".join(args))
         return result
 
@@ -615,6 +618,7 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        print ("IN RANGE NODE")
         def _full_extent(node, operator):
             '''Utility function that returns True if the supplied node
             represents the first index of an array dimension (via the LBOUND
@@ -651,6 +655,7 @@ class FortranWriter(PSyIRVisitor):
                 return True
             return False
 
+        print ("LBOUND")
         if _full_extent(node.start, BinaryOperation.Operator.LBOUND):
             # The range starts for the first element in this
             # dimension. This is the default in Fortran so no need to
@@ -659,15 +664,21 @@ class FortranWriter(PSyIRVisitor):
         else:
             start = self._visit(node.start)
 
+        print ("UBOUND")
+        print ("node.stop is {0}".format(type(node.stop)))
+        print (node.stop)
         if _full_extent(node.stop, BinaryOperation.Operator.UBOUND):
             # The range ends with the last element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
+            print ("full extent")
             stop = ""
         else:
+            print ("VISITING {0}".format(type(node.stop)))
             stop = self._visit(node.stop)
         result = "{0}:{1}".format(start, stop)
 
+        print ("STEP")
         if isinstance(node.step, Literal) and \
            node.step.datatype == DataType.INTEGER and \
            node.step.value == "1":
@@ -691,6 +702,7 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        print ("IN LITERAL NODE")
         if node.datatype.name == ScalarType.Name.BOOLEAN:
             # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'

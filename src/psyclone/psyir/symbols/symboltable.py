@@ -406,8 +406,10 @@ class SymbolTable(object):
         '''
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
+        from psyclone.psyir.symbols import DeferredType
         for sym in self.datasymbols:
-            if isinstance(sym.datatype.precision, DataSymbol):
+            if (not isinstance(sym.datatype, DeferredType) and
+                    isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
 

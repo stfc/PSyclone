@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, \
-    BOOLEAN_TYPE
+    BOOLEAN_TYPE, DeferredType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile
@@ -284,77 +284,13 @@ def test_gen_datatype_kind_precision(type_name, result):
 #     '''
 #     import logging
 #     with caplog.at_level(logging.WARNING):
-#         symbol = Symbol("dummy", DataType.INTEGER,
+#         symbol = Symbol("dummy", INTEGER_TYPE,
 #                         precision=Symbol.Precision.DOUBLE)
 #         _ = gen_datatype(symbol)
 #         assert (
 #             "WARNING  Fortran does not support relative precision for the "
 #             "'integer' datatype but 'Precision.DOUBLE' was specified for "
 #             "variable 'dummy'." in caplog.text)
-
-
-def test_gen_datatype_error(monkeypatch):
-    '''Check the gen_datatype function raises an exception if the datatype
-    information provided is not supported.
-
-    '''
-    # unsupported datatype found
-    symbol = DataSymbol("dummy", DataType.DEFERRED)
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("unsupported datatype 'DataType.DEFERRED' for symbol 'dummy' "
-            "found in gen_datatype()." in str(excinfo.value))
-
-    # Fixed precision not supported for character
-    symbol = DataSymbol("dummy", DataType.INTEGER, precision=4)
-    monkeypatch.setattr(symbol, "_datatype", DataType.CHARACTER)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("Explicit precision not supported for datatype 'character' in "
-            "symbol 'dummy' in Fortran backend." in str(excinfo.value))
-
-    # Fixed precision value not supported for real
-    symbol = DataSymbol("dummy", DataType.REAL, precision=2)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("Datatype 'real' in symbol 'dummy' supports fixed precision of "
-            "[4, 8, 16] but found '2'." in str(excinfo.value))
-
-    # Fixed precision value not supported for integer
-    symbol = DataSymbol("dummy", DataType.INTEGER, precision=32)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("Datatype 'integer' in symbol 'dummy' supports fixed precision "
-            "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
-
-    # Fixed precision value not supported for logical
-    symbol = DataSymbol("dummy", DataType.BOOLEAN)
-    # This needs to be monkeypatched as the Fortran front end will not
-    # create logicals with a precision
-    monkeypatch.setattr(symbol, "precision", 32)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("Datatype 'logical' in symbol 'dummy' supports fixed precision "
-            "of [1, 2, 4, 8, 16] but found '32'." in str(excinfo.value))
-
-    # Kind not supported for character
-    symbol = DataSymbol("dummy", DataType.REAL,
-                        precision=DataSymbol("c_def", DataType.INTEGER))
-    # This needs to be monkeypatched as the Symbol constructor can not
-    # create characters with a size dependent on another variable.
-    monkeypatch.setattr(symbol, "_datatype", DataType.CHARACTER)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("kind not supported for datatype 'character' in symbol 'dummy' in "
-            "Fortran backend." in str(excinfo.value))
-
-    # Unsupported precision type found
-    symbol = DataSymbol("dummy", DataType.REAL)
-    monkeypatch.setattr(symbol, "precision", "unsupported")
-    with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
-    assert ("Unsupported precision type 'str' found for symbol 'dummy' in "
-            "Fortran backend." in str(excinfo.value))
 
 
 def test_fw_gen_use(fort_writer):
@@ -366,7 +302,7 @@ def test_fw_gen_use(fort_writer):
     symbol_table = SymbolTable()
     container_symbol = ContainerSymbol("my_module")
     symbol_table.add(container_symbol)
-    symbol = DataSymbol("dummy1", DataType.DEFERRED,
+    symbol = DataSymbol("dummy1", DeferredType(),
                         interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol)
     result = fort_writer.gen_use(container_symbol, symbol_table)
@@ -377,7 +313,7 @@ def test_fw_gen_use(fort_writer):
     assert result == ("use my_module, only : dummy1\n"
                       "use my_module\n")
 
-    symbol2 = DataSymbol("dummy2", DataType.DEFERRED,
+    symbol2 = DataSymbol("dummy2", DeferredType(),
                          interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol2)
     result = fort_writer.gen_use(container_symbol, symbol_table)
@@ -427,30 +363,30 @@ def test_fw_gen_vardecl(fort_writer):
 
     '''
     # Basic entry
-    symbol = DataSymbol("dummy1", DataType.INTEGER)
+    symbol = DataSymbol("dummy1", INTEGER_TYPE)
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer :: dummy1\n"
 
     # Assumed-size array with intent
-    symbol = DataSymbol("dummy2", DataType.INTEGER,
-                        shape=[2, 2, DataSymbol.Extent.ATTRIBUTE],
+    array_type = ArrayType(INTEGER_TYPE, [2, 2, ArrayType.Extent.ATTRIBUTE])
+    symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,2,:), intent(in) :: dummy2\n"
 
     # Assumed-size array with unknown intent
-    symbol = DataSymbol("dummy2", DataType.INTEGER,
-                        shape=[2, 2, DataSymbol.Extent.ATTRIBUTE],
+    array_type = ArrayType(INTEGER_TYPE, [2, 2, ArrayType.Extent.ATTRIBUTE])
+    symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,2,:) :: dummy2\n"
 
     # Allocatable array
-    symbol = DataSymbol("dummy2", DataType.REAL,
-                        shape=[DataSymbol.Extent.DEFERRED,
-                               DataSymbol.Extent.DEFERRED],
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.DEFERRED])
+    symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     result = fort_writer.gen_vardecl(symbol)
@@ -458,12 +394,12 @@ def test_fw_gen_vardecl(fort_writer):
         "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n"
 
     # Constant
-    symbol = DataSymbol("dummy3", DataType.INTEGER, constant_value=10)
+    symbol = DataSymbol("dummy3", INTEGER_TYPE, constant_value=10)
     result = fort_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
     # Use statement
-    symbol = DataSymbol("dummy1", DataType.DEFERRED,
+    symbol = DataSymbol("dummy1", DeferredType(),
                         interface=GlobalInterface(
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
@@ -473,7 +409,7 @@ def test_fw_gen_vardecl(fort_writer):
             in str(excinfo.value))
 
     # An unresolved symbol
-    symbol = DataSymbol("dummy1", DataType.DEFERRED,
+    symbol = DataSymbol("dummy1", DeferredType(),
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
@@ -482,8 +418,8 @@ def test_fw_gen_vardecl(fort_writer):
             "interface." in str(excinfo.value))
 
     # An array with a mixture of deferred and explicit extents
-    symbol = DataSymbol("dummy1", DataType.INTEGER,
-                        shape=[2, DataSymbol.Extent.DEFERRED])
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.DEFERRED])
+    symbol = DataSymbol("dummy1", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("Fortran declaration of an allocatable array must have the "
@@ -492,17 +428,17 @@ def test_fw_gen_vardecl(fort_writer):
 
     # An assumed-size array must have only the extent of its outermost
     # rank undefined
-    symbol = DataSymbol("dummy1", DataType.INTEGER,
-                        shape=[2, DataSymbol.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    symbol = DataSymbol("dummy1", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("assumed-size Fortran array must only have its last dimension "
             "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
             in str(excinfo.value))
     # With two dimensions unspecified, even though one is outermost
-    symbol = DataSymbol(
-        "dummy1", DataType.INTEGER,
-        shape=[2, DataSymbol.Extent.ATTRIBUTE, DataSymbol.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE])
+    symbol = DataSymbol("dummy1", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("assumed-size Fortran array must only have its last dimension "
@@ -519,14 +455,14 @@ def test_gen_decls(fort_writer):
     '''
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
-    use_statement = DataSymbol("my_use", DataType.DEFERRED,
+    use_statement = DataSymbol("my_use", DeferredType(),
                                interface=GlobalInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
-    argument_variable = DataSymbol("arg", DataType.INTEGER,
+    argument_variable = DataSymbol("arg", INTEGER_TYPE,
                                    interface=ArgumentInterface())
     symbol_table.add(argument_variable)
-    local_variable = DataSymbol("local", DataType.INTEGER)
+    local_variable = DataSymbol("local", INTEGER_TYPE)
     symbol_table.add(local_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
@@ -539,7 +475,7 @@ def test_gen_decls(fort_writer):
             "contains argument(s): '['arg']'." in str(excinfo.value))
 
     # Add a symbol with a deferred (unknown) interface
-    symbol_table.add(DataSymbol("unknown", DataType.INTEGER,
+    symbol_table.add(DataSymbol("unknown", INTEGER_TYPE,
                                 interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)
@@ -940,41 +876,43 @@ def test_fw_range(fort_writer):
 
     '''
     from psyclone.psyir.nodes import Array, Range
-    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    symbol = DataSymbol("a", array_type)
     dim1_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
-        Literal("1", DataType.INTEGER))
+        Literal("1", INTEGER_TYPE))
     dim1_bound_stop = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
         Reference(symbol),
-        Literal("1", DataType.INTEGER))
+        Literal("1", INTEGER_TYPE))
     dim2_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
-        Literal("2", DataType.INTEGER))
+        Literal("2", INTEGER_TYPE))
     dim3_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
-        Literal("3", DataType.INTEGER))
+        Literal("3", INTEGER_TYPE))
     dim3_bound_stop = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
         Reference(symbol),
-        Literal("3", DataType.INTEGER))
-    one = Literal("1", DataType.INTEGER)
-    two = Literal("2", DataType.INTEGER)
-    three = Literal("3", DataType.INTEGER)
+        Literal("3", INTEGER_TYPE))
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    three = Literal("3", INTEGER_TYPE)
     plus = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Reference(DataSymbol("b", DataType.REAL)),
-        Reference(DataSymbol("c", DataType.REAL)))
+        Reference(DataSymbol("b", REAL_TYPE)),
+        Reference(DataSymbol("c", REAL_TYPE)))
     array = Array.create(symbol, [Range.create(one, dim1_bound_stop),
                                   Range.create(dim2_bound_start, plus,
                                                step=three)])
     result = fort_writer.array_node(array)
     assert result == "a(1:,:b + c:3)"
 
-    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    symbol = DataSymbol("a", array_type)
     array = Array.create(
         symbol,
         [Range.create(dim1_bound_start, dim1_bound_stop),
@@ -986,15 +924,16 @@ def test_fw_range(fort_writer):
     # Make a) lbound and ubound come from a different array and b)
     # switch lbound and ubound round. These bounds should then be
     # output.
-    symbol_b = DataSymbol("b", DataType.REAL, shape=[10])
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol_b = DataSymbol("b", array_type)
     b_dim1_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol_b),
-        Literal("1", DataType.INTEGER))
+        Literal("1", INTEGER_TYPE))
     b_dim1_bound_stop = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
         Reference(symbol_b),
-        Literal("1", DataType.INTEGER))
+        Literal("1", INTEGER_TYPE))
     array = Array.create(
         symbol,
         [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
@@ -1338,18 +1277,18 @@ def test_fw_literal_node(fort_writer):
     when necessary. '''
 
     # By default literals are not modified
-    lit1 = Literal('a', DataType.CHARACTER)
+    lit1 = Literal('a', CHARACTER_TYPE)
     result = fort_writer(lit1)
     assert result == 'a'
 
-    lit1 = Literal('3.14', DataType.REAL)
+    lit1 = Literal('3.14', REAL_TYPE)
     result = fort_writer(lit1)
     assert result == '3.14'
 
     # Check that BOOLEANS use the FORTRAN formatting
-    lit1 = Literal('true', DataType.BOOLEAN)
+    lit1 = Literal('true', BOOLEAN_TYPE)
     result = fort_writer(lit1)
     assert result == '.true.'
-    lit1 = Literal('false', DataType.BOOLEAN)
+    lit1 = Literal('false', BOOLEAN_TYPE)
     result = fort_writer(lit1)
     assert result == '.false.'
