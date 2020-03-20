@@ -142,6 +142,7 @@ def test_class_definitions():
     code = str(psy.gen)
 
     # By default, no prefix should be used:
+    assert "USE psy_data_mod, ONLY: PSyDataType" in code
     assert "TYPE(PSyDataType), target, save :: psy_data" in code
     assert "CALL psy_data" in code
 
@@ -149,13 +150,33 @@ def test_class_definitions():
     # previous PSyDataNode, but the prefix was not used previously.
     data_trans.apply(schedule, {"class": "extract"})
     code = str(psy.gen)
+    assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
     assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
         in code
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
+    assert "USE psy_data_mod, ONLY: PSyDataType" in code
     assert "TYPE(PSyDataType), target, save :: psy_data" in code
     assert "CALL psy_data" in code
+
+    # Now add a third class: "profile", and make sure all previous
+    # and new declarations and calls are there:
+    data_trans.apply(schedule, {"class": "profile"})
+    code = str(psy.gen)
+    assert "USE psy_data_mod, ONLY: PSyDataType" in code
+    assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
+    assert "USE profile_psy_data_mod, ONLY: profile_PSyDataType" in code
+
+    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
+        in code
+    assert "TYPE(profile_PSyDataType), target, save :: profile_psy_data" \
+        in code
+
+    assert "CALL psy_data" in code
+    assert "CALL extract_psy_data" in code
+    assert "CALL profile_psy_data" in code
 
     with pytest.raises(TransformationError) as err:
         data_trans.apply(schedule, {"class": "invalid-class"})
