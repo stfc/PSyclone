@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !> @brief Kernel which computes the boundary integral part of rhs of the
 !>        thermodynamic equation for the nonlinear equations.
@@ -69,14 +69,14 @@ module rtheta_bd_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: rtheta_bd_kernel_type
         private
-        type(arg_type) :: meta_args(3) = (/                                     &
-            arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                         &
-            arg_type(GH_FIELD,   GH_READ,      Wtheta),                         &
-            arg_type(GH_FIELD,   GH_READ,      W2)                              &
+        type(arg_type) :: meta_args(3) = (/                                   &
+            arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                       &
+            arg_type(GH_FIELD,   GH_READ,      Wtheta),                       &
+            arg_type(GH_FIELD,   GH_READ,      W2)                            &
             /)
-        type(func_type) :: meta_funcs(2) = (/                                   &
-            func_type(W2, GH_BASIS),                                            &
-            func_type(Wtheta, GH_BASIS)                                         &
+        type(func_type) :: meta_funcs(2) = (/                                 &
+            func_type(W2, GH_BASIS),                                          &
+            func_type(Wtheta, GH_BASIS)                                       &
             /)
 	    type(mesh_data_type) :: meta_mesh(1) = (/                               &
 	         mesh_data_type( adjacent_face )                                    &
@@ -94,24 +94,11 @@ module rtheta_bd_kernel_mod
     end type
 
     !-------------------------------------------------------------------------------
-    ! Constructors
-    !-------------------------------------------------------------------------------
-
-    ! Overload the default structure constructor for function space
-    interface rtheta_bd_kernel_type
-        module procedure rtheta_bd_kernel_constructor
-    end interface
-
-    !-------------------------------------------------------------------------------
     ! Contained functions/subroutines
     !-------------------------------------------------------------------------------
     public rtheta_bd_code
 
 contains
-
-    type(rtheta_bd_kernel_type) function rtheta_bd_kernel_constructor() result(self)
-        return
-    end function rtheta_bd_kernel_constructor
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> @brief The subroutine which is called directly by the Psy layer.

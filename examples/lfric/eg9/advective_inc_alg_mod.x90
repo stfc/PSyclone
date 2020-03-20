@@ -72,7 +72,7 @@ module advective_inc_alg_mod
 
 contains
 
-  !>@brief Compute advective update u.grad(theta) using desired spatial 
+  !>@brief Compute advective update u.grad(theta) using desired spatial
   !>       reconstruction
   !>@param[inout] rtheta  Advective increment
   !>@param[in]    theta   Field to advect
@@ -105,7 +105,7 @@ contains
                                                  wind,                            &
                                                  chi(1), chi_stencil_extent,      &
                                                  chi(2),chi(3)) )
-         
+
       case(transport_operators_fem)
         ! Use project u.grad(theta) into the theta function space
         qr = quadrature_xyoz_type(element_order+3, quadrature_rule)

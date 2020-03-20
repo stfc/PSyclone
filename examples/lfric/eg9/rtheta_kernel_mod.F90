@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear
 !>        equations, this constists entirely of the advection term u.grad(theta)
@@ -79,23 +79,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface rtheta_kernel_type
-   module procedure rtheta_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public rtheta_code
-contains
 
-type(rtheta_kernel_type) function rtheta_kernel_constructor() result(self)
-  return
-end function rtheta_kernel_constructor
+contains
 
 !> @brief Compute the right hand side of the thermodynamic equation
 !! @param[in] nlayers Number of layers
@@ -105,12 +93,12 @@ end function rtheta_kernel_constructor
 !! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
 !! @param[in] undf_w0  Number of unique degrees of freedom  for w0
 !! @param[in] map_w0 Dofmap for the cell at the base of the column for w0
-!! @param[in] w0_basis Basis functions evaluated at gaussian quadrature points 
+!! @param[in] w0_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] w0_diff_basis Differential basis functions evaluated at gaussian quadrature points
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2  Number of unique degrees of freedom  for w2
-!! @param[in] map_w2 Dofmap for the cell at the base of the column for w2 
-!! @param[in] w2_basis Basis functions evaluated at gaussian quadrature points 
+!! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
+!! @param[in] w2_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] nqp_h Number of horizontal quadrature points
 !! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Weights of the horizontal quadrature points
@@ -130,9 +118,9 @@ subroutine rtheta_code(nlayers,                                                &
   integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
   integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
 
-  real(kind=r_def), dimension(1,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_basis  
-  real(kind=r_def), dimension(3,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_diff_basis  
-  real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis 
+  real(kind=r_def), dimension(1,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_basis
+  real(kind=r_def), dimension(3,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_diff_basis
+  real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis
 
   real(kind=r_def), dimension(undf_w0), intent(inout) :: r_theta
   real(kind=r_def), dimension(undf_w0), intent(in)    :: theta
@@ -144,12 +132,12 @@ subroutine rtheta_code(nlayers,                                                &
   ! Internal variables
   integer(kind=i_def)               :: df, k
   integer(kind=i_def)               :: qp1, qp2
-  
+
   real(kind=r_def), dimension(ndf_w0)          :: rtheta_e, theta_e
   real(kind=r_def), dimension(ndf_w2)          :: u_e
-  real(kind=r_def) :: u_at_quad(3), grad_theta_at_quad(3) 
-  real(kind=r_def) :: advective_term             
-  
+  real(kind=r_def) :: u_at_quad(3), grad_theta_at_quad(3)
+  real(kind=r_def) :: advective_term
+
   do k = 0, nlayers-1
     ! Extract element arrays of chi
     do df = 1, ndf_w0
@@ -182,9 +170,9 @@ subroutine rtheta_code(nlayers,                                                &
     end do
     do df = 1, ndf_w0
       r_theta( map_w0(df) + k ) =  r_theta( map_w0(df) + k ) + rtheta_e(df)
-    end do 
+    end do
   end do
-  
+
 end subroutine rtheta_code
 
 end module rtheta_kernel_mod

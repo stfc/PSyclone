@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !-------------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ use constants_mod,           only : r_def, i_def
 use argument_mod,            only : arg_type, func_type,             &
                                     GH_FIELD, GH_READ, GH_WRITE,     &
                                     W0, W3, GH_BASIS, GH_DIFF_BASIS, &
-                                    CELLS 
+                                    CELLS
 
 implicit none
 
@@ -78,32 +78,20 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface w3_solver_kernel_type
-   module procedure w3_solver_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public solver_w3_code
-contains
 
-type(w3_solver_kernel_type) function w3_solver_kernel_constructor() result(self)
-  return
-end function w3_solver_kernel_constructor
+contains
 
 !> @brief The subroutine which is called directly by the Psy layer
 !! @param[in] nlayers Integer the number of layers
 !! @param[in] ndf_w3 The number of degrees of freedom per cell
 !! @param[in] map_w3 Integer array holding the dofmap for the cell at the base of the column
-!! @param[in] w3_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points 
-!! @param[inout] X Real array the data 
+!! @param[in] w3_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
+!! @param[inout] X Real array the data
 !! @param[in] rhs Real array. the data
-!! @param[inout] gq The gaussian quadrature rule 
+!! @param[inout] gq The gaussian quadrature rule
 !! @param[in] ndf_w0 The number of degrees of freedom per cell
 !! @param[in] map_w0 Integer array holding the dofmap for the cell at the base of the column
 !! @param[in] w0_diff_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
@@ -118,13 +106,13 @@ subroutine solver_w3_code(nlayers,                                    &
                           ndf_w0, undf_w0, map_w0, w0_diff_basis,     &
                           nqp_h, nqp_v, wqp_h, wqp_v                  &
                          )
-                         
-  use matrix_invert_mod,       only : matrix_invert 
-  use coordinate_jacobian_mod, only : coordinate_jacobian 
-  
-  ! Needs to compute the integral of rho_df * P 
-  ! P_analytic over a single column    
-  
+
+  use matrix_invert_mod,       only : matrix_invert
+  use coordinate_jacobian_mod, only : coordinate_jacobian
+
+  ! Needs to compute the integral of rho_df * P
+  ! P_analytic over a single column
+
   implicit none
 
   ! Arguments
@@ -134,18 +122,18 @@ subroutine solver_w3_code(nlayers,                                    &
   integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
   real(kind=r_def), intent(in) :: ascalar
   real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: w3_basis
-  real(kind=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: w0_diff_basis  
+  real(kind=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: w0_diff_basis
   real(kind=r_def), dimension(undf_w3), intent(inout) :: x
   real(kind=r_def), dimension(undf_w3), intent(in)    :: rhs
   real(kind=r_def), dimension(undf_w0), intent(in)    :: chi_1, chi_2, chi_3
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
-  real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v  
+  real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
   ! Internal variables
   integer(kind=i_def) :: df1, df2, k
   integer(kind=i_def) :: qp1, qp2
-  
+
   real(kind=r_def) :: x_e(ndf_w3), rhs_e(ndf_w3)
   real(kind=r_def) :: integrand
   real(kind=r_def), dimension(ndf_w3,ndf_w3) :: mass_matrix_w3, inv_mass_matrix_w3
@@ -178,10 +166,10 @@ subroutine solver_w3_code(nlayers,                                    &
     call matrix_invert(mass_matrix_w3,inv_mass_matrix_w3,ndf_w3)
     x_e = matmul(inv_mass_matrix_w3,rhs_e)
     do df1 = 1,ndf_w3
-      x(map_w3(df1)+k) = x_e(df1) 
+      x(map_w3(df1)+k) = x_e(df1)
     end do
   end do
-  
+
 end subroutine solver_w3_code
 
 end module w3_solver_kernel_mod

@@ -74,23 +74,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface conservative_flux_kernel_type
-   module procedure conservative_flux_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public conservative_flux_code
-contains
 
-type(conservative_flux_kernel_type) function conservative_flux_kernel_constructor() result(self)
-  return
-end function conservative_flux_kernel_constructor
+contains
 
 !> @brief Computes the fluxes for the split advection scheme
 !! @param[in] nlayers Integer the number of layers

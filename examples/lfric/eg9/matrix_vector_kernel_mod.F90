@@ -10,21 +10,21 @@
 !
 ! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
-! 
+!
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
-! 
+!
 ! * Redistributions of source code must retain the above copyright notice, this
 !   list of conditions and the following disclaimer.
-! 
+!
 ! * Redistributions in binary form must reproduce the above copyright notice,
 !   this list of conditions and the following disclaimer in the documentation
 !   and/or other materials provided with the distribution.
-! 
+!
 ! * Neither the name of the copyright holder nor the names of its
 !   contributors may be used to endorse or promote products derived from
 !   this software without specific prior written permission.
-! 
+!
 ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 ! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 ! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !> @brief Matrix vector multiplication of LMA form of an operator
 !>        by a vector
@@ -45,7 +45,7 @@ module matrix_vector_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    CELLS 
+                                    CELLS
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
@@ -60,7 +60,7 @@ private
 type, public, extends(kernel_type) :: matrix_vector_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
@@ -70,23 +70,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface matrix_vector_kernel_type
-   module procedure matrix_vector_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public matrix_vector_code
-contains
 
-  type(matrix_vector_kernel_type) function matrix_vector_kernel_constructor() result(self)
-  return
-end function matrix_vector_kernel_constructor
+contains
 
 !> @brief Computes lhs = matrix*x
 !> @param[in] cell Horizontal cell index
@@ -97,18 +85,18 @@ end function matrix_vector_kernel_constructor
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
 !! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
-!! @param[in] undf2 Unique number of degrees of freedom for the input field 
+!! @param[in] undf2 Unique number of degrees of freedom for the input field
 !! @param[in] x Input data
 !> @param[inout] lhs Output lhs (A*x)
-!! @param[in] matrix Local matrix assembly form of the operator A 
+!! @param[in] matrix Local matrix assembly form of the operator A
 subroutine matrix_vector_code(cell,        &
                               nlayers,     &
-                              lhs, x,      & 
+                              lhs, x,      &
                               ncell_3d,    &
                               matrix,      &
                               ndf1, undf1, map1, &
                               ndf2, undf2, map2)
- 
+
   implicit none
 
   ! Arguments
@@ -125,18 +113,18 @@ subroutine matrix_vector_code(cell,        &
   integer(kind=i_def)               :: df, k, ik
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
- 
+
   do k = 0, nlayers-1
-    do df = 1, ndf2  
+    do df = 1, ndf2
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
     lhs_e = matmul(matrix(:,:,ik),x_e)
     do df = 1,ndf1
-       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df) 
+       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
     end do
   end do
- 
+
 end subroutine matrix_vector_code
 
 end module matrix_vector_kernel_mod

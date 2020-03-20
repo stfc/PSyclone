@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear
 !>        equations for horizontally discontinuous temperature basis functions,
@@ -80,23 +80,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface rtheta_wtheta_kernel_type
-   module procedure rtheta_wtheta_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public rtheta_wtheta_code
-contains
 
-type(rtheta_wtheta_kernel_type) function rtheta_wtheta_kernel_constructor() result(self)
-  return
-end function rtheta_wtheta_kernel_constructor
+contains
 
 !> @brief Compute right hand side of the thermodynamic equation
 !! @param[in] nlayers Number of layers

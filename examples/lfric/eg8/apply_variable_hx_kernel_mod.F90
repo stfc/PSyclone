@@ -46,7 +46,7 @@ use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_REAL,         &
                                     GH_READ, GH_WRITE,                      &
                                     ANY_SPACE_1, W3, W2,                    &
-                                    CELLS 
+                                    CELLS
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
@@ -96,38 +96,20 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface apply_variable_hx_kernel_type
-   module procedure apply_variable_hx_kernel_constructor
-end interface
-interface opt_apply_variable_hx_kernel_type
-   module procedure opt_apply_variable_hx_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public apply_variable_hx_code
 public opt_apply_variable_hx_code
+
 contains
 
-type(apply_variable_hx_kernel_type) function apply_variable_hx_kernel_constructor() result(self)
-  return
-end function apply_variable_hx_kernel_constructor
-type(opt_apply_variable_hx_kernel_type) function opt_apply_variable_hx_kernel_constructor() result(self)
-  return
-end function opt_apply_variable_hx_kernel_constructor
-
-!> @brief Applies the component of the helmholtz operator that maps from velocity space 
+!> @brief Applies the component of the helmholtz operator that maps from velocity space
 !>        to the pressure space as well as the constant in space part
 !> @details The Helmholtz operator can be summarised as:
 !>          \f[
 !>             H(p) = Mp + \nabla.\left( \nabla p \right) + \bar{ \nabla p }
 !>         \f]
-!>        For a given p & \f[ \nabla p \f] this kernel applies the 
+!>        For a given p & \f[ \nabla p \f] this kernel applies the
 !>        divergence \f[ \nabla. X \f] and averaging  \f[ \bar{X} \f]
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
@@ -144,7 +126,7 @@ end function opt_apply_variable_hx_kernel_constructor
 !> @param[in] pt2 mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
 !> @param[in] m3 mass matrix for the pressure space
-!> @param[in] tau relaxtation weight 
+!> @param[in] tau relaxtation weight
 !> @param[in] dt weight based upon the timestep
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
@@ -167,13 +149,13 @@ subroutine apply_variable_hx_code(cell,        &
                                   ncell_3d_3,  &
                                   pt2,         &
                                   ncell_3d_4,  &
-                                  m3,          &     
+                                  m3,          &
                                   tau,         &
                                   dt,          &
                                   ndf_w3, undf_w3, map_w3, &
                                   ndf_w2, undf_w2, map_w2, &
                                   ndf_wt, undf_wt, map_wt)
- 
+
   implicit none
 
   ! Arguments
@@ -206,19 +188,19 @@ subroutine apply_variable_hx_code(cell,        &
   real(kind=r_def), allocatable, dimension(:) :: t
 
   ! Only need a section of the theta field that contains indices for this
-  ! column   
+  ! column
   is = minval(map_wt)
   ie = maxval(map_wt)+nlayers-1
   allocate( t(is:ie) )
-  t(is:ie) = 0.0_r_def 
+  t(is:ie) = 0.0_r_def
 
   ! Compute Pt2 * u
   do k = 0, nlayers-1
-    do df = 1, ndf_w2  
+    do df = 1, ndf_w2
       x_e(df) = x(map_w2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
-      
+
     t_e = matmul(pt2(:,:,ik),x_e)
     do df = 1,ndf_wt
       t(map_wt(df)+k) = t(map_wt(df)+k) + t_e(df)
@@ -241,20 +223,20 @@ subroutine apply_variable_hx_code(cell,        &
 
     lhs_e = matmul(m3(:,:,ik),p_e) + dt*(matmul(div(:,:,ik),x_e) + matmul(p3t(:,:,ik),t_e))
     do df = 1,ndf_w3
-       lhs(map_w3(df)+k) = lhs_e(df) 
+       lhs(map_w3(df)+k) = lhs_e(df)
     end do
   end do
 end subroutine apply_variable_hx_code
 
 !=============================================================================!
-!> @brief Applies the component of the helmholtz operator that maps from velocity space 
+!> @brief Applies the component of the helmholtz operator that maps from velocity space
 !>        to the pressure space as well as the constant in space part, optimised for lowest
 !>        order elements with horizontally discontinuous temperature space
 !> @details The Helmholtz operator can be summarised as:
 !>          \f[
 !>             H(p) = Mp + \nabla.\left( \nabla p \right) + \bar{ \nabla p }
 !>         \f]
-!>        For a given p & \f[ \nabla p \f] this kernel applies the 
+!>        For a given p & \f[ \nabla p \f] this kernel applies the
 !>        divergence \f[ \nabla. X \f] and averaging  \f[ \bar{X} \f]
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
@@ -271,7 +253,7 @@ end subroutine apply_variable_hx_code
 !> @param[in] pt2 mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
 !> @param[in] m3 mass matrix for the pressure space
-!> @param[in] tau relaxtation weight 
+!> @param[in] tau relaxtation weight
 !> @param[in] dt weight based upon the timestep
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
@@ -294,13 +276,13 @@ subroutine opt_apply_variable_hx_code(cell,        &
                                   ncell_3d_3,  &
                                   pt2,         &
                                   ncell_3d_4,  &
-                                  m3,          &     
+                                  m3,          &
                                   tau,         &
                                   dt,          &
                                   ndf_w3, undf_w3, map_w3, &
                                   ndf_w2, undf_w2, map_w2, &
                                   ndf_wt, undf_wt, map_wt)
- 
+
   implicit none
 
   ! Arguments
