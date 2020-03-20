@@ -34,15 +34,15 @@ to specify the required linking parameters. The ``Makefile``
 supports the following environment variables that can be defined
 to find the various software packages:
 
-DL_DIR:
+### DL_DIR:
    The location of the dl_esm_inf library, it defaults to
    ``../../../external/dl_esm_inf/finite_difference/src``,
    which is the version included in PSyclone.
-DL_TIMER_DIR:
+### DL_TIMER_DIR:
     The location of the apeg-dl_timer library. It defaults to
     ``../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
     is installed next to PSyclone.
-DRHOOK_DIR:
+### DRHOOK_DIR:
     The location of DrHook. It defaults to
     ``../../../../drhook``, i.e. it is assumed that DrHook is
     installed next to PSyclone.
@@ -50,9 +50,9 @@ DRHOOK_DIR:
 The makefile here will invoke psyclone with the ``--profile invokes``
 flag, which will add profiling around the two invokes used in the example.
 
-.. note:
-    The actual runtime is extremly short, so likely the profiling
-    tool used will report 0 seconds for each of the invokes.
+### Note:
+The actual runtime is extremly short, so likely the profiling
+tool used will report 0 seconds for each of the invokes.
 
 ## Running
 The output will depend on the wrapper library used. For the ``template``
