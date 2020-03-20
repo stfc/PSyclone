@@ -446,8 +446,8 @@ of the wrappers are required, you can either use
 into the corresponding directory and use ``make``. The
 corresponding README files contain additional parameters
 that can be set in order to find third party profiling tools.
-Below a short description of the various wrapper libraries
-that come with PSyclone:
+Below are short descriptions of each of the various wrapper
+libraries that come with PSyclone:
 
 ``lib/profiling/template``
     This is a simple library that just prints out the name
@@ -465,9 +465,10 @@ that come with PSyclone:
 ``lib/profiling/dl_timer``
     This wrapper uses the apeg-dl_timer library. In order to use
     this wrapper, you must download and install the dl_timer library
-    from ``https://bitbucket.org/apeg/dl_timer``. This library is
-    thread-safe, and requires that your program is linked with
-    OpenMP support.
+    from ``https://bitbucket.org/apeg/dl_timer``. This library has
+    various compile-time options and may be built with MPI or OpenMP
+    support. Additional link options might therefore be required
+    (e.g. enabling openmp, or linking with MPI).
 
 ``lib/profiling/drhook``
     This wrapper uses the DrHook library. You need to contact
@@ -497,4 +498,4 @@ with the corresponding 3rd party profiling tool. The
 exception is the template-and simple_timing-library,
 which are stand alone. The profiling example in
 ``examples/gocean/eg5`` can be used with any of the
-wrapper libraries except nvidia to see how they work.
+wrapper libraries (except nvidia) to see how they work.
