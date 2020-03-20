@@ -37,7 +37,7 @@
 # environment variables. e.g.:
 #     export F90=mpif90
 #     export F90FLAGS="-O3"
-# The dl_esm_inf inftrastructure library:
+# The dl_esm_inf infrastructure library:
 #     export DL_DIR=../../../external/dl_esm_inf/finite_difference/src
 # If you are using the dl_timer, you can also use:
 #     export DL_TIMER_DIR=../../../../apeg-dl_timer
@@ -75,13 +75,16 @@ drhook: $(NAME).drhook
 # default assume apeg-dl_timer is installed 'next' to PSyclone.
 dl_timer: DL_TIMER_DIR?=../../../../apeg-dl_timer
 dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
-dl_timer: PROFILE_LINK=-ldl_timer -L $(DL_TIMER_DIR) -ldltimer -fopenmp
+dl_timer: PROFILE_LINK=-ldl_timer -L$(DL_TIMER_DIR) -l:dl_timer_lib.a -l dl_timer -fopenmp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
 
 # Generic rule. It temporarily compiles a profile-wrapper-specific version
 # of psy (psy_template.o, psy_drhook.o, ...), which 'make' then deletes
-# automatically as an intermediate file.
+# automatically as an intermediate file. You can uncomment the following line
+# in order to preserve temporary files:
+#.SECONDARY:
+
 $(NAME).%:	$(KERNELS) psy_%.o alg.o 
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) -L $(DL_DIR) -l_fd
 
@@ -91,7 +94,7 @@ alg.f90 psy.f90: test.x90
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
-# since SyDataType will differ from one wrapper library to the next)
+# since PSyDataType will differ from one wrapper library to the next)
 psy_%.o: psy.f90 $(KERNELS)
 	$(F90) -o $@ $(F90FLAGS) -I $(DL_DIR) -I $(PROFILE_DIR) -c $<
 
