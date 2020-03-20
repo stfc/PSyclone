@@ -43,8 +43,9 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes import Node, Schedule, Reference, Container
-from psyclone.psyir.symbols import DataSymbol, SymbolError
+from psyclone.psyir.nodes import Node, Schedule, Reference, Container, \
+    Assignment, Return
+from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -621,15 +622,28 @@ def test_find_symbol():
 
 
 def test_children_validation():
-    ''' Test the children validation methods'''
-    from psyclone.psyir.nodes import Assignment
-    from psyclone.psyir.nodes import Return
+    ''' Test that nodes are validated when inserted as children of other
+    nodes. For simplicity we use Node subclasses to test this functionality
+    across a range of possible operations.
+
+    The specific logic of each validate method will be tested individually
+    inside each Node test file.
+    '''
     from psyclone.psyir.nodes.node import ChildrenList
+
     assignment = Assignment()
     return_stmt = Return()
+    reference = Reference(DataSymbol("a", DataType.INTEGER))
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
+    # Try adding a invalid child (e.g. a return_stmt into an assingment)
+    with pytest.raises(AttributeError) as error:
+        assignment.addchild(return_stmt)
+    assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
+        " is: 'DataNode, DataNode'." in str(error.value)
+
+    # The same behaviour occurs when list insertion operations are used.
     with pytest.raises(AttributeError):
         assignment.children.append(return_stmt)
 
@@ -641,3 +655,11 @@ def test_children_validation():
 
     with pytest.raises(AttributeError):
         assignment.children.extend([return_stmt])
+
+    with pytest.raises(AttributeError):
+        assignment.children = assignment.children + [return_stmt]
+
+    # Valid nodes are accepted
+    assignment.addchild(reference)
+
+    # TODO: Should displaced items from insert() or remove() also be checked?
