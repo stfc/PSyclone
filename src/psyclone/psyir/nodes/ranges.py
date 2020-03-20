@@ -37,6 +37,7 @@
 ''' Module containing the definition of the Range node. '''
 
 from psyclone.psyir.nodes import Node, Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import DataType
 
 
@@ -97,6 +98,9 @@ class Range(Node):
     :type annotations: list of str
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode, DataNode, DataNode"
+
     def __init__(self, parse_node=None, parent=None, annotations=None):
 
         super(Range, self).__init__(parse_node, parent=parent,
@@ -107,6 +111,19 @@ class Range(Node):
         default_stop = Literal("1", DataType.INTEGER)
         default_step = Literal("1", DataType.INTEGER)
         self.children = [default_start, default_stop, default_step]
+
+    @staticmethod
+    def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        return possition < 3 and isinstance(child, DataNode)
 
     @staticmethod
     def create(start, stop, step=None, parent=None):
