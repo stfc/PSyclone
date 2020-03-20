@@ -197,8 +197,9 @@ class PSyDataNode(Node):
     # -------------------------------------------------------------------------
     def make_symbol(self, symbol):
         '''Makes a symbol with the class-string as prefix, e.g. if the
-        class string is 'profile_', then the symbol "PSyDataType" will
-        become "profile_PSyDataType".
+        class string is "profile", then the symbol "PSyDataType" will
+        become "profilePSyDataType". Typically the class_string will
+        contain a trailing "_".
 
         :param str symbol: The symbol name to get the class string prefixed.
 
