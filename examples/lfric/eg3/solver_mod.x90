@@ -87,25 +87,22 @@ contains
   !! cg: Conjugate gradient method without preconditioning
   !! bicgstab: bi-conjugate gradient, stabilised without preconditioning
   !! jacobi: a fixed number of jacobi iterations
-  !> @param[inout] lhs The field to be solved for (x)
-  !> @param[inout] rhs The right hand side field (b)
-  !> @param[in]    mesh The mesh object the model for fields
-  !> @param[in]    chi The coordinate array fields
-  !> @param[in]    solver_type (optional) The type of iterative solver to use for
-  !>               continuous systems
-  !> @param[in] mm Operator type, optional. This is the mass matrix
-  !> @param[in] qr Quadrature type, optional. The quadrature rule.
+  !> @param[in,out] lhs The field to be solved for (x)
+  !> @param[in]     rhs The right hand side field (b)
+  !> @param[in]     mesh The mesh object the model for fields
+  !> @param[in]     chi The coordinate array fields
+  !> @param[in]     solver_type (optional) The type of iterative solver to use for
+  !>                continuous systems
+  !> @param[in]     qr Quadrature type, optional. The quadrature rule.
+  !> @param[in]     mm Operator type, optional. This is the mass matrix
   !! Either qr or mm are required, but not both.
   subroutine solver_algorithm(lhs, rhs, mesh, chi, solver_type, qr, mm)
 
     implicit none
 
-    type(field_type), intent(in)       :: lhs
+    type(field_type), intent(inout)    :: lhs
     type(field_type), intent(in)       :: rhs
     type(mesh_type),  intent(in)       :: mesh
-
-    ! Chi is really intent(in) but this currently causes
-    ! problems because PSyclone makes everything (inout)
     type(field_type), intent(in)       :: chi(3)
 
     integer(i_def),                  intent(in) :: solver_type
@@ -175,15 +172,15 @@ contains
   !! @details solves A.x = b where the operation A.x is encoded in a kernel using
   !! the stabilised bi-conjugate gradient method. The choice of matrix is
   !! encoded in the matrix vector kernel that is called
-  !! @param[in]  rhs_field The input b
-  !! @param[inout] lhs_field The answer, x
-  !! @param[in] mm operator type, the mass matrix
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
   !! @param[in] mesh The mesh object the model for fields
   subroutine bicg_solver_algorithm(lhs, rhs, mm, mesh)
 
     implicit none
 
-    type(field_type),    intent(in)    :: lhs
+    type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
@@ -318,15 +315,15 @@ contains
   !! @details solves A.x = b where the operation A.x is encoded in a kernel using
   !! the conjugate gradient method. The choice of matrix is
   !! encoded in the matrix vector kernel that is called.
-  !! @param[in] rhs_field The input b
-  !! @param[inout] lhs_field The answer, x
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
   !! @param[in] mm The mass matrix
   !! @param[in] mesh The mesh object the model for fields
   subroutine cg_solver_algorithm(lhs, rhs, mm, mesh)
 
     implicit none
 
-    type(field_type),    intent(in)    :: lhs
+    type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
@@ -387,7 +384,7 @@ contains
 
       call invoke( name = "CG_iterloop_group2",    &
                    inc_X_plus_bY(lhs, alpha, p),   &
-                   inc_X_minus_bY(res, alpha, Ap), & 
+                   inc_X_minus_bY(res, alpha, Ap), &
       ! Check for convergence
                    X_innerproduct_X(err, res) )
       err = sqrt(rs_new)/sc_err
@@ -426,9 +423,9 @@ contains
   !! encoded in the matrix vector kernel that is called. No measure of convergence
   !! is used instead the algorithm is assumed to have converged sufficiently
   !! after (n_iter) iterations
-  !! @param[in] rhs_field The input b
-  !! @param[inout] lhs_field The answser, x
-  !! @param[in] mm operator type, the mass matrix
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
   !! @param[in] mesh The mesh object the model for fields
   !! @param[in] n_iter The number of Jacobi iterations to perform
   subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
@@ -436,7 +433,8 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in)    :: n_iter
-    type(field_type),    intent(in)    :: lhs, rhs
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
     type(field_type)                   :: Ax, lumped_weight, res
@@ -484,8 +482,8 @@ contains
   !! encoded in the matrix vector kernel that is called. No measure of convergence
   !! is used instead the algorithm is assumed to have converged sufficiently
   !! after (n_iter) iterations
-  !! @param[in] rhs_field The input b
-  !! @param[inout] lhs_field The answser, x
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
   !! @param[in] mm The mass matrix
   !! @param[in] mesh The mesh object the model for fields
   subroutine gmres_solver_algorithm(lhs, rhs, mm, mesh)
@@ -494,7 +492,7 @@ contains
 
     implicit none
 
-    type(field_type),    intent(in)    :: lhs
+    type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
@@ -654,9 +652,9 @@ contains
   !! encoded in the matrix vector kernel that is called. No measure of convergence
   !! is used instead the algorithm is assumed to have converged sufficiently
   !! after (n_iter) iterations
-  !! @param[in] rhs_field The input b
-  !! @param[inout] lhs_field The answser, x
-  !! @param[in] mm operator type, the mass matrix
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
   !! @param[in] mesh The mesh object the model for fields
   subroutine gcr_solver_algorithm(lhs, rhs, mm, mesh)
 
@@ -664,7 +662,7 @@ contains
 
     implicit none
 
-    type(field_type),    intent(in)    :: lhs
+    type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(mesh_type),     intent(in)    :: mesh
@@ -763,17 +761,17 @@ contains
   !! @details Applies one of s number of preconditioners to a field x
   !! and returns the preconditioned field y. Currently no preconditioner
   !! is applied and y = x.
-  !! @param[in]    x The input field
-  !! @param[inout] y The output field
+  !! @param[in,out] y The output field
+  !! @param[in] x The input field
   !! @param[in] pre_cond_type The type of preconditioner to be used
-  !! routine to use
+  !!
   subroutine preconditioner(y, x, pre_cond_type)
 
     use constants_mod, only: DIAGONAL_PRE_COND
 
     implicit none
 
-    type(field_type),    intent(in)    :: y
+    type(field_type),    intent(inout) :: y
     type(field_type),    intent(in)    :: x
     integer(kind=i_def), intent(in)    :: pre_cond_type
 

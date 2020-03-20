@@ -9,7 +9,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications Copyright (c) 2017, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -39,7 +39,6 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
 
 module helmholtz_solver_alg_mod
 
@@ -50,7 +49,7 @@ module helmholtz_solver_alg_mod
   type(field_type), private :: grad_p
 
   private :: apply_helmholtz_lhs
-  
+
 contains
 
   subroutine apply_helmholtz_lhs(Hp, p)
@@ -63,7 +62,7 @@ contains
 
     implicit none
 
-    type(field_type),                intent(in)    :: Hp
+    type(field_type),                intent(inout) :: Hp
     type(field_type),                intent(in)    :: p
 
     type(operator_type), pointer :: m3_exner_star => null(), &
@@ -86,4 +85,3 @@ contains
   end subroutine apply_helmholtz_lhs
 
 end module helmholtz_solver_alg_mod
-

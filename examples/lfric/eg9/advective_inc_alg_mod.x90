@@ -74,9 +74,9 @@ contains
 
   !>@brief Compute advective update u.grad(theta) using desired spatial
   !>       reconstruction
-  !>@param[inout] rtheta  Advective increment
-  !>@param[in]    theta   Field to advect
-  !>@param[in]    wind    Advecting wind field
+  !>@param[in] rtheta  (in, out) Advective increment
+  !>@param[in] theta   (in)      Field to advect
+  !>@param[in] wind    (in)      Advecting wind field
   subroutine advective_inc_alg(rtheta, theta, wind)
 
     implicit none
