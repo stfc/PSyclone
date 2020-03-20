@@ -369,7 +369,7 @@ called "fred" then the PSy-layer module name will be "fred_psy".
 .. _dynamo0.3-psy-arg-intents:
 
 Argument Intents
-++++++++++++++++
+################
 
 LFRic :ref:`fields <dynamo0.3-field>`, :ref:`field vectors
 <dynamo0.3-field-vector>`, :ref:`operators <dynamo0.3-operator>` and
@@ -826,27 +826,6 @@ discontinuous function spaces. In conjunction with this, PSyclone also
 checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
-
-.. _dynamo0.3-kernel-arg-intents:
-
-Argument Intents
-^^^^^^^^^^^^^^^^
-
-As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
-and/or update the data pointed to by the objects such as
-:ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
-These data are passed to the kernels as :ref:`subroutine arguments
-<dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
-logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
-
-* ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
-
-* ``GH_WRITE`` (for discontinuous function spaces) indicates ``intent(out)``
-  as the argument is only written to without being updated.
-
-* ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
-  are updated (albeit in a different way due to different access to DoFs, see
-  :ref:`dynamo0.3-api-meta-args` for more details).
 
 .. _dynamo0.3-function-space:
 
@@ -1724,6 +1703,27 @@ arguments to inter-grid kernels are as follows:
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
+
+.. _dynamo0.3-kernel-arg-intents:
+
+Argument Intents
+################
+
+As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
+and/or update the data pointed to by the objects such as
+:ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
+These data are passed to the kernels as :ref:`subroutine arguments
+<dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
+logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
+
+* ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
+
+* ``GH_WRITE`` (for discontinuous function spaces) indicates ``intent(out)``
+  as the argument is only written to without being updated.
+
+* ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
+  are updated (albeit in a different way due to different access to DoFs, see
+  :ref:`dynamo0.3-api-meta-args` for more details).
 
 .. _dynamo0.3-built-ins:
 
