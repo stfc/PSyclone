@@ -1119,7 +1119,7 @@ class InvokeSchedule(Schedule):
         self._opencl = value
 
 
-class Directive(Node):
+class Directive(Statement):
     '''
     Base class for all Directive statements.
 
@@ -2154,7 +2154,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             end_text="end parallel do")
 
 
-class GlobalSum(Node):
+class GlobalSum(Statement):
     '''
     Generic Global Sum class which can be added to and manipulated
     in, a schedule.
@@ -2229,7 +2229,7 @@ class GlobalSum(Node):
         return self.node_str(False)
 
 
-class HaloExchange(Node):
+class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
     manipulated in, a schedule.
@@ -2268,7 +2268,6 @@ class HaloExchange(Node):
         self._vector_index = vector_index
         self._text_name = "HaloExchange"
         self._colour_key = "HaloExchange"
-
 
     @staticmethod
     def _validate_child(possition, child):
@@ -3252,14 +3251,30 @@ class InlinedKern(Kern):
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "Schedule"
 
     def __init__(self, psyir_nodes):
         # pylint: disable=non-parent-init-called,super-init-not-called
+        Node.__init__(self)
         schedule = Schedule(children=psyir_nodes, parent=self)
-        Node.__init__(self, children=[schedule])
+        self.children = [schedule]
         # Update the parent info for each node we've moved
         for node in schedule.children:
             node.parent = schedule
+
+    @staticmethod
+    def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        return possition == 0 and isinstance(child, Schedule)
 
     def __str__(self):
         return "inlined kern: " + self._name

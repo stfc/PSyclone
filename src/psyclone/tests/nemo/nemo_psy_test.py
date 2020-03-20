@@ -136,7 +136,7 @@ def test_multi_kern():
     loops = sched.walk(nemo.NemoLoop)
     kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
-    loops[0].children.append(kerns[1])
+    loops[0].loop_body.children.append(kerns[1])
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
     assert ("getter method does not yet support a loop containing more than "

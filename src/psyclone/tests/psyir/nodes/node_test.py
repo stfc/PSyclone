@@ -618,3 +618,26 @@ def test_find_symbol():
     with pytest.raises(SymbolError) as excinfo:
         _ = alpha.find_symbol(alpha.name)
     assert "No Symbol found for name 'undefined'." in str(excinfo.value)
+
+
+def test_children_validation():
+    ''' Test the children validation methods'''
+    from psyclone.psyir.nodes import Assignment
+    from psyclone.psyir.nodes import Return
+    from psyclone.psyir.nodes.node import ChildrenList
+    assignment = Assignment()
+    return_stmt = Return()
+
+    assert isinstance(assignment.children, (ChildrenList, list))
+
+    with pytest.raises(AttributeError):
+        assignment.children.append(return_stmt)
+
+    with pytest.raises(AttributeError):
+        assignment.children[0] = return_stmt
+
+    with pytest.raises(AttributeError):
+        assignment.children.insert(0, return_stmt)
+
+    with pytest.raises(AttributeError):
+        assignment.children.extend([return_stmt])

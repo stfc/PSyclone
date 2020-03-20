@@ -117,10 +117,10 @@ class ChildrenList(list):
         self._validation_function = validation_function
         self._validation_text = validation_text
 
-    def __setitem__(self, index, item):
+    def _validate_item(self, index, item):
         '''
-        Validates the provided index and item before continuing setting the
-        item to the list using the generic list __setitem__ method.
+        Validates the provided index and item before continuing inserting the
+        item into the list.
 
         :param int index: position where the item is inserted into.
         :param item: object to be added into the list.
@@ -128,13 +128,30 @@ class ChildrenList(list):
         :raises AttributeError: if the given index and item are not valid \
             children for this list.
         '''
-        if self._validation_function(index, item):
-            super(ChildrenList, self).__setitem__(index, item)
-        else:
+        if not self._validation_function(index, item):
             raise AttributeError(
                 "Item '{0}' can't be child {1} of '{2}'. The valid format is: "
                 "'{3}'.".format(item.__class__.__name__, index,
-                                self._node_reference, self._validation_text))
+                                self._node_reference.coloured_name(False),
+                                self._validation_text))
+
+    def append(self, item):
+        self._validate_item(len(self), item)
+        super(ChildrenList, self).append(item)
+
+    def __setitem__(self, index, item):
+        self._validate_item(index, item)
+        super(ChildrenList, self).__setitem__(index, item)
+
+    def insert(self, index, item):
+        self._validate_item(index, item)
+        super(ChildrenList, self).insert(index, item)
+        # Check displaced items?
+
+    def extend(self, items):
+        for index, item in enumerate(items):
+            self._validate_item(len(self) + index, item)
+        super(ChildrenList, self).extend(items)
 
 
 class Node(object):

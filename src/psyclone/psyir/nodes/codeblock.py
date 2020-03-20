@@ -40,9 +40,10 @@
 
 from enum import Enum
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.datanode import DataNode
 
 
-class CodeBlock(Statement):
+class CodeBlock(Statement, DataNode):
     '''Node representing some generic Fortran code that PSyclone does not
     attempt to manipulate. As such it is a leaf in the PSyIR and therefore
     has no children.
