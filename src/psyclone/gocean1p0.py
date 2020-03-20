@@ -57,7 +57,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     NameSpaceFactory, KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, DataType, ScalarType, \
-    INTEGER_SINGLE_TYPE
+    ArrayType, INTEGER_SINGLE_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -2126,7 +2126,9 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if isinstance(dtype, ScalarType) and dtype.name == ScalarType.Name.INTEGER:
+            if isinstance(dtype, ScalarType):
+                if dtype.name == ScalarType.Name.INTEGER:
+                    continue
                 shape_str = "a scalar"
             elif isinstance(dtype, ArrayType) or shape_len != 0:
                 shape_str = "an array"

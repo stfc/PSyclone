@@ -61,7 +61,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     DataAccess, Kern, Arguments, CodedKern
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType, \
+    REAL_TYPE, INTEGER_TYPE
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -2391,10 +2392,10 @@ def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     symbol_table = SymbolTable()
-    symbol = DataSymbol("x", DataType.INTEGER)
+    symbol = DataSymbol("x", INTEGER_TYPE)
     symbol_table.add(symbol)
     lhs = Reference(symbol)
-    rhs = Literal("1", DataType.INTEGER)
+    rhs = Literal("1", INTEGER_TYPE)
     assignment = Assignment.create(lhs, rhs)
     kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
     kschedule.view()
@@ -2408,11 +2409,11 @@ def test_kernelschedule_view(capsys):
 def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
-    symbol = DataSymbol("x", DataType.INTEGER)
+    symbol = DataSymbol("x", INTEGER_TYPE)
     symbol_table = SymbolTable()
     symbol_table.add(symbol)
     lhs = Reference(symbol)
-    rhs = Literal("1", DataType.INTEGER)
+    rhs = Literal("1", INTEGER_TYPE)
     assignment = Assignment.create(lhs, rhs)
     kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
     assert "Schedule[name:'kname']:\n" in str(kschedule)
@@ -2434,10 +2435,10 @@ def test_kernelschedule_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", DataType.REAL)
+    symbol = DataSymbol("tmp", REAL_TYPE)
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", DataType.REAL))
+                                   Literal("0.0", REAL_TYPE))
     kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
@@ -2455,10 +2456,10 @@ def test_kernelschedule_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("x", DataType.REAL)
+    symbol = DataSymbol("x", REAL_TYPE)
     symbol_table.add(symbol)
     children = [Assignment.create(Reference(symbol),
-                                  Literal("1", DataType.REAL))]
+                                  Literal("1", REAL_TYPE))]
 
     # name is not a string.
     with pytest.raises(GenerationError) as excinfo:

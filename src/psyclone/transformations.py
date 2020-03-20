@@ -51,7 +51,7 @@ from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
     VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 from psyclone.psyir.transformations import RegionTrans, TransformationError
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -2875,12 +2875,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                               len(symbol_table.argument_list)))
             # Perform some basic checks on the argument to make sure
             # it is the expected type
-            if not isinstance(symbol.datatype, ScalarType) or \
-               (symbol.datatype.name != ScalarType.Name.INTEGER) or \
-               symbol.is_constant:
+            if not isinstance(symbol.datatype, ScalarType):
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(type(symbol.datatype)))
+                    "but found '{0}'.".format(type(symbol.datatype).__name__))
+            if symbol.datatype.name != ScalarType.Name.INTEGER:
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument "
+                    "but found '{0}'.".format(symbol.datatype.name))
+            if symbol.is_constant:
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument "
+                    "but found a constant.")
 
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy

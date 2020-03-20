@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
-from psyclone.psyir.symbols import DataSymbol, DataType
+from psyclone.psyir.symbols import DataSymbol, DataType, INTEGER_TYPE
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor
@@ -240,11 +240,11 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def load(self, kern):
@@ -258,21 +258,21 @@ class DynLoop(Loop):
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and then call the base
             class to generate the code '''
-        self.start_expr = Literal("1", DataType.INTEGER, parent=self)
+        self.start_expr = Literal("1", INTEGER_TYPE, parent=self)
         if self._loop_type == "colours":
-            self.stop_expr = Reference(DataSymbol("ncolour", DataType.INTEGER),
+            self.stop_expr = Reference(DataSymbol("ncolour", INTEGER_TYPE),
                                        parent=self)
         elif self._loop_type == "colour":
-            self.stop_expr = Array(DataSymbol("ncp_ncolour", DataType.INTEGER),
+            self.stop_expr = Array(DataSymbol("ncp_ncolour", INTEGER_TYPE),
                                    parent=self)
             self.stop_expr.addchild(
-                Reference(DataSymbol("colour", DataType.INTEGER)),
+                Reference(DataSymbol("colour", INTEGER_TYPE)),
                 parent=self.stop_expr)
         else:
             # This is a hack as the name is not a valid DataSymbol, it
             # is a call to a type-bound function.
             self.stop_expr = Reference(
-                DataSymbol(self.field_name+"%get_ncell()", DataType.INTEGER),
+                DataSymbol(self.field_name+"%get_ncell()", INTEGER_TYPE),
                 parent=self)
         Loop.gen_code(self, parent)
 
