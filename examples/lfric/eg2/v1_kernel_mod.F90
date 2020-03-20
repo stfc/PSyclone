@@ -1,11 +1,42 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
 !
-!-------------------------------------------------------------------------------
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
 
 !> @brief Provides access to the members of the v1_kernel class.
 
@@ -24,6 +55,8 @@ use constants_mod,           only: dp
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
@@ -40,24 +73,12 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface v1_kernel_type
-   module procedure v1_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public rhs_v1_code              
+public rhs_v1_code
+
 contains
 
-type(v1_kernel_type) function v1_kernel_constructor() result(self)
-  return
-end function v1_kernel_constructor
-  
 subroutine rhs_v1_code(nlayers,ndf,map,v1_basis,x,gq)
 
 !> @brief This subroutine calculates the RHS of Galerkin projection on W1 space.
@@ -68,13 +89,13 @@ subroutine rhs_v1_code(nlayers,ndf,map,v1_basis,x,gq)
 !! @param[inout] X Real: The array of actual data.
 !! @param[inout] gq Type: Quadrature rule (here Gaussian).
 
-  ! Needs to compute the integral of c_df * P 
+  ! Needs to compute the integral of c_df * P
   ! P_analytic over a single column
-  
+
   !Arguments
   integer, intent(in) :: nlayers, ndf
   integer, intent(in) :: map(ndf)
-  real(kind=dp), intent(in), dimension(3,ndf,ngp_h,ngp_v) :: v1_basis 
+  real(kind=dp), intent(in), dimension(3,ndf,ngp_h,ngp_v) :: v1_basis
   real(kind=dp), intent(inout) :: x(*)
   type(gaussian_quadrature_type), intent(inout) :: gq
 
@@ -87,8 +108,8 @@ subroutine rhs_v1_code(nlayers,ndf,map,v1_basis,x,gq)
   real(kind=dp), dimension(1,1) :: T_1
 
   constantvec(1,1) =  1.0_dp;
-  constantvec(2,1) =  2.0_dp;  
-  constantvec(3,1) =  4.0_dp;  
+  constantvec(2,1) =  2.0_dp;
+  constantvec(3,1) =  4.0_dp;
   ! Compute the analytic R integrated over one cell
   do k = 0, nlayers-1
     do df = 1, ndf
@@ -100,7 +121,7 @@ subroutine rhs_v1_code(nlayers,ndf,map,v1_basis,x,gq)
           end do
        end do
        ! Push data to global array
-       x(map(df) + k) = x(map(df) + k) + gq%integrate(f) 
+       x(map(df) + k) = x(map(df) + k) + gq%integrate(f)
     end do
   end do
 end subroutine rhs_v1_code

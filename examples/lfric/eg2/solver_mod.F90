@@ -46,8 +46,8 @@ module solver_mod
   use constants_mod,   only : dp, max_iter
   use log_mod,         only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
                               LOG_LEVEL_DEBUG
-  use field_mod,       only : field_type, field_proxy_type                 
-                                   
+  use field_mod,       only : field_type, field_proxy_type
+
   use psy,             only : inner_prod, invoke_matrix_vector
 
   implicit none
@@ -56,20 +56,20 @@ module solver_mod
   public :: solver_algorithm
 
 contains
-!> @brief BiCGStab solver with no preconditioning. 
+!> @brief BiCGStab solver with no preconditioning.
 !! @details solves A.x = b where the operation A.x is encoded in a kernel
-!! @param rhs_field_p The input b
-!! @param lhs_field_p The answser, x
+!! @param[in,out] lhs The answer, x
+!! @param[in] rhs The input b
   subroutine solver_algorithm(lhs, rhs)
     implicit none
-    type(field_type), intent(in)    :: lhs
+    type(field_type), intent(inout) :: lhs
     type(field_type), intent(in)    :: rhs
 
     character(len=80)               :: cmessage
     ! The temporary fields
     type(field_type)                :: Ax, res, cr, p, v, s, t
 
-    ! the scalars 
+    ! the scalars
     ! the greeks - standard BiCGStab
     real(kind=dp)                    :: rho,alpha,omega,beta, norm
     real(kind=dp)                   :: ts,tt
@@ -85,8 +85,8 @@ contains
    call log_event(trim(cmessage), LOG_LEVEL_INFO)
    call lhs%set_field_scalar(0.0_dp)
 
-    
-    ! call the copy constructor on the field_type    
+
+    ! call the copy constructor on the field_type
    Ax = field_type(rhs)
    call Ax%set_field_scalar(0.0_dp)
 
@@ -101,14 +101,14 @@ contains
    err = inner_prod(res,res)
    err = sqrt(err)/sc_err
    init_err=err
-   
+
    alpha  = 1.0
    omega  = 1.0
    norm   = 1.0
-   
+
    cr = field_type(rhs)
    call cr%copy_field_data(res)
-   
+
    p = field_type(rhs)
    call p%set_field_scalar(0.0_dp)
 
@@ -123,13 +123,13 @@ contains
       rho = inner_prod(cr,res)
       beta = (rho/norm) * (alpha/omega)
       call t%axpy( (-beta*omega), v, res )
-      
+
 !      ! this is where the preconitioner would go
       call s%copy_field_data(t)
       call p%axpy( beta, p, s)
       call v%set_field_scalar(0.0_dp)
       call invoke_matrix_vector(v,p)
-      
+
       norm = inner_prod(cr,v)
       alpha = rho/norm
       call s%axpy(-alpha, v, res)
@@ -158,11 +158,11 @@ contains
            iter, err
       call log_event(trim(cmessage), LOG_LEVEL_DEBUG)
 
-      if (err < tol) then 
+      if (err < tol) then
          write(cmessage,'("solver_algorithm:converged in ", I2," iters, init=",E12.4," final=",E15.8)') iter,init_err,err
          call log_event(trim(cmessage),LOG_LEVEL_INFO)
          exit
-      end if 
+      end if
    end do
 
    if(iter.ge.max_iter) then

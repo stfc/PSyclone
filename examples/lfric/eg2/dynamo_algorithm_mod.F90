@@ -68,18 +68,18 @@ contains
 
     implicit none
 
-    type( field_type ), intent( in ) :: pressure_density
-    type( field_type ), intent( in ) :: rhs
-    type( field_type ), intent( in ) :: flux_velocity
-    type( field_type ), intent( in ) :: rhs_v2
-    type( field_type ), intent( in ) :: circulation
-    type( field_type ), intent( in ) :: rhs_v1
+    type( field_type ), intent( in )    :: pressure_density
+    type( field_type ), intent( in )    :: rhs
+    type( field_type ), intent( in )    :: flux_velocity
+    type( field_type ), intent( in )    :: rhs_v2
+    type( field_type ), intent( inout ) :: circulation
+    type( field_type ), intent( in )    :: rhs_v1
 
 
     call log_event( "Dynamo: Galerkin Projection for W3 ", LOG_LEVEL_INFO )
     !Construct PSy layer given a list of kernels. This is the line the code
     !generator may parse and do its stuff.
-    
+
     call invoke ( v3_rhs_kernel_type(rhs),                            &
                   v3_solver_kernel_type(pressure_density,rhs) )
     !RF call invoke_rhs_v3( rhs )
@@ -91,7 +91,7 @@ contains
     call invoke( v2_kernel_type(rhs_v2) )
     !RF call invoke_rhs_v2(rhs_v2)
     call solver_algorithm(flux_velocity, rhs_v2)
-    
+
     call log_event( "Dynamo:Starting Galerkin projection for W1 ...",      &
          LOG_LEVEL_INFO)
 
