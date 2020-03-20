@@ -85,9 +85,10 @@ class PSyDataNode(Statement):
     # same name that doesn't match this will result in a NotImplementedError
     # at code-generation time.
     use_stmt = "use psy_data_mod, only: " + ", ".join(symbols)
-
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
         # TODO: #415 Support different classes of PSyData calls.
@@ -177,10 +178,17 @@ class PSyDataNode(Statement):
             self._region_name = name[1]
             self.set_region_identifier(self._module_name, self._region_name)
 
-    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
-
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return possition == 0 and isinstance(child, Schedule)
 
     # -------------------------------------------------------------------------

@@ -1139,6 +1139,8 @@ class Directive(Node):
     # The prefix to use when constructing this directive in Fortran
     # (e.g. "OMP"). Must be set by sub-class.
     _PREFIX = ""
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "Schedule"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
@@ -1147,10 +1149,18 @@ class Directive(Node):
         self._text_name = "Directive"
         self._colour_key = "Directive"
 
-    _children_valid_format = "Schedule"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return possition == 0 and isinstance(child, Schedule)
 
     @property
@@ -2155,6 +2165,9 @@ class GlobalSum(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
@@ -2168,10 +2181,19 @@ class GlobalSum(Node):
         self._text_name = "GlobalSum"
         self._colour_key = "GlobalSum"
 
-    _children_valid_format = "<LeafNode>"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return False
 
     @property
@@ -2226,6 +2248,9 @@ class HaloExchange(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2244,10 +2269,19 @@ class HaloExchange(Node):
         self._text_name = "HaloExchange"
         self._colour_key = "HaloExchange"
 
-    _children_valid_format = "<LeafNode>"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return False
 
     @property
@@ -2390,6 +2424,9 @@ class Kern(Statement):
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, parent, call, name, arguments):
         super(Kern, self).__init__(self, parent=parent)
         self._arguments = arguments
@@ -2428,10 +2465,19 @@ class Kern(Statement):
             self._reduction = False
             self._reduction_arg = None
 
-    _children_valid_format = "<LeafNode>"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return False
 
     @property

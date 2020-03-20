@@ -75,6 +75,8 @@ class Loop(Statement):
 
     '''
     valid_annotations = ('was_where', 'was_single_stmt')
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
 
     def __init__(self, parent=None, variable_name="", valid_loop_types=None,
                  annotations=None):
@@ -112,10 +114,18 @@ class Loop(Statement):
         self._variable_name = variable_name
         self._id = ""
 
-    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return (possition in (0, 1, 2) and isinstance(child, DataNode)) or (
             possition == 3 and isinstance(child, Schedule))
 

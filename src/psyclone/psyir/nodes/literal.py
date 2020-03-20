@@ -65,6 +65,8 @@ class Literal(DataNode):
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
                         DataType.CHARACTER, DataType.BOOLEAN]
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
@@ -92,10 +94,19 @@ class Literal(DataNode):
         self._datatype = datatype
         self._value = value
 
-    _children_valid_format = "<LeafNode>"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return False
 
     @property

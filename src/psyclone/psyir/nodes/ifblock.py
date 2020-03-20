@@ -63,6 +63,8 @@ class IfBlock(Statement):
     # WHERE construct.
     valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
                          'was_where')
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode, Schedule [, Schedule]"
 
     def __init__(self, parent=None, annotations=None):
         super(IfBlock, self).__init__(parent=parent)
@@ -78,10 +80,18 @@ class IfBlock(Statement):
         self._text_name = "If"
         self._colour_key = "If"
 
-    _children_valid_format = "DataNode, Schedule [, Schedule]"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return (possition == 0 and isinstance(child, DataNode)) or (
             possition in (1, 2) and isinstance(child, Schedule))
 

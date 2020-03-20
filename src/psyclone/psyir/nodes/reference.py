@@ -60,6 +60,9 @@ class Reference(DataNode):
     :raises TypeError: if the symbol argument is not of type Symbol.
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):
             raise TypeError("In Reference initialisation expecting a symbol "
@@ -67,10 +70,18 @@ class Reference(DataNode):
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
 
-    _children_valid_format = "<LeafNode>"
-
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return False
 
     @property
@@ -140,15 +151,26 @@ class Array(Reference):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "+[DataNode | Range]"
+
     def __init__(self, symbol, parent=None):
         super(Array, self).__init__(symbol, parent=parent)
         self._text_name = "ArrayReference"
         self._colour_key = "Reference"
 
-    _children_valid_format = "+[DataNode | Range]"
-
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
     @staticmethod

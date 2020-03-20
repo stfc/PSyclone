@@ -165,7 +165,7 @@ class Node(object):
     START_POSITION = 0
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
-    # Textual representation of the valid children for this node
+    # Textual representation of the valid children for this node.
     _children_valid_format = "*[Node]"
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
@@ -208,7 +208,7 @@ class Node(object):
         :rtype: bool
 
         '''
-        #pylint: disable=unused-argument
+        # pylint: disable=unused-argument
         return True
 
     def coloured_name(self, colour=True):

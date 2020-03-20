@@ -57,6 +57,9 @@ class CodeBlock(Statement):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     class Structure(Enum):
         '''
         Enumeration that captures the structure of the code block which
@@ -69,11 +72,6 @@ class CodeBlock(Statement):
         # The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-    _children_valid_format = "<LeafNode>"
-
-    @staticmethod
-    def _validate_child(possition, child):
-        return False
 
     def __init__(self, fp2_nodes, structure, parent=None):
         super(CodeBlock, self).__init__(parent=parent)
@@ -91,6 +89,20 @@ class CodeBlock(Statement):
             self.ast_end = None
         # Store the structure of the code block.
         self._structure = structure
+
+    @staticmethod
+    def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return False
 
     @property
     def structure(self):

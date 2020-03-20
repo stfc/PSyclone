@@ -55,15 +55,28 @@ class Container(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "*[Container | KernelSchedule]"
+
     def __init__(self, name, parent=None):
         super(Container, self).__init__(parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
-    _children_valid_format = "*[Container | KernelSchedule]"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        # Import KernelSchedule here to avoid circular dependency
         from psyclone.psyGen import KernelSchedule
         return isinstance(child, (Container, KernelSchedule))
 

@@ -49,13 +49,24 @@ class Return(Statement):
     :param parent: the parent node of this Return in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)
 
-    _children_valid_format = "<LeafNode>"
-
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return False
 
     def __str__(self):

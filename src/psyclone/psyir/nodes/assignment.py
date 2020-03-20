@@ -57,6 +57,7 @@ class Assignment(Statement):
     :param parent: the parent node of this Assignment in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
+    # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode, DataNode"
 
     def __init__(self, ast=None, parent=None):
@@ -64,6 +65,15 @@ class Assignment(Statement):
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return possition < 2 and isinstance(child, DataNode)
 
     @property

@@ -934,6 +934,8 @@ class GOKern(CodedKern):
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
+        # Can't use super() as the parent class has mandatory arguments that
+        # in GOKern are initialized with the load() method.
         Node.__init__(self)
         if False:  # pylint: disable=using-constant-test
             self._arguments = GOKernelArguments(None, None)  # for pyreverse

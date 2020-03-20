@@ -127,6 +127,9 @@ class UnaryOperation(Operation):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode"
+
     Operator = Enum('Operator', [
         # Arithmetic Operators
         'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
@@ -144,10 +147,17 @@ class UnaryOperation(Operation):
         super(UnaryOperation, self).__init__(operation, parent)
         self._text_name = "UnaryOperation"
 
-    _children_valid_format = "DataNode"
-
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return possition == 0 and isinstance(child, DataNode)
 
     @staticmethod
@@ -254,15 +264,25 @@ class BinaryOperation(Operation):
         type. Currently only `DataType.REAL` is supported.
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode, DataNode"
 
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(operator, parent)
         self._text_name = "BinaryOperation"
 
-    _children_valid_format = "DataNode, DataNode"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
         return possition in (0,1) and isinstance(child, DataNode)
 
     def math_equal(self, other):
@@ -343,6 +363,9 @@ class NaryOperation(Operation):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "DataNode, DataNode, +[DataNode]"
+
     Operator = Enum('Operator', [
         # Arithmetic Operators
         'MAX', 'MIN', 'SUM'
@@ -352,10 +375,19 @@ class NaryOperation(Operation):
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
 
-    _children_valid_format = "DataNode, DataNode, +[DataNode]"
 
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return isinstance(child, DataNode)
 
     @staticmethod

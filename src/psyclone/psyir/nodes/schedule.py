@@ -52,15 +52,26 @@ class Schedule(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "*[Statements]"
+
     def __init__(self, children=None, parent=None):
         Node.__init__(self, children=children, parent=parent)
         self._text_name = "Schedule"
         self._colour_key = "Schedule"
 
-    _children_valid_format = "*[Statements]"
-
     @staticmethod
     def _validate_child(possition, child):
+        '''
+        :param int possition: a possition to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.node`
+
+        :return: whether the given child and possition are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
     @property
