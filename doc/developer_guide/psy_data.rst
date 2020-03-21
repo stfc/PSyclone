@@ -108,6 +108,7 @@ config file that you are using.
     corresponding wrapper libraries are modified to use this
     new prefix.
 
+.. _psy_data_api:
 
 API
 ---
@@ -120,17 +121,26 @@ be called after. Similarly the shutdown function might need to
 be called before or after ``MPI_Finalize``.
 
 .. method:: PREFIX_PSyDataInit()
+
     Initialises the wrapper library used. It takes no parameters, and must
     called exactly once before any other PSyData-related function
-    is invoked.
+    is invoked. Example::
+
+        use profile_psy_data_mod, only : profile_PSyDataInit
+        ...
+        call profile_PSyDataInit()
 
 .. method:: PREFIX_PSyDataShutdown()
+
     Cleanly shuts down the wrapper library used. It takes no parameters,
     and must called exactly once. No more PSyData-related functions
-    must be called after PSyDataShutdown has been called.
+    must be called after PSyDataShutdown has been called. Example::
 
+        use profile_psy_data_mod, only : profile_PSyDataShutdown
+        ...
+        call profile_PSyDataShutdown()
 
-The callbacks are inserted into the code by the PSyData transformation,
+All other callbacks are inserted into the code by the PSyData transformation,
 see :ref:`psy_data_transformation` for details. The following example
 shows the code created by PSyclone for an extraction transformation::
 
@@ -455,3 +465,31 @@ module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
 as described under ``gen_code()`` above (see also :ref:`user_guide:psyke_netcdf`).
+
+.. _profiling:
+
+Profiling
+---------
+
+The command line options and transformations available to a user
+are described in the PSyclone User's guide (:ref:`user_guide:profiling`).
+This section describes how the PSyData API is used to implement
+the profiling wrapper API, and which functions must be provided in
+a wrapper library to allow other existing profiling tools to 
+be used.
+
+.. _ProfilingAPI:
+
+Profiling API
++++++++++++++
+PSyclone uses the PSyData API to allow implementation of wrapper libraries
+that connect to various existing profiling tools. For each existing profiling
+tool a simple interface library needs to be implemented that maps the PSyclone
+PSyData calls to the corresponding call for the profiling tool.
+
+Since the profiling API does not need access to any fields or variables,
+PSyclone will only create calls to ``PreStart`` and ``PostEnd``.
+The profiling wrapper libraries also
+need the static initialisation and shutdown functions ``_profile_PSyDataInit``
+and ``_profile_PSyDataShutdown``. Details can be found in the section
+:ref:`psy_data_api`.
