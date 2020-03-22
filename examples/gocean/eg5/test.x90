@@ -54,7 +54,6 @@ Program test
 
     TYPE(r2d_field)          :: a_fld, b_fld, c_fld, d_fld
     TYPE(grid_type), target  :: grid
-    type(decomposition_type) :: decomp
 
     call ProfileInit()
     call parallel_init()
