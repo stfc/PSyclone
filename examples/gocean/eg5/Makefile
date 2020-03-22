@@ -75,7 +75,7 @@ drhook: $(NAME).drhook
 # default assume apeg-dl_timer is installed 'next' to PSyclone.
 dl_timer: DL_TIMER_DIR?=../../../../apeg-dl_timer
 dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
-dl_timer: PROFILE_LINK=-ldl_timer -L$(DL_TIMER_DIR) -l:dl_timer_lib.a -l dl_timer -fopenmp
+dl_timer: PROFILE_LINK=-ldl_timer -L$(DL_TIMER_DIR) -l:dl_timer_lib.a -fopenmp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
 
