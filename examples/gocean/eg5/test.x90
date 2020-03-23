@@ -47,14 +47,15 @@ Program test
     USE grid_mod
     use decomposition_mod, only : decomposition_type
     use parallel_mod, only      : parallel_init
+    use psy_data_mod, only      : ProfileInit, ProfileFinalise
 
     use init_field_mod,   only : init_field
     use update_field_mod, only : update_field
 
     TYPE(r2d_field)          :: a_fld, b_fld, c_fld, d_fld
     TYPE(grid_type), target  :: grid
-    type(decomposition_type) :: decomp
 
+    call ProfileInit()
     call parallel_init()
     grid = grid_type(GO_ARAKAWA_C,                                 &
                      (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
@@ -77,4 +78,5 @@ Program test
     call invoke (update_field(a_fld, b_fld, c_fld, d_fld) )
 
     print *,a_fld%data(1:5, 1:5)
+    call ProfileFinalise()
 end program test
