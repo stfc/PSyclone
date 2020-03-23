@@ -5931,13 +5931,13 @@ class DynLoop(Loop):
         elif self._loop_type == "colour":
             self._variable_name = "cell"
         elif self._loop_type == "dofs":
+            symtab = self.root.symbol_table
             try:
                 self._variable_name = \
-                    self.root.symbol_table.lookup_with_tag("dof_loop_idx").name
+                    symtab.lookup_with_tag("dof_loop_idx").name
             except KeyError:
-                self._variable_name = \
-                    self.root.symbol_table.new_symbol_name("df")
-                self.root.symbol_table.add(
+                self._variable_name = symtab.new_symbol_name("df")
+                symtab.add(
                     DataSymbol(self._variable_name, DataType.INTEGER),
                     tag="dof_loop_idx")
         else:
@@ -7500,25 +7500,23 @@ class KernCallArgList(ArgOrdering):
 
     def cell_map(self):
         ''' Add cell-map and related cell counts to the argument list '''
-        cargs = psyGen.args_filter(self._kern.args,
-                                   arg_meshes=["gh_coarse"])
+        symtab = self._kern.root.symbol_table
+        cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
         carg = cargs[0]
-        fargs = psyGen.args_filter(self._kern.args,
-                                   arg_meshes=["gh_fine"])
+        fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = self._kern.root.symbol_table.name_from_tag(base_name)
+        map_name = symtab.name_from_tag(base_name)
         # Add the cell map to our argument list
         self._arglist.append("{0}(:,{1})".format(map_name,
                                                  self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
-        ncellpercell = \
-            self._kern.root.symbol_table.name_from_tag(base_name)
+        ncellpercell = symtab.name_from_tag(base_name)
         self._arglist.append(ncellpercell)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = self._kern.root.symbol_table.name_from_tag(base_name)
+        ncell_fine = symtab.name_from_tag(base_name)
         self._arglist.append(ncell_fine)
 
     def mesh_height(self):

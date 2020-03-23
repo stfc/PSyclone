@@ -1042,10 +1042,10 @@ class GOKern(CodedKern):
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
+        symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
-        glob_size = self.root.symbol_table.new_symbol_name("globalsize")
-        self.root.symbol_table.add(DataSymbol(glob_size, DataType.INTEGER,
-                                              shape=[2]))
+        glob_size = symtab.new_symbol_name("globalsize")
+        symtab.add(DataSymbol(glob_size, DataType.INTEGER, shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
@@ -1057,9 +1057,8 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = self.root.symbol_table.new_symbol_name("localsize")
-        self.root.symbol_table.add(DataSymbol(local_size, DataType.INTEGER,
-                                              shape=[2]))
+        local_size = symtab.new_symbol_name("localsize")
+        symtab.add(DataSymbol(local_size, DataType.INTEGER, shape=[2]))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
@@ -1068,8 +1067,7 @@ class GOKern(CodedKern):
                              rhs="(/{0}, 1/)".format(loc_size_value)))
 
         # Retrieve kernel name
-        kernel = \
-            self.root.symbol_table.lookup_with_tag("kernel_" + self.name).name
+        kernel = symtab.lookup_with_tag("kernel_" + self.name).name
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
@@ -1089,15 +1087,13 @@ class GOKern(CodedKern):
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        sub_name = self.root.symbol_table.lookup_with_tag(
-            self.name + "_set_args").name
+        sub_name = symtab.lookup_with_tag(self.name + "_set_args").name
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
         # psyGen.InvokeSchedule)
-        qlist = \
-            self.root.symbol_table.lookup_with_tag("opencl_cmd_queues").name
-        flag = self.root.symbol_table.lookup_with_tag("opencl_error").name
+        qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
+        flag = symtab.lookup_with_tag("opencl_error").name
 
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
