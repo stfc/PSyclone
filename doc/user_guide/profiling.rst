@@ -453,6 +453,39 @@ of the wrappers are required, you can either use
 into the corresponding directory and use ``make``. The
 corresponding README files contain additional parameters
 that can be set in order to find third party profiling tools.
+Below are short descriptions of each of the various wrapper
+libraries that come with PSyclone:
+
+``lib/profiling/template``
+    This is a simple library that just prints out the name
+    as regions are entered and exited. It could act as a
+    template to develop new wrapper libraries, hence its
+    name.
+
+``lib/profiling/simple_timing``
+    This is a simple, stand-alone library that uses Fortran
+    system calls to measure the execution time, and reports
+    average, minimum and maximum execution time for all regions.
+    It is not MPI aware (i.e. it will just report independently
+    for each MPI process), and not thread-safe.
+
+``lib/profiling/dl_timer``
+    This wrapper uses the apeg-dl_timer library. In order to use
+    this wrapper, you must download and install the dl_timer library
+    from ``https://bitbucket.org/apeg/dl_timer``. This library has
+    various compile-time options and may be built with MPI or OpenMP
+    support. Additional link options might therefore be required
+    (e.g. enabling openmp, or linking with MPI).
+
+``lib/profiling/drhook``
+    This wrapper uses the DrHook library. You need to contact
+    ECMWF to obtain a copy of DrHook.
+
+``lib/profiling/nvidia``
+    This is a wrapper library that maps the PSyclone profiling API
+    to the NVIDIA Tools Extension library (NVTX). This library is
+    available from ``https://developer.nvidia.com/cuda-toolkit``.
+
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
@@ -469,9 +502,7 @@ print all results in a ProfileFinalise() subroutine.
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exception is the template library (``lib/profiling/template``)
-which is a
-stand-alone dummy implementation that will just print
-out the name of the module and region called before and
-after each instrumented region. It is used e.g. in
-``examples/gocean/eg5`` to create an executable example.
+exception is the template-and simple_timing-library,
+which are stand alone. The profiling example in
+``examples/gocean/eg5`` can be used with any of the
+wrapper libraries (except nvidia) to see how they work.
