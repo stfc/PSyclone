@@ -863,6 +863,7 @@ class RefElementMetaData(object):
     :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
 
     :raises ParseError: if an unrecognised reference-element property is found.
+    :raises ParseError: if a duplicate reference-element property is found.
 
     '''
     class Property(Enum):
@@ -917,6 +918,12 @@ class RefElementMetaData(object):
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
                 "values are: {1}".format(arg, sorted_names))
+
+        # Check for duplicate properties
+        for prop in self.properties:
+            if self.properties.count(prop) > 1:
+                raise ParseError("Duplicate reference-element property "
+                                 "found: '{0}'.".format(prop))
 
 
 class DynKernMetadata(KernelType):
