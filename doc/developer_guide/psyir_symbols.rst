@@ -45,13 +45,13 @@ descendant nodes.
 .. note:: Some symbols are still hardwired as strings inside some of the PSyIR
     nodes, but there are issues raised to replace these.
 
-When one wants to define a new symbol in the symbol table, in order to avoid
-any clashes, the recommended way is to use the `new_symbol_name` method:
+The `new_symbol_name` method is provided to avoid name clashes when defining
+a new symbol in the symbol table.
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
 
 However, if this variable needs to be retrieved later on, one must keep track
-of the symbol or the returned name. As this is not always feasable when
+of the symbol or the returned name. As this is not always feasible when
 accessed from different routines, there is also the option to provide a tag to
 uniquely identify the symbol internally (the tag is not displayed in the
 generated code). Therefore, to create a new symbol and associate it with a
@@ -63,7 +63,7 @@ tag, the following lines can be used:
     node.symbol_table.add(DataSymbol(variable, DataType.INTEGER),
                           tag="variable_with_the_result_x")
 
-Then, there are two ways to retrieve the symbol from a symbol table. Using the
+There are two ways to retrieve the symbol from a symbol table. Using the
 `name` or using the `tag` as lookup keys. This is done with the two following
 methods:
 
@@ -74,9 +74,10 @@ methods:
 Sometimes, particularly in the dynamo0p3 API, we have no way of knowing if
 a symbol has already been defined. In this case we can use a try/catch around
 the `lookup_with_tag` method and if a KeyError is raised (the tag was not
-found), then proceed to declare the symbol. As this situan occurs frquently
-the Symbol Table provides the following helper method that encapsulates the
-described behaviour:
+found), then proceed to declare the symbol. As this situation occurs frequently
+the Symbol Table provides the `name_from_tag` helper method that encapsulates the
+described behaviour and declares generic symbols, which have no datatype
+properties, when needed.
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.name_from_tag
 

@@ -6772,7 +6772,7 @@ class DynKern(CodedKern):
             # The quadrature-related arguments always come last
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
-            # use the symbol_table to create a unique symbol name.
+            # Use the symbol_table to create a unique symbol name.
             if qr_arg.varname:
                 tag = "AlgArgs_" + self._qr_text
                 self._qr_name = \
