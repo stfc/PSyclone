@@ -196,8 +196,8 @@ def test_globalstoargumentstrans(monkeypatch):
     assert "USE model_mod, ONLY: rdt" in generated_code
     assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "model_mod" in invoke._name_space_manager._reserved_names
-    assert "rdt" in invoke._name_space_manager._added_names
+    assert invoke.schedule.symbol_table.lookup("model_mod")
+    assert invoke.schedule.symbol_table.lookup("rdt")
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -369,68 +369,3 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     assert "Couldn't copy 'rdt: <DataType.REAL, Scalar, Global(container=" \
         "'model_mod')>' into the SymbolTable. The name 'rdt' is already used" \
         " by another symbol." in str(err.value)
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_globalstoargumentstrans_clash_namespace_after(monkeypatch):
-    ''' Check the GlobalsToArguments transformation adds the module and global
-    variable names into the NameSpaceManager to prevent clashes'''
-
-    trans = KernelGlobalsToArguments()
-    # Construct a testing InvokeSchedule
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke_kern_with_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-
-    # Monkeypatch resolve_deferred to avoid module searching and importing
-    # in this test. In this case we assume it is a REAL
-    def set_to_real(variable):
-        variable._datatype = DataType.REAL
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
-
-    # Transform and generate the new code
-    trans.apply(kernel)
-    _ = str(psy.gen)
-
-    # Create new 'rdt' and 'model_mod' variables using the NameSpaceManager
-    newname1 = invoke._name_space_manager.create_name(
-                root_name="rdt", context="PSyVars", label="rdt")
-    newname2 = invoke._name_space_manager.create_name(
-                root_name="model_mod", context="PSyVars", label="model_mod")
-
-    # Created names should not clash with the imported module and globalvar
-    assert newname1 == "rdt_1"
-    assert newname2 == "model_mod_1"
-
-
-def test_globalstoargumentstrans_clash_namespace_before(monkeypatch):
-    ''' Check the GlobalsToArguments generation will break if the global
-    variable name has already been used in the NameSpaceManager'''
-
-    trans = KernelGlobalsToArguments()
-    # Construct a testing InvokeSchedule
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke_kern_with_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-
-    # Monkeypatch resolve_deferred to avoid module searching and importing
-    # in this test. In this case we assume it is a REAL
-    def set_to_real(variable):
-        variable._datatype = DataType.REAL
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
-
-    # Reserve 'rdt'
-    _ = invoke._name_space_manager.add_reserved_name("rdt")
-
-    # Transform and generate the new code
-    trans.apply(kernel)
-    with pytest.raises(KeyError) as err:
-        _ = str(psy.gen)
-    assert "The imported variable 'rdt' is already defined in the NameSpace" \
-        "Manager of the Invoke." in str(err.value)

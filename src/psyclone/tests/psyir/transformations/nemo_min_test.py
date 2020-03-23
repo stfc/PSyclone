@@ -47,6 +47,7 @@ from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
 
+
 def test_initialise():
     '''Check that variables are set up as expected when an instance of the
     class is created and that the str and name methods work as expected.
@@ -154,24 +155,24 @@ def test_correct_binary(func, output, tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0)\n"
+        "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN({0}, arg_0)\n\n"
+        "  psyir_tmp=MIN({0}, arg_1)\n\n"
         "end subroutine min_example\n".format(output)) in result
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0)\n"
+        "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n\n"
         "  res_min={0}\n"
-        "  tmp_min=arg_0\n"
+        "  tmp_min=arg_1\n"
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"
@@ -200,24 +201,24 @@ def test_correct_expr(tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0)\n"
+        "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=1.0 + MIN(arg, arg_0) + 2.0\n\n"
+        "  psyir_tmp=1.0 + MIN(arg, arg_1) + 2.0\n\n"
         "end subroutine min_example\n") in result
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0)\n"
+        "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n\n"
         "  res_min=arg\n"
-        "  tmp_min=arg_0\n"
+        "  tmp_min=arg_1\n"
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"
@@ -247,36 +248,36 @@ def test_correct_2min(tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0)\n"
+        "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN(1.0, 2.0) + MIN(arg, arg_0)\n\n"
+        "  psyir_tmp=MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
         "end subroutine min_example\n") in result
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     _, _ = trans.apply(min_op, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0)\n"
+        "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
+        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n"
-        "  real :: res_min_0\n"
-        "  real :: tmp_min_0\n\n"
+        "  real :: res_min_1\n"
+        "  real :: tmp_min_1\n\n"
         "  res_min=arg\n"
-        "  tmp_min=arg_0\n"
+        "  tmp_min=arg_1\n"
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"
-        "  res_min_0=1.0\n"
-        "  tmp_min_0=2.0\n"
-        "  if (tmp_min_0 < res_min_0) then\n"
-        "    res_min_0=tmp_min_0\n"
+        "  res_min_1=1.0\n"
+        "  tmp_min_1=2.0\n"
+        "  if (tmp_min_1 < res_min_1) then\n"
+        "    res_min_1=tmp_min_1\n"
         "  end if\n"
-        "  psyir_tmp=res_min_0 + res_min\n\n"
+        "  psyir_tmp=res_min_1 + res_min\n\n"
         "end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -293,30 +294,30 @@ def test_correct_nary(tmpdir):
     writer = FortranWriter()
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0,arg_1)\n"
+        "subroutine min_example(arg,arg_1,arg_2)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
         "  real, intent(inout) :: arg_1\n"
+        "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=MIN(arg, arg_0, arg_1)\n\n"
+        "  psyir_tmp=MIN(arg, arg_1, arg_2)\n\n"
         "end subroutine min_example\n") in result
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
-        "subroutine min_example(arg,arg_0,arg_1)\n"
+        "subroutine min_example(arg,arg_1,arg_2)\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_0\n"
         "  real, intent(inout) :: arg_1\n"
+        "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: tmp_min\n\n"
         "  res_min=arg\n"
-        "  tmp_min=arg_0\n"
+        "  tmp_min=arg_1\n"
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"
-        "  tmp_min=arg_1\n"
+        "  tmp_min=arg_2\n"
         "  if (tmp_min < res_min) then\n"
         "    res_min=tmp_min\n"
         "  end if\n"

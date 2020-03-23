@@ -60,15 +60,6 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
-def setup_function():
-    '''
-    pytest fixture that is called before every test function in this file. It
-    ensures that a new NameSpace is created for every test.
-    '''
-    from psyclone.psyGen import NameSpaceFactory
-    NameSpaceFactory._instance = None
-
-
 def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
