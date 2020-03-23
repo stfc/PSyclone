@@ -147,7 +147,7 @@ def test_add_with_tags():
     sym2 = Symbol("symbol_tag1")
     sym3 = Symbol("symbol_tag2")
     sym_table.add(sym1)
-    assert len(sym_table._tags) == 0  # No tag added if none given
+    assert not sym_table._tags  # No tag added if none given
     sym_table.add(sym2, tag="tag1")
     sym_table.add(sym3, tag="tag2")
 

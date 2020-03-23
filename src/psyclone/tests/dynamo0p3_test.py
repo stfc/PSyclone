@@ -3336,6 +3336,7 @@ def test_lower_bound_fortran_2(monkeypatch):
     assert ("Unsupported lower bound name 'invalid' found" in
             str(excinfo.value))
 
+
 @pytest.mark.parametrize("name, index, output",
                          [("inner", 10, "inner_cell(11)"),
                           ("ncells", 10, "inner_cell(1)"),
@@ -3352,6 +3353,7 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
     monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
     monkeypatch.setattr(my_loop, "_lower_bound_index", value=index)
     assert my_loop._lower_bound_fortran() == "mesh%get_last_" + output + "+1"
+
 
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()

@@ -50,9 +50,8 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import CodeBlock, Container, Loop, \
-    Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    Schedule
+from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
+    Literal, Node, Schedule
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, KernelSchedule, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
