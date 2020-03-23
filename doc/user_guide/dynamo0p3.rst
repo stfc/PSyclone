@@ -1349,9 +1349,8 @@ rules, along with PSyclone's naming conventions, are:
 
 6) If the ``adjacent_face`` mesh property is required then:
 
-   1) If the kernel does *not* require face quadrature (see (7) below), pass
-      the number of cell faces obtained from the reference element
-      (``nfaces_re``). This is an integer of kind ``i_def``.
+   1) Pass the number of horizontal cell faces obtained from the reference
+      element (``nfaces_re_h``). This is an integer of kind ``i_def``.
    2) Pass a rank-1, integer array of kind ``i_def``. If the kernel
       requires face quadrature (see (7) below) then the extent of this
       array is the number of faces obtained from that quadrature
