@@ -882,12 +882,15 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
-        # The gen_code method generates new Symbol names, however, we want
-        # subsequent calls to invoke.gen_code() to produce the exact same code.
-        # To make this possible gen_code uses a duplicate of the symbol_table
-        # instead of the original one (so new symbols are not conserved outside
-        # gen_code). The original symbol table is restored at the end of this
-        # method.
+        # The gen_code methods may generate new Symbol names, however, we want
+        # subsequent calls to invoke.gen_code() to produce the exact same code,
+        # including symbol names, and therefore new symbols should not be kept
+        # permanently outside the hierarchic gen_code call-chain.
+        # To make this possible we create here a duplicate of the symbol table.
+        # This duplicate will be used by all recursive gen_code() methods
+        # called below this one and thus maintaining a consistent Symbol Table
+        # during the whole gen_code() chain, but at the end of this method the
+        # original symbol table is restored.
         symbol_table_before_gen = self.symbol_table
         self._symbol_table = self.symbol_table.shallow_copy()
 
