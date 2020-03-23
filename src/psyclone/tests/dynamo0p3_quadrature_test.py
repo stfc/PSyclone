@@ -527,9 +527,9 @@ def test_dynbasisfunctions(monkeypatch):
     # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
-    from psyclone import dynamo0p3
+    from psyclone.dynamo0p3 import qr_basis_alloc_args
     with pytest.raises(InternalError) as excinfo:
-        _ = dynamo0p3.qr_basis_alloc_args("size1", basis_dict)
+        _ = qr_basis_alloc_args("size1", basis_dict)
     assert ("Unrecognised shape ('gh_wrong_shape') specified "
             in str(excinfo.value))
 

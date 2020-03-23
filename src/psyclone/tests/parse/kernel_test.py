@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -353,7 +353,7 @@ DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(2) =                         &
-          (/ arg_type(gh_field,    gh_write,     w0),       &
+          (/ arg_type(gh_field,    gh_inc,       w0),       &
              arg_type(gh_operator, gh_readwrite, w1, w1)    &
            /)
      type(func_type), meta_funcs(2) =          &

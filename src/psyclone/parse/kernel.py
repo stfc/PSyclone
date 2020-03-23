@@ -797,7 +797,7 @@ class KernelType(object):
 
         :param str name: the name of the integer variable to find.
 
-        :returns: value of the specified integer variable (lower case) or None.
+        :return: value of the specified integer variable (lower case) or None.
         :rtype: str
 
         :raises ParseError: if the RHS of the assignment is not a Name.
@@ -830,7 +830,7 @@ class KernelType(object):
 
         :param str name: the name of the integer array to find.
 
-        :returns: list of values (lower-case).
+        :return: list of values (lower-case).
         :rtype: list of str.
 
         :raises InternalError: if we fail to parse the LHS of the array \

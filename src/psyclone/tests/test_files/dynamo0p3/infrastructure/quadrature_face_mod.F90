@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! LICENCE is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 !------------------------------------------------------------------------------
 !
 ! BSD 3-Clause License

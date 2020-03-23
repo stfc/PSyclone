@@ -183,7 +183,7 @@ def test_single_kern_eval(tmpdir):
     requires both basis and differential basis functions for an
     evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1_eval_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -287,7 +287,7 @@ def test_single_kern_eval_op(tmpdir):
     writes to an operator and requires both basis and differential basis
     functions for an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1.1_eval_op_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -357,7 +357,7 @@ def test_two_qr_same_shape(tmpdir):
     require quadrature (with the same shape). '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.2_single_invoke_2qr.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
@@ -492,7 +492,7 @@ def test_two_identical_qr(tmpdir):
     require quadrature and are passed the same qr object '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.1.3_single_invoke_2_identical_qr.f90"),
-        api="dynamo0.3")
+        api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -564,7 +564,7 @@ def test_two_qr_different_shapes(tmpdir):
     require quadrature (with different shapes). '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.8_single_invoke_2qr_shapes.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
@@ -603,7 +603,7 @@ def test_anyw2(tmpdir):
     and basis functions'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
-        api="dynamo0.3")
+        api=API)
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
@@ -649,7 +649,7 @@ def test_qr_plus_eval(tmpdir):
     ''' Check that we handle an invoke containing two kernels, one
     requiring quadrature and one requiring an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -775,7 +775,7 @@ def test_two_eval_same_space(tmpdir):
     both require evaluators and the arguments that are written to are on
     the same space '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.3_2eval_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -836,7 +836,7 @@ def test_two_eval_diff_space(tmpdir):
     both require evaluators and the arguments that are written to are on
     different spaces '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.4_2eval_op_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -921,7 +921,7 @@ def test_two_eval_same_var_same_space(tmpdir):
     same space '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.7_2eval_same_var_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -959,7 +959,7 @@ def test_two_eval_op_to_space(tmpdir):
     different spaces, one of which is the 'to' space of an operator. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.5_2eval_op_to_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -1066,7 +1066,7 @@ def test_eval_diff_nodal_space(tmpdir):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "6.6_2eval_diff_nodal_space_invoke.f90"),
-        api="dynamo0.3")
+        api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
@@ -1162,8 +1162,7 @@ def test_eval_2fs(tmpdir):
     a differential basis function be evaluated on two different FS. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "6.8_eval_2fs_invoke.f90"),
-        api="dynamo0.3")
+                     "6.8_eval_2fs_invoke.f90"), api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 

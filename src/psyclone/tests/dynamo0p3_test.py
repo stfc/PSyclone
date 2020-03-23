@@ -462,18 +462,6 @@ def test_unecessary_shape():
             in str(excinfo.value))
 
 
-def test_shape_array():
-    ''' Check that we support gh_shape being an array containing multiple
-    entries. '''
-    code = CODE.replace(
-        "gh_shape = gh_quadrature_XYoZ",
-        "gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)")
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    dkm = DynKernMetadata(ast, name=name)
-    assert 1  # ARPDBG
-
-
 def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
@@ -5377,16 +5365,17 @@ def test_kerncallarglist_args_error(dist_mem):
         "the arglist() method") in str(excinfo.value)
 
 
-def test_kerncallarglist_quad_rule_error(dist_mem):
-    '''Check that we raise the expected exception if we encounter an
-    unsupported quadrature shape in the quad_rule() method.
-
-    '''
+def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
+    ''' Check that we raise the expected exception if we encounter an
+    unsupported quadrature shape in the quad_rule() method. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "6_multiple_QR_per_invoke.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.walk(DynLoop)[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])

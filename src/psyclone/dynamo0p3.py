@@ -1020,8 +1020,8 @@ class DynKernMetadata(KernelType):
 
             # Check that a valid shape has been specified if
             # this function space requires a basis or differential basis
-            for name in descriptor.operator_names:
-                if name in VALID_EVALUATOR_NAMES:
+            for op_name in descriptor.operator_names:
+                if op_name in VALID_EVALUATOR_NAMES:
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
@@ -3677,6 +3677,7 @@ class DynBasisFunctions(DynCollection):
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
+
     '''
     # Dimensioning vars for the basis function arrays required by each
     # type of quadrature
@@ -4142,6 +4143,7 @@ class DynBasisFunctions(DynCollection):
                                encountered.
         :raises InternalError: if there is no name for the quadrature object \
                                when generating PSy-layer code.
+
         '''
         # Dictionary of basis arrays where key values are the array names and
         # entries are a list of dimensions.
@@ -4258,7 +4260,9 @@ class DynBasisFunctions(DynCollection):
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
+        # pylint: disable=no-self-use,unused-argument
         # This shape is not yet supported so we do nothing
         return
 
@@ -4270,6 +4274,7 @@ class DynBasisFunctions(DynCollection):
         :param parent: the node in the AST representing the PSy subroutine
                        in which to insert the initialisation
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
@@ -4314,12 +4319,14 @@ class DynBasisFunctions(DynCollection):
     def _initialise_xoyoz_qr(self, parent):
         '''
         Add in the initialisation of variables needed for XoYoZ
-        quadrature
+        quadrature.
 
-        :param parent: the node in the AST representing the PSy subroutine
-                       in which to insert the initialisation
+        :param parent: the node in the AST representing the PSy subroutine \
+                       in which to insert the initialisation.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
+        # pylint: disable=no-self-use,unused-argument
         # This shape is not yet supported so we do nothing
         return
 
@@ -4329,12 +4336,12 @@ class DynBasisFunctions(DynCollection):
         quadrature.
 
         :param parent: the node in the AST representing the PSy subroutine \
-                       in which to insert the initialisation
+                       in which to insert the initialisation.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        :param str qr_type: whether to generate initialisation code for "face"\
-                            or "edge" quadrature.
+        :param str qr_type: whether to generate initialisation code for \
+                            "face" or "edge" quadrature.
 
-        :raises InternalError: if `qr_type` is not "face" or "edge"
+        :raises InternalError: if `qr_type` is not "face" or "edge".
 
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
@@ -7003,8 +7010,8 @@ class DynKern(CodedKern):
     @property
     def qr_rules(self):
         '''
-        :returns: details of each of the quadrature rules required by this \
-                  kernel.
+        :return: details of each of the quadrature rules required by this \
+                 kernel.
         :rtype: OrderedDict containing \
                 :py:class:`psyclone.dynamo0p3.DynKern.QRRule` indexed by \
                 quadrature shape.
