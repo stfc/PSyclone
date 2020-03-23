@@ -146,8 +146,9 @@ def test_mdata_wrong_type_var():
     ''' Check that we raise the expected error if the array holding properties
     of the reference element contains an item of the wrong type. '''
     from psyclone.parse.utils import ParseError
-    code = REF_ELEM_MDATA.replace("reference_element_data_type(normals_to",
-                                  "ref_element_data_type(normals_to")
+    code = REF_ELEM_MDATA.replace(
+        "reference_element_data_type(outward_normals_to",
+        "ref_element_data_type(outward_normals_to")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
@@ -279,9 +280,9 @@ def test_union_refelem_gen(tmpdir):
     assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
             "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "normals_to_vert_faces, out_normals_to_horiz_faces, "
-            "out_normals_to_vert_faces)" in gen)
+            " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
+            "out_normals_to_vert_faces, normals_to_vert_faces, "
+            "out_normals_to_horiz_faces)" in gen)
 
 
 def test_all_faces_refelem_gen(tmpdir):
@@ -305,8 +306,8 @@ def test_all_faces_refelem_gen(tmpdir):
     assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_proxy%data, "
             "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_re, normals_to_faces, "
-            "out_normals_to_faces)" in gen)
+            " map_w3(:,cell), nfaces_re, out_normals_to_faces, "
+            "normals_to_faces)" in gen)
 
 
 # Tests for generating the kernel stub code
@@ -382,10 +383,9 @@ def test_refelem_stub_arglist_err():
     assert "('Wrong property') " in str(err.value)
     assert (
         "Supported properties are: ['Property.NORMALS_TO_HORIZONTAL_FACES', "
-        "'Property.NORMALS_TO_VERTICAL_FACES', "
+        "'Property.NORMALS_TO_VERTICAL_FACES', 'Property.NORMALS_TO_FACES', "
         "'Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES', "
         "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
-        "'Property.NORMALS_TO_FACES', "
         "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
 
 

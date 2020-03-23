@@ -47,8 +47,8 @@ module testkern_ref_elem_all_faces_mod
              arg_type(gh_field, gh_read, w2),    &
              arg_type(gh_field, gh_read, w3)     &
              /)
-     type(reference_element_data_type), dimension(2) ::     &
-          meta_reference_element =                          &
+     type(reference_element_data_type), dimension(2) ::             &
+          meta_reference_element =                                  &
           (/ reference_element_data_type(outward_normals_to_faces), &
              reference_element_data_type(normals_to_faces) /)
      integer :: iterates_over = cells
@@ -64,7 +64,7 @@ contains
                                               ndf_w2, undf_w2, map_w2, &
                                               ndf_w3, undf_w3, map_w3, &
                                               nfaces_re,               &
-                                              normals, out_normals)
+                                              out_normals, normals)
 
     implicit none
 
@@ -82,8 +82,8 @@ contains
     real(kind=r_def), intent(in), dimension(undf_w2) :: fld3
     real(kind=r_def), intent(in), dimension(undf_w3) :: fld4
     integer(kind=i_def), intent(in) :: nfaces_re
-    real(kind=r_def), intent(in), dimension(3,nfaces_re) :: normals
     real(kind=r_def), intent(in), dimension(3,nfaces_re) :: out_normals
+    real(kind=r_def), intent(in), dimension(3,nfaces_re) :: normals
 
   end subroutine testkern_ref_elem_all_faces_code
 
