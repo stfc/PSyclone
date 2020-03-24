@@ -219,7 +219,9 @@ def test_where_symbol_clash(parser):
     sym_table = sched.parent.symbol_table
     # The reference to widx1_0 is in a code block and therefore should not
     # be in the symbol table.
-    assert not sym_table.lookup("widx1_0")
+    with pytest.raises(KeyError) as err:
+        sym_table.lookup("widx1_0")
+    assert "not find 'widx1_0' in the Symbol Table" in str(err.value)
     loop_var = sym_table.lookup("widx1_0_0")
     assert loop_var.datatype is DataType.INTEGER
     loop_var = sym_table.lookup("widx2")
