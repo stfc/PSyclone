@@ -243,11 +243,25 @@ echo "TODO #490 and #342 and #663"
 cd -
 
 echo "Running gocean/eg5"
-cd gocean/eg5
-${PSYCLONE} -api "gocean1.0" --profile invokes -l \
-            --config ../../../config/psyclone.cfg \
-            -opsy psy.f90 -oalg alg.f90 test.x90
-cd -
+pushd gocean/eg5
+make clean
+if [ $COMPILE -eq 1 ]
+then
+    # Create the template profiling library
+    pushd ../../../lib/profiling/template
+        make clean
+        make
+    popd
+    make template
+    # This will create one binary using the template library
+    # Run the binary:
+    ./profile_test.template
+else
+    # Only trigger one psyclone invocation.
+    make alg.f90
+fi
+popd
+
 
 echo "Running gocean/eg6"
 cd gocean/eg6

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -257,8 +258,8 @@ class VariablesAccessInfo(dict):
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
                   which to initialise this object.
-    :type nodes: None, :py:class:`psyclone.node` or a list of \
-                 :py:class:`psyclone.node` objects.
+    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or a list of \
+                 :py:class:`psyclone.psyir.nodes.Node`.
 
     '''
     def __init__(self, nodes=None):

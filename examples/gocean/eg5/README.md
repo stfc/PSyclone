@@ -9,15 +9,57 @@ support in PSyclone. It is a stand alone program that can be compiled
 and run. 
 
 ## Compilation
-You have to compile dl_esm_inf (which is included in external/dl_esm_inf)
-and the simple template profiling library in lib/profiling/template.
+The makefile supports compiling and linking with the following PSyclone
+profile wrapper libraries:
+- template
+- simple_timing
+- dl_timer
+- drhook
+
+By default (``make`` without an argument) the ``template`` library will 
+be used, which just prints the name of the regions called.
+In order to test any of the other libraries, just use the
+command ``make <wrapper library name>`` and use the name listed above
+for ``<wrapper library name>``. The name of the executable will be
+``profile_test.<wrapper library name>``. There is also a target ``make all``
+which will create executables for all libraries listed above.    
+
+You also have to compile the GOcean infrastructure library
+dl_esm_inf (which is included in ``external/dl_esm_inf``), and
+the corresponding profile wrapper library in ``lib/profiling``.
 Instructions for those are are given in the corresponding subdirectories.
+If you are using ``dl_timer`` or ``drhook``, you also need to compile these
+libraries yourself, and modify the ``Makefile`` in this directory
+to specify the required linking parameters. The ``Makefile``
+supports the following environment variables that can be defined
+to find the various software packages:
+
+### DL_DIR:
+   The location of the dl_esm_inf library, it defaults to
+   ``../../../external/dl_esm_inf/finite_difference/src``,
+   which is the version included in PSyclone.
+### DL_TIMER_DIR:
+    The location of the apeg-dl_timer library. It defaults to
+    ``../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
+    is installed next to PSyclone.
+    Note that until Issue #730 is complete, executing this example
+    will fail as the labels produced by PSyclone are longer than
+    permitted by the dl_timer library.
+### DRHOOK_DIR:
+    The location of DrHook. It defaults to
+    ``../../../../drhook``, i.e. it is assumed that DrHook is
+    installed next to PSyclone.
 
 The makefile here will invoke psyclone with the ``--profile invokes``
-flag, which will add profiling around both invokes.
+flag, which will add profiling around the two invokes used in the example.
+
+### Note:
+The actual runtime is extremly short, so likely the profiling
+tool used will report 0 seconds for each of the invokes.
 
 ## Running
-When running the program, you should see:
+The output will depend on the wrapper library used. For the ``template``
+library, you should see:
 ```
  ...
  ProfileInit called
