@@ -45,8 +45,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.psyir.nodes import ExtractNode, Loop, PSyDataNode
-from psyclone.psyGen import NameSpace
+from psyclone.psyir.nodes import ExtractNode, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
@@ -54,20 +53,10 @@ from psyclone.tests.lfric_build import LFRicBuild
 # API names
 DYNAMO_API = "dynamo0.3"
 
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_psydata_namespace():
-    '''This function is called at the before any test function. It
-    creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order
-    or number of tests run is changed, otherwise the created region
-    names will change.'''
-    PSyDataNode._namespace = NameSpace()
-
-
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
+
 
 def test_node_list_error(tmpdir):
     ''' Test that applying Extract Transformation on objects which are not

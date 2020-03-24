@@ -43,6 +43,7 @@ from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import Symbol, SymbolTable
 
 
 # =============================================================================
@@ -127,6 +128,19 @@ class PSyDataNode(Node):
         sched = self._insert_schedule(children)
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
+
+        # Store the name of the PSyData variable that is used for this
+        # PSyDataNode. This allows the variable name to be shown in str
+        # (and also, calling create_name in gen() would result in the name
+        # being changed every time gen() is called).
+        if parent and hasattr(self.root, 'symbol_table'):
+            symtab = self.root.symbol_table
+        else:
+            # FIXME: This may not be a good solution
+            symtab = SymbolTable()
+
+        self._var_name = symtab.new_symbol_name("psy_data")
+        symtab.add(Symbol(self._var_name))
 
         if children and parent:
             # Correct the parent's list of children. Use a slice of the list

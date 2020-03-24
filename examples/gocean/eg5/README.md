@@ -42,6 +42,9 @@ to find the various software packages:
     The location of the apeg-dl_timer library. It defaults to
     ``../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
     is installed next to PSyclone.
+    Note that until Issue #730 is complete, executing this example
+    will fail as the labels produced by PSyclone are longer than
+    permitted by the dl_timer library.
 ### DRHOOK_DIR:
     The location of DrHook. It defaults to
     ``../../../../drhook``, i.e. it is assumed that DrHook is
