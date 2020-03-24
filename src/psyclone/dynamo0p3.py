@@ -6928,9 +6928,8 @@ class DynKern(CodedKern):
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
                 qr_base_name = "qr_"+shape.split("_")[-1]
-                qr_name = self._name_space_manager.create_name(
-                    root_name=qr_base_name, context="AlgArgs",
-                    label=qr_base_name)
+                qr_name = self.root.symbol_table.new_symbol_name(qr_base_name)
+
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
