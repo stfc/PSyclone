@@ -3490,8 +3490,8 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    lit_uninit = lit + "[value:'NOT_INITIALISED', Name.INTEGER, Precision.SINGLE]\n"
-    lit_one = lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+    lit_uninit = lit + "[value:'NOT_INITIALISED', Name.INTEGER, Precision.UNDEFINED]\n"
+    lit_one = lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
     indent = "    "
 
     _, invoke = get_invoke("15.19.1_three_builtins_two_reductions.f90",
@@ -7225,7 +7225,7 @@ def test_kern_const_invalid_make_constant2():
             "'Name.REAL'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
     symbol._datatype = ScalarType(ScalarType.Name.INTEGER,
-                                  ScalarType.Precision.SINGLE)
+                                  ScalarType.Precision.UNDEFINED)
     symbol._constant_value = 10
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, {"element_order": 0})

@@ -41,10 +41,11 @@
 from __future__ import absolute_import
 import re
 import pytest
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     DataType, ScalarType, ArrayType, DeferredType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
+    REAL_TYPE, INTEGER_TYPE, Symbol
 from psyclone.errors import InternalError
 
 
@@ -61,25 +62,25 @@ def test_new_symbol_name_1():
     # table as this is required for further testing).
     name = sym_table.new_symbol_name()
     assert name == "psyir_tmp"
-    sym_table.add(DataSymbol(name, REAL_SINGLE_TYPE))
+    sym_table.add(DataSymbol(name, REAL_TYPE))
     # Check we return the expected symbol name when there is a
     # supplied root name.
     assert sym_table.new_symbol_name(root_name="my_name") == "my_name"
     # Check we return a new symbol by appending an integer index to
     # the root name when the names clash.
     name = sym_table.new_symbol_name(root_name="my_mod")
-    assert name == "my_mod_0"
+    assert name == "my_mod_1"
     sym_table.add(ContainerSymbol(name))
     name = sym_table.new_symbol_name(root_name="my_mod")
-    assert name == "my_mod_1"
-    name = sym_table.new_symbol_name(root_name="my_mod_0")
-    assert name == "my_mod_0_0"
+    assert name == "my_mod_2"
+    name = sym_table.new_symbol_name(root_name="my_mod_1")
+    assert name == "my_mod_1_1"
     # Check we return a new symbol by appending an integer index to
     # the default name when the names clash.
     name = sym_table.new_symbol_name()
-    assert name == "psyir_tmp_0"
-    sym_table.add(DataSymbol(name, REAL_SINGLE_TYPE))
-    assert sym_table.new_symbol_name() == "psyir_tmp_1"
+    assert name == "psyir_tmp_1"
+    sym_table.add(DataSymbol(name, REAL_TYPE))
+    assert sym_table.new_symbol_name() == "psyir_tmp_2"
 
 
 def test_new_symbol_name_2():
@@ -123,21 +124,48 @@ def test_add():
     # Declare a symbol
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [5, 1])
+    array_type = ArrayType(REAL_TYPE, [5, 1])
     sym_table.add(DataSymbol("var1", array_type,
                              interface=GlobalInterface(my_mod)))
     assert sym_table._symbols["my_mod"].name == "my_mod"
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype.name == ScalarType.Name.REAL
     assert (sym_table._symbols["var1"].datatype.precision ==
-            ScalarType.Precision.SINGLE)
+            ScalarType.Precision.UNDEFINED)
     assert sym_table._symbols["var1"].datatype.shape == [5, 1]
     assert sym_table._symbols["var1"].interface.container_symbol == my_mod
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
-        sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
+        sym_table.add(DataSymbol("var1", REAL_TYPE))
     assert ("Symbol table already contains a symbol with name "
+            "'var1'.") in str(error.value)
+
+
+def test_add_with_tags():
+    '''Test that the add method with a tag inserts new symbols in the symbol
+    table and raises appropiate errors.'''
+    sym_table = SymbolTable()
+
+    sym1 = Symbol("symbol_notag")
+    sym2 = Symbol("symbol_tag1")
+    sym3 = Symbol("symbol_tag2")
+    sym_table.add(sym1)
+    assert not sym_table._tags  # No tag added if none given
+    sym_table.add(sym2, tag="tag1")
+    sym_table.add(sym3, tag="tag2")
+
+    assert len(sym_table._symbols) == 3
+    assert len(sym_table._tags) == 2
+    assert "tag1" in sym_table._tags
+    assert sym_table._tags["tag1"] == sym2
+    assert "tag2" in sym_table._tags
+    assert sym_table._tags["tag2"] == sym3
+
+    with pytest.raises(KeyError) as error:
+        sym_table.add(DataSymbol("var1", REAL_TYPE), tag="tag1")
+    assert ("Symbol table already contains the tag 'tag1' for symbol "
+            "'symbol_tag1', so it can not be associated to symbol "
             "'var1'.") in str(error.value)
 
 
@@ -147,15 +175,15 @@ def test_imported_symbols():
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
     assert sym_table.imported_symbols(my_mod) == []
-    var1 = DataSymbol("var1", REAL_SINGLE_TYPE, interface=LocalInterface())
+    var1 = DataSymbol("var1", REAL_TYPE, interface=LocalInterface())
     sym_table.add(var1)
     assert sym_table.imported_symbols(my_mod) == []
-    var2 = DataSymbol("var2", INTEGER_SINGLE_TYPE,
+    var2 = DataSymbol("var2", INTEGER_TYPE,
                       interface=GlobalInterface(my_mod))
     assert sym_table.imported_symbols(my_mod) == []
     sym_table.add(var2)
     assert sym_table.imported_symbols(my_mod) == [var2]
-    var3 = DataSymbol("var3", INTEGER_SINGLE_TYPE,
+    var3 = DataSymbol("var3", INTEGER_TYPE,
                       interface=GlobalInterface(my_mod))
     sym_table.add(var3)
     imported_symbols = sym_table.imported_symbols(my_mod)
@@ -188,7 +216,7 @@ def test_remove():
     # Declare a symbol
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [5, 1])
+    array_type = ArrayType(REAL_TYPE, [5, 1])
     sym_table.add(DataSymbol("var1", array_type,
                              interface=GlobalInterface(my_mod)))
     var1 = sym_table.lookup("var1")
@@ -233,14 +261,14 @@ def test_remove():
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
-    symbol1 = DataSymbol("var1", INTEGER_SINGLE_TYPE, constant_value=7)
-    symbol2 = DataSymbol("dim1", INTEGER_SINGLE_TYPE,
+    symbol1 = DataSymbol("var1", INTEGER_TYPE, constant_value=7)
+    symbol2 = DataSymbol("dim1", INTEGER_TYPE,
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READ))
-    symbol3 = DataSymbol("dim2", INTEGER_SINGLE_TYPE,
+    symbol3 = DataSymbol("dim2", INTEGER_TYPE,
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READ))
-    array_type = ArrayType(REAL_SINGLE_TYPE, [symbol2, symbol3])
+    array_type = ArrayType(REAL_TYPE, [symbol2, symbol3])
     symbol4 = DataSymbol("var2", array_type,
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READWRITE))
@@ -285,7 +313,7 @@ def test_swap_symbol_properties():
 
     assert symbol1.name == "var1"
     assert symbol1.datatype.name == ScalarType.Name.REAL
-    assert symbol1.datatype.precision == ScalarType.Precision.SINGLE
+    assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
     assert symbol1.datatype.shape == [symbol2, symbol3]
     assert symbol1.is_argument
     assert symbol1.constant_value is None
@@ -293,7 +321,7 @@ def test_swap_symbol_properties():
 
     assert symbol4.name == "var2"
     assert symbol4.datatype.name == ScalarType.Name.INTEGER
-    assert symbol4.datatype.precision == ScalarType.Precision.SINGLE
+    assert symbol4.datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol4.shape
     assert symbol4.is_local
     assert symbol4.constant_value.value == "7"
@@ -317,12 +345,12 @@ def test_lookup():
     '''Test that the lookup method retrieves symbols from the symbol table
     if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                              ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE])
 
     sym_table.add(DataSymbol("var1", array_type))
-    sym_table.add(DataSymbol("var2", INTEGER_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var3", REAL_SINGLE_TYPE))
+    sym_table.add(DataSymbol("var2", INTEGER_TYPE))
+    sym_table.add(DataSymbol("var3", REAL_TYPE))
 
     assert isinstance(sym_table.lookup("var1"), DataSymbol)
     assert sym_table.lookup("var1").name == "var1"
@@ -337,12 +365,33 @@ def test_lookup():
         str(error.value)
 
 
+def test_lookup_with_tag():
+    '''Test that the lookup_with_tag method retrieves symbols from the symbol
+    table if the tag exists, otherwise it raises an error.'''
+    sym_table = SymbolTable()
+
+    sym1 = Symbol("symbol_notag")
+    sym2 = Symbol("symbol_tag1")
+    sym3 = Symbol("symbol_tag2")
+    sym_table.add(sym1)
+    sym_table.add(sym2, tag="tag1")
+    sym_table.add(sym3, tag="tag2")
+
+    assert sym_table.lookup_with_tag("tag1").name == "symbol_tag1"
+    assert sym_table.lookup_with_tag("tag2").name == "symbol_tag2"
+
+    with pytest.raises(KeyError) as error:
+        sym_table.lookup_with_tag("symbol_tag1")
+    assert "Could not find the tag 'symbol_tag1' in the Symbol Table." in \
+        str(error.value)
+
+
 def test_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable.'''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var2", INTEGER_SINGLE_TYPE))
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    sym_table.add(DataSymbol("var2", INTEGER_TYPE))
     sym_table.view()
     output, _ = capsys.readouterr()
     assert "Symbol Table:\n" in output
@@ -356,8 +405,8 @@ def test_can_be_printed():
     sym_table = SymbolTable()
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var2", INTEGER_SINGLE_TYPE))
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    sym_table.add(DataSymbol("var2", INTEGER_TYPE))
     sym_table.add(DataSymbol("var3", DeferredType(),
                              interface=GlobalInterface(my_mod)))
     sym_table_text = str(sym_table)
@@ -373,9 +422,9 @@ def test_specify_argument_list():
     with references to each DataSymbol and updates the DataSymbol attributes
     when needed.'''
     sym_table = SymbolTable()
-    sym_v1 = DataSymbol("var1", REAL_SINGLE_TYPE)
+    sym_v1 = DataSymbol("var1", REAL_TYPE)
     sym_table.add(sym_v1)
-    sym_table.add(DataSymbol("var2", REAL_SINGLE_TYPE))
+    sym_table.add(DataSymbol("var2", REAL_TYPE))
     sym_v1.interface = ArgumentInterface(ArgumentInterface.Access.UNKNOWN)
     sym_table.specify_argument_list([sym_v1])
 
@@ -403,8 +452,8 @@ def test_specify_arg_list_errors():
     don't have the correct Interface information raises the expected
     errors. '''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var2", REAL_SINGLE_TYPE))
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    sym_table.add(DataSymbol("var2", REAL_TYPE))
     sym_v1 = sym_table.lookup("var1")
     # Attempt to say the argument list consists of "var1" which at this
     # point is just a local variable.
@@ -424,9 +473,9 @@ def test_argument_list_errors():
     ''' Tests the internal sanity checks of the SymbolTable.argument_list
     property. '''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var2", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var3", REAL_SINGLE_TYPE,
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    sym_table.add(DataSymbol("var2", REAL_TYPE))
+    sym_table.add(DataSymbol("var3", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     # Manually put a local symbol into the internal list of arguments
@@ -466,15 +515,15 @@ def test_validate_non_args():
     ''' Checks for the validation of non-argument entries in the
     SymbolTable. '''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var2", REAL_SINGLE_TYPE))
-    sym_table.add(DataSymbol("var3", REAL_SINGLE_TYPE,
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    sym_table.add(DataSymbol("var2", REAL_TYPE))
+    sym_table.add(DataSymbol("var3", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     # Everything should be fine so far
     sym_table._validate_non_args()
     # Add an entry with an Argument interface
-    sym_table.add(DataSymbol("var4", REAL_SINGLE_TYPE,
+    sym_table.add(DataSymbol("var4", REAL_TYPE,
                              interface=ArgumentInterface()))
     # Since this symbol isn't in the argument list, the SymbolTable
     # is no longer valid
@@ -490,8 +539,8 @@ def test_contains():
     is in the SymbolTable, otherwise returns False.'''
     sym_table = SymbolTable()
 
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
 
     assert "var1" in sym_table
@@ -504,11 +553,11 @@ def test_symbols():
     SymbolTable.'''
     sym_table = SymbolTable()
     assert sym_table.symbols == []
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
     assert len(sym_table.symbols) == 2
-    sym_table.add(DataSymbol("var3", REAL_SINGLE_TYPE,
+    sym_table.add(DataSymbol("var3", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     assert len(sym_table.symbols) == 3
@@ -520,10 +569,10 @@ def test_local_datasymbols():
     sym_table = SymbolTable()
     assert [] == sym_table.local_datasymbols
 
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
-    sym_table.add(DataSymbol("var3", REAL_SINGLE_TYPE))
+    sym_table.add(DataSymbol("var3", REAL_TYPE))
 
     assert len(sym_table.local_datasymbols) == 3
     assert sym_table.lookup("var1") in sym_table.local_datasymbols
@@ -538,7 +587,7 @@ def test_local_datasymbols():
     assert sym_table.lookup("var2") in sym_table.local_datasymbols
     assert sym_table.lookup("var3") in sym_table.local_datasymbols
 
-    sym_table.add(DataSymbol("var4", REAL_SINGLE_TYPE,
+    sym_table.add(DataSymbol("var4", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     assert len(sym_table.local_datasymbols) == 2
@@ -552,17 +601,17 @@ def test_global_datasymbols():
     sym_table = SymbolTable()
     assert sym_table.global_datasymbols == []
     # Add some local symbols
-    sym_table.add(DataSymbol("var1", REAL_SINGLE_TYPE))
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
     assert sym_table.global_datasymbols == []
     # Add some global symbols
-    sym_table.add(DataSymbol("gvar1", REAL_SINGLE_TYPE,
+    sym_table.add(DataSymbol("gvar1", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     assert sym_table.lookup("gvar1") in sym_table.global_datasymbols
     sym_table.add(
-        DataSymbol("gvar2", REAL_SINGLE_TYPE,
+        DataSymbol("gvar2", REAL_TYPE,
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)))
     gsymbols = sym_table.global_datasymbols
@@ -589,11 +638,11 @@ def test_abstract_properties():
 def test_unresolved():
     ''' Tests for the get_unresolved_datasymbols method. '''
     sym_table = SymbolTable()
-    sym_table.add(DataSymbol("s1", INTEGER_SINGLE_TYPE))
+    sym_table.add(DataSymbol("s1", INTEGER_TYPE))
     # Check that we get an empty list if everything is defined
     assert sym_table.get_unresolved_datasymbols() == []
     # Add a symbol with a deferred interface
-    rdef = DataSymbol("r_def", INTEGER_SINGLE_TYPE,
+    rdef = DataSymbol("r_def", INTEGER_TYPE,
                       interface=UnresolvedInterface())
     sym_table.add(rdef)
     assert sym_table.get_unresolved_datasymbols() == ["r_def"]
@@ -619,7 +668,7 @@ def test_copy_external_global():
         in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        symtab.copy_external_global(DataSymbol("var1", REAL_SINGLE_TYPE))
+        symtab.copy_external_global(DataSymbol("var1", REAL_TYPE))
     assert "The globalvar argument of SymbolTable.copy_external_global " \
         "method should have a GlobalInterface interface, but found " \
         "'LocalInterface'." \
@@ -649,6 +698,7 @@ def test_copy_external_global():
     assert symtab.lookup("b") != var2
     assert symtab.lookup("my_mod") != container2
     assert symtab.lookup("b").interface.container_symbol != container2
+
     # The new globalvar should reuse the available container reference
     assert symtab.lookup("a").interface.container_symbol == \
         symtab.lookup("b").interface.container_symbol
@@ -660,12 +710,98 @@ def test_copy_external_global():
 
     # But if the symbol is different (e.g. points to a different container),
     # it should fail
-    container3 = ContainerSymbol("my_other")
+    container3 = ContainerSymbol("my_other_mod")
     var4 = DataSymbol("b", DeferredType(),
                       interface=GlobalInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_global(var4)
-    print (str(error.value))
-    assert ("Couldn't copy 'b: <Deferred Type, Global(container='my_other')>' "
-            "into the SymbolTable. The name 'b' is already used by another "
-            "symbol." in str(error.value))
+    assert "Couldn't copy 'b: <Deferred Type, Global(container=" \
+           "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
+           " used by another symbol." in str(error.value)
+
+    # If the symbol is the same but the given tag in not in the symbol table,
+    # the new tag should reference the existing symbol
+    symtab.copy_external_global(var3, tag="anothertag")
+    assert symtab.lookup_with_tag("anothertag").name == "b"
+
+    # If a tag is given but this is already used, it should fail
+    symtab.add(Symbol("symbol"), tag="tag")
+    var5 = DataSymbol("c", DeferredType(),
+                      interface=GlobalInterface(container3))
+    with pytest.raises(KeyError) as error:
+        symtab.copy_external_global(var5, "tag")
+    assert "Symbol table already contains the tag 'tag' for symbol 'symbol'," \
+           " so it can not be associated to symbol 'c'." in str(error.value)
+
+    # It should also fail if the symbol exist and the tag is given to another
+    # symbol
+    with pytest.raises(KeyError) as error:
+        symtab.copy_external_global(var3, "tag")
+    assert " into the SymbolTable. The tag 'tag' is already used by another" \
+        " symbol." in str(error.value)
+
+    # If the tag does not already exist, the tag is associated with the new
+    # symbol
+    var6 = DataSymbol("d", DeferredType(),
+                      interface=GlobalInterface(container3))
+    symtab.copy_external_global(var6, "newtag")
+    assert symtab.lookup_with_tag("newtag").name == "d"
+
+
+def test_normalization():
+    ''' Tests the SymbolTable normalize method lower cases the strings '''
+    assert SymbolTable._normalize("aAbB") == "aabb"
+
+
+def test_shallow_copy():
+    ''' Tests the SymbolTable shallow copy generated new top-level containers
+    but keeps the same objects in the symbol table'''
+
+    # Create an initial SymbolTable
+    dummy = Schedule()
+    symtab = SymbolTable(schedule=dummy)
+    sym1 = DataSymbol("symbol1", INTEGER_TYPE,
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
+    sym2 = Symbol("symbol2")
+    symtab.add(sym1)
+    symtab.add(sym2, tag="tag1")
+    symtab.specify_argument_list([sym1])
+
+    # Create a copy and check the contents are the same
+    symtab2 = symtab.shallow_copy()
+    assert "symbol1" in symtab2
+    assert symtab2.lookup("symbol1") == sym1
+    assert symtab2.lookup_with_tag("tag1") == sym2
+    assert symtab2._schedule == dummy
+    assert sym1 in symtab2.argument_list
+
+    # Add new symbols in both symbols tables and check they are not added
+    # to the other symbol table
+    symtab.add(Symbol("st1"))
+    symtab2.add(Symbol("st2"))
+    assert "st1" in symtab
+    assert "st2" in symtab2
+    assert "st2" not in symtab
+    assert "st1" not in symtab2
+
+
+def test_name_from_tag():
+    ''' Tests the SymbolTable name_from_tag method '''
+    symtab = SymbolTable()
+    symtab.add(Symbol("symbol1"), tag="tag1")
+
+    # If the give tag exist, return the symbol name
+    assert symtab.name_from_tag("tag1") == "symbol1"
+
+    # If the tag does not exist, create a symbol with the tag as name
+    assert symtab.name_from_tag("tag2") == "tag2"
+    assert symtab.lookup("tag2").name == "tag2"
+    assert symtab.lookup_with_tag("tag2").name == "tag2"
+
+    # If the tag does not exist and a root name is givem create a new symbol
+    # with the given name as root
+    assert symtab.name_from_tag("tag3", root="newsymbol") == "newsymbol"
+    assert symtab.lookup("newsymbol").name == "newsymbol"
+    assert symtab.lookup_with_tag("tag3").name == "newsymbol"
+    assert symtab.name_from_tag("tag4", root="newsymbol") == "newsymbol_1"

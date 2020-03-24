@@ -216,9 +216,9 @@ class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo
         specific loop and infrastructure classes to the base class so it
         creates the ones we require. '''
-    def __init__(self, arg):
+    def __init__(self, arg, reserved_names=None):
         InvokeSchedule.__init__(self, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg)
+                                DynBuiltInCallFactory, arg, reserved_names)
 
 
 class DynLoop(Loop):

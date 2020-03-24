@@ -51,6 +51,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
     GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.psyir.symbols import SymbolTable
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -302,12 +303,11 @@ def test_scalar_float_arg_from_module():
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
 
-    # Add a global variable named 'a_scalar' into the Invoke schedule
+    # Substitute 'a_scalar' with a global
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
-    var = DataSymbol('a_scalar', REAL_TYPE,
-                     interface=GlobalInterface(my_mod))
-    schedule.symbol_table.add(var)
+    schedule.symbol_table._symbols['a_scalar'] = DataSymbol(
+        'a_scalar', REAL_TYPE, interface=GlobalInterface(my_mod))
 
     # Generate the code. 'a_scalar' should now come from a module instead of a
     # declaration.
@@ -927,34 +927,33 @@ def test_goschedule_view(capsys):
         isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
         "    0: " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "        " + lit + "[value:'2', Name.INTEGER, Precision.SINGLE]\n"
-        "        " + lit + "[value:'jstop', Name.INTEGER, Precision.SINGLE]\n"
-        "        " + lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "        " + lit + "[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
+        "        " + lit + "[value:'jstop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "        " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'2', Name.INTEGER, Precision.SINGLE]\n"
-        "                " + lit + "[value:'istop+1', Name.INTEGER, Precision.SINGLE]\n"
-        "                " + lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "                " + lit + "[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'istop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "                " + sched + "[]\n"
         "                    0: " + call +
         " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
         "    1: " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "        " + lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
-        "        " + lit + "[value:'jstop+1', Name.INTEGER, Precision.SINGLE]\n"
-        "        " + lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "        " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "        " + lit + "[value:'jstop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "        " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
-        "                " + lit + "[value:'istop+1', Name.INTEGER, Precision.SINGLE]\n"
-        "                " + lit + "[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "                " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'istop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "                " + sched + "[]\n"
         "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
         "uold_fld) [module_inline=False]")
-    print (out)
     assert expected_output in out
 
 
@@ -973,14 +972,14 @@ def test_goschedule_str():
     expected_sched = (
         "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'2', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'jstop', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'jstop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'2', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'istop+1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'istop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -988,14 +987,14 @@ def test_goschedule_str():
         "End Schedule\n"
         "End GOLoop\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'jstop+1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'jstop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'istop+1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'istop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "kern call: time_smooth_code\n"
         "End Schedule\n"
@@ -1013,14 +1012,14 @@ def test_goschedule_str():
     expected_sched = (
         "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'cu_fld%internal%ystart', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'cu_fld%internal%ystop', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'cu_fld%internal%ystart', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'cu_fld%internal%ystop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'cu_fld%internal%xstart', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'cu_fld%internal%xstop', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'cu_fld%internal%xstart', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'cu_fld%internal%xstop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -1028,18 +1027,18 @@ def test_goschedule_str():
         "End Schedule\n"
         "End GOLoop\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'2', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'uold_fld%data', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'uold_fld%data', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "kern call: time_smooth_code\n"
         "End Schedule\n"
@@ -1437,14 +1436,14 @@ def test05p1_kernel_add_iteration_spaces():
         "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
         "Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'2', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'3', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'istop', Name.INTEGER, Precision.SINGLE]\n"
-        "Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+        "Literal[value:'3', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'istop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -1607,10 +1606,14 @@ def test_gokernelargument_type():
     from psyclone.parse.kernel import Descriptor
     from psyclone.psyir.nodes import Node
 
+    # Create a dummy node with the symbol_table property
+    dummy_node = Node()
+    dummy_node.symbol_table = SymbolTable()
+
     # Create a dummy GOKernelArgument
     descriptor = Descriptor(None, "")
     arg = Arg("variable", "arg", "arg")
-    argument = GOKernelArgument(descriptor, arg, Node())
+    argument = GOKernelArgument(descriptor, arg, dummy_node)
 
     # If the descriptor does not have a type it defaults to 'scalar'
     assert argument.type == "scalar"

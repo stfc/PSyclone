@@ -48,16 +48,9 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-
-    :raises TypeError: if the name is not a string
     '''
     def __init__(self, name):
         super(ContainerSymbol, self).__init__(name)
-
-        if not isinstance(name, str):
-            raise TypeError(
-                "ContainerSymbol name attribute should be of type 'str'"
-                " but '{0}' found.".format(type(name)))
 
         self._reference = None
         # At the moment we just have one ContainerSymbol interface, so we
