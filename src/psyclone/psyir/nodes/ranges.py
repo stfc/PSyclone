@@ -195,12 +195,6 @@ class Range(Node):
                 "Malformed Range: should have three children but "
                 "found {0}: {1}".format(len(self._children), self._children))
 
-        if any(not isinstance(child, Node) for child in self._children):
-            raise InternalError(
-                "Malformed Range: all children must be sub-classes of "
-                "Node but found: {0}".format(
-                    [type(child).__name__ for child in self._children]))
-
     @property
     def start(self):
         '''

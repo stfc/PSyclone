@@ -45,7 +45,7 @@ from psyclone.psyGen import InternalError
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
 def test_range_getter_errors(prop):
     ''' Test that attempting to get any of the start/stop/step properties for
-    an invalid Range object raises the expected errors. '''
+    an incomplete Range object raises the expected error. '''
     # pylint:disable=eval-used
     erange = Range()
     # Manually break the list of children
@@ -54,14 +54,6 @@ def test_range_getter_errors(prop):
         _ = eval("erange." + prop)
     assert ("Malformed Range: should have three children but found 0"
             in str(err.value))
-
-    return # FIXME
-    # Correct number of children but wrong type (as initialised to None)
-    erange = Range()
-    with pytest.raises(InternalError) as err:
-        _ = eval("erange." + prop)
-    assert ("Malformed Range: all children must be sub-classes of "
-            "Node" in str(err.value))
 
 
 def test_range_init(parser):
@@ -179,15 +171,9 @@ def test_range_references_props():
 def test_range_str():
     ''' Check that node_str and str work correctly for a Range node. '''
     erange = Range()
-    # FIXME:
-    #with pytest.raises(InternalError) as err:
-    #    str(erange)
-    #assert "Malformed Range: all children must be sub-" in str(err.value)
-    erange2 = Range.create(Literal("1", DataType.INTEGER),
-                           Literal("10", DataType.INTEGER))
-    assert 'Range[]' in erange2.node_str(colour=False)
-    assert 'Range' in erange2.node_str(colour=True)
-    assert erange2.node_str(colour=False) == str(erange2)
+    assert 'Range[]' in erange.node_str(colour=False)
+    assert 'Range' in erange.node_str(colour=True)
+    assert erange.node_str(colour=False) == str(erange)
 
 
 def test_range_view(capsys):

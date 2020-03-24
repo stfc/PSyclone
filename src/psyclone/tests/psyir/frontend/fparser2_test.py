@@ -180,17 +180,6 @@ def test_is_bound_full_extent():
     assert not _is_bound_full_extent(array_reference, 1,
                                      BinaryOperation.Operator.LBOUND)
 
-    return  # FIXME
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Node())
-    my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
-
-    # Expecting Literal but found Node
-    assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
-
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", DataType.REAL))
