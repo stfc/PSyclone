@@ -3706,8 +3706,6 @@ class NemoExplicitLoopTrans(Transformation):
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        # TODO we need a tag associated with this symbol so that we
-        # can properly avoid clashes with existing variables.
         loop_var = symbol_table.name_from_tag(base_name)
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
@@ -3716,22 +3714,29 @@ class NemoExplicitLoopTrans(Transformation):
         if loop_var not in symbol_table:
             symbol_table.add(DataSymbol(loop_var, DataType.INTEGER))
 
-            prog_unit = loop.ast.get_root()
-            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
-            if not spec_list:
-                # Routine has no specification part so create one and add it
-                # in to the parse tree
-                from psyclone.psyGen import object_index
-                exe_part = walk(prog_unit.content,
-                                Fortran2003.Execution_Part)[0]
-                idx = object_index(exe_part.parent.content, exe_part)
+        # TODO remove this as part of #435 (since we will no longer have to
+        # insert declarations into the fparser2 parse tree).
+        prog_unit = loop.ast.get_root()
+        spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
+        if not spec_list:
+            # Routine has no specification part so create one and add it
+            # in to the parse tree
+            from psyclone.psyGen import object_index
+            exe_part = walk(prog_unit.content,
+                            Fortran2003.Execution_Part)[0]
+            idx = object_index(exe_part.parent.content, exe_part)
 
-                spec = Fortran2003.Specification_Part(
-                    FortranStringReader("integer :: {0}".format(loop_var)))
-                spec.parent = exe_part.parent
-                exe_part.parent.content.insert(idx, spec)
-            else:
-                spec = spec_list[0]
+            spec = Fortran2003.Specification_Part(
+                FortranStringReader("integer :: {0}".format(loop_var)))
+            spec.parent = exe_part.parent
+            exe_part.parent.content.insert(idx, spec)
+        else:
+            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+            reader = Fparser2Reader()
+            fake_parent = Schedule()
+            spec = spec_list[0]
+            reader.process_declarations(fake_parent, [spec], [])
+            if loop_var not in fake_parent.symbol_table:
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader("integer :: {0}".format(loop_var)))
                 decln.parent = spec
