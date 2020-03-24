@@ -795,7 +795,7 @@ def test_write_utf_file(tmpdir, monkeypatch):
     monkeypatch.setattr(six, "PY3", value=None)
     with pytest.raises(InternalError) as err:
         write_unicode_file("Some stuff", out_file2)
-    assert "Unrecognised Python version" in str(err)
+    assert "Unrecognised Python version" in str(err.value)
 
 
 def test_utf_char(tmpdir):

@@ -171,7 +171,7 @@ def test_psy_data_node_c_code_creation():
     with pytest.raises(NotImplementedError) as excinfo:
         data_node.gen_c_code()
     assert "Generation of C code is not supported for PSyDataNode" \
-        in str(excinfo)
+        in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
