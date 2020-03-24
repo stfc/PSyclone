@@ -2053,7 +2053,7 @@ class DynStencils(DynCollection):
 class DynReferenceElement(DynCollection):
     '''
     Holds all information on the properties of the Reference Element
-    required by an Invoke.
+    required by an Invoke or a Kernel stub.
 
     :param node: Kernel or Invoke for which to manage Reference-Element \
                  properties.
@@ -2079,10 +2079,17 @@ class DynReferenceElement(DynCollection):
             return
         self._properties = list(OrderedDict.fromkeys(self._properties))
 
+        # Store properties in a SymbolTable for an Invoke or a Kernel
+        # (invalid objects trigger an error in the parent class)
+        if self._invoke:
+            symtab = self._invoke.schedule.symbol_table
+        elif self._kernel:
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
+            symtab = SymbolTable()
+
         # Create and store a name for the reference element object
-        self._ref_elem_name = self._name_space_manager.create_name(
-            root_name="reference_element", context="PSyVars",
-            label="reference_element")
+        self._ref_elem_name = symtab.name_from_tag("reference_element")
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
@@ -2109,25 +2116,19 @@ class DynReferenceElement(DynCollection):
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties):
-            self._nfaces_h_name = self._name_space_manager.create_name(
-                root_name="nfaces_re_h", context="PSyVars",
-                label="nfaces_re_h")
+            self._nfaces_h_name = symtab.name_from_tag("nfaces_re_h")
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_name = self._name_space_manager.create_name(
-                root_name="nfaces_re_v", context="PSyVars",
-                label="nfaces_re_v")
+            self._nfaces_v_name = symtab.name_from_tag("nfaces_re_v")
         # Provide no. of all faces if required
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_name = self._name_space_manager.create_name(
-                root_name="nfaces_re", context="PSyVars",
-                label="nfaces_re")
+            self._nfaces_name = symtab.name_from_tag("nfaces_re")
 
         # Now the arrays themselves, in the order specified in the
         # kernel metadata
@@ -2136,9 +2137,7 @@ class DynReferenceElement(DynCollection):
             if prop == \
                RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
                 self._horiz_face_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="normals_to_horiz_faces", context="PSyVars",
-                        label="normals_to_horiz_faces")
+                    symtab.name_from_tag("normals_to_horiz_faces")
                 if self._horiz_face_normals_name not in self._arg_properties:
                     self._arg_properties[self._horiz_face_normals_name] = \
                          self._nfaces_h_name
@@ -2146,9 +2145,7 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
                 self._horiz_face_out_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="out_normals_to_horiz_faces",
-                        context="PSyVars", label="out_normals_to_horiz_faces")
+                    symtab.name_from_tag("out_normals_to_horiz_faces")
                 if self._horiz_face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._horiz_face_out_normals_name] = \
@@ -2156,9 +2153,7 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="normals_to_vert_faces", context="PSyVars",
-                        label="normals_to_vert_faces")
+                    symtab.name_from_tag("normals_to_vert_faces")
                 if self._vert_face_normals_name not in self._arg_properties:
                     self._arg_properties[self._vert_face_normals_name] = \
                          self._nfaces_v_name
@@ -2166,10 +2161,7 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_out_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="out_normals_to_vert_faces",
-                        context="PSyVars",
-                        label="out_normals_to_vert_faces")
+                    symtab.name_from_tag("out_normals_to_vert_faces")
                 if self._vert_face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._vert_face_out_normals_name] = \
@@ -2177,19 +2169,14 @@ class DynReferenceElement(DynCollection):
             # Provide normals to all faces
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
                 self._face_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="normals_to_faces", context="PSyVars",
-                        label="normals_to_faces")
+                    symtab.name_from_tag("normals_to_faces")
                 if self._face_normals_name not in self._arg_properties:
                     self._arg_properties[self._face_normals_name] = \
                         self._nfaces_name
             # Provide vertical normals to all "outward" faces
             elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
                 self._face_out_normals_name = \
-                    self._name_space_manager.create_name(
-                        root_name="out_normals_to_faces",
-                        context="PSyVars",
-                        label="out_normals_to_faces")
+                    symtab.name_from_tag("out_normals_to_faces")
                 if self._face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._face_out_normals_name] = \
@@ -2258,8 +2245,8 @@ class DynReferenceElement(DynCollection):
                         datatype="reference_element_type",
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
-        # Declare the necessary scalars (duplicates are ignored by parent.add)
-        nface_vars = list(self._arg_properties.values())
+        # Declare the necessary scalars (remove duplicates with an OrderedDict)
+        nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
@@ -8668,7 +8655,6 @@ class DynKernelArguments(Arguments):
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
-        self._name_space_manager = NameSpaceFactory().create()
 
         Arguments.__init__(self, parent_call)
 

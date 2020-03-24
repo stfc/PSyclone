@@ -173,7 +173,7 @@ def test_mdata_duplicate_var():
     assert ("Duplicate reference-element property found: "
             "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
 
-# Tests for generating the PSy-layer code
+# Tests for correctness of DynReferenceElement constructor
 
 
 def test_refelem_arglist_err():
@@ -194,6 +194,8 @@ def test_refelem_arglist_err():
     assert ("Unsupported reference-element property ('Not a property') found "
             "when generating arguments for kernel 'testkern_ref_elem_code'. "
             "Supported properties are: ['Property" in str(err.value))
+
+# Tests for generating the PSy-layer code
 
 
 def test_refelem_gen(tmpdir):
