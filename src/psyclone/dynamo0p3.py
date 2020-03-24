@@ -4326,31 +4326,27 @@ class DynBasisFunctions(DynCollection):
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
+        symbol_table = self._invoke.schedule.symbol_table
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
             # argument
-            decl_list = [self._name_space_manager.create_name(
-                root_name=name+"_"+qr_arg_name, context="PSyVars",
-                label=name+"_"+qr_arg_name)
+            decl_list = [symbol_table.name_from_tag(name+"_"+qr_arg_name)
                          for name in self.qr_dim_vars[qr_type]]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=decl_list))
 
-            decl_list = [self._name_space_manager.create_name(
-                root_name=name+"_"+qr_arg_name, context="PSyVars",
-                label=name+"_"+qr_arg_name)+"(:,:) => null()"
+            decl_list = [symbol_table.name_from_tag(name+"_"+qr_arg_name)
+                         +"(:,:) => null()"
                          for name in self.qr_weight_vars[qr_type]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind=api_config.default_kind["real"],
                         entity_decls=decl_list))
             # Get the quadrature proxy
-            proxy_name = self._name_space_manager.create_name(
-                root_name=qr_arg_name+"_proxy", context="PSyVars",
-                label=qr_arg_name+"_proxy")
+            proxy_name = symbol_table.name_from_tag(qr_arg_name+"_proxy")
             parent.add(
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
@@ -6921,14 +6917,14 @@ class DynKern(CodedKern):
 
             # Use the symbol_table to create a unique symbol name.
             if qr_arg.varname:
-                tag = "AlgArgs_" + self._qr_text
+                tag = "AlgArgs_" + qr_arg.text
                 qr_name = \
                     self.root.symbol_table.name_from_tag(tag, qr_arg.varname)
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
-                qr_base_name = "qr_"+shape.split("_")[-1]
-                qr_name = self.root.symbol_table.new_symbol_name(qr_base_name)
+                # TODO #719 we don't yet have a symbol table to prevent clashes.
+                qr_name = "qr_"+shape.split("_")[-1]
 
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
