@@ -54,7 +54,12 @@ class Schedule(Node):
     '''
     def __init__(self, children=None, parent=None):
         Node.__init__(self, children=children, parent=parent)
-        self._symbol_table = SymbolTable(self)
+        # TODO #645 remove this check that we don't already have a symbol
+        # table (only currently required because InvokeSchedule creates its
+        # own symbol table *before* calling this constructor).
+        if (not hasattr(self, "_symbol_table") or
+                not self._symbol_table):
+            self._symbol_table = SymbolTable(self)
         self._text_name = "Schedule"
         self._colour_key = "Schedule"
 

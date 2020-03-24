@@ -796,6 +796,9 @@ class InvokeSchedule(Schedule):
 
         # Initialise class attributes
         self._parent = None
+        # TODO #645 once children are not passed to the base-class constructor
+        # we should call that constructor here and have *it* create the symbol
+        # table.
         self._symbol_table = SymbolTable()
         if reserved_names:
             for name in reserved_names:
@@ -818,6 +821,8 @@ class InvokeSchedule(Schedule):
                 sequence.append(BuiltInFactory.create(call, parent=self))
             else:
                 sequence.append(KernFactory.create(call, parent=self))
+        # TODO #645 move this constructor call to the beginning of this
+        # routine.
         Schedule.__init__(self, children=sequence, parent=None)
         self._text_name = "InvokeSchedule"
 
