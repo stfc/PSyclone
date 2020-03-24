@@ -74,25 +74,26 @@ extraction become children of the ``ExtractNode``.
 
 The ``ExtractNode`` class uses the dependency analysis to detect
 which variables are input-, and which ones are output-parameters.
-The lists of variables are then passed to the ``PSyDataNode``
-which creates the actual code as described in :ref:`psy_data`. Below is some
-example output for LFRic::
+The lists of variables are then passed to the ``PSyDataNode``,
+which is the base class of any ``ExtractNode`` (details of
+the ``PSyDataNode`` can be found in :ref:`dev_guide:psy_data`). This
+node then creates the actual code, as in the following LFRic example::
 
       ! ExtractStart
       !
-      CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
-      CALL psy_data%PreDeclareVariable("a", a)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("m1", m1)
-      CALL psy_data%PreDeclareVariable("m2", m2)
-      CALL psy_data%PreDeclareVariable("cell_post", cell)
-      CALL psy_data%PreDeclareVariable("f1_post", f1)
-      CALL psy_data%PreEndDeclaration
-      CALL psy_data%ProvideVariable("a", a)
-      CALL psy_data%ProvideVariable("f2", f2)
-      CALL psy_data%ProvideVariable("m1", m1)
-      CALL psy_data%ProvideVariable("m2", m2)
-      CALL psy_data%PreEnd
+      CALL extract_psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("m1", m1)
+      CALL extract_psy_data%PreDeclareVariable("m2", m2)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("m1", m1)
+      CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
         CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
@@ -100,12 +101,17 @@ example output for LFRic::
              map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
              undf_w3, map_w3(:,cell))
       END DO 
-      CALL psy_data%PostStart
-      CALL psy_data%ProvideVariable("cell_post", cell)
-      CALL psy_data%ProvideVariable("f1_post", f1)
-      CALL psy_data%PostEnd
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cell_post", cell)
+      CALL extract_psy_data%ProvideVariable("f1_post", f1)
+      CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
+
+.. note::
+    At this stage the LFRIc API is not fully supported, as can be seen
+    by missing paramters like ``nlayers``, ``ndf_w1``, ... This is
+    tracked in issue #646.
 
 The PSyData API relies on generic Fortran interfaces to provide the 
 field-type-specific implementations of the ``ProvideVariable`` for different
@@ -319,14 +325,14 @@ The generated code is now:
 .. code-block:: fortran
 
       ! ExtractStart
-      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("cell_post", cell)
-      CALL psy_data%PreDeclareVariable("df_post", df)
-      CALL psy_data%PreDeclareVariable("f3_post", f3)
-      CALL psy_data%PreEndDeclaration
-      CALL psy_data%ProvideVariable("f2", f2)
-      CALL psy_data%PreEnd
+      CALL extract_psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%PreEnd
       !
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=1,undf_any_space_1_f2
@@ -339,11 +345,11 @@ The generated code is now:
         CALL testkern_code_w2_only(nlayers, f3_proxy%data, f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       !$omp end parallel do
-      CALL psy_data%PostStart
-      CALL psy_data%ProvideVariable("cell_post", cell)
-      CALL psy_data%ProvideVariable("df_post", df)
-      CALL psy_data%ProvideVariable("f3_post", f3)
-      CALL psy_data%PostEnd
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cell_post", cell)
+      CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f3_post", f3)
+      CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
 

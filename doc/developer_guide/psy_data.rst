@@ -44,17 +44,18 @@ an external library at runtime. These callbacks allow third-party
 libraries to access data structures at specified locations in the
 code.
 
-Introduction
-------------
+Introduction to PSyData Classes
+-------------------------------
 The PSyData API imports a user-defined data type from a PSyData
 module and creates an instance of this data type for each code
 region. It then adds a sequence of calls to methods in that
-instance. A simple example::
+instance. A simplified example::
 
     USE psy_data_mod, ONLY: PSyDataType
     TYPE(PSyDataType), target, save :: psy_data
 
     CALL psy_data%PreStart("update_field_mod", "update_field_code", 1, 1)
+    ...
 
 In order to allow several different callback libraries to be used
 at the same time, for example to allow in-situ visualisation at
@@ -62,19 +63,23 @@ the same time as checking that read-only values are indeed not modified,
 different module names and data types must be used.
 
 PSyData divides its application into different classes. For example,
-the class "profile" combines all profiling tools (e.g. DrHook or the
+the class "profile" is used for all profiling tools (e.g. DrHook or the
 NVIDIA profiling tools). This class name is used as a prefix for
-the module name and the user type. So if a profiling application
-is linked the above code will be::
+the module name, the ``PSyDataType`` and functions. So if a profiling application
+is linked the above code will actually look like this::
 
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(profile_PSyDataType), target, save :: profile_psy_data
 
     CALL profile_psy_data%PreStart("update_field_mod", "update_field_code", 1, 1)
 
-While adding the class prefix to the name of the instance variable
-is not necessary, it helps readability of the created code. The list
-of valid classes is specified in the configuration file:
+.. note::
+    While adding the class prefix to the name of the instance variable
+    is not necessary, it helps readability of the created code.
+
+
+The list of valid classes is specified in the configuration file. It can be
+extended by the user to support additional classes::
 
     [DEFAULT]
     ...
@@ -94,55 +99,29 @@ extract                 For libraries that allow kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
 ======================= =======================================================
 
-If you want to add additional class prefixes, just add them to the
-config file that you are using. 
+In the following documentation the string ``PREFIX_`` is used
+to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
 
-.. Note:: 
-    Transformations for profiling or kernel extraction allow
+.. note:: 
+    The transformations for profiling or kernel extraction allow
     to overwrite the default-prefix (see 
     :ref:`psy_data_parameters_to_constructor`).
-    This can be used to link with
-    two different libraries of the same class at the same time, 
-    e.g. you could use ``drhook_profile`` and ``nvidia_profile``
-    as class prefix. Though this also requires that the
-    corresponding wrapper libraries are modified to use this
+    This can be used to link with two different libraries of the
+    same class at the same time, e.g. you could use ``drhook_profile``
+    and ``nvidia_profile`` as class prefix. Though this also requires
+    that the corresponding wrapper libraries are modified to use this
     new prefix.
 
-.. _psy_data_api:
 
-API
----
-The PSyData API consists of two calls that allow initialisation and
-shut down of a wrapper library. These two calls must be inserted
-manually into the program, and their location might depend on 
-the wrapper library used - e.g. some libraries might need to be
-initialised before ``MPI_Init`` is called, others might need to
-be called after. Similarly the shutdown function might need to
-be called before or after ``MPI_Finalize``.
 
-.. method:: PREFIX_PSyDataInit()
-
-    Initialises the wrapper library used. It takes no parameters, and must
-    called exactly once before any other PSyData-related function
-    is invoked. Example::
-
-        use profile_psy_data_mod, only : profile_PSyDataInit
-        ...
-        call profile_PSyDataInit()
-
-.. method:: PREFIX_PSyDataShutdown()
-
-    Cleanly shuts down the wrapper library used. It takes no parameters,
-    and must called exactly once. No more PSyData-related functions
-    must be called after PSyDataShutdown has been called. Example::
-
-        use profile_psy_data_mod, only : profile_PSyDataShutdown
-        ...
-        call profile_PSyDataShutdown()
-
-All other callbacks are inserted into the code by the PSyData transformation,
-see :ref:`psy_data_transformation` for details. The following example
-shows the code created by PSyclone for an extraction transformation::
+Full Example
+------------
+The following example shows the full code created by PSyclone for an 
+kernel extraction (excluding declarations for user data). This code
+is automatically inserted by the various transformations that are
+based on ``PSyDataTrans``, like ``ProfileTrans`` and
+``GOCeanExtractTrans``. More details can be found in
+:ref:`psy_data_transformation`. ::
 
     USE extract_psy_data_mod, ONLY: extract_PSyDataType
     TYPE(extract_PSyDataType), target, save :: extract_psy_data
@@ -166,9 +145,6 @@ shows the code created by PSyclone for an extraction transformation::
     CALL extract_psy_data%ProvideVariable("b_fld", b_fld)
     CALL extract_psy_data%PostEnd
 
-In the following documentation the string ``PREFIX_`` is used
-to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
-The following code sequence will typically be created:
 
 #. A user defined type ``PREFIX_PSyDataType`` is imported from the module
    ``PREFIX_psy_data_mod``.
@@ -179,25 +155,63 @@ The following code sequence will typically be created:
    either before or after the instrumented region.
 #. ``PreEndDeclaration`` is called to indicate the end of the variable
    declarations.
-#. ``ProvideVariable`` is called for each variable to be written before the
-   instrumented region.
+#. ``ProvideVariable`` is called for each variable to be passed to the wrapper
+   library before the instrumented region.
 #. ``PreEnd`` is called to signal the end of all PSyData activity before the
    instrumented region.
 #. Then the actual instrumented code region is entered.
 #. After the instrumented region, a call to ``PostStart``
    is added to indicate that all further data output occurs after the
    instrumented region.
-
-#. For each variable to be written after the instrumented region a call to
-   ``ProvideVariable`` is added.
-#. A call to ``PostEnd`` is added once all variables have been written.
+#. For each variable to be passed on to the wrapper library after the
+   instrumented region a call to ``ProvideVariable`` is added.
+#. A call to ``PostEnd`` is added once all variables have been provided.
 
 .. note::
     Depending on the options provided to the PSyData transformation
     some of the calls might not be created. For example, for a performance
     profiling library no variables will be declared or provided.
 
-The following sections describe the API in detail.
+
+
+.. _psy_data_api:
+
+API
+---
+This section described the actual PSyData API in detail. It contains
+all functions, data types and methods that need to be implemented for
+a wrapper library.
+
+
+The PSyData API requires two function calls that allow initialisation and
+shut down of a wrapper library. These two calls must be inserted
+manually into the program, and their location might depend on 
+the wrapper library used - e.g. some libraries might need to be
+initialised before ``MPI_Init`` is called, others might need to
+be called after. Similarly the shutdown function might need to
+be called before or after ``MPI_Finalize``.
+
+Init and Shutdown Functions
++++++++++++++++++++++++++++
+.. method:: PREFIX_PSyDataInit()
+
+    Initialises the wrapper library used. It takes no parameters, and must
+    be called exactly once before any other PSyData-related function
+    is invoked. Example::
+
+        use profile_psy_data_mod, only : profile_PSyDataInit
+        ...
+        call profile_PSyDataInit()
+
+.. method:: PREFIX_PSyDataShutdown()
+
+    Cleanly shuts down the wrapper library used. It takes no parameters,
+    and must be called exactly once. No more PSyData-related functions
+    can be called after ``PSyDataShutdown`` has been executed. Example::
+
+        use profile_psy_data_mod, only : profile_PSyDataShutdown
+        ...
+        call profile_PSyDataShutdown()
 
 .. _psy_data_type:
 
@@ -209,8 +223,8 @@ used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
 (see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`user_guide:psyke_netcdf` for
-a detailed description) or any of the profiling wrapper libaries
-(all contained in ``lib/profiling``)
+a detailed description) or any of the profiling wrapper libraries
+(all contained in ``lib/profiling``).
 
 .. method:: PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)
 
@@ -238,7 +252,8 @@ a detailed description) or any of the profiling wrapper libaries
     
     Typically the static ``PREFIX_PSyDataType`` instance can be used to store
     the module and kernel names if they are required later, or to allocate
-    arrays to store variable data.
+    arrays to store variable data. This call is always created, even if
+    no variables are to be provided.
 
 .. method:: PreDeclareVariable(this, name, value)
 
@@ -247,7 +262,10 @@ a detailed description) or any of the profiling wrapper libaries
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
-    see :ref:`user_guid:psyke_netcdf`).
+    see :ref:`user_guid:psyke_netcdf`). If no variables are to be
+    provided to the wrapper library, this call will not be created
+    (and there is no need to implement this function in a wrapper
+    library).
     
     ``name``
       This is the name of the variable as a string.
@@ -288,7 +306,10 @@ a detailed description) or any of the profiling wrapper libaries
 
 .. method:: PreEndDeclaration(this)
 
-    Called once all variables have been declared.
+    Called once all variables have been declared. This call is only
+    inserted if any variables are to be provided either before or after
+    the instrumented region (especially this call is not created for
+    performance profiling).
 
 .. method:: ProvideVariable(this, name, value)
 
@@ -314,7 +335,8 @@ a detailed description) or any of the profiling wrapper libaries
 .. method:: PreEnd(this)
 
     The method ``PreEnd`` is called after all variables before the instrumented
-    region have been provided.
+    region have been provided. This call is also not inserted if no variables
+    are provided.
 
 .. method:: PostStart(this)
 
@@ -322,11 +344,13 @@ a detailed description) or any of the profiling wrapper libaries
     any parameters, but the static ``PREFIX_PSyDataType`` instance can be used
     to store the name and number of variables if required. This will be
     followed by calls to ``ProvideVariable``, which is described above.
+    This call is not used if no variables are provided.
 
 .. method:: PostEnd(this)
 
     This method is the last call after an instrumented region. It indicates
-    that all variables have been provided.
+    that all variables have been provided. It will always be created,
+    even if no variables are to be provided.
 
     An example of a library using PSyData is included in PSyclone in the
     directory ``.../lib/extract/netcdf``. This library is used to extract
@@ -482,7 +506,7 @@ be used.
 
 Profiling API
 +++++++++++++
-PSyclone uses the PSyData API to allow implementation of wrapper libraries
+PSyclone uses the PSyData API to allow implementation of profile wrapper libraries
 that connect to various existing profiling tools. For each existing profiling
 tool a simple interface library needs to be implemented that maps the PSyclone
 PSyData calls to the corresponding call for the profiling tool.
@@ -493,3 +517,13 @@ The profiling wrapper libraries also
 need the static initialisation and shutdown functions ``_profile_PSyDataInit``
 and ``_profile_PSyDataShutdown``. Details can be found in the section
 :ref:`psy_data_api`.
+
+Kernel Extraction (PSyKE)
+-------------------------
+The PSyclone Kernel Extraction (see :ref:`user_guide:psyke`) as well
+relies on the PSyData API to write kernel input- and output-parameters
+to a file. The corresponding transformations (``LFRicExtractTrans`` 
+and ``GOceanExtractTrans``) just provide the list of variables
+to write to the PSyData ``ExtractNode``. Any wrapper library in
+the ``extract`` class needs to provide all functions and methods
+described above (see :ref:`psy_data_api`).

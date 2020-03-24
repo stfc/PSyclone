@@ -483,11 +483,10 @@ libraries that come with PSyclone:
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
 module. The functions that need to be implemented are described in
-:ref:`ProfilingAPI`, including the opaque, user-defined type
-``PSyData``.
+the developer's guide (:ref:`dev_guide:psy_data`).
 
 The examples in the ``lib/profiling`` directory show various ways
-in which the opaque data type can be used to interface
+in which the opaque data type ``profile_PSyDataType`` can be used to interface
 with existing profiling tools - for example by storing 
 an index used by the profiling tool in ``PSyData``, or 
 by storing pointers to the profiling data to be able to 
@@ -495,7 +494,7 @@ print all results in a ProfileFinalise() subroutine.
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exception is the template-and simple_timing-library,
+exception is the template- and simple_timing-library,
 which are stand alone. The profiling example in
 ``examples/gocean/eg5`` can be used with any of the
 wrapper libraries (except nvidia) to see how they work.
