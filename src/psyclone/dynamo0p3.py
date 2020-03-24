@@ -318,12 +318,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
             "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
 
-    if basis_fn["qr_var"]:
-        qr_var = "_" + basis_fn["qr_var"]
-    else:
-        # We have no name for the QR variable (as will be the case when
-        # generating a kernel stub) so invent one.
-        qr_var = "_qr_" + basis_fn["shape"].split("_")[-1]
+    qr_var = "_" + basis_fn["qr_var"]
 
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
