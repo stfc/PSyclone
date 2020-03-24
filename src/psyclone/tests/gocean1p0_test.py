@@ -50,6 +50,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
     GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.psyir.symbols import SymbolTable
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -301,12 +302,11 @@ def test_scalar_float_arg_from_module():
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
 
-    # Add a global variable named 'a_scalar' into the Invoke schedule
+    # Substitute 'a_scalar' with a global
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
-    var = DataSymbol('a_scalar', DataType.REAL,
-                     interface=GlobalInterface(my_mod))
-    schedule.symbol_table.add(var)
+    schedule.symbol_table._symbols['a_scalar'] = DataSymbol(
+        'a_scalar', DataType.REAL, interface=GlobalInterface(my_mod))
 
     # Generate the code. 'a_scalar' should now come from a module instead of a
     # declaration.
@@ -1605,10 +1605,14 @@ def test_gokernelargument_type():
     from psyclone.parse.kernel import Descriptor
     from psyclone.psyir.nodes import Node
 
+    # Create a dummy node with the symbol_table property
+    dummy_node = Node()
+    dummy_node.symbol_table = SymbolTable()
+
     # Create a dummy GOKernelArgument
     descriptor = Descriptor(None, "")
     arg = Arg("variable", "arg", "arg")
-    argument = GOKernelArgument(descriptor, arg, Node())
+    argument = GOKernelArgument(descriptor, arg, dummy_node)
 
     # If the descriptor does not have a type it defaults to 'scalar'
     assert argument.type == "scalar"
