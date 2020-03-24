@@ -52,33 +52,34 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     Container, Range, Array
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    ArgumentInterface, DataType, GlobalInterface
+    ArgumentInterface, DataType, ArrayType, GlobalInterface, REAL_TYPE, \
+    INTEGER_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
 # Symbol table and symbols
 SYMBOL_TABLE = SymbolTable()
 TMP_NAME1 = SYMBOL_TABLE.new_symbol_name()
-ARG1 = DataSymbol(TMP_NAME1, DataType.REAL, interface=ArgumentInterface(
+ARG1 = DataSymbol(TMP_NAME1, REAL_TYPE, interface=ArgumentInterface(
     ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(ARG1)
 TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
-TMP_SYMBOL = DataSymbol(TMP_NAME2, DataType.REAL)
+TMP_SYMBOL = DataSymbol(TMP_NAME2, REAL_TYPE)
 SYMBOL_TABLE.add(TMP_SYMBOL)
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, DataType.INTEGER))
+SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, INTEGER_TYPE))
 SYMBOL_TABLE.specify_argument_list([ARG1])
 
 # Create an array
 ARRAY_NAME = SYMBOL_TABLE.new_symbol_name(root_name="a")
-ARRAY = DataSymbol(ARRAY_NAME, DataType.REAL, shape=[10])
+ARRAY = DataSymbol(ARRAY_NAME, ArrayType(REAL_TYPE, [10]))
 SYMBOL_TABLE.add(ARRAY)
 
 # Nodes which do not have Nodes as children
-ZERO = Literal("0.0", DataType.REAL)
-ONE = Literal("1.0", DataType.REAL)
-INT_ZERO = Literal("0", DataType.INTEGER)
-INT_ONE = Literal("1", DataType.INTEGER)
+ZERO = Literal("0.0", REAL_TYPE)
+ONE = Literal("1.0", REAL_TYPE)
+INT_ZERO = Literal("0", INTEGER_TYPE)
+INT_ONE = Literal("1", INTEGER_TYPE)
 TMP1 = Reference(ARG1)
 TMP2 = Reference(TMP_SYMBOL)
 
@@ -130,7 +131,7 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 
 # Import data from another container
 EXTERNAL_CONTAINER = ContainerSymbol("some_mod")
-EXTERNAL_VAR = DataSymbol("some_var", DataType.INTEGER,
+EXTERNAL_VAR = DataSymbol("some_var", INTEGER_TYPE,
                           interface=GlobalInterface(EXTERNAL_CONTAINER))
 CONTAINER_SYMBOL_TABLE.add(EXTERNAL_CONTAINER)
 
