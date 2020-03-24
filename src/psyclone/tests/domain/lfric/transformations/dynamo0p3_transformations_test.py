@@ -7169,7 +7169,7 @@ def test_kern_const_invalid_quad(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
     assert (
-        "Support is currently limited to xyoz quadrature but found "
+        "Support is currently limited to 'xyoz' quadrature but found "
         "['gh_quadrature_xyoz', 'monkey'].") in str(excinfo.value)
 
 

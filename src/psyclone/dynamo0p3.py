@@ -7098,6 +7098,7 @@ class DynKern(CodedKern):
         '''
         :return: True if this kernel requires quadrature, else returns False.
         :rtype: bool
+
         '''
         return self._basis_required and self.qr_rules
 
@@ -7107,6 +7108,7 @@ class DynKern(CodedKern):
         :return: the value(s) of GH_SHAPE for this kernel or an empty list \
                  if none are specified.
         :rtype: list
+
         '''
         return self._eval_shapes
 
@@ -7857,6 +7859,7 @@ class KernCallArgList(ArgOrdering):
         :param function_space: the function space for which the basis \
                                function is required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = get_fs_basis_name(function_space,
@@ -7880,9 +7883,10 @@ class KernCallArgList(ArgOrdering):
         Add differential basis information for the function space to the
         argument list.
 
-        :param function_space: the function space for which the differential
-                               basis functions are required
+        :param function_space: the function space for which the differential \
+                               basis functions are required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
         '''
         for rule in self._kern.qr_rules.values():
             diff_basis_name = get_fs_diff_basis_name(

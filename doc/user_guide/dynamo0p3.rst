@@ -211,17 +211,21 @@ Quadrature
 
 Kernels conforming to the Dynamo0.3 API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
-the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
-must be passed to the kernel from the Algorithm layer in the form of one or
-more `quadrature_type` objects. These must be the last arguments passed to the
-kernel and must be provided in the same order that they are specified in the
-kernel metadata, e.g. if the metadata for kernel ``pressure_gradient_kernel_type`` specified ``gh_shape = gh_quadrature_XYoZ`` and that for kernel ``geopotential_gradient_kernel`` had
-``gh_shape(2) = (\ gh_quadrature_XYoZ, gh_quadrature_face \)`` then the corresponding invoke would look something like::
+the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This
+information must be passed to the kernel from the Algorithm layer in
+the form of one or more ``quadrature_type`` objects. These must be the
+last arguments passed to the kernel and must be provided in the same
+order that they are specified in the kernel metadata, e.g. if the
+metadata for kernel ``pressure_gradient_kernel_type`` specified
+``gh_shape = gh_quadrature_XYoZ`` and that for kernel
+``geopotential_gradient_kernel`` had ``gh_shape(2) = (\
+gh_quadrature_XYoZ, gh_quadrature_face \)`` then the corresponding
+invoke would look something like::
 
       ...
       qr_xyoz = quadrature_xyoz_type(nqp_exact, rule)
       qr_face = quadrature_face_type(nqp_exact, ..., rule)
-      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz),   &
+      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
 		                                    qr_xyoz, qr_face))
 
@@ -312,9 +316,9 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the Dynamo0.3 API test suite gives::
+For example, running test 19.2 from the Dynamo0.3 API test suite gives:
 
-  .. code-block:: bash
+.. code-block:: bash
 
   cd <PSYCLONEHOME>/src/psyclone/tests
   psyclone test_files/dynamo0p3/19.2_single_stencil_broken.f90
@@ -560,7 +564,7 @@ the meta_args array must correspond to the number of **scalars**,
           spatial domain) and PSyclone will reject such Kernels.
 
 For example, if there are a total of 2 **scalar** / **field** /
-**operator** entities being passed to the Kernel then the meta_args
+**operator** entities being passed to the Kernel then the ``meta_args``
 array will be of size 2 and there will be two ``arg_type`` entries::
 
   type(arg_type) :: meta_args(2) = (/                                  &
@@ -943,21 +947,19 @@ algorithm developer to specify which of these it is from the algorithm
 layer as part of the ``invoke`` call (see Section
 :ref:`dynamo0.3-alg-stencil`).
 
-For example, the following stencil (with ``extent=2``)::
+For example, the following stencil (with ``extent=2``):
 
-.. highlight:: none
+.. code-block:: none
 
   | 4 | 2 | 1 | 3 | 5 |
 
 would be declared as::
 
-.. highlight:: none
-
   STENCIL(X1D)
 
-and the following stencil (with ``extent=2``)::
+and the following stencil (with ``extent=2``):
 
-.. highlight:: none
+.. code-block:: none
 
   |   |   | 9 |   |   |
   |   |   | 5 |   |   |
@@ -966,8 +968,6 @@ and the following stencil (with ``extent=2``)::
   |   |   | 8 |   |   |
 
 would be declared as::
-
-.. highlight:: none
 
   STENCIL(CROSS)
 
@@ -1356,8 +1356,8 @@ rules, along with PSyclone's naming conventions, are:
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
-   1) Include integer, scalar arguments with intent ``in`` that specify
-      the extent of the basis/diff-basis arrays:
+   1) Include integer, scalar arguments of kind ``i_def`` with intent ``in``
+      that specify the extent of the basis/diff-basis arrays:
 
       1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass
 	 ``np_xy_<quadrature_arg_name>`` and ``np_z_<quadrature_arg_name>``.
@@ -1375,7 +1375,7 @@ rules, along with PSyclone's naming conventions, are:
       2) If ``gh_quadrature_face``/``_edge`` pass in
 	 ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
 	 [``np_xyz_<quadrature_arg_name>``,
-	 ``nfaces/edges_<quadrature_arg_name>``)]. 
+	 ``nfaces/nedges_<quadrature_arg_name>``)]. 
 
 Examples
 ^^^^^^^^
