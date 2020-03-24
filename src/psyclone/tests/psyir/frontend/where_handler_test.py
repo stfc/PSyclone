@@ -194,10 +194,11 @@ def test_where_symbol_clash(parser):
     assert isinstance(var, DataSymbol)
     assert var.datatype is DataType.BOOLEAN
     # Check that we have a new symbol for the loop variable
-    loop_var = sched.symbol_table.lookup("widx1_0")
+    loop_var = sched.symbol_table.lookup("widx1_1")
     assert loop_var.datatype is DataType.INTEGER
 
     reader = FortranStringReader("module my_test\n"
+                                 "use some_module\n"
                                  "implicit none\n"
                                  "integer :: dummy\n"
                                  "contains\n"
@@ -208,6 +209,7 @@ def test_where_symbol_clash(parser):
                                  "where (dry(:, :, :))\n"
                                  "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
                                  "end where\n"
+                                 "write (*,*) widx1_0\n"
                                  "end subroutine widx1\n"
                                  "end module my_test\n")
     fparser2spec = parser(reader)
@@ -215,7 +217,10 @@ def test_where_symbol_clash(parser):
     sched = processor.generate_schedule("widx1", fparser2spec)
     # Get the container symbol table
     sym_table = sched.parent.symbol_table
-    loop_var = sym_table.lookup("widx1_0")
+    # The reference to widx1_0 is in a code block and therefore should not
+    # be in the symbol table.
+    assert not sym_table.lookup("widx1_0")
+    loop_var = sym_table.lookup("widx1_0_0")
     assert loop_var.datatype is DataType.INTEGER
     loop_var = sym_table.lookup("widx2")
     assert loop_var.datatype is DataType.INTEGER
