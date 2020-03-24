@@ -46,6 +46,7 @@ import six
 from psyclone.psyGen import Transformation, Kern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
@@ -936,10 +937,29 @@ class OMPLoopTrans(ParallelLoopTrans):
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
+        from psyclone.nemo import NemoInvokeSchedule
+
         if not options:
             options = {}
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
+
+        # Add variable names for OMP functions into the InvokeSchedule (root)
+        # symboltable if they don't already exist
+        if not isinstance(node.root, NemoInvokeSchedule):
+            symtab = node.root.symbol_table
+            try:
+                symtab.lookup_with_tag("omp_thread_index")
+            except KeyError:
+                thread_idx = symtab.new_symbol_name("th_idx")
+                symtab.add(DataSymbol(thread_idx, DataType.INTEGER),
+                           tag="omp_thread_index")
+            try:
+                symtab.lookup_with_tag("omp_num_threads")
+            except KeyError:
+                nthread = symtab.new_symbol_name("nthreads")
+                symtab.add(DataSymbol(nthread, DataType.INTEGER),
+                           tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -2863,7 +2883,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyir.symbols import DataSymbol, DataType
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -3680,23 +3699,20 @@ class NemoExplicitLoopTrans(Transformation):
 
         # Get a reference to the Invoke to which this loop belongs
         invoke = loop.root.invoke
-        nsm = invoke._name_space_manager
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
-                                   label=base_name)
+        loop_var = invoke.schedule.symbol_table.name_from_tag(base_name)
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #255 we need some sort of type/declarations table to check that
-        # we don't already have a declaration for a variable of this name.
-        # For the moment we keep a list of variables we have created in
-        # Invoke._loop_vars.
+        # TODO #500 When the Nemo API has the SymbolTable implemented,
+        # we should remove the _loop_vars attribute and add the symbols
+        # into the symboltable instead.
         if loop._variable_name not in invoke._loop_vars:
             invoke._loop_vars.append(loop_var)
             prog_unit = loop.ast.get_root()
@@ -3881,7 +3897,6 @@ class KernelGlobalsToArguments(Transformation):
 
         '''
         from psyclone.psyir.symbols import ArgumentInterface
-        from psyclone.psyir.symbols import DataType
 
         self.validate(node)
 
@@ -3899,7 +3914,8 @@ class KernelGlobalsToArguments(Transformation):
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
-            invoke_symtab.copy_external_global(globalvar)
+            invoke_symtab.copy_external_global(
+                globalvar, tag="AlgArgs_" + globalvar.name)
 
             # Keep a reference to the original container so that we can
             # update it after the interface has been updated.
