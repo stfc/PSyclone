@@ -727,8 +727,6 @@ def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
 def test_fw_reference(fort_writer):
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
-    Also check the method raises an exception if it has children as
-    this is not expected.
 
     '''
     # Generate fparser2 parse tree from Fortran code. The line of
@@ -760,17 +758,6 @@ def test_fw_reference(fort_writer):
         "  a(n)=0.0\n"
         "\n"
         "end subroutine tmp\n") in result
-
-    # Now add a child to the reference node
-    reference = schedule[1].lhs.children[0]
-    return  # FIXME
-    reference.children = ["hello"]
-
-    # Generate Fortran from the PSyIR schedule
-    with pytest.raises(VisitorError) as excinfo:
-        result = fort_writer(schedule)
-    assert ("Expecting a Reference with no children but found"
-            in str(excinfo.value))
 
 
 def test_fw_array(fort_writer):

@@ -504,7 +504,6 @@ def test_incremented_arg():
             in str(excinfo.value))
 
 
-@pytest.mark.xfail(reason="FIXME: We can't assign str to schedules now")
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
@@ -519,12 +518,12 @@ def test_ompdo_constructor():
     # Check the dir_body property
     assert isinstance(ompdo.dir_body, Schedule)
     # Break the directive
-    ompdo.children[0] = "not-a-schedule"
+    del ompdo.children[0]
     with pytest.raises(InternalError) as err:
         # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
-            "child but found: ['str']" in str(err.value))
+            "child but found: []" in str(err.value))
     ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
     assert len(ompdo.dir_body.children) == 1
 

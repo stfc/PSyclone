@@ -36,10 +36,11 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Reference, Array
+from psyclone.psyir.symbols import DataSymbol, DataType
 
 
 def test_psyirvisitor_defaults():
@@ -252,3 +253,23 @@ def test_psyirvisitor_visit_return_node():
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
             "attempted were ['return_node', " in str(excinfo.value))
+
+
+def test_reference():
+    '''Test that the common reference visitor writes the referenced symbol name
+    or raises an error if the node is not Leaf node reference.
+
+    '''
+    # Generate PSyIR Reference
+    test_visitor = PSyIRVisitor()
+    reference = Reference(DataSymbol('a', DataType.REAL))
+    result = test_visitor(reference)
+    assert result == "a"
+
+    # Generate PSyIR Array
+    reference2 = Array.create(DataSymbol('b', DataType.REAL, shape=[1]),
+                              [reference])
+    with pytest.raises(VisitorError) as err:
+        result = test_visitor(reference2)
+    assert "Expecting a Reference with no children but found: " \
+        in str(err.value)

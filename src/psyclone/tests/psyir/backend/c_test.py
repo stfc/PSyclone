@@ -151,29 +151,17 @@ def test_cw_literal():
     assert cwriter(lit) == '3e+5'
 
 
-def test_cw_assignment_and_reference():
-    '''Check the CWriter class assignment and reference methods generate
-    the appropriate output. Also check that a reference visit raises an
-    exception if it has children as this is not expected.
+def test_cw_assignment():
+    '''Check the CWriter class assignment method generate the appropriate
+    output.
 
     '''
-
     assignment = Assignment.create(Reference(DataSymbol('a', DataType.REAL)),
                                    Reference(DataSymbol('b', DataType.REAL)))
     # Generate C from the PSyIR schedule
     cwriter = CWriter()
     result = cwriter(assignment)
     assert result == "a = b;\n"
-
-    # Now add a child to the reference node
-    return  # FIXME
-    assignment.lhs.addchild(Node(parent=assignment))
-
-    # Generate C from the PSyIR schedule
-    with pytest.raises(VisitorError) as excinfo:
-        result = cwriter(assignment)
-    assert "Expecting a Reference with no children but found: " \
-        in str(excinfo.value)
 
 
 def test_cw_array():

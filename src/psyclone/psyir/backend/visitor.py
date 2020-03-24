@@ -111,8 +111,6 @@ class PSyIRVisitor(object):
         :returns: the Fortran code as a string.
         :rtype: str
 
-        :raises VisitorError: if this node has children.
-
         '''
         if node.children:
             raise VisitorError(
