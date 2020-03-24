@@ -92,13 +92,13 @@ class CodeBlock(Statement, DataNode):
         self._structure = structure
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''

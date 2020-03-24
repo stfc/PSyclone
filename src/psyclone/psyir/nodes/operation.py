@@ -148,17 +148,17 @@ class UnaryOperation(Operation):
         self._text_name = "UnaryOperation"
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return possition == 0 and isinstance(child, DataNode)
+        return position == 0 and isinstance(child, DataNode)
 
     @staticmethod
     def create(oper, child):
@@ -273,17 +273,17 @@ class BinaryOperation(Operation):
 
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return possition in (0,1) and isinstance(child, DataNode)
+        return position in (0,1) and isinstance(child, DataNode)
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
@@ -377,13 +377,13 @@ class NaryOperation(Operation):
 
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''

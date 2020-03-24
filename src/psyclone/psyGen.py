@@ -1054,17 +1054,17 @@ class Directive(Statement):
 
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return possition == 0 and isinstance(child, Schedule)
+        return position == 0 and isinstance(child, Schedule)
 
     @property
     def dir_body(self):
@@ -2085,13 +2085,13 @@ class GlobalSum(Statement):
 
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
@@ -2172,13 +2172,13 @@ class HaloExchange(Statement):
         self._colour_key = "HaloExchange"
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
@@ -2368,13 +2368,13 @@ class Kern(Statement):
 
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
@@ -3158,17 +3158,17 @@ class InlinedKern(Kern):
             node.parent = schedule
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return possition == 0 and isinstance(child, Schedule)
+        return position == 0 and isinstance(child, Schedule)
 
     def __str__(self):
         return "inlined kern: " + self._name

@@ -186,17 +186,17 @@ class PSyDataNode(Statement):
             self.set_region_identifier(self._module_name, self._region_name)
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return possition == 0 and isinstance(child, Schedule)
+        return position == 0 and isinstance(child, Schedule)
 
     # -------------------------------------------------------------------------
     @property

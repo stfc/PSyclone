@@ -113,17 +113,17 @@ class Range(Node):
         self.children = [default_start, default_stop, default_step]
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return possition < 3 and isinstance(child, DataNode)
+        return position < 3 and isinstance(child, DataNode)
 
     @staticmethod
     def create(start, stop, step=None, parent=None):

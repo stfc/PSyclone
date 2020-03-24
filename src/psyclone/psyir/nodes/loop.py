@@ -116,18 +116,18 @@ class Loop(Statement):
 
 
     @staticmethod
-    def _validate_child(possition, child):
+    def _validate_child(position, child):
         '''
-        :param int possition: a possition to be validated.
+        :param int position: a position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
-        :return: whether the given child and possition are valid for this node.
+        :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        return (possition in (0, 1, 2) and isinstance(child, DataNode)) or (
-            possition == 3 and isinstance(child, Schedule))
+        return (position in (0, 1, 2) and isinstance(child, DataNode)) or (
+            position == 3 and isinstance(child, Schedule))
 
     @staticmethod
     def create(var_name, start, stop, step, children):
