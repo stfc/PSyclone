@@ -1971,11 +1971,11 @@ class OMPDoDirective(OMPDirective):
         '''
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(start_text="do schedule({0})".format(
             self._omp_schedule), end_text="end do")
@@ -2043,11 +2043,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP PARALLEL DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(
             start_text="parallel do default(shared), private({0}), "
