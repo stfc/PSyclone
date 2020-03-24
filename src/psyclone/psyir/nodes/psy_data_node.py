@@ -93,10 +93,6 @@ class PSyDataNode(Node):
     psy_data_var = "psy_data"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
-        # Store the name of the PSyData variable that is used for this
-        # PSyDataNode. This allows the variable name to be shown in str
-        # (and also, calling create_name in gen() would result in the name
-        # being changed every time gen() is called).
 
         if not options:
             options = {}
@@ -108,9 +104,6 @@ class PSyDataNode(Node):
         if self._class_string:
             self._class_string = self._class_string+"_"
 
-        from psyclone.psyGen import NameSpaceFactory
-        self._var_name = NameSpaceFactory().create()\
-            .create_name(self.make_symbol(self.psy_data_var))
         # The use statement that will be inserted. Any use of a module
         # of the same name that doesn't match this will result in a
         # NotImplementedError at code-generation time.
@@ -139,7 +132,8 @@ class PSyDataNode(Node):
             # FIXME: This may not be a good solution
             symtab = SymbolTable()
 
-        self._var_name = symtab.new_symbol_name("psy_data")
+        self._var_name = symtab.new_symbol_name(
+            self.make_symbol(self.psy_data_var))
         symtab.add(Symbol(self._var_name))
 
         if children and parent:
