@@ -100,6 +100,15 @@ subclassed into a kernel-layer ``KernelSchedule``. In addition to
 ``BinaryOperation`` and ``NaryOperation``.
 
 
+Node Descriptions
+=================
+
+The Range node
+--------------
+
+.. autoclass:: psyclone.psyir.nodes.Range
+    :members: create, start, step, stop
+
 Text Representation
 ===================
 

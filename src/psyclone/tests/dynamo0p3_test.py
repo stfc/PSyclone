@@ -3338,6 +3338,24 @@ def test_lower_bound_fortran_2(monkeypatch):
             str(excinfo.value))
 
 
+@pytest.mark.parametrize("name, index, output",
+                         [("inner", 10, "inner_cell(11)"),
+                          ("ncells", 10, "inner_cell(1)"),
+                          ("cell_halo", 1, "ncells_cell()"),
+                          ("cell_halo", 10, "cell_halo_cell(9)")])
+def test_lower_bound_fortran_3(monkeypatch, name, index, output):
+    '''test _lower_bound_fortran() with multiple valid iteration spaces'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
+    # we can not use the standard set_lower_bound function as that
+    # checks for valid input
+    monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
+    monkeypatch.setattr(my_loop, "_lower_bound_index", value=index)
+    assert my_loop._lower_bound_fortran() == "mesh%get_last_" + output + "+1"
+
+
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used'''

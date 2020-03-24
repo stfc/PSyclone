@@ -43,6 +43,7 @@ from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import Symbol, SymbolTable
 
 
 # =============================================================================
@@ -66,11 +67,14 @@ class PSyDataNode(Node):
                     or derived classes
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param (str,str) name: an optional name to use for this PSyDataNode, \
-        provided as a 2-tuple containing a module name followed by a \
-        local name. The pair of strings should uniquely identify a\
-        region unless aggregate information is required and supported \
-        by the runtime library linked in.
+    :param options: a dictionary with options for transformations.
+    :type options: dictionary of string:values or None
+    :param (str,str) options["region_name"]: an optional name to \
+        use for this PSyDataNode, provided as a 2-tuple containing a \
+        module name followed by a local name. The pair of strings should \
+        uniquely identify a region unless aggregate information is required \
+        (and is supported by the runtime library).
+
 
     '''
     # PSyData interface Fortran module
@@ -85,15 +89,8 @@ class PSyDataNode(Node):
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
 
-    def __init__(self, ast=None, children=None, parent=None, name=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None):
         # TODO: #415 Support different classes of PSyData calls.
-
-        # Store the name of the PSyData variable that is used for this
-        # PSyDataNode. This allows the variable name to be shown in str
-        # (and also, calling create_name in gen() would result in the name
-        # being changed every time gen() is called).
-        from psyclone.psyGen import NameSpaceFactory
-        self._var_name = NameSpaceFactory().create().create_name("psy_data")
 
         if children:
             # We need to store the position of the original children,
@@ -104,6 +101,19 @@ class PSyDataNode(Node):
         sched = self._insert_schedule(children)
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
+
+        # Store the name of the PSyData variable that is used for this
+        # PSyDataNode. This allows the variable name to be shown in str
+        # (and also, calling create_name in gen() would result in the name
+        # being changed every time gen() is called).
+        if parent and hasattr(self.root, 'symbol_table'):
+            symtab = self.root.symbol_table
+        else:
+            # FIXME: This may not be a good solution
+            symtab = SymbolTable()
+
+        self._var_name = symtab.new_symbol_name("psy_data")
+        symtab.add(Symbol(self._var_name))
 
         if children and parent:
             # Correct the parent's list of children. Use a slice of the list
@@ -154,6 +164,10 @@ class PSyDataNode(Node):
         # are unique when gen_code is called more than once, we
         # cannot store a computed name in module_name and region_name.
         self._region_identifier = ("", "")
+
+        name = None
+        if options:
+            name = options.get("region_name", None)
 
         if name:
             # pylint: disable=too-many-boolean-expressions
@@ -245,16 +259,16 @@ class PSyDataNode(Node):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param options["pre-var-list"]: a list of variables to be extracted \
+        :param options["pre_var_list"]: a list of variables to be extracted \
             before the first child.
-        :type options["pre-var-list"]: list of str
-        :param options["post-var-list"]: a list of variables to be extracted \
+        :type options["pre_var_list"]: list of str
+        :param options["post_var_list"]: a list of variables to be extracted \
             after the last child.
-        :type options["post-var-list"]: list of str
-        :param str options["pre-var-postfix"]: an optional postfix that will \
-            be added to each variable name in the pre-var-list.
-        :param str options["post-var-postfix"]: an optional postfix that will \
-            be added to each variable name in the post-var-list.
+        :type options["post_var_list"]: list of str
+        :param str options["pre_var_postfix"]: an optional postfix that will \
+            be added to each variable name in the pre_var_list.
+        :param str options["post_var_postfix"]: an optional postfix that will \
+            be added to each variable name in the post_var_list.
 
         '''
         # TODO: #415 Support different classes of PSyData calls.
@@ -286,10 +300,10 @@ class PSyDataNode(Node):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre-var-list", [])
-        post_variable_list = options.get("post-var-list", [])
-        pre_suffix = options.get("pre-var-postfix", "")
-        post_suffix = options.get("post-var-postfix", "")
+        pre_variable_list = options.get("pre_var_list", [])
+        post_variable_list = options.get("post_var_list", [])
+        pre_suffix = options.get("pre_var_postfix", "")
+        post_suffix = options.get("post_var_postfix", "")
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
