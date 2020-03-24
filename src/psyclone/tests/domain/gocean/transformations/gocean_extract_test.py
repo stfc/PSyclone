@@ -372,7 +372,7 @@ def test_driver_creation(tmpdir):
     # which is not important, and the order might also change. It also
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
-    # property dx. The grid property will be renamed to 'dx_0':
+    # property dx. The grid property will be renamed to 'dx_1':
     expected = '''USE extract_psy_data_mod, ONLY: extract_PSyDataType
       IMPLICIT NONE
       REAL(KIND=8), allocatable, dimension(:,:) :: gphiu
@@ -380,7 +380,7 @@ def test_driver_creation(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
       REAL(KIND=8), allocatable, dimension(:,:) :: in_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: dx
-      REAL(KIND=8), allocatable, dimension(:,:) :: dx_0
+      REAL(KIND=8), allocatable, dimension(:,:) :: dx_1
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post
 
@@ -393,12 +393,12 @@ def test_driver_creation(tmpdir):
       CALL extract_psy_data%ReadVariable("in_fld", in_fld)
       CALL extract_psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
       CALL extract_psy_data%ReadVariable("dx", dx)
-      CALL extract_psy_data%ReadVariable("in_fld%grid%dx", dx_0)
+      CALL extract_psy_data%ReadVariable("in_fld%grid%dx", dx_1)
       ! RegionStart
       DO j=2,jstop
         DO i=2,istop+1
           CALL compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, ''' \
-      '''dx, dx_0, gphiu)
+      '''dx, dx_1, gphiu)
         END DO
       END DO
       ! RegionEnd
@@ -408,7 +408,6 @@ def test_driver_creation(tmpdir):
       ! Check j
       ! Check in_out_fld'''
     expected_lines = expected.split("\n")
-
     for line in expected_lines:
         assert line in driver_code
 
