@@ -135,13 +135,15 @@ def test_range_literals_props():
     # We didn't supply an increment so check that one was created
     assert isinstance(erange.children[2], Literal)
     assert erange.children[2].datatype.name == ScalarType.Name.INTEGER
-    assert erange.children[2].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (erange.children[2].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert erange.children[2].value == "1"
     # Create another one with a specified step
     erange2 = Range.create(start, stop, Literal("5", INTEGER_SINGLE_TYPE))
     assert erange2.children[0] is start
     assert erange2.children[1] is stop
-    assert erange2.children[2].datatype.precision == ScalarType.Precision.SINGLE
+    assert (erange2.children[2].datatype.precision ==
+            ScalarType.Precision.SINGLE)
     assert erange2.step.value == "5"
 
 

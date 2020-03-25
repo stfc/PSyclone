@@ -192,8 +192,9 @@ def test_loop_create():
     start = Literal("0", INTEGER_SINGLE_TYPE)
     stop = Literal("1", INTEGER_SINGLE_TYPE)
     step = Literal("1", INTEGER_SINGLE_TYPE)
-    child_node = Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-                                   Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
+    child_node = Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
     loop = Loop.create("i", start, stop, step, [child_node])
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
@@ -210,8 +211,9 @@ def test_loop_create_invalid():
     '''
     zero = Literal("0", INTEGER_SINGLE_TYPE)
     one = Literal("1", INTEGER_SINGLE_TYPE)
-    children = [Assignment.create(Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
-                                  one)]
+    children = [Assignment.create(
+        Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
+        one)]
 
     # var_name is not a string.
     with pytest.raises(GenerationError) as excinfo:

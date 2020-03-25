@@ -51,13 +51,13 @@ def test_literal_init():
     ArrayType and different precisions.
 
     '''
-    array_type = ArrayType(REAL_DOUBLE_TYPE, [10,10])
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
     assert literal.value == "1"
     assert isinstance(literal.datatype, ArrayType)
     assert literal.datatype.name == ScalarType.Name.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
-    assert literal.datatype.shape == [10,10]
+    assert literal.datatype.shape == [10, 10]
 
     literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
@@ -100,7 +100,7 @@ def test_literal_init_invalid():
     with pytest.raises(ValueError) as err:
         Literal("False", BOOLEAN_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
-        "but found 'False'." in str(err.value))
+            "but found 'False'." in str(err.value))
 
 
 def test_literal_value():
@@ -114,7 +114,7 @@ def test_literal_value():
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    
+
     # scalar literal
     literal = Literal("1", INTEGER_SINGLE_TYPE)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
@@ -122,7 +122,7 @@ def test_literal_node_str():
             in literal.node_str())
 
     # array literal
-    array_type = ArrayType(REAL_DOUBLE_TYPE, [10,10])
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert (coloredtext+"[value:'1', Name.REAL, Precision.DOUBLE, "
@@ -132,7 +132,7 @@ def test_literal_node_str():
 def test_literal_can_be_printed():
     '''Test that a Literal instance can always be printed (i.e. is
     initialised fully)'''
-    array_type = ArrayType(REAL_DOUBLE_TYPE, [10,10])
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
     assert ("Literal[value:'1', Name.REAL, Precision.DOUBLE, shape=[10, 10]]"
             in str(literal))

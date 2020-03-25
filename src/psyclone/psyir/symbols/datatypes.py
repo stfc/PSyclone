@@ -250,7 +250,7 @@ class ArrayType(DataType):
             as the current instance.
         :rtype: :py:class:`psyclone.psyir.symbols.ArrayType`
 
-        '''        
+        '''
         return ArrayType(self._datatype.copy(), self.shape[:])
 
 
@@ -266,9 +266,9 @@ REAL8_TYPE = ScalarType(ScalarType.Name.REAL, 8)
 INTEGER_TYPE = ScalarType(ScalarType.Name.INTEGER,
                           ScalarType.Precision.UNDEFINED)
 INTEGER_SINGLE_TYPE = ScalarType(ScalarType.Name.INTEGER,
-                              ScalarType.Precision.SINGLE)
+                                 ScalarType.Precision.SINGLE)
 INTEGER_DOUBLE_TYPE = ScalarType(ScalarType.Name.INTEGER,
-                              ScalarType.Precision.DOUBLE)
+                                 ScalarType.Precision.DOUBLE)
 INTEGER4_TYPE = ScalarType(ScalarType.Name.INTEGER, 4)
 INTEGER8_TYPE = ScalarType(ScalarType.Name.INTEGER, 8)
 BOOLEAN_TYPE = ScalarType(ScalarType.Name.BOOLEAN,

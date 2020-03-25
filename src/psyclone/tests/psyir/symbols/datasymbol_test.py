@@ -74,7 +74,8 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', CHARACTER1_TYPE,
                                  constant_value="hello"), DataSymbol)
     assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE, constant_value=False),
+    assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE,
+                                 constant_value=False),
                       DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
@@ -102,7 +103,8 @@ def test_datasymbol_initialisation():
     dim = DataSymbol('dim', INTEGER_SINGLE_TYPE)
     array_type = ArrayType(REAL_SINGLE_TYPE, [dim])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3, dim, ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(REAL_SINGLE_TYPE,
+                           [3, dim, ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
 
 
@@ -143,10 +145,12 @@ def test_datasymbol_can_be_printed():
             in str(sym3))
 
     sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
-    assert "s3: <Name.INTEGER, Precision.SINGLE, Local, constant_value=Literal" \
-           "[value:'12', Name.INTEGER, Precision.SINGLE]>" in str(sym3)
+    assert ("s3: <Name.INTEGER, Precision.SINGLE, Local, "
+            "constant_value=Literal"
+            "[value:'12', Name.INTEGER, Precision.SINGLE]>" in str(sym3))
 
-    sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE, interface=UnresolvedInterface())
+    sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
     assert "s4: <Name.INTEGER, Precision.SINGLE, Unresolved>" in str(sym4)
 
 
@@ -249,7 +253,8 @@ def test_datasymbol_scalar_array():
 
     '''
     sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE, 2, sym1])
+    array_type = ArrayType(REAL_SINGLE_TYPE,
+                           [ArrayType.Extent.ATTRIBUTE, 2, sym1])
     sym2 = DataSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array

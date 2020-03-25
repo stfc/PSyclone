@@ -148,10 +148,12 @@ def test_ifblock_create():
     '''
     # Without an else clause.
     if_condition = Literal('true', BOOLEAN_TYPE)
-    if_body = [Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-                                 Literal("0.0", REAL_SINGLE_TYPE)),
-               Assignment.create(Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                                 Literal("1.0", REAL_SINGLE_TYPE))]
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
     ifblock = IfBlock.create(if_condition, if_body)
     if_schedule = ifblock.children[1]
     assert isinstance(if_schedule, Schedule)
@@ -194,10 +196,12 @@ def test_ifblock_create_invalid():
 
     '''
     if_condition = Literal('true', BOOLEAN_TYPE)
-    if_body = [Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-                                 Literal("0.0", REAL_SINGLE_TYPE)),
-               Assignment.create(Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                                 Literal("1.0", REAL_SINGLE_TYPE))]
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
 
     # if_condition not a Node.
     with pytest.raises(GenerationError) as excinfo:

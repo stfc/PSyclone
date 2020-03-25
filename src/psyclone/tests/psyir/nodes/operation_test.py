@@ -208,8 +208,9 @@ def test_unaryoperation_create_invalid():
     '''
     # oper not a UnaryOperator.Operator.
     with pytest.raises(GenerationError) as excinfo:
-        _ = UnaryOperation.create("invalid",
-                                  Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)))
+        _ = UnaryOperation.create(
+            "invalid",
+            Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)))
     assert ("oper argument in create method of UnaryOperation class should "
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))

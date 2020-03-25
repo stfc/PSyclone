@@ -304,21 +304,27 @@ def test_schedule_view(capsys):
         isched_str + "[invoke='io_in_loop']\n" +
         indent + "0: " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n" +
-        2*indent + lit_str + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" +
+        2*indent + lit_str + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n" +
         2*indent + ref_str + "[name:'jpk']\n" +
-        2*indent + lit_str + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" +
+        2*indent + lit_str + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n" +
         2*indent + sched_str + "[]\n" +
         3*indent + "0: " + loop_str + "[type='lat', field_space='None', "
         "it_space='None']\n" +
-        4*indent + lit_str + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" +
+        4*indent + lit_str + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n" +
         4*indent + ref_str + "[name:'jpj']\n" +
-        4*indent + lit_str + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" +
+        4*indent + lit_str + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n" +
         4*indent + sched_str + "[]\n" +
         5*indent + "0: " + loop_str + "[type='lon', "
         "field_space='None', it_space='None']\n" +
-        6*indent + lit_str + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" +
+        6*indent + lit_str + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n" +
         6*indent + ref_str + "[name:'jpi']\n" +
-        6*indent + lit_str + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" +
+        6*indent + lit_str + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n" +
         6*indent + sched_str + "[]\n" +
         7*indent + "0: " + kern_str + "[]\n")
     assert expected_sched in output

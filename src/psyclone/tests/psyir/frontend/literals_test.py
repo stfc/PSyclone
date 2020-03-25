@@ -46,11 +46,12 @@ from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes import Node, Literal, CodeBlock
 
 
-@pytest.mark.parametrize("code, dtype", [("'hello'", ScalarType.Name.CHARACTER),
-                                         ("1", ScalarType.Name.INTEGER),
-                                         ("1.0", ScalarType.Name.REAL),
-                                         (".tRue.", ScalarType.Name.BOOLEAN),
-                                         (".false.", ScalarType.Name.BOOLEAN)])
+@pytest.mark.parametrize("code, dtype",
+                         [("'hello'", ScalarType.Name.CHARACTER),
+                          ("1", ScalarType.Name.INTEGER),
+                          ("1.0", ScalarType.Name.REAL),
+                          (".tRue.", ScalarType.Name.BOOLEAN),
+                          (".false.", ScalarType.Name.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
