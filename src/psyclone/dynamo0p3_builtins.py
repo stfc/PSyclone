@@ -192,6 +192,11 @@ class DynBuiltIn(BuiltIn):
         return get_fs_undf_name(field.function_space)
 
     @property
+    def qr_required(self):
+        ''' Built-ins do not currently require quadrature '''
+        return False
+
+    @property
     def reference_element(self):
         ''' Built-ins do not require reference-element properties. '''
         return None
