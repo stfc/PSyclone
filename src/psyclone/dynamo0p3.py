@@ -2070,7 +2070,8 @@ class DynReferenceElement(DynCollection):
 
         # Create a union of the reference-element properties required by all
         # kernels in this invoke. Use a list to preserve the order in the
-        # kernel metadata and remove duplicate entries by using OrderedDict.
+        # kernel metadata (in the case of a kernel stub) and remove duplicate
+        # entries by using OrderedDict.
         self._properties = []
         for call in self._calls:
             if call.reference_element:
@@ -2079,8 +2080,7 @@ class DynReferenceElement(DynCollection):
             return
         self._properties = list(OrderedDict.fromkeys(self._properties))
 
-        # Store properties in a SymbolTable for an Invoke or a Kernel
-        # (invalid objects trigger an error in the parent class)
+        # Store properties in a SymbolTable
         if self._invoke:
             symtab = self._invoke.schedule.symbol_table
         elif self._kernel:
@@ -2131,7 +2131,7 @@ class DynReferenceElement(DynCollection):
             self._nfaces_name = symtab.name_from_tag("nfaces_re")
 
         # Now the arrays themselves, in the order specified in the
-        # kernel metadata
+        # kernel metadata (in the case of a kernel stub)
         for prop in self._properties:
             # Provide horizontal normals to faces
             if prop == \
@@ -2212,7 +2212,7 @@ class DynReferenceElement(DynCollection):
         :param kern: kernel to create the argument list for.
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
-        :return: list of kernel call/stub arguments.
+        :return: kernel call/stub arguments.
         :rtype: list
 
         '''
