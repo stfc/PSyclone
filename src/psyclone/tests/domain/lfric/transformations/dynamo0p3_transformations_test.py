@@ -6219,6 +6219,35 @@ def test_accenterdatatrans():
     # parallel directive within its region and this example does not
     # add one.
 
+
+def test_accenterdata_builtin():
+    ''' Check that the enter-data transformation can be applied to an invoke
+    containing a call to a BuiltIn kernel. '''
+    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
+        ACCParallelTrans
+    acc_enter_trans = ACCEnterDataTrans()
+    parallel_trans = ACCParallelTrans()
+    acc_loop_trans = ACCLoopTrans()
+    psy, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
+                             TEST_API, name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    for loop in sched.loops():
+        _, _ = acc_loop_trans.apply(loop)
+    _, _ = parallel_trans.apply(sched.children)
+    _, _ = acc_enter_trans.apply(sched)
+    output = str(psy.gen)
+
+    assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
+            "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+            "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
+            "undf_w3,map_w3,0.0,ndf_any_space_1_f1,undf_any_space_1_f1,"
+            "map_any_space_1_f1)" in output)
+    assert ("      !$acc loop independent\n"
+            "      DO df=1,undf_any_space_1_f1\n"
+            "        f1_proxy%data(df) = 0.0\n"
+            "      END DO\n"
+            "      !$acc end parallel\n" in output)
+
 # Class ACCEnterDataTrans end
 
 
