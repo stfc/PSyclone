@@ -62,12 +62,12 @@ def test_literal_init():
     literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
     assert literal.datatype.name == ScalarType.Name.BOOLEAN
-    assert literal.datatype.precision == ScalarType.Precision.SINGLE
+    assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
 
     literal = Literal("false", BOOLEAN_TYPE)
     assert literal.value == "false"
     assert literal.datatype.name == ScalarType.Name.BOOLEAN
-    assert literal.datatype.precision == ScalarType.Precision.SINGLE
+    assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
 
 
 def test_literal_init_invalid():

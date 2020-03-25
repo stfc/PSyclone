@@ -40,7 +40,6 @@
 
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.errors import InternalError
 
 
 class DataSymbol(Symbol):
@@ -159,8 +158,7 @@ class DataSymbol(Symbol):
         from psyclone.psyir.symbols import ArrayType
         if isinstance(self._datatype, ArrayType):
             return self._datatype.shape
-        else:
-            return []
+        return []
 
     @property
     def interface(self):
@@ -330,7 +328,6 @@ class DataSymbol(Symbol):
                         " constant value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
-                from psyclone.psyir.symbols import ScalarType
                 if self.datatype.name == ScalarType.Name.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
@@ -347,7 +344,6 @@ class DataSymbol(Symbol):
             self._constant_value = None
 
     def __str__(self):
-        from psyclone.psyir.symbols import ArrayType
         ret = self.name + ": <" + str(self.datatype)
         ret += ", " + str(self._interface)
         if self.is_constant:
@@ -383,7 +379,7 @@ class DataSymbol(Symbol):
                             " '{0}'.".format(type(symbol_in).__name__))
 
         self._datatype = symbol_in.datatype.copy()
-        self._shape = symbol_in.shape[:]
+        # self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
 

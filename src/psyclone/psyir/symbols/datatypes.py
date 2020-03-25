@@ -191,6 +191,7 @@ class ArrayType(DataType):
 
     def __init__(self, datatype, shape):
 
+        from psyclone.psyir.symbols.datasymbol import DataSymbol
         if not isinstance(datatype, DataType):
             raise TypeError(
                 "ArrayType expected 'datatype' argument to be of type "

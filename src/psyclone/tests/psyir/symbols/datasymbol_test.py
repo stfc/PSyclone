@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_SINGLE_TYPE, CHARACTER1_TYPE, DeferredType
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
@@ -70,11 +70,11 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
                       DataSymbol)
 
-    assert isinstance(DataSymbol('a', CHARACTER1_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', CHARACTER1_TYPE,
+    assert isinstance(DataSymbol('a', CHARACTER_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', CHARACTER_TYPE,
                                  constant_value="hello"), DataSymbol)
-    assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', BOOLEAN_SINGLE_TYPE,
+    assert isinstance(DataSymbol('a', BOOLEAN_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', BOOLEAN_TYPE,
                                  constant_value=False),
                       DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
@@ -169,7 +169,7 @@ def test_datasymbol_constant_value_setter():
     sym.constant_value = 1.0
     assert sym.constant_value.value == "1.0"
 
-    sym = DataSymbol('a', BOOLEAN_SINGLE_TYPE, constant_value=True)
+    sym = DataSymbol('a', BOOLEAN_TYPE, constant_value=True)
     assert sym.constant_value.value == "true"
     sym.constant_value = False
     assert sym.constant_value.value == "false"
@@ -219,17 +219,17 @@ def test_datasymbol_constant_value_setter_invalid():
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', CHARACTER1_TYPE, constant_value=42)
+        DataSymbol('a', CHARACTER_TYPE, constant_value=42)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Name.CHARACTER, 1' which "
+            "instance datatype is 'Name.CHARACTER, Precision.UNDEFINED' which "
             "means the constant value is expected to be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', BOOLEAN_SINGLE_TYPE, constant_value="hello")
+        DataSymbol('a', BOOLEAN_TYPE, constant_value="hello")
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Name.BOOLEAN, Precision.SINGLE' which "
+            "instance datatype is 'Name.BOOLEAN, Precision.UNDEFINED' which "
             "means the constant value is expected to be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
