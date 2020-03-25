@@ -2884,8 +2884,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyir.symbols import DataSymbol, ScalarType, \
-                INTEGER_TYPE
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]

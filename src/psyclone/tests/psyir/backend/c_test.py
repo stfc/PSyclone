@@ -47,8 +47,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ScalarType, ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, \
-    BOOLEAN_TYPE
+    ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE
 
 
 def test_cw_gen_declaration():

@@ -42,8 +42,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError, \
-    INTEGER_SINGLE_TYPE
+from psyclone.psyir.symbols import ContainerSymbol, SymbolError
 from psyclone.psyGen import KernelSchedule, GenerationError
 
 
@@ -234,7 +233,8 @@ def test_use_same_symbol():
 def test_use_local_symbol_error():
     ''' Check that we raise the expected error if we encounter an import of
     a symbol that is already declared to be local. '''
-    from psyclone.psyir.symbols import DataSymbol, DataType, LocalInterface
+    from psyclone.psyir.symbols import DataSymbol, LocalInterface, \
+        INTEGER_SINGLE_TYPE
     fake_parent = KernelSchedule("dummy_schedule")
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol

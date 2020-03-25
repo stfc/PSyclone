@@ -42,8 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, \
-    BOOLEAN_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
 
 
 def test_literal_init():

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
