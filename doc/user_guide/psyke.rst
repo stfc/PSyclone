@@ -385,9 +385,16 @@ stored as NetCDF dimensions: again the variable ``xyz`` will have its
 sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
-The output file only stores the values used in the subroutine,
-e.g. any GOcean grid properties (see :ref:`gocean1.0-grid-props`)
-will not be stored automatically at this stage (see issue #638).
-That means that a driver program
-that reads the input variables, executes the code region and then
-validates the results can be implemented independent of dl_esm_inf.
+The output file contains the values of all variables used in the
+subroutine. The ``GOceanExtractTrans`` can automatically create a
+driver program which will read the netcdf file and then calls the
+instrumented region. In order to create this driver program, the
+options parameter ``create-driver`` must be set to true::
+
+    extract = GOceanExtractTrans()
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "init")})
+
+This will create a Fortran file called ``driver-main-init.f90``, which
+can then be compiled and executed.

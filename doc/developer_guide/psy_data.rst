@@ -75,7 +75,7 @@ is linked the above code will actually look like this::
 
 .. note::
     While adding the class prefix to the name of the instance variable
-    is not necessary, it helps readability of the created code.
+    is not necessary, it helps improves the readability of the created code.
 
 
 The list of valid classes is specified in the configuration file. It can be
@@ -262,7 +262,7 @@ a detailed description) or any of the profiling wrapper libraries
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
-    see :ref:`user_guid:psyke_netcdf`). If no variables are to be
+    see :ref:`user_guide:psyke_netcdf`). If no variables are to be
     provided to the wrapper library, this call will not be created
     (and there is no need to implement this function in a wrapper
     library).
@@ -308,8 +308,8 @@ a detailed description) or any of the profiling wrapper libraries
 
     Called once all variables have been declared. This call is only
     inserted if any variables are to be provided either before or after
-    the instrumented region (especially this call is not created for
-    performance profiling).
+    the instrumented region (especially for performance profiling this
+    call is not created).
 
 .. method:: ProvideVariable(this, name, value)
 
@@ -517,6 +517,14 @@ The profiling wrapper libraries also
 need the static initialisation and shutdown functions ``_profile_PSyDataInit``
 and ``_profile_PSyDataShutdown``. Details can be found in the section
 :ref:`psy_data_api`.
+
+The examples in the ``lib/profiling`` directory show various ways
+in which the opaque data type ``profile_PSyDataType`` can be used to interface
+with existing profiling tools - for example by storing
+an index used by the profiling tool in ``profile_PSyDataType``, or
+by storing pointers to the profiling data to be able to
+print all results in a ProfileFinalise() subroutine.
+
 
 Kernel Extraction (PSyKE)
 -------------------------

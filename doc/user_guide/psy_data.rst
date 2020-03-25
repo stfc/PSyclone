@@ -76,7 +76,7 @@ The PsyData API should be general enough to allow these and other
 applications to be developed and used.
 
 PSyclone provides transformations that will insert callbacks to
-the PSyData API, for example ProfileTrans, GOceanExtractTrans,
-LFRicExtractTrans. A user can develop additional transformations
+the PSyData API, for example ``ProfileTrans``, ``GOceanExtractTrans``
+and ``LFRicExtractTrans``. A user can develop additional transformations
 and corresponding runtime libraries for additional functionality.
 Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
