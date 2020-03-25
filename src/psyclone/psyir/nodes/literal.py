@@ -40,7 +40,7 @@
 
 import six
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import DataType, ScalarType, ArrayType
+from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
 class Literal(Node):

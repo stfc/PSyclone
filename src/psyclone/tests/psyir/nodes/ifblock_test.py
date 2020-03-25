@@ -42,8 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
     Return, Assignment
-from psyclone.psyir.symbols import DataType, DataSymbol, REAL_SINGLE_TYPE, \
-    BOOLEAN_SINGLE_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -94,7 +93,7 @@ def test_ifblock_view_indices(capsys):
 def test_ifblock_can_be_printed():
     '''Test that an IfBlock instance can always be printed (i.e. is
     initialised fully)'''
-    condition = Reference(DataSymbol('condition1', BOOLEAN_SINGLE_TYPE))
+    condition = Reference(DataSymbol('condition1', BOOLEAN_TYPE))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
 
@@ -113,7 +112,7 @@ def test_ifblock_properties():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 0." in str(err.value))
 
-    ref1 = Reference(DataSymbol('condition1', BOOLEAN_SINGLE_TYPE),
+    ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
                      parent=ifblock)
     ifblock.addchild(ref1)
 
@@ -148,7 +147,7 @@ def test_ifblock_create():
 
     '''
     # Without an else clause.
-    if_condition = Literal('true', BOOLEAN_SINGLE_TYPE)
+    if_condition = Literal('true', BOOLEAN_TYPE)
     if_body = [Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
                                  Literal("0.0", REAL_SINGLE_TYPE)),
                Assignment.create(Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
@@ -194,7 +193,7 @@ def test_ifblock_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    if_condition = Literal('true', BOOLEAN_SINGLE_TYPE)
+    if_condition = Literal('true', BOOLEAN_TYPE)
     if_body = [Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
                                  Literal("0.0", REAL_SINGLE_TYPE)),
                Assignment.create(Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),

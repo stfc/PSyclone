@@ -37,8 +37,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
-    DataSymbol, INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
+from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
+    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
 from psyclone.psyir.nodes import Range, Literal, Reference, Node
 from psyclone.psyGen import InternalError
 
@@ -135,12 +135,13 @@ def test_range_literals_props():
     # We didn't supply an increment so check that one was created
     assert isinstance(erange.children[2], Literal)
     assert erange.children[2].datatype.name == ScalarType.Name.INTEGER
-    assert erange.children[2].datatype.precision == ScalarType.Precision.SINGLE
+    assert erange.children[2].datatype.precision == ScalarType.Precision.UNDEFINED
     assert erange.children[2].value == "1"
     # Create another one with a specified step
     erange2 = Range.create(start, stop, Literal("5", INTEGER_SINGLE_TYPE))
     assert erange2.children[0] is start
     assert erange2.children[1] is stop
+    assert erange2.children[2].datatype.precision == ScalarType.Precision.SINGLE
     assert erange2.step.value == "5"
 
 
@@ -215,4 +216,4 @@ def test_range_view(capsys):
             2*indent + literal +
             "[value:'10', Name.INTEGER, Precision.SINGLE]\n" +
             2*indent + literal +
-            "[value:'1', Name.INTEGER, Precision.SINGLE]\n" in stdout)
+            "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" in stdout)

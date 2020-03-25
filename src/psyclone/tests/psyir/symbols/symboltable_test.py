@@ -44,8 +44,7 @@ import pytest
 from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    DataType, ScalarType, ArrayType, DeferredType, \
-    REAL_TYPE, INTEGER_TYPE, Symbol
+    ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol
 from psyclone.errors import InternalError
 
 

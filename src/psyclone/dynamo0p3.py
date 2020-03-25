@@ -59,8 +59,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType, INTEGER_TYPE, \
-    DataSymbol, SymbolTable
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #

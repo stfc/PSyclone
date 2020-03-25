@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     DataAccess, Kern, Arguments, CodedKern
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType, \
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall

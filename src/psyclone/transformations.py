@@ -46,7 +46,7 @@ import six
 from psyclone.psyGen import Transformation, Kern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, DataType
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
@@ -2884,8 +2884,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyir.symbols import DataSymbol, DataType, \
-                ScalarType, INTEGER_TYPE
+            from psyclone.psyir.symbols import DataSymbol, ScalarType, \
+                INTEGER_TYPE
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]

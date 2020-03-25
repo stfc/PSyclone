@@ -46,7 +46,7 @@ from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
     Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
     Schedule
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType, \
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, \
     BOOLEAN_TYPE
 

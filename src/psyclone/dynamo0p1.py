@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
-from psyclone.psyir.symbols import DataSymbol, DataType, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor

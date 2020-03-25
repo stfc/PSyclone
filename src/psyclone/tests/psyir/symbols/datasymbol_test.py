@@ -43,9 +43,9 @@ import pytest
 
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    DataType, ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, \
-    REAL4_TYPE, REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, \
-    INTEGER4_TYPE, BOOLEAN_SINGLE_TYPE, CHARACTER1_TYPE, DeferredType
+    ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
+    REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
+    BOOLEAN_SINGLE_TYPE, CHARACTER1_TYPE, DeferredType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return

@@ -49,8 +49,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType, ScalarType, ArrayType, DeferredType, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
+    ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, \
+    BOOLEAN_TYPE, CHARACTER_TYPE
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -876,7 +876,7 @@ class Fparser2Reader(object):
 
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
-            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec): 
+            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                 fort_type = str(type_spec.items[0]).lower()
                 try:
                     data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
@@ -1023,7 +1023,7 @@ class Fparser2Reader(object):
                 else:
                     # scalar
                     datatype = ScalarType(data_name, precision)
-                
+
                 if sym_name not in parent.symbol_table:
                     parent.symbol_table.add(DataSymbol(sym_name, datatype,
                                                        constant_value=ct_expr,
@@ -1201,16 +1201,18 @@ class Fparser2Reader(object):
         try:
             kind_symbol = symbol_table.lookup(lower_name)
             if not (isinstance(kind_symbol.datatype, DeferredType) or
-                    (isinstance(kind_symbol.datatype, ScalarType) and 
+                    (isinstance(kind_symbol.datatype, ScalarType) and
                      kind_symbol.datatype.name == ScalarType.Name.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
                     "variable '{0}' used as a kind parameter but it "
                     "is not a 'deferred' or 'scalar integer' type.".
                     format(lower_name, kind_symbol.datatype))
-            # A KIND parameter must be of type integer so set it here (in case
-            # it was previously 'deferred')
-            kind_symbol.datatype.name = ScalarType.Name.INTEGER
+            # A KIND parameter must be of type integer so set it here
+            # (in case it was previously 'deferred'). We don't know
+            # what precision this is so set it to undefined (which is
+            # its value in INTEGER_TYPE).
+            kind_symbol.datatype = INTEGER_TYPE
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
@@ -1834,6 +1836,7 @@ class Fparser2Reader(object):
                             loop_vars[range_idx], INTEGER_TYPE)
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
+
     def _where_construct_handler(self, node, parent):
         '''
         Construct the canonical PSyIR representation of a WHERE construct or

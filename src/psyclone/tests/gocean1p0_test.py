@@ -293,7 +293,7 @@ def test_scalar_float_arg(tmpdir):
 def test_scalar_float_arg_from_module():
     ''' Tests that an invoke containing a kernel call requiring a real, scalar
     argument imported from a module produces correct code '''
-    from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DataType, \
+    from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
         GlobalInterface, REAL_TYPE
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -928,14 +928,18 @@ def test_goschedule_view(capsys):
         "    0: " + loop + "[type='outer', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
         "        " + lit + "[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
-        "        " + lit + "[value:'jstop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "        " + lit + "[value:'jstop', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
         "        " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='inner', field_space='go_cu', "
         "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'2', Name.INTEGER, Precision.UNDEFINED]\n"
-        "                " + lit + "[value:'istop+1', Name.INTEGER, Precision.UNDEFINED]\n"
-        "                " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'2', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'istop+1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
         "                " + sched + "[]\n"
         "                    0: " + call +
         " compute_cu_code(cu_fld,p_fld,u_fld) "
@@ -943,14 +947,18 @@ def test_goschedule_view(capsys):
         "    1: " + loop + "[type='outer', field_space='go_every', "
         "it_space='go_internal_pts']\n"
         "        " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
-        "        " + lit + "[value:'jstop+1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "        " + lit + "[value:'jstop+1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
         "        " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='inner', field_space='go_every', "
         "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
-        "                " + lit + "[value:'istop+1', Name.INTEGER, Precision.UNDEFINED]\n"
-        "                " + lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'istop+1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
+        "                " + lit + "[value:'1', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
         "                " + sched + "[]\n"
         "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
         "uold_fld) [module_inline=False]")
@@ -1012,13 +1020,17 @@ def test_goschedule_str():
     expected_sched = (
         "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'cu_fld%internal%ystart', Name.INTEGER, Precision.UNDEFINED]\n"
-        "Literal[value:'cu_fld%internal%ystop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'cu_fld%internal%ystart', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
+        "Literal[value:'cu_fld%internal%ystop', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
         "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'cu_fld%internal%xstart', Name.INTEGER, Precision.UNDEFINED]\n"
-        "Literal[value:'cu_fld%internal%xstop', Name.INTEGER, Precision.UNDEFINED]\n"
+        "Literal[value:'cu_fld%internal%xstart', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
+        "Literal[value:'cu_fld%internal%xstop', Name.INTEGER, "
+        "Precision.UNDEFINED]\n"
         "Literal[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"

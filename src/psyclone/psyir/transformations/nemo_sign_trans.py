@@ -50,7 +50,7 @@ from psyclone.psyir.transformations.nemo_operator_trans import \
 from psyclone.psyir.transformations import NemoAbsTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
     Reference, Literal, IfBlock
-from psyclone.psyir.symbols import DataType, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
 class NemoSignTrans(NemoOperatorTrans):

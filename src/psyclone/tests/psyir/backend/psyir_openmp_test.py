@@ -40,7 +40,7 @@
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import Assignment, Reference
-from psyclone.psyir.symbols import DataSymbol, DataType, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import create_schedule, get_invoke

@@ -41,8 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol, \
-    REAL_SINGLE_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.psyGen import KernelSchedule
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter

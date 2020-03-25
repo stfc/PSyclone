@@ -38,7 +38,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoMinTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
     Assignment, Literal

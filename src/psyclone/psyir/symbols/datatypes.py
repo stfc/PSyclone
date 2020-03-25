@@ -43,26 +43,42 @@ class DataType(object):
     '''Base class from which all types are derived.'''
 
     def copy(self):
-        '''Create a new instance of this type with the same properties as the
-        current instance.
+        '''
+        :returns: a new instance of this type with the same properties \
+            as the current instance.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
         return DataType()
+
+    def __str__(self):
+        '''
+        :returns: a description of this datatype.
+        :rtype: str
+
+        '''
+        return "DataType"
 
 
 class DeferredType(DataType):
     '''Indicates that the type is unknown at this point.'''
 
     def copy(self):
-        '''Create a new instance of this type with the same properties as the
-        current instance.
-
+        '''
+        :returns: a new instance of this type with the same properties \
+            as the current instance.
+        :rtype: :py:class:`psyclone.psyir.symbols.DeferredType`
         '''
         return DeferredType()
 
     def __str__(self):
-        ''' xxx '''
+        '''
+        :returns: a description of this deferred type.
+        :rtype: str
+
+        '''
         return "Deferred Type"
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
@@ -72,7 +88,8 @@ class ScalarType(DataType):
     :param precision: the precision of this scalar type.
     :type precision: :py:class:`psyclone.psyir.datatypes.ScalarType.Precision`
 
-    :raises TypeError: if the arguments are of the wrong type.
+    :raises TypeError: if any of the arguments are of the wrong type.
+    :raises ValueError: if any of the argument have unexpected values.
 
     '''
 
@@ -125,17 +142,18 @@ class ScalarType(DataType):
         self.precision = precision
 
     def __str__(self):
-        '''Construct a text representation of this scalar datatype.
-
-        :returns: description of this scalar datatype.
+        '''
+        :returns: a description of this scalar datatype.
         :rtype: str
 
         '''
         return ("{0}, {1}".format(self.name, self.precision))
 
     def copy(self):
-        '''Create a new instance of this type with the same properties as the
-        current instance.
+        '''
+        :returns: a new instance of this type with the same properties \
+            as the current instance.
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
         '''
         return ScalarType(self.name, self.precision)
@@ -146,8 +164,15 @@ class ArrayType(DataType):
 
     :param datatype: the datatype of the array elements.
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType`
-    :param shape: the shape of the array.
-    :type shape: list of int ...
+    :param list shape: shape of the symbol in column-major order (leftmost \
+        index is contiguous in memory). Each entry represents an array \
+        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that \
+        dimension is unknown but can be obtained by querying the run-time \
+        system (e.g. using the SIZE intrinsic in Fortran). If it is \
+        DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
+        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
+        Fortran). Otherwise it holds an integer literal or a reference to an \
+        integer symbol with the extent.
 
     :raises TypeError: if the arguments are of the wrong type.
 
@@ -159,6 +184,7 @@ class ArrayType(DataType):
         system it is an 'ATTRIBUTE'. When it may or may not be defined in the
         current scope (e.g. the array may need to be allocated/malloc'd) it
         is 'DEFERRED'.
+
         '''
         DEFERRED = 1
         ATTRIBUTE = 2
@@ -176,19 +202,18 @@ class ArrayType(DataType):
                 "list but found '{0}'."
                 "".format(type(shape).__name__))
 
-        # TBD
-        #for dimension in shape:
-        #    if isinstance(dimension, DataSymbol):
-        #        if dimension.datatype != DataType.INTEGER or dimension.shape:
-        #            raise TypeError(
-        #                "DataSymbols that are part of another symbol shape can"
-        #                " only be scalar integers, but found '{0}'."
-        #                "".format(str(dimension)))
-        #    elif not isinstance(dimension, (self.Extent, int)):
-        #        raise TypeError(
-        #            "DataSymbol shape list elements can only be "
-        #            "'DataSymbol', 'integer' or DataSymbol.Extent.")
-        #self._shape = shape
+        for dimension in shape:
+            if isinstance(dimension, DataSymbol):
+                if not (dimension.is_scalar and
+                        dimension.datatype.name == ScalarType.Name.INTEGER):
+                    raise TypeError(
+                        "DataSymbols that are part of another symbol shape can"
+                        " only be scalar integers, but found '{0}'."
+                        "".format(str(dimension)))
+            elif not isinstance(dimension, (self.Extent, int)):
+                raise TypeError(
+                    "DataSymbol shape list elements can only be "
+                    "'DataSymbol', 'integer' or DataSymbol.Extent.")
 
         self.shape = shape
         self.name = datatype.name
@@ -196,9 +221,8 @@ class ArrayType(DataType):
         self._datatype = datatype
 
     def __str__(self):
-        '''Construct a text representation of this array datatype.
-
-        :returns: description of this array datatype.
+        '''
+        :returns: a description of this array datatype.
         :rtype: str
 
         '''
@@ -218,12 +242,13 @@ class ArrayType(DataType):
                     "".format(type(dimension)))
         return ("{0}, {1}, shape=[{2}]".format(self.name, self.precision,
                                                ", ".join(dims)))
-
         return ArrayType(self.datatype, self.shape)
 
     def copy(self):
-        '''Create a new instance of this type with the same properties as the
-        current instance.
+        '''
+        :returns: a new instance of this type with the same properties \
+            as the current instance.
+        :rtype: :py:class:`psyclone.psyir.symbols.ArrayType`
 
         '''        
         return ArrayType(self._datatype.copy(), self.shape[:])
@@ -248,34 +273,8 @@ INTEGER4_TYPE = ScalarType(ScalarType.Name.INTEGER, 4)
 INTEGER8_TYPE = ScalarType(ScalarType.Name.INTEGER, 8)
 BOOLEAN_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
                           ScalarType.Precision.UNDEFINED)
-BOOLEAN_SINGLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
-                              ScalarType.Precision.SINGLE)
-BOOLEAN_DOUBLE_TYPE = ScalarType(ScalarType.Name.BOOLEAN,
-                              ScalarType.Precision.DOUBLE)
-BOOLEAN4_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 4)
-BOOLEAN8_TYPE = ScalarType(ScalarType.Name.BOOLEAN, 8)
 CHARACTER_TYPE = ScalarType(ScalarType.Name.CHARACTER,
                             ScalarType.Precision.UNDEFINED)
-CHARACTER1_TYPE = ScalarType(ScalarType.Name.CHARACTER, 1)
-
-#class StructureType(DataType):
-#    ''' xxx '''
-#
-#    def __init__(self, datatypes):
-#
-#        if not isinstance(datatypes, list):
-#            raise TypeError("XXX")
-#        for datatype in datatypes:
-#            if not isinstance(datatype, DataType):
-#                raise TypeError("XXX")
-#
-#        self._datatypes = datatypes
-
-
-#1 Sergi's implementation suggestion
-#integer_type = IntegerType(precision)
-#integer_one = Literal("1", integer_type)
-#integer_two = Literal("2", integer_type)
 
 # Mapping from PSyIR scalar data types to intrinsic Python types
 # ignoring precision.

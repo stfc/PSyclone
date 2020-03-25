@@ -43,7 +43,7 @@ it needs to be extended for generating pure C code.
 '''
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.symbols import DataType, ScalarType
+from psyclone.psyir.symbols import ScalarType
 
 
 # Mapping from PSyIR types to C data types

@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.nemo_operator_trans import \
         NemoOperatorTrans
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock
-from psyclone.psyir.symbols import DataType, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
 class NemoMinTrans(NemoOperatorTrans):

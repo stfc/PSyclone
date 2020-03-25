@@ -46,8 +46,8 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
-    ArrayType, Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
+    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 
@@ -927,7 +927,7 @@ class InvokeSchedule(Schedule):
                 DataSymbol(qlist,
                            ArrayType(INTEGER_TYPE,
                                      [ArrayType.Extent.ATTRIBUTE])),
-                           tag="opencl_cmd_queues")
+                tag="opencl_cmd_queues")
             first = self.symbol_table.new_symbol_name("first_time")
             self.symbol_table.add(
                 DataSymbol(first, BOOLEAN_TYPE), tag="first_time")

@@ -44,7 +44,7 @@ from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.errors import GenerationError
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType, \
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
 from psyclone.tests.utilities import Compile, get_invoke
 

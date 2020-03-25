@@ -52,21 +52,6 @@ class DataSymbol(Symbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param list shape: shape of the symbol in column-major order (leftmost \
-        index is contiguous in memory). Each entry represents an array \
-        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that \
-        dimension is unknown but can be obtained by querying the run-time \
-        system (e.g. using the SIZE intrinsic in Fortran). If it is \
-        DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
-        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it holds an integer literal or a reference to an \
-        integer symbol with the extent. If it is an empty list then the symbol\
-        represents a scalar.
-    :param interface: object describing the interface to this symbol (i.e. \
-        whether it is passed as a routine argument or accessed in some other \
-        way).
-    :type interface: \
-        :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
         symbol does not have a fixed constant. Otherwise it can receive \
@@ -74,14 +59,16 @@ class DataSymbol(Symbol):
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
+    :param interface: object describing the interface to this symbol (i.e. \
+        whether it is passed as a routine argument or accessed in some other \
+        way).
+    :type interface: \
+        :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
     :param precision: the amount of storage required by the datatype (bytes) \
             or a reference to a Symbol holding the type information \
             or a label identifying a default precision.
     :type precision: int or :py:class:`psyclone.psyir.symbol.DataSymbol` or \
                      :py:class:`psyclone.psyir.symbols.DataSymbol.Precision`
-
-    :raises TypeError: if the provided parameters have invalid type.
-    :raises ValueError: if the provided parameters contain invalid values.
 
     '''
     def __init__(self, name, datatype, constant_value=None, interface=None):
@@ -219,9 +206,8 @@ class DataSymbol(Symbol):
         :rtype: bool
 
         '''
-        # If the shape variable is an empty list then this symbol is a
-        # scalar.
-        return self.shape == []
+        from psyclone.psyir.symbols import ScalarType
+        return isinstance(self.datatype, ScalarType)
 
     @property
     def is_array(self):
@@ -230,11 +216,8 @@ class DataSymbol(Symbol):
         :rtype: bool
 
         '''
-        # The assumption in this method is that if this symbol is not
-        # a scalar then it is an array. If this assumption becomes
-        # invalid then this logic will need to be changed
-        # appropriately.
-        return not self.is_scalar
+        from psyclone.psyir.symbols import ArrayType
+        return isinstance(self.datatype, ArrayType)
 
     @property
     def constant_value(self):

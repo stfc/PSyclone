@@ -43,7 +43,7 @@ import os
 import pytest
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
-from psyclone.psyir.symbols import DataType, DataSymbol, REAL_SINGLE_TYPE, \
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError

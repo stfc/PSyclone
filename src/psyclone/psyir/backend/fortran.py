@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, DataType, ScalarType, ArrayType, SymbolTable
+    ContainerSymbol, ScalarType, ArrayType, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
@@ -152,11 +152,6 @@ def gen_datatype(symbol):
             "unsupported datatype '{0}' for symbol '{1}' found in "
             "gen_datatype().".format(symbol.datatype.name, symbol.name))
 
-    # All types now have precision (do we want to have an unspecified precision?)
-    #if not symbol.precision:
-    #    # This symbol has no precision information so simply return
-    #    # the name of the datatype.
-    #    return datatype
     precision = symbol.datatype.precision
 
     if isinstance(precision, int):

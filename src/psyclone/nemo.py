@@ -50,8 +50,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
-    INTEGER_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
 
 
 class NemoFparser2Reader(Fparser2Reader):

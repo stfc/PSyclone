@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
-from psyclone.psyir.symbols import DataSymbol, DataType, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter

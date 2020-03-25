@@ -44,7 +44,7 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
     Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyir.symbols import DataType, ScalarType
+from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
 # SIR does not seem to support the Character datatype. Boolean does

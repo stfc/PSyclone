@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
-# Mofified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' Tests the GlobalsToArgumentsTransformation for the GOcean 1.0 API.'''
 
@@ -41,8 +41,8 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DataType, DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE, CHARACTER_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
+    CHARACTER_TYPE
 from psyclone.transformations import KernelGlobalsToArguments, \
     TransformationError
 

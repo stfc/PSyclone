@@ -42,7 +42,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import DataType, ScalarType
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes import Node, Literal, CodeBlock
 
 

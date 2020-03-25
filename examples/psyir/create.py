@@ -52,8 +52,7 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     Container, Range, Array
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    ArgumentInterface, DataType, ArrayType, GlobalInterface, REAL_TYPE, \
-    INTEGER_TYPE
+    ArgumentInterface, ArrayType, GlobalInterface, REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 

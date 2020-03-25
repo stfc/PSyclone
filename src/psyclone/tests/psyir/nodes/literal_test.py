@@ -41,9 +41,9 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
+from psyclone.psyir.symbols import ScalarType, ArrayType, \
     REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, \
-    BOOLEAN_SINGLE_TYPE
+    BOOLEAN_TYPE
 
 
 def test_literal_init():
@@ -59,12 +59,12 @@ def test_literal_init():
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
     assert literal.datatype.shape == [10,10]
 
-    literal = Literal("true", BOOLEAN_SINGLE_TYPE)
+    literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
     assert literal.datatype.name == ScalarType.Name.BOOLEAN
     assert literal.datatype.precision == ScalarType.Precision.SINGLE
 
-    literal = Literal("false", BOOLEAN_SINGLE_TYPE)
+    literal = Literal("false", BOOLEAN_TYPE)
     assert literal.value == "false"
     assert literal.datatype.name == ScalarType.Name.BOOLEAN
     assert literal.datatype.precision == ScalarType.Precision.SINGLE
@@ -88,17 +88,17 @@ def test_literal_init_invalid():
 
     # Test invalid boolean value
     with pytest.raises(ValueError) as err:
-        Literal("invalid", BOOLEAN_SINGLE_TYPE)
+        Literal("invalid", BOOLEAN_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
             "but found 'invalid'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
-        Literal("TRUE", BOOLEAN_SINGLE_TYPE)
+        Literal("TRUE", BOOLEAN_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
             "but found 'TRUE'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
-        Literal("False", BOOLEAN_SINGLE_TYPE)
+        Literal("False", BOOLEAN_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
         "but found 'False'." in str(err.value))
 

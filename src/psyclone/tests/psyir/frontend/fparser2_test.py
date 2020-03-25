@@ -49,8 +49,8 @@ from psyclone.psyir.nodes import Node, Schedule, \
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError, DataType, ScalarType, ArrayType, \
-    INTEGER_TYPE, REAL_TYPE
+    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
+    REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args
@@ -1062,7 +1062,7 @@ def test_process_declarations_stmt_functions():
     assert array.name == "b"
 
     # Test that if symbol is not an array, it raises GenerationError
-    fake_parent.symbol_table.lookup('b').datatype.shape = []
+    fake_parent.symbol_table.lookup('b').datatype = INTEGER_TYPE
     with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process '" in str(error.value)

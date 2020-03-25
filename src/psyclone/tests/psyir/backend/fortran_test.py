@@ -47,9 +47,9 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     BinaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType, \
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, \
-    BOOLEAN_TYPE, DeferredType
+    GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
+    ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
+    DeferredType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile

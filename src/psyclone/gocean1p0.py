@@ -56,8 +56,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, DataType, ScalarType, \
-    ArrayType, INTEGER_TYPE, DataSymbol, Symbol
+from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
+    INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 

@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Literal, Reference
-from psyclone.psyir.symbols import DataType, DataSymbol, INTEGER_SINGLE_TYPE, \
+from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
     REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
