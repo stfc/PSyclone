@@ -58,18 +58,18 @@ class NemoFparser2Reader(Fparser2Reader):
     Specialisation of Fparser2Reader for the Nemo API.
     '''
     @staticmethod
-    def _create_schedule(name, invoke):
+    def _create_schedule(_, invoke):
         '''
-        Create an empty KernelSchedule.
+        Create an empty KernelSchedule. The first argument would be 'name'
+        but this isn't used in the NEMO API.
 
-        :param str name: name of the subroutine represented by the kernel.
         :param invoke: the Invoke object to which this Schedule belongs.
         :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
 
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
         '''
-        return NemoInvokeSchedule(name, invoke=invoke)
+        return NemoInvokeSchedule(invoke=invoke)
 
     def _create_loop(self, parent, variable_name):
         '''
@@ -313,14 +313,14 @@ class NemoInvokeSchedule(InvokeSchedule):
 
     :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
-    :param ast: the fparser2 AST of the NEMO code for which to generate \
-                a NemoInvokeSchedule.
+    :param ast: the fparser2 parse tree of the NEMO code for which to \
+                generate a NemoInvokeSchedule.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-    def __init__(self, name, invoke=None, ast=None):
+    def __init__(self, invoke=None, ast=None):
         super(NemoInvokeSchedule, self).__init__(None, None)
 
         self._invoke = invoke
@@ -330,16 +330,6 @@ class NemoInvokeSchedule(InvokeSchedule):
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
-
-        #self.process_nodes(self, ast.content)
-        # A better implementation of the Nemo API symbol table is looked
-        # at in PR #596, currently we just define a symbol table and the
-        # variables that Nemo needs for the implicit loops.
-        #self._symbol_table = SymbolTable()
-        #self._symbol_table.add(DataSymbol("jpi", DataType.INTEGER))
-        #self._symbol_table.add(DataSymbol("jpj", DataType.INTEGER))
-        #self._symbol_table.add(DataSymbol("jpk", DataType.INTEGER))
-
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 
