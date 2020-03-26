@@ -52,33 +52,41 @@ from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     Container, Range, Array
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    ArgumentInterface, ArrayType, GlobalInterface, REAL_TYPE, INTEGER_TYPE
+    ArgumentInterface, ScalarType, ArrayType, GlobalInterface, REAL_TYPE, \
+    REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, INTEGER_SINGLE_TYPE, \
+    INTEGER4_TYPE, INTEGER8_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
-# Symbol table and symbols
+# Symbol table, symbols and scalar datatypes
 SYMBOL_TABLE = SymbolTable()
 TMP_NAME1 = SYMBOL_TABLE.new_symbol_name()
 ARG1 = DataSymbol(TMP_NAME1, REAL_TYPE, interface=ArgumentInterface(
     ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(ARG1)
 TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
-TMP_SYMBOL = DataSymbol(TMP_NAME2, REAL_TYPE)
+TMP_SYMBOL = DataSymbol(TMP_NAME2, REAL_DOUBLE_TYPE)
 SYMBOL_TABLE.add(TMP_SYMBOL)
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, INTEGER_TYPE))
+SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, INTEGER4_TYPE))
 SYMBOL_TABLE.specify_argument_list([ARG1])
+REAL_KIND_NAME = SYMBOL_TABLE.new_symbol_name(root_name="RKIND")
+REAL_KIND = DataSymbol(REAL_KIND_NAME, INTEGER_TYPE, constant_value=8)
+SYMBOL_TABLE.add(REAL_KIND)
 
-# Create an array
+# Array using precision defined by another symbol
 ARRAY_NAME = SYMBOL_TABLE.new_symbol_name(root_name="a")
-ARRAY = DataSymbol(ARRAY_NAME, ArrayType(REAL_TYPE, [10]))
+SCALAR_TYPE = ScalarType(ScalarType.Name.REAL, REAL_KIND)
+ARRAY = DataSymbol(ARRAY_NAME, ArrayType(SCALAR_TYPE, [10]))
 SYMBOL_TABLE.add(ARRAY)
 
-# Nodes which do not have Nodes as children
+# Nodes which do not have Nodes as children and (some) predefined
+# scalar datatypes
 ZERO = Literal("0.0", REAL_TYPE)
-ONE = Literal("1.0", REAL_TYPE)
-INT_ZERO = Literal("0", INTEGER_TYPE)
-INT_ONE = Literal("1", INTEGER_TYPE)
+ONE = Literal("1.0", REAL4_TYPE)
+TWO = Literal("2.0", SCALAR_TYPE)
+INT_ZERO = Literal("0", INTEGER_SINGLE_TYPE)
+INT_ONE = Literal("1", INTEGER8_TYPE)
 TMP1 = Reference(ARG1)
 TMP2 = Reference(TMP_SYMBOL)
 
@@ -110,7 +118,7 @@ ASSIGN2 = Assignment.create(TMP2, ZERO)
 ASSIGN3 = Assignment.create(TMP2, BINARYOPERATION)
 ASSIGN4 = Assignment.create(TMP1, TMP2)
 ASSIGN5 = Assignment.create(TMP1, NARYOPERATION)
-ASSIGN6 = Assignment.create(TMPARRAY, ZERO)
+ASSIGN6 = Assignment.create(TMPARRAY, TWO)
 
 # If statement
 IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
