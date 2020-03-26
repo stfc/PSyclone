@@ -46,10 +46,10 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, Array, Node, Range
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import Directive, KernelSchedule
+from psyclone.psyGen import Directive, KernelSchedule, InvokeSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType
+    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, DataType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -554,10 +554,10 @@ class Fparser2Reader(object):
     @staticmethod
     def _create_schedule(name, _):
         '''
-        Create an empty KernelSchedule.
+        Create an empty KernelSchedule. Second argument is for consistency with
+        the NEMO API where an Invoke object is passed in.
 
         :param str name: Name of the subroutine represented by the kernel.
-        :param invoke: TODO
 
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
@@ -596,7 +596,7 @@ class Fparser2Reader(object):
         # Parse the declarations if it has any
         spec_part = walk(module, Fortran2003.Specification_Part)
         if spec_part:
-            decl_list = spec_part[0].content
+            decl_list = spec_part[0].children
             self.process_declarations(new_container, decl_list, [])
 
         return new_container
@@ -695,8 +695,8 @@ class Fparser2Reader(object):
             # Dummy_Arg_List, even if there's only one of them.
             from fparser.two.Fortran2003 import Dummy_Arg_List
             if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
-                arg_list = subroutine.content[0].items[2].items
+               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
+                arg_list = subroutine.children[0].children[2].children
             else:
                 # Routine has no arguments
                 arg_list = []
@@ -1938,6 +1938,11 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
+        # Since we don't have support for searching a hierarchy of symbol
+        # tables (#630), for now we simply add new symbols to the highest-level
+        # symbol table.
+        symbol_table = parent.root.symbol_table
+
         # Create a set of all of the symbol names in the fparser2 parse
         # tree so that we can find any clashes. We go as far back up the tree
         # as we can before searching for all instances of Fortran2003.Name.
@@ -1945,24 +1950,26 @@ class Fparser2Reader(object):
         # may be CodeBlocks that access symbols that are e.g. imported from
         # modules without being explicitly named.
         name_list = walk(node.get_root(), Fortran2003.Name)
-        all_names = {str(name) for name in name_list}
-
-        # To ensure consistency we always add new symbols to the highest-level
-        # symbol table.
-        symbol_table = parent.root.symbol_table
+        for name_obj in name_list:
+            name = str(name_obj)
+            if name not in symbol_table:
+                # TODO #630 some of these symbols will be put in the wrong
+                # symbol table. We need support for creating a unique symbol
+                # within a hierarchy of symbol tables. However, until we are
+                # generating code from the PSyIR Fortran backend
+                # (#435) this doesn't matter.
+                symbol_table.add(Symbol(name))
 
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            loop_var = symbol_table.new_symbol_name(
+            # TODO #630 this creation of a new symbol really needs to account
+            # for all of the symbols in the hierarchy of symbol tables. Since
+            # we don't yet have that functionality we just add everything to
+            # the top-level symbol table.
+            loop_vars[idx-1] = symbol_table.new_symbol_name(
                 "widx{0}".format(idx))
-            # Ensure there's no clash with the list of names we obtained
-            # from the parse tree.
-            count = 0
-            while loop_var in all_names:
-                loop_var += "_{0}".format(count)
-            loop_vars[idx-1] = loop_var
 
             symbol_table.add(DataSymbol(loop_vars[idx-1], DataType.INTEGER))
 

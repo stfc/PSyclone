@@ -175,11 +175,12 @@ def test_array_notation_rank():
 
 @pytest.mark.usefixtures("disable_declaration_check")
 def test_where_symbol_clash(parser):
-    ''' Check that we raise the expected error if the code we are processing
+    ''' Check that we handle the case where the code we are processing
     already contains a symbol with the same name as one of the loop variables
     we want to introduce.
+
     '''
-    from psyclone.psyir.symbols import DataSymbol, DataType
+    from psyclone.psyir.symbols import Symbol, DataSymbol, DataType
     reader = FortranStringReader("SUBROUTINE widx_array()\n"
                                  "LOGICAL :: widx1(3,3,3)\n"
                                  "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
@@ -215,14 +216,13 @@ def test_where_symbol_clash(parser):
     fparser2spec = parser(reader)
     processor = Fparser2Reader()
     sched = processor.generate_schedule("widx1", fparser2spec)
-    # Get the container symbol table
-    sym_table = sched.parent.symbol_table
-    # The reference to widx1_0 is in a code block and therefore should not
-    # be in the symbol table.
-    with pytest.raises(KeyError) as err:
-        sym_table.lookup("widx1_0")
-    assert "not find 'widx1_0' in the Symbol Table" in str(err.value)
-    loop_var = sym_table.lookup("widx1_0_0")
+    # Get the symbol table
+    sym_table = sched.root.symbol_table
+    # The symbol from the codeblock (the write statement) should be in
+    # the SymbolTable
+    cblock_var = sym_table.lookup("widx1_0")
+    assert isinstance(cblock_var, Symbol)
+    loop_var = sym_table.lookup("widx1_1")
     assert loop_var.datatype is DataType.INTEGER
     loop_var = sym_table.lookup("widx2")
     assert loop_var.datatype is DataType.INTEGER
