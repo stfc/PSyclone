@@ -62,6 +62,8 @@ from __future__ import print_function
 import logging
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
+from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, Array, \
+    Assignment, BinaryOperation, NaryOperation, Loop, Literal
 
 # Which version of the PGI compiler we are targetting (different versions
 # have different bugs we have to workaround).
@@ -204,13 +206,11 @@ def valid_acc_kernel(node):
 
     '''
     from psyclone.nemo import NemoKern, NemoLoop, NemoImplicitLoop
-    from psyclone.psyGen import IfBlock, CodeBlock, Schedule, Array, \
-        Assignment, BinaryOperation, NaryOperation, Loop, Literal
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     from fparser.two import Fortran2003
 
     # The Fortran routine which our parent Invoke represents
-    routine_name = node.root.invoke.name
+    routine_name = node.root.name
 
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
@@ -312,12 +312,12 @@ def valid_acc_kernel(node):
             # Check for derived types. Should not have to do this as
             # derived-types should end up in CodeBlocks
             # but this does not happen for implicit loops.
-            if walk_ast([node.ast], [Fortran2003.Data_Ref]):
+            if walk([node.ast], [Fortran2003.Data_Ref]):
                 log_msg(routine_name, "Contains derived type", node)
                 return False
             # Check for Function calls. Again, we should not have to do this
             # but currently Implicit Loops are leaves in the PSyIR.
-            refs = walk_ast([node.ast], [Fortran2003.Part_Ref])
+            refs = walk([node.ast], [Fortran2003.Part_Ref])
             for ref in refs:
                 array_name = str(ref.items[0])
                 if array_name in NEMO_FUNCTIONS:
@@ -403,9 +403,9 @@ def contains_unsupported_sum(fpnode):
     :rtype: bool
 
     '''
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     from fparser.two import Fortran2003
-    intrinsics = walk_ast([fpnode], [Fortran2003.Intrinsic_Function_Reference])
+    intrinsics = walk([fpnode], [Fortran2003.Intrinsic_Function_Reference])
     for intrinsic in intrinsics:
         if str(intrinsic.items[0]).lower() == "sum":
             # If there's only one argument then we'll just have a Name
@@ -414,8 +414,8 @@ def contains_unsupported_sum(fpnode):
             if isinstance(intrinsic.items[1],
                           Fortran2003.Actual_Arg_Spec_List):
                 # items[1] contains the Actual_Arg_Spec_List
-                actual_args = walk_ast(intrinsic.items[1].items,
-                                       [Fortran2003.Actual_Arg_Spec])
+                actual_args = walk(intrinsic.items[1].items,
+                                   [Fortran2003.Actual_Arg_Spec])
                 for arg in actual_args:
                     if str(arg.items[0]).lower() == "dim":
                         return True
@@ -436,9 +436,9 @@ def contains_reshape(fpnode):
     :returns: True if the code fragment contains a RESHAPE call.
     :rtype: bool
     '''
-    from fparser.two.utils import walk_ast
+    from fparser.two.utils import walk
     from fparser.two import Fortran2003
-    intrinsics = walk_ast([fpnode], [Fortran2003.Intrinsic_Function_Reference])
+    intrinsics = walk([fpnode], [Fortran2003.Intrinsic_Function_Reference])
     for intrinsic in intrinsics:
         if str(intrinsic.items[0]).lower() == "reshape":
             return True
@@ -476,7 +476,6 @@ def add_kernels(children):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import IfBlock, Loop
     from psyclone.nemo import NemoImplicitLoop
     added_kernels = False
     if not children:
@@ -525,7 +524,7 @@ def add_profiling(children):
     :type childre: list of :py:class:`psyclone.psyGen.Node`
 
     '''
-    from psyclone.psyGen import IfBlock, ACCDirective, Assignment
+    from psyclone.psyGen import ACCDirective
 
     if not children:
         return
@@ -564,10 +563,9 @@ def add_profile_region(nodes):
     :type nodes: list of :py:class:`psyclone.psyGen.Node`
 
     '''
-    from psyclone.psyGen import CodeBlock, IfBlock
     if nodes and _AUTO_PROFILE:
         # Check whether we should be adding profiling inside this routine
-        routine_name = nodes[0].root.invoke.name.lower()
+        routine_name = nodes[0].root.name.lower()
         if any([ignore in routine_name for ignore in PROFILING_IGNORE]):
             return
         if len(nodes) == 1:
@@ -608,7 +606,7 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import InternalError, Loop, IfBlock, ACCLoopDirective
+    from psyclone.psyGen import InternalError, ACCLoopDirective
     from psyclone.nemo import NemoImplicitLoop
 
     # We only enclose the proposed region if it contains a loop.
