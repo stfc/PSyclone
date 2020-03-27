@@ -72,7 +72,8 @@ class Schedule(Node):
 
         '''
         # pylint: disable=unused-argument
-        return True # isinstance(child, Statement)
+        # return isinstance(child, Statement)
+        return isinstance(child, Node) # Temporal solution for some unit-tests
 
     @property
     def dag_name(self):

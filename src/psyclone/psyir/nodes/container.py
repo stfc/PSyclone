@@ -117,19 +117,13 @@ class Container(Node):
                 "children argument in create method of Container class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, (KernelSchedule, Container)):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "Container class should be a PSyIR KernelSchedule or "
-                    "Container but found '{0}'.".format(type(child).__name__))
 
         container = Container(name)
         container._symbol_table = symbol_table
         symbol_table._schedule = container
+        container.children = children
         for child in children:
             child.parent = container
-        container.children = children
         return container
 
     @property

@@ -163,36 +163,25 @@ class IfBlock(Statement):
             are not of the expected type.
 
         '''
-        from psyclone.psyir.nodes import Schedule
-        if not isinstance(if_condition, Node):
-            raise GenerationError(
-                "if_condition argument in create method of IfBlock class "
-                "should be a PSyIR Node but found '{0}'."
-                "".format(type(if_condition).__name__))
-        if not (isinstance(if_body, list) and all(isinstance(child, Node)
-                                                  for child in if_body)):
+        if not isinstance(if_body, list):
             raise GenerationError(
                 "if_body argument in create method of IfBlock class should be "
-                "a list of PSyIR Nodes but it is either not a list or "
-                "one of the list's children is not a Node.")
-        if else_body is not None and \
-           not (isinstance(if_body, list) and
-                all(isinstance(child, Node) for child in else_body)):
+                "a list.")
+        if else_body is not None and not isinstance(else_body, list):
             raise GenerationError(
                 "else_body argument in create method of IfBlock class should "
-                "be a list of PSyIR Nodes but it is either not a list or "
-                "one of the list's children is not a Node.")
+                "be a list.")
 
         if_stmt = IfBlock()
         if_schedule = Schedule(parent=if_stmt)
+        if_schedule.children = if_body
         for node in if_body:
             node.parent = if_schedule
-        if_schedule.children = if_body
         if else_body is not None:
             else_schedule = Schedule(parent=if_stmt)
+            else_schedule.children = else_body
             for node in else_body:
                 node.parent = else_schedule
-            else_schedule.children = else_body
             if_stmt.children = [if_condition, if_schedule, else_schedule]
         else:
             if_stmt.children = [if_condition, if_schedule]

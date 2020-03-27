@@ -201,9 +201,9 @@ def test_ifblock_create_invalid():
 
     # if_condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = IfBlock.create("True", "invalid")
-    assert ("if_condition argument in create method of IfBlock class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+        _ = IfBlock.create("True", if_body)
+    assert ("Item 'str' can't be child 0 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'.") in str(excinfo.value)
 
     # One or more if body not a Node.
     if_body_err = [Assignment.create(Reference(DataSymbol("tmp",
@@ -212,16 +212,14 @@ def test_ifblock_create_invalid():
                    "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body_err)
-    assert ("if_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
+            "'*[Statements]'.") in str(excinfo.value)
 
     # If body not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, "invalid")
     assert ("if_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+            "list.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
     else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
@@ -230,13 +228,49 @@ def test_ifblock_create_invalid():
                      "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, else_body_err)
-    assert ("else_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
+            "'*[Statements]'.") in str(excinfo.value)
 
     # Else body not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, "invalid")
     assert ("else_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+            "list.") in str(excinfo.value)
+
+
+def test_ifblock_children_validation():
+    '''Test that children added to IfBlock are validated. IfBlock accepts
+    DataNodes for the children 0 to 2 and a Shcedule for child 3.
+
+    '''
+    ifblock = IfBlock()
+    if_condition = Literal('true', DataType.BOOLEAN)
+    if_body = Schedule()
+    else_body = Schedule()
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(if_body)
+    assert ("Item 'Schedule' can't be child 0 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+    ifblock.addchild(if_condition)
+
+    # Second child
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(if_condition)
+    assert ("Item 'Literal' can't be child 1 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+    ifblock.addchild(if_body)
+
+    # Third child
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(if_condition)
+    assert ("Item 'Literal' can't be child 2 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+    ifblock.addchild(else_body)
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(else_body)
+    assert ("Item 'Schedule' can't be child 3 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))

@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Return
 from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
 from psyclone.psyGen import KernelSchedule
 from psyclone.errors import GenerationError
@@ -149,7 +149,23 @@ def test_container_create_invalid():
     # contents of children list are not Container or KernelSchedule.
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
-    assert (
-        "child of children argument in create method of Container class "
-        "should be a PSyIR KernelSchedule or Container but found 'str'."
-        in str(excinfo.value))
+    assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
+            " '*[Container | KernelSchedule]'." in str(excinfo.value))
+
+def test_container_children_validation():
+    '''Test that children added to Container are validated. Container
+    accepts just Container and kernelSchedule as children.
+
+    '''
+    container = Container.create("container", SymbolTable(), [])
+
+    # Valid children
+    container2 = Container.create("container2", SymbolTable(), [])
+    container.addchild(container2)
+
+    # Invalid children (e.g. Return Statement)
+    ret = Return()
+    with pytest.raises(GenerationError) as excinfo:
+        container.addchild(ret)
+    assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
+            " is: '*[Container | KernelSchedule]'." in str(excinfo.value))
