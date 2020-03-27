@@ -36,7 +36,9 @@
 
 ''' This module contains the datatype definitions.'''
 
+from __future__ import absolute_import
 from enum import Enum
+from psyclone.errors import InternalError
 
 
 class DataType(object):
@@ -77,7 +79,7 @@ class DeferredType(DataType):
         :rtype: str
 
         '''
-        return "Deferred Type"
+        return "DeferredType"
 
 
 class ScalarType(DataType):
@@ -132,7 +134,7 @@ class ScalarType(DataType):
         if (isinstance(precision, DataSymbol) and
                 not (isinstance(precision.datatype, ScalarType) and
                      precision.datatype.name == ScalarType.Name.INTEGER) and
-                not (isinstance(precision.datatype, DeferredType))):
+                not isinstance(precision.datatype, DeferredType)):
             raise ValueError(
                 "A DataSymbol representing the precision of another "
                 "DataSymbol must be of either 'deferred' or scalar, "
@@ -147,7 +149,7 @@ class ScalarType(DataType):
         :rtype: str
 
         '''
-        return ("{0}, {1}".format(self.name, self.precision))
+        return "{0}, {1}".format(self.name, self.precision)
 
     def copy(self):
         '''
@@ -214,7 +216,8 @@ class ArrayType(DataType):
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'integer' or DataSymbol.Extent.")
+                    "'DataSymbol', 'integer' or ArrayType.Extent, but "
+                    "found '{0}'.".format(type(dimension).__name__))
 
         self.shape = shape
         self.name = datatype.name
@@ -225,6 +228,9 @@ class ArrayType(DataType):
         '''
         :returns: a description of this array datatype.
         :rtype: str
+
+        :raises InternalError: if an unsupported dimensions type is \
+            found.
 
         '''
         from psyclone.psyir.symbols import DataSymbol
@@ -238,12 +244,11 @@ class ArrayType(DataType):
                 dims.append("'{0}'".format(dimension.name))
             else:
                 raise InternalError(
-                    "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'integer' or 'None', but found '{0}'."
-                    "".format(type(dimension)))
+                    "ArrayType shape list elements can only be 'DataSymbol', "
+                    "'int' or 'ArrayType.Extent', but found '{0}'."
+                    "".format(type(dimension).__name__))
         return ("{0}, {1}, shape=[{2}]".format(self.name, self.precision,
                                                ", ".join(dims)))
-        return ArrayType(self.datatype, self.shape)
 
     def copy(self):
         '''
