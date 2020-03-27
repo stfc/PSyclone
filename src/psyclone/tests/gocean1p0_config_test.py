@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.configuration import Config, ConfigurationError
+from psyclone.configuration import Config, ConfigurationError, GOceanConfig
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
 from psyclone.errors import InternalError
@@ -259,15 +259,15 @@ def test_properties():
     assert all_props["go_grid_area_t"].type == "array"
 
     with pytest.raises(InternalError) as error:
-        new_prop = api_config.make_property("my_fortran", "my_type")
+        new_prop = GOceanConfig.make_property("my_fortran", "my_type")
     assert "Type must be 'array' or 'scalar' but is 'my_type'" \
         in str(error.value)
 
-    new_prop = api_config.make_property("my_fortran", "array")
+    new_prop = GOceanConfig.make_property("my_fortran", "array")
     assert new_prop.fortran == "my_fortran"
     assert new_prop.type == "array"
 
-    new_prop = api_config.make_property("my_fortran", "scalar")
+    new_prop = GOceanConfig.make_property("my_fortran", "scalar")
     assert new_prop.fortran == "my_fortran"
     assert new_prop.type == "scalar"
 

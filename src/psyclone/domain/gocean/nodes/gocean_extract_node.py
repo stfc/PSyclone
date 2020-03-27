@@ -42,7 +42,7 @@ output files.
 
 
 from __future__ import absolute_import, print_function
-from psyclone.configuration import Config
+from psyclone.configuration import Config, GOceanConfig
 from psyclone.psyir.nodes import ExtractNode
 
 
@@ -208,14 +208,14 @@ class GOceanExtractNode(ExtractNode):
 
             if is_input and not is_output:
                 # We only need the pre-variable, and we can read
-                # it from the file (which also allocate space for it)
+                # it from the file (this call also allocates space for it).
                 call = CallGen(prog,
                                "{0}%ReadVariable(\"{1}\", {2})"
                                .format(psy_data, var_name, local_name))
                 prog.add(call)
             elif is_input:
                 # Now must be input and output:
-                # First read the pre-variable (which is also allocated):
+                # First read the pre-variable (which also allocates it):
                 call = CallGen(prog,
                                "{0}%ReadVariable(\"{1}\", {2})"
                                .format(psy_data, var_name, local_name))
@@ -290,13 +290,15 @@ class GOceanExtractNode(ExtractNode):
                 # local variable name
                 local_name = prop.fortran[last_percent+1:]
                 unique_name = rename_variable.get(local_name, local_name)
-                all_props[name] = api_config.make_property(unique_name,
-                                                           prop.type)
+                all_props[name] = GOceanConfig.make_property(unique_name,
+                                                             prop.type)
 
-        # 2) grid_data is "{0}%data" --> this just becomes {0}
-        #    (a_fld%data in the original program becomes just a_fld,
-        #    and a_fld is declared to be a plain Fortran 2d-array)
-        all_props["go_grid_data"] = api_config.make_property("{0}", "array")
+        # 2) The property 'grid_data' is a reference to the data on the
+        #    grid (i.e. the actual field) , and it is defined as "{0}%data".
+        #    This just becomes {0} ('a_fld%data' in the original program
+        #    becomes just 'a_fld', and 'a_fld' is declared to be a plain
+        #    Fortran 2d-array)
+        all_props["go_grid_data"] = GOceanConfig.make_property("{0}", "array")
 
         # Each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new

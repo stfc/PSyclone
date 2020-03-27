@@ -1589,6 +1589,9 @@ class GOKernelGridArgument(Argument):
         getting the proper dereference string, which is a format string
         where {0} represents the field name.
 
+        :param str fld_name: The name of the field which is used to \
+            dereference a grid property.
+
         :returns: the dereference string required to access a grid property
             in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
             must contains a "{0}" which is replaced by the field name.
