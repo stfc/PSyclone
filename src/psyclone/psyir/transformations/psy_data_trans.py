@@ -37,6 +37,7 @@
 '''
 
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -140,7 +141,8 @@ class PSyDataTrans(RegionTrans):
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
-        invoke = node_list[0].root.invoke
+        sched = node_list[0].ancestor(InvokeSchedule)
+        invoke = sched.invoke
         if not isinstance(invoke, NemoInvoke):
             return
 
