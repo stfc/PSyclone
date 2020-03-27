@@ -3706,13 +3706,11 @@ class NemoExplicitLoopTrans(Transformation):
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = symbol_table.name_from_tag(base_name)
+        loop_var = symbol_table.new_symbol_name(base_name)
+        symbol_table.add(DataSymbol(loop_var, DataType.INTEGER))
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
-
-        if loop_var not in symbol_table:
-            symbol_table.add(DataSymbol(loop_var, DataType.INTEGER))
 
         # TODO remove this as part of #435 (since we will no longer have to
         # insert declarations into the fparser2 parse tree).
