@@ -95,7 +95,8 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "solfrac", "One_on_L",
+NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
+                      "sbc_dcy", "solfrac", "One_on_L",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
                       "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
@@ -149,16 +150,19 @@ EXCLUDING = {"default": ExcludeSettings(),
              "ice_alb": ExcludeSettings({"ifs_scalars": False,
                                          "ifs_real_scalars": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
+             "sbc_isf_div": ExcludeSettings(),
              "tab_3d_2d": ExcludeSettings({"force_parallel": True}),
              "tab_2d_3d": ExcludeSettings({"force_parallel": True}),
              "tab_2d_1d": ExcludeSettings({"force_parallel": True}),
              "tab_1d_2d": ExcludeSettings({"force_parallel": True}),
              "ultimate_x": ExcludeSettings({"force_parallel": True}),
              "ultimate_y": ExcludeSettings({"force_parallel": True}),
-             "ice_dyn_rhg_evp": ExcludeSettings({"force_parallel": True}),
+             "ice_dyn_rhg_evp": ExcludeSettings({"ifs_scalars": False,
+                                                 "force_parallel": True}),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
+             "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False,
                                              "inside_kernels": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
@@ -305,6 +309,23 @@ def valid_acc_kernel(node):
                     log_msg(routine_name,
                             "Implicit loop contains RESHAPE call", enode)
                     return False
+            # Check for derived types. Should not have to do this as
+            # derived-types should end up in CodeBlocks
+            # but this does not happen for implicit loops.
+            if walk_ast([node.ast], [Fortran2003.Data_Ref]):
+                log_msg(routine_name, "Contains derived type", node)
+                return False
+            # Check for Function calls. Again, we should not have to do this
+            # but currently Implicit Loops are leaves in the PSyIR.
+            refs = walk_ast([node.ast], [Fortran2003.Part_Ref])
+            for ref in refs:
+                array_name = str(ref.items[0])
+                if array_name in NEMO_FUNCTIONS:
+                    log_msg(routine_name,
+                            "Implicit loop contains call to function '{0}'".
+                            format(array_name), node)
+                    return False
+
         elif isinstance(enode, NemoLoop) and \
              not isinstance(enode, NemoImplicitLoop):
             # Heuristic:
@@ -343,15 +364,6 @@ def valid_acc_kernel(node):
        "was_single_stmt" in node.parent.parent.annotations:
         log_msg(routine_name, "Would split single-line If statement", node)
         return False
-    # Check that there are no derived-type references in the sub-tree.
-    # We exclude NemoKern nodes from this check as calling .ast on
-    # them causes problems.
-    # Should not have to do this as derived-types should end up in CodeBlocks
-    # but this does not happen for implicit loops.
-    if not isinstance(node, NemoKern):
-        if walk_ast([node.ast], [Fortran2003.Data_Ref]):
-            log_msg(routine_name, "Contains derived type", node)
-            return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
@@ -596,7 +608,8 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import InternalError, Loop, IfBlock
+    from psyclone.psyGen import InternalError, Loop, IfBlock, ACCLoopDirective
+    from psyclone.nemo import NemoImplicitLoop
 
     # We only enclose the proposed region if it contains a loop.
     for node in nodes:
@@ -622,12 +635,27 @@ def try_kernels_trans(nodes):
             ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
         # Force the compiler to parallelise the loops within this kernels
-        # region if required.
-        if excluding.force_parallel:
-            for node in nodes:
-                loops = node.walk(Loop)
-                if loops:
-                    ACC_LOOP_TRANS.apply(loops[0], {"independent": True})
+        # region if required. We also put COLLAPSE on any tightly-nested
+        # loops over latitude and longitude.
+        for node in nodes:
+            loops = node.walk(Loop)
+            for loop in loops:
+                if loop.ancestor(ACCLoopDirective):
+                    # We've already transformed a parent Loop so skip
+                    # this one.
+                    continue
+                loop_options = {}
+                if excluding.force_parallel:
+                    loop_options["independent"] = True
+                # We put a COLLAPSE(2) clause on any perfectly-nested lon-lat
+                # loops.
+                if loop.loop_type == "lat" and \
+                   isinstance(loop.loop_body[0], Loop) and \
+                   loop.loop_body[0].loop_type == "lon" and \
+                   len(loop.loop_body.children) == 1:
+                    loop_options["collapse"] = 2
+                if loop_options and not isinstance(loop, NemoImplicitLoop):
+                    ACC_LOOP_TRANS.apply(loop, loop_options)
 
         return True
     except (TransformationError, InternalError) as err:
