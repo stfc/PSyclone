@@ -102,7 +102,7 @@ def test_assignment_create():
     assert result == "tmp=0.0\n"
 
 
-def test_assignment_child_validation():
+def test_assignment_children_validation():
     '''Test that children added to assignment are validated. Assignment
     accepts just 2 children and both are DataNodes.
 

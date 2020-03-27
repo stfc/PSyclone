@@ -41,6 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import CodeBlock
+from psyclone.errors import GenerationError
 
 
 def test_codeblock_node_str():
@@ -86,3 +87,15 @@ def test_codeblock_structure(structure):
     '''
     cblock = CodeBlock([], structure)
     assert cblock.structure == structure
+
+
+def test_assignment_children_validation():
+    '''Test that children added to CodeBlock are validated. CodeBlock does
+    not accept any children.
+
+    '''
+    cblock = CodeBlock([], "dummy")
+    with pytest.raises(GenerationError) as excinfo:
+        cblock.addchild(CodeBlock([], "dummy2"))
+    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. CodeBlock is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)

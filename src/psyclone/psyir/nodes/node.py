@@ -129,11 +129,18 @@ class ChildrenList(list):
             children for this list.
         '''
         if not self._validation_function(index, item):
-            raise GenerationError(
-                "Item '{0}' can't be child {1} of '{2}'. The valid format is: "
-                "'{3}'.".format(item.__class__.__name__, index,
-                                self._node_reference.coloured_name(False),
-                                self._validation_text))
+            errmsg = "Item '{0}' can't be child {1} of '{2}'.".format(
+                item.__class__.__name__, index,
+                self._node_reference.coloured_name(False))
+            if self._validation_text == "<LeafNode>":
+                errmsg = errmsg + " {0} is a LeafNode and doesn't accept " \
+                    "children.".format(
+                        self._node_reference.coloured_name(False))
+            else:
+                errmsg = errmsg + " The valid format is: '{0}'.".format(
+                    self._validation_text)
+
+            raise GenerationError(errmsg)
 
     def append(self, item):
         self._validate_item(len(self), item)
