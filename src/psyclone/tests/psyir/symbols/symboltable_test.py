@@ -139,11 +139,9 @@ def test_add():
 
     # Test that an exception is raised if a non-symbol is added
     with pytest.raises(InternalError) as error:
-        sym_table.add("string-not-synmbol")
-    assert "Symbol 'string-not-synmbol' is not a symbol, but" in \
+        sym_table.add("string-not-symbol")
+    assert "Symbol 'string-not-symbol' is not a symbol, but 'str'" in \
         str(error.value)
-    # Python2/3 give slightly different messages: type str vs class str
-    assert "'str'>'" in str(error.value)
 
 
 def test_add_with_tags():
