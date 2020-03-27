@@ -122,21 +122,11 @@ class Assignment(Statement):
         :returns: an Assignment instance.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
-
         '''
-        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of Assignment class "
-                    "should be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
-
         new_assignment = Assignment()
+        new_assignment.children = [lhs, rhs]
         lhs.parent = new_assignment
         rhs.parent = new_assignment
-        new_assignment.children = [lhs, rhs]
         return new_assignment
 
     def __str__(self):

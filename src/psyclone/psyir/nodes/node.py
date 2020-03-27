@@ -125,11 +125,11 @@ class ChildrenList(list):
         :param int index: position where the item is inserted into.
         :param item: object to be added into the list.
 
-        :raises AttributeError: if the given index and item are not valid \
+        :raises GenerationError: if the given index and item are not valid \
             children for this list.
         '''
         if not self._validation_function(index, item):
-            raise AttributeError(
+            raise GenerationError(
                 "Item '{0}' can't be child {1} of '{2}'. The valid format is: "
                 "'{3}'.".format(item.__class__.__name__, index,
                                 self._node_reference.coloured_name(False),

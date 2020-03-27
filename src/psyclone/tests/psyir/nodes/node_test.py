@@ -638,25 +638,25 @@ def test_children_validation():
     assert isinstance(assignment.children, (ChildrenList, list))
 
     # Try adding a invalid child (e.g. a return_stmt into an assingment)
-    with pytest.raises(AttributeError) as error:
+    with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
         " is: 'DataNode, DataNode'." in str(error.value)
 
     # The same behaviour occurs when list insertion operations are used.
-    with pytest.raises(AttributeError):
+    with pytest.raises(GenerationError):
         assignment.children.append(return_stmt)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(GenerationError):
         assignment.children[0] = return_stmt
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(GenerationError):
         assignment.children.insert(0, return_stmt)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(GenerationError):
         assignment.children.extend([return_stmt])
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(GenerationError):
         assignment.children = assignment.children + [return_stmt]
 
     # Valid nodes are accepted
