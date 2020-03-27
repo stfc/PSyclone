@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019 Science and Technology Facilities Council.
+# Copyright (c) 2019-2020 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,10 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -59,26 +60,26 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                 &
-          (/ arg_type(gh_real, gh_read),            &
-             arg_type(gh_field,gh_write,w1),        &
-             arg_type(gh_field,gh_read, w2),        &
-             arg_type(gh_operator,gh_read, w2, w2), &
-             arg_type(gh_field,gh_read, w3),        &
-             arg_type(gh_integer, gh_read)          &
+     type(arg_type), meta_args(6) =                  &
+          (/ arg_type(gh_real,  gh_read),            &
+             arg_type(gh_field, gh_inc, w1),         &
+             arg_type(gh_field, gh_read, w2),        &
+             arg_type(gh_operator, gh_read, w2, w2), &
+             arg_type(gh_field, gh_read, w3),        &
+             arg_type(gh_integer, gh_read)           &
            /)
-     type(func_type), dimension(3) :: meta_funcs =  &
-          (/ func_type(w1, gh_basis),               &
-             func_type(w2, gh_diff_basis),          &
-             func_type(w3, gh_basis, gh_diff_basis) &
+     type(func_type), dimension(3) :: meta_funcs =   &
+          (/ func_type(w1, gh_basis),                &
+             func_type(w2, gh_diff_basis),           &
+             func_type(w3, gh_basis, gh_diff_basis)  &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
   end type testkern_qr_type
 contains
-  subroutine testkern_qr_code(a,b,c,d)
+  subroutine testkern_qr_code(a, b ,c, d)
   end subroutine testkern_qr_code
 end module testkern_qr
 '''
@@ -102,8 +103,8 @@ def test_get_op_wrong_name():
 def test_ad_op_type_too_few_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_read, w2)", 1)
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -114,8 +115,8 @@ def test_ad_op_type_too_few_args():
 def test_ad_op_type_too_many_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_read, w2, w2, w2)", 1)
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_read, w2, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -126,8 +127,8 @@ def test_ad_op_type_too_many_args():
 def test_ad_op_type_wrong_3rd_arg():
     ''' Tests that an error is raised when the 3rd entry in the operator
     descriptor metadata is invalid. '''
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_read, woops, w2)", 1)
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_read, woops, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -139,8 +140,8 @@ def test_ad_op_type_wrong_3rd_arg():
 def test_ad_op_type_1st_arg_not_space():
     ''' Tests that an error is raised when the operator descriptor
     metadata contains something that is not a valid space. '''
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_read, wbroke, w2)", 1)
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_read, wbroke, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -151,8 +152,8 @@ def test_ad_op_type_1st_arg_not_space():
 
 def test_ad_op_type_wrong_access():
     ''' Test that an error is raised if an operator has gh_inc access. '''
-    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_inc, w2, w2)", 1)
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_inc, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -286,7 +287,7 @@ def test_operator_different_spaces(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
@@ -300,21 +301,21 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(field_type), intent(in) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
-        "      INTEGER cell\n"
+        "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:), "
         "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
-        "      INTEGER diff_dim_w0, dim_w3, diff_dim_w2\n"
+        "      INTEGER(KIND=i_def) diff_dim_w0, dim_w3, diff_dim_w2\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
-        "      INTEGER np_xy_qr, np_z_qr\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w0(:,:) => null()\n"
-        "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
+        "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
-        "      INTEGER, pointer :: orientation_w2(:) => null()\n")
+        "      INTEGER(KIND=i_def), pointer :: orientation_w2(:) => null()\n")
     assert decl_output in generated_code
     output = (
         "      !\n"
@@ -382,15 +383,15 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      IF (chi_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(1)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (chi_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(2)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (chi_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL chi_proxy(3)%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -403,7 +404,7 @@ def test_operator_different_spaces(tmpdir):
         "basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
         "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
@@ -423,7 +424,7 @@ def test_operator_nofield(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)"
@@ -451,7 +452,7 @@ def test_operator_nofield_different_space(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -472,7 +473,7 @@ def test_operator_nofield_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -494,7 +495,7 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
@@ -525,7 +526,7 @@ def test_operator_orientation(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
@@ -554,11 +555,11 @@ def test_op_orient_different_space(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
-        "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
-        " => null()" in gen_str)
+        "INTEGER(KIND=i_def), pointer :: orientation_w1(:) => null(), "
+        "orientation_w2(:) => null()" in gen_str)
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
     assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
     assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
@@ -588,7 +589,7 @@ def test_operator_deref(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, chi, a, qr)"
@@ -649,7 +650,8 @@ def test_operator_bc_kernel(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    output1 = "INTEGER, pointer :: boundary_dofs_op_a(:,:) => null()"
+    output1 = (
+        "INTEGER(KIND=i_def), pointer :: boundary_dofs_op_a(:,:) => null()")
     assert output1 in generated_code
     output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
     assert output2 in generated_code
@@ -659,7 +661,7 @@ def test_operator_bc_kernel(tmpdir):
         "ndf_any_space_2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
@@ -746,7 +748,7 @@ module dummy_mod
              arg_type(gh_operator, gh_read,      any_discontinuous_space_1, &
                                                  any_discontinuous_space_1) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -772,28 +774,28 @@ def test_operators():
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
         "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, ndf_w0, ndf_w1, ndf_w2, "
         "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
-        "ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: op_1_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0, ndf_w1, ndf_w2, "
+        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6\n"
+        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
         "op_1_ncell_3d) :: op_1\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER, intent(in) :: op_3_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_3_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,"
         "op_3_ncell_3d) :: op_3\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: op_5_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_5_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
         "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension("
         "ndf_any_discontinuous_space_1_op_6,"
         "ndf_any_discontinuous_space_1_op_6,op_6_ncell_3d) :: op_6\n"
@@ -824,7 +826,7 @@ module dummy_mod
      type(arg_type), meta_args(1) =                  &
           (/ arg_type(gh_operator, gh_write, w0, w1) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type

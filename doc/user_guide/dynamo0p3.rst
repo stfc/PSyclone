@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -201,7 +201,7 @@ kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
 A full example of CMA operator construction is available in
-``examples/dynamo/eg7``.
+``examples/lfric/eg7``.
 
 .. _dynamo0.3-quadrature:
 
@@ -246,7 +246,7 @@ the Kernel via an ``invoke``.
 
 For example::
 
-  integer :: extent = 2
+  integer(kind=i_def) :: extent = 2
   call invoke(kernel(field1, field2, extent))
 
 where ``field2`` has kernel metadata specifying that it has a stencil
@@ -277,15 +277,15 @@ supplied by the ``LFRic`` infrastructure via the
 For example::
 
   use flux_direction_mod, only : x_direction
-  integer :: direction = x_direction
-  integer :: extent = 2
+  integer(kind=i_def) :: direction = x_direction
+  integer(kind=i_def) :: extent = 2
   ! ...
   call invoke(kernel(field1, field2, extent, direction))
 
 ``direction`` may also be passed as a literal. For example::
 
   use flux_direction_mod, only : x_direction
-  integer :: extent = 2
+  integer(kind=i_def) :: extent = 2
   ! ...
   call invoke(kernel(field1, field2, extent, x_direction))
 
@@ -303,7 +303,7 @@ In the above example ``field2`` and ``field3`` in ``kernel1`` and
 ``field3`` in ``kernel1`` and ``field4`` in ``kernel2`` will have the
 same ``direction`` value.
 
-An example of the use of stencils is available in ``examples/dynamo/eg5``.
+An example of the use of stencils is available in ``examples/lfric/eg5``.
 
 There is currently no attempt to perform type checking in PSyclone so
 any errors in the type and/or position of arguments will not be picked
@@ -900,7 +900,7 @@ need colouring so PSyclone does not perform it. If such attempt is made,
 PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
 transformation (see :ref:`dynamo0.3-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
-function space ``Wtheta`` is given in ``examples/dynamo/eg9``, with the
+function space ``Wtheta`` is given in ``examples/lfric/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
@@ -985,7 +985,7 @@ Below is an example of stencil information within the full kernel metadata.
        /)
 
 There is a full example of this distributed with PSyclone. It may
-be found in ``examples/dynamo/eg5``.
+be found in ``examples/lfric/eg5``.
 
 .. _dynamo0.3-intergrid-mdata:
 
@@ -1137,11 +1137,11 @@ Name                                 Description
 ===================================  ===========================================
 normals_to_horizontal_faces          Array of normals pointing in the positive
                                      (x, y, z) axis direction for each
-                                     horizontal face indexed as (face,
-                                     component).
+                                     horizontal face indexed as (component,
+                                     face).
 normals_to_vertical_faces            Array of normals pointing in the positive
                                      (x, y, z) axis direction for each vertical
-                                     face indexed as (face, component).
+                                     face indexed as (component, face).
 outward_normals_to_horizontal_faces  Array of outward-pointing normals for each
                                      horizontal face indexed as (component,
                                      face).
@@ -1223,7 +1223,7 @@ rules, along with PSyclone's naming conventions, are:
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an integer and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer and has intent ``in``.
+   is an integer of type ``i_def`` and has intent ``in``.
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
@@ -1251,8 +1251,8 @@ rules, along with PSyclone's naming conventions, are:
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
    4) If the current entry is an operator then first include a
-      dimension size. This is an integer. The name of this size is
-      ``<operator_name>"_ncell_3d"``. Next include the operator. This
+      dimension size. This is an integer of type ``i_def``. The name of this
+      size is ``<operator_name>"_ncell_3d"``. Next include the operator. This
       is a real array of type ``r_def`` and is 3 dimensional. The
       first two dimensions are the local degrees of freedom for the
       ``to`` and ``from`` function spaces respectively. The third
@@ -1266,16 +1266,17 @@ rules, along with PSyclone's naming conventions, are:
    lexicographic order)
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
-      for the function space. This is an integer and has intent ``in``. The
-      name of this argument is ``"ndf_"<field_function_space>``.
+      for the function space. This is an integer of type ``i_def`` and has
+      intent ``in``. The name of this argument is
+      ``"ndf_"<field_function_space>``.
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
-         space. This is an integer and has intent ``in``. The name of this
-         argument is ``"undf_"<field_function_space>``.
+         space. This is an integer of type ``i_def`` and has intent ``in``.
+         The name of this argument is ``"undf_"<field_function_space>``.
       2) Include the **dofmap** for this function space. This is an integer
-         array with intent ``in``. It has one dimension sized by the local
-         degrees of freedom for the function space.
+         array of type ``i_def`` with intent ``in``. It has one dimension
+         sized by the local degrees of freedom for the function space.
 
    3) For each operation on the function space (``basis``, ``diff_basis``,
       ``orientation``) in the order specified in the metadata
@@ -1323,8 +1324,8 @@ rules, along with PSyclone's naming conventions, are:
          +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.
-         The argument is an integer array with intent ``in``. There is
-         one dimension of size the local degrees of freedom for the
+         The argument is an integer array of type ``i_def`` with intent ``in``.
+         There is one dimension of size the local degrees of freedom for the
          function space. The name of the array is
          ``"orientation_"<field_function_space>``.
 
@@ -1338,9 +1339,9 @@ rules, along with PSyclone's naming conventions, are:
    in the order specified in the ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
-      array with dimensions ``(nfaces_re_h/v, 3)``.
+      array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
-      integer array with dimensions ``(3, nfaces_re_h/v)``.
+      integer array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
@@ -1409,7 +1410,7 @@ and at ``W1``)::
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
 If the metadata specifies that the kernel requires a property of the
-reference element (to be implemented in Issue #150)::
+reference element::
 
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
@@ -1447,13 +1448,13 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
    intent ``in``.
 
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer and has intent ``in``.
+   is an integer of type ``i_def`` and has intent ``in``.
 
 3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer with intent ``in``.
+   an integer of type ``i_def`` with intent ``in``.
 
 4) Include the total number of cells, ``ncell_3d``, which is an integer
-   with intent ``in``.
+   of type ``i_def`` with intent ``in``.
 
 5) For each argument in the ``meta_args`` metadata array:
 
@@ -1468,29 +1469,33 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
       ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
 
       1) Include the number of rows in the banded matrix.  This is
-         an integer with intent ``in`` and is named as
+         an integer of type ``i_def`` with intent ``in`` and is named as
          ``"nrow_"<operator_name>``.
 
       2) If the from-space of the operator is *not* the same as the
          to-space then include the number of columns in the banded
-         matrix.  This is an integer with intent ``in`` and is named as
-         ``"ncol_"<operator_name>``.
+         matrix.  This is an integer of type ``i_def`` with intent ``in``
+         and is named as ``"ncol_"<operator_name>``.
 
       3) Include the bandwidth of the banded matrix. This is an
-         integer with intent ``in`` and is named as
+         integer of type ``i_def`` with intent ``in`` and is named as
          ``"bandwidth_"<operator_name>``.
 
       4) Include banded-matrix parameter ``alpha``. This is an integer
-         with intent ``in`` and is named as ``"alpha_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"alpha_"<operator_name>``.
 
       5) Include banded-matrix parameter ``beta``. This is an integer
-         with intent ``in`` and is named as ``"beta_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"beta_"<operator_name>``.
 
       6) Include banded-matrix parameter ``gamma_m``. This is an integer
-         with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"gamma_m_"<operator_name>``.
 
       7) Include banded-matrix parameter ``gamma_p``. This is an integer
-         with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
+         of type ``i_def`` with intent ``in`` and is named as
+         ``"gamma_p_"<operator_name>``.
 
    3) If it is a field or scalar argument then include arguments following
           the same rules as for general-purpose kernels.
@@ -1501,24 +1506,25 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
    operator as it appears first in lexicographic order):
 
    1) Include the number of degrees of freedom per cell for the space.
-      This is an integer with intent ``in``. The name of this argument is
-      ``"ndf_"<arg_function_space>``.
+      This is an integer of type ``i_def`` with intent ``in``. The name
+      of this argument is ``"ndf_"<arg_function_space>``.
 
    2) If there is a field on this space then:
 
       1) Include the unique number of degrees of freedom for the
-         function space. This is an integer and has intent ``in``.
-         The name of this argument is ``"undf_"<field_function_space>``.
+         function space. This is an integer of type ``i_def`` and has
+         intent ``in``. The name of this argument is
+         ``"undf_"<field_function_space>``.
 
       2) Include the dofmap for this space. This is an integer array
-         with intent ``in``. It has one dimension sized by the local
-         degrees of freedom for the function space.
+         of type ``i_def`` with intent ``in``. It has one dimension
+         sized by the local degrees of freedom for the function space.
 
    3) If the CMA operator has this space as its to/from space then
       include the column-banded dofmap, the list of offsets for the
-      to/from-space. This is an integer array of rank 2. The first
-      dimension is ``"ndf_"<arg_function_space>```` and the second
-      is ``nlayers``.
+      to/from-space. This is an integer array of rank 2 and type
+      ``i_def``. The first dimension is ``"ndf_"<arg_function_space>``
+      and the second is ``nlayers``.
 
 
 Application/Inverse-Application
@@ -1536,7 +1542,7 @@ The full set of rules is then:
    intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer with intent ``in``.
+   an integer of type ``i_def`` with intent ``in``.
 
 3) For each argument in the ``meta_args`` metadata array:
 
@@ -1558,23 +1564,23 @@ The full set of rules is then:
    same operator as it appears first in lexicographic order):
 
    1) Include the number of degrees of freedom per cell for the associated
-      function space. This is an integer with intent ``in``. The name
-      of this argument is ``"ndf_"<field_function_space>``;
+      function space. This is an integer of type ``i_def`` with intent
+      ``in``. The name of this argument is ``"ndf_"<field_function_space>``;
 
    2) Include the number of unique degrees of freedom for the associated
-      function space. This is an integer with intent ``in``. The name
-      of this argument is ``"undf_"<field_function_space>``;
+      function space. This is an integer of type ``i_def`` with intent
+      ``in``. The name of this argument is ``"undf_"<field_function_space>``;
 
    3) Include the dofmap for this function space. This is a rank-1 integer
-      array with extent equal to the number of degrees of freedom of
-      the space (``"ndf_"<field_function_space>``).
+      array of type ``i_def`` with extent equal to the number of degrees of
+      freedom of the space (``"ndf_"<field_function_space>``).
 
 5) Include the indirection map for the to-space of the CMA operator.
-   This is a rank-1 integer array with extent ``nrow``.
+   This is a rank-1 integer array of type ``i_def`` with extent ``nrow``.
 
 6) If the from-space of the operator is *not* the same as the to-space
    then include the indirection map for the from-space of the CMA operator.
-   This is a rank-1 integer array with extent ``ncol``.
+   This is a rank-1 integer array of type ``i_def`` with extent ``ncol``.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
@@ -1586,7 +1592,7 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
    intent ``in``.
 
 2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an integer with intent ``in``.
+   an integer of type ``i_def`` with intent ``in``.
 
 3) For each CMA operator or scalar argument specifed in metadata:
 
@@ -1610,18 +1616,18 @@ kernels with field data being followed by dofmap data. The rules for
 arguments to inter-grid kernels are as follows:
 
 1) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer and has intent ``in``.
+   is an integer of type ``i_def`` and has intent ``in``.
 
 2) Include the ``cell_map`` for the current cell (column). This is
-   an integer array of rank one and intent ``in`` which provides
-   the mapping from the coarse to the fine mesh. It has extent
-   `ncell_f_per_c`.
+   an integer array of rank one, type ``i_def`` and intent ``in``
+   which provides the mapping from the coarse to the fine mesh. It
+   has extent `ncell_f_per_c`.
 
 3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
-   This is an integer and has intent ``in``.
+   This is an integer of type ``i_def`` and has intent ``in``.
 
 4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
-   This is an integer and has intent ``in``.
+   This is an integer of type ``i_def`` and has intent ``in``.
 
 5) For each argument in the ``meta_args`` metadata array (which must be
    a field or field-vector):
@@ -1641,18 +1647,18 @@ arguments to inter-grid kernels are as follows:
           of the field on the fine mesh;
 
    3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
-      is an integer array of rank two with intent ``in``. The extent of
-      the first dimension is ``ndf_fine`` and that of the second is
-      ``ncell_f``.
+      is an integer array of rank two and type ``i_def`` with intent ``in``.
+      The extent of the first dimension is ``ndf_fine`` and that of the
+      second is ``ncell_f``.
 
    else, the dofmap is associated with an argument on the coarse mesh:
 
-   1) Include ``undf_coarse``, the number of unique DoFs
-      for the coarse field. This is an integer with intent ``in``;
+   1) Include ``undf_coarse``, the number of unique DoFs for the coarse
+      field. This is an integer of type ``i_def`` with intent ``in``;
 
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
-      in the coarse mesh. This is an integer array of rank one and has
-      intent ``in``.
+      in the coarse mesh. This is an integer array of rank one, type
+      ``i_def``and has intent ``in``.
 
 .. _dynamo0.3-built-ins:
 
@@ -2215,10 +2221,10 @@ the field arguments were on a vector function space (one of ``W1``,
 of the ability to apply boundary conditions to operators this functionality
 is no longer required and has been removed.
 
-Example ``eg4`` in the ``examples/dynamo`` directory includes a call
+Example ``eg4`` in the ``examples/lfric`` directory includes a call
 to ``enforce_bc_kernel_type`` so can be used to see the boundary condition
 code that is added by PSyclone. See the ``README`` in the
-``examples/dynamo`` directory for instructions on how to run this
+``examples/lfric`` directory for instructions on how to run this
 example.
 
 An example of applying boundary conditions to an operator is the kernel
@@ -2313,8 +2319,8 @@ The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
 Dynamo0.3 API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
-can be found in ``examples/dynamo/eg8`` and an example of asynchronous
-halo exchanges can be found in ``examples/dynamo/eg11``.
+can be found in ``examples/lfric/eg8`` and an example of asynchronous
+halo exchanges can be found in ``examples/lfric/eg11``.
 
 The **Dynamo0p3KernelConstTrans** transformation is only valid for the
 Dynamo0.3 API. This is because the properties that it makes constant
@@ -2324,7 +2330,7 @@ The Dynamo0.3-API-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
 that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
-all versions of the Dynamo0.3 API.
+all versions of the Dynamo API.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently
           supported for loops that contain inter-grid kernels. Attempting

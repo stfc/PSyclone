@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ import os
 import re
 import pytest
 
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
@@ -49,7 +49,7 @@ from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 
@@ -109,8 +109,24 @@ def test_accroutine_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
-    assert ("'global' scope: ['rdt']. PSyclone cannot currently"
-            in str(err.value))
+    assert ("global scope: ['rdt']. If these symbols represent data then they"
+            " must first" in str(err.value))
+
+
+def test_accroutine_rejects_transformed_kernel():
+    ''' Check that the ACCRoutineTrans rejects an already-transformed
+    kernel (because it still works with the fparser2 parse tree and not
+    the PSyIR - Issue #490). '''
+    rtrans = ACCRoutineTrans()
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].loop_body[0].loop_body[0]
+    # Pretend that this kernel has previously been transformed
+    kern.modified = True
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kern)
+    assert ("Cannot transform kernel 'continuity_code' because it has "
+            "previously been transformed" in str(err.value))
 
 
 def test_accroutine():
@@ -130,7 +146,7 @@ def test_accroutine():
     assert new_kern._fp2_ast
     assert isinstance(new_kern._fp2_ast, Fortran2003.Program)
     # Check AST contains directive
-    comments = walk_ast(new_kern._fp2_ast.content, [Fortran2003.Comment])
+    comments = walk(new_kern._fp2_ast.content, Fortran2003.Comment)
     assert len(comments) == 1
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
@@ -183,10 +199,10 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
     reader = FortranFileReader(filename)
     prog = f2003_parser(reader)
     # Check that the module has the right name
-    modules = walk_ast(prog.content, [Fortran2003.Module_Stmt])
+    modules = walk(prog.content, Fortran2003.Module_Stmt)
     assert str(modules[0].items[1]) == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
-    subs = walk_ast(prog.content, [Fortran2003.Subroutine_Stmt])
+    subs = walk(prog.content, Fortran2003.Subroutine_Stmt)
     found = False
     for sub in subs:
         if str(sub.items[1]) == "continuity{0}_code".format(tag):
@@ -374,7 +390,7 @@ def test_1kern_trans(kernel_outputdir):
     first = code.find("call testkern_code(")
     second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
-    assert Dynamo0p3Build(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_2kern_trans(kernel_outputdir):
@@ -402,7 +418,7 @@ def test_2kern_trans(kernel_outputdir):
         assert "nlayers = 100" in open(filepath).read()
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
-    assert Dynamo0p3Build(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_builtin_no_trans():

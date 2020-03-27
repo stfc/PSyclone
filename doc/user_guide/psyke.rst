@@ -31,7 +31,10 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written I. Kavcic, Met Office
+.. Written by I. Kavcic, Met Office
+.. Modified by J. Henrichs, Bureau of Meteorology
+
+.. highlight:: fortran
 
 .. _psyke:
 
@@ -62,35 +65,52 @@ The code marked for extraction can be (subject to
 * The entire Invoke (extraction applied to all Nodes).
 
 The basic mechanism of code extraction is through applying the
-**ExtractTrans** transformation to selected Nodes. This
+``ExtractTrans`` transformation to selected Nodes. This
 transformation is further sub-classed into API-specific implementations,
-**DynamoExtractTrans** and **GOceanExtractTrans**. Both
-sub-classed transformations insert an instance of the **ExtractNode**
+``LFRicExtractTrans`` and ``GOceanExtractTrans``. Both
+sub-classed transformations insert an instance of the ``ExtractNode``
 object into the Schedule of a specific Invoke. All Nodes marked for
-extraction become children of the **ExtractNode**.
+extraction become children of the ``ExtractNode``.
 
-For now, the **ExtractNode** class simply adds comments at the beginning
-and the end of the extract region, that is at the position of the extract
-Node and after all its children. For example, marking a single Loop
-containing a Kernel call in Dynamo0.3 API generates:
-
-.. code-block:: fortran
+The ``ExtractNode`` class uses the dependency analysis to detect
+which variables are input-, and which ones are output-parameters.
+The lists of variables are then passed to the ``PSyDataNode``
+which creates the actual code as described in :ref:`psy_data`. Below is some
+example output for LFRic::
 
       ! ExtractStart
-      ! CALL write_extract_arguments(argument_list)
       !
-      DO cell=1,f3_proxy%vspace%get_ncell()
+      CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL psy_data%PreDeclareVariable("a", a)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("m1", m1)
+      CALL psy_data%PreDeclareVariable("m2", m2)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("f1_post", f1)
+      CALL psy_data%PreEndDeclaration
+      CALL psy_data%ProvideVariable("a", a)
+      CALL psy_data%ProvideVariable("f2", f2)
+      CALL psy_data%ProvideVariable("m1", m1)
+      CALL psy_data%ProvideVariable("m2", m2)
+      CALL psy_data%PreEnd
+      DO cell=1,f1_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, f2_proxy%data, ...)
+        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
+             m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1,           &
+             map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
+             undf_w3, map_w3(:,cell))
       END DO 
+      CALL psy_data%PostStart
+      CALL psy_data%ProvideVariable("cell_post", cell)
+      CALL psy_data%ProvideVariable("f1_post", f1)
+      CALL psy_data%PostEnd
       !
       ! ExtractEnd
 
-The ``! CALL write_extract_arguments(argument_list)`` comment will be
-replaced by appropriate calls to write out arguments of extracted Node(s)
-or Kernel(s) in Issue #234. The **ExtractNode** base class can be sub-classed
-by API-specific code. This will be required for constructing the list of
-quantities required by Kernel (and Built-In) calls in the extracted Nodes.
+The PSyData API relies on generic Fortran interfaces to provide the 
+field-type-specific implementations of the ``ProvideVariable`` for different
+types. This means that a different version of the external PSyData
+library that PSyKE uses must be supplied for each PSyclone API.
 
 .. _psyke-intro-restrictions:
 
@@ -114,7 +134,7 @@ are used or not.
   Schedule. For the latter, Nodes in the list must be consecutive children
   of the same parent Schedule.
 
-* Extraction cannot be applied to an **ExtractNode** or a Node list that
+* Extraction cannot be applied to an ``ExtractNode`` or a Node list that
   already contains one (otherwise we would have an extract region within
   another extract region).
 
@@ -136,11 +156,11 @@ memory is enabled.
 Shared memory and API-specific
 ##############################
 
-The **ExtractTrans** transformation cannot be applied to:
+The ``ExtractTrans`` transformation cannot be applied to:
 
 * A Loop without its parent Directive,
 
-* An orphaned Directive (e.g. **OMPDoDirective**, **ACCLoopDirective**)
+* An orphaned Directive (e.g. ``OMPDoDirective``, ``ACCLoopDirective``)
   without its parent Directive (e.g. ACC or OMP Parallel Directive),
 
 * A Loop over cells in a colour without its parent Loop over colours in
@@ -162,10 +182,10 @@ would be written as:
 
 .. code-block:: python
 
-  from psyclone.domain.lfric.transformations import DynamoExtractTrans
+  from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
   # Get instance of the ExtractRegionTrans transformation
-  etrans = DynamoExtractTrans()
+  etrans = LFRicExtractTrans()
 
   # Get Invoke and its Schedule
   invoke = psy.invokes.get("invoke_0")
@@ -213,7 +233,7 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
 to insert the extract region. As shown below, all children of an
-**ExtractNode** will be part of the region:
+``ExtractNode`` will be part of the region:
 
 ::
 
@@ -243,7 +263,7 @@ to insert the extract region. As shown below, all children of an
 	  Schedule[]
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
-To extract multiple Nodes, **ExtractTrans** can be applied to the list
+To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
 of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
 
 .. code-block:: python
@@ -276,11 +296,11 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 
 .. code-block:: python
 
-  from psyclone.domain.lfric.transformations import DynamoExtractTrans
+  from psyclone.domain.lfric.transformations import LFRicExtractTrans
   from psyclone.transformations import DynamoOMPParallelLoopTrans
 
   # Get instances of the transformations
-  etrans = DynamoExtractTrans()
+  etrans = LFRicExtractTrans()
   otrans = DynamoOMPParallelLoopTrans()
 
   # Get Invoke and its Schedule
@@ -299,7 +319,14 @@ The generated code is now:
 .. code-block:: fortran
 
       ! ExtractStart
-      ! CALL write_extract_arguments(argument_list)
+      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL psy_data%PreDeclareVariable("f2", f2)
+      CALL psy_data%PreDeclareVariable("cell_post", cell)
+      CALL psy_data%PreDeclareVariable("df_post", df)
+      CALL psy_data%PreDeclareVariable("f3_post", f3)
+      CALL psy_data%PreEndDeclaration
+      CALL psy_data%ProvideVariable("f2", f2)
+      CALL psy_data%PreEnd
       !
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=1,undf_any_space_1_f2
@@ -312,9 +339,49 @@ The generated code is now:
         CALL testkern_code_w2_only(nlayers, f3_proxy%data, f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       !$omp end parallel do
+      CALL psy_data%PostStart
+      CALL psy_data%ProvideVariable("cell_post", cell)
+      CALL psy_data%ProvideVariable("df_post", df)
+      CALL psy_data%ProvideVariable("f3_post", f3)
+      CALL psy_data%PostEnd
       !
       ! ExtractEnd
 
-Examples in ``examples/dynamo/eg12`` directory demonstrate how to
+.. note::
+
+    At this stage builtins are not fully supported, resulting in ``f2``
+    being incorrectly detected as an input parameters, and not as an
+    output parameter. This issue is tracked in #637.
+
+
+Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
 (see :ref:`examples` section for more information).
+
+.. _psyke_netcdf:
+
+NetCDF Extraction Example
+-------------------------
+PSyclone comes with an example NetCDF based extraction library in
+`lib/extract/dl_esm_inf/netcdf 
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/dl_esm_inf/netcdf>`_.
+This library implements the full PSyData
+API for use with the GOcean 1.0 dl_esm_inf infrastructure library.
+In order to compile this library, you must have NetCDF installed.
+When running the code, it will create a NetCDF file for the instrumented
+code region. It includes all variables that are read before the code
+is executed, and all variables that have been modified. The output
+variables have the postfix ``_post`` attached to the NetCDF names,
+e.g. a variable ``xyz`` that is read and written will be stored
+with the name ``xyz`` containing the input values, and the name
+``xyz_post`` containing the output values. Arrays have their size
+stored as NetCDF dimensions: again the variable ``xyz`` will have its
+sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
+and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
+
+The output file only stores the values used in the subroutine,
+e.g. any GOcean grid properties (see :ref:`gocean1.0-grid-props`)
+will not be stored automatically at this stage (see issue #638).
+That means that a driver program
+that reads the input variables, executes the code region and then
+validates the results can be implemented independent of dl_esm_inf.

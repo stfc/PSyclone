@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,12 @@ import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -406,7 +407,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -418,7 +419,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
@@ -450,7 +451,7 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n")
+            "      END DO\n")
         assert output in code
     else:
         output = (
@@ -459,7 +460,7 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -500,7 +501,7 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -517,7 +518,7 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
@@ -529,7 +530,7 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -571,7 +572,7 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -587,7 +588,7 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
@@ -599,7 +600,7 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -641,7 +642,7 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -657,7 +658,7 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
@@ -669,7 +670,7 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -711,7 +712,7 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -728,7 +729,7 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
@@ -740,7 +741,7 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -783,7 +784,7 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -799,7 +800,7 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
@@ -811,7 +812,7 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -873,7 +874,7 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -921,7 +922,7 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
-            "      END DO \n")
+            "      END DO\n")
         assert output in code
     else:
         output = (
@@ -930,7 +931,7 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -970,7 +971,7 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -987,7 +988,7 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
@@ -999,7 +1000,7 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1041,7 +1042,7 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1058,7 +1059,7 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
@@ -1070,7 +1071,7 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1112,7 +1113,7 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1128,7 +1129,7 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
@@ -1140,7 +1141,7 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1183,7 +1184,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1200,7 +1201,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
-            "      END DO \n")
+            "      END DO\n")
         assert output in code
     else:
         output = (
@@ -1209,7 +1210,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1266,7 +1267,7 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1308,7 +1309,7 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1324,7 +1325,7 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
@@ -1336,7 +1337,7 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1396,7 +1397,7 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1438,8 +1439,9 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(inout) :: f3\n"
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
-            "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-            "      INTEGER nlayers\n"
+            "      INTEGER(KIND=i_def) ndf_any_space_1_f1, "
+            "undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) nlayers\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
@@ -1461,7 +1463,7 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n")
     else:
         output = (
@@ -1469,7 +1471,7 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1529,7 +1531,7 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) / "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1586,7 +1588,7 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) / "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1633,7 +1635,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n")
     else:
         output = (
@@ -1641,7 +1643,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1675,7 +1677,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1686,7 +1688,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n")
     else:
         output = (
@@ -1694,7 +1696,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1736,7 +1738,7 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(inout) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1759,7 +1761,7 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = c\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1799,7 +1801,7 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
-            "      INTEGER undf_any_space_1_f2\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f2\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1823,7 +1825,7 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -1880,7 +1882,7 @@ def test_X_innerproduct_Y(dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n")
         assert output_seq in code
     else:
@@ -1895,7 +1897,7 @@ def test_X_innerproduct_Y(dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      !\n")
@@ -1945,7 +1947,7 @@ def test_X_innerproduct_X(dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n")
         assert output_seq in code
     else:
@@ -1960,7 +1962,7 @@ def test_X_innerproduct_X(dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
             "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      !\n")
@@ -2009,7 +2011,7 @@ def test_sum_X(dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        asum = asum+f1_proxy%data(df)\n"
-            "      END DO ")
+            "      END DO")
         assert output in code
     else:
         output = (
@@ -2023,7 +2025,7 @@ def test_sum_X(dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
             "        asum = asum+f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
         assert output in code
@@ -2089,7 +2091,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output_seq = (
@@ -2097,7 +2099,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(inout) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2111,7 +2113,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = 0.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         print(output_seq)
@@ -2124,7 +2126,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = 0.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2160,7 +2162,7 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2177,7 +2179,7 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
@@ -2189,7 +2191,7 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2225,7 +2227,7 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2242,7 +2244,7 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
             "0.8*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
@@ -2254,7 +2256,7 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
             "0.8*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2292,8 +2294,8 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(inout) :: f1, f2, f3\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-            "      INTEGER undf_any_space_1_f1, undf_any_space_1_f2, "
-            "undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1, "
+            "undf_any_space_1_f2, undf_any_space_1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2317,13 +2319,13 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO df=1,undf_any_space_1_f2\n"
             "        f2_proxy%data(df) = 3.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO df=1,undf_any_space_1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n")
+            "      END DO\n")
         assert output in code
     if dist_mem:
         output_dm_2 = (
@@ -2331,7 +2333,7 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2340,7 +2342,7 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
             "        f2_proxy%data(df) = 3.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2349,7 +2351,7 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
             "        f3_proxy%data(df) = ginger\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2411,10 +2413,10 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = 0.0\n"
-            "      END DO ")
+            "      END DO")
         assert output in code
     if dist_mem:
         mesh_code_present("f1", code)
@@ -2423,15 +2425,15 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF \n"
+            "      END IF\n"
             "      !\n"
             "      DO cell=1,mesh%get_last_halo_cell(1)\n"
             "        !\n"
@@ -2439,7 +2441,7 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
             "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
             "ndf_w3, undf_w3, map_w3(:,cell))\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2448,7 +2450,7 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = 0.0\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2457,7 +2459,6 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "      !\n")
         if not annexed:
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        print(output_dm_2)
         assert output_dm_2 in code
 
 
@@ -2499,12 +2500,12 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2513,7 +2514,7 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
@@ -2531,7 +2532,7 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER undf_any_space_1_f1\n") in code
+            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n") in code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
@@ -2545,13 +2546,13 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
-            "      END DO \n"
+            "      END DO\n"
             "      DO df=1,undf_any_space_1_f1\n"
             "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
-            "      END DO \n") in code
+            "      END DO\n") in code
 
 
 # ------------- Invalid built-in with an integer scalar reduction ----------- #

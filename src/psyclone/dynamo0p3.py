@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,12 +54,12 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, Literal, Schedule, \
-    CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    Arguments, KernelArgument, HaloExchange, GlobalSum, \
+    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
+from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -123,11 +123,14 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
-# ---------- Datatypes (scalars, fields, operators) ------------------------- #
+# ---------- API datatypes (scalars, fields, operators) --------------------- #
 GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
+
+# ---------- Fortran datatypes ------------------------- #
+SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Stencils ------------------------------------------------------- #
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -865,25 +868,14 @@ class RefElementMetaData(object):
     class Property(Enum):
         '''
         Enumeration of the various properties of the Reference Element
-        (that a kernel can request).
+        (that a kernel can request). The names of each of these corresponds to
+        the names that must be used in kernel meta-data.
 
         '''
         NORMALS_TO_HORIZONTAL_FACES = 1
         NORMALS_TO_VERTICAL_FACES = 2
         OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
-
-    # Mapping from meta-data text to our property enumeration.
-    reference_element_property_map = {
-        "normals_to_horizontal_faces":
-        Property.NORMALS_TO_HORIZONTAL_FACES,
-        "normals_to_vertical_faces":
-        Property.NORMALS_TO_VERTICAL_FACES,
-        "outward_normals_to_horizontal_faces":
-        Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES,
-        "outward_normals_to_vertical_faces":
-        Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
-    }
 
     def __init__(self, kernel_name, type_declns):
         from psyclone.parse.kernel import getkerneldescriptors
@@ -910,19 +902,19 @@ class RefElementMetaData(object):
         try:
             # The meta-data entry is a declaration of a Fortran array of type
             # reference_element_data_type. The initialisation of each member
-            # of this array is done as a structure constructor, the argument
-            # to which gives a property of the reference element.
+            # of this array is done as a Fortran structure constructor, the
+            # argument to which gives a property of the reference element.
             for re_prop in re_properties:
                 for arg in re_prop.args:
                     self.properties.append(
-                        self.reference_element_property_map[str(arg).lower()])
+                        self.Property[str(arg).upper()])
         except KeyError:
             # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing
-            sorted_keys = sorted(self.reference_element_property_map.keys())
+            # Sort for consistency when testing.
+            sorted_names = sorted([prop.name for prop in self.Property])
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_keys))
+                "values are: {1}".format(arg, sorted_names))
 
 
 class DynKernMetadata(KernelType):
@@ -1437,7 +1429,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls)
+        self._invokes = DynamoInvokes(invoke_info.calls, self)
 
     @property
     def name(self):
@@ -1452,13 +1444,15 @@ class DynamoPSy(PSy):
         Generate PSy code for the Dynamo0.3 api.
 
         :return: Root node of generated Fortran AST
-        :rtype: :py:class:`psyGen.Node`
+        :rtype: :py:class:`psyir.nodes.Node`
 
         '''
         from psyclone.f2pygen import ModuleGen, UseGen
-        # create an empty PSy layer module
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
-        # include required infrastructure modules
+        # Include required infrastructure modules
         psy_module.add(UseGen(psy_module, name="field_mod", only=True,
                               funcnames=["field_type", "field_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
@@ -1466,8 +1460,11 @@ class DynamoPSy(PSy):
                                          "operator_proxy_type",
                                          "columnwise_operator_type",
                                          "columnwise_operator_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
-                              funcnames=["r_def"]))
+        psy_module.add(
+            UseGen(psy_module, name="constants_mod", only=True,
+                   funcnames=[api_config.default_kind["real"],
+                              api_config.default_kind["integer"]]))
+
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
@@ -1477,15 +1474,21 @@ class DynamoPSy(PSy):
 
 
 class DynamoInvokes(Invokes):
-    ''' The Dynamo specific invokes class. This passes the Dynamo
+    '''The Dynamo specific invokes class. This passes the Dynamo
     specific invoke class to the base class so it creates the one we
-    require. '''
+    require.
 
-    def __init__(self, alg_calls):
-        self._name_space_manager = NameSpaceFactory().create()
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = DynInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke)
+    :param alg_calls: list of objects containing the parsed invoke \
+        information.
+    :type alg_calls: list of \
+        :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param psy: the PSy object containing this DynamoInvokes object.
+    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
 class DynCollection(object):
@@ -1525,8 +1528,6 @@ class DynCollection(object):
             self._dofs_only = self._invoke.iterate_over_dofs_only
         else:
             self._dofs_only = False
-
-        self._name_space_manager = NameSpaceFactory().create()
 
     def declarations(self, parent):
         '''
@@ -1711,33 +1712,37 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        return self._name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return self._invoke.schedule.symbol_table.name_from_tag(
+            unique, root=root_name)
 
     @staticmethod
-    def dofmap_name(arg):
+    def dofmap_name(symtab, arg):
         '''
         Creates and registers a name for the stencil dofmap associated with
         the supplied kernel argument.
 
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a valid unique dofmap name for a stencil in the PSy layer.
         :rtype: str
         '''
-        name_space_manager = NameSpaceFactory().create()
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
-    def dofmap_size_name(arg):
+    def dofmap_size_name(symtab, arg):
         '''
         Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
@@ -1746,27 +1751,26 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
-        name_space_manager = NameSpaceFactory().create()
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
-    def direction_name(arg):
+    def direction_name(symtab, arg):
         '''
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
 
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a Fortran variable name for the stencil direction.
         :rtype: str
         '''
-        name_space_manager = NameSpaceFactory().create()
         root_name = arg.name+"_direction"
         unique = DynStencils.stencil_unique_str(arg, "direction")
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
+        return symtab.name_from_tag(unique, root=root_name)
 
     @property
     def _unique_extent_vars(self):
@@ -1782,9 +1786,11 @@ class DynStencils(DynCollection):
             names = [arg.stencil.extent_arg.varname for arg in
                      self._unique_extent_args]
         elif self._kernel:
-            # A kernel is passed the size of the stencil map
-            names = [self.dofmap_size_name(arg) for arg in
-                     self._unique_extent_args]
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
+            symtab = SymbolTable()
+            names = [self.dofmap_size_name(symtab, arg)
+                     for arg in self._unique_extent_args]
         else:
             raise InternalError("_unique_extent_vars: have neither Invoke "
                                 "or Kernel. Should be impossible.")
@@ -1802,8 +1808,11 @@ class DynStencils(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_extent_vars,
                                intent="in"))
 
@@ -1834,8 +1843,11 @@ class DynStencils(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_direction_vars,
                                intent="in"))
 
@@ -1927,13 +1939,14 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
+                symtab = self._invoke.schedule.symbol_table
                 parent.add(AssignGen(parent, pointer=True,
-                                     lhs=self.dofmap_name(arg),
+                                     lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
                 parent.add(AssignGen(parent,
-                                     lhs=self.dofmap_size_name(arg),
+                                     lhs=self.dofmap_size_name(symtab, arg),
                                      rhs=map_name + "%get_size()"))
 
     def _declare_maps_invoke(self, parent):
@@ -1947,12 +1960,15 @@ class DynStencils(DynCollection):
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
         from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if not self._kern_args:
             return
 
         parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
                           funcnames=["stencil_dofmap_type"]))
 
+        symtab = self._invoke.schedule.symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -1965,11 +1981,15 @@ class DynStencils(DynCollection):
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="stencil_dofmap_type",
                                    entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=[self.dofmap_name(arg) +
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True,
+                               entity_decls=[self.dofmap_name(symtab, arg) +
                                              "(:,:,:) => null()"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[self.dofmap_size_name(arg)]))
+                               kind=api_config.default_kind["integer"],
+                               entity_decls=[self.dofmap_size_name(symtab,
+                                                                   arg)]))
 
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "xory1d":
@@ -1990,9 +2010,12 @@ class DynStencils(DynCollection):
                                str(STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=[stencil_name]))
-                parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                                   entity_decls=[self.dofmap_name(arg) +
-                                                 "(:,:,:) => null()"]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[self.dofmap_name(symtab, arg) +
+                                          "(:,:,:) => null()"]))
 
     def _declare_maps_stub(self, parent):
         '''
@@ -2004,13 +2027,208 @@ class DynStencils(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
+        # TODO 719 The symtab is not connected to other parts of the
+        # Stub generation.
+        symtab = SymbolTable()
         for arg in self._kern_args:
             parent.add(DeclGen(
-                parent, datatype="integer", intent="in",
+                parent, datatype="integer",
+                kind=api_config.default_kind["integer"], intent="in",
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
-                                    self.dofmap_size_name(arg)]),
-                entity_decls=[self.dofmap_name(arg)]))
+                                    self.dofmap_size_name(symtab, arg)]),
+                entity_decls=[self.dofmap_name(symtab, arg)]))
+
+
+class DynReferenceElement(DynCollection):
+    '''
+    Holds all information on the properties of the Reference Element
+    required by an Invoke.
+
+    :param node: Kernel or Invoke for which to manage Reference-Element \
+                 properties.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    '''
+    # pylint: disable=too-many-instance-attributes
+    def __init__(self, node):
+        super(DynReferenceElement, self).__init__(node)
+
+        # Create a union of the reference-element properties required by
+        # all kernels in this invoke.
+        self._properties = set()
+        for call in self._calls:
+            if call.reference_element:
+                self._properties.update(call.reference_element.properties)
+
+        if not self._properties:
+            return
+
+        # Create and store a name for the reference element object
+        self._ref_elem_name = self._invoke.schedule.symbol_table.name_from_tag(
+            "reference_element")
+
+        # Create and store names for the number of horizontal/vertical faces
+        # as required.
+        self._nfaces_h_name = ""
+        self._nfaces_v_name = ""
+        self._horiz_face_normals_name = ""
+        self._horiz_face_out_normals_name = ""
+        self._vert_face_normals_name = ""
+        self._vert_face_out_normals_name = ""
+
+        if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
+                in self._properties):
+            self._nfaces_h_name = \
+                self._invoke.schedule.symbol_table.name_from_tag("nfaces_re_h")
+            if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
+               in self._properties:
+                self._horiz_face_normals_name = \
+                    self._invoke.schedule.symbol_table.name_from_tag(
+                        "normals_to_horiz_faces")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
+               in self._properties:
+                self._horiz_face_out_normals_name = \
+                    self._invoke.schedule.symbol_table.name_from_tag(
+                        "out_normals_to_horiz_faces")
+
+        if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
+                in self._properties):
+            self._nfaces_v_name = \
+                self._invoke.schedule.symbol_table.name_from_tag("nfaces_re_v")
+            if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
+               in self._properties:
+                self._vert_face_normals_name = \
+                    self._invoke.schedule.symbol_table.name_from_tag(
+                        "normals_to_vert_faces")
+            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
+               in self._properties:
+                self._vert_face_out_normals_name = \
+                    self._invoke.schedule.symbol_table.name_from_tag(
+                        "out_normals_to_vert_faces")
+
+    def _invoke_declarations(self, parent):
+        '''
+        Create the necessary declarations for the variables needed in order
+        to provide properties of the reference element.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if not self._properties:
+            return
+
+        parent.add(UseGen(parent, name="reference_element_mod", only=True,
+                          funcnames=["reference_element_type"]))
+        parent.add(
+            TypeDeclGen(parent, pointer=True, is_class=True,
+                        datatype="reference_element_type",
+                        entity_decls=[self._ref_elem_name + " => null()"]))
+
+        # Declare the necessary scalars
+        nface_vars = []
+        if self._nfaces_h_name:
+            nface_vars.append(self._nfaces_h_name)
+        if self._nfaces_v_name:
+            nface_vars.append(self._nfaces_v_name)
+
+        parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
+                           entity_decls=nface_vars))
+
+        # Declare the necessary arrays
+        ref_element_arrays = []
+        if self._horiz_face_normals_name:
+            ref_element_arrays.append(self._horiz_face_normals_name+"(:,:)")
+        if self._horiz_face_out_normals_name:
+            ref_element_arrays.append(
+                self._horiz_face_out_normals_name+"(:,:)")
+        if self._vert_face_normals_name:
+            ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
+        if self._vert_face_out_normals_name:
+            ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
+
+        # Add declarations to the parent subroutine
+        api_config = Config.get().api_conf("dynamo0.3")
+        parent.add(DeclGen(parent, datatype="real",
+                           kind=api_config.default_kind["real"],
+                           allocatable=True, entity_decls=ref_element_arrays))
+
+    def initialise(self, parent):
+        '''
+        Creates the f2pygen nodes representing the necessary initialisation
+        code for properties of the reference element.
+
+        :param parent: node in the f2pygen tree to which to add statements.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
+
+        if not self._properties:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(
+            CommentGen(parent,
+                       " Get the reference element and query its properties"))
+        parent.add(CommentGen(parent, ""))
+
+        mesh_obj_name = \
+            self._invoke.schedule.symbol_table.name_from_tag("mesh")
+        parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
+                             rhs=mesh_obj_name+"%get_reference_element()"))
+
+        if self._nfaces_h_name:
+            parent.add(
+                AssignGen(parent, lhs=self._nfaces_h_name,
+                          rhs=self._ref_elem_name +
+                          "%get_number_horizontal_faces()"))
+        if self._nfaces_v_name:
+            parent.add(
+                AssignGen(
+                    parent, lhs=self._nfaces_v_name,
+                    rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
+
+        if self._horiz_face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_horizontal_faces({1})".format(
+                            self._ref_elem_name,
+                            self._horiz_face_normals_name)))
+
+        if self._horiz_face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_outward_normals_to_horizontal_faces({1})".
+                    format(self._ref_elem_name,
+                           self._horiz_face_out_normals_name)))
+
+        if self._vert_face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_vertical_faces({1})".format(
+                            self._ref_elem_name,
+                            self._vert_face_normals_name)))
+
+        if self._vert_face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_outward_normals_to_vertical_faces({1})".
+                    format(self._ref_elem_name,
+                           self._vert_face_out_normals_name)))
 
 
 class DynDofmaps(DynCollection):
@@ -2162,28 +2380,32 @@ class DynDofmaps(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
         decl_map_names = \
             [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
 
         if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_map_names))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=decl_map_names))
 
         # Column-banded dofmaps
         decl_bmap_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
         if decl_bmap_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_bmap_names))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=decl_bmap_names))
 
         # CMA operator indirection dofmaps
         decl_ind_map_names = \
             [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
         if decl_ind_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_ind_map_names))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=decl_ind_map_names))
 
     def _stub_declarations(self, parent):
         '''
@@ -2194,15 +2416,20 @@ class DynDofmaps(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
             ndf_name = get_fs_ndf_name(
                 self._unique_fs_maps[dmap].function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=ndf_name, entity_decls=[dmap]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", dimension=ndf_name,
+                               entity_decls=[dmap]))
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":
@@ -2214,9 +2441,12 @@ class DynDofmaps(DynCollection):
                     "Invalid direction ('{0}') found for CMA operator when "
                     "collecting column-banded dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in",
                                dimension=",".join([ndf_name, "nlayers"]),
                                entity_decls=[dmap]))
         # CMA operator indirection dofmaps
@@ -2230,10 +2460,13 @@ class DynDofmaps(DynCollection):
                     "Invalid direction ('{0}') found for CMA operator when "
                     "collecting indirection dofmaps. Should "
                     "be either 'to' or 'from'.".format(cma["direction"]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[dim_name]))
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=dim_name, entity_decls=[dmap]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[dim_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", dimension=dim_name,
+                               entity_decls=[dmap]))
 
 
 class DynOrientations(DynCollection):
@@ -2276,10 +2509,14 @@ class DynOrientations(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for orient in self._orients:
             ndf_name = get_fs_ndf_name(orient.function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               dimension=ndf_name, entity_decls=[orient.name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", dimension=ndf_name,
+                               entity_decls=[orient.name]))
 
     def _invoke_declarations(self, parent):
         '''
@@ -2291,11 +2528,13 @@ class DynOrientations(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=declns))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=declns))
 
 
 class DynFunctionSpaces(DynCollection):
@@ -2346,10 +2585,13 @@ class DynFunctionSpaces(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._var_list:
             # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=self._var_list))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=self._var_list))
 
     def _invoke_declarations(self, parent):
         '''
@@ -2361,9 +2603,12 @@ class DynFunctionSpaces(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._var_list:
             # Declare ndf and undf for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=self._var_list))
 
     def initialise(self, parent):
@@ -2454,6 +2699,8 @@ class DynFields(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         fld_args = psyGen.args_filter(self._kernel.args,
                                       arg_types=["gh_field"])
         for fld in fld_args:
@@ -2465,12 +2712,15 @@ class DynFields(DynCollection):
                     text = (fld.name + "_" +
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
-                    parent.add(DeclGen(parent, datatype="real",
-                                       kind="r_def", dimension=undf_name,
-                                       intent=intent, entity_decls=[text]))
+                    parent.add(
+                        DeclGen(parent, datatype="real",
+                                kind=api_config.default_kind["real"],
+                                dimension=undf_name,
+                                intent=intent, entity_decls=[text]))
             else:
                 parent.add(
-                    DeclGen(parent, datatype="real", kind="r_def",
+                    DeclGen(parent, datatype="real",
+                            kind=api_config.default_kind["real"],
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
@@ -2555,11 +2805,13 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        # Use our namespace manager to create a unique name unless
-        # the context and label match and in this case return the
-        # previous name.
-        self._nlayers_name = self._name_space_manager.create_name(
-            root_name="nlayers", context="PSyVars", label="nlayers")
+        if self._invoke:
+            self._nlayers_name = \
+                self._invoke.schedule.symbol_table.name_from_tag("nlayers")
+        else:
+            # If it is not connected to an invoke (e.g. Stubs) we will hardcode
+            # the name without adding into the SymbolTable.
+            self._nlayers_name = "nlayers"
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -2585,10 +2837,13 @@ class DynCellIterators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that iterate over cells
         if not self._dofs_only:
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[self._nlayers_name]))
 
     def _stub_declarations(self, parent):
@@ -2599,9 +2854,12 @@ class DynCellIterators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[self._nlayers_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
         '''
@@ -2669,17 +2927,22 @@ class DynScalarArgs(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=api_config.default_kind["real"],
                                    entity_decls=self._real_scalars[intent],
                                    intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=self._int_scalars[intent],
-                                   intent=intent))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=self._int_scalars[intent],
+                            intent=intent))
 
     def _stub_declarations(self, parent):
         '''
@@ -2706,18 +2969,23 @@ class DynLMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
         if lma_args:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=["cell"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
             ndf_name_to = get_fs_ndf_name(arg.function_space_to)
             ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -2820,6 +3088,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -2830,13 +3099,14 @@ class DynCMAOperators(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise number of cols"))
         parent.add(CommentGen(parent, ""))
-        ncol_name = self._name_space_manager.create_name(
-            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        ncol_name = \
+            self._invoke.schedule.symbol_table.name_from_tag("ncell_2d")
         parent.add(
             AssignGen(
                 parent, lhs=ncol_name,
                 rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
         parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
                            entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
@@ -2847,19 +3117,15 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
             # matrix
-            cma_name = self._name_space_manager.create_name(
-                root_name=op_name+"_matrix",
-                context="PSyVars",
-                label=op_name+"_matrix")
+            cma_name = self._invoke.schedule.symbol_table.\
+                name_from_tag(op_name+"_matrix")
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._name_space_manager.create_name(
-                    root_name=op_name+"_"+param,
-                    context="PSyVars",
-                    label=op_name+"_"+param)
+                param_name = self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_"+param)
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
@@ -2874,6 +3140,7 @@ class DynCMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -2900,20 +3167,19 @@ class DynCMAOperators(DynCollection):
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
-            cma_name = self._name_space_manager.create_name(
-                root_name=op_name+"_matrix", context="PSyVars",
-                label=op_name+"_matrix")
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            cma_name = self._invoke.schedule.symbol_table.\
+                    name_from_tag(op_name+"_matrix")
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._name_space_manager.create_name(
-                    root_name=op_name+"_"+param,
-                    context="PSyVars",
-                    label=op_name+"_"+param))
+                param_names.append(self._invoke.schedule.symbol_table.
+                                   name_from_tag(op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
 
     def _stub_declarations(self, parent):
@@ -2926,15 +3192,21 @@ class DynCMAOperators(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
 
+        # TODO 719 The symtab is not connected to other parts of the
+        # Stub generation.
+        symtab = SymbolTable()
+
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
-        parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=["cell", "ncell_2d"]))
+        parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
+                           intent="in", entity_decls=["cell", "ncell_2d"]))
 
         for op_name in self._cma_ops:
             # Declare the associated scalar arguments before the array because
@@ -2942,19 +3214,17 @@ class DynCMAOperators(DynCollection):
             # get upset if this ordering is not followed)
             _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._name_space_manager.create_name(
-                    root_name=op_name+"_"+param,
-                    context="PSyVars",
-                    label=op_name+"_"+param)
+                param_name = symtab.name_from_tag(op_name+"_"+param)
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
-                               intent="in",
-                               entity_decls=_local_args))
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=_local_args))
             # Declare the array that holds the CMA operator
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
@@ -2964,9 +3234,10 @@ class DynMeshes(object):
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
-    one mesh object required (when colouring or doing distributed memory).
-    However, kernels performing inter-grid operations require multiple mesh
-    objects as well as mesh maps and other quantities.
+    one mesh object required (when colouring, doing distributed memory or
+    querying the reference element). However, kernels performing inter-grid
+    operations require multiple mesh objects as well as mesh maps and other
+    quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
@@ -2982,7 +3253,6 @@ class DynMeshes(object):
     '''
 
     def __init__(self, invoke, unique_psy_vars):
-        self._name_space_manager = NameSpaceFactory().create()
         # Dict of DynInterGrid objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
         # names.
@@ -3011,7 +3281,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
+        requires_ref_element = False
         for call in self._schedule.coded_kernels():
+
+            if call.reference_element.properties:
+                requires_ref_element = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3030,16 +3304,10 @@ class DynMeshes(object):
             self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
-            _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name="mesh_{0}".format(fine_arg.name),
-                    context="PSyVars",
-                    label="mesh_{0}".format(fine_arg.name)))
-            _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name="mesh_{0}".format(coarse_arg.name),
-                    context="PSyVars",
-                    label="mesh_{0}".format(coarse_arg.name)))
+            _name_set.add(self._schedule.symbol_table.name_from_tag(
+                "mesh_{0}".format(fine_arg.name)))
+            _name_set.add(self._schedule.symbol_table.name_from_tag(
+                "mesh_{0}".format(coarse_arg.name)))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
@@ -3053,12 +3321,15 @@ class DynMeshes(object):
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
-        # more kernels that iterate over cells. (Colourmaps also
-        # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set and (Config.get().distributed_memory and
-                              not invoke.iterate_over_dofs_only):
-            _name_set.add(self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh"))
+        # more kernels that iterate over cells. We also require a mesh object
+        # if any of the kernels require properties of the reference element.
+        # (Colourmaps also require a mesh object but that is handled in
+        # _colourmap_init().)
+        if not _name_set:
+            if (requires_ref_element or (Config.get().distributed_memory and
+                                         not invoke.iterate_over_dofs_only)):
+                _name_set.add(
+                    self._schedule.symbol_table.name_from_tag("mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -3082,12 +3353,12 @@ class DynMeshes(object):
                 carg_name = self._ig_kernels[call.name].coarse.name
                 # Colour map
                 base_name = "cmap_" + carg_name
-                colour_map = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
+                colour_map = \
+                    self._schedule.symbol_table.name_from_tag(base_name)
                 # No. of colours
                 base_name = "ncolour_" + carg_name
-                ncolours = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
+                ncolours = \
+                    self._schedule.symbol_table.name_from_tag(base_name)
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
@@ -3096,8 +3367,8 @@ class DynMeshes(object):
         if not self._mesh_names and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
-            mesh_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            mesh_name = \
+                self._schedule.symbol_table.name_from_tag("mesh")
             self._mesh_names.append(mesh_name)
 
     def declarations(self, parent):
@@ -3108,6 +3379,7 @@ class DynMeshes(object):
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         # Since we're now generating code, any transformations must
         # have been applied so we can set-up colourmap information
@@ -3131,36 +3403,44 @@ class DynMeshes(object):
                                    entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
+                        kind=api_config.default_kind["integer"],
                         entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[kern.ncell_fine,
                                              kern.ncellpercell]))
             # Declare variables to hold the colourmap information if required
             if kern.colourmap:
-                parent.add(DeclGen(parent, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=[kern.colourmap+"(:,:)"]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=[kern.ncolours_var]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[kern.colourmap+"(:,:)"]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=[kern.ncolours_var]))
 
         if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
-            colour_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
+            colour_map = \
+                self._schedule.symbol_table.name_from_tag(base_name)
             # No. of colours
             base_name = "ncolour"
-            ncolours = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
+            ncolours = \
+                self._schedule.symbol_table.name_from_tag(base_name)
             # Add declarations for these variables
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                pointer=True,
                                entity_decls=[colour_map+"(:,:)"]))
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
 
     def initialise(self, parent):
@@ -3193,11 +3473,9 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                colour_map = self._name_space_manager.create_name(
-                    root_name="cmap", context="PSyVars", label="cmap")
-                ncolour = self._name_space_manager.create_name(
-                    root_name="ncolour", context="PSyVars",
-                    label="ncolour")
+                colour_map = self._schedule.symbol_table.name_from_tag("cmap")
+                ncolour = \
+                    self._schedule.symbol_table.name_from_tag("ncolour")
                 # Get the number of colours
                 parent.add(AssignGen(
                     parent, lhs=ncolour,
@@ -3220,14 +3498,10 @@ class DynMeshes(object):
         # Loop over the DynInterGrid objects in our dictionary
         for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
-            fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(dig.fine.name),
-                context="PSyVars",
-                label="mesh_{0}".format(dig.fine.name))
-            coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(dig.coarse.name),
-                context="PSyVars",
-                label="mesh_{0}".format(dig.coarse.name))
+            fine_mesh = self._schedule.symbol_table.name_from_tag(
+                "mesh_{0}".format(dig.fine.name))
+            coarse_mesh = self._schedule.symbol_table.name_from_tag(
+                "mesh_{0}".format(dig.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
@@ -3317,36 +3591,29 @@ class DynInterGrid(object):
     :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     '''
     def __init__(self, fine_arg, coarse_arg):
-        self._name_space_manager = NameSpaceFactory().create()
 
         # Arguments on the coarse and fine grids
         self.coarse = coarse_arg
         self.fine = fine_arg
 
+        # Get a reference to the InvokeSchedule SymbolTable
+        symtab = self.coarse.call.root.symbol_table
+
         # Generate name for inter-mesh map
         base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
                                                coarse_arg.name)
-        self.mmap = self._name_space_manager.create_name(
-            root_name=base_mmap_name,
-            context="PSyVars",
-            label=base_mmap_name)
+        self.mmap = symtab.name_from_tag(base_mmap_name)
 
         # Generate name for ncell variables
-        self.ncell_fine = self._name_space_manager.create_name(
-            root_name="ncell_{0}".format(fine_arg.name),
-            context="PSyVars",
-            label="ncell_{0}".format(fine_arg.name))
+        self.ncell_fine = symtab.name_from_tag(
+            "ncell_{0}".format(fine_arg.name))
         # No. of fine cells per coarse cell
-        self.ncellpercell = self._name_space_manager.create_name(
-            root_name="ncpc_{0}_{1}".format(fine_arg.name,
-                                            coarse_arg.name),
-            context="PSyVars",
-            label="ncpc_{0}_{1}".format(fine_arg.name,
-                                        coarse_arg.name))
+        self.ncellpercell = symtab.name_from_tag(
+            "ncpc_{0}_{1}".format(fine_arg.name, coarse_arg.name))
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
-        self.cell_map = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        self.cell_map = symtab.name_from_tag(base_name)
+
         # We have no colourmap information when first created
         self.colourmap = ""
         # Name of the variable holding the number of colours
@@ -3601,6 +3868,7 @@ class DynBasisFunctions(DynCollection):
 
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._qr_vars and not self._eval_targets:
             return
@@ -3609,21 +3877,25 @@ class DynBasisFunctions(DynCollection):
         var_dims, basis_arrays = self._basis_fn_declns()
 
         if var_dims:
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=var_dims))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=var_dims))
         for basis in basis_arrays:
             parent.add(DeclGen(parent, datatype="real",
-                               kind="r_def", intent="in",
+                               kind=api_config.default_kind["real"],
+                               intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
         for qr_shape in VALID_QUADRATURE_SHAPES:
             if qr_shape.lower() == "gh_quadrature_xyoz":
                 if qr_shape not in self._qr_vars:
                     continue
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=api_config.default_kind["real"],
                                    intent="in", dimension="np_xy",
                                    entity_decls=["weights_xy"]))
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=api_config.default_kind["real"],
                                    intent="in", dimension="np_z",
                                    entity_decls=["weights_z"]))
             else:
@@ -3651,13 +3923,11 @@ class DynBasisFunctions(DynCollection):
                                 entity_decls=self._qr_vars[shape],
                                 intent="in"))
                 # For each of these we'll need a corresponding proxy, use
-                # our namespace manager to avoid clashes...
+                # the symbol_table to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    var_names.append(
-                        self._name_space_manager.create_name(
-                            root_name=var+"_proxy", context="PSyVars",
-                            label=var+"_proxy"))
+                    var_names.append(self._invoke.schedule.symbol_table.
+                                     name_from_tag(var+"_proxy"))
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -3679,6 +3949,8 @@ class DynBasisFunctions(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
             AllocateGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         basis_declarations = []
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
@@ -3721,7 +3993,8 @@ class DynBasisFunctions(DynCollection):
                 rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
 
@@ -3759,6 +4032,7 @@ class DynBasisFunctions(DynCollection):
         if var_dims:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=var_dims))
 
         basis_declarations = []
@@ -3772,7 +4046,8 @@ class DynBasisFunctions(DynCollection):
         # declare the basis function arrays
         if basis_declarations:
             parent.add(DeclGen(parent, datatype="real",
-                               allocatable=True, kind="r_def",
+                               kind=api_config.default_kind["real"],
+                               allocatable=True,
                                entity_decls=basis_declarations))
 
         # Compute the values for any basis arrays
@@ -3917,6 +4192,7 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import AssignGen, DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
             return
@@ -3929,13 +4205,15 @@ class DynBasisFunctions(DynCollection):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
                     entity_decls=[name+"_"+qr_arg_name
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
             parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind="r_def", entity_decls=decl_list))
+                DeclGen(parent, datatype="real",
+                        kind=api_config.default_kind["real"],
+                        pointer=True, entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
             parent.add(
@@ -3976,6 +4254,8 @@ class DynBasisFunctions(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen, DoGen, \
             DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         loop_var_list = set()
         op_name_list = []
         # add calls to compute the values of any basis arrays
@@ -4086,6 +4366,7 @@ class DynBasisFunctions(DynCollection):
         if loop_var_list:
             # Declare any loop variables
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=sorted(loop_var_list)))
 
     def deallocate(self, parent):
@@ -4188,12 +4469,16 @@ class DynBoundaryConditions(DynCollection):
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(DeclGen(parent, datatype="integer", pointer="True",
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True,
                                entity_decls=[name+"(:,:) => null()"]))
 
     def _stub_declarations(self, parent):
@@ -4201,13 +4486,17 @@ class DynBoundaryConditions(DynCollection):
         Add declarations for any boundary-dofs arrays required by a kernel.
 
         :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             ndf_name = get_fs_ndf_name(dofs.function_space)
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in",
                                dimension=",".join([ndf_name, "2"]),
                                entity_decls=[name]))
 
@@ -4216,7 +4505,7 @@ class DynBoundaryConditions(DynCollection):
         Initialise any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         from psyclone.f2pygen import AssignGen
         for dofs in self._boundary_dofs:
@@ -4229,30 +4518,35 @@ class DynBoundaryConditions(DynCollection):
 
 
 class DynInvoke(Invoke):
-    '''The Dynamo specific invoke class. This passes the Dynamo
-    specific InvokeSchedule class to the base class so it creates the one we
+    '''The Dynamo specific invoke class. This passes the Dynamo specific
+    InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
+    :param alg_invocation: object containing the invoke call information.
+    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: the position of the invoke in the list of invokes \
+        contained in the Algorithm.
+    :param invokes: the Invokes object containing this DynInvoke \
+        object.
+    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
+
+    :raises GenerationError: if integer reductions are required in the \
+        psy-layer.
+
     '''
-    def __init__(self, alg_invocation, idx):
-        '''
-        :param alg_invocation: node in the AST describing the invoke call
-        :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-        :param int idx: the position of the invoke in the list of invokes \
-                        contained in the Algorithm
-        :raises GenerationError: if integer reductions are required in the \
-                                 psy-layer
-        '''
-        if False:  # pylint: disable=using-constant-test
-            self._schedule = DynInvokeSchedule(None)  # for pyreverse
+    def __init__(self, alg_invocation, idx, invokes):
+        if not alg_invocation and not idx:
+            # This if test is added to support pyreverse.
+            return
+        self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
-                        reserved_names=reserved_names_list)
+                        invokes, reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
         # list and stores it in the self._alg_unique_args
@@ -4301,6 +4595,9 @@ class DynInvoke(Invoke):
 
         # Information on any orientation arrays required by this invoke
         self.orientation = DynOrientations(self)
+
+        # Information on the required properties of the reference element
+        self.reference_element_properties = DynReferenceElement(self)
 
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -4443,8 +4740,6 @@ class DynInvoke(Invoke):
         from psyclone.f2pygen import SubroutineGen, AssignGen, \
             DeclGen, CommentGen
 
-        # Create a namespace manager so we can avoid name clashes
-        self._name_space_manager = NameSpaceFactory().create()
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
@@ -4456,20 +4751,25 @@ class DynInvoke(Invoke):
                          self.stencil, self.orientation, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators]:
+                         self.proxies, self.cell_iterators,
+                         self.reference_element_properties]:
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
 
         if self.schedule.reductions(reprod=True):
-            # we have at least one reproducible reduction so we need
+            # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
             from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
-            nthreads_name = self._name_space_manager.create_name(
-                root_name="nthreads", context="PSyVars", label="nthreads")
+            tag = "omp_num_threads"
+            nthreads_name = \
+                self.schedule.symbol_table.lookup_with_tag(tag).name
             invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
                                   funcnames=[omp_function_name]))
+            # Note: There is no assigned kind for integer nthreads as this
+            # would imply assigning kind to th_idx and other elements of
+            # the psyGen OMPParallelDirective
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[nthreads_name]))
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -4482,7 +4782,8 @@ class DynInvoke(Invoke):
         for entities in [self.proxies, self.cell_iterators, self.meshes,
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators]:
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised, we can call our kernels
@@ -4512,10 +4813,10 @@ class DynInvokeSchedule(InvokeSchedule):
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
-    def __init__(self, arg):
+    def __init__(self, arg, reserved_names=None):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
         InvokeSchedule.__init__(self, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg)
+                                DynBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -4539,7 +4840,7 @@ class DynGlobalSum(GlobalSum):
     :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the PSyIR
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises GenerationError: if distributed memory is not enabled.
     :raises GenerationError: if the scalar is not of type gh_real.
@@ -4562,9 +4863,7 @@ class DynGlobalSum(GlobalSum):
         ''' Dynamo specific code generation for this class '''
         from psyclone.f2pygen import AssignGen, TypeDeclGen, UseGen
         name = self._scalar.name
-        name_space_manager = NameSpaceFactory().create()
-        sum_name = name_space_manager.create_name(
-            root_name="global_sum", context="PSyVars", label="global_sum")
+        sum_name = self.root.symbol_table.name_from_tag("global_sum")
         parent.add(UseGen(parent, name="scalar_mod", only=True,
                           funcnames=["scalar_type"]))
         parent.add(TypeDeclGen(parent, datatype="scalar_type",
@@ -5625,10 +5924,6 @@ class DynLoop(Loop):
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # Get the namespace manager instance so we can look-up
-        # the name of the nlayers and ndf variables
-        self._name_space_manager = NameSpaceFactory().create()
-
         # set our variable name at initialisation as it might be
         # required by other classes before code generation
         if self._loop_type == "colours":
@@ -5636,10 +5931,15 @@ class DynLoop(Loop):
         elif self._loop_type == "colour":
             self._variable_name = "cell"
         elif self._loop_type == "dofs":
-            self._variable_name = self._name_space_manager.\
-                create_name(root_name="df",
-                            context="PSyVars",
-                            label="dof_loop_idx")
+            symtab = self.root.symbol_table
+            try:
+                self._variable_name = \
+                    symtab.lookup_with_tag("dof_loop_idx").name
+            except KeyError:
+                self._variable_name = symtab.new_symbol_name("df")
+                symtab.add(
+                    DataSymbol(self._variable_name, DataType.INTEGER),
+                    tag="dof_loop_idx")
         else:
             self._variable_name = "cell"
 
@@ -5801,11 +6101,13 @@ class DynLoop(Loop):
     def _lower_bound_fortran(self):
         '''
         Create the associated Fortran code for the type of lower bound.
-        :returns: the Fortran code for the lower bound
+
+        :returns: the Fortran code for the lower bound.
         :rtype: str
+
         :raises GenerationError: if self._lower_bound_name is not "start"
                                  for sequential code.
-        :raises GenerationError: if self._lower_bound_name is unrecognised
+        :raises GenerationError: if self._lower_bound_name is unrecognised.
         '''
         if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
@@ -5834,8 +6136,7 @@ class DynLoop(Loop):
                 raise GenerationError(
                     "Unsupported lower bound name '{0}' "
                     "found".format(self._lower_bound_name))
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            mesh_obj_name = self.root.symbol_table.name_from_tag("mesh")
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
                 + prev_space_index_str + ")+1"
 
@@ -5865,8 +6166,7 @@ class DynLoop(Loop):
         else:
             # It's not an inter-grid kernel so there's only one mesh
             mesh_name = "mesh"
-        mesh = self._name_space_manager.create_name(
-            root_name=mesh_name, context="PSyVars", label=mesh_name)
+        mesh = self.root.symbol_table.name_from_tag(mesh_name)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -6170,7 +6470,9 @@ class DynLoop(Loop):
                                   "parallel region.")
 
         # Generate the upper and lower loop bounds
-        # TODO: Issue 440. upper/lower_bound_fortran should generate PSyIR
+        # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
+        # TODO: Issue #696. Add kind (precision) when the support in Literal
+        #                   class is implemented.
         self.start_expr = Literal(self._lower_bound_fortran(),
                                   DataType.INTEGER, parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(),
@@ -6314,9 +6616,9 @@ class DynKern(CodedKern):
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+        self._reference_element = None
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -6470,14 +6772,11 @@ class DynKern(CodedKern):
             # The quadrature-related arguments always come last
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
-            # use our namespace manager to create a unique name unless
-            # the context and label match and in this case return the
-            # previous name. We use the full text of the original
-            # as a label.
+            # Use the symbol_table to create a unique symbol name.
             if qr_arg.varname:
-                self._qr_name = self._name_space_manager.create_name(
-                    root_name=qr_arg.varname, context="AlgArgs",
-                    label=self._qr_text)
+                tag = "AlgArgs_" + self._qr_text
+                self._qr_name = \
+                    self.root.symbol_table.name_from_tag(tag, qr_arg.varname)
             else:
                 self._qr_name = ""
             # Dynamo 0.3 api kernels require quadrature rule arguments to be
@@ -6522,6 +6821,9 @@ class DynKern(CodedKern):
                 "Must be one of {1}.".format(self._eval_shape,
                                              VALID_EVALUATOR_SHAPES))
 
+        # Properties of the reference element required by this kernel
+        self._reference_element = ktype.reference_element
+
     @property
     def cma_operation(self):
         ''' Returns the type of CMA operation performed by this kernel
@@ -6560,8 +6862,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
-            cmap = self._name_space_manager.create_name(
-                root_name="cmap", context="PSyVars", label="cmap")
+            cmap = self.root.symbol_table.lookup_with_tag("cmap").name
         return cmap
 
     @property
@@ -6586,8 +6887,7 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
-            ncols = self._name_space_manager.create_name(
-                root_name="ncolour", context="PSyVars", label="ncolour")
+            ncols = self.root.symbol_table.lookup_with_tag("ncolour").name
         return ncols
 
     @property
@@ -6627,6 +6927,14 @@ class DynKern(CodedKern):
                 the names of the target function spaces.
         '''
         return self._eval_targets
+
+    @property
+    def reference_element(self):
+        '''
+        :returns: the reference-element properties required by this kernel.
+        :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
+        '''
+        return self._reference_element
 
     @property
     def qr_text(self):
@@ -6676,16 +6984,18 @@ class DynKern(CodedKern):
 
         '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
+        api_config = Config.get().api_conf("dynamo0.3")
 
-        # create an empty PSy layer module
-        base_name = self._base_name
+        # Create an empty PSy layer module
         psy_module = ModuleGen(self._base_name+"_mod")
 
         # Create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
-        sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
-                            funcnames=["r_def"]))
+        sub_stub.add(
+            UseGen(sub_stub, name="constants_mod", only=True,
+                   funcnames=[api_config.default_kind["real"],
+                              api_config.default_kind["integer"]]))
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
@@ -6720,7 +7030,10 @@ class DynKern(CodedKern):
 
         '''
         from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
         parent.add(DeclGen(parent, datatype="integer",
+                           kind=api_config.default_kind["integer"],
                            entity_decls=["cell"]))
 
         parent_loop = self.parent.parent
@@ -6936,6 +7249,10 @@ class ArgOrdering(object):
                     format(self._kern.name, op_arg.access.api_specific_name()))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
+        # Reference-element properties
+        if self._kern.reference_element:
+            self.ref_element_properties()
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -7124,6 +7441,11 @@ class ArgOrdering(object):
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
 
+    @abc.abstractmethod
+    def ref_element_properties(self):
+        ''' Add kernel arguments relating to properties of the reference
+        element. '''
+
     def quad_rule(self):
         '''
         Add qr information
@@ -7168,7 +7490,6 @@ class KernCallArgList(ArgOrdering):
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
         self._arglist = []
-        self._name_space_manager = NameSpaceFactory().create()
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
@@ -7179,33 +7500,29 @@ class KernCallArgList(ArgOrdering):
 
     def cell_map(self):
         ''' Add cell-map and related cell counts to the argument list '''
-        cargs = psyGen.args_filter(self._kern.args,
-                                   arg_meshes=["gh_coarse"])
+        symtab = self._kern.root.symbol_table
+        cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
         carg = cargs[0]
-        fargs = psyGen.args_filter(self._kern.args,
-                                   arg_meshes=["gh_fine"])
+        fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        map_name = symtab.name_from_tag(base_name)
         # Add the cell map to our argument list
         self._arglist.append("{0}(:,{1})".format(map_name,
                                                  self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
-        ncellpercell = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        ncellpercell = symtab.name_from_tag(base_name)
         self._arglist.append(ncellpercell)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = self._name_space_manager.create_name(
-            root_name=base_name, context="PSyVars", label=base_name)
+        ncell_fine = symtab.name_from_tag(base_name)
         self._arglist.append(ncell_fine)
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list'''
-        nlayers_name = self._name_space_manager.create_name(
-            root_name="nlayers", context="PSyVars", label="nlayers")
+        nlayers_name = \
+            self._kern.root.symbol_table.name_from_tag("nlayers")
         self._arglist.append(nlayers_name)
         self._nlayers_positions.append(len(self._arglist))
 
@@ -7220,8 +7537,8 @@ class KernCallArgList(ArgOrdering):
 
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list '''
-        ncell2d_name = self._name_space_manager.create_name(
-            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        ncell2d_name = \
+            self._kern.root.symbol_table.name_from_tag("ncell_2d")
         self._arglist.append(ncell2d_name)
 
     def field_vector(self, argvect):
@@ -7250,7 +7567,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
-        name = DynStencils.dofmap_size_name(arg)
+        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -7277,7 +7594,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # add in stencil dofmap
-        var_name = DynStencils.dofmap_name(arg)
+        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = var_name + "(:,:," + self._cell_ref_name + ")"
         self._arglist.append(name)
 
@@ -7305,10 +7622,8 @@ class KernCallArgList(ArgOrdering):
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
             self._arglist.append(
-                self._name_space_manager.create_name(
-                    root_name=arg.name+"_"+component,
-                    context="PSyVars",
-                    label=arg.name+"_"+component))
+                self._kern.root.symbol_table.name_from_tag(
+                    arg.name + "_" + component))
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
@@ -7432,9 +7747,7 @@ class KernCallArgList(ArgOrdering):
                 "for kernel {0} but got {1}".format(self._kern.name,
                                                     farg.type))
         base_name = "boundary_dofs_" + farg.name
-        name = self._name_space_manager.create_name(root_name=base_name,
-                                                    context="PSyVars",
-                                                    label=base_name)
+        name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
 
     def operator_bcs_kernel(self, _):
@@ -7448,10 +7761,58 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_"+op_arg.name
-        name = self._name_space_manager.create_name(root_name=base_name,
-                                                    context="PSyVars",
-                                                    label=base_name)
+        name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
+
+    def ref_element_properties(self):
+        ''' Provide kernel arguments required by the reference-element
+        properties specified in the kernel metadata.
+
+        :raises InternalError: if an unsupported reference-element property \
+                               is encountered.
+        '''
+        symtab = self._kern.root.symbol_table
+        # Provide no. of horizontal faces if required
+        if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES \
+           in self._kern.reference_element.properties:
+            # Query the symbol_table to get the variable name
+            nfaces_h = symtab.name_from_tag("nfaces_re_h")
+            self._arglist.append(nfaces_h)
+        # Provide no. of vertical faces if required
+        if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
+           in self._kern.reference_element.properties or \
+           RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES \
+           in self._kern.reference_element.properties:
+            nfaces_v = symtab.name_from_tag("nfaces_re_v")
+            self._arglist.append(nfaces_v)
+        # Now the arrays themselves, in the order specified in the
+        # kernel metadata
+        for prop in self._kern.reference_element.properties:
+            if prop == \
+               RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
+                name = symtab.name_from_tag("out_normals_to_horiz_faces")
+                self._arglist.append(name)
+            elif (prop ==
+                  RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES):
+                name = symtab.name_from_tag("normals_to_horiz_faces")
+                self._arglist.append(name)
+            elif (prop == RefElementMetaData.Property.
+                  OUTWARD_NORMALS_TO_VERTICAL_FACES):
+                name = symtab.name_from_tag("out_normals_to_vert_faces")
+                self._arglist.append(name)
+            elif (prop == RefElementMetaData.Property.
+                  NORMALS_TO_VERTICAL_FACES):
+                name = symtab.name_from_tag("normals_to_vert_faces")
+                self._arglist.append(name)
+            else:
+                raise InternalError(
+                    "Unsupported reference-element property ('{0}') found when"
+                    " generating arguments for kernel '{1}'. Supported "
+                    "properties are: {2}".format(
+                        str(prop), self._kern.name,
+                        [str(sprop) for sprop in RefElementMetaData.Property]))
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
@@ -7568,27 +7929,37 @@ class KernCallArgList(ArgOrdering):
 class KernStubArgList(ArgOrdering):
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
-    of the arguments is captured by the base class '''
+    of the arguments is captured by the base class.
+
+    :param kern: Kernel for which to create argument list.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises NotImplementedError: if the kernel is inter-grid.
+    :raises NotImplementedError: if the kernel requires properties of the \
+                                 reference element.
+    '''
     def __init__(self, kern):
-        '''
-        :param kern: Kernel for which to create argument list
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-
-        :raises NotImplementedError: if kernel is inter-grid
-        '''
-
         # We don't yet support inter-grid kernels (Issue #162)
         if kern.is_intergrid:
             raise NotImplementedError(
                 "Kernel {0} is an inter-grid kernel and stub generation "
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
+        # We don't support Kernels requiring properties of the reference
+        # element
+        if kern.reference_element.properties:
+            raise NotImplementedError(
+                "Kernel {0} requires properties of the reference element "
+                "which is not yet supported for stub generation.")
 
         self._first_arg = True
         self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
+        # TODO 719 The stub_symtab is not connected to other parts of the
+        # Stub generation. Also the symboltable already has an
+        # argument_list that may be able to replace the _arglist below.
         self._arglist = []
-        self._name_space_manager = NameSpaceFactory().create()
+        self._stub_symtab = SymbolTable()
 
     def cell_position(self):
         ''' Add cell position to the argument list. '''
@@ -7634,11 +8005,12 @@ class KernStubArgList(ArgOrdering):
         '''
         Add stencil information associated with a kernel argument if the
         extent is unknown.
+
         :param arg: the meta-data description of the kernel argument with \
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        name = DynStencils.dofmap_size_name(arg)
+        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -7650,7 +8022,8 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         '''
-        self._arglist.append(DynStencils.direction_name(arg))
+        self._arglist.append(DynStencils.direction_name(
+            self._stub_symtab, arg))
 
     def stencil(self, arg):
         '''
@@ -7660,7 +8033,7 @@ class KernStubArgList(ArgOrdering):
                     which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
-        self._arglist.append(DynStencils.dofmap_name(arg))
+        self._arglist.append(DynStencils.dofmap_name(self._stub_symtab, arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
@@ -7862,7 +8235,6 @@ class KernStubArgList(ArgOrdering):
 #        ArgOrdering.__init__(self, kern)
 #        self._parent = parent
 #        self._position = position
-#        self._name_space_manager = NameSpaceFactory().create()
 #        self._scalar_position = None
 #        self._array_position = None
 #
@@ -8174,7 +8546,6 @@ class DynKernelArguments(Arguments):
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
-        self._name_space_manager = NameSpaceFactory().create()
 
         Arguments.__init__(self, parent_call)
 
@@ -8217,17 +8588,23 @@ class DynKernelArguments(Arguments):
         # We have now completed the construction of the kernel arguments so
         # we can go back and update the names of any stencil size and/or
         # direction variable names to ensure there are no clashes.
+        if self._parent_call and hasattr(self._parent_call.root,
+                                         'symbol_table'):
+            symtab = self._parent_call.root.symbol_table
+        else:
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
+            symtab = SymbolTable()
         for arg in self._args:
             if not arg.descriptor.stencil:
                 continue
             if not arg.stencil.extent_arg.is_literal():
                 if arg.stencil.extent_arg.varname:
-                    # Ensure extent argument name is registered with
-                    # namespace manager
+                    # Ensure extent argument name is registered in the
+                    # symbol_table.
+                    tag = "AlgArgs_" + arg.stencil.extent_arg.text
                     root = arg.stencil.extent_arg.varname
-                    new_name = self._name_space_manager.create_name(
-                        root_name=root, context="AlgArgs",
-                        label=arg.stencil.extent_arg.text)
+                    new_name = symtab.name_from_tag(tag, root)
                     arg.stencil.extent_arg.varname = new_name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
@@ -8236,11 +8613,10 @@ class DynKernelArguments(Arguments):
                    VALID_STENCIL_DIRECTIONS:
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
+                    tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    unique_name = self._name_space_manager.create_name(
-                        root_name=root, context="AlgArgs",
-                        label=arg.stencil.direction_arg.text)
-                    arg.stencil.direction_arg.varname = unique_name
+                    new_name = symtab.name_from_tag(tag, root)
+                    arg.stencil.direction_arg.varname = new_name
 
         self._dofs = []
 
@@ -8487,8 +8863,8 @@ class DynKernelArguments(Arguments):
                 :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
                 '''
-                var_name = DynStencils.dofmap_name(arg)
-                self._arglist.append(var_name)
+                self._arglist.append(DynStencils.dofmap_name(
+                    self._kern.root.symbol_table, arg))
 
             def operator(self, arg):
                 '''
@@ -8843,11 +9219,10 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call)
+        kern.load(call, cloop.children[3])
 
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
-        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)

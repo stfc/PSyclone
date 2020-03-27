@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2020 and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@ from fparser.one.block_statements import SelectCase, SelectType, EndSelect
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
 from fparser import one as fparser1
+from psyclone.errors import InternalError
 
 # Module-wide utility methods
 
@@ -1033,7 +1034,6 @@ class DeclGen(BaseDeclGen):
         else:
             # Defensive programming in case SUPPORTED_TYPES is added to
             # but not handled here
-            from psyclone.psyGen import InternalError
             raise InternalError(
                 "Type '{0}' is in DeclGen.SUPPORTED_TYPES "
                 "but not handled by constructor.".format(dtype))
@@ -1093,7 +1093,6 @@ class DeclGen(BaseDeclGen):
         else:
             # We should never get to here because we check that the type
             # is supported before calling this routine.
-            from psyclone.psyGen import InternalError
             raise InternalError(
                 "unsupported type '{0}' - should be "
                 "one of {1}".format(dtype, DeclGen.SUPPORTED_TYPES))
@@ -1171,29 +1170,35 @@ class TypeDeclGen(BaseDeclGen):
     '''
     Generates a Fortran declaration for variables of a derived type.
 
-    :param parent: node to which to add this declaration as a child
+    :param parent: node to which to add this declaration as a child.
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-    :param str datatype: the type for this declaration
-    :param list entity_decls: list of variable names to declare
-    :param str intent: the INTENT attribute of this declaration
-    :param bool pointer: whether or not this is a pointer declaration
+    :param str datatype: the type for this declaration.
+    :param list entity_decls: list of variable names to declare.
+    :param str intent: the INTENT attribute of this declaration.
+    :param bool pointer: whether or not this is a pointer declaration.
     :param str dimension: the DIMENSION specifier (i.e. the xx in \
-                          DIMENSION(xx))
+                          DIMENSION(xx)).
     :param bool allocatable: whether this declaration is for an \
-                             ALLOCATABLE quantity
-    :param bool save: whether this declaration has the SAVE attribute
-    :param bool target: whether this declaration has the TARGET attribute
+                             ALLOCATABLE quantity.
+    :param bool save: whether this declaration has the SAVE attribute.
+    :param bool target: whether this declaration has the TARGET attribute.
+    :param bool is_class: whether this is a class rather than type declaration.
 
     '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, dimension="", allocatable=False,
-                 save=False, target=False):
-
-        reader = FortranStringReader("type(vanillatype) :: vanilla")
+                 save=False, target=False, is_class=False):
+        if is_class:
+            reader = FortranStringReader("class(vanillatype) :: vanilla")
+        else:
+            reader = FortranStringReader("type(vanillatype) :: vanilla")
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
-
-        self._decl = fparser1.typedecl_statements.Type(parent.root, myline)
+        if is_class:
+            self._decl = fparser1.typedecl_statements.Class(parent.root,
+                                                            myline)
+        else:
+            self._decl = fparser1.typedecl_statements.Type(parent.root, myline)
         self._decl.selector = ('', datatype)
 
         super(TypeDeclGen, self).__init__(parent=parent, datatype=datatype,
@@ -1215,7 +1220,6 @@ class TypeDeclGen(BaseDeclGen):
         :raises InternalError: because specifying initial values for \
                                variables of derived type is not supported.
         '''
-        from psyclone.psyGen import InternalError
         raise InternalError(
             "This method should not have been called because initial values "
             "for derived-type declarations are not supported.")

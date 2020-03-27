@@ -1,3 +1,40 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by: J. Henrichs, Bureau of Meteorology,
+..              I. Kavcic, Met Office
+
 .. _configuration:
 
 Configuration
@@ -63,11 +100,12 @@ and an optional API specific section, for example for
 ::
 
    [dynamo0.3]
-   access_mapping = gh_read:read, gh_write:write, gh_rw:readwrite,
-                    gh_inc:inc, gh_sum:sum
+   access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                    gh_inc: inc, gh_sum: sum
 
    COMPUTE_ANNEXED_DOFS = false
 
+   default_kind = real: r_def, integer: i_def, logical: l_def
 
 or for ``gocean1.0``:
 ::
@@ -137,13 +175,13 @@ access_mapping          This field defines the strings that are used by a
                         value is a comma separated list of access-string:access
                         pairs, e.g.:
 
-                        ``gh_read:read, gh_write:write, gh_rw:readwrite,
-                        gh_inc:inc, gh_sum:sum``
+                        ``gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                        gh_inc: inc, gh_sum: sum``
 
                         At this stage these 5 types are defined for read, write,
                         read+write, increment and summation access by PSyclone.
                         Sum is a form of reduction.
-                        The gocean APIs do not support increment or sum, so
+                        The GOcean APIs do not support increment or sum, so
                         they only define three mappings for read, write, and 
                         readwrite.
 ======================= =======================================================
@@ -164,6 +202,10 @@ COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
                         exchanges. See :ref:`annexed_dofs` in the Developers'
                         guide.
+
+default_kind            Captures the default kinds (precisions) for the
+                        supported datatypes in LFRic (`real`, `integer` and
+                        `logical`).
 ======================= =======================================================
 
 ``gocean1.0`` Section
@@ -178,8 +220,13 @@ Entry                   Description
 ======================= =======================================================
 iteration-spaces        This contains definitions of additional iteration spaces
                         used by PSyclone. A detailed description can be found
-                        in the :ref:`gocean1.0-configuration` section of the
-                        GOcean1.0 chapter.
+                        in the :ref:`gocean1.0-configuration-iteration-spaces`
+                        section of the GOcean1.0 chapter.
+
+grid-properties         This key contains definitions to access various grid
+                        properties. A detailed description can be found
+                        in the :ref:`gocean1.0-configuration-grid-properties`
+                        section of the GOcean1.0 chapter.
 ======================= =======================================================
 
 ``NEMO`` Section

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
 
 ''' This module contains the generic Symbol and the SymbolError.'''
 
+import six
+
 
 class SymbolError(Exception):
     '''
@@ -60,9 +62,18 @@ class Symbol(object):
     that matches with the key on the SymbolTables that contain the symbol.
 
     :param str name: name of the symbol.
+
+    :raises TypeError: if the name is not a string.
+
     '''
 
     def __init__(self, name):
+
+        if not isinstance(name, six.string_types):
+            raise TypeError(
+                "{0} name attribute should be of type 'str'"
+                " but '{1}' found.".format(type(self).__name__, type(name)))
+
         self._name = name
 
     @property
@@ -72,3 +83,6 @@ class Symbol(object):
         :rtype: str
         '''
         return self._name
+
+    def __str__(self):
+        return self.name

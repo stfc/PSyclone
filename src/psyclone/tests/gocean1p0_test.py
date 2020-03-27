@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,18 @@ import re
 import pytest
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InternalError
-from psyclone.generator import GenerationError, ParseError
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.parse.utils import ParseError
+from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+    GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.psyir.symbols import SymbolTable
 
 API = "gocean1.0"
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "gocean1p0")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -90,8 +95,8 @@ def test_field(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_cu\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -135,14 +140,14 @@ def test_two_kernels(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
         "uold_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
 
@@ -184,14 +189,14 @@ def test_grid_property(tmpdir):
         "        DO i=2,istop-1\n"
         "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop-1\n"
         "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
         "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
@@ -233,8 +238,8 @@ def test_scalar_int_arg(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
         "ssh_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_int_test")
 
@@ -276,12 +281,65 @@ def test_scalar_float_arg(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
         "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
     assert generated_code.find(expected_output) != -1
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_scalar_float_arg_from_module():
+    ''' Tests that an invoke containing a kernel call requiring a real, scalar
+    argument imported from a module produces correct code '''
+    from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DataType, \
+        GlobalInterface
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+
+    # Substitute 'a_scalar' with a global
+    schedule = psy.invokes.invoke_list[0].schedule
+    my_mod = ContainerSymbol("my_mod")
+    schedule.symbol_table._symbols['a_scalar'] = DataSymbol(
+        'a_scalar', DataType.REAL, interface=GlobalInterface(my_mod))
+
+    # Generate the code. 'a_scalar' should now come from a module instead of a
+    # declaration.
+    generated_code = str(psy.gen)
+    expected_output = (
+        "  MODULE psy_single_invoke_scalar_float_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
+        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+        "      USE my_mod, ONLY: a_scalar\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
+        "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_float_test")
+    assert generated_code.find(expected_output) != -1
+    # We don't compile this generated code as the module is made up and
+    # the compiler would correctly fail.
 
 
 def test_ne_offset_cf_points(tmpdir):
@@ -319,8 +377,8 @@ def test_ne_offset_cf_points(tmpdir):
         "        DO i=1,istop-1\n"
         "          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -362,8 +420,8 @@ def test_ne_offset_ct_points(tmpdir):
         "        DO i=2,istop\n"
         "          CALL compute_vort_code(i, j, p_fld%data, u_fld%data, "
         "v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -404,8 +462,8 @@ def test_ne_offset_all_cu_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop\n"
         "          CALL bc_solid_u_code(i, j, u_fld%data, u_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -446,8 +504,8 @@ def test_ne_offset_all_cv_points(tmpdir):
         "      DO j=1,jstop\n"
         "        DO i=1,istop+1\n"
         "          CALL bc_solid_v_code(i, j, v_fld%data, v_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_v\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -488,8 +546,8 @@ def test_ne_offset_all_cf_points(tmpdir):
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
         "          CALL bc_solid_f_code(i, j, f_fld%data, f_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_f\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -529,8 +587,8 @@ def test_sw_offset_cf_points(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_z_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data, p_fld%grid%dx, p_fld%grid%dy)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
@@ -572,8 +630,8 @@ def test_sw_offset_all_cf_points(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_f_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_f\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -615,8 +673,8 @@ def test_sw_offset_ct_points(tmpdir):
         "        DO i=2,istop\n"
         "          CALL compute_h_code(i, j, h_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_h\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -659,8 +717,8 @@ def test_sw_offset_all_ct_points(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, "
         "ufld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_h\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -702,8 +760,8 @@ def test_sw_offset_all_cu_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -745,8 +803,8 @@ def test_sw_offset_all_cv_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_v_code(i, j, vfld%data, ufld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_v\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -789,8 +847,8 @@ def test_offset_any_all_cu_points(tmpdir):
         "        DO i=1,istop\n"
         "          CALL compute_u_code(i, j, ufld%data, vfld%data, "
         "hfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -832,8 +890,8 @@ def test_offset_any_all_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL field_copy_code(i, j, voldfld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
@@ -842,7 +900,7 @@ def test_offset_any_all_points(tmpdir):
 
 def test_goschedule_view(capsys):
     ''' Test that the GOInvokeSchedule::view() method works as expected '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -1156,7 +1214,6 @@ def test_find_grid_access(monkeypatch):
     ''' Tests for the GOKernelArguments.find_grid_access method. This
     identifies the best kernel argument from which to access grid
     properties. '''
-    from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
     kern = schedule.children[0].loop_body[0].loop_body[0]
@@ -1217,7 +1274,17 @@ def test_invalid_access_type():
     # Note that the error message looks slightly different between
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
-                     str(err.value))
+                     str(err.value)) is not None
+
+
+def test_compile_with_dependency(tmpdir):
+    ''' Check that we can do test compilation for an invoke of a kernel
+    that has a dependency on a non-infrastructure module. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
+        api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
@@ -1417,12 +1484,29 @@ def test07_kernel_wrong_gridpt_type():
 def test08_kernel_invalid_grid_property():
     ''' Check that the parser raises an error if a kernel's meta-data
     specifies an unrecognised grid property '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test08_invoke_kernel_invalid_grid_property.f90"),
               api="gocean1.0")
+    assert "Meta-data error in kernel compute_cu: un-recognised grid " \
+           "property 'grid_area_wrong' requested." in str(err.value)
+
+    # GOKernelGridArgument contains also a test for the validity of
+    # a grid property. It's easier to create a dummy class to test this:
+    class DummyDescriptor(object):
+        '''Dummy class to test error handling.'''
+        def __init__(self):
+            self.access = "read"
+            self.grid_prop = "does not exist"
+    descriptor = DummyDescriptor()
+    from psyclone.gocean1p0 import GOKernelGridArgument
+    with pytest.raises(GenerationError) as err:
+        GOKernelGridArgument(descriptor)
+    assert re.search("Unrecognised grid property specified. Expected one "
+                     "of.* but found 'does not exist'", str(err.value)) \
+        is not None
 
 
 def test08p1_kernel_without_fld_args():
@@ -1476,3 +1560,63 @@ def test14_no_builtins():
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
+
+
+def test_gokernelarguments_append():
+    ''' Check the GOcean specialisation of KernelArguments append method'''
+
+    # Parse a file to get an initialised GOKernelsArguments object
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+    assert isinstance(argument_list, GOKernelArguments)
+
+    # Try append a non-string value
+    with pytest.raises(TypeError) as err:
+        argument_list.append(3, "space")
+    assert "The name parameter given to GOKernelArguments.append method " \
+           "should be a string, but found 'int' instead." in str(err.value)
+
+    # Append well-constructed arguments
+    argument_list.append("var1", "go_r_scalar")
+    argument_list.append("var2", "go_i_scalar")
+
+    assert isinstance(kernelcall.args[-1], GOKernelArgument)
+    assert isinstance(kernelcall.args[-2], GOKernelArgument)
+    assert kernelcall.args[-1].name == "var2"
+    assert kernelcall.args[-2].name == "var1"
+
+    # And the generated code looks as expected
+    generated_code = str(psy.gen)
+    assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
+           " var1, var2)" in generated_code
+
+
+def test_gokernelargument_type():
+    ''' Check the type property of the GOKernelArgument'''
+    from psyclone.parse.algorithm import Arg
+    from psyclone.parse.kernel import Descriptor
+    from psyclone.psyir.nodes import Node
+
+    # Create a dummy node with the symbol_table property
+    dummy_node = Node()
+    dummy_node.symbol_table = SymbolTable()
+
+    # Create a dummy GOKernelArgument
+    descriptor = Descriptor(None, "")
+    arg = Arg("variable", "arg", "arg")
+    argument = GOKernelArgument(descriptor, arg, dummy_node)
+
+    # If the descriptor does not have a type it defaults to 'scalar'
+    assert argument.type == "scalar"
+
+    # Otherwise it return the descriptor type
+    argument._arg.type = "descriptor_type"  # Mock the descriptor type method
+    assert argument.type == "descriptor_type"

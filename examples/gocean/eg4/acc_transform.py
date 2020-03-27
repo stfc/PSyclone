@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,21 +40,23 @@ to have them compiled for an OpenACC accelerator. '''
 
 def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations
-    to the schedule of invoke_0 and return the new psy object '''
+    to the schedule of the first invoke and return the new psy object '''
     from psyclone.transformations import ACCParallelTrans, \
-        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans
+        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
+        KernelGlobalsToArguments
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
+    g2localtrans = KernelGlobalsToArguments()
 
-    invoke = psy.invokes.get('invoke_0')
+    invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     schedule.view()
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
-    from psyclone.psyGen import Loop
+    from psyclone.psyir.nodes import Loop
     for child in schedule.children:
         if isinstance(child, Loop):
             newschedule, _ = ltrans.apply(child, {"collapse": 2})
@@ -66,8 +68,14 @@ def trans(psy):
     # Add an enter-data directive
     newschedule, _ = dtrans.apply(schedule)
 
-    # Put an 'acc routine' directive inside each kernel
+    # Convert any accesses to global data into kernel arguments and then
+    # put an 'acc routine' directive inside each kernel
     for kern in schedule.coded_kernels():
+        if kern.name == "kern_use_var_code":
+            # TODO #490 and #663. This currently won't work because the
+            # KernelGlobalsToArguments transformation works on the PSyIR but
+            # the subsequent ACCRoutineTrans works on the fparser2 parse tree.
+            g2localtrans.apply(kern)
         _, _ = ktrans.apply(kern)
         # Ideally we would module-inline the kernel here (to save having to
         # rely on the compiler to do it) but this does not currently work

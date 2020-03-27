@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,13 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype
-from psyclone.psyGen import Node, CodeBlock, Container
+from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
+    BinaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, DataType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.tests.utilities import Compile
 
 
 @pytest.fixture(scope="function", name="fort_writer")
@@ -242,21 +244,64 @@ def test_gen_datatype_error(monkeypatch):
 def test_fw_gen_use(fort_writer):
     '''Check the FortranWriter class gen_use method produces the expected
     declaration. Also check that an exception is raised if the symbol
-    does not describe a use statement.
+    does not describe a Container.
 
     '''
+    symbol_table = SymbolTable()
+    container_symbol = ContainerSymbol("my_module")
+    symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DataType.DEFERRED,
-                        interface=GlobalInterface(
-                            ContainerSymbol("my_module")))
-    result = fort_writer.gen_use(symbol)
+                        interface=GlobalInterface(container_symbol))
+    symbol_table.add(symbol)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1\n"
 
-    symbol = DataSymbol("dummy1", DataType.INTEGER)
+    container_symbol.wildcard_import = True
+    result = fort_writer.gen_use(container_symbol, symbol_table)
+    assert result == ("use my_module, only : dummy1\n"
+                      "use my_module\n")
+
+    symbol2 = DataSymbol("dummy2", DataType.DEFERRED,
+                         interface=GlobalInterface(container_symbol))
+    symbol_table.add(symbol2)
+    result = fort_writer.gen_use(container_symbol, symbol_table)
+    assert result == ("use my_module, only : dummy1, dummy2\n"
+                      "use my_module\n")
+
+    # container2 has no symbols associated with it and has not been marked
+    # as having a wildcard import. It should therefore result in a USE
+    # with an empty 'ONLY' list (which serves to keep the module in scope
+    # while not accessing any data from it).
+    container2 = ContainerSymbol("my_mod2")
+    symbol_table.add(container2)
+    result = fort_writer.gen_use(container2, symbol_table)
+    assert result == "use my_mod2, only :\n"
+    # If we now add a wildcard import of this module then that's all we
+    # should get from the backend (as it makes the "only:" redundant)
+    container2.wildcard_import = True
+    result = fort_writer.gen_use(container2, symbol_table)
+    assert result == "use my_mod2\n"
+    # Wrong type for first argument
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer.gen_use(symbol)
-    assert ("gen_use() requires the symbol interface for symbol 'dummy1' to "
-            "be a Global instance but found 'LocalInterface'."
+        _ = fort_writer.gen_use(symbol2, symbol_table)
+    assert ("expects a ContainerSymbol as its first argument but got "
+            "'DataSymbol'" in str(excinfo.value))
+    # Wrong type for second argument
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(container2, symbol2)
+    assert ("expects a SymbolTable as its second argument but got 'DataSymbol'"
             in str(excinfo.value))
+    # Symbol not in SymbolTable
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(ContainerSymbol("my_mod3"), symbol_table)
+    assert ("the supplied symbol ('my_mod3') is not in the supplied "
+            "SymbolTable" in str(excinfo.value))
+    # A different ContainerSymbol with the same name as an entry in the
+    # SymbolTable should be picked up
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fort_writer.gen_use(ContainerSymbol("my_mod2"), symbol_table)
+    assert ("the supplied symbol ('my_mod2') is not the same object as the "
+            "entry" in str(excinfo.value))
 
 
 def test_fw_gen_vardecl(fort_writer):
@@ -467,8 +512,7 @@ def test_fw_container_2(fort_writer):
 
     assert (
         "module test\n"
-        "  use test2_mod, only : a\n"
-        "  use test2_mod, only : b\n"
+        "  use test2_mod, only : a, b\n"
         "  real :: c\n"
         "  real :: d\n\n"
         "  contains\n"
@@ -552,10 +596,14 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
 # within previous tests
 
 
-def test_fw_binaryoperator(fort_writer):
+@pytest.mark.parametrize("binary_intrinsic", ["mod", "max", "min",
+                                              "sign"])
+def test_fw_binaryoperator(fort_writer, binary_intrinsic, tmpdir):
     '''Check the FortranWriter class binary_operation method correctly
-    prints out the Fortran representation of an intrinsic. Uses sign
-    as the example.
+    prints out the Fortran representation of an intrinsic. Tests all
+    of the binary operators, apart from sum (as it requires different
+    data types so is tested separately) and matmul ( as it requires
+    its arguments to be arrays).
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -565,14 +613,65 @@ def test_fw_binaryoperator(fort_writer):
         "subroutine tmp(a,n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
-        "    a = sign(1.0,1.0)\n"
+        "    a = {0}(1.0,1.0)\n"
+        "end subroutine tmp\n"
+        "end module test").format(binary_intrinsic)
+    schedule = create_schedule(code, "tmp")
+
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    assert "a={0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_binaryoperator_sum(fort_writer, tmpdir):
+    '''Check the FortranWriter class binary_operation method with the sum
+    operator correctly prints out the Fortran representation of an
+    intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(array,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: array(n)\n"
+        "  integer :: a\n"
+        "    a = sum(array,dim=1)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=SIGN(1.0, 1.0)" in result
+    assert "a=SUM(array, dim = 1)" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_binaryoperator_matmul(fort_writer, tmpdir):
+    '''Check the FortranWriter class binary_operation method with the matmul
+    operator correctly prints out the Fortran representation of an
+    intrinsic.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a,b,c,n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(in) :: a(n,n), b(n)\n"
+        "  real, intent(out) :: c(n)\n"
+        "    c = MATMUL(a,b)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    assert "c=MATMUL(a, b)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
@@ -599,7 +698,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
-def test_fw_naryopeator(fort_writer):
+def test_fw_naryoperator(fort_writer, tmpdir):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
 
@@ -619,9 +718,10 @@ def test_fw_naryopeator(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a=MAX(1.0, 1.0, 2.0)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_naryopeator_unknown(fort_writer, monkeypatch):
+def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
     ''' Check that the FortranWriter class nary_operation method raises
     the expected error if it encounters an unknown operator.
 
@@ -713,6 +813,80 @@ def test_fw_array(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
+
+
+def test_fw_range(fort_writer):
+    '''Check the FortranWriter class range_node and array_node methods
+    produce the expected code when an array section is specified. We
+    can't test the Range node in isolation as one of the checks in the
+    Range code requires access to the (Array) parent (to determine the
+    array index of a Range node).
+
+    '''
+    from psyclone.psyir.nodes import Array, Range
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10])
+    dim1_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("1", DataType.INTEGER))
+    dim1_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("1", DataType.INTEGER))
+    dim2_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("2", DataType.INTEGER))
+    dim3_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol),
+        Literal("3", DataType.INTEGER))
+    dim3_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("3", DataType.INTEGER))
+    one = Literal("1", DataType.INTEGER)
+    two = Literal("2", DataType.INTEGER)
+    three = Literal("3", DataType.INTEGER)
+    plus = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Reference(DataSymbol("b", DataType.REAL)),
+        Reference(DataSymbol("c", DataType.REAL)))
+    array = Array.create(symbol, [Range.create(one, dim1_bound_stop),
+                                  Range.create(dim2_bound_start, plus,
+                                               step=three)])
+    result = fort_writer.array_node(array)
+    assert result == "a(1:,:b + c:3)"
+
+    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    array = Array.create(
+        symbol,
+        [Range.create(dim1_bound_start, dim1_bound_stop),
+         Range.create(one, two, step=three),
+         Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
+    result = fort_writer.array_node(array)
+    assert result == "a(:,1:2:3,::3)"
+
+    # Make a) lbound and ubound come from a different array and b)
+    # switch lbound and ubound round. These bounds should then be
+    # output.
+    symbol_b = DataSymbol("b", DataType.REAL, shape=[10])
+    b_dim1_bound_start = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(symbol_b),
+        Literal("1", DataType.INTEGER))
+    b_dim1_bound_stop = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol_b),
+        Literal("1", DataType.INTEGER))
+    array = Array.create(
+        symbol,
+        [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
+         Range.create(one, two, step=three),
+         Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
+    result = fort_writer.array_node(array)
+    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
+                      "UBOUND(a, 3):LBOUND(a, 3):3)")
 
 # literal is already checked within previous tests
 
@@ -898,18 +1072,17 @@ def test_fw_codeblock_1(fort_writer):
 def test_fw_codeblock_2(fort_writer):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
-    of a line (not a whole line). In this case the ":" in the array
-    access is a code block.
+    of a line (not a whole line). In this case the data initialisation
+    of the array 'a' "(/ 0.0 /)" is a code block.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: a(n,n,n)\n"
-        "    a(2,n,:) = 0.0\n"
+        "subroutine tmp()\n"
+        "  real a(1)\n"
+        "  a = (/ 0.0 /)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
@@ -919,7 +1092,7 @@ def test_fw_codeblock_2(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a(2,n,:)=0.0" in result
+    assert "a=(/0.0/)" in result
 
 
 def test_fw_codeblock_3(fort_writer):
@@ -1022,18 +1195,45 @@ def test_fw_nemoimplicitloop(fort_writer, parser):
     assert "a(:, :, :) = 0.0\n" in result
 
 
-def test_fw_size(fort_writer):
-    ''' Check that the FortranWriter outputs a SIZE intrinsic call. '''
+def test_fw_query_intrinsics(fort_writer):
+    ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
+    intrinsic calls. '''
     code = ("module test_mod\n"
             "contains\n"
             "subroutine test_kern(a)\n"
             "  real, intent(in) :: a(:,:)\n"
-            "  integer :: mysize\n"
+            "  integer :: mysize, lb, ub\n"
             "  mysize = size(a, 2)\n"
+            "  lb = lbound(a, 2)\n"
+            "  ub = ubound(a, 2)\n"
             "end subroutine test_kern\n"
             "end module test_mod\n")
     schedule = create_schedule(code, "test_kern")
 
     # Generate Fortran from the PSyIR schedule
-    result = fort_writer(schedule)
-    assert "mysize=size(a, 2)" in result.lower()
+    result = fort_writer(schedule).lower()
+    assert "mysize=size(a, 2)" in result
+    assert "lb=lbound(a, 2)" in result
+    assert "ub=ubound(a, 2)" in result
+
+
+def test_fw_literal_node(fort_writer):
+    ''' Test the PSyIR literals are converted to the proper Fortran format
+    when necessary. '''
+
+    # By default literals are not modified
+    lit1 = Literal('a', DataType.CHARACTER)
+    result = fort_writer(lit1)
+    assert result == 'a'
+
+    lit1 = Literal('3.14', DataType.REAL)
+    result = fort_writer(lit1)
+    assert result == '3.14'
+
+    # Check that BOOLEANS use the FORTRAN formatting
+    lit1 = Literal('true', DataType.BOOLEAN)
+    result = fort_writer(lit1)
+    assert result == '.true.'
+    lit1 = Literal('false', DataType.BOOLEAN)
+    result = fort_writer(lit1)
+    assert result == '.false.'

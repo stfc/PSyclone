@@ -40,7 +40,8 @@ import pytest
 from psyclone.core.access_info import AccessInfo, VariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import Node, InternalError
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Node
 
 
 def test_access_info():
@@ -268,3 +269,40 @@ def test_variables_access_info_merge():
     # and the new location 1 increases the current location from
     # 1 to 2:
     assert var_accesses1.location == 2
+
+
+# -----------------------------------------------------------------------------
+def test_constructor():
+    '''Test the optional constructor parameter (single node and list
+    of nodes).'''
+    from psyclone.tests.utilities import create_schedule
+    code = '''module test
+        contains
+        subroutine tmp()
+          integer :: a,b,c
+          a = b/c
+          c = a*b
+        end subroutine tmp
+        end module test'''
+    schedule = create_schedule(code, "tmp")
+    node1 = schedule[0]
+    node2 = schedule[1]
+    vai1 = VariablesAccessInfo(node1)
+    assert str(vai1) == "a: WRITE, b: READ, c: READ"
+    vai2 = VariablesAccessInfo([node1, node2])
+    assert str(vai2) == "a: READ+WRITE, b: READ, c: READ+WRITE"
+
+    with pytest.raises(InternalError) as err:
+        VariablesAccessInfo([node1, node2, 3])
+    assert "One element in the node list is not a Node, but of type " in \
+        str(err.value)
+    # The error message is slightly different between python 2 and 3
+    # so only test for the part that is the same in both:
+    assert "'int'>" in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        VariablesAccessInfo(1)
+    assert "Error in VariablesAccessInfo" in str(err)
+    # The error message is slightly different between python 2 and 3
+    # so only test for the part that is the same in both:
+    assert "'int'>" in str(err)

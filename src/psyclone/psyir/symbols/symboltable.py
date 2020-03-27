@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,12 @@
 
 ''' This module contains the SymbolTable implementation. '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from collections import OrderedDict
-from psyclone.psyir.symbols import Symbol, DataSymbol
+from psyclone.configuration import Config
+from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
+    ContainerSymbol
+from psyclone.errors import InternalError
 
 
 class SymbolTable(object):
@@ -51,10 +54,9 @@ class SymbolTable(object):
 
     :param schedule: reference to the Schedule to which this symbol table \
         belongs.
-    :type schedule: :py:class:`psyclone.psyGen.Schedule` or NoneType
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule` or NoneType
+
     '''
-    # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
-    # NameSpace class functionality.
     def __init__(self, schedule=None):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
@@ -62,22 +64,99 @@ class SymbolTable(object):
         self._symbols = OrderedDict()
         # Ordered list of the arguments.
         self._argument_list = []
+        # Dict of tags. Some symbols can be identified with a tag.
+        self._tags = {}
         # Reference to Schedule to which this symbol table belongs.
         self._schedule = schedule
 
-    def add(self, new_symbol):
+    def shallow_copy(self):
+        '''Create a copy of the symbol table where the top-level containers
+        are new (symbols added to the new symbol table will not be added in
+        the original but the existing objects are still the same).
+
+        :returns: a copy of this symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # pylint: disable=protected-access
+        from copy import copy
+        new_st = SymbolTable()
+        new_st._symbols = copy(self._symbols)
+        new_st._argument_list = copy(self._argument_list)
+        new_st._tags = copy(self._tags)
+        new_st._schedule = self._schedule
+        return new_st
+
+    @staticmethod
+    def _normalize(key):
+        '''Normalises the symboltable key strings.
+
+        :param str key: an input key.
+
+        :returns: the normalized key.
+        :rtype: str
+
+        '''
+        # The symbol table is currently case insensitive
+        new_key = key.lower()
+        return new_key
+
+    def new_symbol_name(self, root_name=None):
+        '''Create a symbol name that is not in the symbol table. If the
+        `root_name` argument is not supplied or if it is an empty
+        string then the name is generated internally, otherwise the
+        `root_name` is used. If required, an additional integer is
+        appended to avoid clashes.
+
+        :param root_name: optional name to use when creating a new \
+        symbol name. This will be appended with an integer if the name \
+        clashes with an existing symbol name.
+        :type root_name: str or NoneType
+
+        :returns: the new symbol name.
+        :rtype: str
+
+        :raises TypeError: if the root_name argument is not a string \
+        or None.
+
+        '''
+        if root_name is not None and not isinstance(root_name, str):
+            raise TypeError(
+                "Argument root_name should be of type str or NoneType but "
+                "found '{0}'.".format(type(root_name).__name__))
+        if not root_name:
+            root_name = Config.get().psyir_root_name
+        candidate_name = root_name
+        idx = 1
+        while candidate_name in self._symbols:
+            candidate_name = "{0}_{1}".format(root_name, idx)
+            idx += 1
+        return candidate_name
+
+    def add(self, new_symbol, tag=None):
         '''Add a new symbol to the symbol table.
 
         :param new_symbol: the symbol to add to the symbol table.
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param str tag: a tag identifier for the new symbol, by default no \
+            tag is given.
 
         :raises KeyError: if the symbol name is already in use.
 
         '''
-        if new_symbol.name in self._symbols:
+        key = self._normalize(new_symbol.name)
+        if key in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
-        self._symbols[new_symbol.name] = new_symbol
+        self._symbols[key] = new_symbol
+
+        if tag:
+            if tag in self._tags:
+                raise KeyError(
+                    "Symbol table already contains the tag '{0}' for symbol"
+                    " '{1}', so it can not be associated to symbol '{2}'.".
+                    format(tag, self._tags[tag], new_symbol.name))
+            self._tags[tag] = new_symbol
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
@@ -149,10 +228,59 @@ class SymbolTable(object):
         :raises KeyError: if the given name is not in the Symbol Table.
         '''
         try:
-            return self._symbols[name]
+            return self._symbols[self._normalize(name)]
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
+
+    def lookup_with_tag(self, tag):
+        '''
+        Look up a symbol in the symbol table using the tag identifier.
+
+        :param str tag: tag identifier.
+
+        :returns: symbol with the given tag.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises KeyError: if the given tag is not in the Symbol Table.
+
+        '''
+        try:
+            return self._tags[tag]
+        except KeyError:
+            raise KeyError("Could not find the tag '{0}' in the Symbol Table."
+                           "".format(tag))
+
+    def name_from_tag(self, tag, root=None):
+        '''
+        Given a tag, if it exists in the symbol table return the symbol name
+        associated with it, otherwise create a new symbol associated with this
+        tag (using the tag as name or optionally the provided root) and return
+        the name of the new symbol.
+
+        Note that this method creates generic Symbols without properties like
+        datatypes and just returns the name string (not the Symbol object).
+        This is commonly needed on the current psy-layer implementation but not
+        recommented on new style PSyIR. This method may be deprecated in the
+        future. (TODO #720)
+
+        :param str tag: tag identifier.
+        :param str root: optional name of the new symbols if this needs to \
+            be created.
+
+        :returns: name associated with the given tag.
+        :rtype: str
+
+        '''
+        try:
+            return self.lookup_with_tag(tag).name
+        except KeyError:
+            if root:
+                name = self.new_symbol_name(root)
+            else:
+                name = self.new_symbol_name(tag)
+            self.add(Symbol(name), tag=tag)
+            return name
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
@@ -162,7 +290,74 @@ class SymbolTable(object):
         :returns: Whether the Symbol Table contains the given key.
         :rtype: bool
         '''
-        return key in self._symbols
+        return self._normalize(key.lower()) in self._symbols
+
+    def imported_symbols(self, csymbol):
+        '''
+        Examines the contents of this symbol table to see which DataSymbols
+        (if any) are imported from the supplied ContainerSymbol (which must
+        be present in the SymbolTable).
+
+        :param csymbol: the ContainerSymbol to search for imports from.
+        :type csymbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :returns: list of DataSymbols that are imported from the supplied \
+                  ContainerSymbol. If none are found then the list is empty.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied object is not a ContainerSymbol.
+        :raises KeyError: if the supplied object is not in this SymbolTable.
+
+        '''
+        if not isinstance(csymbol, ContainerSymbol):
+            raise TypeError(
+                "imported_symbols() expects a ContainerSymbol but got an "
+                "object of type '{0}'".format(type(csymbol).__name__))
+        # self.lookup(name) will raise a KeyError if there is no symbol with
+        # that name in the table.
+        if self.lookup(csymbol.name) is not csymbol:
+            raise KeyError("The '{0}' entry in this SymbolTable is not the "
+                           "supplied ContainerSymbol.".format(csymbol.name))
+
+        return [symbol for symbol in self.global_datasymbols if
+                symbol.interface.container_symbol is csymbol]
+
+    def remove(self, symbol):
+        ''' Remove the supplied ContainerSymbol from the Symbol Table.
+        Support for removing other types of Symbol will be added as required.
+
+        :param symbol: the container symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :raises TypeError: if the supplied symbol is not a ContainerSymbol.
+        :raises KeyError: if the supplied symbol is not in the symbol table.
+        :raises ValueError: if the supplied container symbol is referenced \
+                            by one or more DataSymbols.
+        :raises InternalError: if the supplied symbol is not the same as the \
+                               entry with that name in this SymbolTable.
+        '''
+        if not isinstance(symbol, ContainerSymbol):
+            raise TypeError("remove() expects a ContainerSymbol object but "
+                            "got: '{0}'".format(type(symbol).__name__))
+        if symbol.name not in self._symbols:
+            raise KeyError("Cannot remove Symbol '{0}' from symbol table "
+                           "because it does not exist.".format(symbol.name))
+        # Sanity-check that the entry in the table is the symbol we've
+        # been passed.
+        if self._symbols[symbol.name] is not symbol:
+            raise InternalError(
+                "The Symbol with name '{0}' in this symbol table is not the "
+                "same Symbol object as the one that has been supplied to the "
+                "remove() method.".format(symbol.name))
+        # We can only remove a ContainerSymbol if no DataSymbols are
+        # being imported from it
+        if self.imported_symbols(symbol):
+            raise ValueError(
+                "Cannot remove ContainerSymbol '{0}' because symbols "
+                "{1} are imported from it - remove them first.".format(
+                    symbol.name,
+                    [sym.name for sym in self.imported_symbols(symbol)]))
+        self._symbols.pop(symbol.name)
 
     @property
     def argument_list(self):
@@ -177,7 +372,6 @@ class SymbolTable(object):
             self-consistent.
 
         '''
-        from psyclone.psyGen import InternalError
         try:
             self._validate_arg_list(self._argument_list)
             self._validate_non_args()
@@ -314,6 +508,15 @@ class SymbolTable(object):
         return list(precision_symbols)
 
     @property
+    def containersymbols(self):
+        '''
+        :returns: a list of the ContainerSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        '''
+        return [sym for sym in self.symbols if isinstance(sym,
+                                                          ContainerSymbol)]
+
+    @property
     def iteration_indices(self):
         '''
         :returns: List of symbols representing kernel iteration indices.
@@ -336,6 +539,74 @@ class SymbolTable(object):
         raise NotImplementedError(
             "Abstract property. Which symbols are data arguments is"
             " API-specific.")
+
+    def copy_external_global(self, globalvar, tag=None):
+        '''
+        Copy the given global variable (and its referenced ContainerSymbol if
+        needed) into the SymbolTable.
+
+        :param globalvar: the variable to be copied in.
+        :type globalvar: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param str tag: a tag identifier for the new copy, by default no tag \
+            is given.
+
+        :raises TypeError: if the given variable is not a global variable.
+        :raises KeyError: if the given variable name already exists in the \
+            symbol table.
+
+        '''
+        if not isinstance(globalvar, DataSymbol):
+            raise TypeError(
+                "The globalvar argument of SymbolTable.copy_external_global"
+                " method should be a DataSymbol, but found '{0}'."
+                "".format(type(globalvar).__name__))
+
+        if not globalvar.is_global:
+            raise TypeError(
+                "The globalvar argument of SymbolTable.copy_external_"
+                "global method should have a GlobalInterface interface, "
+                "but found '{0}'.".format(type(globalvar.interface).__name__))
+
+        external_container_name = globalvar.interface.container_symbol.name
+
+        # If the Container is not yet in the SymbolTable we need to
+        # create one and add it.
+        if external_container_name not in self:
+            self.add(ContainerSymbol(external_container_name))
+        container_ref = self.lookup(external_container_name)
+
+        # Copy the variable into the SymbolTable with the appropriate interface
+        if globalvar.name not in self:
+            new_symbol = globalvar.copy()
+            # Update the interface of this new symbol
+            new_symbol.interface = GlobalInterface(container_ref)
+            self.add(new_symbol, tag)
+        else:
+            # If it already exists it must refer to the same Container and have
+            # the same tag.
+            local_instance = self.lookup(globalvar.name)
+            if not (local_instance.is_global and
+                    local_instance.interface.container_symbol.name ==
+                    external_container_name):
+                raise KeyError(
+                    "Couldn't copy '{0}' into the SymbolTable. The"
+                    " name '{1}' is already used by another symbol."
+                    "".format(globalvar, globalvar.name))
+            if tag:
+                # If the symbol already exists and a tag is provided
+                try:
+                    self.lookup_with_tag(tag)
+                except KeyError:
+                    # If the tag was not used, it will now be attached
+                    # to the symbol.
+                    self._tags[tag] = self.lookup(globalvar.name)
+
+                # The tag should not refer to a different symbol
+                if self.lookup(globalvar.name) != self.lookup_with_tag(tag):
+                    raise KeyError(
+                        "Couldn't copy '{0}' into the SymbolTable. The"
+                        " tag '{1}' is already used by another symbol."
+                        "".format(globalvar, tag))
 
     def view(self):
         '''

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,13 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
-from psyclone.psyGen import Loop
+from psyclone.errors import GenerationError
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
     GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
-from psyclone.generator import GenerationError
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
@@ -211,8 +211,8 @@ def test_omp_parallel_loop(tmpdir):
                 "        do i=2,istop+1\n"
                 "          call compute_cu_code(i, j, cu_fld%data, "
                 "p_fld%data, u_fld%data)\n"
-                "        end do \n"
-                "      end do \n"
+                "        end do\n"
+                "      end do\n"
                 "      !$omp end parallel do")
     assert expected in gen
 
@@ -227,8 +227,8 @@ def test_omp_parallel_loop(tmpdir):
         "        do i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
         "          call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        end do \n"
-        "      end do \n"
+        "        end do\n"
+        "      end do\n"
         "      !$omp end parallel do")
     assert expected in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1504,14 +1504,18 @@ def test_acc_parallel_not_a_loop():
     ''' Test that we raise an appropriate error if we attempt
     to apply the OpenACC Parallel transformation to something that
     is not a loop '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
-    schedule = invoke.schedule
 
     acct = ACCParallelTrans()
-    # Attempt to (erroneously) apply the OpenACC Parallel transformation
-    # to the schedule rather than a loop
-    with pytest.raises(TransformationError):
-        _, _ = acct.apply(schedule)
+    # Provide an invalid node type (just the integer 1) to the OpenACC
+    # Parallel transformation
+    with pytest.raises(TransformationError) as error:
+        _, _ = acct.apply(1)
+
+    assert "Argument must be a single Node in a Schedule, a Schedule or a " \
+           "list of Nodes in a Schedule but have been passed an object " \
+           "of type:" in str(error.value)
+    # Python2/3 differences in type string
+    assert "'int'>" in str(error.value)
 
 
 def test_acc_parallel_trans(tmpdir):
@@ -1781,7 +1785,7 @@ def test_accloop(tmpdir):
       !$acc parallel default(present)
       !$acc loop independent
       DO j=2,jstop''' in gen
-    assert ("END DO \n"
+    assert ("END DO\n"
             "      !$acc loop independent\n"
             "      DO j=2,jstop+1" in gen)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)

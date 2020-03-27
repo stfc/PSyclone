@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,10 @@ import pytest
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -68,9 +69,8 @@ def test_field_xyoz(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -81,24 +81,25 @@ def test_field_xyoz(tmpdir):
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      INTEGER, intent(in) :: istp\n"
+        "      INTEGER(KIND=i_def), intent(in) :: istp\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
-        "      INTEGER cell\n"
+        "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
+        "      INTEGER(KIND=i_def) dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
-        "      INTEGER np_xy_qr, np_z_qr\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n")
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, "
+        "ndf_w3, undf_w3\n")
     assert output_decls in generated_code
     init_output = (
         "      !\n"
@@ -176,15 +177,15 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
+        "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -193,7 +194,7 @@ def test_field_xyoz(tmpdir):
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
+        "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
@@ -221,7 +222,7 @@ def test_field_qr_deref(tmpdir):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+        assert LFRicBuild(tmpdir).code_compiles(psy)
         gen = str(psy.gen)
         print(gen)
         assert (
@@ -423,7 +424,7 @@ BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(7) =                         &
-          (/ arg_type(gh_field,    gh_write,     w0),       &
+          (/ arg_type(gh_field,    gh_inc,       w0),       &
              arg_type(gh_operator, gh_readwrite, w1, w1),   &
              arg_type(gh_field,    gh_read,      w2),       &
              arg_type(gh_operator, gh_write,     w3, w3),   &
@@ -440,10 +441,10 @@ module dummy_mod
              func_type(w2h, gh_basis),    &
              func_type(w2v, gh_basis)     &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_xyoz
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_xyoz
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -471,20 +472,23 @@ def test_qr_basis_stub():
         "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
         "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
         "basis_w2v, np_xy, np_z, weights_xy, weights_z)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3, "
-        "undf_wtheta, ndf_w2h, undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_w2v) :: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), "
+        "dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
+        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
         "field_3_w2\n"
@@ -492,17 +496,17 @@ def test_qr_basis_stub():
         "field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER, intent(in) :: np_xy, np_z\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy, np_z\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) "
         ":: basis_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) "
