@@ -197,7 +197,7 @@ def test_datasymbol_constant_value_setter_invalid():
     # Test with invalid constant expressions
     ct_expr = Return()
     with pytest.raises(ValueError) as error:
-        sym = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=ct_expr)
+        _ = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=ct_expr)
     assert "Error setting constant value for symbol 'a'. PSyIR static " \
         "expressions can only contain PSyIR literal, operation or reference" \
         " nodes but found:" in str(error.value)
@@ -450,3 +450,17 @@ def test_datasymbol_resolve_deferred():
     assert ("Error trying to resolve symbol 'e' properties, the lazy "
             "evaluation of 'Local' interfaces is not supported."
             in str(err.value))
+
+
+def test_datasymbol_shape():
+    ''' Test that shape returns [] if the symbol is a scalar.'''
+    data_symbol = DataSymbol("a", REAL4_TYPE)
+    assert data_symbol.shape == []
+
+
+def test_datasymbol_unresolved_interface():
+    '''Test that unresolved_interface returns the expected value.'''
+    data_symbol = DataSymbol("a", REAL4_TYPE)
+    assert not data_symbol.unresolved_interface
+    data_symbol = DataSymbol("a", REAL4_TYPE, interface=UnresolvedInterface())
+    assert data_symbol.unresolved_interface

@@ -38,6 +38,7 @@
 
 ''' This module contains the DataSymbol and its interfaces.'''
 
+from __future__ import absolute_import
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 
@@ -307,20 +308,11 @@ class DataSymbol(Symbol):
                             " {1}".format(self.name, node))
                 self._constant_value = new_value
             else:
-                from psyclone.psyir.symbols.datatypes import DeferredType, \
-                    TYPE_MAP_TO_PYTHON
-                if isinstance(self.datatype, DeferredType):
-                    raise ValueError(
-                        "Error setting constant value for symbol '{0}'. "
-                        "Constant values are not supported for deferred "
-                        "datatypes.".format(self.name))
-                try:
-                    lookup = TYPE_MAP_TO_PYTHON[self.datatype.name]
-                except KeyError:
-                    raise ValueError(
-                        "Error setting constant value for symbol '{0}'. "
-                        "Constant values are not supported for '{1}' "
-                        "datatypes.".format(self.name, self.datatype))
+                from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
+                # No need to check that self.datatype has a name
+                # attribute as we know it is a ScalarType or ArrayType
+                # due to an earlier test.
+                lookup = TYPE_MAP_TO_PYTHON[self.datatype.name]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
                         "Error setting constant value for symbol '{0}'. This "
