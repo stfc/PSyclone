@@ -714,7 +714,7 @@ def test_copy_external_global():
                       interface=GlobalInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_global(var4)
-    assert "Couldn't copy 'b: <Deferred Type, Global(container=" \
+    assert "Couldn't copy 'b: <DeferredType, Global(container=" \
            "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
            " used by another symbol." in str(error.value)
 
