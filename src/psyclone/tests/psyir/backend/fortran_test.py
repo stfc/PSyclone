@@ -272,6 +272,34 @@ def test_gen_datatype_kind_precision(type_name, result):
                     "{0}(kind={1})".format(result, precision_name))
 
 
+def test_gen_datatype_exception_1():
+    '''Check that an exception is raised if gen_datatype is called with a
+    symbol containing an unsupported datatype.
+
+    '''
+    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    symbol = DataSymbol("fred", data_type)
+    symbol.datatype.name = None
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Unsupported datatype 'None' for symbol 'fred' found in "
+            "gen_datatype()." in str(excinfo.value))
+
+
+def test_gen_datatype_exception_2():
+    '''Check that an exception is raised if gen_datatype is called with a
+    symbol containing an unsupported precision.
+
+    '''
+    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    symbol = DataSymbol("fred", data_type)
+    symbol.datatype.precision = None
+    with pytest.raises(VisitorError) as excinfo:
+        _ = gen_datatype(symbol)
+    assert ("Unsupported precision type 'NoneType' found for symbol 'fred' "
+            "in Fortran backend." in str(excinfo.value))
+
+
 # Commented this test out until #11 is addressed.
 # @pytest.mark.xfail(reason="issue #11 backend logging output is affected by "
 #                    "some other part PSyclone.")
@@ -1292,3 +1320,10 @@ def test_fw_literal_node(fort_writer):
     lit1 = Literal('false', BOOLEAN_TYPE)
     result = fort_writer(lit1)
     assert result == '.false.'
+
+    # Check precision symbols are output as expected
+    precision_symbol = DataSymbol("rdef", INTEGER_TYPE)
+    my_type = ScalarType(ScalarType.Name.REAL, precision_symbol)
+    lit1 = Literal("3.14", my_type)
+    result = fort_writer(lit1)
+    assert result == "3.14_rdef"

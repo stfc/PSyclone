@@ -149,7 +149,7 @@ def gen_datatype(symbol):
         datatype = TYPE_MAP_TO_FORTRAN[symbol.datatype.name]
     except KeyError:
         raise NotImplementedError(
-            "unsupported datatype '{0}' for symbol '{1}' found in "
+            "Unsupported datatype '{0}' for symbol '{1}' found in "
             "gen_datatype().".format(symbol.datatype.name, symbol.name))
 
     precision = symbol.datatype.precision
