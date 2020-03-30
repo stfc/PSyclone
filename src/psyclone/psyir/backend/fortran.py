@@ -689,12 +689,23 @@ class FortranWriter(PSyIRVisitor):
         if node.datatype.name == ScalarType.Name.BOOLEAN:
             # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
+        elif node.datatype.name == ScalarType.Name.CHARACTER:
+            result = "'{0}'".format(node.value)
         else:
             result = node.value
         precision = node.datatype.precision
         if isinstance(precision, DataSymbol):
             # A KIND variable has been specified
-            result = "{0}_{1}".format(result, precision.name)
+            if node.datatype.name == ScalarType.Name.CHARACTER:
+                result = "{0}_{1}".format(precision.name, result)
+            else:
+                result = "{0}_{1}".format(result, precision.name)
+        if isinstance(precision, int):
+            # A KIND value has been specified
+            if node.datatype.name == ScalarType.Name.CHARACTER:
+                result = "{0}_{1}".format(precision, result)
+            else:
+                result = "{0}_{1}".format(result, precision)
         return result
 
     # pylint: enable=no-self-use

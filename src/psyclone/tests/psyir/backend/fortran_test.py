@@ -1307,7 +1307,7 @@ def test_fw_literal_node(fort_writer):
     # By default literals are not modified
     lit1 = Literal('a', CHARACTER_TYPE)
     result = fort_writer(lit1)
-    assert result == 'a'
+    assert result == "'a'"
 
     lit1 = Literal('3.14', REAL_TYPE)
     result = fort_writer(lit1)
@@ -1327,3 +1327,22 @@ def test_fw_literal_node(fort_writer):
     lit1 = Literal("3.14", my_type)
     result = fort_writer(lit1)
     assert result == "3.14_rdef"
+
+    # Check character precision symbols are output as expected
+    my_type = ScalarType(ScalarType.Name.CHARACTER, precision_symbol)
+    lit1 = Literal("hello", my_type)
+    result = fort_writer(lit1)
+    assert result == "rdef_'hello'"
+    
+    # Check explicit precision is output as expected
+    my_type = ScalarType(ScalarType.Name.REAL, 4)
+    lit1 = Literal("3.14", my_type)
+    result = fort_writer(lit1)
+    assert result == "3.14_4"
+
+    # Check explicit character precision is output as expected
+    my_type = ScalarType(ScalarType.Name.CHARACTER, 1)
+    lit1 = Literal("hello", my_type)
+    result = fort_writer(lit1)
+    assert result == "1_'hello'"
+    
