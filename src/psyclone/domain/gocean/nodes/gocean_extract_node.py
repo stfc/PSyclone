@@ -242,6 +242,8 @@ class GOceanExtractNode(ExtractNode):
                 prog.add(call)
                 # Then declare the post variable, and and read its values
                 # (ReadVariable will also allocate it)
+                sym = Symbol(local_name+post_suffix)
+                sym_table.add(sym)
                 decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
@@ -254,6 +256,8 @@ class GOceanExtractNode(ExtractNode):
                 # Now the variable is output only. We need to read the
                 # post variable in, and create and allocate a pre variable
                 # with the same size as the post
+                sym = Symbol(local_name+post_suffix)
+                sym_table.add(sym)
                 decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
