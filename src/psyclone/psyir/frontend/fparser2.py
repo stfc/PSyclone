@@ -49,8 +49,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE
+    ScalarType, ArrayType, DeferredType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -824,7 +823,9 @@ class Fparser2Reader(object):
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't
                         # currently know where it is declared).
-                        sym = DataSymbol(dim_name, INTEGER_TYPE,
+                        data_type = ScalarType(ScalarType.Name.INTEGER,
+                                               default_precision())
+                        sym = DataSymbol(dim_name, data_type,
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
                     shape.append(sym)
@@ -970,7 +971,7 @@ class Fparser2Reader(object):
                         "supported.".format(str(decl.items)))
                 # Check for a KIND specification
                 precision = self._process_kind_selector(
-                    parent.symbol_table, type_spec)
+                    type_spec, parent)
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -1098,7 +1099,7 @@ class Fparser2Reader(object):
                 sym_name = str(name).lower()
 
                 if not precision:
-                    precision = ScalarType.Precision.UNDEFINED
+                    precision = default_precision()
                 if entity_shape:
                     # array
                     datatype = ArrayType(ScalarType(data_name, precision),
@@ -1184,18 +1185,18 @@ class Fparser2Reader(object):
                     "are not supported.".format(str(stmtfn)))
 
     @staticmethod
-    def _process_kind_selector(symbol_table, type_spec):
-        '''
-        Processes the fparser2 parse tree of the type specification of a
+    def _process_kind_selector(type_spec, psyir_node):
+        '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract KIND information. This
         information is used to determine the precision of the variable (as
         supplied to the DataSymbol constructor).
 
-        :param symbol_table: the SymbolTable associated with the code \
-            being processed.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
+        :param psyir_node: the PSyIR node that will be the parent of \
+            the PSyIR node that will be created from the fparser2 node \
+            information.
+        :type psyir_node: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the precision associated with the type specification.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
@@ -1205,7 +1206,10 @@ class Fparser2Reader(object):
             argument other than a real or integer literal.
         :raises NotImplementedError: if we have `kind=xxx` but cannot find \
             a valid variable name.
+
         '''
+        symbol_table = _get_symbol_table(psyir_node)
+        
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             return None
         # The KIND() intrinsic itself is Fortran specific and has no direct
@@ -1222,28 +1226,11 @@ class Fparser2Reader(object):
             # Actual_Arg_Spec_List with the first entry being the argument.
             kind_arg = intrinsics[0].items[1].items[0]
 
-            # We currently only support literals as arguments to KIND
+            # We currently only support integer and real literals as
+            # arguments to KIND
             if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
                                      Fortran2003.Real_Literal_Constant)):
-
-                if len(kind_arg.items) > 1 and kind_arg.items[1]:
-                    # The literal has an explicit kind specifier (e.g. 1.0_wp)
-                    # so return a Symbol representing it (e.g.'wp').
-                    return Fparser2Reader._kind_symbol_from_name(
-                        str(kind_arg.items[1]), symbol_table)
-
-                if isinstance(kind_arg, Fortran2003.Real_Literal_Constant):
-                    import re
-                    if re.search("d[0-9]", str(kind_arg).lower()):
-                        return ScalarType.Precision.DOUBLE
-                    elif re.search("e[0-9]", str(kind_arg).lower()):
-                        return ScalarType.Precision.SINGLE
-                    return ScalarType.Precision.UNDEFINED
-
-                if isinstance(kind_arg, Fortran2003.Int_Literal_Constant):
-                    # An integer with no explict kind specifier must be of
-                    # default precision
-                    return ScalarType.Precision.UNDEFINED
+                return get_literal_precision(kind_arg, psyir_node)
 
             raise NotImplementedError(
                 "Only real and integer literals are supported "
@@ -1293,14 +1280,16 @@ class Fparser2Reader(object):
                     format(lower_name, kind_symbol.datatype))
             # A KIND parameter must be of type integer so set it here
             # (in case it was previously 'deferred'). We don't know
-            # what precision this is so set it to undefined (which is
-            # its value in INTEGER_TYPE).
-            kind_symbol.datatype = INTEGER_TYPE
+            # what precision this is so set it to the default.
+            kind_symbol.datatype = ScalarType(ScalarType.Name.INTEGER,
+                                              default_precision())
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, INTEGER_TYPE,
+            integer_type = ScalarType(ScalarType.Name.INTEGER,
+                                      default_precision())
+            kind_symbol = DataSymbol(lower_name, integer_type,
                                      interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
@@ -1463,8 +1452,12 @@ class Fparser2Reader(object):
         if len(limits_list) == 3:
             self.process_nodes(parent=loop, nodes=[limits_list[2]])
         else:
-            # Default loop increment is 1
-            default_step = Literal("1", INTEGER_TYPE, parent=loop)
+            # Default loop increment is 1. Use the type of the start
+            # or step nodes once #685 is complete. For the moment use
+            # the default precision.
+            integer_type = ScalarType(ScalarType.Name.INTEGER,
+                                      default_precision())
+            default_step = Literal("1", integer_type, parent=loop)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -1915,8 +1908,10 @@ class Fparser2Reader(object):
                         # create a new Symbol. Choose a datatype as we
                         # don't know what it is. Remove this code when
                         # issue #500 is addressed.
+                        integer_type = ScalarType(ScalarType.Name.INTEGER,
+                                                  default_precision())
                         symbol = DataSymbol(
-                            loop_vars[range_idx], INTEGER_TYPE)
+                            loop_vars[range_idx], integer_type)
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2024,6 +2019,8 @@ class Fparser2Reader(object):
         # find the first symbol table attached to an ancestor
         symbol_table = _get_symbol_table(parent)
 
+        integer_type = ScalarType(ScalarType.Name.INTEGER,
+                                  default_precision())
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
@@ -2039,13 +2036,13 @@ class Fparser2Reader(object):
                         loop_vars[idx-1]))
             if symbol_table:
                 symbol_table.add(DataSymbol(loop_vars[idx-1],
-                                            INTEGER_TYPE))
+                                            integer_type))
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
             # Add loop lower bound
-            loop.addchild(Literal("1", INTEGER_TYPE, parent=loop))
+            loop.addchild(Literal("1", integer_type, parent=loop))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
@@ -2062,13 +2059,13 @@ class Fparser2Reader(object):
                 # create a new Symbol. Choose a datatype as we
                 # don't know what it is. Remove this code when
                 # issue #500 is addressed.
-                symbol = DataSymbol(arrays[0].name, INTEGER_TYPE)
+                symbol = DataSymbol(arrays[0].name, integer_type)
 
             size_node.addchild(Reference(symbol, parent=size_node))
-            size_node.addchild(Literal(str(idx), INTEGER_TYPE,
+            size_node.addchild(Literal(str(idx), integer_type,
                                        parent=size_node))
             # Add loop increment
-            loop.addchild(Literal("1", INTEGER_TYPE, parent=loop))
+            loop.addchild(Literal("1", integer_type, parent=loop))
             # Fourth child of a Loop must be a Schedule
             sched = Schedule(parent=loop)
             loop.addchild(sched)
@@ -2357,7 +2354,9 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is. Remove this code when issue #500 is
             # addressed.
-            symbol = DataSymbol(node.string, REAL_TYPE)
+            real_type = ScalarType(ScalarType.Name.REAL,
+                                   default_precision())
+            symbol = DataSymbol(node.string, real_type)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2408,7 +2407,9 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is.  Remove this code when issue #500 is
             # addressed.
-            symbol = DataSymbol(reference_name, REAL_TYPE)
+            real_type = ScalarType(ScalarType.Name.REAL,
+                                   default_precision())
+            symbol = DataSymbol(reference_name, real_type)
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
@@ -2436,6 +2437,8 @@ class Fparser2Reader(object):
         # the second dimension being 2, etc.). We therefore add 1 to
         # the number of children added to out parent to determine the
         # Fortran dimension value.
+        integer_type = ScalarType(ScalarType.Name.INTEGER,
+                                  default_precision())
         dimension = str(len(parent.children)+1)
         my_range = Range(parent=parent)
         my_range.children = []
@@ -2448,7 +2451,7 @@ class Fparser2Reader(object):
             # a(:...) becomes a(lbound(a,1):...)
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
-                Literal(dimension, INTEGER_TYPE))
+                Literal(dimension, integer_type))
             lbound.parent = my_range
             my_range.children.append(lbound)
         if node.children[1]:
@@ -2460,7 +2463,7 @@ class Fparser2Reader(object):
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
-                Literal(dimension, INTEGER_TYPE))
+                Literal(dimension, integer_type))
             ubound.parent = my_range
             my_range.children.append(ubound)
         if node.children[2]:
@@ -2470,7 +2473,7 @@ class Fparser2Reader(object):
             # supported in the PSyIR so we create the equivalent code
             # by using a PSyIR integer literal with the value 1
             # a(...:...:) becomes a(...:...:1)
-            literal = Literal("1", INTEGER_TYPE)
+            literal = Literal("1", integer_type)
             my_range.children.append(literal)
             literal.parent = my_range
         return my_range
