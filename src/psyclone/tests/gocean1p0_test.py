@@ -1633,3 +1633,25 @@ def test_gokernelargument_type():
     # Otherwise it return the descriptor type
     argument._arg.type = "descriptor_type"  # Mock the descriptor type method
     assert argument.type == "descriptor_type"
+
+
+def test_gosymboltable():
+    '''Test the "unknown" shape_str value in method
+    _check_gocean_conformity within GOSymbolTable.
+
+    '''
+    from psyclone.gocean1p0 import GOSymbolTable
+    from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArgumentInterface, DataType
+    symbol_table = GOSymbolTable()
+    i_var = DataSymbol("i", INTEGER_TYPE,
+                       interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    j_var = DataSymbol("j", INTEGER_TYPE,
+                       interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    symbol_table.specify_argument_list([i_var, j_var])
+    # Set the datatype of the first datasymbol to have an invalid type
+    # in order to raise the required exception.
+    symbol_table._argument_list[0].datatype = DataType()
+    with pytest.raises(GenerationError) as excinfo:
+        symbol_table._check_gocean_conformity()
+    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
+            "but got unknown of type 'DataType'." in str(excinfo.value))
