@@ -4339,7 +4339,7 @@ class DynBasisFunctions(DynCollection):
                                entity_decls=decl_list))
 
             decl_list = [symbol_table.name_from_tag(name+"_"+qr_arg_name)
-                         +"(:,:) => null()"
+                         + "(:,:) => null()"
                          for name in self.qr_weight_vars[qr_type]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
@@ -6923,7 +6923,8 @@ class DynKern(CodedKern):
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
-                # TODO #719 we don't yet have a symbol table to prevent clashes.
+                # TODO #719 we don't yet have a symbol table to prevent
+                # clashes.
                 qr_name = "qr_"+shape.split("_")[-1]
 
             # Dynamo 0.3 api kernels require quadrature rule arguments to be

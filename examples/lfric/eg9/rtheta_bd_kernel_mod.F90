@@ -62,7 +62,6 @@ module rtheta_bd_kernel_mod
   use fs_continuity_mod,     only : W2, Wtheta
   use kernel_mod,            only : kernel_type
   use planet_config_mod,     only : cp
-  use reference_element_mod, only : reference_element_type
 
   implicit none
 
