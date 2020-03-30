@@ -88,6 +88,26 @@ class GOceanExtractNode(ExtractNode):
         '''
         return "gocean_extract_" + str(self.position)
 
+    # -------------------------------------------------------------------------
+    def update_vars_and_postname(self):
+        '''
+        This function is called after the variables to be extracted
+        have been stored in self._input_list and self._output_list.
+        This functions makes sure that when adding the postfix to
+        output variables, no existing name is created (e.g. if there
+        is an output variable 'a', and an input variable 'a_post'.
+        Writing the output value of 'a' would create the key 'a_post',
+        same as the input variable. So we change the postfix to make
+        sure we have unique keys (by adding "t" to the end, e.g. "post",
+        then "postt", "posttt" etc).
+        '''
+        while any(out_var+self._post_name in self._input_list
+                  for out_var in self._output_list):
+            self._post_name = self._post_name+"t"
+
+        super(GOceanExtractNode, self).update_vars_and_postname()
+
+    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         '''
         Generates the code required for extraction of one or more Nodes.
