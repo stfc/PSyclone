@@ -308,6 +308,89 @@ def _is_range_full_extent(my_range):
     return is_lower and is_upper and is_step
 
 
+def default_precision():
+    '''Returns the default precision specified by the front end. This is
+       currently always set to undefined but could be read from a
+       config file in the future.
+
+       :returns: the default precision.
+       :rtype: :py:class:`psyclone.psyir.symbols.scalartype.Precision`
+
+    '''
+    return ScalarType.Precision.UNDEFINED
+
+
+def get_literal_precision(fparser2_node, psyir_node):
+    '''Takes a Fortran2003 literal node as input and returns the
+    appropriate PSyIR precision type for that node.
+    :param fparser2_node: the fparser2 literal node.
+    :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
+        :py:class:`Fortran2003.Logical_Literal_Constant` or \
+        :py:class:`Fortran2003.Char_Literal_Constant` or \
+        :py:class:`Fortran2003.Int_Literal_Constant`
+    :param psyir_node: the PSyIR node that will be the parent of the \
+        PSyIR literal node that will be created from the fparser2 node \
+        information.
+    :type psyir_node: :py:class:`psyclone.psyir.nodes.Node`
+
+    :returns: the appropriate PSyIR Precision type for this literal value.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`, int or \
+        :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
+
+    :raises InternalError: if the arguments are of the wrong type.
+
+    '''
+    if not isinstance(fparser2_node,
+                      (Fortran2003.Real_Literal_Constant,
+                       Fortran2003.Logical_Literal_Constant,
+                       Fortran2003.Char_Literal_Constant,
+                       Fortran2003.Int_Literal_Constant)):
+        raise InternalError(
+            "Unsupported literal type '{0}' found in get_literal_precision."
+            "".format(type(fparser2_node).__name__))
+    if not isinstance(psyir_node, Node):
+        raise InternalError(
+            "Expecting argument psyir_node to be a PSyIR Node but found "
+            "'{0}' in get_literal_precision."
+            "".format(type(psyir_node).__name__))
+    precision_name = fparser2_node.items[1]
+    if not precision_name:
+        # Precision may still be specified by the exponent in a real literal
+        if isinstance(fparser2_node, Fortran2003.Real_Literal_Constant):
+            precision_value = fparser2_node.items[0]
+            if "d" in precision_value.lower():
+                return ScalarType.Precision.DOUBLE
+            elif "e" in precision_value.lower():
+                return ScalarType.Precision.SINGLE
+        # Return the default precision
+        return default_precision()
+    try:
+        # Precision is specified as an integer
+        return (int(precision_name))
+    except ValueError:
+        # Precision is not an integer so should be a kind symbol
+        pass
+    # PSyIR stores names as lower case.
+    precision_name = precision_name.lower()
+    # Find the closest symbol table
+    symbol_table = _get_symbol_table(psyir_node)
+    if not symbol_table:
+        # There is no symbol table so create a data symbol
+        # with deferred type. Once #500 is implemented
+        # this situation should never happen.
+        return DataSymbol(precision_name, DeferredType())
+    # Found a symbol table so lookup the precision symbol
+    try:
+        symbol = symbol_table.lookup(precision_name)
+    except KeyError:
+        # The symbol is not found so create a data
+        # symbol with deferred type and add it to the
+        # symbol table then return the symbol.
+        symbol = DataSymbol(precision_name, DeferredType())
+        symbol_table.add(symbol)
+    return symbol
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -2409,9 +2492,13 @@ class Fparser2Reader(object):
         '''
         # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
-            return Literal(str(node.items[0]), INTEGER_TYPE, parent=parent)
+            integer_type = ScalarType(ScalarType.Name.INTEGER,
+                                      get_literal_precision(node, parent))
+            return Literal(str(node.items[0]), integer_type, parent=parent)
         if isinstance(node, Fortran2003.Real_Literal_Constant):
-            return Literal(str(node.items[0]), REAL_TYPE, parent=parent)
+            real_type = ScalarType(ScalarType.Name.REAL,
+                                   get_literal_precision(node, parent))
+            return Literal(str(node.items[0]), real_type, parent=parent)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()
 
@@ -2429,7 +2516,9 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        return Literal(str(node.items[0]), CHARACTER_TYPE, parent=parent)
+        character_type = ScalarType(ScalarType.Name.CHARACTER,
+                                  get_literal_precision(node, parent))
+        return Literal(str(node.items[0]), character_type, parent=parent)
 
     def _bool_literal_handler(self, node, parent):
         '''
@@ -2446,11 +2535,13 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
+        boolean_type = ScalarType(ScalarType.Name.BOOLEAN,
+                                  get_literal_precision(node, parent))
         value = str(node.items[0]).lower()
         if value == ".true.":
-            return Literal("true", BOOLEAN_TYPE, parent=parent)
+            return Literal("true", boolean_type, parent=parent)
         if value == ".false.":
-            return Literal("false", BOOLEAN_TYPE, parent=parent)
+            return Literal("false", boolean_type, parent=parent)
         raise GenerationError(
             "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))
