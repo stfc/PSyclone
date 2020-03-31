@@ -170,18 +170,23 @@ def test_refelem_quad_stub_gen():
 
     output1 = (
         "  SUBROUTINE testkern_refelem_quad_code(nlayers, field_1_w1, "
-        "field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1, ndf_wtheta, "
-        "undf_wtheta, map_wtheta, basis_wtheta, nfaces_re, normals_to_faces, "
-        "out_normals_to_faces, np_xy, np_z, weights_xy, weights_z)")
+        "field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1_qr_xyoz, "
+        "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, "
+        "nfaces_re, normals_to_faces, out_normals_to_faces, np_xy_qr_xyoz, "
+        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)")
     assert output1 in gen
     output2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: np_xy, np_z\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "np_z_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), "
-        "dimension(3,ndf_w1,np_xy,np_z) :: basis_w1\n"
+        "dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), "
-        "dimension(1,ndf_wtheta,np_xy,np_z) :: basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
+        "dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz) :: "
+        "basis_wtheta_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n"
         "      INTEGER(KIND=i_def), intent(in) :: nfaces_re\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re) :: "
         "normals_to_faces\n"
