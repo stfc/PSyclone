@@ -11,9 +11,12 @@ Program test
                                      extract_PSyDataShutdown
 
     TYPE(r2d_field)               :: a_fld, b_fld, c_fld, d_fld
-    double precision              :: x, y, z
+    double precision              :: x, y
+    ! Just to show that different declarations work as expected
+    ! (a single precision value would not work, since the generic
+    ! interface does not provide a method for single precision).
+    real(kind=kind(1.0d0))        :: z
     TYPE(grid_type), target       :: grid
-    type(decomposition_type)      :: decomp
 
     call parallel_init()
     call extract_PSyDataInit()
