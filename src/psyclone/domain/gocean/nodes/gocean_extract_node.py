@@ -91,19 +91,22 @@ class GOceanExtractNode(ExtractNode):
     # -------------------------------------------------------------------------
     def update_vars_and_postname(self):
         '''
-        This function is called after the variables to be extracted
-        have been stored in self._input_list and self._output_list.
-        This functions makes sure that when adding the postfix to
-        output variables, no existing name is created (e.g. if there
-        is an output variable 'a', and an input variable 'a_post'.
-        Writing the output value of 'a' would create the key 'a_post',
-        same as the input variable. So we change the postfix to make
-        sure we have unique keys (by adding "t" to the end, e.g. "post",
-        then "postt", "posttt" etc).
+        This function prevents any name clashes that can occur when adding
+        the postfix to output variable names (e.g. if there is an output
+        variable 'a', and an input variable 'a_post'. Writing the output value
+        of 'a' would create the key 'a_post', same as the input variable).
+        We change the postfix to make sure we have unique keys (by adding a
+        number to the end, e.g. "post0", then "post1", ...).
+
         '''
-        while any(out_var+self._post_name in self._input_list
+        suffix = ""
+        while any(out_var+self._post_name+str(suffix) in self._input_list
                   for out_var in self._output_list):
-            self._post_name = self._post_name+"t"
+            if suffix == "":
+                suffix = 0
+            else:
+                suffix += 1
+        self._post_name = self._post_name+str(suffix)
 
         super(GOceanExtractNode, self).update_vars_and_postname()
 

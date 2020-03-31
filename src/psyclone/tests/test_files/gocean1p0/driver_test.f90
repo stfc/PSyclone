@@ -43,11 +43,12 @@ PROGRAM extract_example_with_various_variable_access_patterns
   use kind_params_mod
   use grid_mod
   use field_mod
-  use kernel_driver_test,  only: compute_kernel, compute_kernel_clash
+  use kernel_driver_test,  only: compute_kernel
   implicit none
 
   type(grid_type), target :: model_grid
-  type(r2d_field) :: out_fld, in_out_fld, in_fld, v_fld, out_fld_post
+  type(r2d_field) :: out_fld, in_out_fld, in_fld, v_fld
+  type(r2d_field) :: out_fld_post, out_fld_post0
 
   ! This field will potentially create a name clash in the driver:
   ! The kernel takes the 'dx' grid property as parameter, so we
@@ -78,6 +79,7 @@ PROGRAM extract_example_with_various_variable_access_patterns
 
   END DO
   call invoke( compute_kernel(out_fld, in_out_fld, out_fld_post, dx))
+  call invoke( compute_kernel(out_fld, out_fld_post, out_fld_post0, dx))
 
   !===================================================
 

@@ -429,23 +429,21 @@ def test_rename_suffix_if_name_clash(tmpdir):
                              GOCEAN_API, idx=1, dist_mem=False)
     schedule = invoke.schedule
 
-    schedule, _ = etrans.apply(schedule.children[0],
-                               {'create_driver': True})
-    # We are only interested in the driver, so ignore results.
+    etrans.apply(schedule.children[0], {'create_driver': True})
     extract_code = str(psy.gen)
 
-    # Due to the name clash of out_fld+_post and out_fld_post
-    # the _post suffix is changed to _postt. So the file will
+    # Due to the name clash of "out_fld"+"_post" and "out_fld_post"
+    # the _post suffix is changed to _post0. So the file will
     # contain out_fld_post for the input variable out_fld_post,
-    # and "out_fld_postt" for the output value of out_fld.
+    # and "out_fld_post0" for the output value of out_fld.
     expected = """
       CALL psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
-      CALL psy_data%PreDeclareVariable("in_out_fld_postt", in_out_fld)
-      CALL psy_data%PreDeclareVariable("out_fld_postt", out_fld)
+      CALL psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
+      CALL psy_data%PreDeclareVariable("out_fld_post0", out_fld)
       CALL psy_data%ProvideVariable("in_out_fld", in_out_fld)
       CALL psy_data%ProvideVariable("out_fld_post", out_fld_post)
-      CALL psy_data%ProvideVariable("in_out_fld_postt", in_out_fld)
-      CALL psy_data%ProvideVariable("out_fld_postt", out_fld)"""
+      CALL psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
+      CALL psy_data%ProvideVariable("out_fld_post0", out_fld)"""
     expected_lines = expected.split("\n")
     ordered_lines_in_text(expected_lines, extract_code)
 
@@ -462,17 +460,52 @@ def test_rename_suffix_if_name_clash(tmpdir):
 
     expected = """
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
-      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_postt
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post0
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
-      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_postt
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post0
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
       CALL psy_data%ReadVariable("in_out_fld", in_out_fld)
-      CALL psy_data%ReadVariable("in_out_fld_postt", in_out_fld_postt)
-      CALL psy_data%ReadVariable("out_fld_postt", out_fld_postt)
-      ALLOCATE (out_fld, mold=out_fld_postt)
+      CALL psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
+      CALL psy_data%ReadVariable("out_fld_post0", out_fld_post0)
+      ALLOCATE (out_fld, mold=out_fld_post0)
       CALL psy_data%ReadVariable("out_fld_post", out_fld_post)"""
 
     ordered_lines_in_text(expected.split("\n"), driver_code)
+
+    # Now test that more than one variable clash is handled. The third
+    # invoke uses:
+    # "out_fld" as output field
+    # "out_fld_post" as input field (first clash --> suffix becomes "_post0")
+    # "out_fld_post0" as input+output field (next clash --> suffix = "_post1")
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=2, dist_mem=False)
+    schedule = invoke.schedule
+    # We don't check the driver, we already tested that the
+    # driver picks up the adjusted suffix above
+    etrans.apply(schedule.children[0])
+    extract_code = str(psy.gen)
+
+    # Check that out_fld is declared correctly: it is only declared as
+    # output value, so must use key out_fld_post1 once, and not be declared
+    # as input value:
+    assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
+    assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
+
+    # Check that out_fld_post (input) is declared correctly: it's an input
+    # field, so no need to rename it, and there must be no declaration for
+    # it as an output variable. The "_post" is part of the original
+    # variable name, NOT a suffix added by the extraction (which would be
+    # "_post1" now)
+    assert 'PreDeclareVariable("out_fld_post", out_fld_post)' in extract_code
+    assert 'PreDeclareVariable("out_fld_post_post1", out_fld_post)' \
+        not in extract_code
+
+    # Check that out_fld_post0 is declared correctly: as input/output variable
+    # it must be declared twice: once for the input value using the original
+    # variable name, and once for the output value, having "_post1" as suffix"
+    assert 'PreDeclareVariable("out_fld_post0", out_fld_post0)' in extract_code
+    assert 'PreDeclareVariable("out_fld_post_post1", out_fld_post)' \
+        in extract_code
 
 
 # -----------------------------------------------------------------------------
