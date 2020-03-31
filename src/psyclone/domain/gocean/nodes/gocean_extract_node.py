@@ -272,9 +272,9 @@ class GOceanExtractNode(ExtractNode):
                 decl = DeclGen(prog, "real", [local_name], kind="8",
                                dimension=":,:", allocatable=True)
                 prog.add(decl)
-                alloc = AllocateGen(prog, [var_name,
-                                           "mold={0}".format(local_name +
-                                                             post_suffix)])
+                alloc = AllocateGen(prog, [var_name],
+                                    mold="{0}".format(local_name +
+                                                      post_suffix))
                 prog.add(alloc)
                 # Initialise the variable with 0, since it might contain
                 # values that are not set at all (halo regions, or a
