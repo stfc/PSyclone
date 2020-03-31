@@ -252,7 +252,7 @@ def test_loop_create_invalid():
 
 def test_loop_children_validation():
     '''Test that children added to Loop are validated. Loop accepts
-    3 DataNodes and a Shcedule.
+    3 DataNodes and a Schedule.
 
     '''
     loop = Loop()
