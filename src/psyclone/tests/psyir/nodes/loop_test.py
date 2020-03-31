@@ -248,3 +248,49 @@ def test_loop_create_invalid():
     assert (
         "child of children argument in create method of Loop class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
+
+def test_loop_children_validation():
+    '''Test that children added to Loop are validated. Loop accepts
+    3 DataNodes and a Shcedule.
+
+    '''
+    loop = Loop()
+    datanode1 = Literal("1", DataType.INTEGER, parent=loop)
+    datanode2 = Literal("2", DataType.INTEGER, parent=loop)
+    datanode3 = Literal("3", DataType.INTEGER, parent=loop)
+    schedule = Schedule(parent=loop)
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 0 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    loop.addchild(datanode1)
+
+    # Second child
+    with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 1 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    loop.addchild(datanode2)
+
+    # Third child
+    with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 2 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    loop.addchild(datanode3)
+
+    # Fourth child
+    with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(datanode1)
+    assert ("Item 'Literal' can't be child 3 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    loop.addchild(schedule)
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 4 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))

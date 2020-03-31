@@ -181,7 +181,7 @@ class Loop(Statement):
                     "class should be a PSyIR Node but found '{0}'."
                     "".format(type(child).__name__))
 
-        loop = Loop()
+        loop = Loop(variable_name=var_name)
         start.parent = loop
         stop.parent = loop
         step.parent = loop
@@ -189,7 +189,6 @@ class Loop(Statement):
         for child in children:
             child.parent = schedule
         loop.children = [start, stop, step, schedule]
-        loop._variable_name = var_name
         return loop
 
     def _check_completeness(self):
@@ -540,15 +539,15 @@ class Loop(Statement):
             else:
                 step_str = fwriter(self.step_expr)
 
-            do = DoGen(parent, self._variable_name,
-                       fwriter(self.start_expr),
-                       fwriter(self.stop_expr),
-                       step_str)
+            do_stmt = DoGen(parent, self._variable_name,
+                            fwriter(self.start_expr),
+                            fwriter(self.stop_expr),
+                            step_str)
             # need to add do loop before children as children may want to add
             # info outside of do loop
-            parent.add(do)
+            parent.add(do_stmt)
             for child in self.loop_body:
-                child.gen_code(do)
+                child.gen_code(do_stmt)
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self._variable_name])
             parent.add(my_decl)

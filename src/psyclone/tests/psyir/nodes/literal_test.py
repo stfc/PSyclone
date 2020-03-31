@@ -42,6 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import DataType
+from psyclone.errors import GenerationError
 
 
 def test_literal_init():
@@ -115,3 +116,14 @@ def test_literal_can_be_printed():
     initialised fully)'''
     literal = Literal("1", DataType.INTEGER)
     assert "Literal[value:'1', DataType.INTEGER]" in str(literal)
+
+def test_literal_children_validation():
+    '''Test that children added to Literals are validated. A Literal node does
+    not accept any children.
+
+    '''
+    literal = Literal("1", DataType.INTEGER)
+    with pytest.raises(GenerationError) as excinfo:
+        literal.addchild(Literal("2", DataType.INTEGER))
+    assert ("Item 'Literal' can't be child 0 of 'Literal'. Literal is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
