@@ -48,6 +48,7 @@ PROGRAM extract_example_with_various_variable_access_patterns
 
   type(grid_type), target :: model_grid
   type(r2d_field) :: out_fld, in_out_fld, in_fld, v_fld
+  type(r2d_field) :: out_fld_post, out_fld_post0
 
   ! This field will potentially create a name clash in the driver:
   ! The kernel takes the 'dx' grid property as parameter, so we
@@ -77,6 +78,8 @@ PROGRAM extract_example_with_various_variable_access_patterns
     call invoke( compute_kernel(out_fld, in_out_fld, in_fld, dx))
 
   END DO
+  call invoke( compute_kernel(out_fld, in_out_fld, out_fld_post, dx))
+  call invoke( compute_kernel(out_fld, out_fld_post, out_fld_post0, dx))
 
   !===================================================
 

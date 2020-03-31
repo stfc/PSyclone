@@ -42,7 +42,7 @@ output files.
 
 
 from __future__ import absolute_import, print_function
-from psyclone.configuration import Config
+from psyclone.configuration import Config, GOceanConfig
 from psyclone.psyir.nodes import ExtractNode
 
 
@@ -88,6 +88,29 @@ class GOceanExtractNode(ExtractNode):
         '''
         return "gocean_extract_" + str(self.position)
 
+    # -------------------------------------------------------------------------
+    def update_vars_and_postname(self):
+        '''
+        This function prevents any name clashes that can occur when adding
+        the postfix to output variable names (e.g. if there is an output
+        variable 'a', and an input variable 'a_post'. Writing the output value
+        of 'a' would create the key 'a_post', same as the input variable).
+        We change the postfix to make sure we have unique keys (by adding a
+        number to the end, e.g. "post0", then "post1", ...).
+
+        '''
+        suffix = ""
+        while any(out_var+self._post_name+str(suffix) in self._input_list
+                  for out_var in self._output_list):
+            if suffix == "":
+                suffix = 0
+            else:
+                suffix += 1
+        self._post_name = self._post_name+str(suffix)
+
+        super(GOceanExtractNode, self).update_vars_and_postname()
+
+    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         '''
         Generates the code required for extraction of one or more Nodes.
@@ -208,20 +231,22 @@ class GOceanExtractNode(ExtractNode):
 
             if is_input and not is_output:
                 # We only need the pre-variable, and we can read
-                # it from the file (which also allocate space for it)
+                # it from the file (this call also allocates space for it).
                 call = CallGen(prog,
                                "{0}%ReadVariable(\"{1}\", {2})"
                                .format(psy_data, var_name, local_name))
                 prog.add(call)
             elif is_input:
                 # Now must be input and output:
-                # First read the pre-variable (which is also allocated):
+                # First read the pre-variable (which also allocates it):
                 call = CallGen(prog,
                                "{0}%ReadVariable(\"{1}\", {2})"
                                .format(psy_data, var_name, local_name))
                 prog.add(call)
                 # Then declare the post variable, and and read its values
                 # (ReadVariable will also allocate it)
+                sym = Symbol(local_name+post_suffix)
+                sym_table.add(sym)
                 decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
@@ -234,6 +259,8 @@ class GOceanExtractNode(ExtractNode):
                 # Now the variable is output only. We need to read the
                 # post variable in, and create and allocate a pre variable
                 # with the same size as the post
+                sym = Symbol(local_name+post_suffix)
+                sym_table.add(sym)
                 decl = DeclGen(prog, "real", [local_name+post_suffix],
                                dimension=":,:", kind="8", allocatable=True)
                 prog.add(decl)
@@ -245,9 +272,9 @@ class GOceanExtractNode(ExtractNode):
                 decl = DeclGen(prog, "real", [local_name], kind="8",
                                dimension=":,:", allocatable=True)
                 prog.add(decl)
-                alloc = AllocateGen(prog, [var_name,
-                                           "mold={0}".format(local_name +
-                                                             post_suffix)])
+                alloc = AllocateGen(prog, [var_name],
+                                    mold="{0}".format(local_name +
+                                                      post_suffix))
                 prog.add(alloc)
                 # Initialise the variable with 0, since it might contain
                 # values that are not set at all (halo regions, or a
@@ -290,13 +317,15 @@ class GOceanExtractNode(ExtractNode):
                 # local variable name
                 local_name = prop.fortran[last_percent+1:]
                 unique_name = rename_variable.get(local_name, local_name)
-                all_props[name] = api_config.make_property(unique_name,
-                                                           prop.type)
+                all_props[name] = GOceanConfig.make_property(unique_name,
+                                                             prop.type)
 
-        # 2) grid_data is "{0}%data" --> this just becomes {0}
-        #    (a_fld%data in the original program becomes just a_fld,
-        #    and a_fld is declared to be a plain Fortran 2d-array)
-        all_props["go_grid_data"] = api_config.make_property("{0}", "array")
+        # 2) The property 'grid_data' is a reference to the data on the
+        #    grid (i.e. the actual field) , and it is defined as "{0}%data".
+        #    This just becomes {0} ('a_fld%data' in the original program
+        #    becomes just 'a_fld', and 'a_fld' is declared to be a plain
+        #    Fortran 2d-array)
+        all_props["go_grid_data"] = GOceanConfig.make_property("{0}", "array")
 
         # Each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new
