@@ -143,6 +143,8 @@ module argument_mod
   integer, public, parameter :: outward_normals_to_horizontal_faces = 007
   integer, public, parameter :: normals_to_vertical_faces = 172
   integer, public, parameter :: outward_normals_to_vertical_faces = 008
+  integer, public, parameter :: normals_to_faces = 173
+  integer, public, parameter :: outward_normals_to_faces = 009
 
   type, public :: arg_type
      integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
@@ -160,8 +162,9 @@ module argument_mod
   end type func_type
 
   type, public :: reference_element_data_type
-    integer :: reference_element_data_item  ! {normals_to_faces, &
-                                            !  outward_normals_to_faces}
+    ! {normals_to_<horizontal/vertical/all>_faces, &
+    !  outward_normals_to_<horizontal/vertical/all>_faces}
+    integer :: reference_element_data_item
   end type reference_element_data_type
 
 end module argument_mod

@@ -873,6 +873,7 @@ class RefElementMetaData(object):
     :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
 
     :raises ParseError: if an unrecognised reference-element property is found.
+    :raises ParseError: if a duplicate reference-element property is found.
 
     '''
     class Property(Enum):
@@ -884,8 +885,10 @@ class RefElementMetaData(object):
         '''
         NORMALS_TO_HORIZONTAL_FACES = 1
         NORMALS_TO_VERTICAL_FACES = 2
-        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 3
-        OUTWARD_NORMALS_TO_VERTICAL_FACES = 4
+        NORMALS_TO_FACES = 3
+        OUTWARD_NORMALS_TO_HORIZONTAL_FACES = 4
+        OUTWARD_NORMALS_TO_VERTICAL_FACES = 5
+        OUTWARD_NORMALS_TO_FACES = 6
 
     def __init__(self, kernel_name, type_declns):
         from psyclone.parse.kernel import getkerneldescriptors
@@ -925,6 +928,12 @@ class RefElementMetaData(object):
             raise ParseError(
                 "Unsupported reference-element property: '{0}'. Supported "
                 "values are: {1}".format(arg, sorted_names))
+
+        # Check for duplicate properties
+        for prop in self.properties:
+            if self.properties.count(prop) > 1:
+                raise ParseError("Duplicate reference-element property "
+                                 "found: '{0}'.".format(prop))
 
 
 class DynKernMetadata(KernelType):
@@ -2060,79 +2069,180 @@ class DynStencils(DynCollection):
 class DynReferenceElement(DynCollection):
     '''
     Holds all information on the properties of the Reference Element
-    required by an Invoke.
+    required by an Invoke or a Kernel stub.
 
     :param node: Kernel or Invoke for which to manage Reference-Element \
                  properties.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
+    :raises InternalError: if an unsupported reference-element property \
+                           is encountered.
+
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, node):
         super(DynReferenceElement, self).__init__(node)
 
-        # Create a union of the reference-element properties required by
-        # all kernels in this invoke.
-        self._properties = set()
+        # Create a union of the reference-element properties required by all
+        # kernels in this invoke. Use a list to preserve the order in the
+        # kernel metadata (in the case of a kernel stub) and remove duplicate
+        # entries by using OrderedDict.
+        self._properties = []
         for call in self._calls:
             if call.reference_element:
-                self._properties.update(call.reference_element.properties)
-
+                self._properties.extend(call.reference_element.properties)
         if not self._properties:
             return
+        self._properties = list(OrderedDict.fromkeys(self._properties))
+
+        # Store properties in a SymbolTable
+        if self._invoke:
+            symtab = self._invoke.schedule.symbol_table
+        elif self._kernel:
+            # TODO 719 The symtab is not connected to other parts of the
+            # Stub generation.
+            symtab = SymbolTable()
 
         # Create and store a name for the reference element object
-        self._ref_elem_name = self._invoke.schedule.symbol_table.name_from_tag(
-            "reference_element")
+        self._ref_elem_name = symtab.name_from_tag("reference_element")
 
-        # Create and store names for the number of horizontal/vertical faces
-        # as required.
+        # Initialise names for the properties of the reference element object:
+        # Number of horizontal/vertical/all faces,
         self._nfaces_h_name = ""
         self._nfaces_v_name = ""
+        self._nfaces_name = ""
+        # Horizontal normals to faces,
         self._horiz_face_normals_name = ""
         self._horiz_face_out_normals_name = ""
+        # Vertical normals to faces,
         self._vert_face_normals_name = ""
         self._vert_face_out_normals_name = ""
+        # All normals to faces.
+        self._face_normals_name = ""
+        self._face_out_normals_name = ""
 
+        # Store argument properties for kernel calls and stub declarations
+        # and argument list
+        self._arg_properties = OrderedDict()
+
+        # Populate and check reference element properties
+        # Provide no. of horizontal faces if required
         if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties):
-            self._nfaces_h_name = \
-                self._invoke.schedule.symbol_table.name_from_tag("nfaces_re_h")
-            if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
-               in self._properties:
-                self._horiz_face_normals_name = \
-                    self._invoke.schedule.symbol_table.name_from_tag(
-                        "normals_to_horiz_faces")
-            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES\
-               in self._properties:
-                self._horiz_face_out_normals_name = \
-                    self._invoke.schedule.symbol_table.name_from_tag(
-                        "out_normals_to_horiz_faces")
-
+            self._nfaces_h_name = symtab.name_from_tag("nfaces_re_h")
+        # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_name = \
-                self._invoke.schedule.symbol_table.name_from_tag("nfaces_re_v")
-            if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
-               in self._properties:
+            self._nfaces_v_name = symtab.name_from_tag("nfaces_re_v")
+        # Provide no. of all faces if required
+        if (RefElementMetaData.Property.NORMALS_TO_FACES
+                in self._properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
+                in self._properties):
+            self._nfaces_name = symtab.name_from_tag("nfaces_re")
+
+        # Now the arrays themselves, in the order specified in the
+        # kernel metadata (in the case of a kernel stub)
+        for prop in self._properties:
+            # Provide horizontal normals to faces
+            if prop == \
+               RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
+                self._horiz_face_normals_name = \
+                    symtab.name_from_tag("normals_to_horiz_faces")
+                if self._horiz_face_normals_name not in self._arg_properties:
+                    self._arg_properties[self._horiz_face_normals_name] = \
+                         self._nfaces_h_name
+            # Provide horizontal normals to "outward" faces
+            elif prop == (RefElementMetaData.Property.
+                          OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
+                self._horiz_face_out_normals_name = \
+                    symtab.name_from_tag("out_normals_to_horiz_faces")
+                if self._horiz_face_out_normals_name not in \
+                   self._arg_properties:
+                    self._arg_properties[self._horiz_face_out_normals_name] = \
+                         self._nfaces_h_name
+            elif prop == (RefElementMetaData.Property.
+                          NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_normals_name = \
-                    self._invoke.schedule.symbol_table.name_from_tag(
-                        "normals_to_vert_faces")
-            if RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES\
-               in self._properties:
+                    symtab.name_from_tag("normals_to_vert_faces")
+                if self._vert_face_normals_name not in self._arg_properties:
+                    self._arg_properties[self._vert_face_normals_name] = \
+                         self._nfaces_v_name
+            # Provide vertical normals to "outward" faces
+            elif prop == (RefElementMetaData.Property.
+                          OUTWARD_NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_out_normals_name = \
-                    self._invoke.schedule.symbol_table.name_from_tag(
-                        "out_normals_to_vert_faces")
+                    symtab.name_from_tag("out_normals_to_vert_faces")
+                if self._vert_face_out_normals_name not in \
+                   self._arg_properties:
+                    self._arg_properties[self._vert_face_out_normals_name] = \
+                        self._nfaces_v_name
+            # Provide normals to all faces
+            elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
+                self._face_normals_name = \
+                    symtab.name_from_tag("normals_to_faces")
+                if self._face_normals_name not in self._arg_properties:
+                    self._arg_properties[self._face_normals_name] = \
+                        self._nfaces_name
+            # Provide vertical normals to all "outward" faces
+            elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
+                self._face_out_normals_name = \
+                    symtab.name_from_tag("out_normals_to_faces")
+                if self._face_out_normals_name not in \
+                   self._arg_properties:
+                    self._arg_properties[self._face_out_normals_name] = \
+                        self._nfaces_name
+            else:
+                raise InternalError(
+                    "Unsupported reference-element property ('{0}') found "
+                    "when generating arguments for kernel '{1}'. Supported "
+                    "properties are: {2}".format(
+                        str(prop), self._kernel.name,
+                        [str(sprop) for sprop in RefElementMetaData.Property]))
+
+    @property
+    def arg_properties(self):
+        '''
+        Returns the dictionary of reference element argument properties
+        for kernel calls and stub declarations where keys are the reference
+        element arrays and values are the relevant number of faces.
+
+        :return: reference element properties for kernel call and stub \
+                 declarations and argument lists.
+        :rtype: OrderedDict containing key-value pairs of \
+                (reference element array, number of faces).
+
+        '''
+        return self._arg_properties
+
+    @classmethod
+    def kern_args(cls, kern):
+        '''
+        Create argument list for kernel call and stub.
+
+        :param kern: kernel to create the argument list for.
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+        :return: kernel call/stub arguments.
+        :rtype: list
+
+        '''
+        # Use classmethod to avoid instantiating the class for argument list
+        argdict = cls(kern).arg_properties
+        # Remove duplicate "nfaces" by using OrderedDict
+        nfaces = list(OrderedDict.fromkeys(argdict.values()))
+        kern_args = nfaces + list(argdict.keys())
+        return kern_args
 
     def _invoke_declarations(self, parent):
         '''
         Create the necessary declarations for the variables needed in order
-        to provide properties of the reference element.
+        to provide properties of the reference element in a Kernel call.
 
         :param parent: node in the f2pygen AST to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -2151,34 +2261,46 @@ class DynReferenceElement(DynCollection):
                         datatype="reference_element_type",
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
-        # Declare the necessary scalars
-        nface_vars = []
-        if self._nfaces_h_name:
-            nface_vars.append(self._nfaces_h_name)
-        if self._nfaces_v_name:
-            nface_vars.append(self._nfaces_v_name)
-
+        # Declare the necessary scalars (remove duplicates with an OrderedDict)
+        nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
 
         # Declare the necessary arrays
-        ref_element_arrays = []
-        if self._horiz_face_normals_name:
-            ref_element_arrays.append(self._horiz_face_normals_name+"(:,:)")
-        if self._horiz_face_out_normals_name:
-            ref_element_arrays.append(
-                self._horiz_face_out_normals_name+"(:,:)")
-        if self._vert_face_normals_name:
-            ref_element_arrays.append(self._vert_face_normals_name+"(:,:)")
-        if self._vert_face_out_normals_name:
-            ref_element_arrays.append(self._vert_face_out_normals_name+"(:,:)")
-
-        # Add declarations to the parent subroutine
-        api_config = Config.get().api_conf("dynamo0.3")
+        array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
         parent.add(DeclGen(parent, datatype="real",
                            kind=api_config.default_kind["real"],
-                           allocatable=True, entity_decls=ref_element_arrays))
+                           allocatable=True, entity_decls=array_decls))
+
+    def _stub_declarations(self, parent):
+        '''
+        Create the necessary declarations for the variables needed in order
+        to provide properties of the reference element in a Kernel stub.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if not self._properties:
+            return
+
+        # Declare the necessary scalars (duplicates are ignored by parent.add)
+        for nface in list(self._arg_properties.values()):
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               intent="in", entity_decls=[nface]))
+
+        # Declare the necessary arrays
+        for arr in self._arg_properties.keys():
+            dimension = ",".join(["3", self._arg_properties[arr]])
+            parent.add(DeclGen(parent, datatype="real",
+                               kind=api_config.default_kind["real"],
+                               intent="in", dimension=dimension,
+                               entity_decls=[arr]))
 
     def initialise(self, parent):
         '''
@@ -2216,6 +2338,12 @@ class DynReferenceElement(DynCollection):
                     parent, lhs=self._nfaces_v_name,
                     rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
 
+        if self._nfaces_name:
+            parent.add(
+                AssignGen(
+                    parent, lhs=self._nfaces_name,
+                    rhs=self._ref_elem_name + "%get_number_faces()"))
+
         if self._horiz_face_normals_name:
             parent.add(
                 CallGen(parent,
@@ -2245,6 +2373,21 @@ class DynReferenceElement(DynCollection):
                     name="{0}%get_outward_normals_to_vertical_faces({1})".
                     format(self._ref_elem_name,
                            self._vert_face_out_normals_name)))
+
+        if self._face_normals_name:
+            parent.add(
+                CallGen(parent,
+                        name="{0}%get_normals_to_faces({1})".format(
+                            self._ref_elem_name,
+                            self._face_normals_name)))
+
+        if self._face_out_normals_name:
+            parent.add(
+                CallGen(
+                    parent,
+                    name="{0}%get_outward_normals_to_faces({1})".
+                    format(self._ref_elem_name,
+                           self._face_out_normals_name)))
 
 
 class DynDofmaps(DynCollection):
@@ -7136,7 +7279,8 @@ class DynKern(CodedKern):
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
-                         DynOrientations, DynBoundaryConditions]:
+                         DynOrientations, DynBoundaryConditions,
+                         DynReferenceElement]:
             entities(self).declarations(sub_stub)
 
         # Create the arglist
@@ -7901,51 +8045,12 @@ class KernCallArgList(ArgOrdering):
         ''' Provide kernel arguments required by the reference-element
         properties specified in the kernel metadata.
 
-        :raises InternalError: if an unsupported reference-element property \
-                               is encountered.
         '''
-        symtab = self._kern.root.symbol_table
-        # Provide no. of horizontal faces if required
-        if RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES \
-           in self._kern.reference_element.properties or \
-           RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES \
-           in self._kern.reference_element.properties:
-            # Query the symbol_table to get the variable name
-            nfaces_h = symtab.name_from_tag("nfaces_re_h")
-            self._arglist.append(nfaces_h)
-        # Provide no. of vertical faces if required
-        if RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES \
-           in self._kern.reference_element.properties or \
-           RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES \
-           in self._kern.reference_element.properties:
-            nfaces_v = symtab.name_from_tag("nfaces_re_v")
-            self._arglist.append(nfaces_v)
-        # Now the arrays themselves, in the order specified in the
-        # kernel metadata
-        for prop in self._kern.reference_element.properties:
-            if prop == \
-               RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES:
-                name = symtab.name_from_tag("out_normals_to_horiz_faces")
-                self._arglist.append(name)
-            elif (prop ==
-                  RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES):
-                name = symtab.name_from_tag("normals_to_horiz_faces")
-                self._arglist.append(name)
-            elif (prop == RefElementMetaData.Property.
-                  OUTWARD_NORMALS_TO_VERTICAL_FACES):
-                name = symtab.name_from_tag("out_normals_to_vert_faces")
-                self._arglist.append(name)
-            elif (prop == RefElementMetaData.Property.
-                  NORMALS_TO_VERTICAL_FACES):
-                name = symtab.name_from_tag("normals_to_vert_faces")
-                self._arglist.append(name)
-            else:
-                raise InternalError(
-                    "Unsupported reference-element property ('{0}') found when"
-                    " generating arguments for kernel '{1}'. Supported "
-                    "properties are: {2}".format(
-                        str(prop), self._kern.name,
-                        [str(sprop) for sprop in RefElementMetaData.Property]))
+        # Argument information is produced by a DynReferenceElement
+        # class method
+        if self._kern.reference_element.properties:
+            refelem_args = DynReferenceElement.kern_args(self._kern)
+            self._arglist.extend(refelem_args)
 
     def quad_rule(self):
         ''' Add quadrature-related information to the kernel argument list.
@@ -8100,13 +8205,6 @@ class KernStubArgList(ArgOrdering):
                 "Kernel {0} is an inter-grid kernel and stub generation "
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
-        # We don't support Kernels requiring properties of the reference
-        # element
-        if kern.reference_element.properties:
-            raise NotImplementedError(
-                "Kernel {0} requires properties of the reference element "
-                "which is not yet supported for stub generation.")
-
         self._first_arg = True
         self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
@@ -8379,6 +8477,17 @@ class KernStubArgList(ArgOrdering):
         same as for fields with the function space set to the 'to' space of
         the operator. '''
         self.field_bcs_kernel(function_space)
+
+    def ref_element_properties(self):
+        ''' Provide kernel arguments required by the reference-element
+        properties specified in the kernel metadata.
+
+        '''
+        # Argument information is produced by a DynReferenceElement
+        # class method
+        if self._kern.reference_element.properties:
+            refelem_args = DynReferenceElement.kern_args(self._kern)
+            self._arglist.extend(refelem_args)
 
     def quad_rule(self):
         ''' Provide quadrature information for this kernel stub (necessary
