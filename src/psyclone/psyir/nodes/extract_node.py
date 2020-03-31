@@ -130,7 +130,7 @@ class ExtractNode(PSyDataNode):
         This function is called after the variables to be extracted
         have been stored in self._input_list and self._output_list.
         It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no dupliated
+        counter), or adjust the postfix to assure that no duplicated
         variable name is created. This default function does not
         do anything atm.
         '''
@@ -152,6 +152,9 @@ class ExtractNode(PSyDataNode):
         dep = DependencyTools()
         self._input_list, self._output_list = dep.get_in_out_parameters(self)
 
+        # Add a callback here so that derived classes can adjust the list
+        # of variables to provide, or the suffix used (which might
+        # depend on the variable name which could create clashes).
         self.update_vars_and_postname()
 
         options = {'pre_var_list': self._input_list,

@@ -958,7 +958,7 @@ class GOceanConfig(APISpecificConfig):
     @property
     def grid_properties(self):
         ''':returns: the dict containing the grid properties.
-        :rtype: a dict with values of namedtuple("Property","fortran type")
+        :rtype: a dict with values of namedtuple("Property","fortran type") \
             instances.
         '''
         return self._grid_properties
