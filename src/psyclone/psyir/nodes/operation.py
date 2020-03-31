@@ -364,7 +364,7 @@ class NaryOperation(Operation):
 
     '''
     # Textual representation of the valid children for this node.
-    _children_valid_format = "DataNode, DataNode, +[DataNode]"
+    _children_valid_format = "+[DataNode]"
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
