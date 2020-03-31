@@ -485,27 +485,24 @@ def test_rename_suffix_if_name_clash(tmpdir):
     etrans.apply(schedule.children[0])
     extract_code = str(psy.gen)
 
-    # Check that out_fld is declared correctly: it is only declared as
+    # Check that *out_fld* is declared correctly: it is only declared as
     # output value, so must use key out_fld_post1 once, and not be declared
     # as input value:
     assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
     assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
 
-    # Check that out_fld_post (input) is declared correctly: it's an input
-    # field, so no need to rename it, and there must be no declaration for
-    # it as an output variable. The "_post" is part of the original
-    # variable name, NOT a suffix added by the extraction (which would be
-    # "_post1" now)
+    # Check that *out_fld_post* (input/output) is declared correctly. It must
+    # be declared twice: once for the input value using the original variable
+    # name, and once as output using the "_post1" suffix"
     assert 'PreDeclareVariable("out_fld_post", out_fld_post)' in extract_code
     assert 'PreDeclareVariable("out_fld_post_post1", out_fld_post)' \
-        not in extract_code
-
-    # Check that out_fld_post0 is declared correctly: as input/output variable
-    # it must be declared twice: once for the input value using the original
-    # variable name, and once for the output value, having "_post1" as suffix"
-    assert 'PreDeclareVariable("out_fld_post0", out_fld_post0)' in extract_code
-    assert 'PreDeclareVariable("out_fld_post_post1", out_fld_post)' \
         in extract_code
+
+    # Check that *out_fld_post0* is declared correctly: as input-only
+    # variable it must be declared once for using the original variable name.
+    assert 'PreDeclareVariable("out_fld_post0", out_fld_post0)' in extract_code
+    assert 'PreDeclareVariable("out_fld_post0_post1", out_fld_post0)' \
+        not in extract_code
 
 
 # -----------------------------------------------------------------------------
