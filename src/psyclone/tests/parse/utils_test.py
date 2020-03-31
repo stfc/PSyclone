@@ -37,9 +37,9 @@
 file.
 
 '''
+from __future__ import absolute_import
 import tempfile
 
-from __future__ import absolute_import
 import pytest
 import six
 
