@@ -77,13 +77,11 @@ contains
 
 
     call log_event( "Dynamo: Galerkin Projection for W3 ", LOG_LEVEL_INFO )
-    !Construct PSy layer given a list of kernels. This is the line the code
-    !generator may parse and do its stuff.
+    ! Construct PSy layer given a list of kernels. This is the line the code
+    ! generator may parse and do its stuff.
 
     call invoke ( v3_rhs_kernel_type(rhs),                            &
                   v3_solver_kernel_type(pressure_density,rhs) )
-    !RF call invoke_rhs_v3( rhs )
-    !RF call invoke_v3_solver_kernel( pressure_density, rhs )
 
     call log_event( "Dynamo:Starting Galerkin projection for W2 ...",      &
          LOG_LEVEL_INFO)

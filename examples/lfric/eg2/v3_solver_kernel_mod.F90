@@ -65,7 +65,7 @@ type, public, extends(kernel_type) :: v3_solver_kernel_type
        /)
   integer :: iterates_over = cells
 contains
-  procedure, nopass ::solver_v3_code
+  procedure, nopass :: solver_v3_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -80,23 +80,22 @@ contains
 !! @param[in] ndf The number of degrees of freedom per cell
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
 !!  @param[in] v3_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
-!! @param[inout] X Real array the data
+!! @param[in,out] X Real array the data
 !! @param[in] rhs Real array. the data
-!! @param[inout] gq The gaussian quadrature rule
+!! @param[in,out] gq The gaussian quadrature rule
 subroutine solver_v3_code(nlayers,ndf,map,v3_basis,x,rhs,gq)
   ! needs to compute the integral of rho_df * P
   ! P_analytic over a single column
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers, ndf
   integer, intent(in) :: map(ndf)
-!  real(kind=dp), intent(in), dimension(ndf,ngp,ngp,ngp,1) :: v3_basis
   real(kind=dp), intent(in), dimension(1,ndf,ngp_h,ngp_v) :: v3_basis
   real(kind=dp), intent(inout) :: x(*)
   real(kind=dp), intent(in) :: rhs(*)
   type(gaussian_quadrature_type), intent(inout) :: gq
 
-  !Internal variables
+  ! Internal variables
   integer               :: df1, df2, k
   integer               :: qp1, qp2
 

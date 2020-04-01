@@ -2670,8 +2670,9 @@ class DynFields(DynCollection):
         '''
         Add field-related declarations to the PSy-layer routine.
         Note: PSy layer in LFRic does not modify the field objects. Hence,
-        their Fortran intents are always in (the data pointed to by the
-        fields are updated in kernels).
+        their Fortran intents are always in (the data updated in the kernels
+        is only pointed to from the field object and is thus not a part of
+        the object).
 
         :param parent: the node in the f2pygen AST representing the PSy-layer \
                        routine to which to add declarations.
@@ -2991,8 +2992,9 @@ class DynLMAOperators(DynCollection):
         '''
         Declare all LMA-related quantities in a PSy-layer routine.
         Note: PSy layer in LFRic does not modify the LMA operator objects.
-        Hence, their Fortran intents are always "in" (the data pointed to
-        by the operators are updated in kernels).
+        Hence, their Fortran intents are always "in" (the data updated in the
+        kernels is only pointed to from the LMA operator object and is thus
+        not a part of the object).
 
         :param parent: the f2pygen node representing the PSy-layer routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -3125,8 +3127,9 @@ class DynCMAOperators(DynCollection):
         Generate the necessary PSy-layer declarations for all column-wise
         operators and their associated parameters.
         Note: PSy layer in LFRic does not modify the CMA operator objects.
-        Hence, their Fortran intents are always "in" (the data pointed to
-        by the column-wise operators are updated in kernels).
+        Hence, their Fortran intents are always "in" (the data updated in the
+        kernels is only pointed to from the column-wise operator object and is
+        thus not a part of the object).
 
         :param parent: the f2pygen node representing the PSy-layer routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`

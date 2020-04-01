@@ -120,7 +120,7 @@ on fields (see section :ref:`dynamo0.3-quadrature` for more details).
 Scalar
 ++++++
 
-In Dynamo0.3 API a scalar is a single value variable that can be
+In the Dynamo0.3 API a scalar is a single-valued variable that can be
 either real or integer. Real scalars are identified with ``GH_REAL``
 and integer scalars are identified with ``GH_INTEGER`` metadata.
 
@@ -1710,16 +1710,18 @@ Argument Intents
 ################
 
 As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
-and/or update the data pointed to by the objects such as
+and/or update the data pointed to by objects such as
 :ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
-These data are passed to the kernels as :ref:`subroutine arguments
+This data is passed to the kernels as :ref:`subroutine arguments
 <dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
 logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
 
 * ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
 
-* ``GH_WRITE`` (for discontinuous function spaces) indicates ``intent(out)``
-  as the argument is only written to without being updated.
+* ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
+  is only written to in a kernel. When the argument is defined inside a kernel
+  its intent is ``intent(out)`` and when it is defined outside of a kernel its
+  intent is ``intent(inout)``.
 
 * ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
   are updated (albeit in a different way due to different access to DoFs, see
@@ -1754,13 +1756,13 @@ The Built-ins supported for the Dynamo0.3 API are listed in the related
 subsections, grouped by the mathematical operation they perform. For clarity,
 the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
-Built-in (*e.g.*\ it could be implemented by PSyclone generating a call to an
+Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
 optimised maths library).
 
 As described in the PSy-layer :ref:`Argument Intents
-<dynamo0.3-psy-arg-intents>` section, LFRic :ref:`field <dynamo0.3-field>`
-objects' Fortran intent is always ``in``. The field or scalar whose data is
-modified by a Built-in is marked in **bold**.
+<dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
+:ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
+scalar that has its data modified by a Built-in is marked in **bold**.
 
 Naming scheme
 +++++++++++++
