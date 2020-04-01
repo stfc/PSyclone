@@ -54,6 +54,8 @@ use argument_mod,            only: arg_type, &          ! the type
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
@@ -81,20 +83,21 @@ contains
 !! @param[in] ndf The number of degrees of freedom per cell
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
 !! @param[in] v3_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
-!! @param[inout] X Real array, the actual data
-!! @param[inout] gq Type, gaussian quadrature rule
+!! @param[in,out] X Real array, the actual data
+!! @param[in,out] gq Type, gaussian quadrature rule
 subroutine rhs_v3_code(nlayers,ndf,map,v3_basis,x,gq)
   ! needs to compute the integral of rho_df * P
   ! P_analytic over a single column
+  implicit none
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers, ndf
   integer, intent(in) :: map(ndf)
   real(kind=dp), intent(in), dimension(1,ndf,ngp_h,ngp_v) :: v3_basis
   real(kind=dp), intent(inout) :: x(*)
   type(gaussian_quadrature_type), intent(inout) :: gq
 
-  !Internal variables
+  ! Internal variables
   integer               :: df, k
   integer               :: qp1, qp2
   real(kind=dp), dimension(ngp_h,ngp_v) :: f

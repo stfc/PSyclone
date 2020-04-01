@@ -63,7 +63,7 @@ type, public, extends(kernel_type) :: v3_solver_kernel_type
        /)
   integer :: iterates_over = cells
 contains
-  procedure, nopass ::solver_v3_code
+  procedure, nopass :: solver_v3_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -84,8 +84,9 @@ contains
 subroutine solver_v3_code(nlayers,ndf,map,v3_basis,x,rhs,gq)
   ! needs to compute the integral of rho_df * P
   ! P_analytic over a single column
+  implicit none
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers, ndf
   integer, intent(in) :: map(ndf)
   real(kind=dp), intent(in), dimension(ndf,ngp,ngp,ngp,1) :: v3_basis
@@ -93,7 +94,7 @@ subroutine solver_v3_code(nlayers,ndf,map,v3_basis,x,rhs,gq)
   real(kind=dp), intent(in) :: rhs(*)
   type(gaussian_quadrature_type), intent(inout) :: gq
 
-  !Internal variables
+  ! Internal variables
   integer               :: df1, df2, k
   integer               :: qp1, qp2, qp3
 

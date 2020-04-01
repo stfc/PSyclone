@@ -81,7 +81,7 @@ contains
 
 !> @brief Applies boundary conditions to a field
 !! @param[in] nlayers Number of layers
-!! @param[inout] field Input/Output data
+!! @param[in,out] field Input/Output data
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Number unique of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column

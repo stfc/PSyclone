@@ -85,7 +85,7 @@ contains
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !! @param[in] undf2 Unique number of degrees of freedom for the input field
 !! @param[in] x Input data
-!> @param[inout] lhs Output lhs (A*x)
+!> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] matrix Local matrix assembly form of the operator A
 subroutine matrix_vector_code(cell,        &
                               nlayers,     &

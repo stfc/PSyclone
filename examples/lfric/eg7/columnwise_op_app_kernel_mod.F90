@@ -84,7 +84,7 @@ contains
   !>
   !> @param [in] cell the horizontal cell index
   !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [inout] lhs Resulting field lhs += A.x
+  !> @param [in,out] lhs Resulting field lhs += A.x
   !> @param [in] x input field
   !> @param [in] columnwise_matrix banded matrix to assemble into
   !> @param [in] nrow number of rows in the banded matrix

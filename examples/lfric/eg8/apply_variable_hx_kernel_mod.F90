@@ -114,7 +114,7 @@ contains
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[inout] lhs pressure field with helmholtz operator applied to it
+!> @param[in,out] lhs pressure field with helmholtz operator applied to it
 !> @param[in] x gradient of the pressure field in the velocity space
 !> @param[in] mt_inv lumped inverse mass matrix for the temperature space
 !> @param[in] pressure field that helmholtz operator is being applied to

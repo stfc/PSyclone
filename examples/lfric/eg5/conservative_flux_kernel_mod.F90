@@ -92,7 +92,7 @@ contains
 !! @param[in] undf_w2 Integer, the number of unique degrees of freedom
 !! @param[in] ndf_w2 Integer, the number of degrees of freedom per cell
 !! @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column
-!! @param[inout] flux Real array, the flux values which are calculated
+!! @param[in,out] flux Real array, the flux values which are calculated
 !! @param[in] dep_pts Real array, the departure points
 !! @param[in] u_piola Real array, the Piola winds
 !! @param[in] stencil_length Integer The length of the 1D stencil

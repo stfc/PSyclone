@@ -79,27 +79,26 @@ public rhs_v1_code
 
 contains
 
-subroutine rhs_v1_code(nlayers,ndf,map,v1_basis,x,gq)
-
 !> @brief This subroutine calculates the RHS of Galerkin projection on W1 space.
 !! @param[in] nlayers Integer: The number of layers.
 !! @param[in] ndf Integer: The number of degrees of freedom per cell.
 !! @param[in] map Integer: Array holding the dofmap for the cell at the base of the column.
 !! @param[in] v3_basis Real: 4-dim array holding VECTOR basis functions evaluated at quadrature points.
-!! @param[inout] X Real: The array of actual data.
-!! @param[inout] gq Type: Quadrature rule (here Gaussian).
-
+!! @param[in,out] X Real: The array of actual data.
+!! @param[in,out] gq Type: Quadrature rule (here Gaussian).
+subroutine rhs_v1_code(nlayers,ndf,map,v1_basis,x,gq)
   ! Needs to compute the integral of c_df * P
   ! P_analytic over a single column
+  implicit none
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers, ndf
   integer, intent(in) :: map(ndf)
   real(kind=dp), intent(in), dimension(3,ndf,ngp_h,ngp_v) :: v1_basis
   real(kind=dp), intent(inout) :: x(*)
   type(gaussian_quadrature_type), intent(inout) :: gq
 
-  !Internal variables
+  ! Internal variables
   integer               :: df, k
   integer               :: qp1, qp2
   real(kind=dp), dimension(ngp_h,ngp_v) :: f

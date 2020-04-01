@@ -85,8 +85,8 @@ contains
 !! @param[in] ndf The number of degrees of freedom per cell
 !! @param[in] undf The unique number of degrees of freedom
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[inout] mm_diag Real array the field array to store the diagonal entries
-!!               of the mass matrix
+!! @param[in,out] mm_diag Real array the field array to store the diagonal entries
+!!                of the mass matrix
 !! @param[in] ncell_3d total number of cells
 !! @param[in] mass_matrix Real: Array holding mass matrix values
 subroutine mm_diagonal_kernel_code(cell,        &

@@ -76,7 +76,7 @@ end type columnwise_op_mul_kernel_type
 !-------------------------------------------------------------------------------
 public columnwise_op_mul_kernel_code
 
-contains  
+contains
 
   !> @brief The subroutine which is called directly from the PSY layer and
   !> calculates op_C = op_C + op_A * op_B
@@ -99,7 +99,7 @@ contains
   !> @param [in] beta_B banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m_B banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p_B banded matrix parameter \f$\gamma_+\f$
-  !> @param [inout] columnwise_matrix_C banded matrix op_C
+  !> @param [in,out] columnwise_matrix_C banded matrix op_C
   !> @param [in] nrow_C number of rows in the banded matrix C
   !> @param [in] ncol_C number of columns in the banded matrix C
   !> @param [in] bandwidth_C bandwidth of the banded matrix

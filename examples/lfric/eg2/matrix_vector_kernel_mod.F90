@@ -70,7 +70,7 @@ type, public, extends(kernel_type) :: matrix_vector_kernel_type
        ]
   integer :: iterates_over = cells
 contains
-  procedure, nopass ::matrix_vector_code
+  procedure, nopass :: matrix_vector_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -82,7 +82,9 @@ contains
 
 subroutine matrix_vector_code(nlayers,ndf,map,basis,lhs,x,gq)
   ! compute the integral of v*x
-  !Arguments
+  implicit none
+
+  ! Arguments
   integer,                                     intent(in)    :: nlayers, ndf
   integer,                                     intent(in)    :: map(ndf)
   real(kind=dp), dimension(3,ndf,ngp_h,ngp_v), intent(in)    :: basis
@@ -90,7 +92,7 @@ subroutine matrix_vector_code(nlayers,ndf,map,basis,lhs,x,gq)
   real(kind=dp),                               intent(inout) :: lhs(*)
   type(gaussian_quadrature_type),              intent(inout) :: gq
 
-  !Internal variables
+  ! Internal variables
   integer                                :: df1, df2, k
   integer                                :: qp1, qp2
 

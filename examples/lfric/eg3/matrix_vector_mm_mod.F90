@@ -87,7 +87,7 @@ contains
 !! @param[in] undf The unique number of degrees of freedom
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
 !! @param[in] x Real array the data
-!> @param[inout] lhs Real array, the output lhs (A*x)
+!> @param[in,out] lhs Real array, the output lhs (A*x)
 !! @param[in] ncell_3d total number of cells
 !! @param[in] mass_matrix Real: Array holding mass matrix values
 subroutine matrix_vector_mm_code(cell,        &

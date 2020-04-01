@@ -87,7 +87,7 @@ contains
 !! @param[in] ndf2 The number of degrees of freedom per cell for the input field
 !! @param[in] undf2 The unique number of degrees of freedom for the input field
 !! @param[in] x Real array the data
-!> @param[inout] lhs Real array, the output lhs (A*x)
+!> @param[in,out] lhs Real array, the output lhs (A*x)
 !! @param[in] mass_matrix Real: Array holding mass matrix values
 subroutine matrix_vector_code(cell,        &
                               nlayers,     &

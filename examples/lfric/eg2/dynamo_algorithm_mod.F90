@@ -45,8 +45,6 @@ module dynamo_algorithm_mod
 
   use lfric
   use log_mod,    only: log_event, log_scratch_space, LOG_LEVEL_INFO
-  !RF use psy,        only: invoke_rhs_v3, invoke_v3_solver_kernel,            &
-  !RF                       invoke_rhs_v2, invoke_rhs_v1
   use v3_rhs_kernel_mod, only : v3_rhs_kernel_type
   use v3_solver_kernel_mod, only : v3_solver_kernel_type
   use v2_kernel_mod, only : v2_kernel_type

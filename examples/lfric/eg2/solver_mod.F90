@@ -175,5 +175,4 @@ contains
 
   end subroutine solver_algorithm
 
-
 end module solver_mod

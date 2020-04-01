@@ -86,7 +86,7 @@ contains
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
 !! @param[in] boundary_value array of flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
-!! @param[inout] field Real array the data
+!! @param[in,out] field Real array the data
 
 subroutine enforce_bc_code(nlayers,                        &
                            field,                          &

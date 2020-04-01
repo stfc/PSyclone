@@ -85,7 +85,7 @@ contains
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
 !! @param[in] x Input data
-!> @param[inout] lhs Output lhs (A*x)
+!> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A
 !! @param[in] y field to scale output by

@@ -88,9 +88,9 @@ contains
 
 !> @brief Compute right hand side of the thermodynamic equation
 !! @param[in] nlayers Number of layers
-!! @param[inout] r_theta Right hand side of the thermodynamic equation
-!! @param[inout] theta Potential temperature
-!! @param[inout] u Velocity
+!! @param[in,out] r_theta Right hand side of the thermodynamic equation
+!! @param[in,out] theta Potential temperature
+!! @param[in,out] u Velocity
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2  Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2

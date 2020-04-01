@@ -74,25 +74,11 @@ module dg_matrix_vector_kernel_mod
   end type
 
   !----------------------------------------------------------------------------
-  ! Constructors
-  !----------------------------------------------------------------------------
-
-  ! Overload the default structure constructor for function space
-  interface dg_matrix_vector_kernel_type
-    module procedure dg_matrix_vector_kernel_constructor
-  end interface
-
-  !----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !----------------------------------------------------------------------------
   public dg_matrix_vector_kernel_code
 
 contains
-
-  type(dg_matrix_vector_kernel_type) &
-  function dg_matrix_vector_kernel_constructor() result(self)
-    return
-  end function dg_matrix_vector_kernel_constructor
 
 !> @brief Computes lhs = matrix*x for discontinuous function spaces
 !> @param[in] cell Horizontal cell index
@@ -105,7 +91,7 @@ contains
 !! @param[in] map2 Dofmap for the cell at the base of the column for the
 !!            input field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
-!! @param[in] undf2 Unique number of degrees of freedom for the input field 
+!! @param[in] undf2 Unique number of degrees of freedom for the input field
 !! @param[in] x input data
 !> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] matrix Matrix values in LMA form
@@ -116,7 +102,7 @@ subroutine dg_matrix_vector_kernel_code(cell,              &
                                         matrix,            &
                                         ndf1, undf1, map1, &
                                         ndf2, undf2, map2)
- 
+
   implicit none
 
   ! Arguments
@@ -136,13 +122,13 @@ subroutine dg_matrix_vector_kernel_code(cell,              &
   real(kind=r_def), dimension(ndf1) :: lhs_e
 
   do k = 0, nlayers-1
-    do df = 1, ndf2  
+    do df = 1, ndf2
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
     lhs_e = matmul(matrix(:,:,ik),x_e)
     do df = 1,ndf1
-       lhs(map1(df)+k) = lhs_e(df) 
+       lhs(map1(df)+k) = lhs_e(df)
     end do
   end do
 end subroutine dg_matrix_vector_kernel_code

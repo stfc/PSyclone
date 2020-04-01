@@ -87,8 +87,8 @@ contains
 
 !> @brief Compute the right hand side of the thermodynamic equation
 !! @param[in] nlayers Number of layers
-!! @param[inout] r_theta Right hand side of the thermodynamic equation
-!! @param[inout] theta Potential temperature
+!! @param[in,out] r_theta Right hand side of the thermodynamic equation
+!! @param[in,out] theta Potential temperature
 !! @param[in] u wind field
 !! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
 !! @param[in] undf_w0  Number of unique degrees of freedom  for w0

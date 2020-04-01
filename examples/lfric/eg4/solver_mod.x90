@@ -96,7 +96,7 @@ contains
 !! encoded in the matrix vector kernel that is called. No measure of convergence
 !! is used instead the algorithm is assumed to have converged sufficiently
 !! after (n_iter) iterations
-!! @param[in,out] lhs The answser, x
+!! @param[in,out] lhs The answer, x
 !! @param[in] rhs The input b
 !! @param[in] mm operator type, the mass matrix
 !! @param[in] mesh The id of mesh object the model for fields

@@ -95,6 +95,8 @@ contains
 
     use v3_solver_kernel_mod, only : solver_v3_code
 
+    implicit none
+
     type( field_type ), intent( in ) :: pdfield
     type( field_type ), intent( in ) :: rhs
 
@@ -104,7 +106,7 @@ contains
     real(kind=dp), pointer  :: basis(:,:,:,:)
 
     type( field_proxy_type )        :: pd_proxy
-    type( field_proxy_type )        :: rhs_proxy 
+    type( field_proxy_type )        :: rhs_proxy
 
     pd_proxy  = pdfield%get_proxy()
     rhs_proxy = rhs%get_proxy()
@@ -112,7 +114,7 @@ contains
     ndf    = pd_proxy%vspace%get_ndf( )
     basis => pd_proxy%vspace%get_basis()
 
-!$omp parallel do default(shared), private(cell, map)    
+!$omp parallel do default(shared), private(cell, map)
     do cell = 1, pd_proxy%ncell
        map=>pd_proxy%vspace%get_cell_dofmap(cell)
        call solver_v3_code( pd_proxy%nlayers, &
@@ -211,7 +213,11 @@ contains
   end subroutine invoke_rhs_v1
 
   subroutine invoke_matrix_vector(x,Ax)
+
     use matrix_vector_mod, only : matrix_vector_code
+
+    implicit none
+
     type(field_type), intent(in) :: x
     type(field_type), intent(in) :: Ax
 
@@ -240,7 +246,7 @@ contains
        do cell = 1, ncp_colour(colour)
 !          write(*,*) 'v2:',colour,omp_get_thread_num(),cell
           map => x_p%vspace%get_cell_dofmap(cmap(colour,cell))
-          
+
           !    do cell = 1, x_p%ncell
 !          map=>x_p%vspace%get_cell_dofmap(cell)
           call matrix_vector_code( x_p%nlayers, &
@@ -251,7 +257,7 @@ contains
                Ax_p%data, &
                x_p%gaussian_quadrature )
        end do
-!$omp end parallel do       
+!$omp end parallel do
     end do
   end subroutine invoke_matrix_vector
 
@@ -282,5 +288,5 @@ contains
     end do
 !$omp end parallel do
   end function inner_prod
-    
+
 end module psy

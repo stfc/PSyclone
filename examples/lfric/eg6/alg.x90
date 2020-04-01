@@ -42,11 +42,15 @@
 
 module alg
 
+implicit none
+
 contains
 
   subroutine example(precond_option, mmd)
 
     use precondition_mod, only : precondition
+
+    implicit none
 
     integer(i_def),   intent(in)           :: precond_option
     type(field_type), intent(in), optional :: mmd

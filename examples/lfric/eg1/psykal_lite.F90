@@ -51,12 +51,16 @@
 !> @param invoke_v3_solver_kernel    Invoke the solver for a v3 field kernel
 
 module psy
-  use lfric
+
+use lfric
+
 implicit none
 
 contains
+
   subroutine invoke_rhs_v3(rhs)
     use v3_kernel_mod,        only : rhs_v3_code
+    implicit none
     type(field_type), intent(in) :: rhs
     integer :: cell
     integer, pointer :: map(:)
@@ -78,18 +82,19 @@ contains
 
   subroutine invoke_v3_solver_kernel(pdfield,rhs)
     use v3_solver_kernel_mod, only : solver_v3_code
+    implicit none
     type(field_type), intent(in) :: pdfield
     type(field_type), intent(in) :: rhs
     integer :: cell
     integer, pointer :: map(:)
     integer :: nlayers
     integer :: ndf
-    real(kind=dp), pointer  :: v3_basis(:,:,:,:,:)    
-        
+    real(kind=dp), pointer  :: v3_basis(:,:,:,:,:)
+
     nlayers=pdfield%get_nlayers()
     ndf = pdfield%vspace%get_ndf()
     call pdfield%vspace%get_basis(v3_basis)
-    
+
     do cell = 1, pdfield%get_ncell()
        call pdfield%vspace%get_cell_dofmap(cell,map)
        call solver_v3_code(nlayers,ndf,map,v3_basis,pdfield%data,rhs%data,pdfield%gaussian_quadrature)
