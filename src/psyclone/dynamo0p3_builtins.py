@@ -122,6 +122,11 @@ class DynBuiltIn(BuiltIn):
     '''
     Parent class for a call to a Dynamo Built-in.
     '''
+    def __init__(self):
+        # Builtins do not accept quadrature
+        self.qr_rules = {}
+        super(DynBuiltIn, self).__init__()
+
     def __str__(self):
         raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
 

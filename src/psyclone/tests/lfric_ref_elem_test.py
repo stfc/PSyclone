@@ -60,17 +60,18 @@ module testkern_refelem_mod
   type, extends(kernel_type) :: testkern_refelem_type
     type(arg_type), dimension(2) :: meta_args = &
         (/ arg_type(gh_field, gh_read, w1),     &
-           arg_type(gh_field, gh_write, w0) /)
-    type(reference_element_data_type), dimension(2) ::               &
+           arg_type(gh_field, gh_inc, w0) /)
+    type(reference_element_data_type), dimension(3) ::               &
       meta_reference_element =                                       &
-        (/ reference_element_data_type(normals_to_horizontal_faces), &
+        (/ reference_element_data_type(outward_normals_to_faces),    &
+           reference_element_data_type(normals_to_horizontal_faces), &
            reference_element_data_type(normals_to_vertical_faces) /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_refelem_code
   end type testkern_refelem_type
 contains
-  subroutine testkern_refelem_code(a, b, c, d)
+  subroutine testkern_refelem_code(a, b)
   end subroutine testkern_refelem_code
 end module testkern_refelem_mod
 '''
@@ -80,7 +81,7 @@ end module testkern_refelem_mod
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
+    '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
 
 
@@ -93,7 +94,8 @@ def test_mdata_parse():
     name = "testkern_refelem_type"
     dkm = DynKernMetadata(ast, name=name)
     assert dkm.reference_element.properties == \
-        [RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
+        [RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES,
+         RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
          RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES]
 
 
@@ -108,15 +110,16 @@ def test_mdata_invalid_property():
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
     assert ("property: 'not_a_property'. Supported values are: "
-            "['NORMALS_TO_HORIZONTAL_FACES'," in str(err.value))
+            "['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
+            in str(err.value))
 
 
 def test_mdata_wrong_arg_count():
     ''' Check that we raise the expected error if the wrong dimension value
     is specified for the meta_reference_element array. '''
     from psyclone.parse.utils import ParseError
-    code = REF_ELEM_MDATA.replace("element_data_type), dimension(2)",
-                                  "element_data_type), dimension(3)")
+    code = REF_ELEM_MDATA.replace("element_data_type), dimension(3)",
+                                  "element_data_type), dimension(4)")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
@@ -143,8 +146,9 @@ def test_mdata_wrong_type_var():
     ''' Check that we raise the expected error if the array holding properties
     of the reference element contains an item of the wrong type. '''
     from psyclone.parse.utils import ParseError
-    code = REF_ELEM_MDATA.replace("reference_element_data_type(normals_to",
-                                  "ref_element_data_type(normals_to")
+    code = REF_ELEM_MDATA.replace(
+        "reference_element_data_type(outward_normals_to",
+        "ref_element_data_type(outward_normals_to")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
@@ -154,7 +158,22 @@ def test_mdata_wrong_type_var():
             " but found: ['ref_element_data_type'," in str(err.value))
 
 
-# Tests for generating the PSy-layer code
+def test_mdata_duplicate_var():
+    ''' Check that we raise the expected error if the array holding properties
+    of the reference element contains a duplicate item. '''
+    from psyclone.parse.utils import ParseError
+    code = REF_ELEM_MDATA.replace(
+        "reference_element_data_type(normals_to_horizontal_faces)",
+        "reference_element_data_type(normals_to_vertical_faces)")
+
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_refelem_type"
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name=name)
+    assert ("Duplicate reference-element property found: "
+            "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
+
+# Tests for correctness of DynReferenceElement constructor
 
 
 def test_refelem_arglist_err():
@@ -174,7 +193,9 @@ def test_refelem_arglist_err():
         kernel.arguments.raw_arg_list()
     assert ("Unsupported reference-element property ('Not a property') found "
             "when generating arguments for kernel 'testkern_ref_elem_code'. "
-            "Supported properties are: ['Property." in str(err.value))
+            "Supported properties are: ['Property" in str(err.value))
+
+# Tests for generating the PSy-layer code
 
 
 def test_refelem_gen(tmpdir):
@@ -276,6 +297,31 @@ def test_union_refelem_gen(tmpdir):
     assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
             "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "out_normals_to_horiz_faces, normals_to_vert_faces, "
-            "out_normals_to_vert_faces)" in gen)
+            " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
+            "out_normals_to_vert_faces, normals_to_vert_faces, "
+            "out_normals_to_horiz_faces)" in gen)
+
+
+def test_all_faces_refelem_gen(tmpdir):
+    ''' Test for code-generation for an invoke containing a single kernel
+    requiring all faces of reference-element (also check that only one
+    number of faces is passed to the kernel). '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "23.4_ref_elem_all_faces_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    gen = str(psy.gen).lower()
+
+    assert (
+        "      reference_element => mesh%get_reference_element()\n"
+        "      nfaces_re = reference_element%get_number_faces()\n"
+        "      call reference_element%get_normals_to_faces(normals_to_faces)\n"
+        "      call reference_element%get_outward_normals_to_faces("
+        "out_normals_to_faces)\n" in gen)
+    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
+            " map_w3(:,cell), nfaces_re, out_normals_to_faces, "
+            "normals_to_faces)" in gen)

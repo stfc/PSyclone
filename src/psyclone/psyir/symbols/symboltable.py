@@ -47,6 +47,7 @@ from psyclone.errors import InternalError
 
 
 class SymbolTable(object):
+    # pylint: disable=too-many-public-methods
     '''
     Encapsulates the symbol table and provides methods to add new symbols
     and look up existing symbols. It is implemented as a single scope
@@ -109,11 +110,11 @@ class SymbolTable(object):
         appended to avoid clashes.
 
         :param root_name: optional name to use when creating a new \
-        symbol name. This will be appended with an integer if the name \
-        clashes with an existing symbol name.
+            symbol name. This will be appended with an integer if the name \
+            clashes with an existing symbol name.
         :type root_name: str or NoneType
 
-        :returns: the new symbol name.
+        :returns: the new unique symbol name.
         :rtype: str
 
         :raises TypeError: if the root_name argument is not a string \
@@ -144,6 +145,10 @@ class SymbolTable(object):
         :raises KeyError: if the symbol name is already in use.
 
         '''
+        if not isinstance(new_symbol, Symbol):
+            raise InternalError("Symbol '{0}' is not a symbol, but '{1}'.'"
+                                .format(new_symbol, type(new_symbol).__name__))
+
         key = self._normalize(new_symbol.name)
         if key in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
