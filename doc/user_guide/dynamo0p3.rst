@@ -1291,7 +1291,7 @@ rules, along with PSyclone's naming conventions, are:
 	    and are named ``"basis_"<field_function_space>_<quadrature_arg_name>``
 	    or ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
 	    as appropriate:
-	    
+
             1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
             (``dimension``, ``number_of_dofs``, ``np_xy``,
             ``np_z``).
@@ -1386,7 +1386,7 @@ rules, along with PSyclone's naming conventions, are:
       2) If ``gh_quadrature_face``/``_edge`` pass in
 	 ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
 	 [``np_xyz_<quadrature_arg_name>``,
-	 ``nfaces/nedges_<quadrature_arg_name>``)]. 
+	 ``nfaces/nedges_<quadrature_arg_name>``]).
 
 Examples
 ^^^^^^^^
