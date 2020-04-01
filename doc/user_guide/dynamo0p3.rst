@@ -34,6 +34,8 @@
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
+.. highlight:: fortran
+
 .. _dynamo0.3-api:
 
 Dynamo0.3 API
@@ -167,8 +169,7 @@ Kernels that have CMA operators as arguments are given in the
 There are three recognised Kernel types involving CMA operations;
 construction, application (including inverse application) and
 matrix-matrix. The following example sketches-out what the use
-of such kernels might look like in the Algorithm layer:
-::
+of such kernels might look like in the Algorithm layer::
 
   use field_mod, only: field_type
   use operator_mod, only : operator_type, columnwise_operator_type
@@ -210,21 +211,25 @@ Quadrature
 
 Kernels conforming to the Dynamo0.3 API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
-the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
-must be passed to the kernel from the Algorithm layer in the form of a
-`quadrature_type` object. This must be the last argument passed to the
-kernel, e.g.:
+the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This
+information must be passed to the kernel from the Algorithm layer in
+the form of one or more ``quadrature_type`` objects. These must be the
+last arguments passed to the kernel and must be provided in the same
+order that they are specified in the kernel metadata, e.g. if the
+metadata for kernel ``pressure_gradient_kernel_type`` specified
+``gh_shape = gh_quadrature_XYoZ`` and that for kernel
+``geopotential_gradient_kernel`` had ``gh_shape(2) = (\
+gh_quadrature_XYoZ, gh_quadrature_face \)`` then the corresponding
+invoke would look something like::
 
-::
-
-      type( quadrature_type )   :: qr
       ...
-      qr = quadrature_type(element_order+2, GAUSSIAN)
-      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr),   &
-                  kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
-                  geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
+      qr_xyoz = quadrature_xyoz_type(nqp_exact, rule)
+      qr_face = quadrature_face_type(nqp_exact, ..., rule)
+      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
+                  geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
+		                                    qr_xyoz, qr_face))
 
-This quadrature object specifies the set of points at which the
+These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
 
 .. _dynamo0.3-alg-stencil:
@@ -311,7 +316,9 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the Dynamo0.3 API test suite gives::
+For example, running test 19.2 from the Dynamo0.3 API test suite gives:
+
+.. code-block:: bash
 
   cd <PSYCLONEHOME>/src/psyclone/tests
   psyclone test_files/dynamo0p3/19.2_single_stencil_broken.f90
@@ -557,10 +564,8 @@ the meta_args array must correspond to the number of **scalars**,
           spatial domain) and PSyclone will reject such Kernels.
 
 For example, if there are a total of 2 **scalar** / **field** /
-**operator** entities being passed to the Kernel then the meta_args
-array will be of size 2 and there will be two ``arg_type`` entries:
-
-::
+**operator** entities being passed to the Kernel then the ``meta_args``
+array will be of size 2 and there will be two ``arg_type`` entries::
 
   type(arg_type) :: meta_args(2) = (/                                  &
        arg_type( ... ),                                                &
@@ -658,9 +663,7 @@ lives on. More details about the supported function spaces are in
 subsection :ref:`dynamo0.3-function-space`.
 
 For example, the metadata for a kernel that applies a Column-wise
-operator to a field might look like:
-
-::
+operator to a field might look like::
 
   type(arg_type) :: meta_args(3) = (/                     &
        arg_type(GH_FIELD, GH_INC, W1),                    &
@@ -924,9 +927,7 @@ if the associated field is read within a Kernel i.e. it only makes
 sense to specify stencil metadata if the first entry is ``GH_FIELD``
 and the second entry is ``GH_READ``.
 
-Stencil metadata is written in the following format:
-
-::
+Stencil metadata is written in the following format::
 
   STENCIL(type)
 
@@ -948,19 +949,17 @@ layer as part of the ``invoke`` call (see Section
 
 For example, the following stencil (with ``extent=2``):
 
-::
+.. code-block:: none
 
   | 4 | 2 | 1 | 3 | 5 |
 
-would be declared as
-
-::
+would be declared as::
 
   STENCIL(X1D)
 
-and the following stencil (with ``extent=2``)
+and the following stencil (with ``extent=2``):
 
-::
+.. code-block:: none
 
   |   |   | 9 |   |   |
   |   |   | 5 |   |   |
@@ -968,9 +967,7 @@ and the following stencil (with ``extent=2``)
   |   |   | 4 |   |   |
   |   |   | 8 |   |   |
 
-would be declared as
-
-::
+would be declared as::
 
   STENCIL(CROSS)
 
@@ -999,9 +996,7 @@ required for inter-grid kernels which perform prolongation or
 restriction operations on fields (or field vectors) existing on grids
 of different resolutions.
 
-Mesh metadata is written in the following format:
-
-::
+Mesh metadata is written in the following format::
 
   mesh_arg=type
 
@@ -1009,9 +1004,7 @@ where ``type`` may be one of ``GH_COARSE`` or ``GH_FINE``. Any kernel
 having a field argument with this metadata is assumed to be an
 inter-grid kernel and, as such, all of its other arguments (which
 must also be fields) must have it specified too. An example of the
-metadata for such a kernel is given below:
-
-::
+metadata for such a kernel is given below::
 
   type(arg_type) :: meta_args(2) = (/                                                  &
       arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
@@ -1032,8 +1025,7 @@ recognised kernel types involving CMA operators.
 
 Column-wise operators are constructed from cell-wise (local) operators.
 Therefore, in order to **assemble** a CMA operator, a kernel must have at
-least one read-only LMA operator, e.g.:
-::
+least one read-only LMA operator, e.g.::
 
    type(arg_type) :: meta_args(2) = (/                                       &
         arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
@@ -1042,8 +1034,7 @@ least one read-only LMA operator, e.g.:
 
 CMA operators (and their inverse) are **applied** to fields. Therefore any
 kernel of this type must have one read-only CMA operator, one read-only
-field and a field that is updated, e.g.:
-::
+field and a field that is updated, e.g.::
 
    type(arg_type) :: meta_args(3) = (/                                      &
         arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
@@ -1053,8 +1044,7 @@ field and a field that is updated, e.g.:
 
 **Matrix-matrix** kernels compute the product/linear combination of CMA
 operators. They must therefore have one such operator that is updated while
-the rest are read-only. They may also have read-only scalar arguments, e.g.:
-::
+the rest are read-only. They may also have read-only scalar arguments, e.g.::
 
    type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
@@ -1075,9 +1065,7 @@ The (optional) second component of kernel metadata specifies
 whether any quadrature or evaluator data is required for a given
 function space. (If no quadrature or evaluator data is required then
 this metadata should be omitted.) Consider the
-following kernel metadata:
-
-::
+following kernel metadata::
 
     type, extends(kernel_type) :: testkern_operator_type
       type(arg_type), dimension(3) :: meta_args =     &
@@ -1162,15 +1150,24 @@ gh_shape and gh_evaluator_targets
 If a kernel requires basis or differential-basis functions then the
 metadata must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
-component of the metadata.  Currently PSyclone supports two shapes;
-``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation (of the basis/differential-basis
-functions) at nodal points. For the latter, there are two options: if
-an evaluator is required for multiple function spaces then these can
-be specified using the additional ``gh_evaluator_targets`` metadata
+component of the metadata.  Currently PSyclone supports four shapes;
+``gh_quadrature_XYoZ`` for Gaussian quadrature points,
+``gh_quadrature_face`` for quadrature points on cell faces,
+``gh_quadrature_edge`` for quadrature points on cell edges and
+``gh_evaluator`` for evaluation at nodal points. If a kernel requires
+just one of these then ``gh_shape`` is a scalar integer. However, if
+more than one is required then ``gh_shape`` becomes a one-dimensional,
+integer array, e.g.::
+
+    integer :: gh_shape(2) = (/ gh_quadrature_face, gh_quadrature_edge /)
+
+If a kernel requires an evaluator then there are two options: if an
+evaluator is required for multiple function spaces then these can be
+specified using the additional ``gh_evaluator_targets`` metadata
 entry. This entry is a one-dimensional, integer array containing the
-desired function spaces. For example, to request basis/differential-basis
-functions evaluated on both W0 and W1 the metadata would be::
+desired function spaces. For example, to request
+basis/differential-basis functions evaluated on both W0 and W1, the
+metadata would be::
 
     integer :: gh_shape = gh_evaluator
     integer :: gh_evaluator_targets(2) = (/W0, W1/)
@@ -1183,8 +1180,8 @@ quantities that the kernel is updating. All necessary data is
 extracted in the PSy layer and passed to the kernel(s) as required -
 nothing is required from the Algorithm layer. If a kernel requires
 quadrature on the other hand, the Algorithm writer must supply a
-``quadrature_type`` object as the last argument to the kernel (see
-Section :ref:`dynamo0.3-quadrature`).
+``quadrature_type`` object for each specified quadrature as the last
+argument(s) to the kernel (see Section :ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel metadata to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are required.
@@ -1287,24 +1284,35 @@ rules, along with PSyclone's naming conventions, are:
       ``orientation``) in the order specified in the metadata
 
       1) If it is a basis or differential basis function then we must pass
-         real arrays of kind ``r_def`` with intent ``in``:
+         real arrays of kind ``r_def`` with intent ``in``. For each shape
+	 specified in the ``gh_shape`` metadata entry:
 
-         1) If ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
-            rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``,
-            ``np_z``). The name of the argument is
-            ``"basis_"<field_function_space>`` or
-            ``"diff_basis_"<field_function_space>``, as appropriate.
+	 1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+	    and are named ``"basis_"<field_function_space>_<quadrature_arg_name>``
+	    or ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+	    as appropriate:
 
-         2) If ``gh_shape`` is ``gh_evaluator`` then we pass one array for
+            1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xy``,
+            ``np_z``).
+
+	    2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+	    then the  arrays have extent
+	    (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+	    ``nedges``).
+
+         2) If shape is ``gh_evaluator`` then we pass one array for
             each target function space (i.e. as specified by
-            ``gh_evaluator_targets``). Each of these arrays are of rank 3
+            ``gh_evaluator_targets``). Each of these arrays are of rank three
             with extent (``dimension``, ``number_of_dofs``,
             ``ndf_<target_function_space>``). The name of the argument is
             ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
             ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
             as appropriate.
 
-         where ``dimension`` is 1 or 3 and depends upon the function space
+         where ``<quadrature_arg_name>`` is the name of the corresponding
+	 quadrature object being passed to the Invoke.
+	 ``dimension`` is 1 or 3 and depends upon the function space
          (see :ref:`dynamo0.3-function-space` above for more information) and
          whether or not it is a basis or a differential basis function (see
          the table below). ``number_of_dofs`` is the number of degrees of
@@ -1312,7 +1320,9 @@ rules, along with PSyclone's naming conventions, are:
          the number of points to be evaluated: i) ``*_xyz`` in
          all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
          iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
-         vertical (1D).
+         vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
+	 faces/edges obtained from the appropriate quadrature object supplied
+	 to the Invoke.
 
          .. tabularcolumns:: |l|c|l|
 
@@ -1354,22 +1364,32 @@ rules, along with PSyclone's naming conventions, are:
       a rank-2 integer array of type ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
-6) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+6) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+   each shape in the order specified in the ``gh_shape`` metadata:
 
-   1) Include integer, scalar arguments with intent ``in`` that specify
-      the extent of the basis/diff-basis arrays:
+   1) Include integer, scalar arguments of kind ``i_def`` with intent ``in``
+      that specify the extent of the basis/diff-basis arrays:
 
-      1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
-         and ``np_z``.
+      1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass
+	 ``np_xy_<quadrature_arg_name>`` and ``np_z_<quadrature_arg_name>``.
+      2) If ``gh_shape`` is ``gh_quadrature_face``/``_edge`` then pass
+	 ``nfaces``/``nedges_<quadrature_arg_name>`` and
+	 ``np_xyz_<quadrature_arg_name>``.
 
    2) Include weights which are real arrays of kind ``r_def``:
 
-      1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``.
+      1) If ``gh_quadrature_XYoZ`` pass in
+	 ``weights_xz_<quadrature_arg_name>`` (rank one, extent
+	 ``np_xy_<quadrature_arg_name>``)
+	 and ``weights_z_<quadrature_arg_name>`` (rank one, extent
+	 ``np_z_<quadrature_arg_name>``).
+      2) If ``gh_quadrature_face``/``_edge`` pass in
+	 ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
+	 [``np_xyz_<quadrature_arg_name>``,
+	 ``nfaces/nedges_<quadrature_arg_name>``]).
 
 Examples
 ^^^^^^^^
-
-.. highlight:: fortran
 
 For instance, if a kernel has only one written argument and requires an
 evaluator then its metadata might be::
@@ -1419,6 +1439,30 @@ and at ``W1``)::
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
+
+If the meta-data specifies that a kernel requires both an evaluator
+and quadrature::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_read,  w0) /)
+     type(func_type) :: meta_funcs(1) =               &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape(2) = (/ gh_evaluator, gh_quadrature_face /)
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we will need to pass basis functions for both the evaluator and the
+quadrature (where ``qr_face`` is the name of the face-quadrature object
+passed to the Invoke)::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,              &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0,       &
+       basis_w0_on_w0, basis_w0_qr_face, ndf_w1,                          &
+       np_xyz_qr_face, nfaces_qr_face, weights_xyz_qr_face)
 
 If the metadata specifies that the kernel requires a property of the
 reference element::
@@ -1767,7 +1811,7 @@ X_plus_Y
 **X_plus_Y** (*field3*, *field1*, *field2*)
 
 
-Sums two fields (Z = X + Y): ::
+Sums two fields (Z = X + Y)::
 
   field3(:) = field1(:) + field2(:)
 
@@ -1782,7 +1826,7 @@ inc_X_plus_Y
 
 **inc_X_plus_Y** (*field1*, *field2*)
 
-Adds the second field to the first and returns it (X = X + Y): ::
+Adds the second field to the first and returns it (X = X + Y)::
 
   field1(:) = field1(:) + field2(:)
 
@@ -1796,7 +1840,7 @@ aX_plus_Y
 
 **aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs Z = aX + Y: ::
+Performs Z = aX + Y::
 
   field3(:) = scalar*field1(:) + field2(:)
 
@@ -1811,7 +1855,7 @@ inc_aX_plus_Y
 
 **inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
 
-Performs X = aX + Y (increments the first field): ::
+Performs X = aX + Y (increments the first field)::
 
   field1(:) = scalar*field1(:) + field2(:)
 
@@ -1826,7 +1870,7 @@ inc_X_plus_bY
 
 **inc_X_plus_bY** (*field1*, *scalar*, *field2*)
 
-Performs X = X + bY (increments the first field): ::
+Performs X = X + bY (increments the first field)::
 
   field1(:) = field1(:) + scalar*field2(:)
 
@@ -1841,7 +1885,7 @@ aX_plus_bY
 
 **aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
 
-Performs Z = aX + bY: ::
+Performs Z = aX + bY::
 
   field3(:) = scalar1*field1(:) + scalar2*field2(:)
 
@@ -1856,7 +1900,7 @@ inc_aX_plus_bY
 
 **inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
-Performs X = aX + bY (increments the first field): ::
+Performs X = aX + bY (increments the first field)::
 
   field1(:) = scalar1*field1(:) + scalar2*field2(:)
 
@@ -1877,7 +1921,7 @@ X_minus_Y
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
 Subtracts the second field from the first and stores the result in the
-third (Z = X - Y): ::
+third (Z = X - Y)::
 
   field3(:) = field1(:) - field2(:)
 
@@ -1892,7 +1936,7 @@ inc_X_minus_Y
 
 **inc_X_minus_Y** (*field1*, *field2*)
 
-Subtracts the second field from the first and returns it (X = X - Y): ::
+Subtracts the second field from the first and returns it (X = X - Y)::
 
   field1(:) = field1(:) - field2(:)
 
@@ -1906,7 +1950,7 @@ aX_minus_Y
 
 **aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs Z = aX - Y: ::
+Performs Z = aX - Y::
 
   field3(:) = scalar*field1(:) - field2(:)
 
@@ -1921,7 +1965,7 @@ X_minus_bY
 
 **X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
 
-Performs Z = X - bY: ::
+Performs Z = X - bY::
 
   field3(:) = field1(:) - scalar*field2(:)
 
@@ -1936,7 +1980,7 @@ inc_X_minus_bY
 
 **inc_X_minus_bY** (*field1*, *scalar*, *field2*)
 
-Performs X = X - bY (increments the first field): ::
+Performs X = X - bY (increments the first field)::
 
   field1(:) = field1(:) - scalar*field2(:)
 
@@ -1957,7 +2001,7 @@ X_times_Y
 **X_times_Y** (*field3*, *field1*, *field2*)
 
 Multiplies two fields together and returns the result in a third
-field (Z = X*Y): ::
+field (Z = X*Y)::
 
   field3(:) = field1(:)*field2(:)
 
@@ -1971,7 +2015,7 @@ inc_X_times_Y
 
 **inc_X_times_Y** (*field1*, *field2*)
 
-Multiplies the first field by the second and returns it (X = X*Y): ::
+Multiplies the first field by the second and returns it (X = X*Y)::
 
   field1(:) = field1(:)*field2(:)
 
@@ -1985,7 +2029,7 @@ inc_aX_times_Y
 
 **inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
-Performs X = a*X*Y (increments the first field): ::
+Performs X = a*X*Y (increments the first field)::
 
   field1(:) = scalar*field1(:)*field2(:)
 
@@ -2007,7 +2051,7 @@ a_times_X
 **a_times_X** (*field2*, *scalar*, *field1*)
 
 Multiplies a field by a scalar and stores the result in a second
-field (Y = a*X): ::
+field (Y = a*X)::
 
   field2(:) = scalar*field1(:)
 
@@ -2022,7 +2066,7 @@ inc_a_times_X
 
 **inc_a_times_X** (*scalar*, *field*)
 
-Multiplies a field by a scalar value and returns the field (X = a*X): ::
+Multiplies a field by a scalar value and returns the field (X = a*X)::
 
   field(:) = scalar*field(:)
 
@@ -2043,7 +2087,7 @@ X_divideby_Y
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
 Divides the first field by the second and returns the result in the
-third (Z = X/Y): ::
+third (Z = X/Y)::
 
   field3(:) = field1(:)/field2(:)
 
@@ -2057,7 +2101,7 @@ inc_X_divideby_Y
 
 **inc_X_divideby_Y** (*field1*, *field2*)
 
-Divides the first field by the second and returns it (X = X/Y): ::
+Divides the first field by the second and returns it (X = X/Y)::
 
   field1(:) = field1(:)/field2(:)
 
@@ -2077,7 +2121,7 @@ setval_c
 
 **setval_c** (*field*, *constant*)
 
-Sets all elements of the field *field* to the value *constant* (X = c): ::
+Sets all elements of the field *field* to the value *constant* (X = c)::
 
   field(:) = constant
 
@@ -2093,7 +2137,7 @@ setval_X
 
 **setval_X** (*field2*, *field1*)
 
-Sets a field *field2* equal to field *field1* (Y = X): ::
+Sets a field *field2* equal to field *field1* (Y = X)::
 
   field2(:) = field1(:)
 
@@ -2113,7 +2157,7 @@ inc_X_powreal_a
 
 **inc_X_powreal_a** (*field*, *rscalar*)
 
-Raises a field to a real scalar value and returns the field (X = X**a): ::
+Raises a field to a real scalar value and returns the field (X = X**a)::
 
   field(:) = field(:)**rscalar
 
@@ -2127,7 +2171,7 @@ inc_X_powint_n
 
 **inc_X_powint_n** (*field*, *iscalar*)
 
-Raises a field to an integer scalar value and returns the field (X = X**n): ::
+Raises a field to an integer scalar value and returns the field (X = X**n)::
 
   field(:) = field(:)**iscalar
 
@@ -2147,7 +2191,7 @@ X_innerproduct_Y
 
 **X_innerproduct_Y** (*innprod*, *field1*, *field2*)
 
-Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+Computes the inner product of the fields *field1* and *field2*, *i.e.*::
 
   innprod = SUM(field1(:)*field2(:))
 
@@ -2165,7 +2209,7 @@ X_innerproduct_X
 
 **X_innerproduct_X** (*innprod*, *field*)
 
-Computes the inner product of the field *field1* by itself, *i.e.*: ::
+Computes the inner product of the field *field1* by itself, *i.e.*::
 
   innprod = SUM(field(:)*field(:))
 
@@ -2189,7 +2233,7 @@ sum_X
 **sum_X** (*sumfld*, *field*)
 
 Sums all of the elements of the field *field* and returns the result
-in the scalar variable *sumfld*: ::
+in the scalar variable *sumfld*::
 
   sumfld = SUM(field(:))
 
@@ -2209,9 +2253,7 @@ In the Dynamo0.3 API, boundary conditions for a field or LMA operator can
 be enforced by the algorithm developer by calling the Kernels
 ``enforce_bc_type`` or ``enforce_operator_bc_type``,
 respectively. These kernels take a field or operator as input and apply
-boundary conditions. For example:
-
-::
+boundary conditions. For example::
 
   call invoke( kernel_type(field1, field2),      &
                enforce_bc_type(field1),          &

@@ -434,9 +434,10 @@ def test_invalid_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("request a valid gh_shape (one of ['gh_quadrature_xyoz', "
-            "'gh_evaluator']) but got 'quadrature_wrong' for kernel "
-            "'testkern_qr_type'" in str(excinfo.value))
+    assert ("request one or more valid gh_shapes (one of ['gh_quadrature_xyoz'"
+            ", 'gh_quadrature_face', 'gh_quadrature_edge', 'gh_evaluator']) "
+            "but got '['quadrature_wrong']' for kernel 'testkern_qr_type'"
+            in str(excinfo.value))
 
 
 def test_unecessary_shape():
@@ -455,9 +456,9 @@ def test_unecessary_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_qr_type' specifies a gh_shape "
-            "(gh_quadrature_xyoz) but does not need an evaluator because no "
-            "basis or differential basis functions are required"
+    assert ("Kernel 'testkern_qr_type' specifies one or more gh_shapes "
+            "(['gh_quadrature_xyoz']) but does not need an evaluator because "
+            "no basis or differential basis functions are required"
             in str(excinfo.value))
 
 
@@ -5295,8 +5296,7 @@ def test_argordering_exceptions():
         for method in [create_arg_list.cell_map,
                        create_arg_list.cell_position,
                        create_arg_list.mesh_height,
-                       create_arg_list.mesh_ncell2d,
-                       create_arg_list.quad_rule]:
+                       create_arg_list.mesh_ncell2d]:
             with pytest.raises(NotImplementedError):
                 method()
         for method in [create_arg_list.field_vector,
@@ -5381,6 +5381,28 @@ def test_kerncallarglist_args_error(dist_mem):
     assert (
         "KernCallArgList: the generate() method should be called before "
         "the arglist() method") in str(excinfo.value)
+
+
+def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
+    ''' Check that we raise the expected exception if we encounter an
+    unsupported quadrature shape in the quad_rule() method. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "6_multiple_QR_per_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    create_arg_list = KernCallArgList(loop.loop_body[0])
+    # Add an invalid shape to the dict of qr rules
+    create_arg_list._kern.qr_rules["broken"] = None
+    with pytest.raises(NotImplementedError) as err:
+        create_arg_list.quad_rule()
+    assert ("no support implemented for quadrature with a shape of 'broken'"
+            in str(err.value))
 
 
 def test_multi_anyw2():

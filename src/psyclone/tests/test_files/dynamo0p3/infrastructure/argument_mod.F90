@@ -120,10 +120,12 @@ module argument_mod
   integer, public, parameter :: GH_QUADRATURE_XYZ   = 504
   integer, public, parameter :: GH_QUADRATURE_XYoZ  = 505
   integer, public, parameter :: GH_QUADRATURE_XoYoZ = 506
+  integer, public, parameter :: GH_QUADRATURE_FACE  = 507
+  integer, public, parameter :: GH_QUADRATURE_EDGE  = 508
 
   ! Evaluator metadata
-  integer, public, parameter :: EVALUATOR           = 507
-  integer, public, parameter :: GH_EVALUATOR        = 508
+  integer, public, parameter :: EVALUATOR           = 509
+  integer, public, parameter :: GH_EVALUATOR        = 510
 
   ! Stencil metadata
   integer, public, parameter :: XORY1D = 1

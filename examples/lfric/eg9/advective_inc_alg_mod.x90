@@ -8,7 +8,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities
+! Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,8 +37,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
-!
+! Modified by: I Kavcic, Met Office
+!              A. R. Porter, STFC Daresbury Laboratory
+
 !>@brief Computes the advective increment of the prognostic equations
 module advective_inc_alg_mod
 
@@ -84,6 +86,7 @@ contains
     type(field_type), intent(in)        :: theta, wind
     type(field_type), intent(inout)     :: rtheta
     type(quadrature_xyoz_type)          :: qr
+    type(quadrature_face_type)          :: qrf
     type(quadrature_rule_gaussian_type) :: quadrature_rule
     type(field_type), pointer           :: chi(:) => null()
     type(field_type), pointer           :: mt_lumped_inv => null()
@@ -109,10 +112,14 @@ contains
       case(transport_operators_fem)
         ! Use project u.grad(theta) into the theta function space
         qr = quadrature_xyoz_type(element_order+3, quadrature_rule)
+        ! Quadrature rule on lateral faces only
+        qrf = quadrature_face_type(nqp_exact, .true., .false., &
+                                   reference_element, quadrature_rule)
+
         call invoke( setval_c(rtheta, 0.0_r_def) )
         if ( wtheta_on ) then
           call invoke( rtheta_wtheta_kernel_type (rtheta, theta, wind, qr), &
-                       rtheta_bd_kernel_type ( rtheta, theta, wind, qr ) )
+                       rtheta_bd_kernel_type ( rtheta, theta, wind, qrf ) )
         else
           call invoke( rtheta_kernel_type(rtheta, theta, wind, qr) )
         end if
