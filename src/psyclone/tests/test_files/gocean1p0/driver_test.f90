@@ -47,14 +47,15 @@ PROGRAM extract_example_with_various_variable_access_patterns
   implicit none
 
   type(grid_type), target :: model_grid
-  !> Pressure at current time step
-  type(r2d_field) :: p_fld
-  !> Velocity in x direction at {current,next,previous} time step
-  type(r2d_field) :: u_fld, unew_fld, uold_fld
-  !> Velocity in y direction at current time step
-  type(r2d_field) :: v_fld
-  !> Mass flux in {x,y} direction at current time step
-  type(r2d_field) :: cu_fld, cv_fld
+  type(r2d_field) :: out_fld, in_out_fld, in_fld, v_fld
+  type(r2d_field) :: out_fld_post, out_fld_post0
+
+  ! This field will potentially create a name clash in the driver:
+  ! The kernel takes the 'dx' grid property as parameter, so we
+  ! have to test that the driver does not create a local variable 'dx'
+  ! for the field AND for the grid property, one of them must be
+  ! renamed!
+  type(r2d_field) :: dx
 
   !> Loop counter for time-stepping loop
   INTEGER :: ncycle
@@ -64,22 +65,21 @@ PROGRAM extract_example_with_various_variable_access_patterns
                          (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
   ! Create fields on this grid
-  p_fld    = r2d_field(model_grid, GO_T_POINTS)
+  in_out_fld    = r2d_field(model_grid, GO_T_POINTS)
 
-  u_fld    = r2d_field(model_grid, GO_U_POINTS)
-  v_fld    = r2d_field(model_grid, GO_V_POINTS)
-  unew_fld = r2d_field(model_grid, GO_U_POINTS)
-  uold_fld = r2d_field(model_grid, GO_U_POINTS)
-
-  cu_fld    = r2d_field(model_grid, GO_U_POINTS)
-  cv_fld    = r2d_field(model_grid, GO_V_POINTS)
+  in_fld       = r2d_field(model_grid, GO_U_POINTS)
+  dummy_in_fld = r2d_field(model_grid, GO_U_POINTS)
+  v_fld        = r2d_field(model_grid, GO_V_POINTS)
+  out_fld      = r2d_field(model_grid, GO_U_POINTS)
 
   !  ** Start of time loop ** 
   DO ncycle=1,100
     
-    call invoke( compute_kernel(cu_fld, p_fld, u_fld))
+    call invoke( compute_kernel(out_fld, in_out_fld, in_fld, dx))
 
   END DO
+  call invoke( compute_kernel(out_fld, in_out_fld, out_fld_post, dx))
+  call invoke( compute_kernel(out_fld, out_fld_post, out_fld_post0, dx))
 
   !===================================================
 

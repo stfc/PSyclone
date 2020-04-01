@@ -39,11 +39,15 @@ module update_field_mod
   implicit none
 
   type, extends(kernel_type) :: update_field
-     type(go_arg), dimension(4) :: meta_args =             &
-          (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE),  & ! field
-             go_arg(GO_READ,      GO_CT, GO_POINTWISE),  & ! field
-             go_arg(GO_READ,      GO_CT, GO_POINTWISE),  & ! field
-             go_arg(GO_READ,      GO_CT, GO_POINTWISE)   & ! field
+     type(go_arg), dimension(8) :: meta_args =             &
+          (/ go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  & ! field
+             go_arg(GO_READ,      GO_CT,       GO_POINTWISE),  & ! field
+             go_arg(GO_READ,      GO_CT,       GO_POINTWISE),  & ! field
+             go_arg(GO_READ,      GO_CT,       GO_POINTWISE),  & ! field
+             go_arg(GO_READWRITE, GO_R_SCALAR, GO_POINTWISE),  & ! scalar
+             go_arg(GO_WRITE,     GO_R_SCALAR, GO_POINTWISE),  & ! scalar
+             go_arg(GO_READ,      GO_R_SCALAR, GO_POINTWISE),  & ! scalar
+             go_Arg(GO_READ,      GO_GRID_DX_CONST)                  &
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
@@ -64,12 +68,17 @@ module update_field_mod
 
 contains
 
-  subroutine update_field_code(i, j, a, b, c, d)
+  subroutine update_field_code(i, j, a_f, b_f, c_f, d_f, x, y, z, grid_dx)
     integer, intent(in) :: i, j
-    real(go_wp), dimension(:,:), intent(inout) :: a
-    real(go_wp), dimension(:,:), intent(in) :: b, c, d
+    real(go_wp), dimension(:,:), intent(inout) :: a_f
+    real(go_wp), dimension(:,:), intent(in) :: b_f, c_f, d_f
+    real(go_wp), intent(inout) :: x
+    real(go_wp), intent(out)   :: y
+    real(go_wp), intent(in)    :: z, grid_dx
 
-    a(i,j) = a(i,j) + b(i,j) + c(i,j)*d(i,j)
+    x = x + z * grid_dx
+    y = 2*z
+    a_f(i,j) = a_f(i,j) + b_f(i,j) + c_f(i,j)*d_f(i,j)
     
   end subroutine update_field_code
 
