@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Node, Schedule, \
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError, DataType
+    ArgumentInterface, SymbolError, DataType, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args
@@ -821,6 +821,65 @@ def test_default_private_container(parser):
     assert fake_parent.symbol_table.lookup("var1").is_public
     assert not fake_parent.symbol_table.lookup("var2").is_public
     assert fake_parent.symbol_table.lookup("var3").is_public
+
+
+def test_access_stmt_undeclared_symbol(parser):
+    ''' Check that we create a Symbol if a name appears in an access statement
+    but is not explicitly declared. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public var3, var4\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym_table = fake_parent.symbol_table
+    assert "var3" in sym_table
+    assert sym_table.lookup("var3").is_public
+    assert "var4" in sym_table
+    var4 = sym_table.lookup("var4")
+    assert isinstance(var4, Symbol)
+    assert var4.is_public
+
+
+def test_access_stmt_no_unqualified_use_error(parser):
+    ''' Check that we raise the expected error if an undeclared symbol is
+    listed in an access statement and there are no unqualified use
+    statements to bring it into scope. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("'var3' is listed in a PUBLIC statement but cannot find an "
+            "associated" in str(err.value))
+
+
+def test_public_private_symbol_error(parser):
+    ''' Check that we raise the expected error when a symbol is listed as
+    being both PUBLIC and PRIVATE. (fparser2 doesn't check for this.) '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "private var4, var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
+            "and PRIVATE" in str(err.value))
 
 
 def test_process_save_attribute_declarations(parser):
