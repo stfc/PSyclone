@@ -89,7 +89,7 @@ class PSyDataNode(Statement):
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
     # Textual representation of the valid children for this node.
-    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
+    _children_valid_format = "Schedule"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
         # TODO: #415 Support different classes of PSyData calls.

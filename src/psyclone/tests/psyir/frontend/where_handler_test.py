@@ -130,8 +130,8 @@ def test_where_array_notation_rank():
             "'my_array'" in str(err.value))
     from psyclone.psyir.nodes import Range
     my_array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10]),
-                            [Range(Literal("1", DataType.INTEGER),
-                                   Literal("10", DataType.INTEGER))])
+                            [Range.create(Literal("1", DataType.INTEGER),
+                                          Literal("10", DataType.INTEGER))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "

@@ -39,7 +39,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyir.nodes import Range, Literal, Reference, Node
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError, GenerationError
 
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
@@ -61,11 +61,7 @@ def test_range_init(parser):
     from fparser.common.readfortran import FortranStringReader
     # When no arguments are provided
     erange = Range()
-    assert len(erange.children) == 3
-    # By default Range is initialized with Literals of value 1
-    for node in erange.children:
-        assert isinstance(node, Literal)
-        assert node.value == "1"
+    assert not erange.children # Children list is empty
     assert erange.parent is None
     assert erange.annotations == []
     assert erange.ast is None
@@ -168,6 +164,33 @@ def test_range_references_props():
     assert erange.children[2] is step
 
 
+def test_range_out_of_order_setter():
+    ''' Test that setting the start/stop/step props out of order raises the
+    expected error. '''
+    erange = Range()
+    datanode1 = Literal("1", DataType.INTEGER)
+    datanode2 = Literal("2", DataType.INTEGER)
+    datanode3 = Literal("3", DataType.INTEGER)
+
+    # Stop before Start
+    with pytest.raises(IndexError) as excinfo:
+        erange.stop = datanode2
+    assert ("The Stop value 'Literal[value:'2', DataType.INTEGER]' can not be "
+            "inserted into range 'Range[]' before the Start value is provided."
+            in str(excinfo.value))
+    erange.start = datanode1
+    erange.stop = datanode2
+
+    # Step before Step
+    del erange.children[1]
+    with pytest.raises(IndexError) as excinfo:
+        erange.step = datanode3
+    assert ("The Step value 'Literal[value:'3', DataType.INTEGER]' can not be "
+            "inserted into range 'Range[]' before the Start and Stop values "
+            "are provided." in str(excinfo.value))
+    erange.stop = datanode2
+    erange.step = datanode3
+
 def test_range_str():
     ''' Check that node_str and str work correctly for a Range node. '''
     erange = Range()
@@ -201,3 +224,42 @@ def test_range_view(capsys):
             2*indent + literal + "[value:'1', DataType.INTEGER]\n" +
             2*indent + literal + "[value:'10', DataType.INTEGER]\n" +
             2*indent + literal + "[value:'1', DataType.INTEGER]\n" in stdout)
+
+
+def test_range_children_validation():
+    '''Test that children added to Range are validated. Range accepts
+    3 DataNodes.
+
+    '''
+    erange = Range()
+    datanode1 = Literal("1", DataType.INTEGER)
+    datanode2 = Literal("2", DataType.INTEGER)
+    datanode3 = Literal("3", DataType.INTEGER)
+    range2 = Range()
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(range2)
+    assert ("Item 'Range' can't be child 0 of 'Range'. The valid format is: "
+            "'DataNode, DataNode, DataNode'." in str(excinfo.value))
+    erange.addchild(datanode1)
+
+    # Second child
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(range2)
+    assert ("Item 'Range' can't be child 1 of 'Range'. The valid format is: "
+            "'DataNode, DataNode, DataNode'." in str(excinfo.value))
+    erange.addchild(datanode2)
+
+    # Third child
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(range2)
+    assert ("Item 'Range' can't be child 2 of 'Range'. The valid format is: "
+            "'DataNode, DataNode, DataNode'." in str(excinfo.value))
+    erange.addchild(datanode3)
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(datanode1)
+    assert ("Item 'Literal' can't be child 3 of 'Range'. The valid format is:"
+            " 'DataNode, DataNode, DataNode'." in str(excinfo.value))

@@ -40,8 +40,8 @@ from __future__ import absolute_import
 import re
 import pytest
 
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke
 
@@ -263,3 +263,30 @@ def test_psy_data_node_options():
     assert "PreEnd" not in out
     assert "PostStart" not in out
     assert "PostEnd" in out
+
+
+def test_psy_data_node_children_validation():
+    '''Test that children added to PSyDataNode are validated. PSyDataNode
+    accepts just one Schedule as children.
+
+    '''
+    psy_node = PSyDataNode()
+    schedule = Schedule()
+    del psy_node.children[0]
+
+    # Invalid children (e.g. Return Statement)
+    ret = Return()
+    with pytest.raises(GenerationError) as excinfo:
+        psy_node.addchild(ret)
+    assert ("Item 'Return' can't be child 0 of 'PSyData'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))
+
+    # Valid children
+    psy_node.addchild(schedule)
+
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        psy_node.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))

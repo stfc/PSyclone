@@ -105,12 +105,6 @@ class Range(Node):
 
         super(Range, self).__init__(parse_node, parent=parent,
                                     annotations=annotations)
-        # Initialise the list of children so that the start/stop/step setters
-        # can be called in any order
-        default_start = Literal("1", DataType.INTEGER)
-        default_stop = Literal("1", DataType.INTEGER)
-        default_step = Literal("1", DataType.INTEGER)
-        self.children = [default_start, default_stop, default_step]
 
     @staticmethod
     def _validate_child(position, child):
@@ -217,7 +211,10 @@ class Range(Node):
 
         '''
         self._check_valid_input(value, "start")
-        self._children[0] = value
+        if not self.children:
+            self.children.append(value)
+        else:
+            self.children[0] = value
 
     @property
     def stop(self):
@@ -239,7 +236,14 @@ class Range(Node):
         :type value: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_valid_input(value, "stop")
-        self._children[1] = value
+        if not self.children:
+            raise IndexError(
+                "The Stop value '{0}' can not be inserted into range '{1}'"
+                " before the Start value is provided.".format(value, self))
+        if len(self.children) == 1:
+            self.children.append(value)
+        else:
+            self._children[1] = value
 
     @property
     def step(self):
@@ -261,20 +265,15 @@ class Range(Node):
         :type value: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_valid_input(value, "step")
-        self._children[2] = value
-
-    def node_str(self, colour=True):
-        ''' Checks that this Range is valid and then returns the name
-        of this node with (optional) control codes to generate
-        coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        self._check_completeness()
-        return super(Range, self).node_str(colour)
+        if len(self.children) < 2:
+            raise IndexError(
+                "The Step value '{0}' can not be inserted into range '{1}'"
+                " before the Start and Stop values are provided."
+                "".format(value, self))
+        if len(self.children) == 2:
+            self.children.append(value)
+        else:
+            self.children[2] = value
 
     def __str__(self):
         return self.node_str(colour=False)
