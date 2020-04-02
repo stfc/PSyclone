@@ -192,7 +192,7 @@ def test_range_view(capsys):
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", DataType.INTEGER),
                           Literal("10", DataType.INTEGER))
-    array = Array.create(DataSymbol("my_array", DataType.REAL, [10, 10]),
+    array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10, 10]),
                          [Literal("1", DataType.INTEGER),
                           erange])
     array.view()

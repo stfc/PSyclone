@@ -67,17 +67,19 @@ class Symbol(object):
     :param str name: name of the symbol.
     :param bool public: whether the symbol is public or not.
 
-    :raises TypeError: if the name is not a string.
+    :raises TypeError: if the name is not a string or public is not a bool.
 
     '''
-
     def __init__(self, name, public=True):
 
         if not isinstance(name, six.string_types):
             raise TypeError(
-                "{0} name attribute should be of type 'str'"
+                "{0} 'name' attribute should be of type 'str'"
                 " but '{1}' found.".format(type(self).__name__, type(name)))
-
+        if not isinstance(public, bool):
+            raise TypeError("{0} 'public' attribute should be of type 'bool' "
+                            "but '{1}' found.".format(type(self).__name__,
+                                                      type(name)))
         self._name = name
         self._public = public
 

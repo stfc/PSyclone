@@ -846,6 +846,27 @@ def test_access_stmt_undeclared_symbol(parser):
     assert var4.is_public
 
 
+def test_parse_access_statements(parser):
+    ''' Tests for the _parse_access_statements() method. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public var3, var4\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    # Break the parse tree created by fparser2
+    fparser2spec.children[1].items = ('not-private', None)
+    with pytest.raises(InternalError) as err:
+        processor._parse_access_statements([fparser2spec])
+    assert ("Failed to process 'not-private'. Found an accessibility "
+            "attribute of 'not-private' but expected either 'public' or "
+            "'private'" in str(err.value))
+
+
 def test_access_stmt_no_unqualified_use_error(parser):
     ''' Check that we raise the expected error if an undeclared symbol is
     listed in an access statement and there are no unqualified use
@@ -1172,7 +1193,7 @@ def test_parse_array_dimensions_attributes():
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
 
-    sym_table.add(DataSymbol('var1', DataType.INTEGER, []))
+    sym_table.add(DataSymbol('var1', DataType.INTEGER, shape=[]))
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
@@ -1191,7 +1212,7 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        sym_table.add(DataSymbol("var2", DataType.REAL, []))
+        sym_table.add(DataSymbol("var2", DataType.REAL, shape=[]))
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "

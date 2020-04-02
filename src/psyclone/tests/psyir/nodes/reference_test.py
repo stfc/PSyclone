@@ -99,7 +99,7 @@ def test_array_node_str():
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     symbol = DataSymbol("aname", DataType.INTEGER,
-                        [DataSymbol.Extent.ATTRIBUTE])
+                        shape=[DataSymbol.Extent.ATTRIBUTE])
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     array = Array(symbol, parent=assignment)

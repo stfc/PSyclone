@@ -48,11 +48,17 @@ def test_symbol_initialisation():
     sym = Symbol("sym1")
     assert isinstance(sym, Symbol)
     assert sym.name == "sym1"
+    assert sym.is_public
 
     with pytest.raises(TypeError) as error:
         sym = Symbol(None)
-    assert "Symbol name attribute should be of type 'str'" \
-        in str(error.value)
+    assert ("Symbol 'name' attribute should be of type 'str'"
+            in str(error.value))
+
+    with pytest.raises(TypeError) as error:
+        Symbol('sym1', public="hello")
+    assert ("Symbol 'public' attribute should be of type 'bool'"
+            in str(error.value))
 
 
 def test_symbol_str():

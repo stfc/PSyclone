@@ -427,7 +427,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = DataSymbol("arg1", DataType.INTEGER, [],
+    arg1 = DataSymbol("arg1", DataType.INTEGER, shape=[],
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)

@@ -76,32 +76,34 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', DataType.BOOLEAN, constant_value=False),
                       DataSymbol)
 
+    assert isinstance(
+        DataSymbol('a', DataType.REAL,
+                   shape=[DataSymbol.Extent.ATTRIBUTE]), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, shape=[3]), DataSymbol)
     assert isinstance(DataSymbol('a', DataType.REAL,
-                                 [DataSymbol.Extent.ATTRIBUTE]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, [3]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL,
-                                 [3, DataSymbol.Extent.ATTRIBUTE]), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, []), DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, [], precision=8),
+                                 shape=[3, DataSymbol.Extent.ATTRIBUTE]),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', DataType.REAL, [],
+    assert isinstance(DataSymbol('a', DataType.REAL, shape=[]), DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, shape=[], precision=8),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', DataType.REAL, shape=[],
                                  interface=ArgumentInterface()), DataSymbol)
     assert isinstance(
-        DataSymbol('a', DataType.REAL, [],
+        DataSymbol('a', DataType.REAL, shape=[],
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)), DataSymbol)
     assert isinstance(
-        DataSymbol('a', DataType.REAL, [],
+        DataSymbol('a', DataType.REAL, shape=[],
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READ)), DataSymbol)
     my_mod = ContainerSymbol("my_mod")
     assert isinstance(
         DataSymbol('a', DataType.DEFERRED, interface=GlobalInterface(my_mod)),
         DataSymbol)
-    dim = DataSymbol('dim', DataType.INTEGER, [])
-    assert isinstance(DataSymbol('a', DataType.REAL, [dim]), DataSymbol)
+    dim = DataSymbol('dim', DataType.INTEGER, shape=[])
+    assert isinstance(DataSymbol('a', DataType.REAL, shape=[dim]), DataSymbol)
     assert isinstance(DataSymbol('a', DataType.REAL,
-                                 [3, dim, DataSymbol.Extent.ATTRIBUTE]),
+                                 shape=[3, dim, DataSymbol.Extent.ATTRIBUTE]),
                       DataSymbol)
 
 
@@ -110,34 +112,34 @@ def test_datasymbol_init_errors():
     with invalid arguments. '''
     # Test with invalid arguments
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', 'invalidtype', [], 'local')
+        DataSymbol('a', 'invalidtype', shape=[], interface='local')
     assert ("datatype of a DataSymbol must be specified using a DataType "
             "but got: 'str'" in str(error.value))
 
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', 3, [], 'local')
+        DataSymbol('a', 3, shape=[], interface='local')
     assert ("datatype of a DataSymbol must be specified using a DataType "
             "but got:" in str(error.value))
 
-    dim = DataSymbol('dim', DataType.INTEGER, [])
+    dim = DataSymbol('dim', DataType.INTEGER, shape=[])
     with pytest.raises(TypeError) as error:
         DataSymbol('a', DataType.REAL, shape=dim)
     assert "DataSymbol shape attribute must be a list." in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        DataSymbol('a', DataType.REAL, ['invalidshape'])
+        DataSymbol('a', DataType.REAL, shape=['invalidshape'])
     assert ("DataSymbol shape list elements can only be 'DataSymbol', "
             "'integer' or DataSymbol.Extent.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        bad_dim = DataSymbol('dim', DataType.REAL, [])
-        DataSymbol('a', DataType.REAL, [bad_dim])
+        bad_dim = DataSymbol('dim', DataType.REAL, shape=[])
+        DataSymbol('a', DataType.REAL, shape=[bad_dim])
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        bad_dim = DataSymbol('dim', DataType.INTEGER, [3])
-        DataSymbol('a', DataType.REAL, [bad_dim])
+        bad_dim = DataSymbol('dim', DataType.INTEGER, shape=[3])
+        DataSymbol('a', DataType.REAL, shape=[bad_dim])
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
@@ -163,7 +165,7 @@ def test_datasymbol_precision_errors():
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type "
             in str(err.value))
-    not_scalar = DataSymbol('b', DataType.INTEGER, [2, 2])
+    not_scalar = DataSymbol('b', DataType.INTEGER, shape=[2, 2])
     with pytest.raises(ValueError) as err:
         DataSymbol('a', DataType.INTEGER, precision=not_scalar)
     assert ("A DataSymbol representing the precision of another DataSymbol "
@@ -185,7 +187,7 @@ def test_datasymbol_can_be_printed():
     assert "s1: <DataType.INTEGER, Scalar, Local>" in str(sym1)
 
     sym2 = DataSymbol("s2", DataType.REAL,
-                      [DataSymbol.Extent.ATTRIBUTE, 2, sym1])
+                      shape=[DataSymbol.Extent.ATTRIBUTE, 2, sym1])
     assert "s2: <DataType.REAL, Array['ATTRIBUTE', 2, s1], Local>" \
         in str(sym2)
 
@@ -321,7 +323,7 @@ def test_datasymbol_scalar_array():
     '''
     sym1 = DataSymbol("s1", DataType.INTEGER)
     sym2 = DataSymbol("s2", DataType.REAL,
-                      [DataSymbol.Extent.ATTRIBUTE, 2, sym1])
+                      shape=[DataSymbol.Extent.ATTRIBUTE, 2, sym1])
     assert sym1.is_scalar
     assert not sym1.is_array
     assert not sym2.is_scalar

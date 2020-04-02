@@ -787,20 +787,24 @@ class Fparser2Reader(object):
         access_stmts = walk(nodes, Fortran2003.Access_Stmt)
 
         for stmt in access_stmts:
-            if not stmt.children[1]:
-                default_public = stmt.children[0].lower() == "public"
+            if stmt.children[0].lower() == "public":
+                public_stmt = True
+            elif stmt.children[0].lower() == "private":
+                public_stmt = False
             else:
-                if stmt.children[0].lower() == "public":
+                raise InternalError(
+                    "Failed to process '{0}'. Found an accessibility "
+                    "attribute of '{1}' but expected either 'public' or "
+                    "'private'.".format(str(stmt), stmt.children[0]))
+            if not stmt.children[1]:
+                default_public = public_stmt
+            else:
+                if public_stmt:
                     explicit_public.update(
                         [child.string for child in stmt.children[1].children])
-                elif stmt.children[0].lower() == "private":
+                else:
                     explicit_private.update(
                         [child.string for child in stmt.children[1].children])
-                else:
-                    raise InternalError(
-                        "Failed to process '{0}'. Found an accessibility "
-                        "attribute of '{1}' but expected either 'public' or "
-                        "'private'.".format(str(stmt), stmt.children[0]))
         # Sanity check the lists of symbols (because fparser2 does not
         # currently do much validation)
         invalid_symbols = explicit_public.intersection(explicit_private)
