@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors L. Mitchell Imperial College, R. W. Ford and A. R. Porter STFC
-# Daresbury Lab
+# Authors: L. Mitchell Imperial College
+#          R. W. Ford and A. R. Porter STFC Daresbury Lab
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -793,11 +793,11 @@ class KernelType(object):
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the
         integer variable with the supplied name. Return None if no
-        matching variable is found.
+        matching variable is found. The search is not case sensitive.
 
         :param str name: the name of the integer variable to find.
 
-        :returns: value of the specified integer variable or None.
+        :return: value of the specified integer variable (lower case) or None.
         :rtype: str
 
         :raises ParseError: if the RHS of the assignment is not a Name.
@@ -805,6 +805,8 @@ class KernelType(object):
         '''
         # Ensure the Fortran2003 parser is initialised
         _ = ParserFactory().create()
+        # Fortran is not case sensitive so nor is our matching
+        lower_name = name.lower()
 
         for statement, _ in fpapi.walk(self._ktype, -1):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
@@ -813,31 +815,41 @@ class KernelType(object):
                 # use fparser2 to parse the whole thing).
                 assign = Fortran2003.Assignment_Stmt(
                     statement.entity_decls[0])
-                if str(assign.items[0]) == name:
+                if str(assign.items[0]).lower() == lower_name:
                     if not isinstance(assign.items[2], Fortran2003.Name):
                         raise ParseError(
                             "get_integer_variable: RHS of assignment is not "
                             "a variable name: '{0}'".format(str(assign)))
-                    return str(assign.items[2])
+                    return str(assign.items[2]).lower()
         return None
 
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the values of the
         integer array variable with the supplied name. Returns an empty list
-        if no matching variable is found.
+        if no matching variable is found. The search is not case sensitive.
 
         :param str name: the name of the integer array to find.
-        :returns: list of values.
+
+        :return: list of values (lower-case).
         :rtype: list of str.
 
         :raises InternalError: if we fail to parse the LHS of the array \
                                declaration or the array constructor.
+        :raises ParseError: if the array is not of rank 1.
+        :raises ParseError: if the array extent is not specified using an \
+                            integer literal.
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
+        :raises InternalError: if the parse tree for the array constructor \
+                               does not have the expected structure.
+        :raises ParseError: if the number of items in the array constructor \
+                            does not match the extent of the array.
 
         '''
         # Ensure the classes are setup for the Fortran2003 parser
         _ = ParserFactory().create()
+        # Fortran is not case sensitive so nor is our matching
+        lower_name = name.lower()
 
         for statement, _ in fpapi.walk(self._ktype, -1):
             if not isinstance(statement, fparser1.typedecl_statements.Integer):
@@ -846,24 +858,62 @@ class KernelType(object):
             # fparser only goes down to the statement level. We use fparser2 to
             # parse the statement itself.
             assign = Fortran2003.Assignment_Stmt(statement.entity_decls[0])
-            names = walk(assign.items, Fortran2003.Name)
+            names = walk(assign.children, Fortran2003.Name)
             if not names:
                 raise InternalError("Unsupported assignment statement: '{0}'".
                                     format(str(assign)))
-            if str(names[0]) == name:
-                # This is the variable declaration we're looking for
-                if not isinstance(assign.items[2],
-                                  Fortran2003.Array_Constructor):
-                    raise ParseError(
-                        "get_integer_array: RHS of assignment is not "
-                        "an array constructor: '{0}'".format(str(assign)))
-                # fparser2 AST for Array_Constructor is:
-                # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
-                #                                      Name('w1'))), ']')
-                # Construct a list of the names in the array constructor
-                names = walk(assign.items[2].items, Fortran2003.Name)
-                if not names:
-                    raise InternalError("Failed to parse array constructor: "
-                                        "'{0}'".format(str(assign.items[2])))
-                return [str(name) for name in names]
+
+            if str(names[0]).lower() != lower_name:
+                # This is not the variable declaration we're looking for
+                continue
+
+            if not isinstance(assign.children[0], Fortran2003.Part_Ref):
+                # Not an array declaration
+                return []
+
+            if not isinstance(assign.children[0].children[1],
+                              Fortran2003.Section_Subscript_List):
+                raise InternalError(
+                    "get_integer_array: expected array declaration to have a "
+                    "Section_Subscript_List but found '{0}' for: '{1}'".format(
+                        type(assign.children[0].children[1]).__name__,
+                        str(assign)))
+
+            dim_stmt = assign.children[0].children[1]
+            if len(dim_stmt.children) != 1:
+                raise ParseError(
+                    "get_integer_array: array must be 1D but found an array "
+                    "with {0} dimensions for name '{1}'".format(
+                        len(dim_stmt.children), name))
+            if not isinstance(dim_stmt.children[0],
+                              Fortran2003.Int_Literal_Constant):
+                raise ParseError(
+                    "get_integer_array: array extent must be specified using "
+                    "an integer literal but found '{0}' for array '{1}'".
+                    format(str(dim_stmt.children[0]), name))
+            # Get the declared size of the array
+            array_extent = int(str(dim_stmt.children[0]))
+
+            if not isinstance(assign.children[2],
+                              Fortran2003.Array_Constructor):
+                raise ParseError(
+                    "get_integer_array: RHS of assignment is not "
+                    "an array constructor: '{0}'".format(str(assign)))
+            # fparser2 AST for Array_Constructor is:
+            # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
+            #                                      Name('w1'))), ']')
+            # Construct a list of the names in the array constructor
+            names = walk(assign.children[2].children, Fortran2003.Name)
+            if not names:
+                raise InternalError("Failed to parse array constructor: "
+                                    "'{0}'".format(str(assign.items[2])))
+            if len(names) != array_extent:
+                # Ideally fparser would catch this but it isn't yet mature
+                # enough.
+                raise ParseError(
+                    "get_integer_array: declared length of array '{0}' is {1} "
+                    "but constructor only contains {2} names: '{3}'".format(
+                        name, array_extent, len(names), str(assign)))
+            return [str(name).lower() for name in names]
+        # No matching declaration for the provided name was found
         return []
