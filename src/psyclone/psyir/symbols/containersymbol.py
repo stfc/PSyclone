@@ -48,9 +48,11 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
+    :param bool public: whether or not the symbol is public.
+
     '''
-    def __init__(self, name):
-        super(ContainerSymbol, self).__init__(name)
+    def __init__(self, name, public=True):
+        super(ContainerSymbol, self).__init__(name, public)
 
         self._reference = None
         # At the moment we just have one ContainerSymbol interface, so we

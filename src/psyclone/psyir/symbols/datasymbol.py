@@ -52,6 +52,7 @@ class DataSymbol(Symbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
+    :param bool public: whether or not this symbol is public.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param list shape: shape of the symbol in column-major order (leftmost \
         index is contiguous in memory). Each entry represents an array \
@@ -104,10 +105,10 @@ class DataSymbol(Symbol):
         DEFERRED = 1
         ATTRIBUTE = 2
 
-    def __init__(self, name, datatype, shape=None, constant_value=None,
-                 interface=None, precision=None):
+    def __init__(self, name, datatype, public=True, shape=None,
+                 constant_value=None, interface=None, precision=None):
 
-        super(DataSymbol, self).__init__(name)
+        super(DataSymbol, self).__init__(name, public)
 
         self._datatype = None
         self.datatype = datatype

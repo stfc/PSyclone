@@ -59,15 +59,19 @@ class SymbolError(Exception):
 class Symbol(object):
     '''
     Generic Symbol item for the Symbol Table. It always has a fixed name label
-    that matches with the key on the SymbolTables that contain the symbol.
+    that matches with the key in the SymbolTables that contain the symbol.
+    If the symbol is not public then its scope is restricted to those nodes
+    that are descendents of the Node to which its containing Symbol Table
+    belongs.
 
     :param str name: name of the symbol.
+    :param bool public: whether the symbol is public or not.
 
     :raises TypeError: if the name is not a string.
 
     '''
 
-    def __init__(self, name):
+    def __init__(self, name, public=True):
 
         if not isinstance(name, six.string_types):
             raise TypeError(
@@ -75,6 +79,7 @@ class Symbol(object):
                 " but '{1}' found.".format(type(self).__name__, type(name)))
 
         self._name = name
+        self._public = public
 
     @property
     def name(self):
@@ -83,6 +88,14 @@ class Symbol(object):
         :rtype: str
         '''
         return self._name
+
+    @property
+    def is_public(self):
+        '''
+        :returns: whether or not this Symbol is public.
+        :rtype: bool
+        '''
+        return self._public
 
     def __str__(self):
         return self.name

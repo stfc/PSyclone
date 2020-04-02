@@ -604,8 +604,21 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("b").name == "b"
+    # Symbol should be public by default
+    assert fake_parent.symbol_table.lookup("b").is_public
     assert fake_parent.symbol_table.lookup("b").datatype == DataType.BOOLEAN
     assert not fake_parent.symbol_table.lookup("b").precision
+
+    # public/private attribute
+    reader = FortranStringReader("real, public :: p2")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("p2").is_public
+    reader = FortranStringReader("real, private :: p3, p4")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert not fake_parent.symbol_table.lookup("p3").is_public
+    assert not fake_parent.symbol_table.lookup("p4").is_public
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -655,14 +668,6 @@ def test_process_declarations(f2008_parser):
     assert "Could not process " in str(error.value)
     assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
             "types are supported.") in str(error.value)
-
-    # Test with unsupported attribute
-    reader = FortranStringReader("real, public :: p2")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Unrecognized attribute type " in str(error.value)
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
@@ -754,7 +759,7 @@ def test_process_not_supported_declarations():
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
+    assert ". Unrecognised attribute " in str(error.value)
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
@@ -779,6 +784,43 @@ def test_process_not_supported_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
+
+
+def test_default_public_container(parser):
+    ''' Test when all symbols default to public within a module. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "public\n"
+        "integer, private :: var1\n"
+        "integer :: var2\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "var1" in fake_parent.symbol_table
+    assert not fake_parent.symbol_table.lookup("var1").is_public
+    assert fake_parent.symbol_table.lookup("var2").is_public
+
+
+def test_default_private_container(parser):
+    ''' Test when all symbols default to private within a module. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "integer, public :: var1\n"
+        "integer :: var2\n"
+        "integer :: var3\n"
+        "public var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "var1" in fake_parent.symbol_table
+    assert fake_parent.symbol_table.lookup("var1").is_public
+    assert not fake_parent.symbol_table.lookup("var2").is_public
+    assert fake_parent.symbol_table.lookup("var3").is_public
 
 
 def test_process_save_attribute_declarations(parser):

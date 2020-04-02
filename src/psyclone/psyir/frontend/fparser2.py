@@ -47,9 +47,9 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     Container, Assignment, Return, Array, Node, Range
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    DataType
+from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
+    ContainerSymbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, DataType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -758,6 +758,60 @@ class Fparser2Reader(object):
 
         return shape
 
+    @staticmethod
+    def _parse_access_statements(nodes):
+        '''
+        Search the supplied list of fparser2 nodes for any accessibility
+        statements (e.g. "PUBLIC :: my_var") to determine the default
+        accessibility of symbols as well as identifying those that are
+        explicitly declared as public or private.
+
+        :param nodes: nodes in the fparser2 parse tree to search.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :returns: whether symbols are public by default, list of public \
+                  symbol names, list of private symbol names.
+        :rtype: 3-tuple of (bool, list, list)
+
+        :raises GenerationError: if a symbol is explicitly declared as being \
+                                 both public and private.
+        '''
+        # Symbols are public by default in Fortran
+        default_public = True
+        # Sets holding the names of those symbols whose access is specified
+        # explicitly via an access-stmt (e.g. "PUBLIC :: my_var")
+        explicit_public = set()
+        explicit_private = set()
+        # R518 an access-stmt shall appear only in the specification-part
+        # of a module.
+        access_stmts = walk(nodes, Fortran2003.Access_Stmt)
+
+        for stmt in access_stmts:
+            if not stmt.children[1]:
+                default_public = stmt.children[0].lower() == "public"
+            else:
+                if stmt.children[0].lower() == "public":
+                    explicit_public.update(
+                        [child.string for child in stmt.children[1].children])
+                elif stmt.children[0].lower() == "private":
+                    explicit_private.update(
+                        [child.string for child in stmt.children[1].children])
+                else:
+                    raise InternalError(
+                        "Failed to process '{0}'. Found an accessibility "
+                        "attribute of '{1}' but expected either 'public' or "
+                        "'private'.".format(str(stmt), stmt.children[0]))
+        # Sanity check the lists of symbols (because fparser2 does not
+        # currently do much validation)
+        invalid_symbols = explicit_public.intersection(explicit_private)
+        if invalid_symbols:
+            raise GenerationError(
+                "Symbols {0} appear in access statements with both PUBLIC "
+                "and PRIVATE access-ids. This is invalid Fortran.".format(
+                    list(invalid_symbols)))
+
+        return default_public, list(explicit_public), list(explicit_private)
+
     def process_declarations(self, parent, nodes, arg_list):
         '''
         Transform the variable declarations in the fparser2 parse tree into
@@ -779,6 +833,12 @@ class Fparser2Reader(object):
         :raises InternalError: if the provided declaration is an unexpected \
                                or invalid fparser or Fortran expression.
         '''
+        # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
+        # determine the default accessibility of symbols as well as identifying
+        # those that are explicitly declared as public or private.
+        default_public, explicit_public_symbols, explicit_private_symbols = \
+            self._parse_access_statements(nodes)
+
         # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
@@ -901,6 +961,8 @@ class Fparser2Reader(object):
             # 3) Record initialized constant values
             has_constant_value = False
             allocatable = False
+            # This var only set if the declaration has an explicit access-spec
+            decl_is_public = None
             if attr_specs:
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
@@ -929,7 +991,7 @@ class Fparser2Reader(object):
                             allocatable = True
                         else:
                             raise NotImplementedError(
-                                "Could not process {0}. Unrecognized "
+                                "Could not process {0}. Unrecognised "
                                 "attribute '{1}'.".format(decl.items,
                                                           str(attr)))
                     elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
@@ -953,9 +1015,19 @@ class Fparser2Reader(object):
                     elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
                         attribute_shape = \
                             self._parse_dimensions(attr, parent.symbol_table)
+                    elif isinstance(attr, Fortran2003.Access_Spec):
+                        if attr.string.lower() == 'public':
+                            decl_is_public = True
+                        elif attr.string.lower() == 'private':
+                            decl_is_public = False
+                        else:
+                            raise InternalError(
+                                "Could not process '{0}'. Unexpected Access "
+                                "Spec attribute '{1}'.".format(decl.items,
+                                                               str(attr)))
                     else:
                         raise NotImplementedError(
-                            "Could not process {0}. Unrecognized attribute "
+                            "Could not process {0}. Unrecognised attribute "
                             "type {1}.".format(decl.items, str(type(attr))))
 
             # Parse declarations RHS and declare new symbol into the
@@ -1016,8 +1088,21 @@ class Fparser2Reader(object):
 
                 sym_name = str(name).lower()
 
+                if decl_is_public is None:
+                    # There was no access-spec on the LHS of the decln
+                    if sym_name in explicit_private_symbols:
+                        public = False
+                    elif sym_name in explicit_public_symbols:
+                        public = True
+                    else:
+                        public = default_public
+                else:
+                    public = decl_is_public
+
                 if sym_name not in parent.symbol_table:
-                    parent.symbol_table.add(DataSymbol(sym_name, datatype,
+                    parent.symbol_table.add(DataSymbol(sym_name,
+                                                       datatype,
+                                                       public=public,
                                                        shape=entity_shape,
                                                        constant_value=ct_expr,
                                                        interface=interface,
@@ -1032,6 +1117,17 @@ class Fparser2Reader(object):
                             "a defined interface ({1}).".format(
                                 sym_name, str(sym.interface)))
                     sym.interface = interface
+
+        # Check for symbols named in an access statement but not explicitly
+        # declared. These must then refer to symbols that have been brought
+        # into scope by an unqualified use statment. As we have no idea whether
+        # they represent data or a routine we use the Symbol base class.
+        for name in [sname for sname in list(explicit_public_symbols)
+                     if sname not in parent.symbol_table]:
+            parent.symbol_table.add(Symbol(name, public=True))
+        for name in [sname for sname in list(explicit_private_symbols)
+                     if sname not in parent.symbol_table]:
+            parent.symbol_table.add(Symbol(name, public=False))
 
         try:
             arg_symbols = []
