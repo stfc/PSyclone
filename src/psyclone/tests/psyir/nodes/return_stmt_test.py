@@ -39,7 +39,9 @@
 ''' Performs py.test tests on the Return PSyIR node. '''
 
 from __future__ import absolute_import
+import pytest
 from psyclone.psyir.nodes import Return
+from psyclone.errors import GenerationError
 
 
 def test_return_node_str():
@@ -55,3 +57,16 @@ def test_return_can_be_printed():
     initialised fully)'''
     return_stmt = Return()
     assert "Return[]\n" in str(return_stmt)
+
+
+def test_return_children_validation():
+    '''Test that children added to Return are validated. A Return node does
+    not accept any children.
+
+    '''
+    return_stmt = Return()
+    return_stmt1 = Return()
+    with pytest.raises(GenerationError) as excinfo:
+        return_stmt.addchild(return_stmt1)
+    assert ("Item 'Return' can't be child 0 of 'Return'. Return is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)

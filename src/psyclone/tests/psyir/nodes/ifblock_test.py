@@ -213,7 +213,7 @@ def test_ifblock_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
-            "'*[Statements]'.") in str(excinfo.value)
+            "'*[Statement]'.") in str(excinfo.value)
 
     # If body not a list.
     with pytest.raises(GenerationError) as excinfo:
@@ -229,7 +229,7 @@ def test_ifblock_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, else_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
-            "'*[Statements]'.") in str(excinfo.value)
+            "'*[Statement]'.") in str(excinfo.value)
 
     # Else body not a list.
     with pytest.raises(GenerationError) as excinfo:

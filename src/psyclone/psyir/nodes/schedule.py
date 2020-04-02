@@ -53,7 +53,7 @@ class Schedule(Node):
 
     '''
     # Textual representation of the valid children for this node.
-    _children_valid_format = "*[Statements]"
+    _children_valid_format = "*[Statement]"
 
     def __init__(self, children=None, parent=None):
         Node.__init__(self, children=children, parent=parent)

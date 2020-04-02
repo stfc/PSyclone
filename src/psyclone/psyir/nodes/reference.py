@@ -152,7 +152,7 @@ class Array(Reference):
 
     '''
     # Textual representation of the valid children for this node.
-    _children_valid_format = "+[DataNode | Range]"
+    _children_valid_format = "*[DataNode | Range]"
 
     def __init__(self, symbol, parent=None):
         super(Array, self).__init__(symbol, parent=parent)

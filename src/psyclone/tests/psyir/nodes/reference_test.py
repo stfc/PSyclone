@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
+from psyclone.psyir.nodes import Reference, Array, Assignment, Literal, Range
 from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -90,6 +90,17 @@ def test_reference_optional_parent():
     ref = Reference(DataSymbol("rname", DataType.REAL))
     assert ref.parent is None
 
+
+def test_reference_children_validation():
+    '''Test that children added to Reference are validated. A Reference node does
+    not accept any children.
+
+    '''
+    ref = Reference(DataSymbol("rname", DataType.REAL))
+    with pytest.raises(GenerationError) as excinfo:
+        ref.addchild(Literal("2", DataType.INTEGER))
+    assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 # Test Array class
 
@@ -194,3 +205,24 @@ def test_array_create_invalid3():
     assert (
         "child of children argument in create method of Array class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
+
+def test_array_children_validation():
+    '''Test that children added to Array are validated. Array accepts
+    DataNodes and Range children.
+
+    '''
+    array = Array(DataSymbol("rname", DataType.REAL, shape=[5, 5]))
+    datanode1 = Literal("1", DataType.INTEGER)
+    erange = Range()
+    assignment = Assignment()
+
+    # Invalid child
+    with pytest.raises(GenerationError) as excinfo:
+        array.addchild(assignment)
+    assert ("Item 'Assignment' can't be child 0 of 'ArrayReference'. The valid"
+            " format is: '*[DataNode | Range]'." in str(excinfo.value))
+
+    # Valid children
+    array.addchild(datanode1)
+    array.addchild(erange)
