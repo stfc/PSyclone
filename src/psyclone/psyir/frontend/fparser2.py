@@ -843,10 +843,6 @@ class Fparser2Reader(object):
         default_public, explicit_public_symbols, explicit_private_symbols = \
             self._parse_access_statements(nodes)
 
-        # Keep track of whether we have any wildcard imports within the
-        # provided declarations.
-        have_wildcard_import = False
-
         # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
@@ -920,7 +916,6 @@ class Fparser2Reader(object):
                     # only-list.
                     pass
                 container.wildcard_import = True
-                have_wildcard_import = True
             elif decl.items[3].lower().replace(" ", "") == ",only:":
                 # This use has an 'only: ' but no associated list of
                 # imported symbols. (It serves to keep a module in scope while
@@ -1135,16 +1130,11 @@ class Fparser2Reader(object):
                      list(explicit_private_symbols)):
             if name not in parent.symbol_table:
                 _is_public = name in explicit_public_symbols
-                if not have_wildcard_import:
-                    if _is_public:
-                        _access = "PUBLIC"
-                    else:
-                        _access = "PRIVATE"
-                    raise GenerationError(
-                        "Symbol '{0}' is listed in a {1} statement but "
-                        "cannot find an associated declaration or an "
-                        "unqualified USE statement (which might bring it into "
-                        "scope).".format(name, _access))
+                # TODO 736 Ideally we would perform a validation check here that
+                # there is a possible source for this previously-unseen symbol.
+                # However, we cannot yet do this because we don't
+                # capture symbols for routine names.
+
                 # TODO this should probably use parent.find_or_create() but
                 # that's not on master yet.
                 parent.symbol_table.add(Symbol(name, public=_is_public))
