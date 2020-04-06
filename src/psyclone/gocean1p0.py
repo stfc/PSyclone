@@ -1303,7 +1303,7 @@ class GOFparser2Reader(Fparser2Reader):
     functionality.
     '''
     @staticmethod
-    def _create_schedule(name, _):
+    def _create_schedule(name):
         '''
         Create an empty KernelSchedule.
 

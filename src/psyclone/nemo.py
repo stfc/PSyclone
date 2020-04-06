@@ -58,19 +58,16 @@ class NemoFparser2Reader(Fparser2Reader):
     Specialisation of Fparser2Reader for the Nemo API.
     '''
     @staticmethod
-    def _create_schedule(_, invoke):
+    def _create_schedule(_):
         '''
-        Create an empty KernelSchedule. The first argument would be 'name'
+        Create an empty InvokeSchedule. The un-named argument would be 'name'
         but this isn't used in the NEMO API.
 
-        :param invoke: the Invoke object to which this Schedule belongs.
-        :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
-
-        :returns: New KernelSchedule empty object.
-        :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+        :returns: New InvokeSchedule empty object.
+        :rtype: py:class:`psyclone.nemo.NemoInvokeSchedule`
         '''
-        return NemoInvokeSchedule(invoke=invoke)
-
+        return NemoInvokeSchedule()
+        
     def _create_loop(self, parent, variable_name):
         '''
         Specialized method to create a NemoLoop instead of a
@@ -182,7 +179,12 @@ class NemoInvoke(Invoke):
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
         processor = NemoFparser2Reader()
-        self._schedule = processor.generate_schedule(name, ast, self)
+        # TODO #737 the fparser2 processor should really first be used
+        # to explicitly get the Container for this particular Invoke and
+        # then be used to generate a 'subroutine' rather than a Schedule.
+        self._schedule = processor.generate_schedule(name, ast,
+                                                     self.invokes.container)
+        self._schedule.invoke = self
 
     def update(self):
         '''

@@ -552,7 +552,7 @@ class Fparser2Reader(object):
         return (rlist, wlist, rwlist)
 
     @staticmethod
-    def _create_schedule(name, _):
+    def _create_schedule(name):
         '''
         Create an empty KernelSchedule. Second argument is for consistency with
         the NEMO API where an Invoke object is passed in.
@@ -561,6 +561,7 @@ class Fparser2Reader(object):
 
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+
         '''
         return KernelSchedule(name)
 
@@ -601,20 +602,29 @@ class Fparser2Reader(object):
 
         return new_container
 
-    def generate_schedule(self, name, module_ast, invoke=None):
-        '''
-        Create a KernelSchedule from the supplied fparser2 AST.
+    def generate_schedule(self, name, module_ast, container=None):
+        '''Create a Schedule from the supplied fparser2 AST.
+
+        TODO #738. Currently this routine is also used to create a
+        NemoInvokeSchedule from NEMO source code (hence the optional,
+        'invoke' argument).  This routine needs re-naming and
+        re-writing so that it *only* creates the PSyIR for a
+        subroutine.
 
         :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+        :param invoke: the parent Invoke associated with this Schedule (if \
+                       any).
+        :type invoke: :py:class:`psyclone.psyGen.Invoke`
 
         :returns: PSyIR schedule representing the kernel.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
+
         '''
         def first_type_match(nodelist, typekind):
             '''
@@ -629,21 +639,7 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Type not found
 
-        def search_subroutine(nodelist, searchname):
-            '''
-            Returns the first instance of the specified subroutine in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param str searchname: Name of the subroutine we are searching for.
-            '''
-            for node in nodelist:
-                if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
-                        str(node.content[0].get_name()) == searchname):
-                    return node
-            raise ValueError  # Subroutine not found
-
-        new_schedule = self._create_schedule(name, invoke)
+        new_schedule = self._create_schedule(name)
 
         routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                      Fortran2003.Main_Program,
@@ -663,11 +659,10 @@ class Fparser2Reader(object):
                                   "subroutine: {0}".format(name))
 
         # Check whether or not we need to create a Container for this schedule
-        container = None
-        if invoke and invoke.invokes.container:
-            # We already have a Container so we'll add this schedule to it
-            container = invoke.invokes.container
-        else:
+        # TODO #738 this routine should just be creating a Subroutine, not
+        # attempting to create a Container too. Perhaps it should be passed
+        # a reference to the parent Container object.
+        if not container:
             # Is the routine enclosed within a module?
             current = subroutine.parent
             while current:
