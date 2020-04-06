@@ -1247,7 +1247,7 @@ def test_handling_name():
     tree structure.
     '''
     reader = FortranStringReader("x=1")
-    fparser2name = Execution_Part.match(reader)[0][0].items[0]
+    fparser2name = Execution_Part.match(reader)[0][0]
 
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2Reader()
@@ -1261,9 +1261,11 @@ def test_handling_name():
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2name])
     assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Reference)
-    assert new_node.name == "x"
+    assignment = fake_parent.children[0]
+    assert len(assignment.children) == 2
+    new_ref = assignment.children[0]
+    assert isinstance(new_ref, Reference)
+    assert new_ref.name == "x"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1290,7 +1292,7 @@ def test_handling_part_ref():
     tree structure.
     '''
     reader = FortranStringReader("x(2)=1")
-    fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
+    fparser2part_ref = Execution_Part.match(reader)[0][0]
 
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2Reader()
@@ -1304,7 +1306,9 @@ def test_handling_part_ref():
     fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
     processor.process_nodes(fake_parent, [fparser2part_ref])
     assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
+    assignment = fake_parent.children[0]
+    assert len(assignment.children) == 2
+    new_node = assignment.children[0]
     assert isinstance(new_node, Array)
     assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions

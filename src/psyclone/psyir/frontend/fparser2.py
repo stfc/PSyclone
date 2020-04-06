@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, Array, Node, Range
+    Container, Assignment, Return, Array, Node, Range, Statement
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -1899,9 +1899,9 @@ class Fparser2Reader(object):
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
-        fake_parent = Schedule()
+        fake_parent = Statement()
         self.process_nodes(fake_parent, logical_expr)
-        arrays = fake_parent[0].walk(Array)
+        arrays = fake_parent.walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
             # because the code doesn't use explicit array syntax. At least one

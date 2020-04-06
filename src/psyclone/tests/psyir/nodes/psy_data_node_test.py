@@ -42,6 +42,7 @@ import pytest
 
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke
 
@@ -104,7 +105,7 @@ def test_psy_data_node_tree_correct():
 
     # 3. No parent, but children:
     # ===========================
-    children = [Node(), Node()]
+    children = [Statement(), Statement()]
     psy_node = PSyDataNode(children=children)
 
     # The children must be connected to the schedule, which is
@@ -123,8 +124,8 @@ def test_psy_data_node_tree_correct():
     # =======================
     parent = Node()
     # The children must be added to the parent before creating the ExtractNode
-    parent.addchild(Node())
-    parent.addchild(Node())
+    parent.addchild(Statement())
+    parent.addchild(Statement())
     # Add another child that must stay with the parent node
     third_child = Node(parent=parent)
     parent.addchild(third_child)

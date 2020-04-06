@@ -56,9 +56,9 @@ class Schedule(Node):
     _children_valid_format = "*[Statement]"
 
     def __init__(self, children=None, parent=None):
-        Node.__init__(self, children=children, parent=parent)
         self._text_name = "Schedule"
         self._colour_key = "Schedule"
+        Node.__init__(self, children=children, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -72,8 +72,7 @@ class Schedule(Node):
 
         '''
         # pylint: disable=unused-argument
-        # return isinstance(child, Statement)
-        return isinstance(child, Node) # Temporal solution for some unit-tests
+        return isinstance(child, Statement)
 
     @property
     def dag_name(self):
