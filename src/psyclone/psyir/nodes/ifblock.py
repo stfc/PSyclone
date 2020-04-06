@@ -80,7 +80,6 @@ class IfBlock(Statement):
         self._text_name = "If"
         self._colour_key = "If"
 
-
     @staticmethod
     def _validate_child(position, child):
         '''

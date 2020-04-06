@@ -285,7 +285,6 @@ def test_psy_data_node_children_validation():
     # Valid children
     psy_node.addchild(schedule)
 
-
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         psy_node.addchild(schedule)

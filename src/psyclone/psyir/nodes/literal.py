@@ -94,7 +94,6 @@ class Literal(DataNode):
         self._datatype = datatype
         self._value = value
 
-
     @staticmethod
     def _validate_child(position, child):
         '''

@@ -442,6 +442,7 @@ def test_kern_children_validation():
     assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
+
 def test_inlinedkern_children_validation():
     '''Test that children added to Kern are validated. A Kern node does not
     accept any children.

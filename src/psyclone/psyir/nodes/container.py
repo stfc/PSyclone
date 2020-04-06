@@ -63,7 +63,6 @@ class Container(Node):
         self._name = name
         self._symbol_table = SymbolTable(self)
 
-
     @staticmethod
     def _validate_child(position, child):
         '''

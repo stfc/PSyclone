@@ -114,7 +114,6 @@ class Loop(Statement):
         self._variable_name = variable_name
         self._id = ""
 
-
     @staticmethod
     def _validate_child(position, child):
         '''

@@ -1052,7 +1052,6 @@ class Directive(Statement):
         self._text_name = "Directive"
         self._colour_key = "Directive"
 
-
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -2083,7 +2082,6 @@ class GlobalSum(Statement):
         self._text_name = "GlobalSum"
         self._colour_key = "GlobalSum"
 
-
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -2365,7 +2363,6 @@ class Kern(Statement):
         else:
             self._reduction = False
             self._reduction_arg = None
-
 
     @staticmethod
     def _validate_child(position, child):

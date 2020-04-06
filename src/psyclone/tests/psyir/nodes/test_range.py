@@ -61,7 +61,7 @@ def test_range_init(parser):
     from fparser.common.readfortran import FortranStringReader
     # When no arguments are provided
     erange = Range()
-    assert not erange.children # Children list is empty
+    assert not erange.children  # Children list is empty
     assert erange.parent is None
     assert erange.annotations == []
     assert erange.ast is None
@@ -190,6 +190,7 @@ def test_range_out_of_order_setter():
             "are provided." in str(excinfo.value))
     erange.stop = datanode2
     erange.step = datanode3
+
 
 def test_range_str():
     ''' Check that node_str and str work correctly for a Range node. '''

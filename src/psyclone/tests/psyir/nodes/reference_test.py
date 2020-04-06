@@ -92,8 +92,8 @@ def test_reference_optional_parent():
 
 
 def test_reference_children_validation():
-    '''Test that children added to Reference are validated. A Reference node does
-    not accept any children.
+    '''Test that children added to Reference are validated. A Reference node
+    does not accept any children.
 
     '''
     ref = Reference(DataSymbol("rname", DataType.REAL))

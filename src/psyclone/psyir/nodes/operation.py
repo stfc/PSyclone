@@ -271,7 +271,6 @@ class BinaryOperation(Operation):
         super(BinaryOperation, self).__init__(operator, parent)
         self._text_name = "BinaryOperation"
 
-
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -283,7 +282,7 @@ class BinaryOperation(Operation):
         :rtype: bool
 
         '''
-        return position in (0,1) and isinstance(child, DataNode)
+        return position in (0, 1) and isinstance(child, DataNode)
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
@@ -374,7 +373,6 @@ class NaryOperation(Operation):
     def __init__(self, operator, parent=None):
         super(NaryOperation, self).__init__(operator, parent)
         self._text_name = "NaryOperation"
-
 
     @staticmethod
     def _validate_child(position, child):

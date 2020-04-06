@@ -73,7 +73,6 @@ class CodeBlock(Statement, DataNode):
         # The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-
     def __init__(self, fp2_nodes, structure, parent=None):
         super(CodeBlock, self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated

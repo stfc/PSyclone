@@ -154,16 +154,16 @@ def test_binaryoperation_children_validation():
     # Statements are not valid
     with pytest.raises(GenerationError) as excinfo:
         operation.addchild(statement)
-    assert ("Item 'Return' can't be child 0 of 'BinaryOperation'. The valid format "
-            "is: 'DataNode, DataNode'.") in str(excinfo.value)
+    assert ("Item 'Return' can't be child 0 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
     # First DataNodes is valid, but not subsequent ones
     operation.addchild(literal1)
     operation.addchild(literal2)
     with pytest.raises(GenerationError) as excinfo:
         operation.addchild(literal3)
-    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid format "
-            "is: 'DataNode, DataNode'.") in str(excinfo.value)
+    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
 # Test UnaryOperation class
@@ -242,6 +242,7 @@ def test_unaryoperation_create_invalid():
     assert ("child argument in create method of UnaryOperation class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
+
 def test_unaryoperation_children_validation():
     '''Test that children added to unaryOperation are validated.
     UnaryOperations accept just 1 DataNode as child.
@@ -255,15 +256,15 @@ def test_unaryoperation_children_validation():
     # Statements are not valid
     with pytest.raises(GenerationError) as excinfo:
         operation.addchild(statement)
-    assert ("Item 'Return' can't be child 0 of 'UnaryOperation'. The valid format "
-            "is: 'DataNode'.") in str(excinfo.value)
+    assert ("Item 'Return' can't be child 0 of 'UnaryOperation'. The valid "
+            "format is: 'DataNode'.") in str(excinfo.value)
 
     # First DataNodes is valid, but not subsequent ones
     operation.addchild(literal1)
     with pytest.raises(GenerationError) as excinfo:
         operation.addchild(literal2)
-    assert ("Item 'Literal' can't be child 1 of 'UnaryOperation'. The valid format "
-            "is: 'DataNode'.") in str(excinfo.value)
+    assert ("Item 'Literal' can't be child 1 of 'UnaryOperation'. The valid "
+            "format is: 'DataNode'.") in str(excinfo.value)
 
 
 def test_naryoperation_node_str():
@@ -361,5 +362,5 @@ def test_naryoperation_children_validation():
     # Statements are not valid
     with pytest.raises(GenerationError) as excinfo:
         nary.addchild(statement)
-    assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid format "
-            "is: '+[DataNode]'.") in str(excinfo.value)
+    assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
+            "format is: '+[DataNode]'.") in str(excinfo.value)

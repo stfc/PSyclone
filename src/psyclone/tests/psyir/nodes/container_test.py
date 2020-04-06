@@ -152,6 +152,7 @@ def test_container_create_invalid():
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
             " '*[Container | KernelSchedule]'." in str(excinfo.value))
 
+
 def test_container_children_validation():
     '''Test that children added to Container are validated. Container
     accepts just Container and kernelSchedule as children.

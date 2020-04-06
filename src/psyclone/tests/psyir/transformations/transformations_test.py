@@ -40,7 +40,8 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule, Statement
+from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule, \
+    Statement
 from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError

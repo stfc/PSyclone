@@ -105,7 +105,6 @@ def test_sched_children_validation():
     schedule = Schedule()
     statement = Assignment()
     nonstatement = Range()
-    return # FIXME
 
     # Invalid child
     with pytest.raises(GenerationError) as excinfo:

@@ -117,6 +117,7 @@ def test_literal_can_be_printed():
     literal = Literal("1", DataType.INTEGER)
     assert "Literal[value:'1', DataType.INTEGER]" in str(literal)
 
+
 def test_literal_children_validation():
     '''Test that children added to Literals are validated. A Literal node does
     not accept any children.
