@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified I. Kavcic, Met Office
+.. Modified by I. Kavcic, Met Office
 
 .. _examples:
 
@@ -176,7 +176,8 @@ Example 3
 
 Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
-kernels.
+kernels. Also showes the use of ``Wchi` function space metadata for
+coordinate fields in LFRic.
 
 Example 4
 ^^^^^^^^^
@@ -223,7 +224,7 @@ Example 10
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions), as well as the
-use of ``ANY_DISCONTINUOUS_SPACE`` metadata.
+use of ``ANY_DISCONTINUOUS_SPACE`` function space metadata.
 
 Example 11
 ^^^^^^^^^^
