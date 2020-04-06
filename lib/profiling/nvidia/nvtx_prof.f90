@@ -165,7 +165,7 @@ contains
   !! @param[inout] this: Persistent data, not used in this case.
   subroutine PostEnd(this)
     implicit none
-    class(PSyDataType) :: this
+    class(PSyDataType), target :: this
     
     call nvtxRangePop()
     
