@@ -63,13 +63,12 @@ class ProfileNode(PSyDataNode):
         identify a region unless aggregate information is required.
 
     '''
+    _text_name = "Profile"
+    _colour_key = "Profile"
+
     def __init__(self, ast=None, children=None, parent=None, options=None):
         super(ProfileNode, self).__init__(ast=ast, children=children,
                                           parent=parent, options=options)
-
-        # Name and colour to use for this node
-        self._text_name = "Profile"
-        self._colour_key = "Profile"
 
     # -------------------------------------------------------------------------
     def __str__(self):

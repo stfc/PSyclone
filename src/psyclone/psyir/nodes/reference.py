@@ -62,6 +62,8 @@ class Reference(DataNode):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
+    _text_name = "Reference"
+    _colour_key = "Reference"
 
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):
@@ -153,11 +155,10 @@ class Array(Reference):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "*[DataNode | Range]"
+    _text_name = "ArrayReference"
 
     def __init__(self, symbol, parent=None):
         super(Array, self).__init__(symbol, parent=parent)
-        self._text_name = "ArrayReference"
-        self._colour_key = "Reference"
 
     @staticmethod
     def _validate_child(position, child):

@@ -66,6 +66,8 @@ class Operation(DataNode):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = None
+    _text_name = "Operation"
+    _colour_key = "Operation"
 
     def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
@@ -76,8 +78,6 @@ class Operation(DataNode):
                 "{0}.Operator but found {1}.".format(type(self).__name__,
                                                      type(operator).__name__))
         self._operator = operator
-        self._text_name = "Operation"
-        self._colour_key = "Operation"
 
     @property
     def operator(self):
@@ -129,6 +129,7 @@ class UnaryOperation(Operation):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode"
+    _text_name = "UnaryOperation"
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
@@ -145,7 +146,6 @@ class UnaryOperation(Operation):
 
     def __init__(self, operation, parent=None):
         super(UnaryOperation, self).__init__(operation, parent)
-        self._text_name = "UnaryOperation"
 
     @staticmethod
     def _validate_child(position, child):
@@ -266,10 +266,10 @@ class BinaryOperation(Operation):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode, DataNode"
+    _text_name = "BinaryOperation"
 
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(operator, parent)
-        self._text_name = "BinaryOperation"
 
     @staticmethod
     def _validate_child(position, child):
@@ -364,6 +364,7 @@ class NaryOperation(Operation):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "+[DataNode]"
+    _text_name = "NaryOperation"
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
@@ -372,7 +373,6 @@ class NaryOperation(Operation):
 
     def __init__(self, operator, parent=None):
         super(NaryOperation, self).__init__(operator, parent)
-        self._text_name = "NaryOperation"
 
     @staticmethod
     def _validate_child(position, child):

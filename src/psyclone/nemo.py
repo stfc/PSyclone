@@ -299,6 +299,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
+
     def __init__(self, invoke, ast):
         # pylint: disable=super-init-not-called, non-parent-init-called
         Node.__init__(self)
@@ -320,9 +321,6 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         self._symbol_table.add(DataSymbol("jpi", DataType.INTEGER))
         self._symbol_table.add(DataSymbol("jpj", DataType.INTEGER))
         self._symbol_table.add(DataSymbol("jpk", DataType.INTEGER))
-
-        self._text_name = "InvokeSchedule"
-        self._colour_key = "Schedule"
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
@@ -396,8 +394,6 @@ class NemoKern(InlinedKern):
         self._ast = parse_tree
 
         # Name and colour-code to use for displaying this node
-        self._text_name = "InlinedKern"
-        self._colour_key = "InlinedKern"
         self._reduction = False
 
     @staticmethod
@@ -549,8 +545,6 @@ class NemoImplicitLoop(NemoLoop):
                       valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
-        self._text_name = "NemoImplicitLoop"
-        self._colour_key = "Loop"
 
     def __str__(self):
         # Display the LHS of the assignment in the str representation

@@ -57,6 +57,8 @@ class Container(Node):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "*[Container | KernelSchedule]"
+    _text_name = "Container"
+    _colour_key = "Container"
 
     def __init__(self, name, parent=None):
         super(Container, self).__init__(parent=parent)

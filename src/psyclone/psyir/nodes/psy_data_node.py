@@ -90,6 +90,8 @@ class PSyDataNode(Statement):
     psy_data_var = "psy_data"
     # Textual representation of the valid children for this node.
     _children_valid_format = "Schedule"
+    _text_name = "PSyData"
+    _colour_key = "PSyData"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
         # TODO: #415 Support different classes of PSyData calls.
@@ -132,11 +134,6 @@ class PSyDataNode(Statement):
             parent.addchild(self, index=node_position)
         elif parent:
             parent.addchild(self)
-
-        # Name and colour to use for this node - must be set after calling
-        # the constructor
-        self._text_name = "PSyData"
-        self._colour_key = "PSyData"
 
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so

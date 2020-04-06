@@ -191,6 +191,8 @@ class Node(object):
     valid_annotations = tuple()
     # Textual representation of the valid children for this node.
     _children_valid_format = "*[Node]"
+    _text_name = "Node"
+    _colour_key = "Node"
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
         self._children = ChildrenList(self, self._validate_child,
@@ -215,11 +217,6 @@ class Node(object):
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
-        # Name to use for this Node type. By default we use the name of
-        # the class but this can be overridden by a sub-class.
-        self._text_name = self.__class__.__name__
-        # Which colour to use from the SCHEDULE_COLOUR_MAP
-        self._colour_key = self.__class__.__name__
 
     @staticmethod
     def _validate_child(position, child):

@@ -77,6 +77,8 @@ class Loop(Statement):
     valid_annotations = ('was_where', 'was_single_stmt')
     # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
+    _text_name = "Loop"
+    _colour_key = "Loop"
 
     def __init__(self, parent=None, variable_name="", valid_loop_types=None,
                  annotations=None):
@@ -105,8 +107,6 @@ class Loop(Statement):
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
         self._kern = None             # Kernel associated with this loop
-        self._text_name = "Loop"
-        self._colour_key = "Loop"
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"

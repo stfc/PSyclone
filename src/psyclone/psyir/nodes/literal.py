@@ -67,6 +67,8 @@ class Literal(DataNode):
                         DataType.CHARACTER, DataType.BOOLEAN]
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
+    _text_name = "Literal"
+    _colour_key = "Literal"
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)

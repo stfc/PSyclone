@@ -51,6 +51,8 @@ class Return(Statement):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
+    _text_name = "Return"
+    _colour_key = "Return"
 
     def __init__(self, parent=None):
         super(Return, self).__init__(parent=parent)

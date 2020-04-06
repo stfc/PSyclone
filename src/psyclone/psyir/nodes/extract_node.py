@@ -70,11 +70,12 @@ class ExtractNode(PSyDataNode):
     :type options: dictionary of string:values or None
 
     '''
+    _text_name = "Extract"
+    _colour_key = "Extract"
+
     def __init__(self, ast=None, children=None, parent=None, options=None):
         super(ExtractNode, self).__init__(ast=ast, children=children,
                                           parent=parent, options=options)
-        self._text_name = "Extract"
-        self._colour_key = "Extract"
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-

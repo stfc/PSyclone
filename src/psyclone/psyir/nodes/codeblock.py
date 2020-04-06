@@ -60,6 +60,8 @@ class CodeBlock(Statement, DataNode):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
+    _text_name = "CodeBlock"
+    _colour_key = "CodeBlock"
 
     class Structure(Enum):
         '''

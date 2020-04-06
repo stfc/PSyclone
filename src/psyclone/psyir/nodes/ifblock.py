@@ -38,7 +38,6 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
@@ -65,6 +64,8 @@ class IfBlock(Statement):
                          'was_where')
     # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode, Schedule [, Schedule]"
+    _text_name = "If"
+    _colour_key = "If"
 
     def __init__(self, parent=None, annotations=None):
         super(IfBlock, self).__init__(parent=parent)
@@ -77,8 +78,6 @@ class IfBlock(Statement):
                         "IfBlock with unrecognized annotation '{0}', valid "
                         "annotations are: {1}.".format(
                             annotation, IfBlock.valid_annotations))
-        self._text_name = "If"
-        self._colour_key = "If"
 
     @staticmethod
     def _validate_child(position, child):

@@ -778,6 +778,8 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
+    _text_name = "InvokeSchedule"
+
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
 
@@ -806,7 +808,6 @@ class InvokeSchedule(Schedule):
             else:
                 sequence.append(KernFactory.create(call, parent=self))
         Schedule.__init__(self, children=sequence, parent=None)
-        self._text_name = "InvokeSchedule"
 
     @property
     def symbol_table(self):
@@ -1044,13 +1045,13 @@ class Directive(Statement):
     _PREFIX = ""
     # Textual representation of the valid children for this node.
     _children_valid_format = "Schedule"
+    _text_name = "Directive"
+    _colour_key = "Directive"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = self._insert_schedule(children, ast)
         super(Directive, self).__init__(ast, children=[sched], parent=parent)
-        self._text_name = "Directive"
-        self._colour_key = "Directive"
 
     @staticmethod
     def _validate_child(position, child):
@@ -2068,6 +2069,8 @@ class GlobalSum(Statement):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
+    _text_name = "GlobalSum"
+    _colour_key = "GlobalSum"
 
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2079,8 +2082,6 @@ class GlobalSum(Statement):
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
-        self._text_name = "GlobalSum"
-        self._colour_key = "GlobalSum"
 
     @staticmethod
     def _validate_child(position, child):
@@ -2150,6 +2151,8 @@ class HaloExchange(Statement):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
+    _text_name = "HaloExchange"
+    _colour_key = "HaloExchange"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -2166,8 +2169,6 @@ class HaloExchange(Statement):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-        self._text_name = "HaloExchange"
-        self._colour_key = "HaloExchange"
 
     @staticmethod
     def _validate_child(position, child):
@@ -2343,8 +2344,7 @@ class Kern(Statement):
                         "Argument '{0}' is passed into kernel '{1}' code more "
                         "than once from the algorithm layer. This is not "
                         "allowed.".format(arg.text, self._name))
-                else:
-                    arg_names.append(text)
+                arg_names.append(text)
 
         self._arg_descriptors = None
 
@@ -2621,6 +2621,9 @@ class CodedKern(Kern):
                              call does not match that in the meta-data.
 
     '''
+    _text_name = "CodedKern"
+    _colour_key = "CodedKern"
+
     def __init__(self, KernelArguments, call, parent=None, check=True):
         self._parent = parent
         super(CodedKern, self).__init__(parent, call,
@@ -2646,8 +2649,6 @@ class CodedKern(Kern):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
-        self._text_name = "CodedKern"
-        self._colour_key = "CodedKern"
 
     def get_kernel_schedule(self):
         '''
@@ -3144,6 +3145,8 @@ class InlinedKern(Kern):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "Schedule"
+    _text_name = "InlinedKern"
+    _colour_key = "InlinedKern"
 
     def __init__(self, psyir_nodes):
         # pylint: disable=non-parent-init-called,super-init-not-called
@@ -3184,6 +3187,9 @@ class BuiltIn(Kern):
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
     '''
+    _text_name = "BuiltIn"
+    _colour_key = "BuiltIn"
+
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
@@ -3192,8 +3198,6 @@ class BuiltIn(Kern):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     @property
     def dag_name(self):
@@ -3204,8 +3208,6 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be

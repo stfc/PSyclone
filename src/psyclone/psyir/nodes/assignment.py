@@ -59,6 +59,8 @@ class Assignment(Statement):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode, DataNode"
+    _text_name = "Assignment"
+    _colour_key = "Assignment"
 
     def __init__(self, ast=None, parent=None):
         super(Assignment, self).__init__(ast=ast, parent=parent)

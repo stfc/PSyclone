@@ -100,6 +100,8 @@ class Range(Node):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "DataNode, DataNode, DataNode"
+    _text_name = "Range"
+    _colour_key = "Range"
 
     def __init__(self, parse_node=None, parent=None, annotations=None):
 

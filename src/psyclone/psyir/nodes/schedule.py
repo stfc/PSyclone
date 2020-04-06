@@ -54,10 +54,10 @@ class Schedule(Node):
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "*[Statement]"
+    _text_name = "Schedule"
+    _colour_key = "Schedule"
 
     def __init__(self, children=None, parent=None):
-        self._text_name = "Schedule"
-        self._colour_key = "Schedule"
         Node.__init__(self, children=children, parent=parent)
 
     @staticmethod
