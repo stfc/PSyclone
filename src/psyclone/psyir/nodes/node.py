@@ -233,7 +233,11 @@ class Node(object):
 
         '''
         # pylint: disable=unused-argument
-        return True
+        # Node is used loosely in unit-testing when we don't care what the
+        # parent is. To allow this we keep all children of nodes valid.
+        # TODO: To the reviewer, alternatively I can make this abstract and
+        # update the unit-tests.
+        return isinstance(child, Node)
 
     def coloured_name(self, colour=True):
         '''
