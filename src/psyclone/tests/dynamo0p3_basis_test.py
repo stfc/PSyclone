@@ -186,7 +186,6 @@ def test_single_kern_eval(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -195,8 +194,7 @@ def test_single_kern_eval(tmpdir):
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
         "      USE testkern_eval, ONLY: testkern_eval_code\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      TYPE(field_type), intent(inout) :: f0\n"
-        "      TYPE(field_type), intent(in) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f0, f1\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
         "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
@@ -290,7 +288,6 @@ def test_single_kern_eval_op(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -300,7 +297,7 @@ def test_single_kern_eval_op(tmpdir):
     decln_output = (
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      TYPE(field_type), intent(in) :: f1\n"
-        "      TYPE(operator_type), intent(inout) :: op1\n"
+        "      TYPE(operator_type), intent(in) :: op1\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) df_nodal, df_w2, df_w3\n"
         "      REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
@@ -372,8 +369,8 @@ def test_two_qr_same_shape(tmpdir):
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      REAL(KIND=r_def), intent(in) :: a, b\n"
         "      INTEGER(KIND=i_def), intent(in) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f1, g1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, g2, n1, n2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, g1, g2, "
+        "n1, n2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr, qr2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
@@ -495,7 +492,6 @@ def test_two_identical_qr(tmpdir):
         api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -608,7 +604,6 @@ def test_anyw2(tmpdir):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
-        print(generated_code)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -652,7 +647,6 @@ def test_qr_plus_eval(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -665,8 +659,7 @@ def test_qr_plus_eval(tmpdir):
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f0, f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f0, f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
@@ -778,7 +771,6 @@ def test_two_eval_same_space(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -839,7 +831,6 @@ def test_two_eval_diff_space(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -924,7 +915,6 @@ def test_two_eval_same_var_same_space(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -962,7 +952,6 @@ def test_two_eval_op_to_space(tmpdir):
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1069,7 +1058,6 @@ def test_eval_diff_nodal_space(tmpdir):
         api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1220,7 +1208,7 @@ def test_2eval_1qr_2fs(tmpdir):
                      "6.10_2eval_2fs_qr_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
+
     assert gen_code.count(
         "REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
         "diff_basis_w1_on_w1(:,:,:), basis_w2_on_w0(:,:,:), "
@@ -1378,7 +1366,7 @@ def test_basis_evaluator():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
+
     output_arg_list = (
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
@@ -1648,7 +1636,7 @@ def test_diff_basis_eval():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
+
     output_args = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -1727,7 +1715,6 @@ def test_2eval_stubgen():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
 
     assert (
         "SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2,"

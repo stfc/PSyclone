@@ -58,6 +58,16 @@ about the dynamical core's `formulation
 and `data model
 <http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
 
+The GungHo dynamical core with atmospheric physics parameterisation
+schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
+currently being developed in preparation for exascale computing in the 2020s.
+The LFRic repository and the associated wiki are hosted at the `Met Office
+Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
+The code is BSD-licensed, however browsing the `LFRic wiki
+<https://code.metoffice.gov.uk/trac/lfric/wiki>`_ and
+`code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_
+requires login access to MOSRS.
+
 .. _dynamo0.3-api-algorithm:
 
 Algorithm
@@ -102,10 +112,19 @@ Please see the :ref:`algorithm-layer` section for a description of the
 Objects in the Dynamo0.3 API can be categorised by their functionality
 as data types and information that specifies supported operations on a
 particular data type. The above example introduces four of five data types
-supported by the Dynamo0.3 API: field, scalar, operator and column-wise
+supported by the Dynamo0.3 API: scalar, field, operator and column-wise
 operator (field vector is the fifth). ``qr`` represents a quadrature
 object which provides information required by a kernel to operate
 on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+
+.. _dynamo0.3-scalar:
+
+Scalar
+++++++
+
+In the Dynamo0.3 API a scalar is a single-valued variable that can be
+either real or integer. Real scalars are identified with ``GH_REAL``
+and integer scalars are identified with ``GH_INTEGER`` metadata.
 
 .. _dynamo0.3-field:
 
@@ -140,12 +159,7 @@ size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
 vector size of 3.
 
-Scalar
-++++++
-
-In Dynamo0.3 API a scalar is a single value variable that can be
-either real or integer. Real scalars are identified with ``GH_REAL``
-and integer scalars are identified with ``GH_INTEGER`` metadata.
+.. _dynamo0.3-operator:
 
 Operator
 ++++++++
@@ -153,6 +167,8 @@ Operator
 Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
 metadata.
+
+.. _dynamo0.3-cma-operator:
 
 Column-Wise Operator
 ++++++++++++++++++++
@@ -336,6 +352,8 @@ as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
 
+.. _dynamo0.3-psy:
+
 PSy-layer
 ---------
 
@@ -354,6 +372,28 @@ within a module, or the program name if it is a program.
 
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
+
+.. _dynamo0.3-psy-arg-intents:
+
+Argument Intents
+################
+
+LFRic :ref:`fields <dynamo0.3-field>`, :ref:`field vectors
+<dynamo0.3-field-vector>`, :ref:`operators <dynamo0.3-operator>` and
+:ref:`column-wise operators <dynamo0.3-cma-operator>` are objects that
+contain pointers to data rather than data. The data are accessed by proxies
+of these objects and modified in :ref:`kernels <dynamo0.3-kernel>`.
+As the objects themselves are not modified in the PSy layer, their Fortran
+intents there are always ``intent(in)``.
+
+The Fortran intent of :ref:`scalars <dynamo0.3-scalar>` is still defined
+by their :ref:`access metadata <dynamo0.3-valid-access>` as they are
+actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
+for ``GH_SUM`` (more details in :ref:`meta_args <dynamo0.3-api-meta-args>`
+section below).
+
+The intent of other data structures is mandated by the relevant
+Dynamo0.3 API rules described in sections below.
 
 .. _dynamo0.3-kernel:
 
@@ -556,7 +596,7 @@ or **operator** passed into the Kernel and the order that these occur
 in the ``meta_args`` array must be the same as they are expected in
 the kernel code argument list. The entry must be of ``arg_type`` which
 itself contains metadata about the associated argument. The size of
-the meta_args array must correspond to the number of **scalars**,
+the ``meta_args`` array must correspond to the number of **scalars**,
 **fields** and **operators** passed into the Kernel.
 
 .. note:: It makes no sense for a Kernel to have only **scalar** arguments
@@ -747,9 +787,11 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
 ======================  ============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
-          scalar arguments. *Since the LFRic infrastructure does not
-          currently support integer reductions, integer scalar arguments
-          are restricted to having read-only access.*
+          scalar arguments. In practice this means that the only allowed
+          access for the user-defined scalars in kernels is ``GH_READ``.
+          *Furthermore, since the LFRic infrastructure does not currently
+          support integer reductions, integer scalar arguments are
+          restricted to having read-only access.*
 
 .. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
           ``GH_READWRITE`` as its access pattern must be a discontinuous
@@ -1206,6 +1248,8 @@ describes.
 For example::
 
   procedure, nopass :: my_kernel_subroutine
+
+.. _dynamo0.3-kern-subroutine:
 
 Subroutine
 ++++++++++
@@ -1715,6 +1759,29 @@ arguments to inter-grid kernels are as follows:
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
 
+.. _dynamo0.3-kernel-arg-intents:
+
+Argument Intents
+################
+
+As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
+and/or update the data pointed to by objects such as
+:ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
+This data is passed to the kernels as :ref:`subroutine arguments
+<dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
+logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
+
+* ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
+
+* ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
+  is only written to in a kernel. When the argument is defined inside a kernel
+  its intent is ``intent(out)`` and when it is defined outside of a kernel its
+  intent is ``intent(inout)``.
+
+* ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
+  are updated (albeit in a different way due to different access to DoFs, see
+  :ref:`dynamo0.3-api-meta-args` for more details).
+
 .. _dynamo0.3-built-ins:
 
 Built-ins
@@ -1746,6 +1813,11 @@ the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
 Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
 optimised maths library).
+
+As described in the PSy-layer :ref:`Argument Intents
+<dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
+:ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
+scalar that has its data modified by a Built-in is marked in **bold**.
 
 Naming scheme
 +++++++++++++
@@ -1817,9 +1889,7 @@ Sums two fields (Z = X + Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_plus_Y
 ############
@@ -1832,8 +1902,7 @@ Adds the second field to the first and returns it (X = X + Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_plus_Y
 #########
@@ -1847,8 +1916,7 @@ Performs Z = aX + Y::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_aX_plus_Y
 #############
@@ -1862,8 +1930,7 @@ Performs X = aX + Y (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 inc_X_plus_bY
 #############
@@ -1877,8 +1944,7 @@ Performs X = X + bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_plus_bY
 ##########
@@ -1892,8 +1958,7 @@ Performs Z = aX + bY::
 where:
 
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_aX_plus_bY
 ##############
@@ -1907,8 +1972,7 @@ Performs X = aX + bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Subtraction
 +++++++++++
@@ -1927,9 +1991,7 @@ third (Z = X - Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_minus_Y
 #############
@@ -1942,8 +2004,7 @@ Subtracts the second field from the first and returns it (X = X - Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_minus_Y
 ##########
@@ -1957,8 +2018,7 @@ Performs Z = aX - Y::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 X_minus_bY
 ##########
@@ -1972,8 +2032,7 @@ Performs Z = X - bY::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_minus_bY
 ##############
@@ -1987,8 +2046,7 @@ Performs X = X - bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Multiplication
 ++++++++++++++
@@ -2007,8 +2065,7 @@ field (Z = X*Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_times_Y
 #############
@@ -2021,8 +2078,7 @@ Multiplies the first field by the second and returns it (X = X*Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 inc_aX_times_Y
 ##############
@@ -2036,8 +2092,7 @@ Performs X = a*X*Y (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Scaling
 +++++++
@@ -2058,8 +2113,7 @@ field (Y = a*X)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field2*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: **field2**, *field1*
 
 inc_a_times_X
 #############
@@ -2073,7 +2127,7 @@ Multiplies a field by a scalar value and returns the field (X = a*X)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 
 Division
 ++++++++
@@ -2093,8 +2147,7 @@ third (Z = X/Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: **field3**, *field1*, *field2*
 
 inc_X_divideby_Y
 ################
@@ -2107,8 +2160,7 @@ Divides the first field by the second and returns it (X = X/Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Setting to value
 ++++++++++++++++
@@ -2127,7 +2179,7 @@ Sets all elements of the field *field* to the value *constant* (X = c)::
 
 where:
 
-* type(field_type), intent(out) :: *field*
+* type(field_type), intent(in) :: **field**
 * real(r_def), intent(in) :: *constant*
 
 .. note:: The field may be on any function space.
@@ -2143,8 +2195,7 @@ Sets a field *field2* equal to field *field1* (Y = X)::
 
 where:
 
-* type(field_type), intent(out) :: *field2*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: **field2**, *field1*
 
 Raising to power
 ++++++++++++++++
@@ -2163,7 +2214,7 @@ Raises a field to a real scalar value and returns the field (X = X**a)::
 
 where:
 
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 * real(r_def), intent(in) :: *rscalar*
 
 inc_X_powint_n
@@ -2177,7 +2228,7 @@ Raises a field to an integer scalar value and returns the field (X = X**n)::
 
 where:
 
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 * integer(i_def), intent(in) :: *iscalar*
 
 Inner product
@@ -2197,7 +2248,7 @@ Computes the inner product of the fields *field1* and *field2*, *i.e.*::
 
 where:
 
-* real(r_def), intent(out) :: *innprod*
+* real(r_def), intent(out) :: **innprod**
 * type(field_type), intent(in) :: *field1*, *field2*
 
 .. note:: When used with distributed memory this Built-in will trigger
@@ -2215,7 +2266,7 @@ Computes the inner product of the field *field1* by itself, *i.e.*::
 
 where:
 
-* real(r_def), intent(out) :: *innprod*
+* real(r_def), intent(out) :: **innprod**
 * type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this Built-in will trigger
@@ -2239,8 +2290,8 @@ in the scalar variable *sumfld*::
 
 where:
 
-* real(r_def), intent(out) :: sumfld
-* type(field_type), intent(in) :: field
+* real(r_def), intent(out) :: **sumfld**
+* type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
