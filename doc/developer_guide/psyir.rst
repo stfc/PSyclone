@@ -57,7 +57,7 @@ to be easily extended. For example, a structure could be created thus:
 
            :param str: the name of this derived type.
            :param type_list: a list of datatypes.
-	   :type type_list: list of :py:class:`psyclone.psyir.symbols.DataType`
+           :type type_list: list of :py:class:`psyclone.psyir.symbols.DataType`
 
        '''
        def __init__(self, name, type_list):
@@ -89,14 +89,6 @@ If we were to subclass, it would have looked something like this:
 where ``RealType`` subclasses ``ScalarType``. It may be that the
 latter would have provided a better interface, but both approaches have
 the same functionality.
-
-At the moment when a Fortran REAL literal makes use of an exponent
-e.g. ``3.0e0`` or ``3.0d0`` the exponent is used to determine the
-precision of the literal (``e`` means single precision and ``d`` means
-double precision). However at the moment the value is stored within
-the literal instance with no change to the text (so a real literal
-value may contain ``e`` or ``d``). We should perhaps define and
-restrict what the PSyIR accepts e.g. we could always use ``e``.
 
 Nodes
 =====

@@ -38,15 +38,20 @@
 
 ''' This module contains the Literal node implementation.'''
 
+from __future__ import absolute_import
+import re
 import six
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
 class Literal(Node):
-    '''
-    Node representing a Literal. The value and datatype properties of
+    '''Node representing a Literal. The value and datatype properties of
     this node are immutable.
+
+    If the node represents "real" data and the value is expressed with
+    an exponent (e.g. 3.2e4) then the exponent must be a lower case
+    "e".
 
     :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
@@ -83,6 +88,12 @@ class Literal(Node):
             raise ValueError(
                 "A scalar boolean literal can only be: 'true' or "
                 "'false' but found '{0}'.".format(value))
+
+        if (datatype.name == ScalarType.Name.REAL and not
+                re.search(r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$', value)):
+            raise ValueError(
+                "A scalar real literal value must conform to the "
+                "supported format but found '{0}'.".format(value))
 
         self._datatype = datatype
         self._value = value

@@ -69,7 +69,7 @@ def test_literal_init():
     assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_literal_init_invalid():
+def test_literal_init_invalid_1():
     '''Test the initialisation of a Literal object with invalid parameters.'''
 
     # Test invalid datatype type
@@ -100,6 +100,27 @@ def test_literal_init_invalid():
         Literal("False", BOOLEAN_TYPE)
     assert ("A scalar boolean literal can only be: 'true' or 'false' "
             "but found 'False'." in str(err.value))
+
+
+@pytest.mark.parametrize("value", ["*2", "++2", ".2", "2..3", "2.3.4",
+                                   "3.2d0", "3.2e+", "3.2e2*", "3e2e2"])
+def test_literal_init_invalid_2(value):
+    '''Test the initialisation of a Literal object with invalid real values.'''
+
+    # Test invalid real value
+    with pytest.raises(ValueError) as err:
+        Literal(value, REAL_DOUBLE_TYPE)
+    assert ("A scalar real literal value must conform to the supported "
+            "format but found '{0}'.".format(value) in str(err.value))
+
+
+@pytest.mark.parametrize("value",
+                         ["2", "+2", "-2", "2.", "23", "23.4", "-23.45",
+                          "+23.45e0", "23.45e10", "-23.45e-10",
+                          "+23.45e+10", "+23e-10", "23.e10"])
+def test_literal_init_valid_value(value):
+    '''Test the initialisation of a Literal object with valid real values.'''
+    _ = Literal(value, REAL_DOUBLE_TYPE)
 
 
 def test_literal_value():

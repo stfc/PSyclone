@@ -141,15 +141,9 @@ def test_cw_literal():
     lit = Literal('1', INTEGER_TYPE)
     assert cwriter(lit) == '1'
 
-    # Test that D scientific notation is replaced by 'e'
+    # Test that scientific notation is output correctly
     lit = Literal("3e5", REAL_TYPE, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3d5", REAL_TYPE, None)
-    assert cwriter(lit) == '3e5'
-    lit = Literal("3D5", REAL_TYPE, None)
-    assert cwriter(lit) == '3e5'
-    lit = Literal("3D+5", REAL_TYPE, None)
-    assert cwriter(lit) == '3e+5'
 
 
 def test_cw_assignment_and_reference():

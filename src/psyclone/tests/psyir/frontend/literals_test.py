@@ -146,9 +146,10 @@ def test_handling_literal_precision_2(value, dprecision, dname):
                           ("0.0E0", ScalarType.Precision.SINGLE),
                           ("0.0e0", ScalarType.Precision.SINGLE)])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_literal_precision_3(value,dprecision):
+def test_handling_literal_precision_3(value, dprecision):
     '''Check that the fparser2 frontend can handle literals with a
-    precision value specified by the exponent.
+    precision value specified by the exponent. The literal value
+    should always use a lower case "e" for the exponent.
 
     '''
     code = "x={0}".format(value)
@@ -160,7 +161,7 @@ def test_handling_literal_precision_3(value,dprecision):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.value.lower() == value.lower()
+    assert literal.value.lower() == "0.0e0"
     assert literal.datatype.name == ScalarType.Name.REAL
     assert literal.datatype.precision == dprecision
 
@@ -191,7 +192,7 @@ def test_number_handler():
         processor._number_handler(
             Fortran2003.Complex_Literal_Constant(reader), fake_parent)
 
-        
+
 # The get_literal_precision() function is covered by the
 # test_handling_literal_precision_{1-3} tests above, apart from
 # invalid arguments which are tested here.

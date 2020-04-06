@@ -365,7 +365,7 @@ def get_literal_precision(fparser2_node, psyir_node):
         return default_precision()
     try:
         # Precision is specified as an integer
-        return (int(precision_name))
+        return int(precision_name)
     except ValueError:
         # Precision is not an integer so should be a kind symbol
         pass
@@ -1209,7 +1209,7 @@ class Fparser2Reader(object):
 
         '''
         symbol_table = _get_symbol_table(psyir_node)
-        
+
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             return None
         # The KIND() intrinsic itself is Fortran specific and has no direct
@@ -2501,7 +2501,12 @@ class Fparser2Reader(object):
         if isinstance(node, Fortran2003.Real_Literal_Constant):
             real_type = ScalarType(ScalarType.Name.REAL,
                                    get_literal_precision(node, parent))
-            return Literal(str(node.items[0]), real_type, parent=parent)
+            # Make sure any exponent is lower case
+            value = str(node.items[0]).lower()
+            # Make all exponents use the letter "e". (Fortran also
+            # allows "d").
+            value = value.replace("d", "e")
+            return Literal(value, real_type, parent=parent)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()
 
@@ -2520,7 +2525,7 @@ class Fparser2Reader(object):
         '''
         # pylint: disable=no-self-use
         character_type = ScalarType(ScalarType.Name.CHARACTER,
-                                  get_literal_precision(node, parent))
+                                    get_literal_precision(node, parent))
         return Literal(str(node.items[0]), character_type, parent=parent)
 
     def _bool_literal_handler(self, node, parent):
