@@ -81,7 +81,7 @@ contains
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     character*(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
@@ -101,7 +101,7 @@ contains
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     
     if(lhook) call dr_hook(this%name, 1, this%zhook_handle)
   end subroutine PostEnd

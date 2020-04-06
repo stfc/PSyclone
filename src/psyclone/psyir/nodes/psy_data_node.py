@@ -312,7 +312,7 @@ class PSyDataNode(Node):
         parent.add(use)
         var_decl = TypeDeclGen(parent, datatype="PSyDataType",
                                entity_decls=[self._var_name],
-                               save=True)
+                               save=True, target=True)
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
@@ -538,7 +538,7 @@ class PSyDataNode(Node):
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
-            "type(PSyDataType), save :: {0}".format(var_name))
+            "type(PSyDataType), target, save :: {0}".format(var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)

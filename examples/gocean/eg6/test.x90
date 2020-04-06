@@ -14,7 +14,6 @@ Program test
     ! interface does not provide a method for single precision).
     real(kind=kind(1.0d0))   :: z
     TYPE(grid_type), target  :: grid
-    type(decomposition_type) :: decomp
 
     call parallel_init()
     grid = grid_type(GO_ARAKAWA_C,                                 &
