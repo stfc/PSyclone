@@ -43,7 +43,8 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes import Node, Schedule, Reference, Container, \
+from psyclone.psyir.nodes.node import ChildrenList, Node
+from psyclone.psyir.nodes import Schedule, Reference, Container, \
     Assignment, Return
 from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
@@ -629,8 +630,6 @@ def test_children_validation():
     The specific logic of each validate method will be tested individually
     inside each Node test file.
     '''
-    from psyclone.psyir.nodes.node import ChildrenList
-
     assignment = Assignment()
     return_stmt = Return()
     reference = Reference(DataSymbol("a", DataType.INTEGER))
@@ -663,3 +662,26 @@ def test_children_validation():
     assignment.addchild(reference)
 
     # TODO: Should displaced items from insert() or remove() also be checked?
+
+
+def test_children_setter():
+    ''' Test that the children setter sets-up accepts lists or None or raises
+    the appropriate issue. '''
+    testnode = Node()
+
+    # children is initialised as a ChildrenList
+    assert isinstance(testnode.children, ChildrenList)
+
+    # When is set up with a list, this becomes a ChildrenList
+    testnode.children = [Node(), Node()]
+    assert isinstance(testnode.children, ChildrenList)
+
+    # It also accepts None
+    testnode.children = None
+    assert testnode.children is None
+
+    # Other types are not accepted
+    with pytest.raises(TypeError) as error:
+        testnode.children = Node()
+    assert "The 'my_children' parameter of the node.children setter must be" \
+           " a list or None." in str(error.value)
