@@ -102,7 +102,7 @@ def test_cma_mdata_assembly():
         "  access_descriptor[1]='gh_write'\n"
         "  function_space_to[2]='any_space_1'\n"
         "  function_space_from[3]='any_space_2'\n")
-    print(dkm_str)
+
     assert expected in dkm_str
     assert dkm._cma_operation == "assembly"
 
@@ -299,7 +299,7 @@ def test_cma_mdata_apply():
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space[2]='any_space_2'\n")
-    print(dkm_str)
+
     assert expected in dkm_str
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
@@ -485,7 +485,7 @@ def test_cma_mdata_matrix_prod():
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"
         "  function_space_from[3]='any_space_2'\n")
-    print(dkm_str)
+
     assert expected in dkm_str
     assert dkm._cma_operation == "matrix-matrix"
 
@@ -655,7 +655,7 @@ def test_cma_asm(tmpdir, dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
@@ -692,7 +692,7 @@ def test_cma_asm_field(tmpdir, dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
@@ -731,7 +731,7 @@ def test_cma_asm_scalar(dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
@@ -752,7 +752,7 @@ def test_cma_asm_scalar(dist_mem):
                 "cbanded_map_any_space_1_lma_op1, "
                 "ndf_any_space_2_lma_op1, "
                 "cbanded_map_any_space_2_lma_op1)")
-    print(expected)
+
     assert expected in code
 
 
@@ -772,7 +772,7 @@ def test_cma_asm_field_same_fs(dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
@@ -1172,7 +1172,7 @@ def test_cma_asm_stub_gen():
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_kernel_mod.F90"),
                       api="dynamo0.3")
-    print(str(result))
+
     expected = (
         "  MODULE columnwise_op_asm_kernel_mod\n"
         "    IMPLICIT NONE\n"
@@ -1219,7 +1219,7 @@ def test_cma_asm_with_field_stub_gen():
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_field_kernel_mod.F90"),
                       api="dynamo0.3")
-    print(str(result))
+
     expected = (
         "  MODULE columnwise_op_asm_field_kernel_mod\n"
         "    IMPLICIT NONE\n"
@@ -1268,7 +1268,7 @@ def test_cma_asm_same_fs_stub_gen():
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_same_fs_kernel_mod.F90"),
                       api="dynamo0.3")
-    print(str(result))
+
     expected = (
         "  MODULE columnwise_op_asm_same_fs_kernel_mod\n"
         "    IMPLICIT NONE\n"
@@ -1310,7 +1310,7 @@ def test_cma_app_stub_gen():
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_kernel_mod.F90"),
                       api="dynamo0.3")
-    print(result)
+
     expected = (
         "  MODULE columnwise_op_app_kernel_mod\n"
         "    IMPLICIT NONE\n"
@@ -1360,7 +1360,7 @@ def test_cma_app_same_space_stub_gen():
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_same_fs_kernel_mod.F90"),
                       api="dynamo0.3")
-    print(result)
+
     expected = (
         "  MODULE columnwise_op_app_same_fs_kernel_mod\n"
         "    IMPLICIT NONE\n"
@@ -1400,7 +1400,7 @@ def test_cma_mul_stub_gen():
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_mul_kernel_mod.F90"),
                       api="dynamo0.3")
-    print(result)
+
     expected = (
         "  MODULE columnwise_op_mul_kernel_mod\n"
         "    IMPLICIT NONE\n"
@@ -1441,7 +1441,7 @@ def test_cma_mul_with_scalars_stub_gen():
     result = generate(
         os.path.join(BASE_PATH, "columnwise_op_mul_2scalars_kernel_mod.F90"),
         api="dynamo0.3")
-    print(result)
+
     expected = (
         "  MODULE columnwise_op_mul_2scalars_kernel_mod\n"
         "    IMPLICIT NONE\n"

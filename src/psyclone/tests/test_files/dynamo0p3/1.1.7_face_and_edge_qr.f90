@@ -1,14 +1,7 @@
-!-------------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,31 +29,20 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I. Kavcic, Met Office
-!
-!> @brief Example of code generation for solver preconditioner.
+! Author A. R. Porter, STFC Daresbury Lab
 
-module alg
+program single_invoke
 
-implicit none
+  ! Description: single kernel requiring both face and edge quadrature
+  ! specified in a single invoke call.
+  use testkern_2qr_mod, only: testkern_2qr_type
+  use inf, only: field_type
 
-contains
+  implicit none
 
-  subroutine example(precond_option, mmd)
+  type(field_type) :: f1, f2, m1, m2
+  type(quadrature_rule) :: qr_face, qr_edge
 
-    use precondition_mod, only : precondition
+  call invoke( testkern_2qr_type(f1, f2, m1, m2, qr_face, qr_edge) )
 
-    implicit none
-
-    integer(i_def),   intent(in)           :: precond_option
-    type(field_type), intent(in), optional :: mmd
-    real(kind=r_def)                       :: rs_old
-    type(field_type)                       :: res, p, z
-
-    call precondition( z, res, precond_option, diagonal=mmd )
-    call invoke( setval_X( p, z),  &
-                 X_innerproduct_Y( rs_old, res, z ) )
-
-  end subroutine example
-
-end module alg
+end program single_invoke

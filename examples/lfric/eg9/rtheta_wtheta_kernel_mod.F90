@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear
 !>        equations for horizontally discontinuous temperature basis functions,
@@ -80,29 +80,17 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface rtheta_wtheta_kernel_type
-   module procedure rtheta_wtheta_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public rtheta_wtheta_code
-contains
 
-type(rtheta_wtheta_kernel_type) function rtheta_wtheta_kernel_constructor() result(self)
-  return
-end function rtheta_wtheta_kernel_constructor
+contains
 
 !> @brief Compute right hand side of the thermodynamic equation
 !! @param[in] nlayers Number of layers
-!! @param[inout] r_theta Right hand side of the thermodynamic equation
-!! @param[inout] theta Potential temperature
-!! @param[inout] u Velocity
+!! @param[in,out] r_theta Right hand side of the thermodynamic equation
+!! @param[in,out] theta Potential temperature
+!! @param[in,out] u Velocity
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2  Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
