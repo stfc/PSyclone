@@ -72,29 +72,32 @@ module psy_data_mod
         integer                            :: next_var_index
     contains
         ! The various procedures used
-        procedure :: DeclareScalarInt,   WriteScalarInt,   ReadScalarInt
-        procedure :: DeclareScalarReal,  WriteScalarReal,  ReadScalarReal
-        procedure :: DeclareFieldDouble, WriteFieldDouble, ReadFieldDouble
-        procedure :: WriteScalarDouble
+        procedure :: DeclareScalarInt,    WriteScalarInt,    ReadScalarInt
+        procedure :: DeclareScalarReal,   WriteScalarReal,   ReadScalarReal
+        procedure :: DeclareFieldDouble,  WriteFieldDouble,  ReadFieldDouble
+        procedure :: DeclareScalarDouble, WriteScalarDouble, ReadScalarDouble
         procedure :: PreStart, PreEndDeclaration, PreEnd
         procedure :: PostStart, PostEnd
         procedure :: OpenRead
 
         !> The generic interface for declaring a variable:
-        generic, public :: PreDeclareVariable => DeclareScalarInt,  &
-                                                 DeclareScalarReal, &
+        generic, public :: PreDeclareVariable => DeclareScalarInt,    &
+                                                 DeclareScalarReal,   &
+                                                 DeclareScalarDouble, &
                                                  DeclareFieldDouble
         !> The generic interface for providing the value of variables,
         !! which in case of the NetCDF interface is written:                                               
-        generic, public :: ProvideVariable => WriteScalarInt,  &
-                                              WriteScalarReal, &
+        generic, public :: ProvideVariable => WriteScalarInt,    &
+                                              WriteScalarReal,   &
+                                              WriteScalarDouble, &
                                               WriteFieldDouble
 
         !> The generic interface for reading in variables previously
         !! written. Used in a driver that e.g. read previously written
         !! files.
-        generic, public :: ReadVariable => ReadScalarInt,  &
-                                           ReadScalarReal, &
+        generic, public :: ReadVariable => ReadScalarInt,    &
+                                           ReadScalarReal,   &
+                                           ReadScalarDouble, &
                                            ReadFieldDouble 
     end type PSyDataType
 
@@ -136,7 +139,7 @@ Contains
                         num_post_vars)
         use netcdf, only : nf90_create, NF90_CLOBBER
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
         integer :: retval
@@ -165,7 +168,7 @@ Contains
     subroutine OpenRead(this, module_name, kernel_name)
         use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer :: retval
 
@@ -182,7 +185,7 @@ Contains
     subroutine PreEndDeclaration(this)
         use netcdf, only : nf90_enddef
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         integer :: retval
         retval = CheckError(nf90_enddef(this%ncid))
         this%next_var_index = 1
@@ -195,7 +198,7 @@ Contains
     !! @param[inout] this The instance of the PSyDataType.
     subroutine PreEnd(this)
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
     end subroutine PreEnd
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
@@ -205,7 +208,7 @@ Contains
     !! @param[inout] this The instance of the PSyDataType.
     subroutine PostStart(this)
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
     end subroutine PostStart
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
@@ -215,7 +218,7 @@ Contains
     subroutine PostEnd(this)
         use netcdf, only : nf90_close
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         integer :: retval
         retval = CheckError(nf90_close(this%ncid))
     end subroutine PostEnd
@@ -230,7 +233,7 @@ Contains
     subroutine DeclareScalarInt(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(in) :: value
         integer :: retval
@@ -249,7 +252,7 @@ Contains
     subroutine WriteScalarInt(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(in) :: value
         integer :: retval
@@ -268,7 +271,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(out) :: value
         integer :: retval, varid
@@ -286,7 +289,7 @@ Contains
     subroutine DeclareScalarReal(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(in) :: value
         integer :: retval
@@ -303,9 +306,9 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalarReal(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_put_var
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(in) :: value
         integer :: retval
@@ -324,7 +327,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(out) :: value
         integer :: retval, varid
@@ -333,6 +336,24 @@ Contains
     end subroutine ReadScalarReal
 
     ! -------------------------------------------------------------------------
+    !> This subroutine declares a scalar single precision value. A
+    !! corresponding variable definition is added to the NetCDF file, and the
+    !! variable id is stored in the var_id field.
+    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareScalarDouble(this, name, value)
+        use netcdf
+        implicit none
+        class(PSyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        double precision, intent(in) :: value
+        integer :: retval
+        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_DOUBLE,     &
+                                         this%var_id(this%next_var_index)))
+        this%next_var_index = this%next_var_index + 1
+    end subroutine DeclareScalarDouble
+    ! -------------------------------------------------------------------------
     !> This subroutine writes the value of a scalar double precision variable
     !! to the NetCDF file. It takes the variable id from the corresponding
     !! declaration.
@@ -340,12 +361,35 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalarDouble(this, name, value)
+        use netcdf, only: nf90_put_var
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(in) :: value
+        integer :: retval
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                         value))
+        this%next_var_index = this%next_var_index + 1
     end subroutine WriteScalarDouble
     
+    ! -------------------------------------------------------------------------
+    !> This subroutine reads the value of a scalar double precision variable
+    !! from the NetCDF file and returns it to the user
+    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value The read value is stored here.
+    subroutine ReadScalarDouble(this, name, value)
+        use netcdf
+        implicit none
+
+        class(PSyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        double precision, intent(out) :: value
+        integer :: retval, varid
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+    end subroutine ReadScalarDouble
+
     ! -------------------------------------------------------------------------
     !> This subroutine declares a double precision field as defined in
     !! dl_esm_info (r2d_field). A corresponding variable definition is added
@@ -358,7 +402,7 @@ Contains
         use netcdf
         use field_mod, only : r2d_field
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: x_dimid, y_dimid, retval
@@ -386,7 +430,7 @@ Contains
         use netcdf
         use field_mod, only : r2d_field
         implicit none
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: retval
@@ -408,7 +452,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout) :: this
+        class(PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, dimension(:,:), allocatable, intent(out) :: value
         integer :: retval, varid

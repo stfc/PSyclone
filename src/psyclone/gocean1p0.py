@@ -934,6 +934,7 @@ class GOKern(CodedKern):
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
+        # pylint: disable=super-init-not-called, non-parent-init-called
         # Can't use super() as the parent class has mandatory arguments that
         # in GOKern are initialized with the load() method.
         Node.__init__(self)
@@ -1572,8 +1573,6 @@ class GOKernelGridArgument(Argument):
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
         self._name = deref_name.split("%")[-1]
-        # Store the full name used in dereferencing the grid properties.
-        self._dereference_name = deref_name
         # Store the original property name for easy lookup in is_scalar()
         self._property_name = arg.grid_prop
 
@@ -1588,15 +1587,20 @@ class GOKernelGridArgument(Argument):
 
     def dereference(self, fld_name):
         '''Returns a Fortran string to dereference a grid property of the
-        specified field. E.g."name%grid%dx". The stored value of
-        self._dereference_name is a format string, where {0} represents
-        the field name.
+        specified field. It queries the current config file settings for
+        getting the proper dereference string, which is a format string
+        where {0} represents the field name.
+
+        :param str fld_name: The name of the field which is used to \
+            dereference a grid property.
 
         :returns: the dereference string required to access a grid property
             in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
             must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
-        return self._dereference_name.format(fld_name)
+        api_config = Config.get().api_conf("gocean1.0")
+        deref_name = api_config.grid_properties[self._property_name].fortran
+        return deref_name.format(fld_name)
 
     @property
     def type(self):

@@ -1,7 +1,7 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
@@ -9,7 +9,8 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,25 +42,12 @@
 ! -----------------------------------------------------------------------------
 ! Modifications: A. R. Porter, STFC Daresbury Lab
 
-module quadrature_rule_mod
-use constants_mod, only: r_def, i_def
-
+module quadrature_mod
 implicit none
 private
 
-type, abstract, public :: quadrature_rule_type
+type, public, abstract :: quadrature_type
   private
-contains
-  procedure(quadrature_rule_interface), deferred :: quadrature_rule
 end type
 
-abstract interface
-  function quadrature_rule_interface(self, nqp_1d)
-    import                          :: r_def, i_def, quadrature_rule_type
-    class(quadrature_rule_type)     :: self
-    integer(kind=i_def), intent(in) :: nqp_1d
-    real(kind=r_def)                :: quadrature_rule_interface(nqp_1d,2)
-  end function quadrature_rule_interface
-end interface
-
-end module quadrature_rule_mod
+end module quadrature_mod
