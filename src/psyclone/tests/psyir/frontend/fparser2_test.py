@@ -848,7 +848,6 @@ def test_access_stmt_undeclared_symbol(parser):
 
 def test_parse_access_statements(parser):
     ''' Tests for the _parse_access_statements() method. '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -921,6 +920,24 @@ def test_public_private_symbol_error(parser):
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
             "and PRIVATE" in str(err.value))
+
+
+def test_broken_access_spec(parser):
+    ''' Check that we raise the expected InternalError if the parse tree for
+    an access-spec on a variable declaration is broken. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "integer, private :: var3\n"
+        "end module modulename\n")
+    fparser2spec = parser(reader).children[0].children[1]
+    # Break the parse tree
+    access_spec = fparser2spec.children[0].children[1].children[0]
+    access_spec.string = "not-private"
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)
 
 
 def test_process_save_attribute_declarations(parser):
