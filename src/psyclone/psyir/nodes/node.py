@@ -665,14 +665,23 @@ class Node(object):
 
     @children.setter
     def children(self, my_children):
-        if my_children == None:
+        ''' Set a new children list.
+
+        :param my_children: New list of children.
+        :type my_children: List or NoneType
+
+        :raises TypeError: if the given children parameter is not a list \
+            nor NoneType.
+        '''
+        if my_children is None:
             self._children = None
         elif isinstance(my_children, list):
             self._children = ChildrenList(self, self._validate_child,
-                                      self._children_valid_format)
+                                          self._children_valid_format)
             self._children.extend(my_children)
         else:
-            raise TypeError("")
+            raise TypeError("The 'my_children' parameter of the node.children"
+                            " setter must be a list or None.")
 
     @property
     def parent(self):
