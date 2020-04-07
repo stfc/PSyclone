@@ -607,7 +607,7 @@ class Fparser2Reader(object):
 
         TODO #738. Currently this routine is also used to create a
         NemoInvokeSchedule from NEMO source code (hence the optional,
-        'invoke' argument).  This routine needs re-naming and
+        'container' argument).  This routine needs re-naming and
         re-writing so that it *only* creates the PSyIR for a
         subroutine.
 
@@ -615,9 +615,9 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :param invoke: the parent Invoke associated with this Schedule (if \
-                       any).
-        :type invoke: :py:class:`psyclone.psyGen.Invoke`
+        :param container: the parent Container node associated with this \
+                          Schedule (if any).
+        :type container: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: PSyIR schedule representing the kernel.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
