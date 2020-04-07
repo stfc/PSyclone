@@ -37,7 +37,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by: I Kavcic, Met Office
+! Modified by: I. Kavcic, Met Office
 !              A. R. Porter, STFC Daresbury Laboratory
 
 !>@brief Computes the advective increment of the prognostic equations
@@ -74,17 +74,17 @@ module advective_inc_alg_mod
 
 contains
 
-  !>@brief Compute advective update u.grad(theta) using desired spatial 
+  !>@brief Compute advective update u.grad(theta) using desired spatial
   !>       reconstruction
-  !>@param[inout] rtheta  Advective increment
-  !>@param[in]    theta   Field to advect
-  !>@param[in]    wind    Advecting wind field
+  !>@param[in] rtheta  (in, out) Advective increment
+  !>@param[in] theta   (in)      Field to advect
+  !>@param[in] wind    (in)      Advecting wind field
   subroutine advective_inc_alg(rtheta, theta, wind)
 
     implicit none
 
     type(field_type), intent(in)        :: theta, wind
-    type(field_type), intent(inout)     :: rtheta
+    type(field_type), intent(in)        :: rtheta
     type(quadrature_xyoz_type)          :: qr
     type(quadrature_face_type)          :: qrf
     type(quadrature_rule_gaussian_type) :: quadrature_rule
@@ -108,7 +108,7 @@ contains
                                                  wind,                            &
                                                  chi(1), chi_stencil_extent,      &
                                                  chi(2),chi(3)) )
-         
+
       case(transport_operators_fem)
         ! Use project u.grad(theta) into the theta function space
         qr = quadrature_xyoz_type(element_order+3, quadrature_rule)

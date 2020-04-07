@@ -74,23 +74,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface conservative_flux_kernel_type
-   module procedure conservative_flux_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public conservative_flux_code
-contains
 
-type(conservative_flux_kernel_type) function conservative_flux_kernel_constructor() result(self)
-  return
-end function conservative_flux_kernel_constructor
+contains
 
 !> @brief Computes the fluxes for the split advection scheme
 !! @param[in] nlayers Integer the number of layers
@@ -104,7 +92,7 @@ end function conservative_flux_kernel_constructor
 !! @param[in] undf_w2 Integer, the number of unique degrees of freedom
 !! @param[in] ndf_w2 Integer, the number of degrees of freedom per cell
 !! @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column
-!! @param[inout] flux Real array, the flux values which are calculated
+!! @param[in,out] flux Real array, the flux values which are calculated
 !! @param[in] dep_pts Real array, the departure points
 !! @param[in] u_piola Real array, the Piola winds
 !! @param[in] stencil_length Integer The length of the 1D stencil

@@ -51,7 +51,7 @@ use argument_mod,            only : arg_type, func_type,         &
                                     GH_FIELD, GH_READ, GH_WRITE, &
                                     W3, Wchi,                    &
                                     GH_BASIS, GH_DIFF_BASIS,     &
-                                    CELLS 
+                                    CELLS
 
 implicit none
 
@@ -113,13 +113,13 @@ subroutine solver_w3_code(nlayers,                                        &
                           ndf_wchi, undf_wchi, map_wchi, wchi_diff_basis, &
                           nqp_h, nqp_v, wqp_h, wqp_v                      &
                          )
-                         
-  use matrix_invert_mod,       only : matrix_invert 
-  use coordinate_jacobian_mod, only : coordinate_jacobian 
-  
-  ! Needs to compute the integral of rho_df * P 
-  ! P_analytic over a single column    
-  
+
+  use matrix_invert_mod,       only : matrix_invert
+  use coordinate_jacobian_mod, only : coordinate_jacobian
+
+  ! Needs to compute the integral of rho_df * P
+  ! P_analytic over a single column
+
   implicit none
 
   ! Arguments
@@ -127,25 +127,26 @@ subroutine solver_w3_code(nlayers,                                        &
   integer(kind=i_def), intent(in) :: ndf_w3, undf_w3, ndf_wchi, undf_wchi
   integer(kind=i_def), dimension(ndf_w3),   intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+
   real(kind=r_def), intent(in) :: ascalar
-  real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v)   :: w3_basis
-  real(kind=r_def), intent(in), dimension(3,ndf_wchi,nqp_h,nqp_v) :: wchi_diff_basis
+  real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v),   intent(in) :: w3_basis
+  real(kind=r_def), dimension(3,ndf_wchi,nqp_h,nqp_v), intent(in) :: wchi_diff_basis
   real(kind=r_def), dimension(undf_w3),   intent(inout) :: x
   real(kind=r_def), dimension(undf_w3),   intent(in)    :: rhs
   real(kind=r_def), dimension(undf_wchi), intent(in)    :: chi_1, chi_2, chi_3
-  real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
-  real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
+  real(kind=r_def), dimension(nqp_h),     intent(in)    ::  wqp_h
+  real(kind=r_def), dimension(nqp_v),     intent(in)    ::  wqp_v
 
   ! Internal variables
   integer(kind=i_def) :: df1, df2, k
   integer(kind=i_def) :: qp1, qp2
-  
+
   real(kind=r_def) :: x_e(ndf_w3), rhs_e(ndf_w3)
   real(kind=r_def) :: integrand
-  real(kind=r_def), dimension(ndf_w3,ndf_w3) :: mass_matrix_w3, inv_mass_matrix_w3
+  real(kind=r_def), dimension(ndf_w3,ndf_w3)   :: mass_matrix_w3, inv_mass_matrix_w3
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
-  real(kind=r_def), dimension(ndf_wchi) :: chi_1_e, chi_2_e, chi_3_e
+  real(kind=r_def), dimension(ndf_wchi)        :: chi_1_e, chi_2_e, chi_3_e
 
   ! Compute the LHS integrated over one cell and solve
   do k = 0, nlayers-1
@@ -172,10 +173,10 @@ subroutine solver_w3_code(nlayers,                                        &
     call matrix_invert(mass_matrix_w3,inv_mass_matrix_w3,ndf_w3)
     x_e = matmul(inv_mass_matrix_w3,rhs_e)
     do df1 = 1,ndf_w3
-      x(map_w3(df1)+k) = x_e(df1) 
+      x(map_w3(df1)+k) = x_e(df1)
     end do
   end do
-  
+
 end subroutine solver_w3_code
 
 end module w3_solver_kernel_mod
