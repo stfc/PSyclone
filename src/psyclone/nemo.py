@@ -218,7 +218,7 @@ class NemoInvokes(Invokes):
 
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
         processor = NemoFparser2Reader()
-        # First attempt to create a Container representing any Fortran module
+        # First create a Container representing any Fortran module
         # contained in the parse tree.
         self._container = processor.generate_container(ast)
 
@@ -315,18 +315,12 @@ class NemoInvokeSchedule(InvokeSchedule):
 
     :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
-    :param ast: the fparser2 parse tree of the NEMO code for which to \
-                generate a NemoInvokeSchedule.
-    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
-               :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
-               :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-    def __init__(self, invoke=None, ast=None):
+    def __init__(self, invoke=None):
         super(NemoInvokeSchedule, self).__init__(None, None)
 
         self._invoke = invoke
-        self._ast = ast
         # Whether or not we've already checked the associated Fortran for
         # potential name-clashes when inserting PSyData code.
         # TODO this can be removed once #435 is done and we're no longer
