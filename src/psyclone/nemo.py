@@ -37,7 +37,7 @@
 '''This module implements the PSyclone NEMO API by specialising
    the required base classes for both code generation (PSy, Invokes,
    Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument)
-   and parsing (Descriptor and KernelType).
+   and parsing (Fparser2Reader).
 
 '''
 
@@ -50,7 +50,6 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -67,7 +66,7 @@ class NemoFparser2Reader(Fparser2Reader):
         :rtype: py:class:`psyclone.nemo.NemoInvokeSchedule`
         '''
         return NemoInvokeSchedule()
-        
+
     def _create_loop(self, parent, variable_name):
         '''
         Specialized method to create a NemoLoop instead of a
