@@ -166,6 +166,24 @@ def test_handling_literal_precision_3(value, dprecision):
     assert literal.datatype.precision == dprecision
 
 
+@pytest.mark.parametrize("value,result",
+                         [(".3", "0.3"), (".3e4", "0.3e4")])
+@pytest.mark.usefixtures("f2008_parser")
+def test_literal_constant_value_format(value, result):
+    '''Test that the Fortran real literal value format which does not have
+    a digit before the decimal point is modified to include a "0"
+    e.g. ".3" -> "0.3", "-.3e4" -> "-0.3e4" '''
+    reader = FortranStringReader("a = {0}".format(value))
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [astmt])
+    literal = fake_parent.children[0].children[1]
+    assert isinstance(literal, Literal)
+    assert literal.value == result
+    assert literal.datatype.name == ScalarType.Name.REAL
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_invalid_logic_literal():
     ''' Test that a logic fparser2 literal with an invalid value produces
@@ -195,7 +213,8 @@ def test_number_handler():
 
 # The get_literal_precision() function is covered by the
 # test_handling_literal_precision_{1-3} tests above, apart from
-# invalid arguments which are tested here.
+# invalid arguments and unsupported datatypes which are tested in the
+# next two tests.
 @pytest.mark.usefixtures("f2008_parser")
 def test_get_literal_precision():
     '''Make sure the get_literal_precision function in fparser2.py behaves
@@ -213,5 +232,25 @@ def test_get_literal_precision():
     fparser2_literal = astmt.children[2]
     with pytest.raises(InternalError) as excinfo:
         _ = get_literal_precision(fparser2_literal, None)
-    assert ("Expecting argument psyir_node to be a PSyIR Node but found "
-            "'NoneType' in get_literal_precision." in str(excinfo.value))
+    assert ("Expecting argument psyir_literal_parent to be a PSyIR Node but "
+            "found 'NoneType' in get_literal_precision." in str(excinfo.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_get_literal_precision_type(monkeypatch):
+    '''Make sure the get_literal_precision function in fparser2.py behaves
+    as expected when an unsupported datatype is found
+
+    '''
+    from psyclone.psyir.frontend import fparser2
+    from psyclone.psyir.frontend.fparser2 import get_literal_precision
+    monkeypatch.setattr(fparser2, "CONSTANT_TYPE_MAP", {})
+    code = "x=0.0"
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fparser2_literal = astmt.children[2]
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = get_literal_precision(fparser2_literal, Node())
+    assert ("Could not process Real_Literal_Constant. Only 'real', 'integer', "
+            "'logical' and 'character' intrinsic types are supported."
+            in str(excinfo.value))

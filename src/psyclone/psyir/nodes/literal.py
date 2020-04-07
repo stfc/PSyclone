@@ -68,6 +68,9 @@ class Literal(Node):
                         'true' or 'false'.
 
     '''
+
+    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
+
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
 
@@ -77,10 +80,14 @@ class Literal(Node):
                 "The datatype of a Literal must be an instance of "
                 "psyir.symbols.ScalarType or psyir.symbols.ArrayType "
                 "but found '{0}'".format(type(datatype).__name__))
+
         if not isinstance(value, six.string_types):
             raise TypeError(
                 "Literals must be supplied with a value encoded as a string "
                 "but found '{0}'".format(type(value).__name__))
+
+        if not value:
+            raise ValueError("A literal value can not be empty.")
 
         if (isinstance(datatype, ScalarType) and
                 datatype.name == ScalarType.Name.BOOLEAN and
@@ -90,7 +97,7 @@ class Literal(Node):
                 "'false' but found '{0}'.".format(value))
 
         if (datatype.name == ScalarType.Name.REAL and not
-                re.search(r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$', value)):
+                re.search(Literal._real_value, value)):
             raise ValueError(
                 "A scalar real literal value must conform to the "
                 "supported format but found '{0}'.".format(value))

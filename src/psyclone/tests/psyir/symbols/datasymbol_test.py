@@ -352,10 +352,10 @@ def test_datasymbol_copy():
     # is not affected. Can't check constant_value yet as we have a
     # shape value
     new_symbol._name = "new"
-    new_symbol.datatype.name = ScalarType.Name.INTEGER
-    new_symbol.datatype.precision = ScalarType.Precision.DOUBLE
-    new_symbol.datatype.shape[0] = 3
-    new_symbol.datatype.shape[1] = 4
+    new_symbol.datatype._name = ScalarType.Name.INTEGER
+    new_symbol.datatype._precision = ScalarType.Precision.DOUBLE
+    new_symbol.datatype._shape[0] = 3
+    new_symbol.datatype._shape[1] = 4
     new_symbol._interface = LocalInterface()
 
     assert symbol.name == "myname"

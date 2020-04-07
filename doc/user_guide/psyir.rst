@@ -220,10 +220,10 @@ and ``INTEGER_DOUBLE_TYPE``;
 Array DataTypes
 ----------------
 
-An Array datatype has a scalar datatype and a shape. The shape can
-have an arbitrary number of dimensions. Each dimension captures what
-is known about its extent (size). It is necessary to distinguish
-between four cases:
+An Array datatype has a scalar datatype specifying the type of its
+elements and a shape. The shape can have an arbitrary number of
+dimensions. Each dimension captures what is known about its extent. It
+is necessary to distinguish between four cases:
 
 .. tabularcolumns:: |p{9cm}|L|
 
@@ -248,7 +248,8 @@ The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example
 an assumed shape array in Fortran) and in the latter the array has not
 yet been allocated any memory (for example the declaration of an
-allocatable array in Fortran) so there are not extents specified.
+allocatable array in Fortran) so the extents may have not been defined
+yet.
 
 For example:
 

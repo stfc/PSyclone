@@ -62,6 +62,13 @@ TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Name.INTEGER,
                          "logical": ScalarType.Name.BOOLEAN,
                          "real": ScalarType.Name.REAL}
 
+# Mapping from fparser2 Fortran Literal types to PSyIR types
+CONSTANT_TYPE_MAP = {
+    Fortran2003.Real_Literal_Constant: ScalarType.Name.REAL,
+    Fortran2003.Logical_Literal_Constant: ScalarType.Name.BOOLEAN,
+    Fortran2003.Char_Literal_Constant: ScalarType.Name.CHARACTER,
+    Fortran2003.Int_Literal_Constant: ScalarType.Name.INTEGER}
+
 
 def _get_symbol_table(node):
     '''Find a symbol table associated with an ancestor of Node 'node' (or
@@ -307,32 +314,60 @@ def _is_range_full_extent(my_range):
     return is_lower and is_upper and is_step
 
 
-def default_precision():
+def default_precision(data_name):
     '''Returns the default precision specified by the front end. This is
-       currently always set to undefined but could be read from a
-       config file in the future.
+       currently always set to undefined irrespective of the datatype
+       but could be read from a config file in the future.
 
-       :returns: the default precision.
+       :param data_name: the name of the datatype.
+       :type data_name: :py:class:`psyclone.psyir.symbols.scalartype.Name`
+
+       :returns: the default precision for the supplied datatype name.
        :rtype: :py:class:`psyclone.psyir.symbols.scalartype.Precision`
 
     '''
     return ScalarType.Precision.UNDEFINED
 
 
-def get_literal_precision(fparser2_node, psyir_node):
+def default_integer_type():
+    '''Returns the default integer datatype specified by the front end.
+
+       :returns: the default integer datatype.
+       :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+
+    '''
+    return ScalarType(ScalarType.Name.INTEGER,
+                      default_precision(ScalarType.Name.INTEGER))
+
+
+def default_real_type():
+    '''Returns the default real datatype specified by the front end.
+
+       :returns: the default real datatype.
+       :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+
+    '''
+    return ScalarType(ScalarType.Name.REAL,
+                      default_precision(ScalarType.Name.REAL))
+
+
+def get_literal_precision(fparser2_node, psyir_literal_parent):
     '''Takes a Fortran2003 literal node as input and returns the
-    appropriate PSyIR precision type for that node.
+    appropriate PSyIR precision type for that node. Adds a deferred
+    type DataSymbol in the SymbolTable if the precision is given by an
+    undefined symbol.
+
     :param fparser2_node: the fparser2 literal node.
     :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
         :py:class:`Fortran2003.Logical_Literal_Constant` or \
         :py:class:`Fortran2003.Char_Literal_Constant` or \
         :py:class:`Fortran2003.Int_Literal_Constant`
-    :param psyir_node: the PSyIR node that will be the parent of the \
-        PSyIR literal node that will be created from the fparser2 node \
-        information.
-    :type psyir_node: :py:class:`psyclone.psyir.nodes.Node`
+    :param psyir_literal_parent: the PSyIR node that will be the \
+        parent of the PSyIR literal node that will be created from the \
+        fparser2 node information.
+    :type psyir_literal_parent: :py:class:`psyclone.psyir.nodes.Node`
 
-    :returns: the appropriate PSyIR Precision type for this literal value.
+    :returns: the PSyIR Precision of this literal value.
     :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`, int or \
         :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
 
@@ -347,11 +382,11 @@ def get_literal_precision(fparser2_node, psyir_node):
         raise InternalError(
             "Unsupported literal type '{0}' found in get_literal_precision."
             "".format(type(fparser2_node).__name__))
-    if not isinstance(psyir_node, Node):
+    if not isinstance(psyir_literal_parent, Node):
         raise InternalError(
-            "Expecting argument psyir_node to be a PSyIR Node but found "
-            "'{0}' in get_literal_precision."
-            "".format(type(psyir_node).__name__))
+            "Expecting argument psyir_literal_parent to be a PSyIR Node but "
+            "found '{0}' in get_literal_precision."
+            "".format(type(psyir_literal_parent).__name__))
     precision_name = fparser2_node.items[1]
     if not precision_name:
         # Precision may still be specified by the exponent in a real literal
@@ -359,35 +394,42 @@ def get_literal_precision(fparser2_node, psyir_node):
             precision_value = fparser2_node.items[0]
             if "d" in precision_value.lower():
                 return ScalarType.Precision.DOUBLE
-            elif "e" in precision_value.lower():
+            if "e" in precision_value.lower():
                 return ScalarType.Precision.SINGLE
         # Return the default precision
-        return default_precision()
+        try:
+            data_name = CONSTANT_TYPE_MAP[type(fparser2_node)]
+        except KeyError:
+            raise NotImplementedError(
+                "Could not process {0}. Only 'real', 'integer', "
+                "'logical' and 'character' intrinsic types are "
+                "supported.".format(type(fparser2_node).__name__))
+        return default_precision(data_name)
     try:
         # Precision is specified as an integer
         return int(precision_name)
     except ValueError:
         # Precision is not an integer so should be a kind symbol
-        pass
-    # PSyIR stores names as lower case.
-    precision_name = precision_name.lower()
-    # Find the closest symbol table
-    symbol_table = _get_symbol_table(psyir_node)
-    if not symbol_table:
-        # There is no symbol table so create a data symbol
-        # with deferred type. Once #500 is implemented
-        # this situation should never happen.
-        return DataSymbol(precision_name, DeferredType())
-    # Found a symbol table so lookup the precision symbol
-    try:
-        symbol = symbol_table.lookup(precision_name)
-    except KeyError:
-        # The symbol is not found so create a data
-        # symbol with deferred type and add it to the
-        # symbol table then return the symbol.
-        symbol = DataSymbol(precision_name, DeferredType())
-        symbol_table.add(symbol)
-    return symbol
+        # PSyIR stores names as lower case.
+        precision_name = precision_name.lower()
+        # Find the closest symbol table
+        symbol_table = _get_symbol_table(psyir_literal_parent)
+        if not symbol_table:
+            # There is no symbol table so create a data symbol
+            # with deferred type. Once #500 is implemented
+            # this situation should never happen.
+            return DataSymbol(precision_name, DeferredType())
+        # Found a symbol table so lookup the precision symbol
+        try:
+            symbol = symbol_table.lookup(precision_name)
+        except KeyError:
+            # The symbol is not found so create a data
+            # symbol with deferred type and add it to the
+            # symbol table then return the symbol.
+            symbol = DataSymbol(precision_name, DeferredType(),
+                                interface=UnresolvedInterface())
+            symbol_table.add(symbol)
+        return symbol
 
 
 class Fparser2Reader(object):
@@ -823,9 +865,7 @@ class Fparser2Reader(object):
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't
                         # currently know where it is declared).
-                        data_type = ScalarType(ScalarType.Name.INTEGER,
-                                               default_precision())
-                        sym = DataSymbol(dim_name, data_type,
+                        sym = DataSymbol(dim_name, default_integer_type(),
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
                     shape.append(sym)
@@ -1040,6 +1080,9 @@ class Fparser2Reader(object):
                             "Could not process {0}. Unrecognized attribute "
                             "type {1}.".format(decl.items, str(type(attr))))
 
+            if not precision:
+                precision = default_precision(data_name)
+
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
             for entity in entities.items:
@@ -1098,8 +1141,6 @@ class Fparser2Reader(object):
 
                 sym_name = str(name).lower()
 
-                if not precision:
-                    precision = default_precision()
                 if entity_shape:
                     # array
                     datatype = ArrayType(ScalarType(data_name, precision),
@@ -1281,15 +1322,12 @@ class Fparser2Reader(object):
             # A KIND parameter must be of type integer so set it here
             # (in case it was previously 'deferred'). We don't know
             # what precision this is so set it to the default.
-            kind_symbol.datatype = ScalarType(ScalarType.Name.INTEGER,
-                                              default_precision())
+            kind_symbol.datatype = default_integer_type()
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
-            integer_type = ScalarType(ScalarType.Name.INTEGER,
-                                      default_precision())
-            kind_symbol = DataSymbol(lower_name, integer_type,
+            kind_symbol = DataSymbol(lower_name, default_integer_type(),
                                      interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
@@ -1455,9 +1493,7 @@ class Fparser2Reader(object):
             # Default loop increment is 1. Use the type of the start
             # or step nodes once #685 is complete. For the moment use
             # the default precision.
-            integer_type = ScalarType(ScalarType.Name.INTEGER,
-                                      default_precision())
-            default_step = Literal("1", integer_type, parent=loop)
+            default_step = Literal("1", default_integer_type(), parent=loop)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -1908,10 +1944,8 @@ class Fparser2Reader(object):
                         # create a new Symbol. Choose a datatype as we
                         # don't know what it is. Remove this code when
                         # issue #500 is addressed.
-                        integer_type = ScalarType(ScalarType.Name.INTEGER,
-                                                  default_precision())
                         symbol = DataSymbol(
-                            loop_vars[range_idx], integer_type)
+                            loop_vars[range_idx], default_integer_type())
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2019,8 +2053,7 @@ class Fparser2Reader(object):
         # find the first symbol table attached to an ancestor
         symbol_table = _get_symbol_table(parent)
 
-        integer_type = ScalarType(ScalarType.Name.INTEGER,
-                                  default_precision())
+        integer_type = default_integer_type()
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
@@ -2354,9 +2387,7 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is. Remove this code when issue #500 is
             # addressed.
-            real_type = ScalarType(ScalarType.Name.REAL,
-                                   default_precision())
-            symbol = DataSymbol(node.string, real_type)
+            symbol = DataSymbol(node.string, default_real_type())
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2407,9 +2438,7 @@ class Fparser2Reader(object):
             # a new Symbol. Randomly choose a datatype as we don't
             # know what it is.  Remove this code when issue #500 is
             # addressed.
-            real_type = ScalarType(ScalarType.Name.REAL,
-                                   default_precision())
-            symbol = DataSymbol(reference_name, real_type)
+            symbol = DataSymbol(reference_name, default_real_type())
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
@@ -2437,8 +2466,7 @@ class Fparser2Reader(object):
         # the second dimension being 2, etc.). We therefore add 1 to
         # the number of children added to out parent to determine the
         # Fortran dimension value.
-        integer_type = ScalarType(ScalarType.Name.INTEGER,
-                                  default_precision())
+        integer_type = default_integer_type()
         dimension = str(len(parent.children)+1)
         my_range = Range(parent=parent)
         my_range.children = []
@@ -2506,6 +2534,11 @@ class Fparser2Reader(object):
             # Make all exponents use the letter "e". (Fortran also
             # allows "d").
             value = value.replace("d", "e")
+            # If the value has a "." without a digit before it then
+            # add a "0" as the PSyIR does not allow this
+            # format. e.g. +.3 => +0.3
+            if value[0] == "." or value[0:1] in ["+.", "-."]:
+                value = value.replace(".", "0.")
             return Literal(value, real_type, parent=parent)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()

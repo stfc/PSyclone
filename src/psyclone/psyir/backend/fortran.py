@@ -146,7 +146,7 @@ def gen_datatype(symbol):
 
     '''
     try:
-        datatype = TYPE_MAP_TO_FORTRAN[symbol.datatype.name]
+        fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.name]
     except KeyError:
         raise NotImplementedError(
             "Unsupported datatype '{0}' for symbol '{1}' found in "
@@ -155,33 +155,33 @@ def gen_datatype(symbol):
     precision = symbol.datatype.precision
 
     if isinstance(precision, int):
-        if datatype not in ['real', 'integer', 'logical']:
+        if fortrantype not in ['real', 'integer', 'logical']:
             raise VisitorError("Explicit precision not supported for datatype "
                                "'{0}' in symbol '{1}' in Fortran backend."
-                               "".format(datatype, symbol.name))
-        if datatype == 'real' and precision not in [4, 8, 16]:
+                               "".format(fortrantype, symbol.name))
+        if fortrantype == 'real' and precision not in [4, 8, 16]:
             raise VisitorError(
                 "Datatype 'real' in symbol '{0}' supports fixed precision of "
                 "[4, 8, 16] but found '{1}'.".format(symbol.name,
                                                      precision))
-        if datatype in ['integer', 'logical'] and precision not in \
+        if fortrantype in ['integer', 'logical'] and precision not in \
            [1, 2, 4, 8, 16]:
             raise VisitorError(
                 "Datatype '{0}' in symbol '{1}' supports fixed precision of "
                 "[1, 2, 4, 8, 16] but found '{2}'."
-                "".format(datatype, symbol.name, precision))
+                "".format(fortrantype, symbol.name, precision))
         # Precision has an an explicit size. Use the "type*size" Fortran
         # extension for simplicity. We could have used
         # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
         # ISO_FORTRAN_ENV; type(type64) :: MyType.
-        return "{0}*{1}".format(datatype, precision)
+        return "{0}*{1}".format(fortrantype, precision)
 
     if isinstance(precision, ScalarType.Precision):
         # The precision information is not absolute so is either
         # machine specific or is specified via the compiler. Fortran
         # only distinguishes relative precision for single and double
         # precision reals.
-        if datatype.lower() == "real" and \
+        if fortrantype.lower() == "real" and \
            precision == ScalarType.Precision.DOUBLE:
             return "double precision"
         # This logging warning can be added when issue #11 is
@@ -191,15 +191,15 @@ def gen_datatype(symbol):
         #      "Fortran does not support relative precision for the '%s' "
         #      "datatype but '%s' was specified for variable '%s'.",
         #      datatype, str(symbol.precision), symbol.name)
-        return datatype
+        return fortrantype
 
     if isinstance(precision, DataSymbol):
-        if datatype not in ["real", "integer", "logical"]:
+        if fortrantype not in ["real", "integer", "logical"]:
             raise VisitorError(
                 "kind not supported for datatype '{0}' in symbol '{1}' in "
-                "Fortran backend.".format(datatype, symbol.name))
+                "Fortran backend.".format(fortrantype, symbol.name))
         # The precision information is provided by a parameter, so use KIND.
-        return "{0}(kind={1})".format(datatype, precision.name)
+        return "{0}(kind={1})".format(fortrantype, precision.name)
 
     raise VisitorError(
         "Unsupported precision type '{0}' found for symbol '{1}' in Fortran "

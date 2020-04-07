@@ -53,7 +53,8 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
-    _is_range_full_extent, _check_args
+    _is_range_full_extent, _check_args, default_precision, \
+    default_integer_type, default_real_type
 
 
 def process_declarations(code):
@@ -319,6 +320,33 @@ def test_is_range_full_extent():
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
     _ = Array.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
+
+
+@pytest.mark.parametrize("value",
+                         [ScalarType.Name.REAL, ScalarType.Name.INTEGER,
+                          ScalarType.Name.BOOLEAN, ScalarType.Name.CHARACTER,
+                          None])
+def test_default_precision(value):
+    '''Test the default_precision function returns the same precision
+    irrespective of the argument passed to it'''
+    assert default_precision(value) == ScalarType.Precision.UNDEFINED
+
+
+def test_default_integer_type():
+    '''Test the default_integer_type function returns the expected result'''
+    result = default_integer_type()
+    assert isinstance(result, ScalarType)
+    assert result.name == ScalarType.Name.INTEGER
+    assert result.precision == default_precision(ScalarType.Name.INTEGER)
+
+
+def test_default_real_type():
+    '''Test the default_real_type function returns the expected result'''
+    result = default_real_type()
+    assert isinstance(result, ScalarType)
+    assert result.name == ScalarType.Name.REAL
+    assert result.precision == default_precision(ScalarType.Name.REAL)
+
 
 # Class Fparser2Reader
 

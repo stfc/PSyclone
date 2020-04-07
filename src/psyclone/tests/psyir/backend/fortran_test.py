@@ -122,7 +122,7 @@ def test_gen_dims_error(monkeypatch):
     symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
-    monkeypatch.setattr(array_type, "shape", ["invalid"])
+    monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_dims(symbol)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
@@ -279,7 +279,7 @@ def test_gen_datatype_exception_1():
     '''
     data_type = ScalarType(ScalarType.Name.REAL, 4)
     symbol = DataSymbol("fred", data_type)
-    symbol.datatype.name = None
+    symbol.datatype._name = None
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Unsupported datatype 'None' for symbol 'fred' found in "
@@ -293,7 +293,7 @@ def test_gen_datatype_exception_2():
     '''
     data_type = ScalarType(ScalarType.Name.REAL, 4)
     symbol = DataSymbol("fred", data_type)
-    symbol.datatype.precision = None
+    symbol.datatype._precision = None
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Unsupported precision type 'NoneType' found for symbol 'fred' "

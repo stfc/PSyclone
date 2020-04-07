@@ -46,7 +46,10 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.symbols import ScalarType
 
 
-# Mapping from PSyIR types to C data types
+# PSyIR datatypes now support precision as well as type names. It is
+# not clear how to map PSyIR type names and precision onto C types,
+# see issue #738.
+# Mapping from PSyIR types to C data types.
 TYPE_MAP_TO_C = {ScalarType.Name.INTEGER: "int",
                  ScalarType.Name.CHARACTER: "char",
                  ScalarType.Name.BOOLEAN: "bool",

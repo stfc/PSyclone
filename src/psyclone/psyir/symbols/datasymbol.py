@@ -64,11 +64,6 @@ class DataSymbol(Symbol):
         way).
     :type interface: \
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
-    :param precision: the amount of storage required by the datatype (bytes) \
-            or a reference to a Symbol holding the type information \
-            or a label identifying a default precision.
-    :type precision: int or :py:class:`psyclone.psyir.symbol.DataSymbol` or \
-                     :py:class:`psyclone.psyir.symbols.DataSymbol.Precision`
 
     '''
     def __init__(self, name, datatype, constant_value=None, interface=None):

@@ -102,16 +102,27 @@ def test_literal_init_invalid_1():
             "but found 'False'." in str(err.value))
 
 
-@pytest.mark.parametrize("value", ["*2", "++2", ".2", "2..3", "2.3.4",
+@pytest.mark.parametrize("value", ["*2", "++2", ".", ".2", "2..3", "2.3.4",
                                    "3.2d0", "3.2e+", "3.2e2*", "3e2e2"])
 def test_literal_init_invalid_2(value):
-    '''Test the initialisation of a Literal object with invalid real values.'''
+    '''Test the initialisation of a Literal object with invalid real
+    values raises the expected exception.
 
-    # Test invalid real value
+    '''
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
     assert ("A scalar real literal value must conform to the supported "
             "format but found '{0}'.".format(value) in str(err.value))
+
+
+def test_literal_init_invalid_3():
+    '''Test the initialisation of a Literal object with an empty value
+    argument raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal("", REAL_DOUBLE_TYPE)
+    assert "A literal value can not be empty." in str(err.value)
 
 
 @pytest.mark.parametrize("value",

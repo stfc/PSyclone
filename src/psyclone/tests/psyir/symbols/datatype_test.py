@@ -211,6 +211,15 @@ def test_scalartype_str():
     assert str(data_type) == "Name.BOOLEAN, Precision.UNDEFINED"
 
 
+def test_scalartype_immutable():
+    '''Test that the scalartype attributes can't be modified'''
+    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    with pytest.raises(AttributeError):
+        data_type.name = ScalarType.Name.INTEGER
+    with pytest.raises(AttributeError):
+        data_type.precision = 8
+
+
 # ArrayType class
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected.'''
@@ -294,7 +303,7 @@ def test_arraytype_str_invalid():
     scalar_type = ScalarType(ScalarType.Name.INTEGER, 4)
     array_type = ArrayType(scalar_type, [10])
     # Make on of the array dimensions an unsupported type
-    array_type.shape = [None]
+    array_type._shape = [None]
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
     assert ("PSyclone internal error: ArrayType shape list elements can only "
@@ -313,3 +322,15 @@ def test_arraytype_copy():
     assert data_type_copy._datatype is not scalar_type
     assert data_type_copy.name == scalar_type.name
     assert data_type_copy.precision == scalar_type.precision
+
+
+def test_arraytype_immutable():
+    '''Test that the scalartype attributes can't be modified'''
+    scalar_type = ScalarType(ScalarType.Name.REAL, 4)
+    data_type = ArrayType(scalar_type, [10, 10])
+    with pytest.raises(AttributeError):
+        data_type.name = ScalarType.Name.INTEGER
+    with pytest.raises(AttributeError):
+        data_type.precision = 8
+    with pytest.raises(AttributeError):
+        data_type.shape = []

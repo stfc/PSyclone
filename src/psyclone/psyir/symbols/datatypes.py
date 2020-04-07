@@ -140,8 +140,16 @@ class ScalarType(DataType):
                 "DataSymbol must be of either 'deferred' or scalar, "
                 "integer type but got: {0}".format(str(precision)))
 
-        self.name = name
-        self.precision = precision
+        self._name = name
+        self._precision = precision
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def precision(self):
+        return self._precision
 
     def __str__(self):
         '''
@@ -219,10 +227,22 @@ class ArrayType(DataType):
                     "'DataSymbol', 'integer' or ArrayType.Extent, but "
                     "found '{0}'.".format(type(dimension).__name__))
 
-        self.shape = shape
-        self.name = datatype.name
-        self.precision = datatype.precision
+        self._shape = shape
+        self._name = datatype.name
+        self._precision = datatype.precision
         self._datatype = datatype
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def precision(self):
+        return self._precision
+
+    @property
+    def shape(self):
+        return self._shape
 
     def __str__(self):
         '''
