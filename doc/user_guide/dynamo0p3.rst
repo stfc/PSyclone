@@ -1349,13 +1349,12 @@ rules, along with PSyclone's naming conventions, are:
 
 6) If the ``adjacent_face`` mesh property is required then:
 
-   1) Pass the number of horizontal cell faces obtained from the reference
-      element (``nfaces_re_h``). This is an integer of kind ``i_def``.
-   2) Pass a rank-1, integer array of kind ``i_def``. If the kernel
-      requires face quadrature (see (7) below) then the extent of this
-      array is the number of faces obtained from that quadrature
-      object. Otherwise, the extent is the number of faces obtained from the
-      reference element and supplied in the preceeding argument.
+   1) If the number of horizontal cell faces obtained from the reference
+      element (``nfaces_re_h``) is not already being passed to the kernel (due
+      to rule 5 above) then supply it here. This is an integer of kind
+      ``i_def``.
+   2) Pass a rank-1, integer array of kind ``i_def`` and extent
+      ``nfaces_re_h``.
 
 7) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
