@@ -1190,7 +1190,7 @@ Consider the following example kernel metadata::
   type, extends(kernel_type) :: testkern_type
     type(arg_type), dimension(2) :: meta_args = &
         (/ arg_type(gh_field, gh_read, w1),     &
-	   arg_type(gh_field, gh_write, w0) /)
+           arg_type(gh_field, gh_inc, w0) /)
     type(mesh_data_type), dimension(1) ::       &
       meta_mesh =                               &
         (/ mesh_data_type(adjacent_face) /)
@@ -1204,8 +1204,8 @@ property of the mesh. There is currently one supported property:
 ======================= ==================================================
 Name                    Description
 ======================= ==================================================
-adjacent_face           Local ID of a neighbouring face in each adjacent
-                        cell indexed as (face).
+adjacent_face           Local ID of a neighbouring face in each
+                        horizontally-adjacent cell indexed as (face).
 ======================= ==================================================
 
 .. _dynamo0.3-gh-shape:
@@ -1414,14 +1414,14 @@ rules, along with PSyclone's naming conventions, are:
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
-   element are required then pass the number of
-   horizontal faces of the reference element (``nfaces_re_h``). Similarly,
-   if either the ``normals_to_vertical_faces`` or
-   ``outward_normals_to_vertical_faces`` are
+   element are required then pass the number of horizontal faces of the
+   reference element (``nfaces_re_h``). Similarly, if either the
+   ``normals_to_vertical_faces`` or ``outward_normals_to_vertical_faces`` are
    required then pass the number of vertical faces (``nfaces_re_v``). This
    also holds for the ``normals_to_faces`` and ``outward_normals_to_faces``
    where the number of all faces of the reference element (``nfaces_re``)
-   is passed to the kernel. Then, in the order specified in the
+   is passed to the kernel. (All of these quantities are integers of kind
+   ``i_def``.) Then, in the order specified in the
    ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
