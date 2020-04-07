@@ -43,18 +43,7 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.psyGen import NameSpace
 from psyclone.tests.utilities import get_invoke
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_psydata_namespace():
-    '''This function is called before any test function. It
-    creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order
-    or number of tests run is changed, otherwise the created region
-    names will change.'''
-    PSyDataNode._namespace = NameSpace()
 
 
 # -----------------------------------------------------------------------------
@@ -196,7 +185,7 @@ def test_psy_data_node_invokes_gocean1p0():
     # variable information, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different"
                   r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
                   r" 0, 0\).*"

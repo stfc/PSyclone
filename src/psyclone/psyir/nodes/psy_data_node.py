@@ -43,6 +43,7 @@ from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import Symbol, SymbolTable
 
 
 # =============================================================================
@@ -91,13 +92,6 @@ class PSyDataNode(Node):
     def __init__(self, ast=None, children=None, parent=None, options=None):
         # TODO: #415 Support different classes of PSyData calls.
 
-        # Store the name of the PSyData variable that is used for this
-        # PSyDataNode. This allows the variable name to be shown in str
-        # (and also, calling create_name in gen() would result in the name
-        # being changed every time gen() is called).
-        from psyclone.psyGen import NameSpaceFactory
-        self._var_name = NameSpaceFactory().create().create_name("psy_data")
-
         if children:
             # We need to store the position of the original children,
             # i.e. before they are added to a schedule
@@ -107,6 +101,19 @@ class PSyDataNode(Node):
         sched = self._insert_schedule(children)
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
+
+        # Store the name of the PSyData variable that is used for this
+        # PSyDataNode. This allows the variable name to be shown in str
+        # (and also, calling create_name in gen() would result in the name
+        # being changed every time gen() is called).
+        if parent and hasattr(self.root, 'symbol_table'):
+            symtab = self.root.symbol_table
+        else:
+            # FIXME: This may not be a good solution
+            symtab = SymbolTable()
+
+        self._var_name = symtab.new_symbol_name("psy_data")
+        symtab.add(Symbol(self._var_name))
 
         if children and parent:
             # Correct the parent's list of children. Use a slice of the list
@@ -305,7 +312,7 @@ class PSyDataNode(Node):
         parent.add(use)
         var_decl = TypeDeclGen(parent, datatype="PSyDataType",
                                entity_decls=[self._var_name],
-                               save=True)
+                               save=True, target=True)
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
@@ -531,7 +538,7 @@ class PSyDataNode(Node):
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
-            "type(PSyDataType), save :: {0}".format(var_name))
+            "type(PSyDataType), target, save :: {0}".format(var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)

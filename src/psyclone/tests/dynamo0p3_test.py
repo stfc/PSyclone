@@ -434,9 +434,10 @@ def test_invalid_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("request a valid gh_shape (one of ['gh_quadrature_xyoz', "
-            "'gh_evaluator']) but got 'quadrature_wrong' for kernel "
-            "'testkern_qr_type'" in str(excinfo.value))
+    assert ("request one or more valid gh_shapes (one of ['gh_quadrature_xyoz'"
+            ", 'gh_quadrature_face', 'gh_quadrature_edge', 'gh_evaluator']) "
+            "but got '['quadrature_wrong']' for kernel 'testkern_qr_type'"
+            in str(excinfo.value))
 
 
 def test_unecessary_shape():
@@ -455,9 +456,9 @@ def test_unecessary_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_qr_type' specifies a gh_shape "
-            "(gh_quadrature_xyoz) but does not need an evaluator because no "
-            "basis or differential basis functions are required"
+    assert ("Kernel 'testkern_qr_type' specifies one or more gh_shapes "
+            "(['gh_quadrature_xyoz']) but does not need an evaluator because "
+            "no basis or differential basis functions are required"
             in str(excinfo.value))
 
 
@@ -482,8 +483,7 @@ def test_field(tmpdir):
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -561,8 +561,7 @@ def test_field_deref(tmpdir, dist_mem):
 
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
+        "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
@@ -687,10 +686,8 @@ def test_field_fs(tmpdir):
         "m3, m4, f5, m5)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(inout) :: f3\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4, f5, "
-        "m5\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
+        "m4, f5, m5\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
@@ -870,8 +867,7 @@ def test_real_scalar(tmpdir):
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -957,8 +953,7 @@ def test_int_scalar(tmpdir):
         "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER(KIND=i_def), intent(in) :: iflag\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1044,8 +1039,7 @@ def test_two_real_scalars(tmpdir):
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a, b\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1129,8 +1123,7 @@ def test_two_int_scalars(tmpdir):
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER(KIND=i_def), intent(in) :: iflag, istep\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1223,8 +1216,7 @@ def test_two_scalars(tmpdir):
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istep\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -1318,8 +1310,7 @@ def test_vector_field():
 
     assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
             generated_code)
-    assert "TYPE(field_type), intent(inout) :: f1, chi(3)" in generated_code
-    assert "TYPE(field_type), intent(in) :: f2" in generated_code
+    assert "TYPE(field_type), intent(in) :: f1, chi(3), f2" in generated_code
 
 
 def test_vector_field_2(tmpdir):
@@ -1352,9 +1343,8 @@ def test_vector_field_deref():
         generated_code = str(psy.gen)
         assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, box_chi, f2)" in
                 generated_code)
-        assert ("TYPE(field_type), intent(inout) :: f1, box_chi(3)" in
+        assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
                 generated_code)
-        assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
 
 def test_orientation():
@@ -1960,7 +1950,7 @@ def test_mkern_invoke_vec_fields():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    assert ("TYPE(field_type), intent(inout) :: f1, chi(3), chi(3)"
+    assert ("TYPE(field_type), intent(in) :: f1, chi(3), chi(3)"
             not in generated_code)
     # 2nd test for duplication of name vector-field declaration
     assert ("TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
@@ -3337,6 +3327,24 @@ def test_lower_bound_fortran_2(monkeypatch):
             str(excinfo.value))
 
 
+@pytest.mark.parametrize("name, index, output",
+                         [("inner", 10, "inner_cell(11)"),
+                          ("ncells", 10, "inner_cell(1)"),
+                          ("cell_halo", 1, "ncells_cell()"),
+                          ("cell_halo", 10, "cell_halo_cell(9)")])
+def test_lower_bound_fortran_3(monkeypatch, name, index, output):
+    '''test _lower_bound_fortran() with multiple valid iteration spaces'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
+    # we can not use the standard set_lower_bound function as that
+    # checks for valid input
+    monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
+    monkeypatch.setattr(my_loop, "_lower_bound_index", value=index)
+    assert my_loop._lower_bound_fortran() == "mesh%get_last_" + output + "+1"
+
+
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used'''
@@ -3387,22 +3395,6 @@ def test_upper_bound_inner(monkeypatch):
     assert ubound == "mesh%get_last_inner_cell(1)"
 
 
-def test_intent_multi_kern():
-    ''' Test that we correctly generate argument declarations when the
-    same fields are passed to different kernels with different intents '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        output = str(psy.gen)
-        assert "TYPE(field_type), intent(inout) :: g, f\n" in output
-        assert "TYPE(field_type), intent(inout) :: b, h\n" in output
-        assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-        assert "TYPE(quadrature_xyoz_type), intent(in) :: qr\n" in output
-
-
 def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type gh_sum '''
@@ -3445,7 +3437,7 @@ def test_derived_type_arg(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     # Check the four integer variables are named and declared correctly
     expected = (
         "    SUBROUTINE invoke_0(f1, my_obj_iflag, f2, m1, m2, "
@@ -3577,7 +3569,7 @@ def test_single_stencil_xory1d(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, "
         "f4, f2_extent, f2_direction)")
@@ -3632,7 +3624,7 @@ def test_single_stencil_literal(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, "
                "f3, f4)")
     assert output1 in result
@@ -3697,7 +3689,7 @@ def test_single_stencil_xory1d_literal(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
                "f1, f2, f3, f4)")
     assert output1 in result
@@ -3754,7 +3746,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
                "f1, f2, f3, f4)")
     assert output1 in result
@@ -3809,7 +3801,7 @@ def test_multiple_stencils(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
         "f4, f2_extent, f3_extent, f3_direction)")
@@ -3894,7 +3886,7 @@ def test_multiple_stencil_same_name(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
         "f4, extent, f3_direction)")
@@ -3963,7 +3955,7 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "SUBROUTINE invoke_0_testkern_stencil_multi_2_type(f1, f2, f3, "
         "f4, extent, direction)")
@@ -4122,7 +4114,7 @@ def test_extent_name_clash(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
         "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
@@ -4135,10 +4127,9 @@ def test_extent_name_clash(dist_mem):
     assert ("INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_stencil_size\n"
             in result)
     output3 = (
-        "      TYPE(field_type), intent(inout) :: f2_stencil_map, "
-        "f3_stencil_map\n"
-        "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
-        "stencil_cross_1, f3, f3_stencil_dofmap\n")
+        "      TYPE(field_type), intent(in) :: f2_stencil_map, f2, "
+        "f2_stencil_dofmap, stencil_cross_1, f3_stencil_map, f3, "
+        "f3_stencil_dofmap\n")
     assert output3 in result
     output4 = (
         "      INTEGER(KIND=i_def) f3_stencil_size_1\n"
@@ -4203,7 +4194,7 @@ def test_two_stencils_same_field(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0(f1_w1, f2_w2, f3_w2, f4_w3, f1_w3, "
         "f2_extent, extent)")
@@ -4269,7 +4260,7 @@ def test_stencils_same_field_literal_extent(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
@@ -4458,7 +4449,7 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "    SUBROUTINE invoke_0_testkern_multi_field_same_stencil_type("
         "f0, f1, f2, f3, f4, extent, direction)")
@@ -4578,7 +4569,7 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = (
         "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
@@ -4667,7 +4658,7 @@ def test_stencil_args_unique_1(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     # we use f2_stencil_size for extent and nlayers for direction
     # as arguments
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
@@ -4716,7 +4707,7 @@ def test_stencil_args_unique_2(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print(result)
+
     output1 = ("    SUBROUTINE invoke_0(f1, f2, f3, f4, f2_info, "
                "f2_info_2, f2_info_1, f2_info_3)")
     assert output1 in result
@@ -5277,8 +5268,7 @@ def test_argordering_exceptions():
         for method in [create_arg_list.cell_map,
                        create_arg_list.cell_position,
                        create_arg_list.mesh_height,
-                       create_arg_list.mesh_ncell2d,
-                       create_arg_list.quad_rule]:
+                       create_arg_list.mesh_ncell2d]:
             with pytest.raises(NotImplementedError):
                 method()
         for method in [create_arg_list.field_vector,
@@ -5363,6 +5353,28 @@ def test_kerncallarglist_args_error(dist_mem):
     assert (
         "KernCallArgList: the generate() method should be called before "
         "the arglist() method") in str(excinfo.value)
+
+
+def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
+    ''' Check that we raise the expected exception if we encounter an
+    unsupported quadrature shape in the quad_rule() method. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "6_multiple_QR_per_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    create_arg_list = KernCallArgList(loop.loop_body[0])
+    # Add an invalid shape to the dict of qr rules
+    create_arg_list._kern.qr_rules["broken"] = None
+    with pytest.raises(NotImplementedError) as err:
+        create_arg_list.quad_rule()
+    assert ("no support implemented for quadrature with a shape of 'broken'"
+            in str(err.value))
 
 
 def test_multi_anyw2():

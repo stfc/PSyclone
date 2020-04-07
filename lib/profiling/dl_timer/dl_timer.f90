@@ -79,7 +79,7 @@ contains
     use dl_timer, only : timer_register, timer_start
     implicit none
 
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     character*(*) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
@@ -100,7 +100,7 @@ contains
     use dl_timer, only : timer_stop
     implicit none
 
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     
     call timer_stop(this%timer_index)
   end subroutine PostEnd

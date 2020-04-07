@@ -58,6 +58,16 @@ about the dynamical core's `formulation
 and `data model
 <http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
 
+The GungHo dynamical core with atmospheric physics parameterisation
+schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
+currently being developed in preparation for exascale computing in the 2020s.
+The LFRic repository and the associated wiki are hosted at the `Met Office
+Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
+The code is BSD-licensed, however browsing the `LFRic wiki
+<https://code.metoffice.gov.uk/trac/lfric/wiki>`_ and
+`code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_
+requires login access to MOSRS.
+
 .. _dynamo0.3-api-algorithm:
 
 Algorithm
@@ -102,10 +112,19 @@ Please see the :ref:`algorithm-layer` section for a description of the
 Objects in the Dynamo0.3 API can be categorised by their functionality
 as data types and information that specifies supported operations on a
 particular data type. The above example introduces four of five data types
-supported by the Dynamo0.3 API: field, scalar, operator and column-wise
+supported by the Dynamo0.3 API: scalar, field, operator and column-wise
 operator (field vector is the fifth). ``qr`` represents a quadrature
 object which provides information required by a kernel to operate
 on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+
+.. _dynamo0.3-scalar:
+
+Scalar
+++++++
+
+In the Dynamo0.3 API a scalar is a single-valued variable that can be
+either real or integer. Real scalars are identified with ``GH_REAL``
+and integer scalars are identified with ``GH_INTEGER`` metadata.
 
 .. _dynamo0.3-field:
 
@@ -140,12 +159,7 @@ size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
 vector size of 3.
 
-Scalar
-++++++
-
-In Dynamo0.3 API a scalar is a single value variable that can be
-either real or integer. Real scalars are identified with ``GH_REAL``
-and integer scalars are identified with ``GH_INTEGER`` metadata.
+.. _dynamo0.3-operator:
 
 Operator
 ++++++++
@@ -153,6 +167,8 @@ Operator
 Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
 metadata.
+
+.. _dynamo0.3-cma-operator:
 
 Column-Wise Operator
 ++++++++++++++++++++
@@ -211,19 +227,25 @@ Quadrature
 
 Kernels conforming to the Dynamo0.3 API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
-the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
-must be passed to the kernel from the Algorithm layer in the form of a
-`quadrature_type` object. This must be the last argument passed to the
-kernel, e.g.::
+the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This
+information must be passed to the kernel from the Algorithm layer in
+the form of one or more ``quadrature_type`` objects. These must be the
+last arguments passed to the kernel and must be provided in the same
+order that they are specified in the kernel metadata, e.g. if the
+metadata for kernel ``pressure_gradient_kernel_type`` specified
+``gh_shape = gh_quadrature_XYoZ`` and that for kernel
+``geopotential_gradient_kernel`` had ``gh_shape(2) = (\
+gh_quadrature_XYoZ, gh_quadrature_face \)`` then the corresponding
+invoke would look something like::
 
-      type( quadrature_type )   :: qr
       ...
-      qr = quadrature_type(element_order+2, GAUSSIAN)
-      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr),   &
-                  kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
-                  geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
+      qr_xyoz = quadrature_xyoz_type(nqp_exact, rule)
+      qr_face = quadrature_face_type(nqp_exact, ..., rule)
+      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
+                  geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
+		                                    qr_xyoz, qr_face))
 
-This quadrature object specifies the set of points at which the
+These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
 
 .. _dynamo0.3-alg-stencil:
@@ -310,7 +332,9 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the Dynamo0.3 API test suite gives::
+For example, running test 19.2 from the Dynamo0.3 API test suite gives:
+
+.. code-block:: bash
 
   cd <PSYCLONEHOME>/src/psyclone/tests
   psyclone test_files/dynamo0p3/19.2_single_stencil_broken.f90
@@ -327,6 +351,8 @@ aware of are that inter-grid kernels accept only field or field-vectors
 as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
+
+.. _dynamo0.3-psy:
 
 PSy-layer
 ---------
@@ -346,6 +372,28 @@ within a module, or the program name if it is a program.
 
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
+
+.. _dynamo0.3-psy-arg-intents:
+
+Argument Intents
+################
+
+LFRic :ref:`fields <dynamo0.3-field>`, :ref:`field vectors
+<dynamo0.3-field-vector>`, :ref:`operators <dynamo0.3-operator>` and
+:ref:`column-wise operators <dynamo0.3-cma-operator>` are objects that
+contain pointers to data rather than data. The data are accessed by proxies
+of these objects and modified in :ref:`kernels <dynamo0.3-kernel>`.
+As the objects themselves are not modified in the PSy layer, their Fortran
+intents there are always ``intent(in)``.
+
+The Fortran intent of :ref:`scalars <dynamo0.3-scalar>` is still defined
+by their :ref:`access metadata <dynamo0.3-valid-access>` as they are
+actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
+for ``GH_SUM`` (more details in :ref:`meta_args <dynamo0.3-api-meta-args>`
+section below).
+
+The intent of other data structures is mandated by the relevant
+Dynamo0.3 API rules described in sections below.
 
 .. _dynamo0.3-kernel:
 
@@ -547,7 +595,7 @@ or **operator** passed into the Kernel and the order that these occur
 in the ``meta_args`` array must be the same as they are expected in
 the kernel code argument list. The entry must be of ``arg_type`` which
 itself contains metadata about the associated argument. The size of
-the meta_args array must correspond to the number of **scalars**,
+the ``meta_args`` array must correspond to the number of **scalars**,
 **fields** and **operators** passed into the Kernel.
 
 .. note:: It makes no sense for a Kernel to have only **scalar** arguments
@@ -555,7 +603,7 @@ the meta_args array must correspond to the number of **scalars**,
           spatial domain) and PSyclone will reject such Kernels.
 
 For example, if there are a total of 2 **scalar** / **field** /
-**operator** entities being passed to the Kernel then the meta_args
+**operator** entities being passed to the Kernel then the ``meta_args``
 array will be of size 2 and there will be two ``arg_type`` entries::
 
   type(arg_type) :: meta_args(2) = (/                                  &
@@ -696,7 +744,7 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
 
   type(arg_type) :: meta_args(3) = (/                           &
        arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                 &
-       arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2),             &
+       arg_type(GH_FIELD*3, GH_INC, ANY_SPACE_2),               &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 
@@ -736,9 +784,11 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
 ======================  ============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
-          scalar arguments. *Since the LFRic infrastructure does not
-          currently support integer reductions, integer scalar arguments
-          are restricted to having read-only access.*
+          scalar arguments. In practice this means that the only allowed
+          access for the user-defined scalars in kernels is ``GH_READ``.
+          *Furthermore, since the LFRic infrastructure does not currently
+          support integer reductions, integer scalar arguments are
+          restricted to having read-only access.*
 
 .. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
           ``GH_READWRITE`` as its access pattern must be a discontinuous
@@ -1092,7 +1142,7 @@ kernel metadata::
   type, extends(kernel_type) :: testkern_type
     type(arg_type), dimension(2) :: meta_args = &
         (/ arg_type(gh_field, gh_read, w1),     &
-           arg_type(gh_field, gh_write, w0) /)
+           arg_type(gh_field, gh_inc,  w0) /)
     type(reference_element_data_type), dimension(2) ::               &
       meta_reference_element =                                       &
         (/ reference_element_data_type(normals_to_horizontal_faces), &
@@ -1117,11 +1167,16 @@ normals_to_horizontal_faces          Array of normals pointing in the positive
 normals_to_vertical_faces            Array of normals pointing in the positive
                                      (x, y, z) axis direction for each vertical
                                      face indexed as (component, face).
+normals_to_faces                     Array of normals pointing in the positive
+                                     (x, y, z) axis direction for each face
+                                     indexed as (component, face).
 outward_normals_to_horizontal_faces  Array of outward-pointing normals for each
                                      horizontal face indexed as (component,
                                      face).
 outward_normals_to_vertical_faces    Array of outward-pointing normals for each
                                      vertical face indexed as (component, face).
+outward_normals_to_faces             Array of outward-pointing normals for each
+                                     face indexed as (component, face).
 ===================================  ===========================================
 
 meta_mesh
@@ -1161,15 +1216,24 @@ gh_shape and gh_evaluator_targets
 If a kernel requires basis or differential-basis functions then the
 metadata must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
-component of the metadata.  Currently PSyclone supports two shapes;
-``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation (of the basis/differential-basis
-functions) at nodal points. For the latter, there are two options: if
-an evaluator is required for multiple function spaces then these can
-be specified using the additional ``gh_evaluator_targets`` metadata
+component of the metadata.  Currently PSyclone supports four shapes;
+``gh_quadrature_XYoZ`` for Gaussian quadrature points,
+``gh_quadrature_face`` for quadrature points on cell faces,
+``gh_quadrature_edge`` for quadrature points on cell edges and
+``gh_evaluator`` for evaluation at nodal points. If a kernel requires
+just one of these then ``gh_shape`` is a scalar integer. However, if
+more than one is required then ``gh_shape`` becomes a one-dimensional,
+integer array, e.g.::
+
+    integer :: gh_shape(2) = (/ gh_quadrature_face, gh_quadrature_edge /)
+
+If a kernel requires an evaluator then there are two options: if an
+evaluator is required for multiple function spaces then these can be
+specified using the additional ``gh_evaluator_targets`` metadata
 entry. This entry is a one-dimensional, integer array containing the
-desired function spaces. For example, to request basis/differential-basis
-functions evaluated on both W0 and W1 the metadata would be::
+desired function spaces. For example, to request
+basis/differential-basis functions evaluated on both W0 and W1, the
+metadata would be::
 
     integer :: gh_shape = gh_evaluator
     integer :: gh_evaluator_targets(2) = (/W0, W1/)
@@ -1182,8 +1246,8 @@ quantities that the kernel is updating. All necessary data is
 extracted in the PSy layer and passed to the kernel(s) as required -
 nothing is required from the Algorithm layer. If a kernel requires
 quadrature on the other hand, the Algorithm writer must supply a
-``quadrature_type`` object as the last argument to the kernel (see
-Section :ref:`dynamo0.3-quadrature`).
+``quadrature_type`` object for each specified quadrature as the last
+argument(s) to the kernel (see Section :ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel metadata to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are required.
@@ -1208,6 +1272,8 @@ describes.
 For example::
 
   procedure, nopass :: my_kernel_subroutine
+
+.. _dynamo0.3-kern-subroutine:
 
 Subroutine
 ++++++++++
@@ -1286,24 +1352,35 @@ rules, along with PSyclone's naming conventions, are:
       ``orientation``) in the order specified in the metadata
 
       1) If it is a basis or differential basis function then we must pass
-         real arrays of kind ``r_def`` with intent ``in``:
+         real arrays of kind ``r_def`` with intent ``in``. For each shape
+	 specified in the ``gh_shape`` metadata entry:
 
-         1) If ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
-            rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``,
-            ``np_z``). The name of the argument is
-            ``"basis_"<field_function_space>`` or
-            ``"diff_basis_"<field_function_space>``, as appropriate.
+	 1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+	    and are named ``"basis_"<field_function_space>_<quadrature_arg_name>``
+	    or ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+	    as appropriate:
 
-         2) If ``gh_shape`` is ``gh_evaluator`` then we pass one array for
+            1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xy``,
+            ``np_z``).
+
+	    2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+	    then the  arrays have extent
+	    (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+	    ``nedges``).
+
+         2) If shape is ``gh_evaluator`` then we pass one array for
             each target function space (i.e. as specified by
-            ``gh_evaluator_targets``). Each of these arrays are of rank 3
+            ``gh_evaluator_targets``). Each of these arrays are of rank three
             with extent (``dimension``, ``number_of_dofs``,
             ``ndf_<target_function_space>``). The name of the argument is
             ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
             ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
             as appropriate.
 
-         where ``dimension`` is 1 or 3 and depends upon the function space
+         where ``<quadrature_arg_name>`` is the name of the corresponding
+	 quadrature object being passed to the Invoke.
+	 ``dimension`` is 1 or 3 and depends upon the function space
          (see :ref:`dynamo0.3-function-space` above for more information) and
          whether or not it is a basis or a differential basis function (see
          the table below). ``number_of_dofs`` is the number of degrees of
@@ -1311,7 +1388,9 @@ rules, along with PSyclone's naming conventions, are:
          the number of points to be evaluated: i) ``*_xyz`` in
          all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
          iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
-         vertical (1D).
+         vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
+	 faces/edges obtained from the appropriate quadrature object supplied
+	 to the Invoke.
 
          .. tabularcolumns:: |l|c|l|
 
@@ -1339,13 +1418,19 @@ rules, along with PSyclone's naming conventions, are:
    horizontal faces of the reference element (``nfaces_re_h``). Similarly,
    if either the ``normals_to_vertical_faces`` or
    ``outward_normals_to_vertical_faces`` are
-   required then pass the number of vertical faces (``nfaces_re_v``). Then,
-   in the order specified in the ``meta_reference_element`` metadata:
+   required then pass the number of vertical faces (``nfaces_re_v``). This
+   also holds for the ``normals_to_faces`` and ``outward_normals_to_faces``
+   where the number of all faces of the reference element (``nfaces_re``)
+   is passed to the kernel. Then, in the order specified in the
+   ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
       array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
    2) For the ``outward_normals_to_horizontal/vertical_faces``, pass a rank-2
       integer array of type ``i_def`` with dimensions ``(3, nfaces_re_h/v)``.
+   3) For ``normals_to_faces`` or ``outward_normals_to_faces`` pass
+      a rank-2 integer array of type ``i_def`` with dimensions
+      ``(3, nfaces_re)``.
 
 6) If the ``adjacent_face`` mesh property is required then:
 
@@ -1356,17 +1441,29 @@ rules, along with PSyclone's naming conventions, are:
    2) Pass a rank-1, integer array of kind ``i_def`` and extent
       ``nfaces_re_h``.
 
-7) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+   each shape in the order specified in the ``gh_shape`` metadata:
 
-   1) Include integer, scalar arguments with intent ``in`` that specify
-      the extent of the basis/diff-basis arrays:
+   1) Include integer, scalar arguments of kind ``i_def`` with intent ``in``
+      that specify the extent of the basis/diff-basis arrays:
 
-      1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
-         and ``np_z``.
+      1) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass
+	 ``np_xy_<quadrature_arg_name>`` and ``np_z_<quadrature_arg_name>``.
+      2) If ``gh_shape`` is ``gh_quadrature_face``/``_edge`` then pass
+	 ``nfaces``/``nedges_<quadrature_arg_name>`` and
+	 ``np_xyz_<quadrature_arg_name>``.
 
    2) Include weights which are real arrays of kind ``r_def``:
 
-      1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``.
+      1) If ``gh_quadrature_XYoZ`` pass in
+	 ``weights_xz_<quadrature_arg_name>`` (rank one, extent
+	 ``np_xy_<quadrature_arg_name>``)
+	 and ``weights_z_<quadrature_arg_name>`` (rank one, extent
+	 ``np_z_<quadrature_arg_name>``).
+      2) If ``gh_quadrature_face``/``_edge`` pass in
+	 ``weights_xyz_<quadrature_arg_name>`` (rank two with extents
+	 [``np_xyz_<quadrature_arg_name>``,
+	 ``nfaces/nedges_<quadrature_arg_name>``]).
 
 Examples
 ^^^^^^^^
@@ -1420,6 +1517,30 @@ and at ``W1``)::
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
+If the meta-data specifies that a kernel requires both an evaluator
+and quadrature::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_read,  w0) /)
+     type(func_type) :: meta_funcs(1) =               &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape(2) = (/ gh_evaluator, gh_quadrature_face /)
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we will need to pass basis functions for both the evaluator and the
+quadrature (where ``qr_face`` is the name of the face-quadrature object
+passed to the Invoke)::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,              &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0,       &
+       basis_w0_on_w0, basis_w0_qr_face, ndf_w1,                          &
+       np_xyz_qr_face, nfaces_qr_face, weights_xyz_qr_face)
+
 If the metadata specifies that the kernel requires a property of the
 reference element::
 
@@ -1434,8 +1555,8 @@ reference element::
      procedure, nopass :: code => testkern_operator_code
   end type testkern_operator_type
 
-Then the kernel must be passed the number of horizontal faces of the
-reference element and the array of face normals::
+then the kernel must be passed the number of faces of the reference element
+and the array of face normals in the specified direction (here horizontal)::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
@@ -1671,6 +1792,29 @@ arguments to inter-grid kernels are as follows:
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
 
+.. _dynamo0.3-kernel-arg-intents:
+
+Argument Intents
+################
+
+As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
+and/or update the data pointed to by objects such as
+:ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
+This data is passed to the kernels as :ref:`subroutine arguments
+<dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
+logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
+
+* ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
+
+* ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
+  is only written to in a kernel. When the argument is defined inside a kernel
+  its intent is ``intent(out)`` and when it is defined outside of a kernel its
+  intent is ``intent(inout)``.
+
+* ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
+  are updated (albeit in a different way due to different access to DoFs, see
+  :ref:`dynamo0.3-api-meta-args` for more details).
+
 .. _dynamo0.3-built-ins:
 
 Built-ins
@@ -1702,6 +1846,11 @@ the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
 Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
 optimised maths library).
+
+As described in the PSy-layer :ref:`Argument Intents
+<dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
+:ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
+scalar that has its data modified by a Built-in is marked in **bold**.
 
 Naming scheme
 +++++++++++++
@@ -1773,9 +1922,7 @@ Sums two fields (Z = X + Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_plus_Y
 ############
@@ -1788,8 +1935,7 @@ Adds the second field to the first and returns it (X = X + Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_plus_Y
 #########
@@ -1803,8 +1949,7 @@ Performs Z = aX + Y::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_aX_plus_Y
 #############
@@ -1818,8 +1963,7 @@ Performs X = aX + Y (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 inc_X_plus_bY
 #############
@@ -1833,8 +1977,7 @@ Performs X = X + bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_plus_bY
 ##########
@@ -1848,8 +1991,7 @@ Performs Z = aX + bY::
 where:
 
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_aX_plus_bY
 ##############
@@ -1863,8 +2005,7 @@ Performs X = aX + bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Subtraction
 +++++++++++
@@ -1883,9 +2024,7 @@ third (Z = X - Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_minus_Y
 #############
@@ -1898,8 +2037,7 @@ Subtracts the second field from the first and returns it (X = X - Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_minus_Y
 ##########
@@ -1913,8 +2051,7 @@ Performs Z = aX - Y::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 X_minus_bY
 ##########
@@ -1928,8 +2065,7 @@ Performs Z = X - bY::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_minus_bY
 ##############
@@ -1943,8 +2079,7 @@ Performs X = X - bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Multiplication
 ++++++++++++++
@@ -1963,8 +2098,7 @@ field (Z = X*Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_times_Y
 #############
@@ -1977,8 +2111,7 @@ Multiplies the first field by the second and returns it (X = X*Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 inc_aX_times_Y
 ##############
@@ -1992,8 +2125,7 @@ Performs X = a*X*Y (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Scaling
 +++++++
@@ -2014,8 +2146,7 @@ field (Y = a*X)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field2*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: **field2**, *field1*
 
 inc_a_times_X
 #############
@@ -2029,7 +2160,7 @@ Multiplies a field by a scalar value and returns the field (X = a*X)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 
 Division
 ++++++++
@@ -2049,8 +2180,7 @@ third (Z = X/Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: **field3**, *field1*, *field2*
 
 inc_X_divideby_Y
 ################
@@ -2063,8 +2193,7 @@ Divides the first field by the second and returns it (X = X/Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Setting to value
 ++++++++++++++++
@@ -2083,7 +2212,7 @@ Sets all elements of the field *field* to the value *constant* (X = c)::
 
 where:
 
-* type(field_type), intent(out) :: *field*
+* type(field_type), intent(in) :: **field**
 * real(r_def), intent(in) :: *constant*
 
 .. note:: The field may be on any function space.
@@ -2099,8 +2228,7 @@ Sets a field *field2* equal to field *field1* (Y = X)::
 
 where:
 
-* type(field_type), intent(out) :: *field2*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: **field2**, *field1*
 
 Raising to power
 ++++++++++++++++
@@ -2119,7 +2247,7 @@ Raises a field to a real scalar value and returns the field (X = X**a)::
 
 where:
 
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 * real(r_def), intent(in) :: *rscalar*
 
 inc_X_powint_n
@@ -2133,7 +2261,7 @@ Raises a field to an integer scalar value and returns the field (X = X**n)::
 
 where:
 
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 * integer(i_def), intent(in) :: *iscalar*
 
 Inner product
@@ -2153,7 +2281,7 @@ Computes the inner product of the fields *field1* and *field2*, *i.e.*::
 
 where:
 
-* real(r_def), intent(out) :: *innprod*
+* real(r_def), intent(out) :: **innprod**
 * type(field_type), intent(in) :: *field1*, *field2*
 
 .. note:: When used with distributed memory this Built-in will trigger
@@ -2171,7 +2299,7 @@ Computes the inner product of the field *field1* by itself, *i.e.*::
 
 where:
 
-* real(r_def), intent(out) :: *innprod*
+* real(r_def), intent(out) :: **innprod**
 * type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this Built-in will trigger
@@ -2195,8 +2323,8 @@ in the scalar variable *sumfld*::
 
 where:
 
-* real(r_def), intent(out) :: sumfld
-* type(field_type), intent(in) :: field
+* real(r_def), intent(out) :: **sumfld**
+* type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
