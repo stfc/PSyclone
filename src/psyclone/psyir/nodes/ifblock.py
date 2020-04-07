@@ -62,7 +62,7 @@ class IfBlock(Statement):
     # WHERE construct.
     valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
                          'was_where')
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "DataNode, Schedule [, Schedule]"
     _text_name = "If"
     _colour_key = "If"

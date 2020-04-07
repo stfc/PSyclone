@@ -65,7 +65,7 @@ class Literal(DataNode):
     # A Literal cannot have DEFERRED type
     VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
                         DataType.CHARACTER, DataType.BOOLEAN]
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
     _colour_key = "Literal"

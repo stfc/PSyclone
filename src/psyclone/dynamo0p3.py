@@ -5615,6 +5615,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Class attribute of this node textual representation
     _text_name = "HaloExchangeStart"
 
     def __init__(self, field, check_dirty=True,
@@ -5726,6 +5727,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Class attribute of this node textual representation
     _text_name = "HaloExchangeEnd"
 
     def __init__(self, field, check_dirty=True,

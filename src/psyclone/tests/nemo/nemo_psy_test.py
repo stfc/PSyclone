@@ -321,8 +321,6 @@ def test_schedule_view(capsys):
         6*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
         6*indent + sched_str + "[]\n" +
         7*indent + "0: " + kern_str + "[]\n")
-    print(expected_sched)
-    print(output)
     assert expected_sched in output
 
 

@@ -86,27 +86,11 @@ class Range(Node):
     notation. Therefore the Fortran frontend is able to convert array
     notation to PSyIR and the Fortran backend is able to convert PSyIR
     back to array notation.
-
-    :param parse_node: the entry in the fparser2 parse tree representing the \
-                       code contained within this directive or None.
-    :type parse_node: :py:class:`fparser.two.Fortran2003.Base` or NoneType
-    :param parent: PSyIR node that is the parent of this Range or None.
-    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
-    :param annotations: Tags that provide additional information about \
-        the node. The node should still be functionally correct when \
-        ignoring these tags.
-    :type annotations: list of str
-
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "DataNode, DataNode, DataNode"
     _text_name = "Range"
     _colour_key = "Range"
-
-    def __init__(self, parse_node=None, parent=None, annotations=None):
-
-        super(Range, self).__init__(parse_node, parent=parent,
-                                    annotations=annotations)
 
     @staticmethod
     def _validate_child(position, child):

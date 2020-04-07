@@ -299,7 +299,6 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-
     def __init__(self, invoke, ast):
         # pylint: disable=super-init-not-called, non-parent-init-called
         Node.__init__(self)

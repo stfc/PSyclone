@@ -330,6 +330,7 @@ class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
+    # Class attribute of this node textual representation
     _text_name = "GOInvokeSchedule"
 
     def __init__(self, alg_calls, reserved_names=None):

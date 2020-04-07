@@ -46,19 +46,11 @@ class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
 
-    :param children: the sequence of PSyIR nodes that make up the Schedule.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: that parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "*[Statement]"
     _text_name = "Schedule"
     _colour_key = "Schedule"
-
-    def __init__(self, children=None, parent=None):
-        Node.__init__(self, children=children, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

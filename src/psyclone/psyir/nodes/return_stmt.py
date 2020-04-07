@@ -46,16 +46,11 @@ class Return(Statement):
     Node representing a Return statement (subroutine break without return
     value).
 
-    :param parent: the parent node of this Return in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "Return"
     _colour_key = "Return"
-
-    def __init__(self, parent=None):
-        super(Return, self).__init__(parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

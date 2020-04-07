@@ -60,7 +60,7 @@ class Reference(DataNode):
     :raises TypeError: if the symbol argument is not of type Symbol.
 
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "Reference"
     _colour_key = "Reference"
@@ -148,17 +148,10 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param str reference_name: name of the array symbol.
-    :param parent: the parent node of this Array in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "*[DataNode | Range]"
     _text_name = "ArrayReference"
-
-    def __init__(self, symbol, parent=None):
-        super(Array, self).__init__(symbol, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

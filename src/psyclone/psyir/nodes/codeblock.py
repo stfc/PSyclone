@@ -58,7 +58,7 @@ class CodeBlock(Statement, DataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "CodeBlock"
     _colour_key = "CodeBlock"

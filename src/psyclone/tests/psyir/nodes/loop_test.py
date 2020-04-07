@@ -107,15 +107,7 @@ def test_loop_navigation_properties():
         loop.step_expr = Literal("invalid", DataType.INTEGER, parent=loop)
     assert error_str in str(err.value)
 
-    # The fourth child has to be a Schedule
-    # loop.addchild(Literal("loop_body", DataType.INTEGER, parent=loop))
-    # with pytest.raises(InternalError) as err:
-    #     _ = loop.loop_body
-    # assert "Loop malformed or incomplete. Fourth child should be a " \
-    #     "Schedule node, but found loop with " in str(err.value)
-
-    # Fix loop and check that Getters properties work
-    # del loop.children[3]
+    # Check that Getters properties work
     loop.addchild(Schedule(parent=loop))
     loop.loop_body.addchild(Return(parent=loop.loop_body))
 

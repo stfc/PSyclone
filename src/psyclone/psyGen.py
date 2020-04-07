@@ -778,6 +778,7 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
+    # Class attribute of this node textual representation
     _text_name = "InvokeSchedule"
 
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
@@ -1043,7 +1044,7 @@ class Directive(Statement):
     # The prefix to use when constructing this directive in Fortran
     # (e.g. "OMP"). Must be set by sub-class.
     _PREFIX = ""
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "Schedule"
     _text_name = "Directive"
     _colour_key = "Directive"
@@ -2067,7 +2068,7 @@ class GlobalSum(Statement):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
     _colour_key = "GlobalSum"
@@ -2149,7 +2150,7 @@ class HaloExchange(Statement):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
     _colour_key = "HaloExchange"
@@ -2621,6 +2622,7 @@ class CodedKern(Kern):
                              call does not match that in the meta-data.
 
     '''
+    # Class attributes of this node textual representations
     _text_name = "CodedKern"
     _colour_key = "CodedKern"
 
@@ -3143,13 +3145,13 @@ class InlinedKern(Kern):
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
     _colour_key = "InlinedKern"
 
     def __init__(self, psyir_nodes):
-        # pylint: disable=non-parent-init-called,super-init-not-called
+        # pylint: disable=non-parent-init-called, super-init-not-called
         Node.__init__(self)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
@@ -3187,6 +3189,7 @@ class BuiltIn(Kern):
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
     '''
+    # Class attributes of this node textual representations
     _text_name = "BuiltIn"
     _colour_key = "BuiltIn"
 

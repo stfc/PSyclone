@@ -66,6 +66,7 @@ class Operation(DataNode):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = None
+    # Class attributes of this node textual representations
     _text_name = "Operation"
     _colour_key = "Operation"
 
@@ -120,14 +121,8 @@ class UnaryOperation(Operation):
     '''
     Node representing a UnaryOperation expression. As such it has one operand
     as child 0, and an attribute with the operator type.
-
-    :param operator: Enumerated type capturing the unary operator.
-    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
-    :param parent: the parent node of this UnaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "DataNode"
     _text_name = "UnaryOperation"
 
@@ -143,9 +138,6 @@ class UnaryOperation(Operation):
         # Casting Operators
         'REAL', 'INT'
         ])
-
-    def __init__(self, operation, parent=None):
-        super(UnaryOperation, self).__init__(operation, parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -197,12 +189,6 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
-
-    :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
-    :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
@@ -264,12 +250,9 @@ class BinaryOperation(Operation):
         type. Currently only `DataType.REAL` is supported.
 
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "DataNode, DataNode"
     _text_name = "BinaryOperation"
-
-    def __init__(self, operator, parent=None):
-        super(BinaryOperation, self).__init__(operator, parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -354,15 +337,8 @@ class NaryOperation(Operation):
     Node representing a n-ary operation expression. The n operands are the
     stored as the 0 - n-1th children of this node and the type of the operator
     is held in an attribute.
-
-
-    :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
-    :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "+[DataNode]"
     _text_name = "NaryOperation"
 
@@ -370,9 +346,6 @@ class NaryOperation(Operation):
         # Arithmetic Operators
         'MAX', 'MIN', 'SUM'
         ])
-
-    def __init__(self, operator, parent=None):
-        super(NaryOperation, self).__init__(operator, parent)
 
     @staticmethod
     def _validate_child(position, child):

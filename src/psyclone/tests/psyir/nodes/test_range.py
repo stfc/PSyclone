@@ -69,7 +69,7 @@ def test_range_init(parser):
     parent = Node()
     reader = FortranStringReader("program hello\nend program hello\n")
     prog = parser(reader)
-    erange2 = Range(parse_node=prog, parent=parent)
+    erange2 = Range(ast=prog, parent=parent)
     assert erange2.parent is parent
     assert erange2.ast is prog
     with pytest.raises(InternalError) as err:
@@ -178,8 +178,15 @@ def test_range_out_of_order_setter():
     assert ("The Stop value 'Literal[value:'2', DataType.INTEGER]' can not be "
             "inserted into range 'Range[]' before the Start value is provided."
             in str(excinfo.value))
+    # Once start is added, setting it up again just replaces it
     erange.start = datanode1
+    erange.start = datanode1
+    assert len(erange.children) == 1
+    # Now Stop can be accepted
     erange.stop = datanode2
+    # Once added, setting it up again just replaces it
+    erange.stop = datanode2
+    assert len(erange.children) == 2
 
     # Step before Step
     del erange.children[1]
@@ -190,6 +197,9 @@ def test_range_out_of_order_setter():
             "are provided." in str(excinfo.value))
     erange.stop = datanode2
     erange.step = datanode3
+    # Once added, setting it up again just replaces it
+    erange.step = datanode3
+    assert len(erange.children) == 3
 
 
 def test_range_str():

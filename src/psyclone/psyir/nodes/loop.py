@@ -75,14 +75,15 @@ class Loop(Statement):
 
     '''
     valid_annotations = ('was_where', 'was_single_stmt')
-    # Textual representation of the valid children for this node.
+    # Class attributes of this node textual representations
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"
     _colour_key = "Loop"
 
     def __init__(self, parent=None, variable_name="", valid_loop_types=None,
                  annotations=None):
-        Node.__init__(self, parent=parent, annotations=annotations)
+        super(Loop, self).__init__(self, parent=parent,
+                                   annotations=annotations)
 
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
