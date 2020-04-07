@@ -2828,26 +2828,23 @@ class DynFields(DynCollection):
     def _invoke_declarations(self, parent):
         '''
         Add field-related declarations to the PSy-layer routine.
+        Note: PSy layer in LFRic does not modify the field objects. Hence,
+        their Fortran intents are always in (the data updated in the kernels
+        is only pointed to from the field object and is thus not a part of
+        the object).
 
         :param parent: the node in the f2pygen AST representing the PSy-layer \
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import TypeDeclGen
-        # Add the subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declns_by_intent("gh_field")
-        for intent in FORTRAN_INTENT_NAMES:
-            if fld_args[intent]:
-                if intent == "out":
-                    # The data part of a field might have intent(out) but
-                    # in order to preserve the state of the whole
-                    # derived-type object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                parent.add(TypeDeclGen(parent, datatype="field_type",
-                                       entity_decls=fld_args[intent],
-                                       intent=fort_intent))
+
+        # Add the Invoke subroutine argument declarations for fields
+        fld_args = self._invoke.unique_declarations(datatype="gh_field")
+        if fld_args:
+            parent.add(TypeDeclGen(parent, datatype="field_type",
+                                   entity_decls=fld_args,
+                                   intent="in"))
 
     def _stub_declarations(self, parent):
         '''
@@ -3153,6 +3150,10 @@ class DynLMAOperators(DynCollection):
     def _invoke_declarations(self, parent):
         '''
         Declare all LMA-related quantities in a PSy-layer routine.
+        Note: PSy layer in LFRic does not modify the LMA operator objects.
+        Hence, their Fortran intents are always "in" (the data updated in the
+        kernels is only pointed to from the LMA operator object and is thus
+        not a part of the object).
 
         :param parent: the f2pygen node representing the PSy-layer routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -3160,21 +3161,12 @@ class DynLMAOperators(DynCollection):
         '''
         from psyclone.f2pygen import TypeDeclGen
 
-        op_declarations_dict = self._invoke.unique_declns_by_intent(
-            "gh_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                parent.add(
-                    TypeDeclGen(parent, datatype="operator_type",
-                                entity_decls=op_declarations_dict[intent],
-                                intent=fort_intent))
+        # Add the Invoke subroutine argument declarations for operators
+        op_args = self._invoke.unique_declarations(datatype="gh_operator")
+        if op_args:
+            parent.add(TypeDeclGen(parent, datatype="operator_type",
+                                   entity_decls=op_args,
+                                   intent="in"))
 
 
 class DynCMAOperators(DynCollection):
@@ -3293,6 +3285,10 @@ class DynCMAOperators(DynCollection):
         '''
         Generate the necessary PSy-layer declarations for all column-wise
         operators and their associated parameters.
+        Note: PSy layer in LFRic does not modify the CMA operator objects.
+        Hence, their Fortran intents are always "in" (the data updated in the
+        kernels is only pointed to from the column-wise operator object and is
+        thus not a part of the object).
 
         :param parent: the f2pygen node representing the PSy-layer routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -3305,24 +3301,15 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        # Add subroutine argument declarations for CMA operators that are
-        # read or written (as with normal/LMA operators, they are never 'inc'
-        # because they are discontinuous)
-        cma_op_declarations_dict = self._invoke.unique_declns_by_intent(
-            "gh_columnwise_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if cma_op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                parent.add(
-                    TypeDeclGen(parent, datatype="columnwise_operator_type",
-                                entity_decls=cma_op_declarations_dict[intent],
-                                intent=fort_intent))
+        # Add the Invoke subroutine argument declarations for column-wise
+        # operators
+        cma_op_args = self._invoke.unique_declarations(
+            datatype="gh_columnwise_operator")
+        if cma_op_args:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="columnwise_operator_type",
+                                   entity_decls=cma_op_args,
+                                   intent="in"))
 
         for op_name in self._cma_ops:
             # Declare the matrix itself

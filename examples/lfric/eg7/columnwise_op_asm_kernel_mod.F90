@@ -48,7 +48,7 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     GH_READ, GH_WRITE,                      &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     GH_COLUMN_BANDED_DOFMAP,                &
-                                    CELLS 
+                                    CELLS
 
 use constants_mod,           only : r_def, i_def
 
@@ -72,24 +72,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_asm_kernel_type
-   module procedure columnwise_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_asm_kernel_code
+
 contains
-  
-  type(columnwise_op_asm_kernel_type) function columnwise_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_constructor
 
   !> @brief The subroutine which is called directly from the PSY layer and
   !> assembles the LMA into a CMA
@@ -133,7 +120,7 @@ contains
                                            column_banded_dofmap_from)
 
     implicit none
-    
+
     ! Arguments
     integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil

@@ -82,8 +82,7 @@ def test_field_xyoz(tmpdir):
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
@@ -267,8 +266,7 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         output_decls += "      USE mesh_mod, ONLY: mesh_type\n"
     output_decls += (
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
@@ -488,7 +486,7 @@ def test_field_qr_deref(tmpdir):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
         gen = str(psy.gen)
-        print(gen)
+
         assert (
             "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
             " qr_data)\n" in gen)
@@ -838,7 +836,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     from psyclone import dynamo0p3
     # Change meta-data to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
-    print(diff_basis)
+
     ast = fpapi.parse(diff_basis, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

@@ -8,23 +8,23 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
-! 
+!
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
-! 
+!
 ! * Redistributions of source code must retain the above copyright notice, this
 !   list of conditions and the following disclaimer.
-! 
+!
 ! * Redistributions in binary form must reproduce the above copyright notice,
 !   this list of conditions and the following disclaimer in the documentation
 !   and/or other materials provided with the distribution.
-! 
+!
 ! * Neither the name of the copyright holder nor the names of its
 !   contributors may be used to endorse or promote products derived from
 !   this software without specific prior written permission.
-! 
+!
 ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 ! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 ! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -84,7 +84,7 @@ module solver_mod
      real(r_def)    :: rflag
      integer(i_def) :: iflag
   end type example_type
-  
+
   private
   public :: solver_algorithm
 
@@ -96,8 +96,8 @@ contains
 !! encoded in the matrix vector kernel that is called. No measure of convergence
 !! is used instead the algorithm is assumed to have converged sufficiently
 !! after (n_iter) iterations
-!! @param[in] rhs_field The input b
-!! @param[inout] lhs_field The answser, x
+!! @param[in,out] lhs The answer, x
+!! @param[in] rhs The input b
 !! @param[in] mm operator type, the mass matrix
 !! @param[in] mesh The id of mesh object the model for fields
 !! @param[in] n_iter The number of Jacobi iterations to perform
@@ -107,8 +107,9 @@ subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
   implicit none
 
   integer(i_def),      intent(in)    :: n_iter
-  type(field_type),    intent(inout) :: lhs, rhs
-  type(operator_type), intent(inout) :: mm
+  type(field_type),    intent(inout) :: lhs
+  type(field_type),    intent(in)    :: rhs
+  type(operator_type), intent(in)    :: mm
   integer(i_def),      intent(in)    :: mesh
   type(field_type)                   :: Ax, diagonal, res
 
@@ -119,7 +120,7 @@ subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
   type(function_space_type), pointer :: rhs_fs => null()
 
   flag_obj%rflag = 0.0_r_def
-  
+
   rhs_fs => function_space_collection%get_fs( mesh, &
                                               element_order, &
                                               rhs%which_function_space() )
