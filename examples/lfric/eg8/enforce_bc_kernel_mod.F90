@@ -73,27 +73,15 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constenforce_bcctors
-!-------------------------------------------------------------------------------
-
-! overload the default stenforce_bccture constenforce_bcctor for function space
-interface enforce_bc_kernel_type
-   module procedure enforce_bc_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public enforce_bc_code
-contains
 
-type(enforce_bc_kernel_type) function enforce_bc_kernel_constructor() result(self)
-  return
-end function enforce_bc_kernel_constructor
+contains
 
 !> @brief Applies boundary conditions to a field
 !! @param[in] nlayers Number of layers
-!! @param[inout] field Input/Output data 
+!! @param[in,out] field Input/Output data
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Number unique of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column
@@ -103,7 +91,7 @@ subroutine enforce_bc_code(nlayers,                        &
                            field,                          &
                            ndf, undf, map, boundary_value  &
                           )
-  
+
   implicit none
 
   ! Arguments
@@ -122,7 +110,7 @@ subroutine enforce_bc_code(nlayers,                        &
   do df = 1,ndf
     field(map(df) + k) = field(map(df) + k)*real(boundary_value(df,1))
   end do
-  k = nlayers - 1  
+  k = nlayers - 1
   do df = 1,ndf
     field(map(df) + k) = field(map(df) + k)*real(boundary_value(df,2))
   end do

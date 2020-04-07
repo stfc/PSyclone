@@ -45,7 +45,7 @@ module matrix_vector_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    CELLS 
+                                    CELLS
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
@@ -60,7 +60,7 @@ private
 type, public, extends(kernel_type) :: matrix_vector_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
@@ -70,23 +70,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface matrix_vector_kernel_type
-   module procedure matrix_vector_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public matrix_vector_code
-contains
 
-  type(matrix_vector_kernel_type) function matrix_vector_kernel_constructor() result(self)
-  return
-end function matrix_vector_kernel_constructor
+contains
 
 !> @brief The subroutine which is called directly by the Psy layer, computes lhs = matrix*x
 !> @param[in] cell the horizontal cell index
@@ -97,18 +85,18 @@ end function matrix_vector_kernel_constructor
 !! @param[in] map1 Integer array holding the dofmap for the cell at the base of the column for the output field
 !! @param[in] map2 Integer array holding the dofmap for the cell at the base of the column for the input field
 !! @param[in] ndf2 The number of degrees of freedom per cell for the input field
-!! @param[in] undf2 The unique number of degrees of freedom for the input field 
+!! @param[in] undf2 The unique number of degrees of freedom for the input field
 !! @param[in] x Real array the data
-!> @param[inout] lhs Real array, the output lhs (A*x)
+!> @param[in,out] lhs Real array, the output lhs (A*x)
 !! @param[in] mass_matrix Real: Array holding mass matrix values
 subroutine matrix_vector_code(cell,        &
                               nlayers,     &
-                              lhs, x,      & 
+                              lhs, x,      &
                               ncell_3d,    &
                               matrix,      &
                               ndf1, undf1, map1, &
                               ndf2, undf2, map2)
- 
+
   implicit none
 
   ! Arguments
@@ -125,18 +113,18 @@ subroutine matrix_vector_code(cell,        &
   integer(kind=i_def)               :: df, k, ik
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
- 
+
   do k = 0, nlayers-1
-    do df = 1, ndf2  
+    do df = 1, ndf2
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
     lhs_e = matmul(matrix(:,:,ik),x_e)
     do df = 1,ndf1
-       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df) 
+       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
     end do
   end do
- 
+
 end subroutine matrix_vector_code
 
 end module matrix_vector_kernel_mod

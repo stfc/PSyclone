@@ -115,7 +115,7 @@ contains
                       num_post_vars)
     implicit none
 
-    class(PSyDataType), intent(inout) :: this
+    class(PSyDataType), intent(inout), target :: this
     character*(*)       :: module_name, region_name
     integer             :: count, count_rate
     integer, intent(in) :: num_pre_vars, num_post_vars

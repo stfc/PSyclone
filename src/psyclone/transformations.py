@@ -2949,7 +2949,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                           number_of_layers)
 
         if quadrature and arg_list_info.nqp_positions:
-            if kernel.eval_shape.lower() == "gh_quadrature_xyoz":
+            # TODO #705 - support the transformation of kernels requiring
+            # other quadrature types (face/edge, multiple).
+            if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["horizontal"],
                               element_order+3)
@@ -2959,8 +2961,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             else:
                 raise TransformationError(
                     "Error in Dynamo0p3KernelConstTrans transformation. "
-                    "Support is currently limited to xyoz quadrature but "
-                    "found '{0}'.".format(kernel.eval_shape))
+                    "Support is currently limited to 'xyoz' quadrature but "
+                    "found {0}.".format(kernel.eval_shapes))
 
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.

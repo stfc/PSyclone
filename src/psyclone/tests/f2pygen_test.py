@@ -302,6 +302,16 @@ def test_allocate_arg_str():
     assert "ALLOCATE (" + content + ")" in lines[3]
 
 
+def test_allocate_mold():
+    '''check that an allocate gets created succesfully with a
+    mold parameter.'''
+    module = ModuleGen(name="testmodule")
+    allocate = AllocateGen(module, "hello", mold="abc")
+    module.add(allocate)
+    lines = str(module.root).splitlines()
+    assert "ALLOCATE (hello, mold=abc)" in lines[3]
+
+
 def test_allocate_arg_list():
     '''check that an allocate gets created succesfully with content being
     a list.'''

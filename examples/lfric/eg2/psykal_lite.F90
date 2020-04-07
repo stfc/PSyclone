@@ -1,9 +1,42 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
 !
 !-------------------------------------------------------------------------------
 
@@ -62,6 +95,8 @@ contains
 
     use v3_solver_kernel_mod, only : solver_v3_code
 
+    implicit none
+
     type( field_type ), intent( in ) :: pdfield
     type( field_type ), intent( in ) :: rhs
 
@@ -71,7 +106,7 @@ contains
     real(kind=dp), pointer  :: basis(:,:,:,:)
 
     type( field_proxy_type )        :: pd_proxy
-    type( field_proxy_type )        :: rhs_proxy 
+    type( field_proxy_type )        :: rhs_proxy
 
     pd_proxy  = pdfield%get_proxy()
     rhs_proxy = rhs%get_proxy()
@@ -79,7 +114,7 @@ contains
     ndf    = pd_proxy%vspace%get_ndf( )
     basis => pd_proxy%vspace%get_basis()
 
-!$omp parallel do default(shared), private(cell, map)    
+!$omp parallel do default(shared), private(cell, map)
     do cell = 1, pd_proxy%ncell
        map=>pd_proxy%vspace%get_cell_dofmap(cell)
        call solver_v3_code( pd_proxy%nlayers, &
@@ -99,7 +134,7 @@ contains
 
     implicit none
 
-    type( field_type ), intent( inout ) :: right_hand_side
+    type( field_type ), intent( in )    :: right_hand_side
 
     type( field_proxy_type)             :: rhs_proxy
     integer :: cell
@@ -141,7 +176,7 @@ contains
 
     implicit none
 
-    type( field_type ), intent( inout ) :: rhs
+    type( field_type ), intent( in ) :: rhs
 
     type( field_proxy_type) :: rhs_p
     integer :: cell
@@ -178,9 +213,13 @@ contains
   end subroutine invoke_rhs_v1
 
   subroutine invoke_matrix_vector(x,Ax)
+
     use matrix_vector_mod, only : matrix_vector_code
-    type(field_type), intent(inout) :: x
-    type(field_type), intent(inout) :: Ax
+
+    implicit none
+
+    type(field_type), intent(in) :: x
+    type(field_type), intent(in) :: Ax
 
     integer                 :: cell
     integer, pointer        :: map(:)
@@ -207,7 +246,7 @@ contains
        do cell = 1, ncp_colour(colour)
 !          write(*,*) 'v2:',colour,omp_get_thread_num(),cell
           map => x_p%vspace%get_cell_dofmap(cmap(colour,cell))
-          
+
           !    do cell = 1, x_p%ncell
 !          map=>x_p%vspace%get_cell_dofmap(cell)
           call matrix_vector_code( x_p%nlayers, &
@@ -218,15 +257,15 @@ contains
                Ax_p%data, &
                x_p%gaussian_quadrature )
        end do
-!$omp end parallel do       
+!$omp end parallel do
     end do
   end subroutine invoke_matrix_vector
 
   real(kind=dp) function inner_prod(x,y)
     use log_mod, only : log_event, LOG_LEVEL_ERROR
     implicit none
-    type( field_type ), intent( inout ) :: x,y
-    type( field_proxy_type)             ::  x_p,y_p
+    type( field_type ), intent( in ) :: x,y
+    type( field_proxy_type)          :: x_p,y_p
 
     integer                          :: i
 
@@ -249,5 +288,5 @@ contains
     end do
 !$omp end parallel do
   end function inner_prod
-    
+
 end module psy

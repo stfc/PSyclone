@@ -49,7 +49,7 @@ module mm_diagonal_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1,                            &
-                                    CELLS 
+                                    CELLS
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
@@ -73,32 +73,20 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface mm_diagonal_kernel_type
-  module procedure mm_diagonal_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public mm_diagonal_kernel_code
-contains
 
-type(mm_diagonal_kernel_type) function mm_diagonal_kernel_constructor() result(self)
-  return
-end function mm_diagonal_kernel_constructor
+contains
 
 !> @brief The subroutine which is called directly by the Psy layer, strores the diagonal of a mass_matrix
 !> @param[in]  cell the horizontal cell index
 !! @param[in] nlayers Integer the number of layers
 !! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The unique number of degrees of freedom 
+!! @param[in] undf The unique number of degrees of freedom
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[inout] mm_diag Real array the field array to store the diagonal entries
-!!               of the mass matrix
+!! @param[in,out] mm_diag Real array the field array to store the diagonal entries
+!!                of the mass matrix
 !! @param[in] ncell_3d total number of cells
 !! @param[in] mass_matrix Real: Array holding mass matrix values
 subroutine mm_diagonal_kernel_code(cell,        &
@@ -107,7 +95,7 @@ subroutine mm_diagonal_kernel_code(cell,        &
                                    ncell_3d,    &
                                    mass_matrix, &
                                    ndf, undf, map)
- 
+
   implicit none
 
   ! Arguments
@@ -119,14 +107,14 @@ subroutine mm_diagonal_kernel_code(cell,        &
 
   ! Internal variables
   integer(kind=i_def) :: df, k, ik
- 
+
   do k = 0, nlayers-1
     ik = (cell-1)*nlayers + k + 1
     do df = 1,ndf
        mm_diag(map(df)+k) = mm_diag(map(df)+k) + mass_matrix(df,df,ik)
     end do
   end do
- 
+
 end subroutine mm_diagonal_kernel_code
 
 end module mm_diagonal_kernel_mod
