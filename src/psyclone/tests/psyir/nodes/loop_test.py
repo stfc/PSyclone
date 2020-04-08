@@ -60,25 +60,11 @@ def test_loop_navigation_properties():
     loop = Loop()
 
     # Properties return an error if the node is incomplete
-    error_str = ("Loop malformed or incomplete. It should have exactly 4 "
+    error_str = ("Loop is incomplete. It should have exactly 4 "
                  "children, but found")
     with pytest.raises(InternalError) as err:
         _ = loop.start_expr
     assert error_str in str(err.value)
-
-    # Expressions that are not PSyIR are not accepted
-    with pytest.raises(TypeError) as err:
-        loop.start_expr = "start"
-    assert "Only PSyIR nodes can be assigned as the Loop start expression" \
-        ", but found '" in str(err.value)
-    with pytest.raises(TypeError) as err:
-        loop.stop_expr = "stop"
-    assert "Only PSyIR nodes can be assigned as the Loop stop expression" \
-        ", but found '" in str(err.value)
-    with pytest.raises(TypeError) as err:
-        loop.step_expr = "step"
-    assert "Only PSyIR nodes can be assigned as the Loop step expression" \
-        ", but found '" in str(err.value)
 
     loop.addchild(Literal("start", DataType.INTEGER, parent=loop))
     loop.addchild(Literal("stop", DataType.INTEGER, parent=loop))
@@ -213,20 +199,20 @@ def test_loop_create_invalid():
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", "invalid", one, one, children)
-    assert ("start argument in create method of Loop class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 0 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, "invalid", one, children)
-    assert ("stop argument in create method of Loop class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, one, "invalid", children)
-    assert ("step argument in create method of Loop class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
+            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
@@ -237,9 +223,8 @@ def test_loop_create_invalid():
     # contents of children list are not Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, one, one, ["invalid"])
-    assert (
-        "child of children argument in create method of Loop class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+    assert ("Item 'str' can't be child 0 of 'Schedule'. The valid format is: "
+            "'*[Statement]'." in str(excinfo.value))
 
 
 def test_loop_children_validation():

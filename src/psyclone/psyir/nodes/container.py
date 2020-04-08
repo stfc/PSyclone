@@ -102,7 +102,6 @@ class Container(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import KernelSchedule
         if not isinstance(name, str):
             raise GenerationError(
                 "name argument in create method of Container class "
