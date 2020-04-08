@@ -186,7 +186,7 @@ def test_psy_data_node_invokes_gocean1p0():
     # variable information, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different"
                   r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
                   r" 0, 0\).*"

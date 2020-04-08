@@ -140,6 +140,12 @@ def test_add():
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
+    # Test that an exception is raised if a non-symbol is added
+    with pytest.raises(InternalError) as error:
+        sym_table.add("string-not-symbol")
+    assert "Symbol 'string-not-symbol' is not a symbol, but 'str'" in \
+        str(error.value)
+
 
 def test_add_with_tags():
     '''Test that the add method with a tag inserts new symbols in the symbol

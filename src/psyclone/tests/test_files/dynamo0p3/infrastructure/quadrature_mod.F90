@@ -1,15 +1,16 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,71 +40,14 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modifications: A. R. Porter, STFC Daresbury Lab
+
 module quadrature_mod
-  use constants_mod, only: r_def
+implicit none
+private
 
-  type quadrature_type
-     integer :: nqp_h
-
-   contains
-     procedure :: get_xqp_h
-     procedure :: get_xqp_v
-     procedure :: get_wqp_h
-     procedure :: get_wqp_v
-     procedure :: get_nqp_v
-     procedure :: get_nqp_h
-
-  end type quadrature_type
-
-contains
-
-  function get_xqp_h(self) result(xqp_h)
-    implicit none
-    class(quadrature_type), target, intent(in) :: self
-    real(kind=r_def), pointer :: xqp_h(:,:)
-
-    xqp_h => null()
-  end function get_xqp_h
-
-  function get_xqp_v(self) result(xqp_v)
-    implicit none
-    class(quadrature_type), target, intent(in) :: self
-    real(kind=r_def), pointer :: xqp_v(:)
-
-    xqp_v => null()
-  end function get_xqp_v
-
-  function get_nqp_v(self) result(nqp_v)
-    implicit none
-    class(quadrature_type), intent(in) :: self
-    integer :: nqp_v
-
-    nqp_v = 0
-  end function get_nqp_v
-
-  function get_nqp_h(self) result(nqp_h)
-    implicit none
-    class(quadrature_type), intent(in) :: self
-    integer :: nqp_h
-
-    nqp_h = 0
-  end function get_nqp_h
-
-  function get_wqp_h(self) result(wqp_h)
-    implicit none
-    class(quadrature_type), target, intent(in) :: self
-    real(kind=r_def), pointer :: wqp_h(:) 
-
-    wqp_h => null()
-  end function get_wqp_h
-
-  function get_wqp_v(self) result(wqp_v)
-    implicit none
-    class(quadrature_type), target, intent(in) :: self
-    real(kind=r_def), pointer :: wqp_v(:) 
-
-    wqp_v => null()
-  end function get_wqp_v
+type, public, abstract :: quadrature_type
+  private
+end type
 
 end module quadrature_mod

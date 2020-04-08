@@ -793,12 +793,14 @@ def adduse(name, parent, only=False, funcnames=None):
 
 class AllocateGen(BaseGen):
     ''' Generates a Fortran allocate statement '''
-    def __init__(self, parent, content):
+    def __init__(self, parent, content, mold=None):
         '''
         :param parent: node to which to add this ALLOCATE as a child
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param content: string or list of variables to allocate
         :type content: list of strings or a single string
+        :param mold: A string to be used as the 'mold' parameter of ALLOCATE.
+        :type mold: str or None.
 
         :raises RuntimeError: if `content` is not of correct type
         '''
@@ -814,6 +816,8 @@ class AllocateGen(BaseGen):
             raise RuntimeError(
                 "AllocateGen expected the content argument to be a str or"
                 " a list, but found {0}".format(type(content)))
+        if mold:
+            self._decl.items.append("mold={0}".format(mold))
         BaseGen.__init__(self, parent, self._decl)
 
 
