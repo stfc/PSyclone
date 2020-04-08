@@ -47,7 +47,7 @@ use argument_mod,            only : arg_type,                               &
                                     GH_COLUMNWISE_OPERATOR,                 &
                                     GH_READ, GH_WRITE, GH_INC,              &
                                     ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,  &
-                                    CELLS 
+                                    CELLS
 
 use constants_mod,           only : r_def, i_def
 
@@ -72,27 +72,14 @@ contains
 end type columnwise_op_mul_kernel_type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_mul_kernel_type
-   module procedure columnwise_op_mul_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_mul_kernel_code
+
 contains
-  
-  type(columnwise_op_mul_kernel_type) function columnwise_op_mul_kernel_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_op_mul_kernel_constructor
 
   !> @brief The subroutine which is called directly from the PSY layer and
-  !> calculates op_C = op_C + op_A * op_B 
+  !> calculates op_C = op_C + op_A * op_B
   !>
   !> @param [in] cell the horizontal cell index
   !> @param [in] ncell_2d total number of cells in 2d grid
@@ -112,7 +99,7 @@ contains
   !> @param [in] beta_B banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m_B banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p_B banded matrix parameter \f$\gamma_+\f$
-  !> @param [inout] columnwise_matrix_C banded matrix op_C
+  !> @param [in,out] columnwise_matrix_C banded matrix op_C
   !> @param [in] nrow_C number of rows in the banded matrix C
   !> @param [in] ncol_C number of columns in the banded matrix C
   !> @param [in] bandwidth_C bandwidth of the banded matrix
@@ -145,7 +132,7 @@ contains
                                            gamma_p_C)
 
     implicit none
-    
+
     ! Arguments
     integer(kind=i_def), intent(in) :: cell,  ncell_2d
     integer(kind=i_def), intent(in) :: nrow_A, ncol_A
