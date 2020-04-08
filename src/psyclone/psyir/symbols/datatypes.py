@@ -71,7 +71,8 @@ class ScalarType(DataType):
     :param name: the name of this scalar type.
     :type name: :py:class:`pyclone.psyir.datatypes.ScalarType.Name`
     :param precision: the precision of this scalar type.
-    :type precision: :py:class:`psyclone.psyir.datatypes.ScalarType.Precision`
+    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
+        int or :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
