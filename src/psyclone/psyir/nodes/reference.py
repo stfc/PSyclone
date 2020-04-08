@@ -194,12 +194,6 @@ class Array(Reference):
                 "children argument in create method of Array class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "Array class should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
         if not symbol.is_array:
             raise GenerationError(
                 "expecting the symbol to be an array, not a scalar.")
@@ -211,9 +205,9 @@ class Array(Reference):
                     len(children), len(symbol.shape)))
 
         array = Array(symbol)
+        array.children = children
         for child in children:
             child.parent = array
-        array.children = children
         return array
 
     def __str__(self):

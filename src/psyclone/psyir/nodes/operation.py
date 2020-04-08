@@ -173,15 +173,10 @@ class UnaryOperation(Operation):
                 "oper argument in create method of UnaryOperation class "
                 "should be a PSyIR UnaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
-        if not isinstance(child, Node):
-            raise GenerationError(
-                "child argument in create method of UnaryOperation class "
-                "should be a PSyIR Node but found '{0}'."
-                "".format(type(child).__name__))
 
         unary_op = UnaryOperation(oper)
-        child.parent = unary_op
         unary_op.children = [child]
+        child.parent = unary_op
         return unary_op
 
 
@@ -318,17 +313,11 @@ class BinaryOperation(Operation):
                 "oper argument in create method of BinaryOperation class "
                 "should be a PSyIR BinaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
-        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of BinaryOperation class "
-                    "should be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
 
         binary_op = BinaryOperation(oper)
+        binary_op.children = [lhs, rhs]
         lhs.parent = binary_op
         rhs.parent = binary_op
-        binary_op.children = [lhs, rhs]
         return binary_op
 
 
@@ -389,15 +378,9 @@ class NaryOperation(Operation):
                 "children argument in create method of NaryOperation class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "NaryOperation class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
 
         nary_op = NaryOperation(oper)
+        nary_op.children = children
         for child in children:
             child.parent = nary_op
-        nary_op.children = children
         return nary_op

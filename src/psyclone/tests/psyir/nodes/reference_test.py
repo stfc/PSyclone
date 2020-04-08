@@ -197,15 +197,6 @@ def test_array_create_invalid3():
     assert ("children argument in create method of Array class should "
             "be a list but found 'str'." in str(excinfo.value))
 
-    # contents of children list are not Node
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create(DataSymbol("temp", DataType.REAL),
-                         [Reference(DataSymbol("i", DataType.INTEGER)),
-                          "invalid"])
-    assert (
-        "child of children argument in create method of Array class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
-
 
 def test_array_children_validation():
     '''Test that children added to Array are validated. Array accepts

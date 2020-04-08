@@ -130,14 +130,14 @@ def test_binaryoperation_create_invalid():
     # lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(add, "invalid", ref2)
-    assert ("lhs argument in create method of BinaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 0 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(add, ref1, "invalid")
-    assert ("rhs argument in create method of BinaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
 def test_binaryoperation_children_validation():
@@ -236,12 +236,6 @@ def test_unaryoperation_create_invalid():
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
-    # child not a Node.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
-    assert ("child argument in create method of UnaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
-
 
 def test_unaryoperation_children_validation():
     '''Test that children added to unaryOperation are validated.
@@ -332,15 +326,6 @@ def test_naryoperation_create_invalid():
         _ = NaryOperation.create(NaryOperation.Operator.SUM, "invalid")
     assert ("children argument in create method of NaryOperation class should "
             "be a list but found 'str'." in str(excinfo.value))
-
-    # contents of children list are not Node
-    with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(NaryOperation.Operator.SUM,
-                                 [Reference(DataSymbol(
-                                     "tmp1", DataType.REAL)), "invalid"])
-    assert (
-        "child of children argument in create method of NaryOperation class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 def test_naryoperation_children_validation():
