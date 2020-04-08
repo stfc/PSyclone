@@ -94,9 +94,9 @@ def test_binaryoperation_can_be_printed():
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
-    assert ("Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+    assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]\n"
             in str(binary_operation))
-    assert ("Literal[value:'2', Name.INTEGER, Precision.SINGLE]"
+    assert ("Literal[value:'2', Scalar<INTEGER, SINGLE>]"
             in str(binary_operation))
 
 
@@ -184,7 +184,7 @@ def test_unaryoperation_can_be_printed():
     op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=unary_operation)
     unary_operation.addchild(op1)
     # Check the node children are also printed
-    assert ("Literal[value:'1', Name.INTEGER, Precision.SINGLE]"
+    assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]"
             in str(unary_operation))
 
 
@@ -250,11 +250,11 @@ def test_naryoperation_can_be_printed():
     nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
     # Check the node children are also printed
-    assert ("Literal[value:'1', Name.INTEGER, Precision.SINGLE]\n"
+    assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]\n"
             in str(nary_operation))
-    assert ("Literal[value:'2', Name.INTEGER, Precision.SINGLE]\n"
+    assert ("Literal[value:'2', Scalar<INTEGER, SINGLE>]\n"
             in str(nary_operation))
-    assert ("Literal[value:'3', Name.INTEGER, Precision.SINGLE]"
+    assert ("Literal[value:'3', Scalar<INTEGER, SINGLE>]"
             in str(nary_operation))
 
 

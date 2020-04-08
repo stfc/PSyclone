@@ -261,7 +261,7 @@ def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
         trans.apply(kernel)
     assert ("The global variable 'rdt' could not be promoted to an argument "
             "because the GOcean infrastructure does not have any scalar type "
-            "equivalent to the PSyIR Name.CHARACTER, Precision.UNDEFINED type."
+            "equivalent to the PSyIR Scalar<CHARACTER, UNDEFINED> type."
             in str(err.value))
 
 
@@ -369,6 +369,6 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert ("Couldn't copy 'rdt: <Name.REAL, Precision.UNDEFINED, "
+    assert ("Couldn't copy 'rdt: <Scalar<REAL, UNDEFINED>, "
             "Global(container='model_mod')>' into the SymbolTable. The name "
             "'rdt' is already used by another symbol." in str(err.value))

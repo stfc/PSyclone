@@ -684,7 +684,7 @@ def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.literal_node(rhs)
     assert (
-        "PSyIR type 'Name.{0}, Precision.UNDEFINED' has no representation in "
+        "PSyIR type 'Scalar<{0}, UNDEFINED>' has no representation in "
         "the SIR backend.".format(datatype) in str(excinfo.value))
 
 
@@ -758,7 +758,7 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.unaryoperation_node(rhs)
-    assert ("PSyIR type 'Name.BOOLEAN, Precision.UNDEFINED' does not work "
+    assert ("PSyIR type 'Scalar<BOOLEAN, UNDEFINED>' does not work "
             "with the '-' operator." in str(excinfo.value))
 
 

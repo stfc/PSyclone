@@ -122,7 +122,7 @@ def test_range_setter_errors(prop):
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = val")
     assert ("value of a Range is a Literal then it must be of type "
-            "INTEGER but got Name.REAL, Precision.SINGLE" in str(err.value))
+            "INTEGER but got Scalar<REAL, SINGLE>" in str(err.value))
 
 
 def test_range_literals_props():
@@ -212,11 +212,11 @@ def test_range_view(capsys):
     indent = "    "
     assert (arrayref + "[name:'my_array']\n" +
             indent + literal +
-            "[value:'1', Name.INTEGER, Precision.SINGLE]\n" +
+            "[value:'1', Scalar<INTEGER, SINGLE>]\n" +
             indent + rangestr + "[]\n" +
             2*indent + literal +
-            "[value:'1', Name.INTEGER, Precision.SINGLE]\n" +
+            "[value:'1', Scalar<INTEGER, SINGLE>]\n" +
             2*indent + literal +
-            "[value:'10', Name.INTEGER, Precision.SINGLE]\n" +
+            "[value:'10', Scalar<INTEGER, SINGLE>]\n" +
             2*indent + literal +
-            "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n" in stdout)
+            "[value:'1', Scalar<INTEGER, UNDEFINED>]\n" in stdout)

@@ -1333,7 +1333,7 @@ def test_fw_literal_node(fort_writer):
     lit1 = Literal("hello", my_type)
     result = fort_writer(lit1)
     assert result == "rdef_'hello'"
-    
+
     # Check explicit precision is output as expected
     my_type = ScalarType(ScalarType.Name.REAL, 4)
     lit1 = Literal("3.14", my_type)
@@ -1345,4 +1345,3 @@ def test_fw_literal_node(fort_writer):
     lit1 = Literal("hello", my_type)
     result = fort_writer(lit1)
     assert result == "1_'hello'"
-    

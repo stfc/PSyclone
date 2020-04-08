@@ -50,14 +50,6 @@ def test_datatype():
     assert isinstance(DataType(), DataType)
 
 
-def test_datatype_copy():
-    '''Test that the DataType class copy method works as expected.'''
-    data_type = DataType()
-    data_type_copy = data_type.copy()
-    assert isinstance(data_type_copy, DataType)
-    assert data_type_copy is not data_type
-
-
 def test_datatype_str():
     '''Test that the DataType class str method works as expected.'''
     data_type = DataType()
@@ -69,14 +61,6 @@ def test_datatype_str():
 def test_deferredtype():
     '''Test that the DeferredType class can be created successfully.'''
     assert isinstance(DeferredType(), DeferredType)
-
-
-def test_deferredtype_copy():
-    '''Test that the DeferredType class copy method works as expected.'''
-    data_type = DeferredType()
-    data_type_copy = data_type.copy()
-    assert isinstance(data_type_copy, DeferredType)
-    assert data_type_copy is not data_type
 
 
 def test_deferredtype_str():
@@ -190,25 +174,15 @@ def test_scalartype_invalid_precision_datasymbol():
         _ = ScalarType(ScalarType.Name.REAL, precision_symbol)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type but got: "
-            "r_def: <Name.REAL, 4, Local>"
+            "r_def: <Scalar<REAL, 4>, Local>"
             in str(excinfo.value))
-
-
-def test_scalartype_copy():
-    '''Test that the ScalarType class copy method works as expected.'''
-    data_type = ScalarType(ScalarType.Name.REAL, 4)
-    data_type_copy = data_type.copy()
-    assert isinstance(data_type_copy, ScalarType)
-    assert data_type_copy is not data_type
-    assert data_type_copy.name == data_type.name
-    assert data_type_copy.precision == data_type.precision
 
 
 def test_scalartype_str():
     '''Test that the ScalarType class str method works as expected.'''
     data_type = ScalarType(ScalarType.Name.BOOLEAN,
                            ScalarType.Precision.UNDEFINED)
-    assert str(data_type) == "Name.BOOLEAN, Precision.UNDEFINED"
+    assert str(data_type) == "Scalar<BOOLEAN, UNDEFINED>"
 
 
 def test_scalartype_immutable():
@@ -265,7 +239,7 @@ def test_arraytype_invalid_shape_dimension_1():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [symbol])
     assert ("DataSymbols that are part of another symbol shape can only be "
-            "scalar integers, but found 'fred: <Name.REAL, 4, Local>'."
+            "scalar integers, but found 'fred: <Scalar<REAL, 4>, Local>'."
             in str(excinfo.value))
 
 
@@ -291,8 +265,8 @@ def test_arraytype_str():
     data_type = ArrayType(scalar_type, [10, data_symbol,
                                         ArrayType.Extent.DEFERRED,
                                         ArrayType.Extent.ATTRIBUTE])
-    assert (str(data_type) == "Name.INTEGER, Precision.UNDEFINED,"
-            " shape=[10, var, 'DEFERRED', 'ATTRIBUTE']")
+    assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
+            " shape=[10, var, 'DEFERRED', 'ATTRIBUTE']>")
 
 
 def test_arraytype_str_invalid():
@@ -309,19 +283,6 @@ def test_arraytype_str_invalid():
     assert ("PSyclone internal error: ArrayType shape list elements can only "
             "be 'DataSymbol', 'int' or 'ArrayType.Extent', but found "
             "'NoneType'." in str(excinfo.value))
-
-
-def test_arraytype_copy():
-    '''Test that the ArrayType class copy method works as expected.'''
-    scalar_type = ScalarType(ScalarType.Name.REAL, 4)
-    data_type = ArrayType(scalar_type, [10, 10])
-    data_type_copy = data_type.copy()
-    assert isinstance(data_type_copy, ArrayType)
-    assert data_type_copy is not data_type
-    assert data_type_copy.shape == data_type.shape
-    assert data_type_copy._datatype is not scalar_type
-    assert data_type_copy.name == scalar_type.name
-    assert data_type_copy.precision == scalar_type.precision
 
 
 def test_arraytype_immutable():

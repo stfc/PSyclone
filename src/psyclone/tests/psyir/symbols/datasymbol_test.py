@@ -126,31 +126,31 @@ def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
     symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
-    assert "sname: <Name.REAL, Precision.SINGLE, Local>" in str(symbol)
+    assert "sname: <Scalar<REAL, SINGLE>, Local>" in str(symbol)
 
     sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
-    assert "s1: <Name.INTEGER, Precision.SINGLE, Local>" in str(sym1)
+    assert "s1: <Scalar<INTEGER, SINGLE>, Local>" in str(sym1)
 
     array_type = ArrayType(REAL_SINGLE_TYPE,
                            [ArrayType.Extent.ATTRIBUTE, 2, sym1])
     sym2 = DataSymbol("s2", array_type)
-    assert ("s2: <Name.REAL, Precision.SINGLE, shape=['ATTRIBUTE', 2, s1], "
+    assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', 2, s1]>, "
             "Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
                       interface=GlobalInterface(my_mod))
-    assert ("s3: <Name.REAL, Precision.SINGLE, Global(container='my_mod')>"
+    assert ("s3: <Scalar<REAL, SINGLE>, Global(container='my_mod')>"
             in str(sym3))
 
     sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
-    assert ("s3: <Name.INTEGER, Precision.SINGLE, Local, "
+    assert ("s3: <Scalar<INTEGER, SINGLE>, Local, "
             "constant_value=Literal"
-            "[value:'12', Name.INTEGER, Precision.SINGLE]>" in str(sym3))
+            "[value:'12', Scalar<INTEGER, SINGLE>]>" in str(sym3))
 
     sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
-    assert "s4: <Name.INTEGER, Precision.SINGLE, Unresolved>" in str(sym4)
+    assert "s4: <Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():
@@ -212,7 +212,7 @@ def test_datasymbol_constant_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=9.81)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Name.INTEGER, Precision.SINGLE' which "
+            "instance datatype is 'Scalar<INTEGER, SINGLE>' which "
             "means the constant value is expected to be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
@@ -220,7 +220,7 @@ def test_datasymbol_constant_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', CHARACTER_TYPE, constant_value=42)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Name.CHARACTER, Precision.UNDEFINED' which "
+            "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' which "
             "means the constant value is expected to be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
@@ -228,7 +228,7 @@ def test_datasymbol_constant_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, constant_value="hello")
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Name.BOOLEAN, Precision.UNDEFINED' which "
+            "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' which "
             "means the constant value is expected to be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
@@ -341,9 +341,7 @@ def test_datasymbol_copy():
 
     # Check the new symbol has the same properties as the original
     assert symbol.name == new_symbol.name
-    assert symbol.datatype != new_symbol.datatype
-    assert symbol.datatype.name == new_symbol.datatype.name
-    assert symbol.datatype.precision == new_symbol.datatype.precision
+    assert symbol.datatype == new_symbol.datatype
     assert symbol.shape == new_symbol.shape
     assert symbol.constant_value == new_symbol.constant_value
     assert symbol.interface == new_symbol.interface
@@ -352,10 +350,9 @@ def test_datasymbol_copy():
     # is not affected. Can't check constant_value yet as we have a
     # shape value
     new_symbol._name = "new"
-    new_symbol.datatype._name = ScalarType.Name.INTEGER
-    new_symbol.datatype._precision = ScalarType.Precision.DOUBLE
-    new_symbol.datatype._shape[0] = 3
-    new_symbol.datatype._shape[1] = 4
+    new_symbol.datatype = ArrayType(ScalarType(ScalarType.Name.INTEGER,
+                                               ScalarType.Precision.DOUBLE),
+                                    [3, 4])
     new_symbol._interface = LocalInterface()
 
     assert symbol.name == "myname"

@@ -347,7 +347,7 @@ class DataSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return DataSymbol(self.name, self.datatype.copy(),
+        return DataSymbol(self.name, self.datatype,
                           constant_value=self.constant_value,
                           interface=self.interface)
 
@@ -365,8 +365,7 @@ class DataSymbol(Symbol):
             raise TypeError("Argument should be of type 'DataSymbol' but found"
                             " '{0}'.".format(type(symbol_in).__name__))
 
-        self._datatype = symbol_in.datatype.copy()
-        # self._shape = symbol_in.shape[:]
+        self._datatype = symbol_in.datatype
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
 

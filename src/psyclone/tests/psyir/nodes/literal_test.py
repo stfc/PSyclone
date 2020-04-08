@@ -149,15 +149,16 @@ def test_literal_node_str():
     # scalar literal
     literal = Literal("1", INTEGER_SINGLE_TYPE)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert (coloredtext+"[value:'1', Name.INTEGER, Precision.SINGLE]"
+    assert (coloredtext+"[value:'1', Scalar<INTEGER, SINGLE>]"
             in literal.node_str())
 
     # array literal
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert (coloredtext+"[value:'1', Name.REAL, Precision.DOUBLE, "
-            "shape=[10, 10]]" in literal.node_str())
+    print (literal.node_str())
+    assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
+            "shape=[10, 10]>]" in literal.node_str())
 
 
 def test_literal_can_be_printed():
@@ -165,5 +166,5 @@ def test_literal_can_be_printed():
     initialised fully)'''
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    assert ("Literal[value:'1', Name.REAL, Precision.DOUBLE, shape=[10, 10]]"
-            in str(literal))
+    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
+            "shape=[10, 10]>]" in str(literal))

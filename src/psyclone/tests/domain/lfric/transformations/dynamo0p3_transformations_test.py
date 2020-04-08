@@ -3490,9 +3490,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    lit_uninit = (lit + "[value:'NOT_INITIALISED', Name.INTEGER, "
-                  "Precision.UNDEFINED]\n")
-    lit_one = lit + "[value:'1', Name.INTEGER, Precision.UNDEFINED]\n"
+    lit_uninit = (lit + "[value:'NOT_INITIALISED', Scalar<INTEGER, "
+                  "UNDEFINED>]\n")
+    lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
     indent = "    "
 
     _, invoke = get_invoke("15.19.1_three_builtins_two_reductions.f90",

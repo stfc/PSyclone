@@ -44,15 +44,6 @@ from psyclone.errors import InternalError
 class DataType(object):
     '''Base class from which all types are derived.'''
 
-    def copy(self):
-        '''
-        :returns: a new instance of this type with the same properties \
-            as the current instance.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
-
-        '''
-        return DataType()
-
     def __str__(self):
         '''
         :returns: a description of this datatype.
@@ -64,14 +55,6 @@ class DataType(object):
 
 class DeferredType(DataType):
     '''Indicates that the type is unknown at this point.'''
-
-    def copy(self):
-        '''
-        :returns: a new instance of this type with the same properties \
-            as the current instance.
-        :rtype: :py:class:`psyclone.psyir.symbols.DeferredType`
-        '''
-        return DeferredType()
 
     def __str__(self):
         '''
@@ -157,16 +140,11 @@ class ScalarType(DataType):
         :rtype: str
 
         '''
-        return "{0}, {1}".format(self.name, self.precision)
-
-    def copy(self):
-        '''
-        :returns: a new instance of this type with the same properties \
-            as the current instance.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
-
-        '''
-        return ScalarType(self.name, self.precision)
+        if isinstance(self.precision, ScalarType.Precision):
+            precision_str = self.precision.name
+        else:
+            precision_str = str(self.precision)
+        return "Scalar<{0}, {1}>".format(self.name.name, precision_str)
 
 
 class ArrayType(DataType):
@@ -267,17 +245,8 @@ class ArrayType(DataType):
                     "ArrayType shape list elements can only be 'DataSymbol', "
                     "'int' or 'ArrayType.Extent', but found '{0}'."
                     "".format(type(dimension).__name__))
-        return ("{0}, {1}, shape=[{2}]".format(self.name, self.precision,
-                                               ", ".join(dims)))
-
-    def copy(self):
-        '''
-        :returns: a new instance of this type with the same properties \
-            as the current instance.
-        :rtype: :py:class:`psyclone.psyir.symbols.ArrayType`
-
-        '''
-        return ArrayType(self._datatype.copy(), self.shape[:])
+        return ("Array<{0}, shape=[{1}]>".format(
+            self._datatype, ", ".join(dims)))
 
 
 # Create common scalar datatypes
