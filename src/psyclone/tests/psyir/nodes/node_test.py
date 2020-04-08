@@ -45,7 +45,7 @@ import re
 import pytest
 from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
-    Assignment, Return
+    Assignment, Return, Loop, Literal
 from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
@@ -661,7 +661,32 @@ def test_children_validation():
     # Valid nodes are accepted
     assignment.addchild(reference)
 
-    # TODO: Should displaced items from insert() or remove() also be checked?
+    # Check displaced items are also be checked when needed
+    start = Literal("0", DataType.INTEGER)
+    stop = Literal("1", DataType.INTEGER)
+    step = Literal("2", DataType.INTEGER)
+    child_node = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
+                                   Reference(DataSymbol("i", DataType.REAL)))
+    loop = Loop.create("i", start, stop, step, [child_node])
+    with pytest.raises(GenerationError):
+        loop.children.insert(1, Literal("0", DataType.INTEGER))
+
+    with pytest.raises(GenerationError):
+        loop.children.remove(stop)
+
+    with pytest.raises(GenerationError):
+        del loop.children[2]
+
+    with pytest.raises(GenerationError):
+        loop.children.pop(2)
+
+    with pytest.raises(GenerationError):
+        loop.children.reverse()
+
+    # But the in the right circumstances they work fine
+    assert isinstance(loop.children.pop(), Schedule)
+    loop.children.reverse()
+    assert loop.children[0].value == "2"
 
 
 def test_children_setter():

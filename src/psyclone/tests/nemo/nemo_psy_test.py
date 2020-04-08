@@ -324,7 +324,6 @@ def test_schedule_view(capsys):
     assert expected_sched in output
 
 
-
 def test_kern_inside_if():
     ''' Check that we identify kernels when they are within an if block. '''
     from psyclone.psyir.nodes import IfBlock

@@ -143,27 +143,97 @@ class ChildrenList(list):
             raise GenerationError(errmsg)
 
     def append(self, item):
+        ''' Extends list append method with children node validation.
+
+        :param item: item to be appened to the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         self._validate_item(len(self), item)
         super(ChildrenList, self).append(item)
 
     def __setitem__(self, index, item):
+        ''' Extends list __setitem__ method with children node validation.
+
+        :param int index: position where to insert the item.
+        :param item: item to be inserted to the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         self._validate_item(index, item)
         super(ChildrenList, self).__setitem__(index, item)
 
     def insert(self, index, item):
-        self._validate_item(index, item)
+        ''' Extends list insert method with children node validation.
+
+        :param int index: position where to insert the item.
+        :param item: item to be inserted to the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        positiveindex = index if index >= 0 else len(self) - index
+        self._validate_item(positiveindex, item)
+        # Check that all displaced items will still in valid positions
+        for position in range(positiveindex, len(self)):
+            self._validate_item(position + 1, self[position])
         super(ChildrenList, self).insert(index, item)
-        # Check displaced items?
 
     def extend(self, items):
+        ''' Extends list extend method with children node validation.
+
+        :param items: list of items to be appened to the list.
+        :type items: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         for index, item in enumerate(items):
             self._validate_item(len(self) + index, item)
         super(ChildrenList, self).extend(items)
 
+    # Methods below don't insert elements but have the potential to displace
+    # or change the order of the items in-place.
+    def __delitem__(self, index):
+        ''' Extends list __delitem__ method with children node validation.
+
+        :param int index: position where to insert the item.
+
+        '''
+        positiveindex = index if index >= 0 else len(self) - index
+        for position in range(positiveindex + 1, len(self)):
+            self._validate_item(position - 1, self[position])
+        super(ChildrenList, self).__delitem__(index)
+
+    def remove(self, item):
+        ''' Extends list remove method with children node validation.
+
+        :param item: item to be deleted the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        for position in range(self.index(item) + 1, len(self)):
+            self._validate_item(position - 1, self[position])
+        super(ChildrenList, self).remove(item)
+
+    def pop(self, index=-1):
+        ''' Extends list pop method with children node validation.
+
+        :param int index: position where to insert the item.
+
+        '''
+        positiveindex = index if index >= 0 else len(self) - index
+        for position in range(positiveindex, len(self)):
+            self._validate_item(position - 1, self[position])
+        return super(ChildrenList, self).pop(index)
+
+    def reverse(self):
+        ''' Extends list reverse method with children node validation. '''
+        for index, item in enumerate(self):
+            self._validate_item(len(self) - index - 1, item)
+        super(ChildrenList, self).reverse()
+
 
 class Node(object):
     '''
-    Base class for a node in the PSyIR (schedule).
+    Base class for a PSyIR node.
 
     :param ast: reference into the fparser2 AST corresponding to this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
@@ -232,8 +302,6 @@ class Node(object):
         # pylint: disable=unused-argument
         # Node is used loosely in unit-testing when we don't care what the
         # parent is. To allow this we keep all children of nodes valid.
-        # TODO: To the reviewer, alternatively I can make this abstract and
-        # update the unit-tests.
         return isinstance(child, Node)
 
     def coloured_name(self, colour=True):
@@ -343,7 +411,6 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
-        from psyclone.psyGen import GenerationError
         try:
             import graphviz as gv
         except ImportError:
