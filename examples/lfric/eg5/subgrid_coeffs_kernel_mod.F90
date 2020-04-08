@@ -47,7 +47,7 @@
 
 !> @detail The kernel computes the coefficients a0,a1,a2 where rho is represented in 1D
 !>         by the approximation rho(x) = a0+a1*x+a2*x**2
-!>         Various cases for calculating a0,a1 and a2 are available, including 
+!>         Various cases for calculating a0,a1 and a2 are available, including
 !>         constant,linear and quadratic subgrid representations of rho.
 !>         For linear representation there are several options. If no slope limiter is
 !>         required then centered difference is used to estimate the slope.
@@ -97,26 +97,15 @@ type, public, extends(kernel_type) :: subgrid_coeffs_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, public, nopass :: subgrid_coeffs_code
+  procedure, nopass :: subgrid_coeffs_code
 end type
-
-!-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface subgrid_coeffs_kernel_type
-   module procedure subgrid_coeffs_kernel_constructor
-end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-contains
+public subgrid_coeffs_code
 
-type(subgrid_coeffs_kernel_type) function subgrid_coeffs_kernel_constructor() result(self)
-  return
-end function subgrid_coeffs_kernel_constructor
+contains
 
 !> @brief The subroutine which is called directly by the Psy layer
 !! @param[in] nlayers Integer the number of layers
