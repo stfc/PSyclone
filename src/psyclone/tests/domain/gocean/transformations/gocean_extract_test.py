@@ -437,13 +437,13 @@ def test_rename_suffix_if_name_clash(tmpdir):
     # contain out_fld_post for the input variable out_fld_post,
     # and "out_fld_post0" for the output value of out_fld.
     expected = """
-      CALL psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
-      CALL psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
-      CALL psy_data%PreDeclareVariable("out_fld_post0", out_fld)
-      CALL psy_data%ProvideVariable("in_out_fld", in_out_fld)
-      CALL psy_data%ProvideVariable("out_fld_post", out_fld_post)
-      CALL psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
-      CALL psy_data%ProvideVariable("out_fld_post0", out_fld)"""
+      CALL extract_psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data%PreDeclareVariable("out_fld_post0", out_fld)
+      CALL extract_psy_data%ProvideVariable("in_out_fld", in_out_fld)
+      CALL extract_psy_data%ProvideVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data%ProvideVariable("out_fld_post0", out_fld)"""
     expected_lines = expected.split("\n")
     ordered_lines_in_text(expected_lines, extract_code)
 
@@ -464,11 +464,11 @@ def test_rename_suffix_if_name_clash(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post0
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
-      CALL psy_data%ReadVariable("in_out_fld", in_out_fld)
-      CALL psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
-      CALL psy_data%ReadVariable("out_fld_post0", out_fld_post0)
+      CALL extract_psy_data%ReadVariable("in_out_fld", in_out_fld)
+      CALL extract_psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
+      CALL extract_psy_data%ReadVariable("out_fld_post0", out_fld_post0)
       ALLOCATE (out_fld, mold=out_fld_post0)
-      CALL psy_data%ReadVariable("out_fld_post", out_fld_post)"""
+      CALL extract_psy_data%ReadVariable("out_fld_post", out_fld_post)"""
 
     ordered_lines_in_text(expected.split("\n"), driver_code)
 
