@@ -383,12 +383,13 @@ def mangle_fs_name(args, fs_name):
     a list of kernel arguments '''
     if fs_name not in VALID_ANY_SPACE_NAMES + \
        VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
-        # If the supplied function-space name is not any any_space
+        # If the supplied function-space name is not on any_space
         # or any_discontinuous_space then we don't need to mangle the name
         return fs_name
     for arg in args:
         for fspace in arg.function_spaces:
             if fspace and fspace.orig_name.lower() == fs_name.lower():
+                # Put name creation here!!!!!!
                 return fs_name.lower() + "_" + arg.name
     raise FieldNotFoundError("No kernel argument found for function space "
                              "'{0}'".format(fs_name))
@@ -426,12 +427,13 @@ def cma_on_space(function_space, arguments):
 
 
 class FunctionSpace(object):
-    ''' Manages the name of a function space. If it is an any-space
-    then its name is mangled such that it is unique within the scope
-    of an Invoke '''
+    ''' Manages the name of a function space. If it is an any_space or
+    any_discontinuous_space then its name is mangled such that it is unique
+    within the scope of an Invoke '''
 
     def __init__(self, name, kernel_args):
         self._orig_name = name
+        self._short_name = name
         self._kernel_args = kernel_args
         if self._orig_name not in VALID_ANY_SPACE_NAMES + \
            VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
@@ -443,6 +445,14 @@ class FunctionSpace(object):
             # as the full list of kernel arguments may still be under
             # construction.
             self._mangled_name = None
+            # Instead, we create a short name for any_*_space_* that
+            # will be used for a mangled name.
+            alist = self._orig_name.split("_")
+            # Create space id by joining "space" and any_*_space number
+            space_id = "".join(alist[-2:])
+            # Extract first letters of remaining words in any_*
+            # to create the name
+            self._short_name = "".join([a[0] for a in alist[:-2]]) + space_id
 
     @property
     def orig_name(self):
@@ -451,9 +461,15 @@ class FunctionSpace(object):
         return self._orig_name
 
     @property
+    def short_name(self):
+        ''' Returns the short name of this function space (original name
+        legitimate function spaces) '''
+        return self._short_name
+ 
+    @property
     def mangled_name(self):
         ''' Returns the mangled name of this function space such that
-        it is unique within the scope of an invoke. If the mangled
+        it is unique within the scope of an Invoke. If the mangled
         name has not been generated then we do that the first time we're
         called. '''
         if self._mangled_name:
@@ -462,7 +478,8 @@ class FunctionSpace(object):
         # routine itself requires the mangled name in order to identify
         # whether the space is present in the kernel call.
         self._mangled_name = mangle_fs_name(self._kernel_args.args,
-                                            self._orig_name)
+                                            self._orig_name,
+                                            self._short_name)
         return self._mangled_name
 
 

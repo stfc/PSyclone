@@ -1369,11 +1369,11 @@ def test_any_space_1(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
+    print(generated_code)
     assert ("INTEGER(KIND=i_def), pointer :: "
             "map_any_space_1_a(:,:) => null(), "
             "map_any_space_2_b(:,:) => null(), "
-            "map_w0(:,:) => null()\n"
+            "map_w0(:,:) => nullzzzz()\n"
             in generated_code)
     assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_a_qr(:,:,:,:),"
             " basis_any_space_2_b_qr(:,:,:,:)" in generated_code)
@@ -1473,10 +1473,10 @@ def test_op_any_discontinuous_space_1(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-
+    print(generated_code)
     assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
-    assert ("INTEGER(KIND=i_def), pointer :: map_any_discontinuous_space_1_f1"
+    assert ("INTEGER(KIND=i_def), pointerzzzz :: map_any_discontinuous_space_1_f1"
             "(:,:) => null()" in generated_code)
     assert ("INTEGER(KIND=i_def) ndf_any_discontinuous_space_1_f1, "
             "undf_any_discontinuous_space_1_f1" in generated_code)
