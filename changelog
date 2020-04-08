@@ -134,8 +134,14 @@
         42) PR #709 for #698. Adds the 'target' attribute to declarations
 	of the PSyData object.
 
-        43) PR #729 for #12. Change the Fortran intent of all derived-type
+	43) PR #729 for #12. Change the Fortran intent of all derived-type
 	objects passed into the PSy layer in the LFRic API to be 'in'.
+
+	44) PR #739 for part of #18. Documents mesh properties that a
+	kernel can request in LFRic (Dynamo0.3) API.
+
+	45) PR #743 for #740. Remove old unused quadrature_mod.f90 from
+	LFRic (Dynamo0.3 API).
 
 release 1.8.1 29th November 2019
 
