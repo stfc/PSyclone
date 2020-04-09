@@ -45,23 +45,13 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
-from psyclone.psyir.nodes import ExtractNode, PSyDataNode
-from psyclone.psyGen import Loop, NameSpace
+from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyGen import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 
 # API names
 GOCEAN_API = "gocean1.0"
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_psydata_namespace():
-    '''This function is called before any test function. It
-    creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order
-    or number of tests run is changed, otherwise the created region
-    names will change.'''
-    PSyDataNode._namespace = NameSpace()
 
 
 def ordered_lines_in_text(lines, text):
@@ -79,6 +69,7 @@ def ordered_lines_in_text(lines, text):
     indx = 0
     for line in lines:
         # index will raise a ValueException if the string is not found
+
         new_index = text.index(line, indx)
         indx = new_index + len(line)
 
@@ -95,6 +86,7 @@ def test_gocean_extract_trans():
     assert etrans.name == "GOceanExtractTrans"
 
 
+# -----------------------------------------------------------------------------
 def test_kern_builtin_no_loop():
     ''' Test that applying Extract Transformation on a Kernel or Built-in
     call without its parent Loop raises a TransformationError. '''
@@ -111,6 +103,7 @@ def test_kern_builtin_no_loop():
             "parent Loop is not allowed.") in str(excinfo.value)
 
 
+# -----------------------------------------------------------------------------
 def test_no_outer_loop_gocean1p0():
     ''' Test that applying GOceanExtractTrans on an inner Loop without
     its parent outer Loop in GOcean1.0 API raises a TransformationError. '''
@@ -127,6 +120,7 @@ def test_no_outer_loop_gocean1p0():
             "ancestor outer Loop is not allowed.") in str(excinfo.value)
 
 
+# -----------------------------------------------------------------------------
 def test_no_parent_accdirective():
     ''' Test that applying Extract Transformation on an orphaned
     ACCLoopDirective without its ancestor ACCParallelDirective
@@ -189,6 +183,7 @@ def test_extract_node_position():
     assert extract_node[0].dag_name == "gocean_extract_1"
 
 
+# -----------------------------------------------------------------------------
 def test_single_node_ompparalleldo_gocean1p0():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
@@ -241,6 +236,7 @@ def test_single_node_ompparalleldo_gocean1p0():
     assert output in code
 
 
+# -----------------------------------------------------------------------------
 def test_node_list_ompparallel_gocean1p0():
     ''' Test that applying Extract Transformation on a list of Nodes
     enclosed within an OMP Parallel Region produces the correct result
@@ -332,7 +328,7 @@ def test_driver_generation_flag(tmpdir, create_driver):
         schedule, _ = etrans.apply(schedule.children[0:2])
     else:
         schedule, _ = etrans.apply(schedule.children[0:2],
-                                   {'create-driver': create_driver})
+                                   {'create_driver': create_driver})
     # We are only interested in the potentially triggered driver-creation.
     str(psy.gen)
 
@@ -345,6 +341,7 @@ def test_driver_generation_flag(tmpdir, create_driver):
     assert driver.isfile() == (create_driver or False)
 
 
+# -----------------------------------------------------------------------------
 def test_driver_creation(tmpdir):
     '''Test that driver is created correctly for all variable access \
     modes (input, input-output, output).
@@ -359,7 +356,7 @@ def test_driver_creation(tmpdir):
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0],
-                               {'create-driver': True})
+                               {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
@@ -373,41 +370,142 @@ def test_driver_creation(tmpdir):
 
     # This is an excerpt of the code that should get created.
     # It is tested line by line since there is other code in between
-    # which is not important, and the order might also change.
+    # which is not important, and the order might also change. It also
+    # tests if unique variable names are created in the driver: the user
+    # program contains a local variable 'dx', which clashes with the grid
+    # property dx. The grid property will be renamed to 'dx_1':
     expected = '''      IMPLICIT NONE
-      REAL(KIND=8), allocatable, dimension(:,:) :: u_fld
-      REAL(KIND=8), allocatable, dimension(:,:) :: p_fld_post
-      REAL(KIND=8), allocatable, dimension(:,:) :: p_fld
-      REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld_post
-      REAL(KIND=8), allocatable, dimension(:,:) :: cu_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: gphiu
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: dx
+      REAL(KIND=8), allocatable, dimension(:,:) :: dx_1
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post
+
       TYPE(PSyDataType) psy_data
       CALL psy_data%OpenRead("psy_extract_example_with_various_variable''' \
       '''_access_patterns", "invoke_0_compute_kernel:compute_kernel_code:r0")
-      CALL psy_data%ReadVariable("cu_fld_post", cu_fld_post)
-      ALLOCATE (cu_fld, mold=cu_fld_post)
-      cu_fld = 0.0
-      CALL psy_data%ReadVariable("p_fld", p_fld)
-      CALL psy_data%ReadVariable("p_fld_post", p_fld_post)
-      CALL psy_data%ReadVariable("u_fld", u_fld)
+      CALL psy_data%ReadVariable("out_fld_post", out_fld_post)
+      ALLOCATE (out_fld, mold=out_fld_post)
+      out_fld = 0.0
+      CALL psy_data%ReadVariable("in_fld", in_fld)
+      CALL psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
+      CALL psy_data%ReadVariable("dx", dx)
+      CALL psy_data%ReadVariable("in_fld%grid%dx", dx_1)
       ! RegionStart
       DO j=2,jstop
         DO i=2,istop+1
-          CALL compute_kernel_code(i, j, cu_fld, p_fld, u_fld)
+          CALL compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, ''' \
+      '''dx, dx_1, gphiu)
         END DO
       END DO
       ! RegionEnd
       !
-      ! Check cu_fld
+      ! Check out_fld
       ! Check i
       ! Check j
-      ! Check p_fld'''
+      ! Check in_out_fld'''
 
     expected_lines = expected.split("\n")
-
     for line in expected_lines:
         assert line in driver_code
 
 
+# -----------------------------------------------------------------------------
+def test_rename_suffix_if_name_clash(tmpdir):
+    '''Test that driver is created correctly if there is a clash
+    with the variable names, e.g. an output variable 'a', and
+    an input variable 'a_post' - writing the output variable 'a'
+    would use 'a_post' as name, so the suffix must be changed.
+
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    etrans = GOceanExtractTrans()
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=1, dist_mem=False)
+    schedule = invoke.schedule
+
+    etrans.apply(schedule.children[0], {'create_driver': True})
+    extract_code = str(psy.gen)
+
+    # Due to the name clash of "out_fld"+"_post" and "out_fld_post"
+    # the _post suffix is changed to _post0. So the file will
+    # contain out_fld_post for the input variable out_fld_post,
+    # and "out_fld_post0" for the output value of out_fld.
+    expected = """
+      CALL psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
+      CALL psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
+      CALL psy_data%PreDeclareVariable("out_fld_post0", out_fld)
+      CALL psy_data%ProvideVariable("in_out_fld", in_out_fld)
+      CALL psy_data%ProvideVariable("out_fld_post", out_fld_post)
+      CALL psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
+      CALL psy_data%ProvideVariable("out_fld_post0", out_fld)"""
+    expected_lines = expected.split("\n")
+    ordered_lines_in_text(expected_lines, extract_code)
+
+    # Now we also need to check that the driver uses the new suffix,
+    # i.e. both as key for ReadVariable, as well as for the variable
+    # names.
+    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
+                         "access_patterns-invoke_1_compute_kernel:compute_"
+                         "kernel_code:r0.f90")
+    assert driver.isfile()
+
+    with driver.open("r") as driver_file:
+        driver_code = driver_file.read()
+
+    expected = """
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post0
+      REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post0
+      REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
+      CALL psy_data%ReadVariable("in_out_fld", in_out_fld)
+      CALL psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
+      CALL psy_data%ReadVariable("out_fld_post0", out_fld_post0)
+      ALLOCATE (out_fld, mold=out_fld_post0)
+      CALL psy_data%ReadVariable("out_fld_post", out_fld_post)"""
+
+    ordered_lines_in_text(expected.split("\n"), driver_code)
+
+    # Now test that more than one variable clash is handled. The third
+    # invoke uses:
+    # "out_fld" as output field
+    # "out_fld_post" as input field (first clash --> suffix becomes "_post0")
+    # "out_fld_post0" as input+output field (next clash --> suffix = "_post1")
+    psy, invoke = get_invoke("driver_test.f90",
+                             GOCEAN_API, idx=2, dist_mem=False)
+    schedule = invoke.schedule
+    # We don't check the driver, we already tested that the
+    # driver picks up the adjusted suffix above
+    etrans.apply(schedule.children[0])
+    extract_code = str(psy.gen)
+
+    # Check that *out_fld* is declared correctly: it is only declared as
+    # output value, so must use key out_fld_post1 once, and not be declared
+    # as input value:
+    assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
+    assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
+
+    # Check that *out_fld_post* (input/output) is declared correctly. It must
+    # be declared twice: once for the input value using the original variable
+    # name, and once as output using the "_post1" suffix"
+    assert 'PreDeclareVariable("out_fld_post", out_fld_post)' in extract_code
+    assert 'PreDeclareVariable("out_fld_post_post1", out_fld_post)' \
+        in extract_code
+
+    # Check that *out_fld_post0* is declared correctly: as input-only
+    # variable it must be declared once for using the original variable name.
+    assert 'PreDeclareVariable("out_fld_post0", out_fld_post0)' in extract_code
+    assert 'PreDeclareVariable("out_fld_post0_post1", out_fld_post0)' \
+        not in extract_code
+
+
+# -----------------------------------------------------------------------------
 def test_driver_loop_variables(tmpdir):
     '''Test that loop variables are not stored. ATM this test
     fails because of #641 but also because of #644 (scalars are considered
@@ -423,7 +521,7 @@ def test_driver_loop_variables(tmpdir):
     schedule = invoke.schedule
 
     schedule, _ = etrans.apply(schedule.children[0],
-                               {'create-driver': True})
+                               {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     str(psy.gen)
 
@@ -449,9 +547,10 @@ def test_driver_loop_variables(tmpdir):
     assert False, "X-failing test working: #641 Loop variables."
 
 
+# -----------------------------------------------------------------------------
 def test_driver_scalars(tmpdir):
     '''
-    This tests the extraction and driver scalars.
+    This tests the extraction and driver generated for scalars.
     '''
     # Use tmpdir so that the driver is created in tmp
     tmpdir.chdir()
@@ -460,7 +559,7 @@ def test_driver_scalars(tmpdir):
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
 
-    etrans.apply(invoke.schedule.children[0], {'create-driver': True})
+    etrans.apply(invoke.schedule.children[0], {'create_driver': True})
 
     # First test extraction code
     # --------------------------
@@ -483,7 +582,8 @@ def test_driver_scalars(tmpdir):
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
 
-    expected_lines = ['REAL(KIND=8) :: a_scalar',
+    expected_lines = ['INTEGER :: xstop',
+                      'REAL(KIND=8) :: a_scalar',
                       'CALL psy_data%OpenRead("kernel_scalar_float", '
                       '"bc_ssh_code")',
                       'CALL psy_data%ReadVariable("a_scalar", a_scalar)']
@@ -496,6 +596,7 @@ def test_driver_scalars(tmpdir):
     pytest.xfail("#644 Scalars not supported yet.")
 
 
+# -----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Grid properties not yet supported - #638")
 def test_driver_grid_properties(tmpdir):
     '''
@@ -508,7 +609,7 @@ def test_driver_grid_properties(tmpdir):
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
 
-    etrans.apply(invoke.schedule.children[0], {'create-driver': True})
+    etrans.apply(invoke.schedule.children[0], {'create_driver': True})
 
     # First test extraction code
     # --------------------------
@@ -547,7 +648,35 @@ def test_driver_grid_properties(tmpdir):
                       'internal%xstop", xstop)',
                       'CALL psy_data%ReadVariable("ssh_fld%grid%tmask", '
                       'tmask)']
+
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
     # 'ordered_linex_in_text'.
     ordered_lines_in_text(expected_lines, driver_code)
+
+
+# -----------------------------------------------------------------------------
+def test_rename_region(tmpdir):
+    '''
+    This tests that an extract region can be renamed, and that the created
+    driver will use the new names.
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    etrans = GOceanExtractTrans()
+    psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
+
+    etrans.apply(invoke.schedule.children[0],
+                 {'create_driver': True, 'region_name': ("main", "update")})
+
+    # Test that the extraction code contains the right names
+    assert 'CALL psy_data%PreStart("main", "update", 4, 3)' in str(psy.gen)
+
+    # Now test if the created driver has the right name, and will open the
+    # right file:
+    driver_name = tmpdir.join("driver-main-update.f90")
+    with open(str(driver_name), "r") as driver_file:
+        driver_code = driver_file.read()
+    assert 'CALL psy_data%OpenRead("main", "update")' in driver_code

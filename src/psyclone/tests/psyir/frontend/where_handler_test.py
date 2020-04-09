@@ -128,19 +128,14 @@ def test_where_array_notation_rank():
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
-    # Give the Array one child that is not a CodeBlock
-    my_array.addchild(Literal("2", DataType.INTEGER, my_array))
+    from psyclone.psyir.nodes import Range
+    my_array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10]),
+                            [Range(Literal("1", DataType.INTEGER),
+                                   Literal("10", DataType.INTEGER))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
-    assert ("that uses Fortran array notation is assumed to have at least "
-            "one CodeBlock as its child " in str(err.value))
-    my_array._children = []
-    my_array.addchild(CodeBlock([Fortran2003.Literal_Constant("1")],
-                                CodeBlock.Structure.EXPRESSION, my_array))
-    with pytest.raises(NotImplementedError) as err:
-        processor._array_notation_rank(my_array)
-    assert ("Only array notation of the form my_array(:, :, ...) is supported"
-            in str(err.value))
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
@@ -174,7 +169,8 @@ def test_array_notation_rank():
     processor.process_nodes(fake_parent, [fparser2spec])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(fake_parent[2].lhs)
-    assert "Bounds on array slices are not supported" in str(err.value)
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
 
 
 def test_where_symbol_clash(parser):
@@ -228,7 +224,10 @@ def test_basic_where():
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
     assert ("ArrayReference[name:'dry']\n"
-            "Reference[name:'widx1']\n" in str(ifblock.condition))
+            "Reference[name:'widx1']\n"
+            "Reference[name:'widx2']\n"
+            "Reference[name:'widx3']\n"
+            in str(ifblock.condition))
 
 
 @pytest.mark.usefixtures("parser")

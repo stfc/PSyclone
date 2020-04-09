@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,107 +40,38 @@ from __future__ import absolute_import
 import re
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.psyGen import Loop, NameSpace
 from psyclone.tests.utilities import get_invoke
 
 
-@pytest.fixture(scope="function", autouse=True)
-def clear_psydata_namespace():
-    '''This function is called before any test function. It
-    creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order
-    or number of tests run is changed, otherwise the created region
-    names will change.'''
-    PSyDataNode._namespace = NameSpace()
+# -----------------------------------------------------------------------------
+def test_psy_data_node_basics(monkeypatch):
+    '''Tests some elementary functions.'''
+    psy_node = PSyDataNode()
+    assert "PSyDataStart[var=psy_data]\n"\
+        "PSyDataEnd[var=psy_data]" in str(psy_node)
+
+    monkeypatch.setattr(psy_node, "children", [])
+    with pytest.raises(InternalError) as error:
+        _ = psy_node.psy_data_body
+    assert "PSyData node malformed or incomplete" in str(error.value)
+
+    psy_node_rename = \
+        PSyDataNode(options={"region_name": ("module", "local")})
+    assert psy_node_rename.region_identifier == ("module", "local")
+
+    # Test incorrect rename type
+    with pytest.raises(InternalError) as error:
+        psy_node_rename = \
+            PSyDataNode(options={"region_name": 1})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(error.value)
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_basic(capsys):
-    # pylint: disable=too-many-locals
-    '''Check basic functionality: node names, schedule view.
-    '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
-    schedule = invoke.schedule
-
-    data_trans = PSyDataTrans()
-    assert "Insert a PSyData node" in str(data_trans)
-    assert data_trans.name == "PSyDataTrans"
-    data_trans.apply(schedule)
-
-    assert isinstance(invoke.schedule[0], PSyDataNode)
-
-    schedule.view()
-    out, _ = capsys.readouterr()
-
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = Loop().coloured_name(True)
-    data = invoke.schedule[0].coloured_name(True)
-
-    # Do one test based on schedule view, to make sure colouring
-    # and indentation is correct
-    expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    0: " + data + "[]\n"
-        "        " + sched + "[]\n"
-        "            0: " + loop + "[type='outer', field_space='go_cv', "
-        "it_space='go_internal_pts']\n")
-    assert expected in out
-
-    # Insert a DataTrans call between outer and inner loop.
-    # This tests that we find the subroutine node even
-    # if it is not the immediate parent.
-    new_sched, _ = data_trans.apply(invoke.schedule[0].psy_data_body[0]
-                                    .loop_body[0])
-
-    new_sched_str = str(new_sched)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-PSyDataStart[var=psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'jstop-1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-PSyDataStart[var=psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data_1]
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data]
-End Schedule""")
-
-    assert correct in new_sched_str
-
-
-# -----------------------------------------------------------------------------
-def test_tree_correct():
+def test_psy_data_node_tree_correct():
     '''Test that adding children and parents will result in the correct
     relationship with the inserted node.
     '''
@@ -220,7 +151,7 @@ def test_tree_correct():
 
 
 # -----------------------------------------------------------------------------
-def test_c_code_creation():
+def test_psy_data_node_c_code_creation():
     '''Tests the handling when trying to create C code, which is not supported
     at this stage.
     '''
@@ -233,7 +164,7 @@ def test_c_code_creation():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_invokes_gocean1p0():
+def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -254,7 +185,7 @@ def test_psy_data_invokes_gocean1p0():
     # variable information, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different"
                   r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
                   r" 0, 0\).*"
@@ -271,3 +202,64 @@ def test_psy_data_invokes_gocean1p0():
     # variables and region names are created:
     code_again = str(invoke.gen()).replace("\n", "")
     assert code == code_again
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_node_options():
+    '''Check that the options for PSyData work as expected.
+    '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    schedule = invoke.schedule
+    data_trans = PSyDataTrans()
+
+    data_trans.apply(schedule[0].loop_body)
+    data_node = schedule[0].loop_body[0]
+    assert isinstance(data_node, PSyDataNode)
+
+    from psyclone.f2pygen import ModuleGen
+    # 1) Test that the listed variables will appear in the list
+    # ---------------------------------------------------------
+    mod = ModuleGen(None, "test")
+    data_node.gen_code(mod, options={"pre_var_list": ["a"],
+                                     "post_var_list": ["b"]})
+
+    out = "\n".join([str(i.root) for i in mod.children])
+    expected = ['CALL psy_data%PreDeclareVariable("a", a)',
+                'CALL psy_data%PreDeclareVariable("b", b)',
+                'CALL psy_data%ProvideVariable("a", a)',
+                'CALL psy_data%PostStart',
+                'CALL psy_data%ProvideVariable("b", b)']
+    for line in expected:
+        assert line in out
+
+    # 2) Test that variables suffixes are added as expected
+    # -----------------------------------------------------
+    mod = ModuleGen(None, "test")
+    data_node.gen_code(mod, options={"pre_var_list": ["a"],
+                                     "post_var_list": ["b"],
+                                     "pre_var_postfix": "_pre",
+                                     "post_var_postfix": "_post"})
+
+    out = "\n".join([str(i.root) for i in mod.children])
+    expected = ['CALL psy_data%PreDeclareVariable("a_pre", a)',
+                'CALL psy_data%PreDeclareVariable("b_post", b)',
+                'CALL psy_data%ProvideVariable("a_pre", a)',
+                'CALL psy_data%PostStart',
+                'CALL psy_data%ProvideVariable("b_post", b)']
+    for line in expected:
+        assert line in out
+
+    # 3) Check that we don't get any declaration if there are no variables:
+    # ---------------------------------------------------------------------
+    mod = ModuleGen(None, "test")
+    data_node.gen_code(mod, options={})
+
+    out = "\n".join([str(i.root) for i in mod.children])
+    # Only PreStart and PostEnd should appear
+    assert "PreStart" in out
+    assert "PreDeclareVariable" not in out
+    assert "ProvideVariable" not in out
+    assert "PreEnd" not in out
+    assert "PostStart" not in out
+    assert "PostEnd" in out

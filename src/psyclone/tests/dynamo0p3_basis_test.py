@@ -129,7 +129,7 @@ def test_eval_targets_err():
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because gh_shape=gh_quadrature_xyoz"
+            "an evaluator because gh_shape=['gh_quadrature_xyoz']"
             in str(err.value))
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
@@ -183,10 +183,9 @@ def test_single_kern_eval(tmpdir):
     requires both basis and differential basis functions for an
     evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1_eval_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -195,19 +194,18 @@ def test_single_kern_eval(tmpdir):
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
         "      USE testkern_eval, ONLY: testkern_eval_code\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      TYPE(field_type), intent(inout) :: f0\n"
-        "      TYPE(field_type), intent(in) :: f1\n"
-        "      INTEGER cell\n"
-        "      INTEGER df_nodal, df_w0, df_w1\n"
+        "      TYPE(field_type), intent(in) :: f0, f1\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
         "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
         "diff_basis_w1_on_w0(:,:,:)\n"
-        "      INTEGER dim_w0, diff_dim_w1\n"
+        "      INTEGER(KIND=i_def) dim_w0, diff_dim_w1\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f0_proxy, f1_proxy\n"
-        "      INTEGER, pointer :: map_w0(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null()\n"
-        "      INTEGER ndf_w0, undf_w0, ndf_w1, undf_w1\n")
+        "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1\n")
     assert expected_decl in gen_code
     # Second, check the executable statements
     expected_code = (
@@ -287,10 +285,9 @@ def test_single_kern_eval_op(tmpdir):
     writes to an operator and requires both basis and differential basis
     functions for an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1.1_eval_op_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -300,18 +297,18 @@ def test_single_kern_eval_op(tmpdir):
     decln_output = (
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      TYPE(field_type), intent(in) :: f1\n"
-        "      TYPE(operator_type), intent(inout) :: op1\n"
-        "      INTEGER cell\n"
-        "      INTEGER df_nodal, df_w2, df_w3\n"
+        "      TYPE(operator_type), intent(in) :: op1\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) df_nodal, df_w2, df_w3\n"
         "      REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
         "diff_basis_w3_on_w0(:,:,:)\n"
-        "      INTEGER dim_w2, diff_dim_w3\n"
+        "      INTEGER(KIND=i_def) dim_w2, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(operator_proxy_type) op1_proxy\n"
         "      TYPE(field_proxy_type) f1_proxy\n"
-        "      INTEGER, pointer :: map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w0, ndf_w2, ndf_w3, undf_w3\n")
+        "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w0, ndf_w2, ndf_w3, undf_w3\n")
     assert decln_output in gen_code
     init_output = (
         "      nodes_w0 => op1_proxy%fs_to%get_nodes()\n"
@@ -352,15 +349,14 @@ def test_single_kern_eval_op(tmpdir):
     assert dealloc in gen_code
 
 
-def test_two_qr(tmpdir):
+def test_two_qr_same_shape(tmpdir):
     ''' Check that we handle an invoke containing two kernels that each
-    require quadrature '''
+    require quadrature (with the same shape). '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.2_single_invoke_2qr.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -372,30 +368,31 @@ def test_two_qr(tmpdir):
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      REAL(KIND=r_def), intent(in) :: a, b\n"
-        "      INTEGER, intent(in) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f1, g1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, g2, n1, n2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: istp\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, g1, g2, "
+        "n1, n2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr, qr2\n"
-        "      INTEGER cell\n"
+        "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:), basis_w1_qr2(:,:,:,:), "
         "diff_basis_w2_qr2(:,:,:,:), basis_w3_qr2(:,:,:,:), "
         "diff_basis_w3_qr2(:,:,:,:)\n"
-        "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
+        "      INTEGER(KIND=i_def) dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr2(:) => null(), "
         "weights_z_qr2(:) => null()\n"
-        "      INTEGER np_xy_qr2, np_z_qr2\n"
+        "      INTEGER(KIND=i_def) np_xy_qr2, np_z_qr2\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
-        "      INTEGER np_xy_qr, np_z_qr\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, g1_proxy, g2_proxy, n1_proxy, n2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy, qr2_proxy\n"
-        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, "
+        "ndf_w3, undf_w3\n"
     )
     assert expected_declns in gen_code
     expected_code = (
@@ -492,10 +489,9 @@ def test_two_identical_qr(tmpdir):
     require quadrature and are passed the same qr object '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.1.3_single_invoke_2_identical_qr.f90"),
-        api="dynamo0.3")
+        api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -559,17 +555,55 @@ def test_two_identical_qr(tmpdir):
     assert expected_dealloc in gen_code
 
 
+def test_two_qr_different_shapes(tmpdir):
+    ''' Check that we handle an invoke containing two kernels that each
+    require quadrature (with different shapes). '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.8_single_invoke_2qr_shapes.f90"),
+                           api=API)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert "TYPE(quadrature_face_proxy_type) qrf_proxy" in gen_code
+    assert "TYPE(quadrature_xyoz_proxy_type) qr_proxy" in gen_code
+
+    assert "qr_proxy = qr%get_quadrature_proxy()" in gen_code
+    assert "np_xy_qr = qr_proxy%np_xy" in gen_code
+    assert "np_z_qr = qr_proxy%np_z" in gen_code
+    assert "weights_xy_qr => qr_proxy%weights_xy" in gen_code
+    assert "weights_z_qr => qr_proxy%weights_z" in gen_code
+
+    assert "qrf_proxy = qrf%get_quadrature_proxy()" in gen_code
+    assert "np_xyz_qrf = qrf_proxy%np_xyz" in gen_code
+    assert "nfaces_qrf = qrf_proxy%nfaces" in gen_code
+    assert "weights_xyz_qrf => qrf_proxy%weights_xyz" in gen_code
+
+    assert ("CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
+            "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+            "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
+            "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
+            "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)"
+            in gen_code)
+    assert ("CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), basis_w1_qrf, ndf_w2, undf_w2, map_w2(:,cell), "
+            "diff_basis_w2_qrf, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qrf,"
+            " diff_basis_w3_qrf, nfaces_qrf, np_xyz_qrf, weights_xyz_qrf)"
+            in gen_code)
+
+
 def test_anyw2(tmpdir):
     ''' Check generated code works correctly when we have any_w2 fields
     and basis functions'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
-        api="dynamo0.3")
+        api=API)
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
-        print(generated_code)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -610,10 +644,9 @@ def test_qr_plus_eval(tmpdir):
     ''' Check that we handle an invoke containing two kernels, one
     requiring quadrature and one requiring an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -625,31 +658,30 @@ def test_qr_plus_eval(tmpdir):
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      INTEGER, intent(in) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f0, f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: istp\n"
+        "      TYPE(field_type), intent(in) :: f0, f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
-        "      INTEGER cell\n"
-        "      INTEGER df_nodal, df_w0, df_w1\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
         "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
         "diff_basis_w1_on_w0(:,:,:), basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER dim_w0, diff_dim_w1, dim_w1, diff_dim_w2, dim_w3, "
-        "diff_dim_w3\n"
+        "      INTEGER(KIND=i_def) dim_w0, diff_dim_w1, dim_w1, "
+        "diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
-        "      INTEGER np_xy_qr, np_z_qr\n"
-        "      INTEGER nlayers\n"
+        "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f0_proxy, f1_proxy, f2_proxy, "
         "m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w0(:,:) => null(), "
+        "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null(), map_w2(:,:) => null(), map_w3(:,:) => "
         "null()\n"
-        "      INTEGER ndf_w0, undf_w0, ndf_w1, undf_w1, ndf_w2, undf_w2, "
-        "ndf_w3, undf_w3\n")
+        "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1, "
+        "ndf_w2, undf_w2, ndf_w3, undf_w3\n")
     assert output_decls in gen_code
     output_setup = (
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
@@ -736,10 +768,9 @@ def test_two_eval_same_space(tmpdir):
     both require evaluators and the arguments that are written to are on
     the same space '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.3_2eval_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -797,10 +828,9 @@ def test_two_eval_diff_space(tmpdir):
     both require evaluators and the arguments that are written to are on
     different spaces '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.4_2eval_op_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -882,10 +912,9 @@ def test_two_eval_same_var_same_space(tmpdir):
     same space '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.7_2eval_same_var_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -920,10 +949,9 @@ def test_two_eval_op_to_space(tmpdir):
     different spaces, one of which is the 'to' space of an operator. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.5_2eval_op_to_invoke.f90"),
-                           api="dynamo0.3")
+                           api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1027,10 +1055,9 @@ def test_eval_diff_nodal_space(tmpdir):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "6.6_2eval_diff_nodal_space_invoke.f90"),
-        api="dynamo0.3")
+        api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1123,14 +1150,13 @@ def test_eval_2fs(tmpdir):
     a differential basis function be evaluated on two different FS. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "6.8_eval_2fs_invoke.f90"),
-        api="dynamo0.3")
+                     "6.8_eval_2fs_invoke.f90"), api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert ("      REAL(KIND=r_def), allocatable :: "
             "diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
-            "      INTEGER diff_dim_w1\n" in
+            "      INTEGER(KIND=i_def) diff_dim_w1\n" in
             gen_code)
     assert("      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
            "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
@@ -1182,7 +1208,7 @@ def test_2eval_1qr_2fs(tmpdir):
                      "6.10_2eval_2fs_qr_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
+
     assert gen_code.count(
         "REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
         "diff_basis_w1_on_w1(:,:,:), basis_w2_on_w0(:,:,:), "
@@ -1303,7 +1329,7 @@ BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(7) =                     &
-          (/ arg_type(gh_field,    gh_write, w0),       &
+          (/ arg_type(gh_field,    gh_inc,   w0),       &
              arg_type(gh_operator, gh_read,  w1, w1),   &
              arg_type(gh_field,    gh_read,  w2),       &
              arg_type(gh_operator, gh_read,  w3, w3),   &
@@ -1340,7 +1366,7 @@ def test_basis_evaluator():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
+
     output_arg_list = (
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
@@ -1351,18 +1377,20 @@ def test_basis_evaluator():
         "undf_w2v, map_w2v, basis_w2v_on_w0)\n")
     assert output_arg_list in generated_code
     output_declns = (
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3, "
-        "undf_wtheta, ndf_w2h, undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
+        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
+        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
+        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
         "field_3_w2\n"
@@ -1370,14 +1398,14 @@ def test_basis_evaluator():
         "field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) :: "
@@ -1454,7 +1482,7 @@ DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(7) =                         &
-          (/ arg_type(gh_field,    gh_write,     w0),       &
+          (/ arg_type(gh_field,    gh_inc,       w0),       &
              arg_type(gh_operator, gh_readwrite, w1, w1),   &
              arg_type(gh_field,    gh_read,      w2),       &
              arg_type(gh_operator, gh_write,     w3, w3),   &
@@ -1498,25 +1526,29 @@ def test_diff_basis():
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, "
-        "diff_basis_w2, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
-        "undf_w2v, map_w2v, diff_basis_w2v, np_xy, np_z, weights_xy, "
-        "weights_z)\n"
-        "      USE constants_mod, ONLY: r_def\n"
+        "diff_basis_w0_qr_xyoz, ndf_w1, diff_basis_w1_qr_xyoz, "
+        "ndf_w2, undf_w2, map_w2, diff_basis_w2_qr_xyoz, "
+        "ndf_w3, diff_basis_w3_qr_xyoz, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, diff_basis_wtheta_qr_xyoz, ndf_w2h, "
+        "diff_basis_w2h_qr_xyoz, ndf_w2v, undf_w2v, map_w2v, "
+        "diff_basis_w2v_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3, "
-        "undf_wtheta, ndf_w2h, undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
+        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
+        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
+        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
         "field_3_w2\n"
@@ -1524,37 +1556,39 @@ def test_diff_basis():
         "field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER, intent(in) :: np_xy, np_z\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) "
-        ":: diff_basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) "
-        ":: diff_basis_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy,np_z) "
-        ":: diff_basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xy,np_z) "
-        ":: diff_basis_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,np_xy,"
-        "np_z) :: diff_basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,np_xy,np_z) "
-        ":: diff_basis_w2h\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,np_xy,np_z) "
-        ":: diff_basis_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w0_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
+        "np_xy_qr_xyoz,"
+        "np_z_qr_xyoz) :: diff_basis_wtheta_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2h_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2v_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(generated_code)
     assert output in generated_code
 
 
@@ -1602,7 +1636,7 @@ def test_diff_basis_eval():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
+
     output_args = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -1617,17 +1651,19 @@ def test_diff_basis_eval():
         "diff_basis_w2v_on_w2)\n")
     assert output_args in generated_code
     output_declns = (
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: undf_w0, undf_w2, ndf_w1, ndf_w3, "
-        "undf_wtheta, ndf_w2h, undf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
+        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
+        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
+        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
@@ -1636,14 +1672,14 @@ def test_diff_basis_eval():
         "field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_w2) "
@@ -1679,7 +1715,6 @@ def test_2eval_stubgen():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
 
     assert (
         "SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2,"
@@ -1695,17 +1730,19 @@ def test_2eval_stubgen():
         "diff_basis_w2v_on_w2h, diff_basis_w2v_on_wtheta)" in
         generated_code)
     assert (
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: undf_w0, undf_w2, ndf_w1, ndf_w3, "
-        "undf_wtheta, ndf_w2h, undf_w2v\n" in generated_code)
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
+        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
+        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
+        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v\n" in generated_code)
 
     for space in ["w2h", "wtheta"]:
         assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_{0}) "
@@ -1783,19 +1820,18 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     shape is encountered. '''
     from psyclone.dynamo0p3 import DynBasisFunctions
     from psyclone.f2pygen import ModuleGen
-    from psyclone import dynamo0p3
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     monkeypatch.setattr(
-        dynamo0p3, "VALID_QUADRATURE_SHAPES",
-        dynamo0p3.VALID_QUADRATURE_SHAPES + ["unsupported-shape"])
-    with pytest.raises(GenerationError) as err:
+        dbasis, "_qr_vars", {"unsupported-shape": None})
+    with pytest.raises(InternalError) as err:
         dbasis._stub_declarations(ModuleGen(name="my_mod"))
-    assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
-            "supported - got 'unsupported-shape'" in str(err.value))
+    assert ("Quadrature shapes other than ['gh_quadrature_xyoz', "
+            "'gh_quadrature_face', 'gh_quadrature_edge'] are not yet "
+            "supported - got: 'unsupported-shape'" in str(err.value))
 
 
 def test_dynbasisfns_declns(monkeypatch):
@@ -1807,11 +1843,20 @@ def test_dynbasisfns_declns(monkeypatch):
     kernel = DynKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
+    # Missing name for qr variable
+    dbasis._basis_fns[0]['qr_var'] = None
+    with pytest.raises(InternalError) as err:
+        dbasis._basis_fn_declns()
+    assert ("Quadrature 'gh_quadrature_xyoz' is required but have no name for "
+            "the associated Quadrature object" in str(err.value))
+    dbasis._basis_fns[0]['qr_var'] = "qr_xyoz"
+    # Invalid quadrature shape
     dbasis._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should"
             in str(err.value))
+    # No Kernel object
     monkeypatch.setattr(dbasis, "_kernel", None)
     dbasis._basis_fns[0]['type'] = "basis"
     with pytest.raises(InternalError) as err:
@@ -1823,6 +1868,7 @@ def test_dynbasisfns_declns(monkeypatch):
         dbasis._basis_fn_declns()
     assert ("differential basis functions but do not have either a Kernel or "
             "an Invoke. Should be" in str(err.value))
+    # Unsupported type of basis function
     for fun in dbasis._basis_fns:
         fun['type'] = "broken"
     with pytest.raises(InternalError) as err:

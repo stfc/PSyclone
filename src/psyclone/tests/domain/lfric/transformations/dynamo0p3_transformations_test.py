@@ -98,8 +98,8 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
 
     # Check that we've declared the loop-related variables
     # and colour-map pointers
-    assert "integer, pointer :: cmap(:,:)" in gen
-    assert "integer ncolour" in gen
+    assert "integer(kind=i_def), pointer :: cmap(:,:)" in gen
+    assert "integer(kind=i_def) ncolour" in gen
     assert "integer colour" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6219,6 +6219,35 @@ def test_accenterdatatrans():
     # parallel directive within its region and this example does not
     # add one.
 
+
+def test_accenterdata_builtin():
+    ''' Check that the enter-data transformation can be applied to an invoke
+    containing a call to a BuiltIn kernel. '''
+    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
+        ACCParallelTrans
+    acc_enter_trans = ACCEnterDataTrans()
+    parallel_trans = ACCParallelTrans()
+    acc_loop_trans = ACCLoopTrans()
+    psy, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
+                             TEST_API, name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    for loop in sched.loops():
+        _, _ = acc_loop_trans.apply(loop)
+    _, _ = parallel_trans.apply(sched.children)
+    _, _ = acc_enter_trans.apply(sched)
+    output = str(psy.gen)
+
+    assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
+            "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+            "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
+            "undf_w3,map_w3,0.0,ndf_any_space_1_f1,undf_any_space_1_f1,"
+            "map_any_space_1_f1)" in output)
+    assert ("      !$acc loop independent\n"
+            "      DO df=1,undf_any_space_1_f1\n"
+            "        f1_proxy%data(df) = 0.0\n"
+            "      END DO\n"
+            "      !$acc end parallel\n" in output)
+
 # Class ACCEnterDataTrans end
 
 
@@ -7164,12 +7193,13 @@ def test_kern_const_invalid_quad(monkeypatch):
     monkeypatch.setattr(psyclone.dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         ["gh_quadrature_xyoz", "monkey"])
     # Set the kernel to use the unsupported quadrature.
-    monkeypatch.setattr(kernel, "_eval_shape", "monkey")
+    monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_xyoz",
+                                                 "monkey"])
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
     assert (
-        "Support is currently limited to xyoz quadrature but found "
-        "'monkey'.") in str(excinfo.value)
+        "Support is currently limited to 'xyoz' quadrature but found "
+        "['gh_quadrature_xyoz', 'monkey'].") in str(excinfo.value)
 
 
 def test_kern_const_invalid_make_constant1():

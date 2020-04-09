@@ -9,7 +9,8 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,15 +45,14 @@
 module quadrature_xoyoz_mod
 
 use constants_mod,           only: r_def, i_def, PI, EPS
-use quadrature_rule_mod,     only: quadrature_rule_type
-use abstract_quadrature_mod, only: abstract_quadrature_type
+use quadrature_mod,          only: quadrature_type
 use function_space_mod,      only: function_space_type
 
 implicit none
 
 private
 
-type, public, extends(abstract_quadrature_type) :: quadrature_xoyoz_type
+type, public, extends(quadrature_type) :: quadrature_xoyoz_type
 
   private
 

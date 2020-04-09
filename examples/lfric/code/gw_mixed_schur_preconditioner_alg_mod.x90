@@ -3,12 +3,12 @@
 ! For further details please refer to the file LICENCE which you should have
 ! received as part of this distribution.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
+! LICENCE is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,12 +39,11 @@
 ! Modified by I. Kavcic, Met Office
 
 !>@brief Preconditioner for the gravity-wave system
-!>
-
 module gw_mixed_schur_preconditioner_alg_mod
+
   use field_mod,                       only: field_type
   use field_vector_mod,                only: field_vector_type
-  use constants_mod,                   only: i_def, r_def
+  use constants_mod,                   only: r_def
   use runtime_constants_mod,           only: get_mass_matrix,     &
                                              get_div,             &
                                              w0_id, w3_id,        &
@@ -111,7 +110,7 @@ module gw_mixed_schur_preconditioner_alg_mod
      final :: destroy_gw_mixed_schur_preconditioner
   end type gw_mixed_schur_preconditioner_type
 
-  ! Overload the default structure constructor                                 
+  ! Overload the default structure constructor
   interface gw_mixed_schur_preconditioner_type
      module procedure gw_mixed_schur_preconditioner_constructor
   end interface
@@ -129,7 +128,7 @@ contains
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
     use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
     use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
-    
+
     implicit none
 
     class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
@@ -177,11 +176,11 @@ contains
     M_lumped      = field_type(vector_space = wb)
     self%Mb_lumped_inv = field_type(vector_space = wb)
     select case(b_space)
-    case(gravity_wave_constants_b_space_w0)  
+    case(gravity_wave_constants_b_space_w0)
        Mb => get_mass_matrix(w0_id)
-    case(gravity_wave_constants_b_space_w3)  
+    case(gravity_wave_constants_b_space_w3)
        Mb => get_mass_matrix(w3_id)
-    case(gravity_wave_constants_b_space_wtheta)  
+    case(gravity_wave_constants_b_space_wtheta)
        Mb => get_mass_matrix(wt_id)
     end select
     call invoke( setval_c( ones,     1.0_r_def ),               &
@@ -210,7 +209,7 @@ contains
     type(field_vector_type),                   intent(in)    :: rhs0
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
-    
+
     real(kind=r_def) :: const1, const2
 
     ! rhs_u = R_u + alpha * dt * Q * Mb^-1 * R_b
@@ -237,7 +236,7 @@ contains
   end subroutine build_pressure_rhs
 
   !>@brief Destructor
-  !>@param[inout] self Instance of type to be destroyed
+  !>@param[in,out] self Instance of type to be destroyed
   subroutine destroy_gw_mixed_schur_preconditioner(self)
     implicit none
     type(gw_mixed_schur_preconditioner_type), intent(inout) :: self

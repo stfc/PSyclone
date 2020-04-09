@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 '''Contains the PSyData transformation.
 '''
 
-from psyclone.psyir.nodes import Node, Schedule
+from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -65,11 +65,19 @@ class PSyDataTrans(RegionTrans):
     >>> newschedule, _ = data_trans.apply(schedule.children)
     >>> newschedule.view()
 
+    :param node_class: The Node class of which an instance will be inserted \
+        into the tree (defaults to PSyDataNode).
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode`
+
     '''
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
     # TODO: #415 Support different classes of PSyData calls.
     valid_node_types = (Node,)
+
+    def __init__(self, node_class=PSyDataNode):
+        super(PSyDataTrans, self).__init__()
+        self._node_class = node_class
 
     def __str__(self):
         return "Insert a PSyData node."
@@ -87,12 +95,17 @@ class PSyDataTrans(RegionTrans):
         implemented the necessary support if it doesn't).
         TODO: #435
 
-        :param node_list: a list of node_list to be instrumented with \
+        :param node_list: a list of nodes to be instrumented with \
             PSyData API calls.
         :type node_list: :py:class:`psyclone.psyir.nodes.Loop`
 
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
 
         :raises TransformationError: if we're using the NEMO API and the \
             target routine has no Specification_Part.
@@ -105,14 +118,27 @@ class PSyDataTrans(RegionTrans):
         from psyclone.nemo import NemoInvoke
         from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
 
-        super(PSyDataTrans, self).validate(node_list, options)
-
         node_parent = node_list[0].parent
         if isinstance(node_parent, Schedule) and \
            isinstance(node_parent.parent, (OMPDoDirective, ACCLoopDirective)):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
+
+        if options:
+            if "region_name" in options:
+                name = options["region_name"]
+                # pylint: disable=too-many-boolean-expressions
+                if not isinstance(name, tuple) or not len(name) == 2 or \
+                   not name[0] or not isinstance(name[0], str) or \
+                   not name[1] or not isinstance(name[1], str):
+                    raise TransformationError(
+                        "Error in {0}. User-supplied region name must be a "
+                        "tuple containing two non-empty strings."
+                        "".format(self.name))
+                # pylint: enable=too-many-boolean-expressions
+
+        super(PSyDataTrans, self).validate(node_list, options)
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
@@ -143,6 +169,11 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
@@ -150,25 +181,7 @@ class PSyDataTrans(RegionTrans):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        # Check whether we've been passed a list of nodes or just a
-        # single node.
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Schedule):
-            # We've been passed a Schedule so default to enclosing its
-            # children.
-            node_list = nodes.children
-        elif isinstance(nodes, Node):
-            # Single node that's not a Schedule
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {1}. "
-                                      "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {0}".
-                                      format(arg_type, str(self)))
+        node_list = self.get_node_list(nodes)
 
         # Perform validation checks
         self.validate(node_list, options)
@@ -178,16 +191,18 @@ class PSyDataTrans(RegionTrans):
         schedule = node_list[0].root
         keep = Memento(schedule, self)
 
-        # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a PSyData region. Also keep the index of
-        # the first child to be enclosed as that will become the
-        # position of the new PSyDataNode
-        node_parent = node_list[0].parent
-
-        # Create the PSyData node. All of the supplied child nodes will have
-        # the PSyData's Schedule as their parent.
-        from psyclone.psyir.nodes import PSyDataNode
-
-        _ = PSyDataNode(parent=node_parent, children=node_list[:])
+        # Create an instance of the required class that implements
+        # the code extraction using the PSyData API, e.g. a
+        # GOceanExtractNode. The base constructor of the extraction node
+        # will insert the node into the PSyIR between the
+        # nodes to be extracted and their parent. The nodes to
+        # be extracted will become children of the extraction node.
+        # We also pass the user-specified options to the constructor,
+        # so that the behaviour of the code extraction can be controlled.
+        # An example use case of this is the 'create_driver' flag, where
+        # the calling program can control if a stand-alone driver program
+        # should be created or not.
+        self._node_class(parent=node_list[0].parent, children=node_list[:],
+                         options=options)
 
         return schedule, keep

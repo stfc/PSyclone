@@ -39,7 +39,7 @@
 
 
 # internal classes requiring tests
-# PSy,Invokes,Dependencies,NameSpaceFactory,NameSpace,Invoke,Node,Schedule,
+# PSy,Invokes,Dependencies,Invoke,Node,Schedule,
 # LoopDirective,OMPLoopDirective,Loop,Call,Inf,SetInfCall,Kern,Arguments,
 # InfArguments,Argument,KernelArgument,InfArgument
 
@@ -47,15 +47,13 @@
 # PSyFactory, TransInfo, Transformation
 from __future__ import absolute_import, print_function
 import os
-import re
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import CodeBlock, Container, Loop, \
-    Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    Schedule, UnaryOperation, NaryOperation, Return
-from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, OMPParallelDoDirective, KernelSchedule, \
+from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
+    Literal, Node, Schedule
+from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
+    OMPParallelDoDirective, KernelSchedule, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern
@@ -224,234 +222,7 @@ def test_valid_return_object_from_name():
     assert isinstance(transform, Transformation)
 
 
-# NameSpace class unit tests
-
-def test_fail_context_label():
-    '''check an error is raised if one of context and label is not None'''
-    namespace = NameSpace()
-    with pytest.raises(RuntimeError):
-        namespace.create_name(context="dummy_context")
-    with pytest.raises(RuntimeError):
-        namespace.create_name(label="dummy_context")
-
-
-def test_case_sensitive_names():
-    ''' tests that in the case sensitive option, names that only differ by
-    case are treated as being distinct'''
-    namespace_cs = NameSpace(case_sensitive=True)
-    name = "Rupert"
-    name1 = namespace_cs.create_name(root_name=name)
-    name2 = namespace_cs.create_name(root_name=name.lower())
-    assert name1 == name
-    assert name2 == name.lower()
-
-
-def test_case_insensitive_names():
-    ''' tests that in the case insensitive option (the default), names that
-    only differ by case are treated as being the same '''
-    namespace = NameSpace()
-    name = "Rupert"
-    name1 = namespace.create_name(root_name=name)
-    name2 = namespace.create_name(root_name=name.lower())
-    assert name1 == name.lower()
-    assert name2 == name1 + "_1"
-
-
-def test_new_labels():
-    '''tests that different labels and contexts are treated as being
-    distinct'''
-    namespace = NameSpace()
-    name = "Rupert"
-    name1 = namespace.create_name(root_name=name, context="home",
-                                  label="me")
-    name2 = namespace.create_name(root_name=name, context="work",
-                                  label="me")
-    name3 = namespace.create_name(root_name=name, context="home",
-                                  label="a bear")
-    name4 = namespace.create_name(root_name=name, context="work",
-                                  label="a bear")
-    assert name1 == name.lower()
-    assert name2 == name1+"_1"
-    assert name3 == name1+"_2"
-    assert name4 == name1+"_3"
-
-
-def test_new_labels_case_sensitive():
-    '''tests that different labels and contexts are treated as being
-    distinct for case sensitive names'''
-    namespace = NameSpace(case_sensitive=True)
-    name = "Rupert"
-    name1 = namespace.create_name(root_name=name, context="home",
-                                  label="me")
-    name2 = namespace.create_name(root_name=name, context="work",
-                                  label="me")
-    name3 = namespace.create_name(root_name=name, context="home",
-                                  label="Me")
-    name4 = namespace.create_name(root_name=name, context="Work",
-                                  label="me")
-    assert name1 == name
-    assert name2 == name1+"_1"
-    assert name3 == name1+"_2"
-    assert name4 == name1+"_3"
-
-
-def test_existing_labels():
-    '''tests that existing labels and contexts return the previous name'''
-    namespace = NameSpace()
-    name = "Rupert"
-    name1 = namespace.create_name(root_name=name, context="home",
-                                  label="me")
-    name2 = namespace.create_name(root_name=name, context="work",
-                                  label="me")
-    name3 = namespace.create_name(root_name=name, context="home",
-                                  label="Me")
-    name4 = namespace.create_name(root_name=name, context="Work",
-                                  label="me")
-    assert name1 == name.lower()
-    assert name2 == name1+"_1"
-    assert name3 == name1
-    assert name4 == name2
-
-
-def test_existing_labels_case_sensitive():
-    '''tests that existing labels and contexts return the previous name'''
-    namespace = NameSpace(case_sensitive=True)
-    name = "Rupert"
-    name1 = namespace.create_name(root_name=name, context="home",
-                                  label="me")
-    name2 = namespace.create_name(root_name=name, context="Work",
-                                  label="Me")
-    name3 = namespace.create_name(root_name=name, context="home",
-                                  label="me")
-    name4 = namespace.create_name(root_name=name, context="Work",
-                                  label="Me")
-    assert name1 == name
-    assert name2 == name1+"_1"
-    assert name3 == name1
-    assert name4 == name2
-
-
-def test_reserved_names():
-    '''tests that reserved names are not returned by the name space
-    manager'''
-    namea = "PSyclone"
-    nameb = "Dynamo"
-    namespace = NameSpace()
-    namespace.add_reserved_name(namea)
-    name1 = namespace.create_name(root_name=namea.lower())
-    assert name1 == namea.lower()+"_1"
-    namespace.add_reserved_names([nameb.lower()])
-    name1 = namespace.create_name(root_name=nameb)
-    assert name1 == nameb.lower()+"_1"
-
-
-def test_reserved_names_case_sensitive():
-    '''tests that reserved names are not returned by the case sensitive
-    name space manager'''
-    namea = "PSyclone"
-    nameb = "Dynamo"
-    namespace = NameSpace(case_sensitive=True)
-    namespace.add_reserved_name(namea)
-    name1 = namespace.create_name(root_name=namea)
-    assert name1 == namea+"_1"
-    name1 = namespace.create_name(root_name=namea.lower())
-    assert name1 == namea.lower()
-    namespace.add_reserved_names([nameb])
-    name1 = namespace.create_name(root_name=nameb)
-    assert name1 == nameb+"_1"
-    name1 = namespace.create_name(root_name=nameb.lower())
-    assert name1 == nameb.lower()
-
-
-def test_reserved_name_exists():
-    '''tests that an error is generated if a reserved name has already
-    been used as a name'''
-    name = "PSyclone"
-    namespace = NameSpace()
-    _ = namespace.create_name(root_name=name)
-    with pytest.raises(RuntimeError):
-        namespace.add_reserved_name(name)
-    with pytest.raises(RuntimeError):
-        namespace.add_reserved_name(name.lower())
-
-
-def test_reserved_name_exists_case_sensitive():
-    '''tests that an error is generated if a reserved name has already
-    been used as a name'''
-    name = "PSyclone"
-    namespace = NameSpace(case_sensitive=True)
-    _ = namespace.create_name(root_name=name)
-    namespace.add_reserved_name(name.lower())
-    with pytest.raises(RuntimeError):
-        namespace.add_reserved_name(name)
-    with pytest.raises(RuntimeError):
-        namespace.add_reserved_names([name])
-
-
-def test_anonymous_name():
-    ''' tests that anonymous names are successfully created '''
-    namespace = NameSpace()
-    name1 = namespace.create_name()
-    assert name1 == "anon"
-    name2 = namespace.create_name()
-    assert name2 == "anon_1"
-
-
-def test_internal_name_clashes():
-    ''' tests that names that are generated internally by the namespace
-    manager can be used as root names'''
-    anon_name = "Anon"
-    namespace = NameSpace()
-    name1 = namespace.create_name()
-    name2 = namespace.create_name(root_name=anon_name)
-    assert name1 == anon_name.lower()
-    assert name2 == name1+"_1"
-    name3 = namespace.create_name(root_name=anon_name+"_1")
-    assert name3 == name2+"_1"
-
-
-def test_intern_name_clash_case_sensitive():
-    '''tests that names that are generated internally by the case
-    sensitive namespace manager can be used as root names'''
-    anon_name = "Anon"
-    namespace = NameSpace(case_sensitive=True)
-    _ = namespace.create_name()
-    name2 = namespace.create_name(root_name=anon_name)
-    assert name2 == anon_name
-    name3 = namespace.create_name(root_name=anon_name.lower())
-    assert name3 == anon_name.lower()+"_1"
-
-
-# tests that the NameSpaceFactory class is working correctly
-
-def test_create():
-    '''tests that a NameSpace object is returned from the create method'''
-    nsf = NameSpaceFactory()
-    nspace = nsf.create()
-    assert isinstance(nspace, NameSpace)
-
-
-def test_singleton():
-    '''test that the same NameSpace object is returned from different
-    NameSpaceFactory's by default'''
-    nsf = NameSpaceFactory()
-    ns1 = nsf.create()
-    nsf = NameSpaceFactory()
-    ns2 = nsf.create()
-    assert ns1 == ns2
-
-
-def test_reset():
-    ''' test that different NameSpace objects are returned from different
-    NameSpaceFactory's when the reset option is set'''
-    nsf = NameSpaceFactory()
-    ns1 = nsf.create()
-    nsf = NameSpaceFactory(reset=True)
-    ns2 = nsf.create()
-    assert ns1 != ns2
-
 # tests for class Call
-
 
 def test_invokes_can_always_be_printed():
     '''Test that an Invoke instance can always be printed (i.e. is
@@ -515,15 +286,15 @@ def test_derived_type_deref_naming():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
-    print(generated_code)
+
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1_my_field\n"
-        "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
+        "      TYPE(field_type), intent(in) :: f1_my_field, f1_my_field_1, "
+        "m1, m2\n")
     assert output in generated_code
 
 
@@ -987,7 +758,7 @@ def test_invoke_name():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_important_invoke" in gen
 
 
@@ -999,7 +770,7 @@ def test_multi_kern_named_invoke():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_some_name" in gen
 
 
@@ -1012,7 +783,7 @@ def test_named_multi_invokes():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_my_first(" in gen
     assert "SUBROUTINE invoke_my_second(" in gen
 
@@ -1026,9 +797,9 @@ def test_named_invoke_name_clash():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
+
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
-    assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
+    assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
 
 
 def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
@@ -1684,7 +1455,6 @@ def test_omp_dag_names():
     assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"
     omp_directive = super(OMPParallelDirective, omp_par_node)
     assert omp_directive.dag_name == "OMP_directive_1"
-    print(type(omp_directive))
     directive = super(OMPDirective, omp_par_node)
     assert directive.dag_name == "directive_1"
 

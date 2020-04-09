@@ -107,14 +107,6 @@ And again the appropriate location might depend on the profiling library
 used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
-Naming Profiling Regions
-~~~~~~~~~~~~~~~~~~~~~~~~
-By default PSyclone will generate appropriate names to uniquely
-determine a particular region (see :ref:`psy_data_type`). 
-Alternatively these names can be specified by the user
-when adding profiling via a transformation script.
-
-
 Profiling Command Line Options
 ------------------------------
 PSyclone offers two command line options to automatically instrument
@@ -132,13 +124,13 @@ before each loop created by PSyclone, and a ``ProfileEnd`` call at the
 end of each loop.
 
 .. note:: In some APIs (for example dynamo when using distributed
-	  memory) additional minor code might get included in a
-	  profiled kernel section, for example setDirty() calls
-	  (expensive calls like HaloExchange are excluded).
+          memory) additional minor code might get included in a
+          profiled kernel section, for example setDirty() calls
+          (expensive calls like HaloExchange are excluded).
 
-.. note:: It is the responsibility of the user to manually add the
-	  calls to ``ProfileInit`` and ``ProfileFinalise`` to the code
-	  base.
+.. note:: It is still the responsibility of the user to manually
+    add the calls to ``ProfileInit`` and ``ProfileFinalise`` to the
+    code base.
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created
@@ -149,34 +141,34 @@ holding the loop bounds have been omitted for all but the first loop)::
 
     GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
         0: [Profile]
-	    Schedule[]
+            Schedule[]
                 0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
                     Literal[value:'2']
                     Literal[value:'jstop']
                     Literal[value:'1']
-		    Schedule[]
+                    Schedule[]
                         0: Loop[type='inner',field_space='go_cu',
-			        it_space='go_internal_pts']
+                                it_space='go_internal_pts']
                             ...
-			    Schedule[]
+                            Schedule[]
                                 0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
-				           cv_fld,h_fld,tdt,dy) [module_inline=False]
+                                           cv_fld,h_fld,tdt,dy) [module_inline=False]
                 1: Loop[type='outer',field_space='cv',it_space='internal_pts']
-		    ...
-		    Schedule[]
+                    ...
+                    Schedule[]
                         0: Loop[type='inner',field_space='cv',it_space='internal_pts']
-			    ...
-			    Schedule[]
+                            ...
+                            Schedule[]
                                 0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
-				           cu_fld,h_fld,tdt,dy) [module_inline=False]
+                                           cu_fld,h_fld,tdt,dy) [module_inline=False]
                 2: Loop[type='outer',field_space='ct',it_space='internal_pts']
-		    ...
-		    Schedule[]
+                    ...
+                    Schedule[]
                         0: Loop[type='inner',field_space='ct',it_space='internal_pts']
-			    ...
-			    Schedule[]
+                            ...
+                            Schedule[]
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,
-				           cv_fld,tdt,dx,dy) [module_inline=False]
+                                           cv_fld,tdt,dx,dy) [module_inline=False]
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
@@ -184,84 +176,84 @@ region::
 
     GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
         0: [Profile]
-	    Schedule[]
+            Schedule[]
                 0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
-		    ...
-		    Schedule[]
+                    ...
+                    Schedule[]
                         0: Loop[type='inner',field_space='go_cu',
-			        it_space='go_internal_pts']
-			    ...
-			    Schedule[]
+                                it_space='go_internal_pts']
+                            ...
+                            Schedule[]
                                 0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
-				        cv_fld,h_fld,tdt,dy) [module_inline=False]
+                                        cv_fld,h_fld,tdt,dy) [module_inline=False]
         1: [Profile]
-	    Schedule[]
+            Schedule[]
                 0: Loop[type='outer',field_space='go_cv',it_space='go_internal_pts']
-		    ...
-		    Schedule[]
-                    	0: Loop[type='inner',field_space='go_cv',
-			        it_space='go_internal_pts']
-		    	    ...
-		    	    Schedule[]
-                    	        0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
-				        cu_fld,h_fld,tdt,dy) [module_inline=False]
+                    ...
+                    Schedule[]
+                            0: Loop[type='inner',field_space='go_cv',
+                                it_space='go_internal_pts']
+                                ...
+                                Schedule[]
+                                    0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
+                                        cu_fld,h_fld,tdt,dy) [module_inline=False]
         2: [Profile]
-	    Schedule[]
+            Schedule[]
                 0: Loop[type='outer',field_space='go_ct',it_space='go_internal_pts']
-		    ...
-		    Schedule[]
+                    ...
+                    Schedule[]
                         0: Loop[type='inner',field_space='go_ct',
-			        it_space='go_internal_pts']
-			    ...
-			    Schedule[]
+                                it_space='go_internal_pts']
+                            ...
+                            Schedule[]
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
-				        cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                                        cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 Both options can be specified at the same time::
 
     GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
         0: [Profile]
-	    Schedule[]
-	        0: [Profile]
-	            Schedule[]
-	                0: Loop[type='outer',field_space='go_cu',
-			        it_space='go_internal_pts']
-			    ...
-			    Schedule[]
-	                        0: Loop[type='inner',field_space='go_cu',
-				        it_space='go_internal_pts']
-				    ...
-				    Schedule[]
-	                                0: CodedKern compute_unew_code(unew_fld,uold_fld,
-					        ...) [module_inline=False]
-	        1: [Profile]
-		    Schedule[]
-	                0: Loop[type='outer',field_space='go_cv',
-			        it_space='go_internal_pts']
-			    ...
-			    Schedule[]
-	                    	0: Loop[type='inner',field_space='go_cv',
-				        it_space='go_internal_pts']
-			    	    ...
-			    	    Schedule[]
-	                    	        0: CodedKern compute_vnew_code(vnew_fld,vold_fld,
-					        ...) [module_inline=False]
-	        2: [Profile]
-		    Schedule[]
-	                0: Loop[type='outer',field_space='go_ct',
-			        it_space='go_internal_pts']
-			    ...
-			    Schedule[]
-	                        0: Loop[type='inner',field_space='go_ct',
-				        it_space='go_internal_pts']
-				    ...
-				    Schedule[]
-	                                0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
-	                                        ...) [module_inline=False]
+            Schedule[]
+                0: [Profile]
+                    Schedule[]
+                        0: Loop[type='outer',field_space='go_cu',
+                                it_space='go_internal_pts']
+                            ...
+                            Schedule[]
+                                0: Loop[type='inner',field_space='go_cu',
+                                        it_space='go_internal_pts']
+                                    ...
+                                    Schedule[]
+                                        0: CodedKern compute_unew_code(unew_fld,uold_fld,
+                                                ...) [module_inline=False]
+                1: [Profile]
+                    Schedule[]
+                        0: Loop[type='outer',field_space='go_cv',
+                                it_space='go_internal_pts']
+                            ...
+                            Schedule[]
+                                    0: Loop[type='inner',field_space='go_cv',
+                                        it_space='go_internal_pts']
+                                        ...
+                                        Schedule[]
+                                            0: CodedKern compute_vnew_code(vnew_fld,vold_fld,
+                                                ...) [module_inline=False]
+                2: [Profile]
+                    Schedule[]
+                        0: Loop[type='outer',field_space='go_ct',
+                                it_space='go_internal_pts']
+                            ...
+                            Schedule[]
+                                0: Loop[type='inner',field_space='go_ct',
+                                        it_space='go_internal_pts']
+                                    ...
+                                    Schedule[]
+                                        0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
+                                                ...) [module_inline=False]
 
 
-Profiling in Scripts - ProfileTrans
------------------------------------
+Profiling in Scripts - ``ProfileTrans``
+---------------------------------------
 The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
 takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
@@ -281,8 +273,9 @@ As an example::
     newschedule.view()
 
 The profiler transformation also allows the profile name to be set
-explicitly, rather than being automatically created. This allows for
-potentially more intuitive names or finer grain control over profiling
+explicitly, rather than being automatically created (see
+:ref:`profile_names` for details). This allows for potentially
+more intuitive names or finer grain control over profiling
 (as particular regions could be provided with the same profile
 names). For example::
 
@@ -290,16 +283,16 @@ names). For example::
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     # Use the actual psy-layer module and subroutine names.
-    options = {"profile_name": (psy.name, invoke.name)}
+    options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
     # Use own names and repeat for different regions to aggregate profile.
-    options = {"profile_name": ("my_location", "my_region")}
+    options = {"region_name": ("my_location", "my_region")}
     profile_trans.apply(schedule[0].children[1:2], options=options)
     profile_trans.apply(schedule[0].children[5:7], options=options)
 
 .. warning::
 
-   If "profile_name" is misspelt in the options dictionary then the
+   If "region_name" is misspelt in the options dictionary then the
    option will be silently ignored. This is true for all
    options. Issue #613 captures this problem.
    
@@ -309,15 +302,28 @@ names). For example::
     region is only created inside a multi-threaded region if the
     profiling library used is thread-safe!
 
-Profile Names
--------------
+.. _profile_names:
 
-If profile names are not supplied by the user then these names are
-automatically generated by PSyclone. The names are split into two
-parts, 1) `module_name`: a string identifying the psy-layer containing
-this profile node and 2) `region_name`: a string identifying the
-invoke containing this profile node and its location within the invoke
-(where necessary).
+Naming Profiling Regions
+------------------------
+A profile region derives its name from two components:
+
+`module_name`
+    A string identifying the psy-layer containing this 
+    profile node.
+`region_name`
+    A string identifying the invoke containing 
+    this profile node and its location within the invoke
+    (where necessary).
+
+By default PSyclone will generate appropriate names to uniquely
+determine a particular region. Since those names can be
+somewhat cryptic, alternative names can be specified by the user
+when adding profiling via a transformation script, see
+:ref:`psy_data_parameters_to_constructor`.
+
+The automatic name generation depends on the API according
+to the following rules:
 
 For the `nemo` api,
 
@@ -350,49 +356,51 @@ For the `dynamo` and `gocean` api's,
               0: Profile[]
                   Schedule[]
                       0: HaloExchange[field='f2', type='region', depth=1,
-		                      check_dirty=True]
+                                      check_dirty=True]
                       1: HaloExchange[field='m1', type='region', depth=1,
-		                      check_dirty=True]
+                                      check_dirty=True]
                       2: HaloExchange[field='m2', type='region', depth=1,
-		                      check_dirty=True]
+                                      check_dirty=True]
               1: Profile[]
                   Schedule[]
                       0: Loop[type='', field_space='w1', it_space='cells',
-		              upper_bound='cell_halo(1)']
+                              upper_bound='cell_halo(1)']
                           Literal[value:'1', DataType.INTEGER]
                           Literal[value:'mesh%get_last_halo_cell(1)',
-			          DataType.INTEGER]
+                                  DataType.INTEGER]
                           Literal[value:'1', DataType.INTEGER]
                           Schedule[]
                               0: CodedKern testkern_code(a,f1,f2,m1,m2)
-			         [module_inline=False]
+                                 [module_inline=False]
                       1: Profile[]
                           Schedule[]
                               0: Loop[type='', field_space='w1',
-			              it_space='cells',
-				      upper_bound='cell_halo(1)']
+                                      it_space='cells',
+                                      upper_bound='cell_halo(1)']
                                   Literal[value:'1', DataType.INTEGER]
                                   Literal[value:'mesh%get_last_halo_cell(1)',
-				          DataType.INTEGER]
+                                          DataType.INTEGER]
                                   Literal[value:'1', DataType.INTEGER]
                                   Schedule[]
                                       0: CodedKern testkern_code(a,f1,f2,m1,m2)
-				         [module_inline=False]
+                                         [module_inline=False]
               2: Loop[type='', field_space='w1', it_space='cells',
-	              upper_bound='cell_halo(1)']
+                      upper_bound='cell_halo(1)']
                   Literal[value:'1', DataType.INTEGER]
                   Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
                   Literal[value:'1', DataType.INTEGER]
                   Schedule[]
                       0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp)
-		         [module_inline=False]
+                         [module_inline=False]
 
-    MODULE container
+This is the code created for this example::
+
+     MODULE container
       CONTAINS
       SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
         ...
         CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
-	                             0, 0)
+                                     0, 0)
         CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r1", 0, 0)
         IF (f2_proxy%is_dirty(depth=1)) THEN
           CALL f2_proxy%halo_exchange(depth=1)
@@ -405,13 +413,13 @@ For the `dynamo` and `gocean` api's,
         END IF 
         CALL psy_data%PreEnd()
         CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
-	                             0, 0)
+                                     0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
         ...
         CALL psy_data_2%PreStart("multi_functions_multi_invokes_psy", &
-	                  "invoke_0:testkern_code:r3", 0, 0)
+                          "invoke_0:testkern_code:r3", 0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
@@ -431,7 +439,7 @@ For the `dynamo` and `gocean` api's,
 
 .. _profiling_third_party_tools:
 
-Interface to Third Party Profiling Tools 
+Interface to Third Party Profiling Tools
 ----------------------------------------
 PSyclone comes with wrapper libraries to support usage of
 Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
@@ -445,6 +453,39 @@ of the wrappers are required, you can either use
 into the corresponding directory and use ``make``. The
 corresponding README files contain additional parameters
 that can be set in order to find third party profiling tools.
+Below are short descriptions of each of the various wrapper
+libraries that come with PSyclone:
+
+``lib/profiling/template``
+    This is a simple library that just prints out the name
+    as regions are entered and exited. It could act as a
+    template to develop new wrapper libraries, hence its
+    name.
+
+``lib/profiling/simple_timing``
+    This is a simple, stand-alone library that uses Fortran
+    system calls to measure the execution time, and reports
+    average, minimum and maximum execution time for all regions.
+    It is not MPI aware (i.e. it will just report independently
+    for each MPI process), and not thread-safe.
+
+``lib/profiling/dl_timer``
+    This wrapper uses the apeg-dl_timer library. In order to use
+    this wrapper, you must download and install the dl_timer library
+    from ``https://bitbucket.org/apeg/dl_timer``. This library has
+    various compile-time options and may be built with MPI or OpenMP
+    support. Additional link options might therefore be required
+    (e.g. enabling openmp, or linking with MPI).
+
+``lib/profiling/drhook``
+    This wrapper uses the DrHook library. You need to contact
+    ECMWF to obtain a copy of DrHook.
+
+``lib/profiling/nvidia``
+    This is a wrapper library that maps the PSyclone profiling API
+    to the NVIDIA Tools Extension library (NVTX). This library is
+    available from ``https://developer.nvidia.com/cuda-toolkit``.
+
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
@@ -452,7 +493,7 @@ module. The functions that need to be implemented are described in
 :ref:`ProfilingAPI`, including the opaque, user-defined type
 ``PSyData``.
 
-The examples in the ````lib/profiling directory show various ways
+The examples in the ``lib/profiling`` directory show various ways
 in which the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
 an index used by the profiling tool in ``PSyData``, or 
@@ -461,9 +502,7 @@ print all results in a ProfileFinalise() subroutine.
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exception is the template library (``lib/profiling/template``)
-which is a
-stand-alone dummy implementation that will just print
-out the name of the module and region called before and
-after each instrumented region. It is used e.g. in
-``examples/gocean/eg5`` to create an executable example.
+exception is the template-and simple_timing-library,
+which are stand alone. The profiling example in
+``examples/gocean/eg5`` can be used with any of the
+wrapper libraries (except nvidia) to see how they work.

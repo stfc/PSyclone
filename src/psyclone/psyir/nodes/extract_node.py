@@ -71,10 +71,8 @@ class ExtractNode(PSyDataNode):
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
-        # At this stage options is only used in the GOceanExtractNode
-        # pylint: disable=unused-argument
         super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent)
+                                          parent=parent, options=options)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 
@@ -127,6 +125,16 @@ class ExtractNode(PSyDataNode):
         '''
         return self._output_list
 
+    def update_vars_and_postname(self):
+        '''
+        This function is called after the variables to be extracted
+        have been stored in self._input_list and self._output_list.
+        It can be used to e.g. remove unnecessary variables (e.g. loop
+        counter), or adjust the postfix to assure that no duplicated
+        variable name is created. This default function does not
+        do anything atm.
+        '''
+
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
@@ -143,9 +151,15 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         dep = DependencyTools()
         self._input_list, self._output_list = dep.get_in_out_parameters(self)
-        options = {'pre-var-list': self._input_list,
-                   'post-var-list': self._output_list,
-                   'post-var-postfix': self._post_name}
+
+        # Add a callback here so that derived classes can adjust the list
+        # of variables to provide, or the suffix used (which might
+        # depend on the variable name which could create clashes).
+        self.update_vars_and_postname()
+
+        options = {'pre_var_list': self._input_list,
+                   'post_var_list': self._output_list,
+                   'post_var_postfix': self._post_name}
 
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))

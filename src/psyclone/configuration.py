@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology,
+#           I. Kavcic, Met Office
 
 '''
 PSyclone configuration management module.
@@ -56,6 +58,7 @@ _FILE_NAME = "psyclone.cfg"
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 
+# pylint: disable=too-many-lines
 class ConfigurationError(Exception):
     '''
     Class for all configuration-related errors.
@@ -215,11 +218,14 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-        from configparser import ConfigParser, MissingSectionHeaderError
+        from configparser import ConfigParser, MissingSectionHeaderError, \
+            ParsingError
         self._config = ConfigParser()
         try:
             self._config.read(self._config_file)
-        except MissingSectionHeaderError as err:
+        # Check for missing section headers and general parsing errors
+        # (e.g. incomplete or incorrect key-value mapping)
+        except (MissingSectionHeaderError, ParsingError) as err:
             raise ConfigurationError(
                 "ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: {0})".format(str(err)),
@@ -651,13 +657,15 @@ class APISpecificConfig(object):
         self._access_mapping = {"read": "read", "write": "write",
                                 "readwrite": "readwrite", "inc": "inc",
                                 "sum": "sum"}
-        # Get the mapping and convert it into a directory. The input is in
+        # Get the mapping and convert it into a dictionary. The input is in
         # the format: key1:value1, key2=value2, ...
         mapping = section.get("ACCESS_MAPPING")
         if mapping:
             self._access_mapping = \
                 APISpecificConfig.create_dict_from_string(mapping)
         # Now convert the string type ("read" etc) to AccessType
+        # TODO (issue #710): Add checks for duplicate or missing access
+        # key-value pairs
         from psyclone.core.access_type import AccessType
         for api_access_name, access_type in self._access_mapping.items():
             try:
@@ -748,26 +756,87 @@ class DynConfig(APISpecificConfig):
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
         super(DynConfig, self).__init__(section)
-        self._config = config  # Ref. to parent Config object
-        try:
-            self._compute_annexed_dofs = section.getboolean(
-                'COMPUTE_ANNEXED_DOFS')
-        except ValueError as err:
-            raise ConfigurationError(
-                "error while parsing COMPUTE_ANNEXED_DOFS in the [dynamo0.3] "
-                "section of the config file: {0}".format(str(err)),
-                config=self._config)
+        # Ref. to parent Config object
+        self._config = config
+        # Initialise redundant computation setting
+        self._compute_annexed_dofs = None
+        # Initialise LFRic datatypes' default kinds (precisions) settings
+        self._default_kind = {}
+        # Set mandatory keys
+        # TODO: to be fully populated here for LFRic (Dynamo0.3) API in #282
+        # when Dynamo0.1 API is removed.
+        self._mandatory_keys = []
+
+        # TODO: This "if" clause will become redundant in #282 as there will be
+        # just LFRic (Dynamo0.3) API configuration
+        if section.name == "dynamo0.3":
+            # Define and check mandatory keys
+            self._mandatory_keys = ["access_mapping",
+                                    "compute_annexed_dofs", "default_kind"]
+            mdkeys = set(self._mandatory_keys)
+            if not mdkeys.issubset(set(section.keys())):
+                raise ConfigurationError(
+                    "Missing mandatory configuration option in the "
+                    "'[dynamo0.3]' section of the configuration file '{0}'. "
+                    "Valid options are: '{1}'."
+                    .format(config.filename, self._mandatory_keys))
+
+            # Parse setting for redundant computation over annexed dofs
+            try:
+                self._compute_annexed_dofs = section.getboolean(
+                    "compute_annexed_dofs")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "[dynamo0.3] section of the config file: {0}"
+                    .format(str(err)), config=self._config)
+
+            # Parse setting for default kinds (precisions)
+            all_kinds = self.create_dict_from_string(section["default_kind"])
+            # Set default kinds (precisions) from config file
+            from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES
+            # Check for valid datatypes (filter to remove empty values)
+            datatypes = set(filter(None, all_kinds.keys()))
+            if datatypes != set(SUPPORTED_FORTRAN_DATATYPES):
+                raise ConfigurationError(
+                    "Invalid datatype found in the '[dynamo0.3]' "
+                    "section of the configuration file '{0}'. "
+                    "Valid datatypes are: '{1}'."
+                    .format(config.filename, SUPPORTED_FORTRAN_DATATYPES))
+            # Check for valid kinds (filter to remove any empty values)
+            datakinds = set(filter(None, all_kinds.values()))
+            if len(datakinds) != len(set(SUPPORTED_FORTRAN_DATATYPES)):
+                raise ConfigurationError(
+                    "Supplied kind parameters '{0}' in the '[dynamo0.3]' "
+                    "section of the configuration file '{1}' do not define "
+                    "the default kind for one or more supported "
+                    "datatypes '{2}'."
+                    .format(sorted(datakinds), config.filename,
+                            SUPPORTED_FORTRAN_DATATYPES))
+            self._default_kind = all_kinds
 
     @property
     def compute_annexed_dofs(self):
         '''
         Getter for whether or not we perform redundant computation over
         annexed dofs.
-        :returns: True if we are to do redundant computation
-        :rtype: False
+
+        :returns: true if we are to do redundant computation.
+        :rtype: bool
 
         '''
         return self._compute_annexed_dofs
+
+    @property
+    def default_kind(self):
+        '''
+        Getter for default kind (precision) for real, integer and logical
+        datatypes in LFRic.
+
+        :returns: the default kinds for main datatypes in LFRic.
+        :rtype: dict of str
+        '''
+        return self._default_kind
 
 
 # =============================================================================
@@ -793,7 +862,6 @@ class GOceanConfig(APISpecificConfig):
         # a property, and 'type' is a string.
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
-        Property = namedtuple("Property", "fortran type")
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -836,7 +904,8 @@ class GOceanConfig(APISpecificConfig):
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
-                        Property(fortran.strip(), variable_type.strip())
+                        GOceanConfig.make_property(fortran.strip(),
+                                                   variable_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
                 for required in ["go_grid_xstop", "go_grid_ystop",
@@ -859,11 +928,38 @@ class GOceanConfig(APISpecificConfig):
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,
                                                            config.filename))
+
+    # ---------------------------------------------------------------------
+    @staticmethod
+    def make_property(dereference_format, type_name):
+        '''Creates a property (based on namedtuple) for a given Fortran
+        code to access a grid property, and the type.
+
+        :param str dereference_format: The Fortran code to access a property \
+            given a field name (which will be used to replace a {0} in the \
+            string. E.g. "{0}%whole%xstop").
+        :param str type_name: The type of the grid property, must be \
+            'scalar' or 'array'.
+
+        :returns: a namedtuple for a grid property given the Fortran
+            statement to access it and the type.
+
+        :raises InternalError: if type_name is not 'scalar' or 'array'
+        '''
+        if type_name not in ['array', 'scalar']:
+            from psyclone.errors import InternalError
+            raise InternalError("Type must be 'array' or 'scalar' but is "
+                                "'{0}'.".format(type_name))
+
+        Property = namedtuple("Property", "fortran type")
+        return Property(dereference_format, type_name)
+
     # ---------------------------------------------------------------------
     @property
     def grid_properties(self):
-        ''':returns: the dictionary containing the grid properties.
-        :type: a dictionary with values of pairs (dereference-format, type)
+        ''':returns: the dict containing the grid properties.
+        :rtype: a dict with values of namedtuple("Property","fortran type") \
+            instances.
         '''
         return self._grid_properties
 

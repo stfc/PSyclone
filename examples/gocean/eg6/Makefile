@@ -36,19 +36,35 @@ F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 
+# The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
+
+# The name of the executable
 EXEC = extract_test
+
+# The name of the stand-alone driver that will do the init invokes.
 DRIVER_INIT = driver-main-init
+
+# The name of the stand-alone driver that will call the update function.
+DRIVER_UPDATE = driver-main-update
 
 all:	$(EXEC)
 
-test:	$(DRIVER_INIT)
+test:	$(DRIVER_INIT) $(DRIVER_UPDATE)
 
 # The driver does not yet compile because of #644
 $(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
 				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
 	$(F90) $(KERNELS) $(DRIVER_INIT).o main.o \
 	-o $(DRIVER_INIT)            \
+	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
+	$$(nf-config --flibs)
+
+# The driver does not yet compile because of #644
+$(DRIVER_UPDATE):	$(KERNELS) $(DRIVER_UPDATE).o main.o \
+				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+	$(F90) $(KERNELS) $(DRIVER_UPDATE).o main.o \
+	-o $(DRIVER_UPDATE)            \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	$$(nf-config --flibs)
 
@@ -73,4 +89,6 @@ psy.o:	$(KERNELS)
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(EXTRACT_DIR) -c $<
 
 clean:
-	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC) $(DRIVER_INIT)
+	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC)
+	rm -f $(DRIVER_INIT) $(DRIVER_INIT).f90 \
+		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90

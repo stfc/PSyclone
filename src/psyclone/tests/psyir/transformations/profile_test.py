@@ -46,7 +46,6 @@ from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import ProfileNode
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import NameSpace
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
@@ -59,13 +58,8 @@ def teardown_function():
     '''This function is called at the end of any test function. It disables
     any automatic profiling set. This is necessary in case of a test failure
     to make sure any further tests will not be ran with profiling enabled.
-    It also creates a new NameSpace manager, which is responsible to create
-    unique region names - this makes sure the test works if the order or
-    number of tests run is changed, otherwise the created region names will
-    change.
     '''
     Profiler.set_options([])
-    Profiler._namespace = NameSpace()
 
 
 def test_malformed_profile_node(monkeypatch):
@@ -91,7 +85,7 @@ def test_profile_node_invalid_name(value):
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode(name=value)
+        _ = ProfileNode(options={"region_name": value})
     assert ("Error in PSyDataNode. The name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
 
@@ -218,7 +212,7 @@ def test_profile_invokes_gocean1p0():
     # kernel_ne_offset_mod.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, ONLY: PSyDataType.*"
-                  r"TYPE\(PsyDataType\), save :: psy_data.*"
+                  r"TYPE\(PsyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different_"
                   r"iterates_over\", \"invoke_0:r0\", 0, 0\).*"
                   "do j.*"
@@ -244,7 +238,7 @@ def test_profile_invokes_gocean1p0():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0:r0\", 0, 0\).*"
                   "do j.*"
@@ -282,8 +276,8 @@ def test_unique_region_names():
     # though the kernels have the same name.
     correct_re = ("subroutine invoke.*"
                   "use psy_Data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data.*%PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", "
                   r"\"invoke_0:compute_cu_code:r0\", 0, 0\).*"
@@ -327,8 +321,8 @@ def test_profile_kernels_gocean1p0():
     # in which the tests are executed).
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call (?P<profile1>\w*)%PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0:compute_cu_code:r0\", 0, 0\).*"
                   "do j.*"
@@ -362,7 +356,7 @@ def test_profile_named_gocean1p0():
                              "gocean1.0", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
-    options = {"profile_name": (psy.name, invoke.name)}
+    options = {"region_name": (psy.name, invoke.name)}
     _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL psy_data%PreStart("
@@ -386,7 +380,7 @@ def test_profile_invokes_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"single_invoke_psy\", "
                   r"\"invoke_0_testkern_type:testkern_code:r0\", 0, 0\).*"
                   "do cell.*"
@@ -406,7 +400,7 @@ def test_profile_invokes_dynamo0p3():
     # by PSyclone to avoid name duplications.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0:r0.*\", 0, 0\).*"
                   "do cell.*"
@@ -423,7 +417,7 @@ def test_profile_invokes_dynamo0p3():
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = str(invoke.gen())
     assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "TYPE(PSyDataType), save :: psy_data" in code
+    assert "TYPE(PSyDataType), target, save :: psy_data" in code
     assert "CALL psy_data%PreStart(\"single_invoke_psy\", "\
            "\"invoke_0:x_plus_y:r0\", 0, 0)"in code
     assert "CALL psy_data%PostEnd" in code
@@ -446,7 +440,7 @@ def test_profile_kernels_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"single_invoke_psy\", "
                   r"\"invoke_0_testkern_type:testkern_code:r0.*\", 0, 0\).*"
                   "do cell.*"
@@ -464,8 +458,8 @@ def test_profile_kernels_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: (?P<profile2>\w*) .*"
-                  r"TYPE\(PSyDataType\), save :: (?P<profile1>\w*) .*"
+                  r"TYPE\(PSyDataType\), target, save :: (?P<profile2>\w*) .*"
+                  r"TYPE\(PSyDataType\), target, save :: (?P<profile1>\w*) .*"
                   r"call (?P=profile1)%PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0:testkern_code:r0\", 0, 0\).*"
                   "do cell.*"
@@ -495,7 +489,7 @@ def test_profile_named_dynamo0p3():
     psy, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
-    options = {"profile_name": (psy.name, invoke.name)}
+    options = {"region_name": (psy.name, invoke.name)}
     _, _ = profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL psy_data%PreStart(\"single_invoke_psy\", "
@@ -506,6 +500,7 @@ def test_profile_named_dynamo0p3():
 def test_transform(capsys):
     '''Tests normal behaviour of profile region transformation.'''
 
+    # pylint: disable=too-many-locals
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1")
     schedule = invoke.schedule
@@ -667,47 +662,6 @@ def test_transform_errors(capsys):
     schedule = invoke.schedule
     prt = ProfileTrans()
 
-    with pytest.raises(TransformationError) as excinfo:
-        prt.apply([schedule.children[0].children[0], schedule.children[1]])
-    assert "supplied nodes are not children of the same parent." \
-           in str(excinfo.value)
-
-    # Supply not a node object:
-    with pytest.raises(TransformationError) as excinfo:
-        prt.apply(5)
-    assert "Argument must be a single Node in a schedule or a list of Nodes " \
-           "in a schedule but have been passed an object of type: " \
-           in str(excinfo.value)
-    # Python 3 reports 'class', python 2 'type' - so just check for both
-    assert ("<type 'int'>" in str(excinfo.value) or "<class 'int'>"
-            in str(excinfo.value))
-
-    # Test that it will only allow correctly ordered nodes:
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[1], schedule.children[0]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[0], schedule.children[2]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
-    # Test 3 element lists: first various incorrect ordering:
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[0],
-                               schedule.children[2],
-                               schedule.children[1]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
-    with pytest.raises(TransformationError) as excinfo:
-        sched1, _ = prt.apply([schedule.children[1],
-                               schedule.children[0],
-                               schedule.children[2]])
-    assert "Children are not consecutive children of one parent:" \
-           in str(excinfo.value)
-
     # Just to be sure: also check that the right order does indeed work!
     sched1, _ = prt.apply([schedule.children[0],
                            schedule.children[1],
@@ -741,8 +695,14 @@ def test_transform_errors(capsys):
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(sched1[0].dir_body[0])
 
-    assert "A ProfileNode cannot be inserted between an OpenMP/ACC directive "\
-           "and the loop(s) to which it applies!" in str(excinfo.value)
+    assert "A PSyData node cannot be inserted between an OpenMP/ACC "\
+           "directive and the loop(s) to which it applies!" \
+           in str(excinfo.value)
+
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply(sched1[0], {"region_name": "xx"})
+    assert "Error in ProfileTrans. User-supplied region name must be a " \
+        "tuple containing two non-empty strings" in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
