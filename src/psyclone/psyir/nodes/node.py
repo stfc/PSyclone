@@ -891,6 +891,22 @@ class Node(object):
             sched.ast = ast
         return sched
 
+    def find_symbol_table(self):
+        '''
+        :returns: the symbol table attached to the nearest ancestor \
+            node (including self).
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises InternalError: if a symbol table is not found.
+
+        '''
+        current = self
+        while current and not hasattr(current, "symbol_table"):
+            current=current.parent
+        if current:
+            return current.symbol_table
+        raise InternalError("Symbol table not found in any ancestor nodes.")
+        
     def find_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
         associated with this node or one of its ancestors.  Raises an

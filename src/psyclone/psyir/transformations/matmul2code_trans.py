@@ -47,18 +47,19 @@ from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
 from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyGen import Transformation
 
+
 class Matmul2CodeTrans(Transformation):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed. Currently only the vector LHS version of MATMUL is
     supported.
 
-    If the dimensions of R, A, and B are R(M), A(M,L), B(L), 
+    If the dimensions of R, A, and B are R(N), A(N,M), B(M), 
     The transformation replaces `R=MATMUL(A,B)` with the following code:
     
     ```loop i=1,N
            loop j=1,M
-             R(i) += A(i,j) * B(k)```
+             R(i) += A(i,j) * B(j)```
 
     '''
     def __str__(self):
@@ -117,6 +118,17 @@ class Matmul2CodeTrans(Transformation):
                 "one-dimensional array, but found {0} dimensions."
                 "".format(len(array.children)))
 
+        # 1: matrix should be 2d or more
+        # 2: If matrix > 2d then dim1 and dim2 should be : and further dims
+        #    should be constant.
+        # 3: matrix dims should be symbols
+
+        # Similar for existing vector
+        
+        # 1: matrix dim2 should be the same as rhs vector dim1
+        # 2: Same dimension size: matrix dim1 should be the same as lhs vector dim1
+        
+
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
         specified node. This node must be a MATMUL
@@ -130,7 +142,7 @@ class Matmul2CodeTrans(Transformation):
         ```loop i=1,N
              R(i) = 0.0
              loop j=1,M
-               R(i) = R(i) + A(i,j) * B(k)```
+               R(i) = R(i) + A(i,j) * B(j)```
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
@@ -143,24 +155,15 @@ class Matmul2CodeTrans(Transformation):
         assignment = node.parent
 
         matrix = node.children[0]
-        matrix_symbol = matrix.symbol
-        # TODO: does this assume the bound is a symbol????
-        matrix_bound = matrix_symbol.shape[0]
-        # TODO: Check shape[1] should be the same as vector_bound?
+        matrix_bound = matrix.symbol.shape[0]
 
         vector = node.children[1]
-        vector_symbol=vector.symbol
-        # TODO: does this assume the bound is a symbol????
-        vector_bound = vector_symbol.shape[0]
+        vector_bound = vector.symbol.shape[0]
 
         result_symbol = node.parent.lhs.symbol
 
-        # TODO: Find nearest ancestor symbol table (is there an issue for this?)
-        current = node
-        while current and not hasattr(current, "symbol_table"):
-            current=current.parent
-        symbol_table = current.symbol_table
-
+        # Create new i and j loop iterators
+        symbol_table = node.find_symbol_table()
         i_loop_name = symbol_table.new_symbol_name("i")
         i_loop_symbol = DataSymbol(i_loop_name, DataType.INTEGER)
         symbol_table.add(i_loop_symbol)
@@ -168,30 +171,43 @@ class Matmul2CodeTrans(Transformation):
         j_loop_symbol = DataSymbol(j_loop_name, DataType.INTEGER)
         symbol_table.add(j_loop_symbol)
 
+        # Create "result(i)"
         result = Array.create(result_symbol, [Reference(i_loop_symbol)])
+        # Create "vector(j)"
+        vector_dims = [Reference(j_loop_symbol)]
+        if len(vector.children) > 1:
+            # Add any additional dimensions (in case of an array slice)
+            vrector_dims.extend(vector.children[1:])
         vector_array_reference = Array.create(
-            vector.symbol, [Reference(j_loop_symbol)])
-        # TODO: Third dimension is a hack as we don't yet support ":"
-        # so the first 2 dims are in a code block. So it should be
-        # children[2]!!
-        matrix_array_reference = Array.create(
-            matrix.symbol, [Reference(i_loop_symbol), Reference(j_loop_symbol),
-            matrix.children[1]])
+            vector.symbol, vector_dims)
+        # Create "matrix(i,j)"
+        array_dims = [Reference(i_loop_symbol), Reference(j_loop_symbol)]
+        if len(matrix.children) > 2:
+            # Add any additional dimensions (in case of an array slice)
+            array_dims.extend(matrix.children[2:])
+        matrix_array_reference = Array.create(matrix.symbol, array_dims)
+        # Create "matrix(i,j) * vector(j)"
         multiply = BinaryOperation.create(
             BinaryOperation.Operator.MUL, matrix_array_reference,
             vector_array_reference)
+        # Create "result(i) + matrix(i,j) * vector(j)"
         rhs = BinaryOperation.create(
             BinaryOperation.Operator.ADD, result, multiply)
+        # Create "result(i) = result(i) + matrix(i,j) * vector(j)"
         assign = Assignment.create(result, rhs)
+        # Create j loop and add the above code as a child
         jloop = Loop.create(
             j_loop_name, Literal("1", DataType.INTEGER),
             Reference(vector_bound), Literal("1", DataType.INTEGER), [assign])
+        # Create "result(i) = 0.0"
         assign = Assignment.create(result, Literal("0.0", DataType.REAL))
+        # Create i loop and add assigment and j loop as children
         iloop = Loop.create(
             i_loop_name, Literal("1", DataType.INTEGER),
             Reference(matrix_bound), Literal("1", DataType.INTEGER),
             [assign, jloop])
+        # Add the new code to the PSyIR
         iloop.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, iloop)
-        # remove original matmul
+        # remove the original matmul
         assignment.parent.children.remove(assignment)
