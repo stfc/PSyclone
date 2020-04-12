@@ -40,9 +40,10 @@
 nodes.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes import Node, BinaryOperation, Literal
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, DataType
 from psyclone.errors import GenerationError
 
 
@@ -217,3 +218,65 @@ class Array(Reference):
             # The last entry in all_accesses is the one added above
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
+
+    def is_full_range(self, index):
+        '''Returns True if the specified array index is a Range Node that
+        specified alls elements in this index. In the PSyIR this is
+        specified by using LBOUND(name,index) for the lower bound of
+        the range, UBOUND(name,index) for the upper bound of the range
+        and "1" for the range step.
+
+        :param int index: the array index to check.
+
+        :returns: True if the access to this array index is a range \
+            that specifies all index elements. Otherwise returns \
+            false.
+        :rtype: bool
+
+        '''
+        if index > len(self.children)-1:
+            raise ValueError(
+                "The specified index {0} is greater than the number of "
+                "dimensions {1} for array {2}."
+                "".format(index, len(self.children), self.name))
+
+        array_dimension = self.children[index]
+
+        if not isinstance(array_dimension, Range):
+            return False
+
+        lower = array_dimension.children[0]
+        upper = array_dimension.children[1]
+        step = array_dimension.children[2]
+
+        # lower
+        if not (isinstance(lower, BinaryOperation) and
+                lower.operator == BinaryOperation.Operator.LBOUND):
+            return False
+        if not (isinstance(lower.children[0], Reference) and
+                lower.children[0].name == self.name):
+            return False
+        if not (isinstance(lower.children[1], Literal) and
+                lower.children[1].datatype == DataType.INTEGER
+                and lower.children[1].value == str(index+1)):
+            return False
+
+        # upper
+        if not (isinstance(upper, BinaryOperation) and
+                upper.operator == BinaryOperation.Operator.UBOUND):
+            return False
+        if not (isinstance(upper.children[0], Reference) and
+                upper.children[0].name == self.name):
+            return False
+        if not (isinstance(upper.children[1], Literal) and
+                upper.children[1].datatype == DataType.INTEGER
+                and upper.children[1].value == str(index+1)):
+            return False
+
+        # step
+        if not (isinstance(step, Literal) and
+                step.datatype == DataType.INTEGER
+                and step.value == "1"):
+            return False
+
+        return True
