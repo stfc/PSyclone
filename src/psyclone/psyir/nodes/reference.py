@@ -236,9 +236,9 @@ class Array(Reference):
         '''
         if index > len(self.children)-1:
             raise ValueError(
-                "The specified index {0} is greater than the number of "
-                "dimensions {1} for array {2}."
-                "".format(index, len(self.children), self.name))
+                "In Array '{0}' the specified index '{1}' must be less than "
+                "the number of dimensions '{2}'."
+                "".format(self.name, index, len(self.children)))
 
         array_dimension = self.children[index]
 
