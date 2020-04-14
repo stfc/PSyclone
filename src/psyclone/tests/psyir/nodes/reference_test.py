@@ -221,6 +221,7 @@ def test_array_is_full_range():
     # Array dimension is not a Range
     assert not array_reference.is_full_range(0)
 
+    # Check LBOUND
     # Array dimension range lower bound is not a binary operation
     my_range = Range.create(one, one, one)
     array_reference = Array.create(symbol,[my_range])
@@ -273,6 +274,7 @@ def test_array_is_full_range():
     array_reference = Array.create(symbol,[my_range])
     assert not array_reference.is_full_range(0)
 
+    # Check UBOUND
     # Array dimension range upper bound is not a binary operation
     my_range = Range.create(lbound, one, one)
     array_reference = Array.create(symbol,[my_range])
@@ -325,6 +327,7 @@ def test_array_is_full_range():
     array_reference = Array.create(symbol,[my_range])
     assert not array_reference.is_full_range(0)
 
+    # Check Step
     # Array dimension range step is not a literal.
     my_range = Range.create(lbound, ubound, lbound)
     array_reference = Array.create(symbol,[my_range])
@@ -332,6 +335,8 @@ def test_array_is_full_range():
 
     # Array dimension range step is not an integer literal.
     my_range = Range.create(lbound, ubound, one)
+    # We have to change this to a non-integer manually as the create
+    # function only accepts integer literals for the step argument.
     my_range.children[2] = Literal("1.0", DataType.REAL)
     array_reference = Array.create(symbol,[my_range])
     assert not array_reference.is_full_range(0)
@@ -342,8 +347,8 @@ def test_array_is_full_range():
     array_reference = Array.create(symbol,[my_range])
     assert not array_reference.is_full_range(0)
 
-    # The full range is covered.
-    print ("HELLO")
+    # All is as it should be.
+    # The full range is covered so return true.
     my_range = Range.create(lbound, ubound, one)
     array_reference = Array.create(symbol,[my_range])
     assert array_reference.is_full_range(0)

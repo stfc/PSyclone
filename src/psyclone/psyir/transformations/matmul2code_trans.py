@@ -100,7 +100,7 @@ class Matmul2CodeTrans(Transformation):
                 "The supplied node should be a MATMUL BinaryOperation but "
                 "found '{0}'.".format(node.operator))
         # Check the matmul is the only code on the rhs of an assignment
-        # i.e. ... = matvec(a,b)
+        # i.e. ... = matmul(a,b)
         if not isinstance(node.parent, Assignment):
             raise GenerationError(
                 "Matmul2CodeTrans only supports the transformation of a "
@@ -109,11 +109,20 @@ class Matmul2CodeTrans(Transformation):
 
         matrix = node.children[0]
         vector = node.children[1]
-        # The children of matvec should be arrays
-        if not matrix.symbol.shape or not vector.symbol.shape:
+        # The children of matvec should be References
+        if not (isinstance(matrix, Reference) and
+                isinstance(vector, Reference)):
             raise GenerationError(
-                "Expected children of a MATMUL BInaryOperation to be "
-                "arrays, but found '{0}', '{1}'."
+                "Expected children of a MATMUL BinaryOperation to be "
+                "references, but found '{0}', '{1}'."
+                "".format(type(matrix).__name__,
+                          type(vector).__name__))
+
+        # The children of matvec should be References to arrays
+        if not (matrix.symbol.shape or vector.symbol.shape):
+            raise GenerationError(
+                "Expected children of a MATMUL BinaryOperation to be "
+                "references to arrays, but found '{0}', '{1}'."
                 "".format(type(matrix.symbol).__name__,
                           type(vector.symbol).__name__))
 
@@ -121,7 +130,7 @@ class Matmul2CodeTrans(Transformation):
         # with at least 2 dimensions
         if len(matrix.symbol.shape) < 2:
             raise GenerationError(
-                "Expected 1st child of a MATMUL BInaryOperation to be "
+                "Expected 1st child of a MATMUL BinaryOperation to be "
                 "a matrix with at least 2 dimensions, but found '{0}'."
                 "".format(len(matrix.symbol.shape)))
         if len(matrix.symbol.shape) == 2 and not matrix.children:
@@ -130,19 +139,16 @@ class Matmul2CodeTrans(Transformation):
             # not need to supply any dimension information.
             pass
         else:
-            # There should be one index per dimension.
-            if len(matrix.symbol.shape) != len(matrix.children):
-                raise GenerationError(
-                    "There should be an index per dimension for array '{0}' "
-                    "but there are {1} dimensions and {2} indices."
-                    "".format(matrix.name, len(matrix.symbol.shape),
-                              len(matrix.children)))
+            # There should be one index per dimension. This is already
+            # tested by the array create method.
+            
             # The first two indices should be ranges. This
             # transformation is currently limited to Ranges which
             # specify the full extent of the dimension.
             if not (matrix.is_full_range(0) and matrix.is_full_range(1)):
                 raise GenerationError(
-                    "Indices 0 and 1 of matrix '{0}' must be full ranges."
+                    "To use matmul2code_trans on matmul, indices 0 and 1 of "
+                    "the 1st (matrix) argument '{0}' must be full ranges."
                     "".format(matrix.name))
 
             if len(matrix.children) > 2:
@@ -150,8 +156,9 @@ class Matmul2CodeTrans(Transformation):
                 for (count, index) in enumerate(matrix.children[2:]):
                     if not isinstance(index, Reference):
                         raise GenerationError(
-                            "Index {0} should be a reference but found {1}."
-                            "".format(count+3, type(index).__name__))
+                            "To use matmul2code_trans on matmul, indices 2 "
+                            "onwards should be a reference but found {0} at "
+                            "index {1}.".format(type(index).__name__, count+3))
 
         array = node.children[1]
         if isinstance(array, Array) and not len(array.children) == 1:
