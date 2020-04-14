@@ -1603,12 +1603,16 @@ class DynCollection(object):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
+            self._symbol_table = self._invoke.schedule.symbol_table
             # The list of kernel calls we are responsible for
             self._calls = node.schedule.kernels()
         elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
+            # TODO 719 The symbol table is not connected to other parts of
+            # the Stub generation.
+            self._symbol_table = SymbolTable()
             # We only have a single kernel call in this case
             self._calls = [node]
         else:
@@ -2135,6 +2139,88 @@ class DynStencils(DynCollection):
                 entity_decls=[self.dofmap_name(symtab, arg)]))
 
 
+class LFRicMeshProperties(DynCollection):
+    '''
+    Holds all information on the the mesh properties required by an Invoke or
+    a Kernel stub. Note that the creation of a suitable mesh object is handled
+    in the `DynMeshes` class. This class merely deals with extracting the
+    necessary properties from that object and providing them to kernels.
+
+    :param node: Kernel or Invoke for which to manage mesh properties.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    '''
+    def __init__(self, node):
+        super(LFRicMeshProperties, self).__init__(node)
+
+        self._properties = set()
+
+        for call in self._calls:
+            if call.mesh:
+                self._properties.update(call.mesh.properties)
+
+        # Store properties in symbol table
+        for prop in self._properties:
+            self._symbol_table.name_from_tag(prop.name)
+
+    def kern_args(self, nfaces_required):
+        '''
+        Since this class deals only with mesh properties, we have no way of
+        knowing whether the number of ('horizontal') faces of the reference
+        element are already being supplied to the kernel.
+
+        :param bool nfaces_required: XXX
+
+        :returns: XXX
+        '''
+        arg_list = []
+        if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
+            if nfaces_required:
+                arg_list.append(self._symbol_table.name_from_tag("nfaces_re_h"))
+            arg_list.append(self._symbol_table.name_from_tag("ADJACENT_FACE"))
+        return arg_list
+
+    def _invoke_declarations(self, parent):
+        '''
+        Create the necessary declarations for variables needed in order to
+        provide mesh properties to a Kernel call.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        # The DynMeshes class will have created a mesh object.
+        if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
+            adj_face = self._symbol_table.name_from_tag(
+                "ADJACENT_FACE") + "(:,:) => null()"
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True, entity_decls=[adj_face]))
+
+    def _stub_declarations(self, parent):
+        '''
+        Create the necessary declarations for the variables needed in order
+        to provide properties of the mesh in a Kernel stub.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+    def initialise(self, parent):
+        '''
+        Creates the f2pygen nodes for the initialisation of properties of
+        the mesh.
+
+        :param parent: node in the f2pygen tree to which to add statements.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
 class DynReferenceElement(DynCollection):
     '''
     Holds all information on the properties of the Reference Element
@@ -2158,20 +2244,27 @@ class DynReferenceElement(DynCollection):
         # kernel metadata (in the case of a kernel stub) and remove duplicate
         # entries by using OrderedDict.
         self._properties = []
+        nfaces_h_required = False
         for call in self._calls:
             if call.reference_element:
                 self._properties.extend(call.reference_element.properties)
-        if not self._properties:
-            return
-        self._properties = list(OrderedDict.fromkeys(self._properties))
+            if call.mesh:
+                nfaces_h_required = True
 
-        # Store properties in a SymbolTable
-        if self._invoke:
-            symtab = self._invoke.schedule.symbol_table
-        elif self._kernel:
-            # TODO 719 The symtab is not connected to other parts of the
-            # Stub generation.
-            symtab = SymbolTable()
+        if not (self._properties or nfaces_h_required):
+            return
+
+        if self._properties:
+            self._properties = list(OrderedDict.fromkeys(self._properties))
+
+#        # Store properties in a SymbolTable
+#        if self._invoke:
+#            symtab = self._invoke.schedule.symbol_table
+#        elif self._kernel:
+#            # TODO 719 The symtab is not connected to other parts of the
+#            # Stub generation.
+#            symtab = SymbolTable()
+        symtab = self._symbol_table
 
         # Create and store a name for the reference element object
         self._ref_elem_name = symtab.name_from_tag("reference_element")
@@ -2200,7 +2293,8 @@ class DynReferenceElement(DynCollection):
         if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
-                in self._properties):
+                in self._properties or
+                nfaces_h_required):
             self._nfaces_h_name = symtab.name_from_tag("nfaces_re_h")
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
@@ -2320,9 +2414,6 @@ class DynReferenceElement(DynCollection):
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        if not self._properties:
-            return
-
         parent.add(UseGen(parent, name="reference_element_mod", only=True,
                           funcnames=["reference_element_type"]))
         parent.add(
@@ -2331,10 +2422,17 @@ class DynReferenceElement(DynCollection):
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
         # Declare the necessary scalars (remove duplicates with an OrderedDict)
-        nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
+        if self._properties:
+            nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
+        elif self._nfaces_h_name:
+            # We only need the number of 'horizontal' faces
+            nface_vars = [self._nfaces_h_name]
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
+
+        if not self._properties:
+            return
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
@@ -2382,7 +2480,7 @@ class DynReferenceElement(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen
 
-        if not self._properties:
+        if not self._properties and not self._nfaces_h_name:
             return
 
         parent.add(CommentGen(parent, ""))
@@ -3496,11 +3594,12 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        requires_ref_element = False
+        requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if call.reference_element.properties:
-                requires_ref_element = True
+            if (call.reference_element.properties or
+                call.mesh.properties):
+                    requires_mesh = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3537,12 +3636,12 @@ class DynMeshes(object):
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
         # more kernels that iterate over cells. We also require a mesh object
-        # if any of the kernels require properties of the reference element.
-        # (Colourmaps also require a mesh object but that is handled in
-        # _colourmap_init().)
+        # if any of the kernels require properties of either the reference
+        # element or the mesh. (Colourmaps also require a mesh object but that
+        # is handled in _colourmap_init().)
         if not _name_set:
-            if (requires_ref_element or (Config.get().distributed_memory and
-                                         not invoke.iterate_over_dofs_only)):
+            if (requires_mesh or (Config.get().distributed_memory and
+                                  not invoke.iterate_over_dofs_only)):
                 _name_set.add(
                     self._schedule.symbol_table.name_from_tag("mesh"))
 
@@ -4918,6 +5017,9 @@ class DynInvoke(Invoke):
         # Information on the required properties of the reference element
         self.reference_element_properties = DynReferenceElement(self)
 
+        # Properties of the mesh
+        self.mesh_properties = LFRicMeshProperties(self)
+
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -5071,7 +5173,8 @@ class DynInvoke(Invoke):
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
-                         self.reference_element_properties]:
+                         self.reference_element_properties,
+                         self.mesh_properties]:
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
@@ -5102,7 +5205,8 @@ class DynInvoke(Invoke):
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
-                         self.reference_element_properties]:
+                         self.reference_element_properties,
+                         self.mesh_properties]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised, we can call our kernels
@@ -6948,7 +7052,10 @@ class DynKern(CodedKern):
         self._qr_rules = OrderedDict()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+        # The reference-element properties required by this kernel
         self._reference_element = None
+        # The mesh properties required by this kernel
+        self._mesh_properties = None
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7165,6 +7272,9 @@ class DynKern(CodedKern):
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
 
+        # Properties of the mesh required by this kernel
+        self._mesh_properties = ktype.mesh
+
     @property
     def qr_rules(self):
         '''
@@ -7287,6 +7397,14 @@ class DynKern(CodedKern):
         '''
         return self._reference_element
 
+    @property
+    def mesh(self):
+        '''
+        :returns: the mesh properties required by this kernel.
+        :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
+        '''
+        return self._mesh_properties
+
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
@@ -7336,7 +7454,7 @@ class DynKern(CodedKern):
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
                          DynOrientations, DynBoundaryConditions,
-                         DynReferenceElement]:
+                         DynReferenceElement, LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
         # Create the arglist
@@ -7588,6 +7706,10 @@ class ArgOrdering(object):
         if self._kern.reference_element:
             self.ref_element_properties()
 
+        # Mesh properties
+        if self._kern.mesh:
+            self.mesh_properties()
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -7780,6 +7902,22 @@ class ArgOrdering(object):
     def ref_element_properties(self):
         ''' Add kernel arguments relating to properties of the reference
         element. '''
+
+    def mesh_properties(self):
+        ''' Provide the kernel arguments required for the mesh properties
+        specified in the kernel metadata.
+
+        '''
+        if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
+                in self._kern.reference_element.properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
+                in self._kern.reference_element.properties):
+            nfaces_reqd = False
+        else:
+            nfaces_reqd = True
+        if self._kern.mesh.properties:
+            self._arglist.extend(
+                LFRicMeshProperties(self._kern).kern_args(nfaces_reqd))
 
     @abc.abstractmethod
     def quad_rule(self):
