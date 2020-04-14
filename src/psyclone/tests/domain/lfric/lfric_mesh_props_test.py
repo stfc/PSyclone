@@ -53,7 +53,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "../..", "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 MESH_PROPS_MDATA = '''
@@ -161,14 +161,15 @@ def test_mdata_duplicate_var():
     assert ("Duplicate mesh property found: "
             "'Property.ADJACENT_FACE'." in str(err.value))
 
-# Tests for correctness of DynReferenceElement constructor
+# Tests for correctness of DynMeshes constructor when mesh properties are
+# required.
 
 
 def test_mesh_arglist_err():
     ''' Check that the KernCallArgList.ref_element_properties method raises
     the expected error if it encounters an unsupported property. '''
     from psyclone.psyGen import Kern, InternalError
-    _, invoke_info = parse(os.path.join(BASE_PATH, "23.1_ref_elem_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
@@ -176,10 +177,10 @@ def test_mesh_arglist_err():
     kernels = sched.walk(Kern)
     kernel = kernels[0]
     # Break the list of ref-element properties required by the Kernel
-    kernel.reference_element.properties.append("Not a property")
+    kernel.mesh.properties.append("Not a property")
     with pytest.raises(InternalError) as err:
         kernel.arguments.raw_arg_list()
-    assert ("Unsupported reference-element property ('Not a property') found "
+    assert ("Unsupported mesh property ('Not a property') found "
             "when generating arguments for kernel 'testkern_ref_elem_code'. "
             "Supported properties are: ['Property" in str(err.value))
 
