@@ -48,7 +48,7 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
-from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.kernel import Descriptor, KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
@@ -60,6 +60,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
+
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -891,8 +892,6 @@ class RefElementMetaData(object):
         OUTWARD_NORMALS_TO_FACES = 6
 
     def __init__(self, kernel_name, type_declns):
-        from psyclone.parse.kernel import getkerneldescriptors
-
         # The list of properties requested in the meta-data (if any)
         self.properties = []
 
@@ -933,6 +932,73 @@ class RefElementMetaData(object):
         for prop in self.properties:
             if self.properties.count(prop) > 1:
                 raise ParseError("Duplicate reference-element property "
+                                 "found: '{0}'.".format(prop))
+
+
+class MeshPropertiesMetaData(object):
+    '''
+    Parses any mesh-property kernel metadata and stores the properties that
+    a kernel requires.
+
+    :param str kernel_name: name of the Kernel that the meta-data is for.
+    :param type_declns: list of fparser1 parse tree nodes representing type \
+                        declaration statements
+    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
+
+    :raises ParseError: if an unrecognised mesh property is found.
+    :raises ParseError: if a duplicate mesh property is found.
+
+    '''
+    class Property(Enum):
+        '''
+        Enumeration of the various properties of the mesh that a kernel may
+        request. The names of each of these corresponds to the names that must
+        be used in kernel meta-data.
+
+        '''
+        ADJACENT_FACE = 1
+
+    def __init__(self, kernel_name, type_declns):
+        # The list of mesh properties requested in the meta-data.
+        self.properties = []
+
+        mesh_props = []
+        # Search the supplied list of type declarations for the one
+        # describing the reference-element properties required by the kernel.
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "mesh_data_type":
+                    # getkerneldescriptors raises a ParseError if the named
+                    # element cannot be found.
+                    mesh_props = getkerneldescriptors(
+                        kernel_name, line, var_name="meta_mesh",
+                        var_type="mesh_data_type")
+                    break
+            if mesh_props:
+                # Optimisation - stop searching if we've found a type
+                # declaration for the mesh data
+                break
+        try:
+            # The meta-data entry is a declaration of a Fortran array of type
+            # mesh_data_type. The initialisation of each member
+            # of this array is done as a Fortran structure constructor, the
+            # argument to which gives a mesh property.
+            for prop in mesh_props:
+                for arg in prop.args:
+                    self.properties.append(
+                        self.Property[str(arg).upper()])
+        except KeyError:
+            # We found a reference-element property that we don't recognise.
+            # Sort for consistency when testing.
+            sorted_names = sorted([prop.name for prop in self.Property])
+            raise ParseError(
+                "Unsupported mesh property: '{0}'. Supported "
+                "values are: {1}".format(arg, sorted_names))
+
+        # Check for duplicate properties
+        for prop in self.properties:
+            if self.properties.count(prop) > 1:
+                raise ParseError("Duplicate mesh property "
                                  "found: '{0}'.".format(prop))
 
 
@@ -1067,6 +1133,9 @@ class DynKernMetadata(KernelType):
 
         # Does this kernel require any properties of the reference element?
         self.reference_element = RefElementMetaData(self.name, type_declns)
+
+        # Does this kernel require any properties of the mesh?
+        self.mesh = MeshPropertiesMetaData(self.name, type_declns)
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
