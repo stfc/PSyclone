@@ -139,8 +139,8 @@ class Matmul2CodeTrans(Transformation):
             # not need to supply any dimension information.
             pass
         else:
-            # There should be one index per dimension. This is already
-            # tested by the array create method.
+            # There should be one index per dimension. This is enforced
+            # by the array create method so is not tested here.
             
             # The first two indices should be ranges. This
             # transformation is currently limited to Ranges which
@@ -157,16 +157,9 @@ class Matmul2CodeTrans(Transformation):
                     if not isinstance(index, Reference):
                         raise GenerationError(
                             "To use matmul2code_trans on matmul, indices 2 "
-                            "onwards should be a reference but found {0} at "
-                            "index {1}.".format(type(index).__name__, count+3))
-
-        array = node.children[1]
-        if isinstance(array, Array) and not len(array.children) == 1:
-            raise GenerationError(
-                "Matmul2CodeTrans only supports the matrix vector form of "
-                "matmul which requires the 2nd argument to be a "
-                "one-dimensional array, but found {0} dimensions."
-                "".format(len(array.children)))
+                            "onwards of the first (matrix) argument should "
+                            "be a reference but found {0} at index {1}."
+                            "".format(type(index).__name__, count+2))
 
         if len(vector.symbol.shape) == 1 and not vector.children:
             # If the vector only has 1 dimension and all of its data is
@@ -174,27 +167,27 @@ class Matmul2CodeTrans(Transformation):
             # not need to supply any dimension information.
             pass
         else:
-            # There should be one index per dimension.
-            if len(vector.symbol.shape) != len(vector.children):
-                raise GenerationError(
-                    "There should be an index per dimension for vector '{0}' "
-                    "but there are {1} dimensions and {2} indices."
-                    "".format(vector.name, len(vector.symbol.shape),
-                              len(vector.children)))
+            # There should be one index per dimension. This is enforced
+            # by the array create method so is not tested here.
+
             # The first index should be a range. This
             # transformation is currently limited to Ranges which
             # specify the full extent of the dimension.
             if not vector.is_full_range(0):
                 raise GenerationError(
-                    "Index 0 of vector '{0}' must be a full range."
+                    "To use matmul2code_trans on matmul, index 0 of the 2nd "
+                    "(vector) argument '{0}' must be a full range."
                     "".format(matrix.name))
             if len(vector.children) > 1:
                 # The 2nd index and onwards must be references.
                 for (count, index) in enumerate(vector.children[1:]):
                     if not isinstance(index, Reference):
                         raise GenerationError(
-                            "Index {0} should be a reference but found {1}."
-                            "".format(count+2, type(index).__name__))
+                            "To use matmul2code_trans on matmul, indices 1 "
+                            "onwards of the second (vector) argument should be "
+                            "a reference but found {0} at index {1}."
+                            "".format(type(index).__name__, count+1))
+
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
