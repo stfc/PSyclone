@@ -60,7 +60,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
-from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen, DeclGen
+from psyclone.f2pygen import (AssignGen, IfThenGen, CommentGen, DeclGen,
+                              TypeDeclGen, UseGen)
 
 
 # --------------------------------------------------------------------------- #
@@ -2258,26 +2259,23 @@ class DynReferenceElement(DynCollection):
         # kernel metadata (in the case of a kernel stub) and remove duplicate
         # entries by using OrderedDict.
         self._properties = []
-        nfaces_h_required = False
+        self._nfaces_h_required = False
+
         for call in self._calls:
             if call.reference_element:
                 self._properties.extend(call.reference_element.properties)
-            if call.mesh:
-                nfaces_h_required = True
+            if call.mesh and call.mesh.properties:
+                # If a kernel requires a property of the mesh then it will
+                # also require the number of horizontal faces of the
+                # reference element.
+                self._nfaces_h_required = True
 
-        if not (self._properties or nfaces_h_required):
+        if not (self._properties or self._nfaces_h_required):
             return
 
         if self._properties:
             self._properties = list(OrderedDict.fromkeys(self._properties))
 
-#        # Store properties in a SymbolTable
-#        if self._invoke:
-#            symtab = self._invoke.schedule.symbol_table
-#        elif self._kernel:
-#            # TODO 719 The symtab is not connected to other parts of the
-#            # Stub generation.
-#            symtab = SymbolTable()
         symtab = self._symbol_table
 
         # Create and store a name for the reference element object
@@ -2308,7 +2306,7 @@ class DynReferenceElement(DynCollection):
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
-                nfaces_h_required):
+                self._nfaces_h_required):
             self._nfaces_h_name = symtab.name_from_tag("nfaces_re_h")
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
@@ -2425,7 +2423,9 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        if not (self._properties or self._nfaces_h_required):
+            return
+
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(UseGen(parent, name="reference_element_mod", only=True,
@@ -2438,9 +2438,15 @@ class DynReferenceElement(DynCollection):
         # Declare the necessary scalars (remove duplicates with an OrderedDict)
         if self._properties:
             nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
-        elif self._nfaces_h_name:
+        elif self._nfaces_h_required:
             # We only need the number of 'horizontal' faces
             nface_vars = [self._nfaces_h_name]
+        else:
+            raise InternalError(
+                "An invoke may require either a list of properties of the "
+                "reference element or just the number of horizontal faces but "
+                "got neither.")
+
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
@@ -2494,7 +2500,7 @@ class DynReferenceElement(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen
 
-        if not self._properties and not self._nfaces_h_name:
+        if not (self._properties or self._nfaces_h_required):
             return
 
         parent.add(CommentGen(parent, ""))
