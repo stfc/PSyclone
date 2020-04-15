@@ -74,7 +74,7 @@ contains
     integer(kind=i_def), intent(in) :: nfaces_re_h, nfaces_re_v
     real(kind=r_def), intent(in), dimension(3,nfaces_re_h) :: horiz_face_normals
     real(kind=r_def), intent(in), dimension(3,nfaces_re_v) :: vert_face_normals
-    real(kind=r_def), intent(in), dimension(nfaces_re_h) :: adj_faces
+    integer(kind=i_def), intent(in), dimension(nfaces_re_h) :: adj_faces
 
   end subroutine testkern_mesh_ref_elem_props_code
 

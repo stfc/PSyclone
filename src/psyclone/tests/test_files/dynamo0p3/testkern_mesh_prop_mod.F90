@@ -65,7 +65,7 @@ contains
     real(kind=r_def), intent(in) :: ascalar
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
     integer(kind=i_def), intent(in) :: nfaces_re_h
-    real(kind=r_def), intent(in), dimension(nfaces_re_h) :: adj_faces
+    integer(kind=i_def), intent(in), dimension(nfaces_re_h) :: adj_faces
 
   end subroutine testkern_mesh_prop_code
 
