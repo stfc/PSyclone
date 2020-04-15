@@ -60,6 +60,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
+from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen, DeclGen
 
 
 # --------------------------------------------------------------------------- #
@@ -1993,7 +1994,6 @@ class DynStencils(DynCollection):
 
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
-        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen
         if not self._kern_args:
             return
 
@@ -2177,8 +2177,10 @@ class LFRicMeshProperties(DynCollection):
         arg_list = []
         if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
             if nfaces_required:
-                arg_list.append(self._symbol_table.name_from_tag("nfaces_re_h"))
-            arg_list.append(self._symbol_table.name_from_tag("ADJACENT_FACE"))
+                arg_list.append(
+                    self._symbol_table.name_from_tag("nfaces_re_h"))
+            arg_list.append(
+                self._symbol_table.name_from_tag("ADJACENT_FACE")+"(:,cell)")
         return arg_list
 
     def _invoke_declarations(self, parent):
@@ -2190,7 +2192,6 @@ class LFRicMeshProperties(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # The DynMeshes class will have created a mesh object.
@@ -2220,6 +2221,19 @@ class LFRicMeshProperties(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        if not self._properties:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Initialise mesh properties"))
+        parent.add(CommentGen(parent, ""))
+
+        adj_face = self._symbol_table.name_from_tag("ADJACENT_FACE")
+        mesh = self._symbol_table.name_from_tag("mesh")
+
+        parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
+                             rhs=mesh+"%get_adjacent_face()"))
+
 
 class DynReferenceElement(DynCollection):
     '''

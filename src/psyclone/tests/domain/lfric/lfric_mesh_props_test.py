@@ -211,51 +211,42 @@ def test_mesh_gen(tmpdir):
     assert "adjacent_face => mesh%get_adjacent_face()" in gen
     assert "nfaces_re_v" not in gen
     # The kernel call
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
+    assert ("call testkern_mesh_prop_code(nlayers, a, f1_proxy%data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell))" in gen)
 
 
 def test_duplicate_mesh_gen(tmpdir):
     ''' Test for code-generation for an invoke containing two kernels that
-    require the same properties of the reference-element. '''
+    require the same property of the mesh. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "23.2_multi_ref_elem_invoke.f90"),
+                                        "24.2_duplicate_mesh_prop_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert gen.count(
-        "real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:)"
-        ", normals_to_vert_faces(:,:)") == 1
+        "integer(kind=i_def), pointer :: adjacent_face(:,:) => null()") == 1
     assert gen.count(
         "reference_element => mesh%get_reference_element") == 1
     assert gen.count(
         "nfaces_re_h = reference_element%get_number_horizontal_faces()") == 1
-    assert gen.count(
-        "nfaces_re_v = reference_element%get_number_vertical_faces()") == 1
-    assert gen.count("call reference_element%get_normals_to_horizontal_faces("
-                     "normals_to_horiz_faces)") == 1
-    assert gen.count("call reference_element%get_normals_to_vertical_faces("
-                     "normals_to_vert_faces)") == 1
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f3_proxy%data, "
-            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
+    assert "nfaces_re_v" not in gen
+    assert gen.count("adjacent_face => mesh%get_adjacent_face()") == 1
+    assert ("call testkern_mesh_prop_code(nlayers, a, f1_proxy%data, "
+            "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
+            "adjacent_face(:,cell)" in gen)
+    assert ("call testkern_mesh_prop_code(nlayers, b, f2_proxy%data, "
+            "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
+            "adjacent_face(:,cell))" in gen)
 
 
-def test_union_mesh_gen(tmpdir):
-    ''' Check that code generation works for an invoke with kernels that
-    only have a sub-set of reference-element properties in common. '''
+def test_mesh_prop_plus_ref_elem_gen(tmpdir):
+    ''' Check that code generation works for an invoke with a kernel that
+    requires properties of both the reference element and the mesh. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "23.3_shared_ref_elem_invoke.f90"),
+                                        "24.3_mesh_plus_ref_elem_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
@@ -268,45 +259,9 @@ def test_union_mesh_gen(tmpdir):
         "      nfaces_re_v = reference_element%get_number_vertical_faces()\n"
         "      call reference_element%get_normals_to_horizontal_faces("
         "normals_to_horiz_faces)\n"
-        "      call reference_element%get_outward_normals_to_horizontal_faces("
-        "out_normals_to_horiz_faces)\n"
         "      call reference_element%get_normals_to_vertical_faces("
-        "normals_to_vert_faces)\n"
-        "      call reference_element%get_outward_normals_to_vertical_faces("
-        "out_normals_to_vert_faces)\n" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
-            "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
-            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
-            "out_normals_to_vert_faces, normals_to_vert_faces, "
-            "out_normals_to_horiz_faces)" in gen)
-
-
-def test_all_faces_mesh_gen(tmpdir):
-    ''' Test for code-generation for an invoke containing a single kernel
-    requiring all faces of reference-element (also check that only one
-    number of faces is passed to the kernel). '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "23.4_ref_elem_all_faces_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    gen = str(psy.gen).lower()
-
-    assert (
-        "      reference_element => mesh%get_reference_element()\n"
-        "      nfaces_re = reference_element%get_number_faces()\n"
-        "      call reference_element%get_normals_to_faces(normals_to_faces)\n"
-        "      call reference_element%get_outward_normals_to_faces("
-        "out_normals_to_faces)\n" in gen)
-    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-            " map_w3(:,cell), nfaces_re, out_normals_to_faces, "
-            "normals_to_faces)" in gen)
+        "normals_to_vert_faces)\n" in gen)
+    assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, "
+            "f1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
+            "nfaces_re_v, normals_to_horiz_faces, normals_to_vert_faces, "
+            "adjacent_face(:,cell))" in gen)
