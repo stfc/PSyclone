@@ -467,17 +467,17 @@ def test_symtab_implementation_for_opencl():
     arg1._datatype._name = ScalarType.Name.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
-            " but got a scalar of type 'Scalar<REAL, UNDEFINED>' "
-            "for kernel 'test'." in str(err.value))
+    assert ("GOcean 1.0 API kernels first argument should be a scalar "
+            "integer but got 'Scalar<REAL, UNDEFINED>' for kernel 'test'."
+            in str(err.value))
 
     arg1._datatype._name = ScalarType.Name.INTEGER  # restore
     arg2._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
-            " but got an array of type 'Array<Scalar<INTEGER, UNDEFINED>, "
-            "shape=[10]>' for kernel 'test'." in str(err.value))
+            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
+            "kernel 'test'." in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")

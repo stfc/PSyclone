@@ -2896,12 +2896,12 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # it is the expected type
             if not isinstance(symbol.datatype, ScalarType):
                 raise TransformationError(
-                    "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(type(symbol.datatype).__name__))
+                    "Expected entry to be a scalar argument but found "
+                    "'{0}'.".format(type(symbol.datatype).__name__))
             if symbol.datatype.name != ScalarType.Name.INTEGER:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(symbol.datatype.name))
+                    "but found '{0}'.".format(symbol.datatype))
             if symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "

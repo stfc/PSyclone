@@ -7246,14 +7246,14 @@ def test_kern_const_invalid_make_constant2():
     symbol._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, {"element_order": 0})
-    assert ("Expected entry to be a scalar integer argument but found "
+    assert ("Expected entry to be a scalar argument but found "
             "'ArrayType'." in str(excinfo.value))
     # Expecting scalar integer. Set to real.
     symbol._datatype = REAL_TYPE
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
-            "'Name.REAL'." in str(excinfo.value))
+            "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
     symbol._datatype = ScalarType(ScalarType.Name.INTEGER,
                                   ScalarType.Precision.UNDEFINED)

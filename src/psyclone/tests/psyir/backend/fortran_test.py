@@ -135,9 +135,9 @@ def test_gen_dims_error(monkeypatch):
      (ScalarType.Name.CHARACTER, "character"),
      (ScalarType.Name.BOOLEAN, "logical")])
 def test_gen_datatype_default_precision(type_name, result):
-    '''Check the gen_datatype function produces the expected datatypes
-    when no explicit precision is provided for a scalar and an array
-    with all supported datatypes.
+    '''Check for all supported datatype names that the gen_datatype
+    function produces the expected Fortran types for scalar and arrays
+    when no explicit precision is provided.
 
     Note, in the future PSyclone should be extended to set default
     precision in a config file.
@@ -161,9 +161,9 @@ def test_gen_datatype_default_precision(type_name, result):
      (ScalarType.Name.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),
      (ScalarType.Name.BOOLEAN, ScalarType.Precision.DOUBLE, "logical")])
 def test_gen_datatype_relative_precision(type_name, precision, result):
-    '''Check the gen_datatype function produces the expected datatypes
-    when relative precision is provided for a scalar and an array with
-    all supported datatypes.
+    '''Check for all supported datatype names that the gen_datatype
+    function produces the expected Fortran types for scalar and arrays
+    when relative precision is provided.
 
     '''
     scalar_type = ScalarType(type_name, precision=precision)
@@ -178,10 +178,11 @@ def test_gen_datatype_relative_precision(type_name, precision, result):
                          [(ScalarType.Name.INTEGER, "integer"),
                           (ScalarType.Name.BOOLEAN, "logical")])
 def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
-    '''Check the gen_datatype function produces the expected datatypes
-    when explicit precision is provided for a scalar and an array with
-    an integer or logical datatype. All should pass except 32. Other
-    types are tested separately.
+    '''Check for the integer and logical datatype names that the
+    gen_datatype function produces the expected Fortran types for
+    scalar and arrays when explicit precision is provided.
+
+    All should pass except 32. Other types are tested separately.
 
     '''
     symbol_name = "dummy"
@@ -204,9 +205,11 @@ def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
 @pytest.mark.parametrize(
     "precision", [1, 2, 4, 8, 16, 32])
 def test_gen_datatype_absolute_precision_real(precision):
-    '''Check the gen_datatype function produces the expected datatypes
-    when explicit precision is provided for a scalar and an array with
-    a real datatype. All should pass except 1, 2 and 32.
+    '''Check for the real datatype name that the gen_datatype function
+    produces the expected Fortran types for scalars and arrays when
+    explicit precision is provided.
+
+    All should pass except 1, 2 and 32.
 
     '''
     symbol_name = "dummy"
@@ -225,9 +228,9 @@ def test_gen_datatype_absolute_precision_real(precision):
 
 
 def test_gen_datatype_absolute_precision_character():
-    '''Check the gen_datatype function produces the expected datatypes
-    when explicit precision is provided for a scalar and an array with
-    a character datatype. All should fail.
+    '''Check for the character datatype name that the
+    gen_datatype function produces the expected Fortran types for
+    scalars and arrays when explicit precision is provided.
 
     '''
     symbol_name = "dummy"
@@ -249,9 +252,9 @@ def test_gen_datatype_absolute_precision_character():
      (ScalarType.Name.CHARACTER, "character"),
      (ScalarType.Name.BOOLEAN, "logical")])
 def test_gen_datatype_kind_precision(type_name, result):
-    '''Check the gen_datatype function produces the expected datatypes
-    when precision is provided via another symbol for a scalar and an
-    array with all supported data types.
+    '''Check for all supported datatype names that the gen_datatype
+    function produces the expected Fortran types for scalars and
+    arrays when precision is provided via another symbol.
 
     '''
     precision_name = "prec_def"

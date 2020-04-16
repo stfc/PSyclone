@@ -2129,18 +2129,12 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if isinstance(dtype, ScalarType):
-                if dtype.name == ScalarType.Name.INTEGER:
-                    continue
-                shape_str = "a scalar"
-            elif isinstance(dtype, ArrayType) or shape_len != 0:
-                shape_str = "an array"
-            else:
-                shape_str = "unknown"
-            raise GenerationError(
-                "GOcean 1.0 API kernels {0} argument should be a scalar "
-                "integer but got {1} of type '{2}'{3}."
-                "".format(posstr, shape_str, str(dtype), kname_str))
+            if not (isinstance(dtype, ScalarType) and
+                    dtype.name == ScalarType.Name.INTEGER):
+                raise GenerationError(
+                    "GOcean 1.0 API kernels {0} argument should be a scalar "
+                    "integer but got '{1}'{2}."
+                    "".format(posstr, dtype, kname_str))
 
     @property
     def iteration_indices(self):
