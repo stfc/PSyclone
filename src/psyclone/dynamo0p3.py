@@ -61,7 +61,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
 from psyclone.f2pygen import (AssignGen, IfThenGen, CommentGen, DeclGen,
-                              TypeDeclGen, UseGen)
+                              TypeDeclGen, UseGen, CallGen)
 
 
 # --------------------------------------------------------------------------- #
@@ -2058,7 +2058,6 @@ class DynStencils(DynCollection):
 
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
-        from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._kern_args:
@@ -2125,7 +2124,6 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # TODO 719 The symtab is not connected to other parts of the
@@ -2163,25 +2161,37 @@ class LFRicMeshProperties(DynCollection):
 
         # Store properties in symbol table
         for prop in self._properties:
-            self._symbol_table.name_from_tag(prop.name)
+            self._symbol_table.name_from_tag(prop.name.lower())
 
-    def kern_args(self, nfaces_required):
+    def kern_args(self, stub=False):
         '''
-        Since this class deals only with mesh properties, we have no way of
-        knowing whether the number of ('horizontal') faces of the reference
-        element are already being supplied to the kernel.
+        Provides the list of kernel arguments associated with the mesh
+        properties that the kernel requires.
 
-        :param bool nfaces_required: XXX
+        :param bool stub: whether or not we are generating code for a kernel \
+            stub.
 
-        :returns: XXX
+        :returns: the kernel arguments associated with the mesh properties.
+        :rtype: list of str
+
         '''
         arg_list = []
+
         if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
-            if nfaces_required:
+            has_nfaces = (
+                RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
+                in self._kernel.reference_element.properties or
+                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
+                in self._kernel.reference_element.properties)
+            if not has_nfaces:
                 arg_list.append(
                     self._symbol_table.name_from_tag("nfaces_re_h"))
-            arg_list.append(
-                self._symbol_table.name_from_tag("ADJACENT_FACE")+"(:,cell)")
+            adj_face = self._symbol_table.name_from_tag("adjacent_face")
+            if not stub:
+                # This is a kernel call from within an invoke
+                adj_face += "(:,cell)"
+            arg_list.append(adj_face)
+
         return arg_list
 
     def _invoke_declarations(self, parent):
@@ -2198,7 +2208,7 @@ class LFRicMeshProperties(DynCollection):
         # The DynMeshes class will have created a mesh object.
         if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
             adj_face = self._symbol_table.name_from_tag(
-                "ADJACENT_FACE") + "(:,:) => null()"
+                "adjacent_face") + "(:,:) => null()"
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=[adj_face]))
@@ -2212,6 +2222,16 @@ class LFRicMeshProperties(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
+            adj_face = self._symbol_table.name_from_tag("adjacent_face")
+            parent.add(
+                DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
+                    dimension=self._symbol_table.name_from_tag("nfaces_re_h"),
+                    intent="in", entity_decls=[adj_face]))
 
     def initialise(self, parent):
         '''
@@ -2229,7 +2249,7 @@ class LFRicMeshProperties(DynCollection):
         parent.add(CommentGen(parent, " Initialise mesh properties"))
         parent.add(CommentGen(parent, ""))
 
-        adj_face = self._symbol_table.name_from_tag("ADJACENT_FACE")
+        adj_face = self._symbol_table.name_from_tag("adjacent_face")
         mesh = self._symbol_table.name_from_tag("mesh")
 
         parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
@@ -2380,35 +2400,15 @@ class DynReferenceElement(DynCollection):
                         str(prop), self._kernel.name,
                         [str(sprop) for sprop in RefElementMetaData.Property]))
 
-    @property
-    def arg_properties(self):
-        '''
-        Returns the dictionary of reference element argument properties
-        for kernel calls and stub declarations where keys are the reference
-        element arrays and values are the relevant number of faces.
-
-        :return: reference element properties for kernel call and stub \
-                 declarations and argument lists.
-        :rtype: OrderedDict containing key-value pairs of \
-                (reference element array, number of faces).
-
-        '''
-        return self._arg_properties
-
-    @classmethod
-    def kern_args(cls, kern):
+    def kern_args(self):
         '''
         Create argument list for kernel call and stub.
-
-        :param kern: kernel to create the argument list for.
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
         :return: kernel call/stub arguments.
         :rtype: list
 
         '''
-        # Use classmethod to avoid instantiating the class for argument list
-        argdict = cls(kern).arg_properties
+        argdict = self._arg_properties
         # Remove duplicate "nfaces" by using OrderedDict
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         kern_args = nfaces + list(argdict.keys())
@@ -2469,14 +2469,18 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        if not self._properties:
+        if not (self._properties or self._nfaces_h_required):
             return
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
-        for nface in list(self._arg_properties.values()):
+        scalars = list(self._arg_properties.values())
+        nfaces_h = self._symbol_table.name_from_tag("nfaces_re_h")
+        if self._nfaces_h_required and nfaces_h not in scalars:
+            scalars.append(nfaces_h)
+
+        for nface in scalars:
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[nface]))
@@ -2498,8 +2502,6 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
-
         if not (self._properties or self._nfaces_h_required):
             return
 
@@ -7918,26 +7920,17 @@ class ArgOrdering(object):
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
 
-    @abc.abstractmethod
     def ref_element_properties(self):
         ''' Add kernel arguments relating to properties of the reference
         element. '''
+        if self._kern.reference_element.properties:
+            refelem_args = DynReferenceElement(self._kern).kern_args()
+            self._arglist.extend(refelem_args)
 
+    @abc.abstractmethod
     def mesh_properties(self):
         ''' Provide the kernel arguments required for the mesh properties
-        specified in the kernel metadata.
-
-        '''
-        if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
-                in self._kern.reference_element.properties or
-                RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
-                in self._kern.reference_element.properties):
-            nfaces_reqd = False
-        else:
-            nfaces_reqd = True
-        if self._kern.mesh.properties:
-            self._arglist.extend(
-                LFRicMeshProperties(self._kern).kern_args(nfaces_reqd))
+        specified in the kernel metadata. '''
 
     @abc.abstractmethod
     def quad_rule(self):
@@ -8255,16 +8248,14 @@ class KernCallArgList(ArgOrdering):
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
 
-    def ref_element_properties(self):
-        ''' Provide kernel arguments required by the reference-element
-        properties specified in the kernel metadata.
+    def mesh_properties(self):
+        ''' Provide the kernel arguments required for the mesh properties
+        specified in the kernel metadata.
 
         '''
-        # Argument information is produced by a DynReferenceElement
-        # class method
-        if self._kern.reference_element.properties:
-            refelem_args = DynReferenceElement.kern_args(self._kern)
-            self._arglist.extend(refelem_args)
+        if self._kern.mesh.properties:
+            self._arglist.extend(
+                LFRicMeshProperties(self._kern).kern_args(stub=False))
 
     def quad_rule(self):
         ''' Add quadrature-related information to the kernel argument list.
@@ -8692,16 +8683,14 @@ class KernStubArgList(ArgOrdering):
         the operator. '''
         self.field_bcs_kernel(function_space)
 
-    def ref_element_properties(self):
-        ''' Provide kernel arguments required by the reference-element
-        properties specified in the kernel metadata.
+    def mesh_properties(self):
+        ''' Provide the kernel arguments required for the mesh properties
+        specified in the kernel metadata.
 
         '''
-        # Argument information is produced by a DynReferenceElement
-        # class method
-        if self._kern.reference_element.properties:
-            refelem_args = DynReferenceElement.kern_args(self._kern)
-            self._arglist.extend(refelem_args)
+        if self._kern.mesh.properties:
+            self._arglist.extend(
+                LFRicMeshProperties(self._kern).kern_args(stub=True))
 
     def quad_rule(self):
         ''' Provide quadrature information for this kernel stub (necessary
