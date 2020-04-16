@@ -41,8 +41,9 @@ matrix multiply and matrix vector multiply. At the moment this
 transformation is limited to matrix vector multiply.
 
 '''
+from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, Array
+    Loop, Literal, Array, Range
 from psyclone.psyir.symbols import DataType, DataSymbol
 from psyclone.psyGen import Transformation
 from psyclone.errors import GenerationError
@@ -141,7 +142,7 @@ class Matmul2CodeTrans(Transformation):
         else:
             # There should be one index per dimension. This is enforced
             # by the array create method so is not tested here.
-            
+
             # The first two indices should be ranges. This
             # transformation is currently limited to Ranges which
             # specify the full extent of the dimension.
@@ -152,13 +153,13 @@ class Matmul2CodeTrans(Transformation):
                     "".format(matrix.name))
 
             if len(matrix.children) > 2:
-                # The 3rd index and onwards must be references.
+                # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix.children[2:]):
-                    if not isinstance(index, Reference):
+                    if isinstance(index, Range):
                         raise GenerationError(
                             "To use matmul2code_trans on matmul, indices 2 "
                             "onwards of the first (matrix) argument should "
-                            "be a reference but found {0} at index {1}."
+                            "not be Ranges but found {0} at index {1}."
                             "".format(type(index).__name__, count+2))
 
         if len(vector.symbol.shape) == 1 and not vector.children:
@@ -181,13 +182,12 @@ class Matmul2CodeTrans(Transformation):
             if len(vector.children) > 1:
                 # The 2nd index and onwards must be references.
                 for (count, index) in enumerate(vector.children[1:]):
-                    if not isinstance(index, Reference):
+                    if isinstance(index, Range):
                         raise GenerationError(
                             "To use matmul2code_trans on matmul, indices 1 "
-                            "onwards of the second (vector) argument should be "
-                            "a reference but found {0} at index {1}."
+                            "onwards of the second (vector) argument should "
+                            "not be Ranges but found {0} at index {1}."
                             "".format(type(index).__name__, count+1))
-
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
@@ -213,14 +213,10 @@ class Matmul2CodeTrans(Transformation):
         self.validate(node)
 
         assignment = node.parent
-
         matrix = node.children[0]
-        matrix_bound = matrix.symbol.shape[0]
-
         vector = node.children[1]
-        vector_bound = vector.symbol.shape[0]
-
-        result_symbol = node.parent.lhs.symbol
+        result = node.parent.lhs
+        result_symbol = result.symbol
 
         # Create new i and j loop iterators
         symbol_table = node.find_symbol_table()
@@ -232,7 +228,11 @@ class Matmul2CodeTrans(Transformation):
         symbol_table.add(j_loop_symbol)
 
         # Create "result(i)"
-        result = Array.create(result_symbol, [Reference(i_loop_symbol)])
+        result_dims = [Reference(i_loop_symbol)]
+        if len(result.children) > 1:
+            # Add any additional dimensions (in case of an array slice)
+            result_dims.extend(result.children[1:])
+        result = Array.create(result_symbol, result_dims)
         # Create "vector(j)"
         vector_dims = [Reference(j_loop_symbol)]
         if len(vector.children) > 1:
@@ -258,13 +258,13 @@ class Matmul2CodeTrans(Transformation):
         # Create j loop and add the above code as a child
         jloop = Loop.create(
             j_loop_name, Literal("1", DataType.INTEGER),
-            Reference(vector_bound), Literal("1", DataType.INTEGER), [assign])
+            Reference(vector.symbol), Literal("1", DataType.INTEGER), [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result, Literal("0.0", DataType.REAL))
         # Create i loop and add assigment and j loop as children
         iloop = Loop.create(
             i_loop_name, Literal("1", DataType.INTEGER),
-            Reference(matrix_bound), Literal("1", DataType.INTEGER),
+            Reference(matrix.symbol), Literal("1", DataType.INTEGER),
             [assign, jloop])
         # Add the new code to the PSyIR
         iloop.parent = assignment.parent

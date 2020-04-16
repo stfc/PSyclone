@@ -79,7 +79,7 @@ def create_matmul():
     my_vec_range = Range.create(lbound, ubound, one)
     vector = Array.create(vec_symbol, [my_vec_range, Reference(index)])
     matmul = BinaryOperation.create(
-            BinaryOperation.Operator.MATMUL, matrix, vector)
+        BinaryOperation.Operator.MATMUL, matrix, vector)
     assign = Assignment.create(vector, matmul)
     KernelSchedule.create("my_kern", symbol_table, [assign])
     return matmul
@@ -132,9 +132,9 @@ def test_validate3():
     array = Array.create(DataSymbol("x", DataType.REAL, shape=[10]),
                          [Literal("10", DataType.INTEGER)])
     matmul = BinaryOperation.create(
-            BinaryOperation.Operator.MATMUL, array, array)
-    mult = BinaryOperation.create(BinaryOperation.Operator.MUL, matmul,
-                                  Literal("1.0", DataType.REAL))
+        BinaryOperation.Operator.MATMUL, array, array)
+    _ = BinaryOperation.create(BinaryOperation.Operator.MUL, matmul,
+                               Literal("1.0", DataType.REAL))
     with pytest.raises(GenerationError) as excinfo:
         trans.validate(matmul)
     assert ("Generation Error: Matmul2CodeTrans only supports the "
@@ -152,10 +152,10 @@ def test_validate4():
     array = Array.create(DataSymbol("x", DataType.REAL, shape=[10]),
                          [Literal("10", DataType.INTEGER)])
     mult = BinaryOperation.create(
-            BinaryOperation.Operator.MUL, array, array)
+        BinaryOperation.Operator.MUL, array, array)
     matmul = BinaryOperation.create(
-            BinaryOperation.Operator.MATMUL, mult, mult)
-    assign = Assignment.create(array, matmul)
+        BinaryOperation.Operator.MATMUL, mult, mult)
+    _ = Assignment.create(array, matmul)
     with pytest.raises(GenerationError) as excinfo:
         trans.validate(matmul)
     assert ("Expected children of a MATMUL BinaryOperation to be references, "
@@ -173,8 +173,8 @@ def test_validate5():
     trans = Matmul2CodeTrans()
     scalar = Reference(DataSymbol("x", DataType.REAL))
     matmul = BinaryOperation.create(
-            BinaryOperation.Operator.MATMUL, scalar, scalar)
-    assign = Assignment.create(scalar, matmul)
+        BinaryOperation.Operator.MATMUL, scalar, scalar)
+    _ = Assignment.create(scalar, matmul)
     with pytest.raises(GenerationError) as excinfo:
         trans.validate(matmul)
     assert ("Generation Error: Expected children of a MATMUL BinaryOperation "
@@ -191,8 +191,8 @@ def test_validate6():
     trans = Matmul2CodeTrans()
     array = Reference(DataSymbol("x", DataType.REAL, shape=[10]))
     matmul = BinaryOperation.create(
-            BinaryOperation.Operator.MATMUL, array, array)
-    assign = Assignment.create(array, matmul)
+        BinaryOperation.Operator.MATMUL, array, array)
+    _ = Assignment.create(array, matmul)
     with pytest.raises(GenerationError) as excinfo:
         trans.validate(matmul)
     assert ("Generation Error: Expected 1st child of a MATMUL "
