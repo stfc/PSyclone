@@ -52,15 +52,23 @@ from psyclone.errors import GenerationError
 class Matmul2CodeTrans(Transformation):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
-    performed. Currently only the vector LHS version of MATMUL is
+    performed. Currently only the matrix vector version of MATMUL is
     supported.
 
-    If the dimensions of R, A, and B are R(N), A(N,M), B(M),
-    The transformation replaces `R=MATMUL(A,B)` with the following code:
+    If the dimensions of ``R``, ``A``, and ``B`` are ``R(N)``,
+    ``A(N,M)``, ``B(M)``, The transformation replaces:
 
-    ```loop i=1,N
-           loop j=1,M
-             R(i) += A(i,j) * B(j)```
+    .. code-block:: fortran
+
+        R=MATMUL(A,B)
+
+    with the following code:
+
+    .. code-block:: fortran
+
+        do i=1,N
+            do j=1,M
+               R(i) += A(i,j) * B(j)
 
     '''
     def __str__(self):
@@ -192,17 +200,22 @@ class Matmul2CodeTrans(Transformation):
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
         specified node. This node must be a MATMUL
-        BinaryOperation. Currently only the vector LHS version of
-        MATMUL is supported.  BinaryOperation is converted to the
-        following equivalent inline code:
+        BinaryOperation. Currently only the matrix vector version of
+        MATMUL is supported. If the transformation is successful then
+        an assignment which includes a MATMUL BinaryOperation node
 
-        R=MATMUL(A,B)
-        to:
+        .. code-block:: fortran
 
-        ```loop i=1,N
-             R(i) = 0.0
-             loop j=1,M
-               R(i) = R(i) + A(i,j) * B(j)```
+            R = MATMUL(A,B)
+
+        is converted to the following equivalent inline code:
+
+        .. code-block:: fortran
+
+            do i=1,N
+                R(i) = 0.0
+                    do j=1,M
+                        R(i) = R(i) + A(i,j) * B(j)
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
