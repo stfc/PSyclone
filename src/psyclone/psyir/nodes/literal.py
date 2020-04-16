@@ -50,8 +50,7 @@ class Literal(Node):
     this node are immutable.
 
     If the node represents "real" data and the value is expressed with
-    an exponent (e.g. 3.2e4) then the exponent must be a lower case
-    "e".
+    an exponent (e.g. 3.2e4) then the exponent must be a lower case "e".
 
     :param str value: the value of the literal.
     :param datatype: the datatype of this literal.

@@ -129,10 +129,19 @@ class ScalarType(DataType):
 
     @property
     def name(self):
+        '''
+        :returns: the name of this scalar type.
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Name`
+        '''
         return self._name
 
     @property
     def precision(self):
+        '''
+        :returns: the precision of this scalar type.
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
+            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
         return self._precision
 
     def __str__(self):
@@ -213,14 +222,41 @@ class ArrayType(DataType):
 
     @property
     def name(self):
+        '''
+        :returns: the name of this scalar type.
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Name`
+        '''
         return self._name
 
     @property
     def precision(self):
+        '''
+        :returns: the precision of this scalar type.
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
+            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
         return self._precision
 
     @property
     def shape(self):
+        '''
+        :returns: the shape of the symbol in column-major order \
+            (leftmost index is contiguous in memory) with each entry \
+            representing an array dimension.
+        :rtype: a list of DataSymbol.Extent.ATTRIBUTE, \
+            DataSymbol.Extent.DEFERRED, Literal or Reference. If an \
+            entry is DataSymbol.Extent.ATTRIBUTE the extent of that \
+            dimension is unknown but can be obtained by querying the \
+            run-time system (e.g. using the SIZE intrinsic in \
+            Fortran). If it is DataSymbol.Extent.DEFERRED then the \
+            extent is also unknown and may or may not be defined at \
+            run-time (e.g. the array is ALLOCATABLE in \
+            Fortran). Otherwise an entry is an integer literal or a \
+            reference to an integer symbol with the extent.
+        :returns: the shape of the array.
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
+            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
         return self._shape
 
     def __str__(self):

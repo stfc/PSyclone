@@ -314,16 +314,26 @@ def _is_range_full_extent(my_range):
     return is_lower and is_upper and is_step
 
 
-def default_precision(data_name):
+def default_precision(_):
     '''Returns the default precision specified by the front end. This is
-       currently always set to undefined irrespective of the datatype
-       but could be read from a config file in the future.
+    currently always set to undefined irrespective of the datatype but
+    could be read from a config file in the future. The unused
+    argument provides the name of the datatype. This name will allow a
+    future implementation of this method to choose different default
+    precisions for different datatypes if required.
 
-       :param data_name: the name of the datatype.
-       :type data_name: :py:class:`psyclone.psyir.symbols.scalartype.Name`
+    There are alternative options for setting a default precision,
+    such as:
 
-       :returns: the default precision for the supplied datatype name.
-       :rtype: :py:class:`psyclone.psyir.symbols.scalartype.Precision`
+    1) The back-end sets the default precision in a similar manner
+    to this routine.
+    2) A PSyIR transformation is used to set default precision.
+
+    This routine is primarily here as a placeholder and could be
+    replaced by an alternative solution, see issue #748.
+
+    :returns: the default precision for the supplied datatype name.
+    :rtype: :py:class:`psyclone.psyir.symbols.scalartype.Precision`
 
     '''
     return ScalarType.Precision.UNDEFINED
@@ -332,8 +342,8 @@ def default_precision(data_name):
 def default_integer_type():
     '''Returns the default integer datatype specified by the front end.
 
-       :returns: the default integer datatype.
-       :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+    :returns: the default integer datatype.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
     '''
     return ScalarType(ScalarType.Name.INTEGER,
@@ -343,8 +353,8 @@ def default_integer_type():
 def default_real_type():
     '''Returns the default real datatype specified by the front end.
 
-       :returns: the default real datatype.
-       :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+    :returns: the default real datatype.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
     '''
     return ScalarType(ScalarType.Name.REAL,
@@ -1226,7 +1236,7 @@ class Fparser2Reader(object):
                     "are not supported.".format(str(stmtfn)))
 
     @staticmethod
-    def _process_kind_selector(type_spec, psyir_node):
+    def _process_kind_selector(type_spec, psyir_parent):
         '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract KIND information. This
         information is used to determine the precision of the variable (as
@@ -1234,10 +1244,9 @@ class Fparser2Reader(object):
 
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
-        :param psyir_node: the PSyIR node that will be the parent of \
-            the PSyIR node that will be created from the fparser2 node \
-            information.
-        :type psyir_node: :py:class:`psyclone.psyir.nodes.Node`
+        :param psyir_parent: the parent PSyIR node where the new node \
+        will be attached.
+        :type psyir_parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the precision associated with the type specification.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
@@ -1249,7 +1258,7 @@ class Fparser2Reader(object):
             a valid variable name.
 
         '''
-        symbol_table = _get_symbol_table(psyir_node)
+        symbol_table = _get_symbol_table(psyir_parent)
 
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             return None
@@ -1271,7 +1280,7 @@ class Fparser2Reader(object):
             # arguments to KIND
             if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
                                      Fortran2003.Real_Literal_Constant)):
-                return get_literal_precision(kind_arg, psyir_node)
+                return get_literal_precision(kind_arg, psyir_parent)
 
             raise NotImplementedError(
                 "Only real and integer literals are supported "
@@ -1318,7 +1327,7 @@ class Fparser2Reader(object):
                     "SymbolTable already contains an entry for "
                     "variable '{0}' used as a kind parameter but it "
                     "is not a 'deferred' or 'scalar integer' type.".
-                    format(lower_name, kind_symbol.datatype))
+                    format(lower_name))
             # A KIND parameter must be of type integer so set it here
             # (in case it was previously 'deferred'). We don't know
             # what precision this is so set it to the default.

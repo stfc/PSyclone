@@ -156,7 +156,6 @@ def test_literal_node_str():
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    print (literal.node_str())
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
             "shape=[10, 10]>]" in literal.node_str())
 

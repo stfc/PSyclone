@@ -1020,7 +1020,6 @@ def test_process_declarations_kind_literals(vartype, kind, precision):
         assert fake_parent.symbol_table.lookup("var").datatype.precision is \
             fake_parent.symbol_table.lookup("t_def")
     else:
-        print (vartype, kind)
         assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
                 precision)
 

@@ -50,6 +50,10 @@ from psyclone.psyir.symbols import ScalarType
 # SIR does not seem to support the Character datatype. Boolean does
 # seem to be supported but there are no examples with the data value
 # so we don't include it here.
+# We do not yet deal with precision e.g. the SIR supports a DOUBLE
+# type which would probably be equivalent to PSyIR's
+# Precision.DOUBLE. This is the subject of issue #741.
+
 TYPE_MAP_TO_SIR = {ScalarType.Name.REAL: "BuiltinType.Float",
                    ScalarType.Name.INTEGER: "BuiltinType.Integer"}
 
