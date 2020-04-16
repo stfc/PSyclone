@@ -350,8 +350,8 @@ def test_apply2():
 def test_apply3():
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
-    correctness. This example includes the array being passed with no
-    index information.
+    correctness. This example includes the array and vector being
+    passed with no index information.
 
     '''
     trans = Matmul2CodeTrans()
@@ -360,6 +360,14 @@ def test_apply3():
     matrix_symbol = matrix.symbol
     matrix_symbol._shape = [10, 10]
     matmul.children[0] = Reference(matrix_symbol)
+    rhs_vector = matmul.children[1]
+    rhs_vector_symbol = rhs_vector.symbol
+    rhs_vector_symbol._shape = [10]
+    matmul.children[1] = Reference(rhs_vector_symbol)
+    lhs_vector = matrix.parent.parent.lhs
+    lhs_vector_symbol = lhs_vector.symbol
+    lhs_vector_symbol._shape = [10]
+    matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
     trans.apply(matmul)
     writer = FortranWriter()
     result = writer(matmul.root)
@@ -367,14 +375,14 @@ def test_apply3():
         "subroutine my_kern()\n"
         "  integer :: idx\n"
         "  real, dimension(10,10) :: x\n"
-        "  real, dimension(10,10) :: y\n"
+        "  real, dimension(10) :: y\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
         "  do i = 1, x, 1\n"
-        "    y(i,idx)=0.0\n"
+        "    y(i)=0.0\n"
         "    do j = 1, y, 1\n"
-        "      y(i,idx)=y(i,idx) + x(i,j) * y(j,idx)\n"
+        "      y(i)=y(i) + x(i,j) * y(j)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
