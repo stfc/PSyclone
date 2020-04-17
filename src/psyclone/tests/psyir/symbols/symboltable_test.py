@@ -128,7 +128,7 @@ def test_add():
                              interface=GlobalInterface(my_mod)))
     assert sym_table._symbols["my_mod"].name == "my_mod"
     assert sym_table._symbols["var1"].name == "var1"
-    assert sym_table._symbols["var1"].datatype.name == ScalarType.Intrinsic.REAL
+    assert sym_table._symbols["var1"].datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert (sym_table._symbols["var1"].datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert sym_table._symbols["var1"].datatype.shape == [5, 1]
@@ -317,7 +317,7 @@ def test_swap_symbol_properties():
     sym_table.swap_symbol_properties(symbol1, symbol4)
 
     assert symbol1.name == "var1"
-    assert symbol1.datatype.name == ScalarType.Intrinsic.REAL
+    assert symbol1.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
     assert symbol1.datatype.shape == [symbol2, symbol3]
     assert symbol1.is_argument
@@ -325,12 +325,12 @@ def test_swap_symbol_properties():
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
 
     assert symbol4.name == "var2"
-    assert symbol4.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert symbol4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol4.datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol4.shape
     assert symbol4.is_local
     assert symbol4.constant_value.value == "7"
-    assert symbol4.constant_value.datatype.name == symbol4.datatype.name
+    assert symbol4.constant_value.datatype.intrinsic == symbol4.datatype.intrinsic
     assert (symbol4.constant_value.datatype.precision ==
             symbol4.datatype.precision)
 

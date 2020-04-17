@@ -98,13 +98,13 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-    def __init__(self, name, precision):
+    def __init__(self, intrinsic, precision):
         from psyclone.psyir.symbols.datasymbol import DataSymbol
-        if not isinstance(name, ScalarType.Intrinsic):
+        if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
-                "ScalarType expected 'name' argument to be of type "
+                "ScalarType expected 'intrinsic' argument to be of type "
                 "ScalarType.Intrinsic but found '{0}'."
-                "".format(type(name).__name__))
+                "".format(type(intrinsic).__name__))
         if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
             raise TypeError(
                 "ScalarType expected 'precision' argument to be of type "
@@ -117,23 +117,23 @@ class ScalarType(DataType):
                 "".format(precision))
         if (isinstance(precision, DataSymbol) and
                 not (isinstance(precision.datatype, ScalarType) and
-                     precision.datatype.name == ScalarType.Intrinsic.INTEGER) and
+                     precision.datatype.intrinsic == ScalarType.Intrinsic.INTEGER) and
                 not isinstance(precision.datatype, DeferredType)):
             raise ValueError(
                 "A DataSymbol representing the precision of another "
                 "DataSymbol must be of either 'deferred' or scalar, "
                 "integer type but got: {0}".format(str(precision)))
 
-        self._name = name
+        self._intrinsic = intrinsic
         self._precision = precision
 
     @property
-    def name(self):
+    def intrinsic(self):
         '''
-        :returns: the name of this scalar type.
+        :returns: the intrinsic used by this scalar type.
         :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
         '''
-        return self._name
+        return self._intrinsic
 
     @property
     def precision(self):
@@ -154,7 +154,7 @@ class ScalarType(DataType):
             precision_str = self.precision.name
         else:
             precision_str = str(self.precision)
-        return "Scalar<{0}, {1}>".format(self.name.name, precision_str)
+        return "Scalar<{0}, {1}>".format(self.intrinsic.name, precision_str)
 
 
 class ArrayType(DataType):
@@ -204,7 +204,7 @@ class ArrayType(DataType):
         for dimension in shape:
             if isinstance(dimension, DataSymbol):
                 if not (dimension.is_scalar and
-                        dimension.datatype.name == ScalarType.Intrinsic.INTEGER):
+                        dimension.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
                     raise TypeError(
                         "DataSymbols that are part of another symbol shape can"
                         " only be scalar integers, but found '{0}'."
@@ -216,22 +216,22 @@ class ArrayType(DataType):
                     "found '{0}'.".format(type(dimension).__name__))
 
         self._shape = shape
-        self._name = datatype.name
+        self._intrinsic = datatype.intrinsic
         self._precision = datatype.precision
         self._datatype = datatype
 
     @property
-    def name(self):
+    def intrinsic(self):
         '''
-        :returns: the name of this scalar type.
+        :returns: the intrinsic of each element in the array
         :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
         '''
-        return self._name
+        return self._intrinsic
 
     @property
     def precision(self):
         '''
-        :returns: the precision of this scalar type.
+        :returns: the precision of each element in the array.
         :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
             int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''

@@ -282,7 +282,7 @@ def test_gen_datatype_exception_1():
     '''
     data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", data_type)
-    symbol.datatype._name = None
+    symbol.datatype._intrinsic = None
     with pytest.raises(NotImplementedError) as excinfo:
         _ = gen_datatype(symbol)
     assert ("Unsupported datatype 'None' for symbol 'fred' found in "

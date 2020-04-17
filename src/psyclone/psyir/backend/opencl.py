@@ -100,7 +100,7 @@ class OpenCLWriter(CWriter):
         :raises VisitorError: if symbol is not a scalar integer
         '''
         if (not isinstance(symbol.datatype, ScalarType) or
-                symbol.datatype.name != ScalarType.Intrinsic.INTEGER):
+                symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise VisitorError(
                 "OpenCL work-item identifiers must be scalar integer symbols "
                 "but found {0}.".format(str(symbol)))

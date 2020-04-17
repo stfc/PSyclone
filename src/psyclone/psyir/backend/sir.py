@@ -416,7 +416,7 @@ class SIRWriter(PSyIRVisitor):
         '''
         result = node.value
         try:
-            datatype = TYPE_MAP_TO_SIR[node.datatype.name]
+            datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
         except KeyError:
             raise VisitorError(
                 "PSyIR type '{0}' has no representation in the SIR backend."
@@ -455,15 +455,15 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
         literal = node.children[0]
-        if literal.datatype.name not in [ScalarType.Intrinsic.REAL,
-                                         ScalarType.Intrinsic.INTEGER]:
+        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
+                                              ScalarType.Intrinsic.INTEGER]:
             # The '-' operator can only be applied to REAL and INTEGER
             # datatypes.
             raise VisitorError(
                 "PSyIR type '{0}' does not work with the '-' operator."
                 "".format(str(literal.datatype)))
         result = literal.value
-        datatype = TYPE_MAP_TO_SIR[literal.datatype.name]
+        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
         return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
                 "".format(self._nindent, oper, result, datatype))
 

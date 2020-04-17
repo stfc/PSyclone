@@ -146,11 +146,11 @@ def gen_datatype(symbol):
 
     '''
     try:
-        fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.name]
+        fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.intrinsic]
     except KeyError:
         raise NotImplementedError(
             "Unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(symbol.datatype.name, symbol.name))
+            "gen_datatype().".format(symbol.datatype.intrinsic, symbol.name))
 
     precision = symbol.datatype.precision
 
@@ -641,7 +641,7 @@ class FortranWriter(PSyIRVisitor):
                isinstance(node.children[0], Reference) and \
                node.children[0].name == array.name and \
                isinstance(node.children[1], Literal) and \
-               node.children[1].datatype.name == ScalarType.Intrinsic.INTEGER and \
+               node.children[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER and \
                node.children[1].value == str(array_index):
                 return True
             return False
@@ -664,7 +664,7 @@ class FortranWriter(PSyIRVisitor):
         result = "{0}:{1}".format(start, stop)
 
         if isinstance(node.step, Literal) and \
-           node.step.datatype.name == ScalarType.Intrinsic.INTEGER and \
+           node.step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER and \
            node.step.value == "1":
             # Step is 1. This is the default in Fortran so no need to
             # output any text.
@@ -686,23 +686,23 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        if node.datatype.name == ScalarType.Intrinsic.BOOLEAN:
+        if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
             # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
-        elif node.datatype.name == ScalarType.Intrinsic.CHARACTER:
+        elif node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
             result = "'{0}'".format(node.value)
         else:
             result = node.value
         precision = node.datatype.precision
         if isinstance(precision, DataSymbol):
             # A KIND variable has been specified
-            if node.datatype.name == ScalarType.Intrinsic.CHARACTER:
+            if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 result = "{0}_{1}".format(precision.name, result)
             else:
                 result = "{0}_{1}".format(result, precision.name)
         if isinstance(precision, int):
             # A KIND value has been specified
-            if node.datatype.name == ScalarType.Intrinsic.CHARACTER:
+            if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 result = "{0}_{1}".format(precision, result)
             else:
                 result = "{0}_{1}".format(result, precision)

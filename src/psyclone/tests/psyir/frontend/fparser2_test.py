@@ -336,7 +336,7 @@ def test_default_integer_type():
     '''Test the default_integer_type function returns the expected result'''
     result = default_integer_type()
     assert isinstance(result, ScalarType)
-    assert result.name == ScalarType.Intrinsic.INTEGER
+    assert result.intrinsic == ScalarType.Intrinsic.INTEGER
     assert result.precision == default_precision(ScalarType.Intrinsic.INTEGER)
 
 
@@ -344,7 +344,7 @@ def test_default_real_type():
     '''Test the default_real_type function returns the expected result'''
     result = default_real_type()
     assert isinstance(result, ScalarType)
-    assert result.name == ScalarType.Intrinsic.REAL
+    assert result.intrinsic == ScalarType.Intrinsic.REAL
     assert result.precision == default_precision(ScalarType.Intrinsic.REAL)
 
 
@@ -625,7 +625,7 @@ def test_process_declarations(f2008_parser):
     l1_var = fake_parent.symbol_table.lookup("l1")
     assert l1_var.name == 'l1'
     assert isinstance(l1_var.datatype, ScalarType)
-    assert l1_var.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert l1_var.datatype.precision == ScalarType.Precision.UNDEFINED
     assert l1_var.is_local
 
@@ -635,7 +635,7 @@ def test_process_declarations(f2008_parser):
     l2_var = fake_parent.symbol_table.lookup("l2")
     assert l2_var.name == "l2"
     assert isinstance(l2_var.datatype, ScalarType)
-    assert l2_var.datatype.name == ScalarType.Intrinsic.REAL
+    assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert l2_var.datatype.precision == ScalarType.Precision.UNDEFINED
     assert l2_var.is_local
 
@@ -645,7 +645,7 @@ def test_process_declarations(f2008_parser):
     b_var = fake_parent.symbol_table.lookup("b")
     assert b_var.name == "b"
     assert isinstance(b_var.datatype, ScalarType)
-    assert b_var.datatype.name == ScalarType.Intrinsic.BOOLEAN
+    assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
     assert b_var.is_local
 
@@ -734,7 +734,7 @@ def test_process_array_declarations():
     l3_var = fake_parent.symbol_table.lookup("l3")
     assert l3_var.name == 'l3'
     assert isinstance(l3_var.datatype, ArrayType)
-    assert l3_var.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert l3_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert len(l3_var.datatype.shape) == 1
     assert l3_var.datatype.precision == ScalarType.Precision.UNDEFINED
 
@@ -744,7 +744,7 @@ def test_process_array_declarations():
     l4_var = fake_parent.symbol_table.lookup("l4")
     assert l4_var.name == 'l4'
     assert isinstance(l4_var.datatype, ArrayType)
-    assert l4_var.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert l4_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert len(l4_var.datatype.shape) == 2
     assert l4_var.datatype.precision == ScalarType.Precision.UNDEFINED
 
@@ -938,7 +938,7 @@ def test_process_declarations_kind_new_param():
     assert isinstance(var1_var.datatype.precision, DataSymbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
-    assert wp_var.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert wp_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert var1_var.datatype.precision is wp_var
     # Check that, despite the difference in case, the second variable
     # references the same 'wp' symbol.
@@ -1165,7 +1165,7 @@ def test_parse_array_dimensions_attributes():
     processor.process_declarations(fake_parent, [fparser2spec],
                                    [Name("array3")])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
-    assert fake_parent.symbol_table.lookup("array3").datatype.name == \
+    assert fake_parent.symbol_table.lookup("array3").datatype.intrinsic == \
         ScalarType.Intrinsic.REAL
     assert fake_parent.symbol_table.lookup("array3").shape == \
         [ArrayType.Extent.ATTRIBUTE]
@@ -1186,7 +1186,7 @@ def test_deferred_array_size():
                                    [Name("array3"), Name("n")])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, ArgumentInterface)
-    assert dim_sym.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1201,7 +1201,7 @@ def test_unresolved_array_size():
     processor.process_declarations(fake_parent, fparser2spec, [])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, UnresolvedInterface)
-    assert dim_sym.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     # Check that the lookup of the dimensioning symbol is not case sensitive
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content

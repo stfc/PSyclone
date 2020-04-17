@@ -89,13 +89,13 @@ class Literal(Node):
             raise ValueError("A literal value can not be empty.")
 
         if (isinstance(datatype, ScalarType) and
-                datatype.name == ScalarType.Intrinsic.BOOLEAN and
+                datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
                 value not in ("true", "false")):
             raise ValueError(
                 "A scalar boolean literal can only be: 'true' or "
                 "'false' but found '{0}'.".format(value))
 
-        if (datatype.name == ScalarType.Intrinsic.REAL and not
+        if (datatype.intrinsic == ScalarType.Intrinsic.REAL and not
                 re.search(Literal._real_value, value)):
             raise ValueError(
                 "A scalar real literal value must conform to the "

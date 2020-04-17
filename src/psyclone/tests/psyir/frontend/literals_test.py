@@ -66,7 +66,7 @@ def test_handling_literal(code, dtype):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype.name == dtype
+    assert literal.datatype.intrinsic == dtype
     if dtype != ScalarType.Intrinsic.BOOLEAN:
         assert literal.value == code
     else:
@@ -97,7 +97,7 @@ def test_handling_literal_precision_1(value, dprecision, dname):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype.name == dname
+    assert literal.datatype.intrinsic == dname
     if dname == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
     else:
@@ -131,7 +131,7 @@ def test_handling_literal_precision_2(value, dprecision, dname):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype.name == dname
+    assert literal.datatype.intrinsic == dname
     if dname == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
     else:
@@ -162,7 +162,7 @@ def test_handling_literal_precision_3(value, dprecision):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.value.lower() == "0.0e0"
-    assert literal.datatype.name == ScalarType.Intrinsic.REAL
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == dprecision
 
 
@@ -181,7 +181,7 @@ def test_literal_constant_value_format(value, result):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.value == result
-    assert literal.datatype.name == ScalarType.Intrinsic.REAL
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 @pytest.mark.usefixtures("f2008_parser")

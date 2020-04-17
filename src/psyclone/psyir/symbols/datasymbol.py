@@ -307,7 +307,7 @@ class DataSymbol(Symbol):
                 # No need to check that self.datatype has a name
                 # attribute as we know it is a ScalarType or ArrayType
                 # due to an earlier test.
-                lookup = TYPE_MAP_TO_PYTHON[self.datatype.name]
+                lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
                         "Error setting constant value for symbol '{0}'. This "
@@ -315,7 +315,7 @@ class DataSymbol(Symbol):
                         " constant value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
-                if self.datatype.name == ScalarType.Intrinsic.BOOLEAN:
+                if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:

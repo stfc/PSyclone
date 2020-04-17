@@ -156,7 +156,7 @@ class Range(Node):
                 "The {0} value of a Range must be a sub-class of "
                 "Node but got: {1}".format(name, type(value).__name__))
         if (isinstance(value, Literal) and
-                value.datatype.name != ScalarType.Intrinsic.INTEGER):
+                value.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise TypeError(
                 "If the {0} value of a Range is a Literal then it "
                 "must be of type INTEGER but got {1}".format(

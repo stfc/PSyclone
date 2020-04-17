@@ -2130,7 +2130,7 @@ class GOSymbolTable(SymbolTable):
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
             if not (isinstance(dtype, ScalarType) and
-                    dtype.name == ScalarType.Intrinsic.INTEGER):
+                    dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
                 raise GenerationError(
                     "GOcean 1.0 API kernels {0} argument should be a scalar "
                     "integer but got '{1}'{2}."

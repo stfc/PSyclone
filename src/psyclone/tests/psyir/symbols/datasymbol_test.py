@@ -356,7 +356,7 @@ def test_datasymbol_copy():
     new_symbol._interface = LocalInterface()
 
     assert symbol.name == "myname"
-    assert symbol.datatype.name == ScalarType.Intrinsic.REAL
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert symbol.datatype.shape == [1, 2]
     assert not symbol.constant_value
@@ -387,12 +387,13 @@ def test_datasymbol_copy_properties():
     symbol.copy_properties(new_symbol)
 
     assert symbol.name == "myname"
-    assert symbol.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert symbol.is_local
     assert isinstance(symbol.constant_value, Literal)
     assert symbol.constant_value.value == "7"
-    assert symbol.constant_value.datatype.name == symbol.datatype.name
+    assert (symbol.constant_value.datatype.intrinsic ==
+            symbol.datatype.intrinsic)
     assert (symbol.constant_value.datatype.precision ==
             symbol.datatype.precision)
 
@@ -411,22 +412,23 @@ def test_datasymbol_resolve_deferred():
     symbol = DataSymbol('a', DeferredType(),
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype.name == ScalarType.Intrinsic.INTEGER
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
 
     symbol = DataSymbol('b', DeferredType(),
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype.name == ScalarType.Intrinsic.REAL
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
 
     symbol = DataSymbol('c', DeferredType(),
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype.name == ScalarType.Intrinsic.REAL
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.DOUBLE
     assert isinstance(symbol.constant_value, Literal)
-    assert symbol.constant_value.datatype.name == symbol.datatype.name
+    assert (symbol.constant_value.datatype.intrinsic ==
+            symbol.datatype.intrinsic)
     assert (symbol.constant_value.datatype.precision ==
             symbol.datatype.precision)
     assert symbol.constant_value.value == "3.14"

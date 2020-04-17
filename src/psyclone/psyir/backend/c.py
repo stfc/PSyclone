@@ -79,8 +79,8 @@ class CWriter(PSyIRVisitor):
         '''
         code = ""
         try:
-            name = symbol.datatype.name
-            code = code + TYPE_MAP_TO_C[name] + " "
+            intrinsic = symbol.datatype.intrinsic
+            code = code + TYPE_MAP_TO_C[intrinsic] + " "
         except (AttributeError, KeyError):
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "

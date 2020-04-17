@@ -209,7 +209,7 @@ def _is_bound_full_extent(array, dim, operator):
             and isinstance(reference, Reference) and
             reference.symbol is array.symbol
             and isinstance(literal, Literal) and
-            literal.datatype.name == ScalarType.Intrinsic.INTEGER
+            literal.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
             and literal.value == str(dim)):
         return True
     # pylint: enable=too-many-boolean-expressions
@@ -270,7 +270,7 @@ def _is_array_range_literal(array, dim, index, value):
     literal = array.children[dim-1].children[index]
 
     if (isinstance(literal, Literal) and
-            literal.datatype.name == ScalarType.Intrinsic.INTEGER and
+            literal.datatype.intrinsic == ScalarType.Intrinsic.INTEGER and
             literal.value == str(value)):
         return True
     return False
@@ -868,7 +868,7 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if (sym.datatype.name != ScalarType.Intrinsic.INTEGER or
+                        if (sym.datatype.intrinsic != ScalarType.Intrinsic.INTEGER or
                                 isinstance(sym.datatype, ArrayType)):
                             _unsupported_type_error(dimensions)
                     except KeyError:
@@ -1322,7 +1322,7 @@ class Fparser2Reader(object):
             kind_symbol = symbol_table.lookup(lower_name)
             if not (isinstance(kind_symbol.datatype, DeferredType) or
                     (isinstance(kind_symbol.datatype, ScalarType) and
-                     kind_symbol.datatype.name == ScalarType.Intrinsic.INTEGER)):
+                     kind_symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
                     "variable '{0}' used as a kind parameter but it "

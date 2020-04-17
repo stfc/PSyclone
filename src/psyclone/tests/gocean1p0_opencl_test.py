@@ -464,14 +464,14 @@ def test_symtab_implementation_for_opencl():
     assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
-    arg1._datatype._name = ScalarType.Intrinsic.REAL
+    arg1._datatype._intrinsic = ScalarType.Intrinsic.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels first argument should be a scalar "
             "integer but got 'Scalar<REAL, UNDEFINED>' for kernel 'test'."
             in str(err.value))
 
-    arg1._datatype._name = ScalarType.Intrinsic.INTEGER  # restore
+    arg1._datatype._intrinsic = ScalarType.Intrinsic.INTEGER  # restore
     arg2._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices

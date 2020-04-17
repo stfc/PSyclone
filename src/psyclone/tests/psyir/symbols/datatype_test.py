@@ -74,42 +74,42 @@ def test_deferredtype_str():
 @pytest.mark.parametrize("precision", [ScalarType.Precision.SINGLE,
                                        ScalarType.Precision.DOUBLE,
                                        ScalarType.Precision.UNDEFINED])
-@pytest.mark.parametrize("name", [ScalarType.Intrinsic.INTEGER,
-                                  ScalarType.Intrinsic.REAL,
-                                  ScalarType.Intrinsic.BOOLEAN,
-                                  ScalarType.Intrinsic.CHARACTER])
-def test_scalartype_enum_precision(name, precision):
+@pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
+                                       ScalarType.Intrinsic.REAL,
+                                       ScalarType.Intrinsic.BOOLEAN,
+                                       ScalarType.Intrinsic.CHARACTER])
+def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType names and all suported enumerated precisions.
 
     '''
-    scalar_type = ScalarType(name, precision)
+    scalar_type = ScalarType(intrinsic, precision)
     assert isinstance(scalar_type, ScalarType)
-    assert scalar_type.name == name
+    assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision == precision
 
 
 @pytest.mark.parametrize("precision", [1, 8, 16])
-@pytest.mark.parametrize("name", [ScalarType.Intrinsic.INTEGER,
-                                  ScalarType.Intrinsic.REAL,
-                                  ScalarType.Intrinsic.BOOLEAN,
-                                  ScalarType.Intrinsic.CHARACTER])
-def test_scalartype_int_precision(name, precision):
+@pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
+                                       ScalarType.Intrinsic.REAL,
+                                       ScalarType.Intrinsic.BOOLEAN,
+                                       ScalarType.Intrinsic.CHARACTER])
+def test_scalartype_int_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType names and a set of valid integer precisions.
 
     '''
-    scalar_type = ScalarType(name, precision)
+    scalar_type = ScalarType(intrinsic, precision)
     assert isinstance(scalar_type, ScalarType)
-    assert scalar_type.name == name
+    assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision == precision
 
 
-@pytest.mark.parametrize("name", [ScalarType.Intrinsic.INTEGER,
-                                  ScalarType.Intrinsic.REAL,
-                                  ScalarType.Intrinsic.BOOLEAN,
-                                  ScalarType.Intrinsic.CHARACTER])
-def test_scalartype_datasymbol_precision(name):
+@pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
+                                       ScalarType.Intrinsic.REAL,
+                                       ScalarType.Intrinsic.BOOLEAN,
+                                       ScalarType.Intrinsic.CHARACTER])
+def test_scalartype_datasymbol_precision(intrinsic):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType names and the precision specified by another
     symbol.
@@ -120,20 +120,20 @@ def test_scalartype_datasymbol_precision(name):
                            ScalarType.Precision.UNDEFINED)
     precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
     # Set the precision of our ScalarType to be the precision symbol
-    scalar_type = ScalarType(name, precision_symbol)
+    scalar_type = ScalarType(intrinsic, precision_symbol)
     assert isinstance(scalar_type, ScalarType)
-    assert scalar_type.name == name
+    assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision is precision_symbol
 
 
-def test_scalartype_invalid_name_type():
+def test_scalartype_invalid_intrinsic_type():
     '''Test that the ScalarType class raises an exception when an invalid
-    name type is provided.
+    intrinsic type is provided.
 
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ScalarType(None, None)
-    assert ("ScalarType expected 'name' argument to be of type "
+    assert ("ScalarType expected 'intrinsic' argument to be of type "
             "ScalarType.Intrinsic but found 'NoneType'." in str(excinfo.value))
 
 
@@ -189,7 +189,7 @@ def test_scalartype_immutable():
     '''Test that the scalartype attributes can't be modified'''
     data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(AttributeError):
-        data_type.name = ScalarType.Intrinsic.INTEGER
+        data_type.intrinsic = ScalarType.Intrinsic.INTEGER
     with pytest.raises(AttributeError):
         data_type.precision = 8
 
@@ -290,7 +290,7 @@ def test_arraytype_immutable():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     data_type = ArrayType(scalar_type, [10, 10])
     with pytest.raises(AttributeError):
-        data_type.name = ScalarType.Intrinsic.INTEGER
+        data_type.intrinsic = ScalarType.Intrinsic.INTEGER
     with pytest.raises(AttributeError):
         data_type.precision = 8
     with pytest.raises(AttributeError):
