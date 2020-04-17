@@ -44,11 +44,13 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicMeshProperties
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, Kern
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.errors import InternalError
+from psyclone.f2pygen import ModuleGen
 
 
 # Constants
@@ -162,6 +164,58 @@ def test_mdata_duplicate_var():
         DynKernMetadata(ast, name=name)
     assert ("Duplicate mesh property found: "
             "'Property.ADJACENT_FACE'." in str(err.value))
+
+
+def test_mesh_properties():
+    ''' Tests the various checks in the methods of the LFRicMeshProperties
+    class. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    # Check that the kern_args() and _stub_declarations() methods raise the
+    # expected error if the LFRicMeshProperties class has been created for
+    # an Invoke.
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties.kern_args()
+    assert ("only be called when LFRicMeshProperties has been instantiated "
+            "for a Kernel" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties._stub_declarations(None)
+    assert ("cannot be called because LFRicMeshProperties has been instantiated "
+            "for an Invoke and not a Kernel" in str(err.value))
+    # Break the list of mesh properties
+    invoke.mesh_properties._properties.append("not-a-property")
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties._invoke_declarations(ModuleGen("test_mod"))
+    assert ("Found unsupported mesh property 'not-a-property' when "
+            "generating invoke declarations. Only " in str(err.value))
+    sched = invoke.schedule
+    # Get hold of the Kernel object
+    kernel = sched.walk(Kern)[0]
+    # Create an LFRicMeshProperties object just for this kernel
+    mesh_props = LFRicMeshProperties(kernel)
+    args = mesh_props.kern_args()
+    # Check correct operation
+    assert args == ["nfaces_re_h", "adjacent_face(:,cell)"]
+    # Break the list of mesh properties
+    mesh_props._properties.append("not-a-property")
+    with pytest.raises(InternalError) as err:
+        mesh_props.kern_args()
+    assert ("found unsupported mesh property 'not-a-property' when "
+            "generating arguments for kernel 'testkern_mesh_prop_code'. "
+            "Only members of the MeshPropertiesMetaData.Property Enum are"
+            in str(err.value))
+    with pytest.raises(InternalError) as err:
+        mesh_props._invoke_declarations(ModuleGen("test_mod"))
+    assert ("cannot be called because LFRicMeshProperties has been "
+            "instantiated for a Kernel and not an Invoke." in str(err.value))
+    with pytest.raises(InternalError) as err:
+        mesh_props._stub_declarations(ModuleGen("test_mod"))
+    assert ("Found unsupported mesh property 'not-a-property' when "
+            "generating declarations for kernel stub. Only " in str(err.value))
+
 
 # Tests for generating the PSy-layer code
 
