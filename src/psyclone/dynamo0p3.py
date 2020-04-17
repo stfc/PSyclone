@@ -2425,7 +2425,16 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        if not (self._properties or self._nfaces_h_required):
+        # Get the list of the required scalars
+        if self._properties:
+            # remove duplicates with an OrderedDict
+            nface_vars = list(OrderedDict.fromkeys(
+                self._arg_properties.values()))
+        elif self._nfaces_h_required:
+            # We only need the number of 'horizontal' faces
+            nface_vars = [self._nfaces_h_name]
+        else:
+            # No reference-element properties required
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
@@ -2437,23 +2446,12 @@ class DynReferenceElement(DynCollection):
                         datatype="reference_element_type",
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
-        # Declare the necessary scalars (remove duplicates with an OrderedDict)
-        if self._properties:
-            nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
-        elif self._nfaces_h_required:
-            # We only need the number of 'horizontal' faces
-            nface_vars = [self._nfaces_h_name]
-        else:
-            raise InternalError(
-                "An invoke may require either a list of properties of the "
-                "reference element or just the number of horizontal faces but "
-                "got neither.")
-
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
 
         if not self._properties:
+            # We only need the number of horizontal faces so we're done
             return
 
         # Declare the necessary arrays

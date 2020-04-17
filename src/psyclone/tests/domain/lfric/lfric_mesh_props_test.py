@@ -52,8 +52,10 @@ from psyclone.tests.lfric_build import LFRicBuild
 
 
 # Constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../..", "test_files", "dynamo0p3")
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))),
+    "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 MESH_PROPS_MDATA = '''
@@ -116,7 +118,7 @@ def test_mdata_wrong_arg_count():
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("'meta_mesh' metadata, the number of args" in str(err.value))
+    assert "'meta_mesh' metadata, the number of args" in str(err.value)
 
 
 def test_mdata_wrong_name():
@@ -160,29 +162,6 @@ def test_mdata_duplicate_var():
         DynKernMetadata(ast, name=name)
     assert ("Duplicate mesh property found: "
             "'Property.ADJACENT_FACE'." in str(err.value))
-
-# Tests for correctness of DynMeshes constructor when mesh properties are
-# required.
-
-if 0:
-    def test_mesh_arglist_err():
-        ''' Check that the KernCallArgList.ref_element_properties method raises
-        the expected error if it encounters an unsupported property. '''
-        from psyclone.psyGen import Kern, InternalError
-        _, invoke_info = parse(os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
-                               api=TEST_API)
-        psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-        sched = psy.invokes.invoke_list[0].schedule
-        # Get hold of the Kernel object
-        kernels = sched.walk(Kern)
-        kernel = kernels[0]
-        # Break the list of ref-element properties required by the Kernel
-        kernel.mesh.properties.append("Not a property")
-        with pytest.raises(InternalError) as err:
-            kernel.arguments.raw_arg_list()
-        assert ("Unsupported mesh property ('Not a property') found "
-                "when generating arguments for kernel 'testkern_ref_elem_code'. "
-                "Supported properties are: ['Property" in str(err.value))
 
 # Tests for generating the PSy-layer code
 
@@ -265,3 +244,39 @@ def test_mesh_prop_plus_ref_elem_gen(tmpdir):
             "f1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "nfaces_re_v, normals_to_horiz_faces, normals_to_vert_faces, "
             "adjacent_face(:,cell))" in gen)
+
+
+def test_mesh_plus_face_quad_gen(tmpdir):
+    ''' Test that we generate correct code when a kernel requires both a
+    mesh property and face quadrature. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "24.4_mesh_plus_face_qr_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    gen = str(psy.gen).lower()
+
+    assert ("      qr_proxy = qr%get_quadrature_proxy()\n"
+            "      np_xyz_qr = qr_proxy%np_xyz\n"
+            "      nfaces_qr = qr_proxy%nfaces\n"
+            "      weights_xyz_qr => qr_proxy%weights_xyz\n"
+            "      !\n"
+            "      ! allocate basis/diff-basis arrays\n"
+            "      !\n"
+            "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
+            "      allocate (basis_w1_qr(dim_w1, ndf_w1, np_xyz_qr, "
+            "nfaces_qr))" in gen)
+
+    assert ("      reference_element => mesh%get_reference_element()\n"
+            "      nfaces_re_h = reference_element%"
+            "get_number_horizontal_faces()\n"
+            "      !\n"
+            "      ! initialise mesh properties\n"
+            "      !\n"
+            "      adjacent_face => mesh%get_adjacent_face()" in gen)
+
+    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f1_proxy%data, "
+            "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
+            "nfaces_re_h, adjacent_face(:,cell), "
+            "nfaces_qr, np_xyz_qr, weights_xyz_qr)" in gen)

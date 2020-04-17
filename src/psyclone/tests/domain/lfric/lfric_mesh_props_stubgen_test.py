@@ -47,8 +47,10 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 
 
 # Constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../..", "test_files", "dynamo0p3")
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))),
+    "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 
