@@ -280,3 +280,46 @@ def test_mesh_plus_face_quad_gen(tmpdir):
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
             "nfaces_re_h, adjacent_face(:,cell), "
             "nfaces_qr, np_xyz_qr, weights_xyz_qr)" in gen)
+
+
+def test_multi_kernel_mesh_props(tmpdir):
+    ''' Test code generation when an invoke contains multiple kernels that
+    require properties of the mesh, the reference element and face quadrature.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "24.5_mesh_plus_ref_elem_plus_qr_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    gen = str(psy.gen).lower()
+
+    # Declarations
+    assert (
+        "      real(kind=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
+        "      integer(kind=i_def) np_xyz_qr, nfaces_qr\n"
+        "      integer(kind=i_def), pointer :: adjacent_face(:,:) => null()\n"
+        "      real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:), "
+        "normals_to_vert_faces(:,:)\n"
+        "      integer(kind=i_def) nfaces_re_h, nfaces_re_v\n"
+        "      class(reference_element_type), pointer :: reference_element => "
+        "null()\n" in gen)
+    # Initialisations
+    assert "type(mesh_type), pointer :: mesh => null()" in gen
+    assert "nfaces_qr = qr_proxy%nfaces" in gen
+    assert (
+        "      reference_element => mesh%get_reference_element()\n"
+        "      nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
+        "      nfaces_re_v = reference_element%get_number_vertical_faces()"
+        in gen)
+    assert "adjacent_face => mesh%get_adjacent_face()" in gen
+    # Call to kernel requiring props of the reference element & adjacent faces
+    assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, f1_proxy%data,"
+            " ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, nfaces_re_v, "
+            "normals_to_horiz_faces, normals_to_vert_faces, "
+            "adjacent_face(:,cell))" in gen)
+    # Call to kernel requiring adjacent faces and face quadrature
+    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f2_proxy%data, "
+            "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, nfaces_re_h, "
+            "adjacent_face(:,cell), nfaces_qr, np_xyz_qr, weights_xyz_qr)"
+            in gen)
