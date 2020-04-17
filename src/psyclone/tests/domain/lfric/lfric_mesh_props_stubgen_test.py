@@ -59,11 +59,14 @@ def setup():
 
 
 MESH_PROP_MDATA = '''
-module testkern_mesh_prop_mod
-  type, extends(kernel_type) :: testkern_refelem_quad_type
+module testkern_mesh_prop_quad_mod
+  type, extends(kernel_type) :: testkern_mesh_prop_quad_type
     type(arg_type), dimension(2) :: meta_args =  &
         (/ arg_type(gh_field, gh_read,  w1),     &
            arg_type(gh_field, gh_write, wtheta) /)
+    type(func_type), meta_funcs(2) = &
+        (/ func_type(w1, gh_basis),  &
+           func_type(wtheta, gh_basis) /)
     type(mesh_data_type), dimension(1) :: meta_mesh = &
         (/ mesh_data_type(adjacent_face) /)
     type(reference_element_data_type), dimension(2) ::               &
@@ -71,13 +74,14 @@ module testkern_mesh_prop_mod
         (/ reference_element_data_type(normals_to_horizontal_faces), &
            reference_element_data_type(outward_normals_to_faces) /)
      integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_xyoz
    contains
-     procedure, nopass :: code => testkern_refelem_quad_code
-  end type testkern_refelem_quad_type
+     procedure, nopass :: code => testkern_mesh_prop_quad_code
+  end type testkern_mesh_prop_quad_type
 contains
-  subroutine testkern_refelem_quad_code()
-  end subroutine testkern_refelem_quad_code
-end module testkern_mesh_prop_mod
+  subroutine testkern_mesh_prop_quad_code()
+  end subroutine testkern_mesh_prop_quad_code
+end module testkern_mesh_prop_quad_mod
 '''
 
 
@@ -115,46 +119,22 @@ def test_refelem_stub_gen():
     assert output in gen
 
 
-def test_refelem_stub_arglist_err():
-    ''' Check that the KernStubArgList.ref_element_properties method raises
-    the expected error if it encounters an unsupported property. '''
-    from psyclone.psyGen import InternalError
-    from psyclone.dynamo0p3 import KernStubArgList
-    # Create the Kernel object
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_ref_elem_all_faces_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Break the list of ref-element properties required by the Kernel
-    kernel.reference_element.properties.append("Wrong property")
-    with pytest.raises(InternalError) as err:
-        KernStubArgList(kernel).generate()
-    assert "('Wrong property') " in str(err.value)
-    assert (
-        "Supported properties are: ['Property.NORMALS_TO_HORIZONTAL_FACES', "
-        "'Property.NORMALS_TO_VERTICAL_FACES', 'Property.NORMALS_TO_FACES', "
-        "'Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES', "
-        "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
-        "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
-
-
-def test_refelem_quad_stub_gen():
+def test_mesh_props_quad_stub_gen():
     ''' Check that correct stub code is produced when the kernel metadata
-    contain reference element and quadrature properties (quadrature
+    specifies both mesh and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
-    ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
+    ast = fpapi.parse(MESH_PROP_MDATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 
     output1 = (
-        "  SUBROUTINE testkern_refelem_quad_code(nlayers, field_1_w1, "
+        "  SUBROUTINE testkern_mesh_prop_quad_code(nlayers, field_1_w1, "
         "field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1_qr_xyoz, "
         "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, "
-        "nfaces_re, normals_to_faces, out_normals_to_faces, np_xy_qr_xyoz, "
+        "nfaces_re_h, nfaces_re, normals_to_horiz_faces, "
+        "out_normals_to_faces, adjacent_face, np_xy_qr_xyoz, "
         "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)")
     assert output1 in gen
     output2 = (
@@ -169,9 +149,13 @@ def test_refelem_quad_stub_gen():
         "weights_xy_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
         "weights_z_qr_xyoz\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nfaces_re_h\n"
         "      INTEGER(KIND=i_def), intent(in) :: nfaces_re\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re_h) :: "
+        "normals_to_horiz_faces\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re) :: "
-        "normals_to_faces\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re) :: "
-        "out_normals_to_faces")
+        "out_normals_to_faces\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(nfaces_re_h) :: "
+        "adjacent_face\n"
+    )
     assert output2 in gen

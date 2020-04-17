@@ -2226,6 +2226,8 @@ class LFRicMeshProperties(DynCollection):
 
         if MeshPropertiesMetaData.Property.ADJACENT_FACE in self._properties:
             adj_face = self._symbol_table.name_from_tag("adjacent_face")
+            # 'nfaces_re_h' will have been declared by the DynReferenceElement
+            # class.
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
