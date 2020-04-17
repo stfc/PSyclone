@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Laboratory
 
 !> Test kernel requiring both face quadrature and the adjacent faces in the mesh.
 module testkern_mesh_prop_face_qr_mod

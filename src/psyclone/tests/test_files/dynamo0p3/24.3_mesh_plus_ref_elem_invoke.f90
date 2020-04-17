@@ -31,11 +31,11 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Laboratory
 
 program single_invoke
 
-  ! Description: single kernel requiring a properties from both the mesh
+  ! Description: single kernel requiring properties from both the mesh
   ! and the reference element.
   use testkern_mesh_ref_elem_props_mod, only: testkern_mesh_ref_elem_props_type
 

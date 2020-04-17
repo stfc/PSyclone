@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Laboratory
 
 !> Test kernel requiring both properties of the mesh *and* the reference element.
 module testkern_mesh_ref_elem_props_mod
