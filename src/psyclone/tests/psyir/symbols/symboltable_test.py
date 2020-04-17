@@ -128,7 +128,7 @@ def test_add():
                              interface=GlobalInterface(my_mod)))
     assert sym_table._symbols["my_mod"].name == "my_mod"
     assert sym_table._symbols["var1"].name == "var1"
-    assert sym_table._symbols["var1"].datatype.name == ScalarType.Name.REAL
+    assert sym_table._symbols["var1"].datatype.name == ScalarType.Intrinsic.REAL
     assert (sym_table._symbols["var1"].datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert sym_table._symbols["var1"].datatype.shape == [5, 1]
@@ -317,7 +317,7 @@ def test_swap_symbol_properties():
     sym_table.swap_symbol_properties(symbol1, symbol4)
 
     assert symbol1.name == "var1"
-    assert symbol1.datatype.name == ScalarType.Name.REAL
+    assert symbol1.datatype.name == ScalarType.Intrinsic.REAL
     assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
     assert symbol1.datatype.shape == [symbol2, symbol3]
     assert symbol1.is_argument
@@ -325,7 +325,7 @@ def test_swap_symbol_properties():
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
 
     assert symbol4.name == "var2"
-    assert symbol4.datatype.name == ScalarType.Name.INTEGER
+    assert symbol4.datatype.name == ScalarType.Intrinsic.INTEGER
     assert symbol4.datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol4.shape
     assert symbol4.is_local
@@ -652,7 +652,7 @@ def test_unresolved():
     sym_table.add(rdef)
     assert sym_table.get_unresolved_datasymbols() == ["r_def"]
     # Add a symbol that uses r_def for its precision
-    scalar_type = ScalarType(ScalarType.Name.REAL, rdef)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     sym_table.add(DataSymbol("s2", scalar_type))
     # By default we should get this precision symbol
     assert sym_table.get_unresolved_datasymbols() == ["r_def"]

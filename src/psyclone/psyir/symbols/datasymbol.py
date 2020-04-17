@@ -315,7 +315,7 @@ class DataSymbol(Symbol):
                         " constant value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
-                if self.datatype.name == ScalarType.Name.BOOLEAN:
+                if self.datatype.name == ScalarType.Intrinsic.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:

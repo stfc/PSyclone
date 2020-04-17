@@ -54,8 +54,8 @@ from psyclone.psyir.symbols import ScalarType
 # type which would probably be equivalent to PSyIR's
 # Precision.DOUBLE. This is the subject of issue #741.
 
-TYPE_MAP_TO_SIR = {ScalarType.Name.REAL: "BuiltinType.Float",
-                   ScalarType.Name.INTEGER: "BuiltinType.Integer"}
+TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
+                   ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
 
 
 def gen_stencil(node):
@@ -455,8 +455,8 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
         literal = node.children[0]
-        if literal.datatype.name not in [ScalarType.Name.REAL,
-                                         ScalarType.Name.INTEGER]:
+        if literal.datatype.name not in [ScalarType.Intrinsic.REAL,
+                                         ScalarType.Intrinsic.INTEGER]:
             # The '-' operator can only be applied to REAL and INTEGER
             # datatypes.
             raise VisitorError(

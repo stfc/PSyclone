@@ -130,10 +130,10 @@ def test_gen_dims_error(monkeypatch):
 
 @pytest.mark.parametrize(
     "type_name,result",
-    [(ScalarType.Name.REAL, "real"),
-     (ScalarType.Name.INTEGER, "integer"),
-     (ScalarType.Name.CHARACTER, "character"),
-     (ScalarType.Name.BOOLEAN, "logical")])
+    [(ScalarType.Intrinsic.REAL, "real"),
+     (ScalarType.Intrinsic.INTEGER, "integer"),
+     (ScalarType.Intrinsic.CHARACTER, "character"),
+     (ScalarType.Intrinsic.BOOLEAN, "logical")])
 def test_gen_datatype_default_precision(type_name, result):
     '''Check for all supported datatype names that the gen_datatype
     function produces the expected Fortran types for scalar and arrays
@@ -152,14 +152,14 @@ def test_gen_datatype_default_precision(type_name, result):
 
 @pytest.mark.parametrize(
     "type_name,precision,result",
-    [(ScalarType.Name.REAL, ScalarType.Precision.SINGLE, "real"),
-     (ScalarType.Name.REAL, ScalarType.Precision.DOUBLE, "double precision"),
-     (ScalarType.Name.INTEGER, ScalarType.Precision.SINGLE, "integer"),
-     (ScalarType.Name.INTEGER, ScalarType.Precision.DOUBLE, "integer"),
-     (ScalarType.Name.CHARACTER, ScalarType.Precision.SINGLE, "character"),
-     (ScalarType.Name.CHARACTER, ScalarType.Precision.DOUBLE, "character"),
-     (ScalarType.Name.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),
-     (ScalarType.Name.BOOLEAN, ScalarType.Precision.DOUBLE, "logical")])
+    [(ScalarType.Intrinsic.REAL, ScalarType.Precision.SINGLE, "real"),
+     (ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE, "double precision"),
+     (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.SINGLE, "integer"),
+     (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.DOUBLE, "integer"),
+     (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE, "character"),
+     (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.DOUBLE, "character"),
+     (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),
+     (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.DOUBLE, "logical")])
 def test_gen_datatype_relative_precision(type_name, precision, result):
     '''Check for all supported datatype names that the gen_datatype
     function produces the expected Fortran types for scalar and arrays
@@ -175,8 +175,8 @@ def test_gen_datatype_relative_precision(type_name, precision, result):
 
 @pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])
 @pytest.mark.parametrize("type_name,fort_name",
-                         [(ScalarType.Name.INTEGER, "integer"),
-                          (ScalarType.Name.BOOLEAN, "logical")])
+                         [(ScalarType.Intrinsic.INTEGER, "integer"),
+                          (ScalarType.Intrinsic.BOOLEAN, "logical")])
 def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
     '''Check for the integer and logical datatype names that the
     gen_datatype function produces the expected Fortran types for
@@ -213,7 +213,7 @@ def test_gen_datatype_absolute_precision_real(precision):
 
     '''
     symbol_name = "dummy"
-    scalar_type = ScalarType(ScalarType.Name.REAL, precision=precision)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, precision=precision)
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol(symbol_name, my_type)
@@ -234,7 +234,7 @@ def test_gen_datatype_absolute_precision_character():
 
     '''
     symbol_name = "dummy"
-    scalar_type = ScalarType(ScalarType.Name.CHARACTER, precision=4)
+    scalar_type = ScalarType(ScalarType.Intrinsic.CHARACTER, precision=4)
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol(symbol_name, my_type)
@@ -247,10 +247,10 @@ def test_gen_datatype_absolute_precision_character():
 
 @pytest.mark.parametrize(
     "type_name,result",
-    [(ScalarType.Name.REAL, "real"),
-     (ScalarType.Name.INTEGER, "integer"),
-     (ScalarType.Name.CHARACTER, "character"),
-     (ScalarType.Name.BOOLEAN, "logical")])
+    [(ScalarType.Intrinsic.REAL, "real"),
+     (ScalarType.Intrinsic.INTEGER, "integer"),
+     (ScalarType.Intrinsic.CHARACTER, "character"),
+     (ScalarType.Intrinsic.BOOLEAN, "logical")])
 def test_gen_datatype_kind_precision(type_name, result):
     '''Check for all supported datatype names that the gen_datatype
     function produces the expected Fortran types for scalars and
@@ -264,7 +264,7 @@ def test_gen_datatype_kind_precision(type_name, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol(symbol_name, my_type)
-        if type_name == ScalarType.Name.CHARACTER:
+        if type_name == ScalarType.Intrinsic.CHARACTER:
             with pytest.raises(VisitorError) as excinfo:
                 gen_datatype(symbol)
             assert ("kind not supported for datatype '{0}' in symbol '{1}' "
@@ -280,7 +280,7 @@ def test_gen_datatype_exception_1():
     symbol containing an unsupported datatype.
 
     '''
-    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._name = None
     with pytest.raises(NotImplementedError) as excinfo:
@@ -294,7 +294,7 @@ def test_gen_datatype_exception_2():
     symbol containing an unsupported precision.
 
     '''
-    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._precision = None
     with pytest.raises(VisitorError) as excinfo:
@@ -1326,25 +1326,25 @@ def test_fw_literal_node(fort_writer):
 
     # Check precision symbols are output as expected
     precision_symbol = DataSymbol("rdef", INTEGER_TYPE)
-    my_type = ScalarType(ScalarType.Name.REAL, precision_symbol)
+    my_type = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
     lit1 = Literal("3.14", my_type)
     result = fort_writer(lit1)
     assert result == "3.14_rdef"
 
     # Check character precision symbols are output as expected
-    my_type = ScalarType(ScalarType.Name.CHARACTER, precision_symbol)
+    my_type = ScalarType(ScalarType.Intrinsic.CHARACTER, precision_symbol)
     lit1 = Literal("hello", my_type)
     result = fort_writer(lit1)
     assert result == "rdef_'hello'"
 
     # Check explicit precision is output as expected
-    my_type = ScalarType(ScalarType.Name.REAL, 4)
+    my_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     lit1 = Literal("3.14", my_type)
     result = fort_writer(lit1)
     assert result == "3.14_4"
 
     # Check explicit character precision is output as expected
-    my_type = ScalarType(ScalarType.Name.CHARACTER, 1)
+    my_type = ScalarType(ScalarType.Intrinsic.CHARACTER, 1)
     lit1 = Literal("hello", my_type)
     result = fort_writer(lit1)
     assert result == "1_'hello'"

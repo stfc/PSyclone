@@ -48,11 +48,11 @@ from psyclone.errors import InternalError
 
 
 @pytest.mark.parametrize("code, dtype",
-                         [("'hello'", ScalarType.Name.CHARACTER),
-                          ("1", ScalarType.Name.INTEGER),
-                          ("1.0", ScalarType.Name.REAL),
-                          (".tRue.", ScalarType.Name.BOOLEAN),
-                          (".false.", ScalarType.Name.BOOLEAN)])
+                         [("'hello'", ScalarType.Intrinsic.CHARACTER),
+                          ("1", ScalarType.Intrinsic.INTEGER),
+                          ("1.0", ScalarType.Intrinsic.REAL),
+                          (".tRue.", ScalarType.Intrinsic.BOOLEAN),
+                          (".false.", ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
@@ -67,25 +67,25 @@ def test_handling_literal(code, dtype):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.datatype.name == dtype
-    if dtype != ScalarType.Name.BOOLEAN:
+    if dtype != ScalarType.Intrinsic.BOOLEAN:
         assert literal.value == code
     else:
         assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
 
 
 @pytest.mark.parametrize("value,dprecision,dname",
-                         [("0.0", "rdef", ScalarType.Name.REAL),
-                          ("1", "idef", ScalarType.Name.INTEGER),
-                          ("'hello'", "cdef", ScalarType.Name.CHARACTER),
-                          (".tRue.", "ldef", ScalarType.Name.BOOLEAN),
-                          (".false.", "ldef", ScalarType.Name.BOOLEAN)])
+                         [("0.0", "rdef", ScalarType.Intrinsic.REAL),
+                          ("1", "idef", ScalarType.Intrinsic.INTEGER),
+                          ("'hello'", "cdef", ScalarType.Intrinsic.CHARACTER),
+                          (".tRue.", "ldef", ScalarType.Intrinsic.BOOLEAN),
+                          (".false.", "ldef", ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal_precision_1(value, dprecision, dname):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision kind symbol.
 
     '''
-    if dname == ScalarType.Name.CHARACTER:
+    if dname == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
     else:
         code = "x={0}_{1}".format(value, dprecision)
@@ -98,7 +98,7 @@ def test_handling_literal_precision_1(value, dprecision, dname):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.datatype.name == dname
-    if dname == ScalarType.Name.BOOLEAN:
+    if dname == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
     else:
         assert literal.value == value
@@ -108,18 +108,18 @@ def test_handling_literal_precision_1(value, dprecision, dname):
 
 
 @pytest.mark.parametrize("value,dprecision,dname",
-                         [("0.0", 16, ScalarType.Name.REAL),
-                          ("1", 8, ScalarType.Name.INTEGER),
-                          ("'hello'", 1, ScalarType.Name.CHARACTER),
-                          (".tRue.", 4, ScalarType.Name.BOOLEAN),
-                          (".false.", 8, ScalarType.Name.BOOLEAN)])
+                         [("0.0", 16, ScalarType.Intrinsic.REAL),
+                          ("1", 8, ScalarType.Intrinsic.INTEGER),
+                          ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
+                          (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
+                          (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal_precision_2(value, dprecision, dname):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision value.
 
     '''
-    if dname == ScalarType.Name.CHARACTER:
+    if dname == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
     else:
         code = "x={0}_{1}".format(value, dprecision)
@@ -132,7 +132,7 @@ def test_handling_literal_precision_2(value, dprecision, dname):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.datatype.name == dname
-    if dname == ScalarType.Name.BOOLEAN:
+    if dname == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
     else:
         assert literal.value == value
@@ -162,7 +162,7 @@ def test_handling_literal_precision_3(value, dprecision):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.value.lower() == "0.0e0"
-    assert literal.datatype.name == ScalarType.Name.REAL
+    assert literal.datatype.name == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == dprecision
 
 
@@ -181,7 +181,7 @@ def test_literal_constant_value_format(value, result):
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
     assert literal.value == result
-    assert literal.datatype.name == ScalarType.Name.REAL
+    assert literal.datatype.name == ScalarType.Intrinsic.REAL
 
 
 @pytest.mark.usefixtures("f2008_parser")

@@ -59,7 +59,7 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', REAL_DOUBLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL4_TYPE), DataSymbol)
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Name.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
     # real constants are not currently supported
@@ -350,13 +350,13 @@ def test_datasymbol_copy():
     # is not affected. Can't check constant_value yet as we have a
     # shape value
     new_symbol._name = "new"
-    new_symbol.datatype = ArrayType(ScalarType(ScalarType.Name.INTEGER,
+    new_symbol.datatype = ArrayType(ScalarType(ScalarType.Intrinsic.INTEGER,
                                                ScalarType.Precision.DOUBLE),
                                     [3, 4])
     new_symbol._interface = LocalInterface()
 
     assert symbol.name == "myname"
-    assert symbol.datatype.name == ScalarType.Name.REAL
+    assert symbol.datatype.name == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert symbol.datatype.shape == [1, 2]
     assert not symbol.constant_value
@@ -387,7 +387,7 @@ def test_datasymbol_copy_properties():
     symbol.copy_properties(new_symbol)
 
     assert symbol.name == "myname"
-    assert symbol.datatype.name == ScalarType.Name.INTEGER
+    assert symbol.datatype.name == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert symbol.is_local
     assert isinstance(symbol.constant_value, Literal)
@@ -411,19 +411,19 @@ def test_datasymbol_resolve_deferred():
     symbol = DataSymbol('a', DeferredType(),
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype.name == ScalarType.Name.INTEGER
+    assert symbol.datatype.name == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
 
     symbol = DataSymbol('b', DeferredType(),
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype.name == ScalarType.Name.REAL
+    assert symbol.datatype.name == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
 
     symbol = DataSymbol('c', DeferredType(),
                         interface=GlobalInterface(module))
     symbol.resolve_deferred()
-    assert symbol.datatype.name == ScalarType.Name.REAL
+    assert symbol.datatype.name == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.DOUBLE
     assert isinstance(symbol.constant_value, Literal)
     assert symbol.constant_value.datatype.name == symbol.datatype.name

@@ -54,18 +54,18 @@ def test_literal_init():
     literal = Literal("1", array_type)
     assert literal.value == "1"
     assert isinstance(literal.datatype, ArrayType)
-    assert literal.datatype.name == ScalarType.Name.REAL
+    assert literal.datatype.name == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
     assert literal.datatype.shape == [10, 10]
 
     literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
-    assert literal.datatype.name == ScalarType.Name.BOOLEAN
+    assert literal.datatype.name == ScalarType.Intrinsic.BOOLEAN
     assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
 
     literal = Literal("false", BOOLEAN_TYPE)
     assert literal.value == "false"
-    assert literal.datatype.name == ScalarType.Name.BOOLEAN
+    assert literal.datatype.name == ScalarType.Intrinsic.BOOLEAN
     assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
 
 
@@ -137,7 +137,7 @@ def test_literal_init_valid_value(value):
 def test_literal_value():
     '''Test the value property returns the value of the Literal object.'''
     integer_type = ScalarType(
-        ScalarType.Name.INTEGER, ScalarType.Precision.DOUBLE)
+        ScalarType.Intrinsic.INTEGER, ScalarType.Precision.DOUBLE)
     literal = Literal("1", integer_type)
     assert literal.value == "1"
 

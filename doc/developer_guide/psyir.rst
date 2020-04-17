@@ -72,7 +72,7 @@ defined like this
 
 ::
 
-   scalar_type = ScalarType(ScalarType.Name.REAL, 4)
+   scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
 
 and has the following pre-defined shortcut
 

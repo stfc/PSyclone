@@ -2898,7 +2898,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 raise TransformationError(
                     "Expected entry to be a scalar argument but found "
                     "'{0}'.".format(type(symbol.datatype).__name__))
-            if symbol.datatype.name != ScalarType.Name.INTEGER:
+            if symbol.datatype.name != ScalarType.Intrinsic.INTEGER:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
                     "but found '{0}'.".format(symbol.datatype))
@@ -3950,9 +3950,9 @@ class KernelGlobalsToArguments(Transformation):
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype.name == ScalarType.Name.REAL:
+            if globalvar.datatype.name == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype.name == ScalarType.Name.INTEGER:
+            elif globalvar.datatype.name == ScalarType.Intrinsic.INTEGER:
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(

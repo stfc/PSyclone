@@ -7255,7 +7255,7 @@ def test_kern_const_invalid_make_constant2():
     assert ("Expected entry to be a scalar integer argument but found "
             "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
-    symbol._datatype = ScalarType(ScalarType.Name.INTEGER,
+    symbol._datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   ScalarType.Precision.UNDEFINED)
     symbol._constant_value = 10
     with pytest.raises(TransformationError) as excinfo:

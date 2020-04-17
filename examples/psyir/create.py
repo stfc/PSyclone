@@ -76,7 +76,7 @@ SYMBOL_TABLE.add(REAL_KIND)
 
 # Array using precision defined by another symbol
 ARRAY_NAME = SYMBOL_TABLE.new_symbol_name(root_name="a")
-SCALAR_TYPE = ScalarType(ScalarType.Name.REAL, REAL_KIND)
+SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 ARRAY = DataSymbol(ARRAY_NAME, ArrayType(SCALAR_TYPE, [10]))
 SYMBOL_TABLE.add(ARRAY)
 

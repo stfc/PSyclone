@@ -195,16 +195,16 @@ example:
 
 ::
 
-   > char_type = ScalarType(ScalarType.Name.CHARACTER,
+   > char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
    >                        ScalarType.Precision.UNDEFINED)
    >
-   > int_type = ScalarType(ScalarType.Name.INTEGER,
+   > int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
    >                       ScalarType.Precision.SINGLE)
    >
-   > bool_type = ScalarType(ScalarType.Name.BOOLEAN, 4)
+   > bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
    >
    > symbol = DataSymbol("rdef", int_type, constant_value=4)
-   > scalar_type = ScalarType(ScalarType.Name.REAL, symbol)
+   > scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
 
 For convenience PSyclone predefines a number of scalar datatypes:
 

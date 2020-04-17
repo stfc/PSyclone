@@ -50,10 +50,10 @@ from psyclone.psyir.symbols import ScalarType
 # not clear how to map PSyIR type names and precision onto C types,
 # see issue #738.
 # Mapping from PSyIR types to C data types.
-TYPE_MAP_TO_C = {ScalarType.Name.INTEGER: "int",
-                 ScalarType.Name.CHARACTER: "char",
-                 ScalarType.Name.BOOLEAN: "bool",
-                 ScalarType.Name.REAL: "double"}
+TYPE_MAP_TO_C = {ScalarType.Intrinsic.INTEGER: "int",
+                 ScalarType.Intrinsic.CHARACTER: "char",
+                 ScalarType.Intrinsic.BOOLEAN: "bool",
+                 ScalarType.Intrinsic.REAL: "double"}
 
 
 class CWriter(PSyIRVisitor):

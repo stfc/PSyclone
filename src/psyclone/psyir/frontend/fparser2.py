@@ -57,17 +57,17 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 # Mapping from Fortran data types to PSyIR types
-TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Name.INTEGER,
-                         "character": ScalarType.Name.CHARACTER,
-                         "logical": ScalarType.Name.BOOLEAN,
-                         "real": ScalarType.Name.REAL}
+TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
+                         "character": ScalarType.Intrinsic.CHARACTER,
+                         "logical": ScalarType.Intrinsic.BOOLEAN,
+                         "real": ScalarType.Intrinsic.REAL}
 
 # Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
-    Fortran2003.Real_Literal_Constant: ScalarType.Name.REAL,
-    Fortran2003.Logical_Literal_Constant: ScalarType.Name.BOOLEAN,
-    Fortran2003.Char_Literal_Constant: ScalarType.Name.CHARACTER,
-    Fortran2003.Int_Literal_Constant: ScalarType.Name.INTEGER}
+    Fortran2003.Real_Literal_Constant: ScalarType.Intrinsic.REAL,
+    Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
+    Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
+    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
 
 def _get_symbol_table(node):
@@ -209,7 +209,7 @@ def _is_bound_full_extent(array, dim, operator):
             and isinstance(reference, Reference) and
             reference.symbol is array.symbol
             and isinstance(literal, Literal) and
-            literal.datatype.name == ScalarType.Name.INTEGER
+            literal.datatype.name == ScalarType.Intrinsic.INTEGER
             and literal.value == str(dim)):
         return True
     # pylint: enable=too-many-boolean-expressions
@@ -270,7 +270,7 @@ def _is_array_range_literal(array, dim, index, value):
     literal = array.children[dim-1].children[index]
 
     if (isinstance(literal, Literal) and
-            literal.datatype.name == ScalarType.Name.INTEGER and
+            literal.datatype.name == ScalarType.Intrinsic.INTEGER and
             literal.value == str(value)):
         return True
     return False
@@ -346,8 +346,8 @@ def default_integer_type():
     :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
     '''
-    return ScalarType(ScalarType.Name.INTEGER,
-                      default_precision(ScalarType.Name.INTEGER))
+    return ScalarType(ScalarType.Intrinsic.INTEGER,
+                      default_precision(ScalarType.Intrinsic.INTEGER))
 
 
 def default_real_type():
@@ -357,8 +357,8 @@ def default_real_type():
     :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
     '''
-    return ScalarType(ScalarType.Name.REAL,
-                      default_precision(ScalarType.Name.REAL))
+    return ScalarType(ScalarType.Intrinsic.REAL,
+                      default_precision(ScalarType.Intrinsic.REAL))
 
 
 def get_literal_precision(fparser2_node, psyir_literal_parent):
@@ -868,7 +868,7 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if (sym.datatype.name != ScalarType.Name.INTEGER or
+                        if (sym.datatype.name != ScalarType.Intrinsic.INTEGER or
                                 isinstance(sym.datatype, ArrayType)):
                             _unsupported_type_error(dimensions)
                     except KeyError:
@@ -1322,7 +1322,7 @@ class Fparser2Reader(object):
             kind_symbol = symbol_table.lookup(lower_name)
             if not (isinstance(kind_symbol.datatype, DeferredType) or
                     (isinstance(kind_symbol.datatype, ScalarType) and
-                     kind_symbol.datatype.name == ScalarType.Name.INTEGER)):
+                     kind_symbol.datatype.name == ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
                     "variable '{0}' used as a kind parameter but it "
@@ -2532,11 +2532,11 @@ class Fparser2Reader(object):
         '''
         # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
-            integer_type = ScalarType(ScalarType.Name.INTEGER,
+            integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
             return Literal(str(node.items[0]), integer_type, parent=parent)
         if isinstance(node, Fortran2003.Real_Literal_Constant):
-            real_type = ScalarType(ScalarType.Name.REAL,
+            real_type = ScalarType(ScalarType.Intrinsic.REAL,
                                    get_literal_precision(node, parent))
             # Make sure any exponent is lower case
             value = str(node.items[0]).lower()
@@ -2566,7 +2566,7 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        character_type = ScalarType(ScalarType.Name.CHARACTER,
+        character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
         return Literal(str(node.items[0]), character_type, parent=parent)
 
@@ -2585,7 +2585,7 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        boolean_type = ScalarType(ScalarType.Name.BOOLEAN,
+        boolean_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                                   get_literal_precision(node, parent))
         value = str(node.items[0]).lower()
         if value == ".true.":

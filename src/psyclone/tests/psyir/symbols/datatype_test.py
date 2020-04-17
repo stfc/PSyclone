@@ -74,10 +74,10 @@ def test_deferredtype_str():
 @pytest.mark.parametrize("precision", [ScalarType.Precision.SINGLE,
                                        ScalarType.Precision.DOUBLE,
                                        ScalarType.Precision.UNDEFINED])
-@pytest.mark.parametrize("name", [ScalarType.Name.INTEGER,
-                                  ScalarType.Name.REAL,
-                                  ScalarType.Name.BOOLEAN,
-                                  ScalarType.Name.CHARACTER])
+@pytest.mark.parametrize("name", [ScalarType.Intrinsic.INTEGER,
+                                  ScalarType.Intrinsic.REAL,
+                                  ScalarType.Intrinsic.BOOLEAN,
+                                  ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_enum_precision(name, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType names and all suported enumerated precisions.
@@ -90,10 +90,10 @@ def test_scalartype_enum_precision(name, precision):
 
 
 @pytest.mark.parametrize("precision", [1, 8, 16])
-@pytest.mark.parametrize("name", [ScalarType.Name.INTEGER,
-                                  ScalarType.Name.REAL,
-                                  ScalarType.Name.BOOLEAN,
-                                  ScalarType.Name.CHARACTER])
+@pytest.mark.parametrize("name", [ScalarType.Intrinsic.INTEGER,
+                                  ScalarType.Intrinsic.REAL,
+                                  ScalarType.Intrinsic.BOOLEAN,
+                                  ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_int_precision(name, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType names and a set of valid integer precisions.
@@ -105,10 +105,10 @@ def test_scalartype_int_precision(name, precision):
     assert scalar_type.precision == precision
 
 
-@pytest.mark.parametrize("name", [ScalarType.Name.INTEGER,
-                                  ScalarType.Name.REAL,
-                                  ScalarType.Name.BOOLEAN,
-                                  ScalarType.Name.CHARACTER])
+@pytest.mark.parametrize("name", [ScalarType.Intrinsic.INTEGER,
+                                  ScalarType.Intrinsic.REAL,
+                                  ScalarType.Intrinsic.BOOLEAN,
+                                  ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_datasymbol_precision(name):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType names and the precision specified by another
@@ -116,7 +116,7 @@ def test_scalartype_datasymbol_precision(name):
 
     '''
     # Create an r_def precision symbol with a constant value of 8
-    data_type = ScalarType(ScalarType.Name.INTEGER,
+    data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                            ScalarType.Precision.UNDEFINED)
     precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
     # Set the precision of our ScalarType to be the precision symbol
@@ -134,7 +134,7 @@ def test_scalartype_invalid_name_type():
     with pytest.raises(TypeError) as excinfo:
         _ = ScalarType(None, None)
     assert ("ScalarType expected 'name' argument to be of type "
-            "ScalarType.Name but found 'NoneType'." in str(excinfo.value))
+            "ScalarType.Intrinsic but found 'NoneType'." in str(excinfo.value))
 
 
 def test_scalartype_invalid_precision_type():
@@ -143,7 +143,7 @@ def test_scalartype_invalid_precision_type():
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        _ = ScalarType(ScalarType.Name.INTEGER, None)
+        _ = ScalarType(ScalarType.Intrinsic.INTEGER, None)
     assert ("ScalarType expected 'precision' argument to be of type int, "
             "ScalarType.Precision or DataSymbol, but found 'NoneType'."
             in str(excinfo.value))
@@ -155,7 +155,7 @@ def test_scalartype_invalid_precision_int_value():
 
     '''
     with pytest.raises(ValueError) as excinfo:
-        _ = ScalarType(ScalarType.Name.INTEGER, 0)
+        _ = ScalarType(ScalarType.Intrinsic.INTEGER, 0)
     assert ("The precision of a DataSymbol when specified as an integer "
             "number of bytes must be > 0 but found '0'."
             in str(excinfo.value))
@@ -168,10 +168,10 @@ def test_scalartype_invalid_precision_datasymbol():
 
     '''
     # Create an r_def precision symbol with a constant value of 8
-    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     precision_symbol = DataSymbol("r_def", data_type)
     with pytest.raises(ValueError) as excinfo:
-        _ = ScalarType(ScalarType.Name.REAL, precision_symbol)
+        _ = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type but got: "
             "r_def: <Scalar<REAL, 4>, Local>"
@@ -180,16 +180,16 @@ def test_scalartype_invalid_precision_datasymbol():
 
 def test_scalartype_str():
     '''Test that the ScalarType class str method works as expected.'''
-    data_type = ScalarType(ScalarType.Name.BOOLEAN,
+    data_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                            ScalarType.Precision.UNDEFINED)
     assert str(data_type) == "Scalar<BOOLEAN, UNDEFINED>"
 
 
 def test_scalartype_immutable():
     '''Test that the scalartype attributes can't be modified'''
-    data_type = ScalarType(ScalarType.Name.REAL, 4)
+    data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(AttributeError):
-        data_type.name = ScalarType.Name.INTEGER
+        data_type.name = ScalarType.Intrinsic.INTEGER
     with pytest.raises(AttributeError):
         data_type.precision = 8
 
@@ -197,7 +197,7 @@ def test_scalartype_immutable():
 # ArrayType class
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected.'''
-    datatype = ScalarType(ScalarType.Name.INTEGER, 4)
+    datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     shape = [10, 10]
     array_type = ArrayType(datatype, shape)
     assert isinstance(array_type, ArrayType)
@@ -221,7 +221,7 @@ def test_arraytype_invalid_shape():
     argument is the wrong type.
 
     '''
-    scalar_type = ScalarType(ScalarType.Name.REAL, 4)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, None)
     assert ("ArrayType expected 'shape' argument to be of type list but "
@@ -234,7 +234,7 @@ def test_arraytype_invalid_shape_dimension_1():
     scalar integer.
 
     '''
-    scalar_type = ScalarType(ScalarType.Name.REAL, 4)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", scalar_type)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [symbol])
@@ -249,7 +249,7 @@ def test_arraytype_invalid_shape_dimension_2():
     not an integer or an ArrayType.Extent type.
 
     '''
-    scalar_type = ScalarType(ScalarType.Name.REAL, 4)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [None])
     assert ("DataSymbol shape list elements can only be 'DataSymbol', "
@@ -259,7 +259,7 @@ def test_arraytype_invalid_shape_dimension_2():
 
 def test_arraytype_str():
     '''Test that the ArrayType class str method works as expected.'''
-    scalar_type = ScalarType(ScalarType.Name.INTEGER,
+    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                              ScalarType.Precision.UNDEFINED)
     data_symbol = DataSymbol("var", scalar_type)
     data_type = ArrayType(scalar_type, [10, data_symbol,
@@ -274,7 +274,7 @@ def test_arraytype_str_invalid():
     unsupported dimension type is found.
 
     '''
-    scalar_type = ScalarType(ScalarType.Name.INTEGER, 4)
+    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     array_type = ArrayType(scalar_type, [10])
     # Make on of the array dimensions an unsupported type
     array_type._shape = [None]
@@ -287,10 +287,10 @@ def test_arraytype_str_invalid():
 
 def test_arraytype_immutable():
     '''Test that the scalartype attributes can't be modified'''
-    scalar_type = ScalarType(ScalarType.Name.REAL, 4)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     data_type = ArrayType(scalar_type, [10, 10])
     with pytest.raises(AttributeError):
-        data_type.name = ScalarType.Name.INTEGER
+        data_type.name = ScalarType.Intrinsic.INTEGER
     with pytest.raises(AttributeError):
         data_type.precision = 8
     with pytest.raises(AttributeError):
