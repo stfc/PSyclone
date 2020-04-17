@@ -67,6 +67,7 @@ from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
+# TODO #749: Allow only read access and prevent halo exchanges for Wchi
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
@@ -8667,7 +8668,7 @@ class FSDescriptors(object):
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
     meta-data.
-    #TODO #274 this should actually be named something like
+    # TODO #274 this should actually be named something like
     BasisFuncDescriptors as it holds information describing the
     basis/diff-basis functions required by a kernel.
 
