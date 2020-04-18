@@ -73,19 +73,19 @@ def test_handling_literal(code, dtype):
         assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
 
 
-@pytest.mark.parametrize("value,dprecision,dname",
+@pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", "rdef", ScalarType.Intrinsic.REAL),
                           ("1", "idef", ScalarType.Intrinsic.INTEGER),
                           ("'hello'", "cdef", ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", "ldef", ScalarType.Intrinsic.BOOLEAN),
                           (".false.", "ldef", ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_literal_precision_1(value, dprecision, dname):
+def test_handling_literal_precision_1(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision kind symbol.
 
     '''
-    if dname == ScalarType.Intrinsic.CHARACTER:
+    if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
     else:
         code = "x={0}_{1}".format(value, dprecision)
@@ -97,8 +97,8 @@ def test_handling_literal_precision_1(value, dprecision, dname):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype.intrinsic == dname
-    if dname == ScalarType.Intrinsic.BOOLEAN:
+    assert literal.datatype.intrinsic == intrinsic
+    if intrinsic == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
     else:
         assert literal.value == value
@@ -107,19 +107,19 @@ def test_handling_literal_precision_1(value, dprecision, dname):
     assert isinstance(literal.datatype.precision.datatype, DeferredType)
 
 
-@pytest.mark.parametrize("value,dprecision,dname",
+@pytest.mark.parametrize("value,dprecision,intrinsic",
                          [("0.0", 16, ScalarType.Intrinsic.REAL),
                           ("1", 8, ScalarType.Intrinsic.INTEGER),
                           ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
                           (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_literal_precision_2(value, dprecision, dname):
+def test_handling_literal_precision_2(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision value.
 
     '''
-    if dname == ScalarType.Intrinsic.CHARACTER:
+    if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
     else:
         code = "x={0}_{1}".format(value, dprecision)
@@ -131,8 +131,8 @@ def test_handling_literal_precision_2(value, dprecision, dname):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype.intrinsic == dname
-    if dname == ScalarType.Intrinsic.BOOLEAN:
+    assert literal.datatype.intrinsic == intrinsic
+    if intrinsic == ScalarType.Intrinsic.BOOLEAN:
         assert ".{0}.".format(literal.value) == value.lower()
     else:
         assert literal.value == value

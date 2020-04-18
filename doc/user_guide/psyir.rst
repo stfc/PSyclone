@@ -182,9 +182,10 @@ used when creating instances of DataSymbol and Literal.
 Scalar DataTypes
 ----------------
 
-A Scalar datatype has a name and a precision.
+A Scalar datatype consists of an intrinsic and a precision.
 
-The name can be one of ``INTEGER``, ``REAL``, ``BOOLEAN`` and ``CHARACTER``.
+The intrinsic can be one of ``INTEGER``, ``REAL``, ``BOOLEAN`` and
+``CHARACTER``.
 
 The precision can be ``UNDEFINED``, ``SINGLE``, ``DOUBLE``, an integer
 value specifying the precision in bytes, or a datasymbol (see Section

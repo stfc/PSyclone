@@ -68,8 +68,8 @@ class DeferredType(DataType):
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
 
-    :param name: the name of this scalar type.
-    :type name: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
+    :param intrinsic: the intrinsic of this scalar type.
+    :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
     :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
         int or :py:class:`psyclone.psyir.symbols.DataSymbol`

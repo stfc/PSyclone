@@ -80,7 +80,7 @@ def test_deferredtype_str():
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
-    supported ScalarType names and all suported enumerated precisions.
+    supported ScalarType intrinsics and all suported enumerated precisions.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
@@ -96,7 +96,7 @@ def test_scalartype_enum_precision(intrinsic, precision):
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_int_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
-    supported ScalarType names and a set of valid integer precisions.
+    supported ScalarType intrinsics and a set of valid integer precisions.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
@@ -111,7 +111,7 @@ def test_scalartype_int_precision(intrinsic, precision):
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_datasymbol_precision(intrinsic):
     '''Test that the ScalarType class can be created successfully for all
-    supported ScalarType names and the precision specified by another
+    supported ScalarType intrinsics and the precision specified by another
     symbol.
 
     '''

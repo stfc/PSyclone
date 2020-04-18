@@ -304,7 +304,7 @@ class DataSymbol(Symbol):
                 self._constant_value = new_value
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
-                # No need to check that self.datatype has a name
+                # No need to check that self.datatype has an intrinsic
                 # attribute as we know it is a ScalarType or ArrayType
                 # due to an earlier test.
                 lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]

@@ -66,7 +66,7 @@ to be easily extended. For example, a structure could be created thus:
            self.types = type_list
 
 
-It was decided to include the datatype name as an attribute of ScalarType
+It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4 byte real scalar is
 defined like this
 
