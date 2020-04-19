@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,10 +44,10 @@ program single_invoke_fs
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
+  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
 
-  call invoke(                                                     &
-       testkern_write_w2broken_w1_type(f1, f2, m1, m2, f3, f4, m3) &
+  call invoke(                                                         &
+       testkern_write_w2broken_w1_type(f1, f2, m1, m2, f3, f4, m3, m4) &
              )
 
 end program single_invoke_fs
