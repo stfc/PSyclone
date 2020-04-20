@@ -73,7 +73,7 @@ class Schedule(Node):
     @property
     def symbol_table(self):
         '''
-        :returns: Table containing symbol information for the Schedule.
+        :returns: table containing symbol information for the Schedule.
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table

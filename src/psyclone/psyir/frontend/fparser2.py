@@ -554,8 +554,7 @@ class Fparser2Reader(object):
     @staticmethod
     def _create_schedule(name):
         '''
-        Create an empty KernelSchedule. Second argument is for consistency with
-        the NEMO API where an Invoke object is passed in.
+        Create an empty KernelSchedule.
 
         :param str name: Name of the subroutine represented by the kernel.
 
@@ -605,7 +604,7 @@ class Fparser2Reader(object):
     def generate_schedule(self, name, module_ast, container=None):
         '''Create a Schedule from the supplied fparser2 AST.
 
-        TODO #738. Currently this routine is also used to create a
+        TODO #737. Currently this routine is also used to create a
         NemoInvokeSchedule from NEMO source code (hence the optional,
         'container' argument).  This routine needs re-naming and
         re-writing so that it *only* creates the PSyIR for a
