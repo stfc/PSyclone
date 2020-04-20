@@ -128,7 +128,8 @@ def test_add():
                              interface=GlobalInterface(my_mod)))
     assert sym_table._symbols["my_mod"].name == "my_mod"
     assert sym_table._symbols["var1"].name == "var1"
-    assert sym_table._symbols["var1"].datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert (sym_table._symbols["var1"].datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
     assert (sym_table._symbols["var1"].datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert sym_table._symbols["var1"].datatype.shape == [5, 1]
@@ -330,7 +331,8 @@ def test_swap_symbol_properties():
     assert not symbol4.shape
     assert symbol4.is_local
     assert symbol4.constant_value.value == "7"
-    assert symbol4.constant_value.datatype.intrinsic == symbol4.datatype.intrinsic
+    assert (symbol4.constant_value.datatype.intrinsic ==
+            symbol4.datatype.intrinsic)
     assert (symbol4.constant_value.datatype.precision ==
             symbol4.datatype.precision)
 

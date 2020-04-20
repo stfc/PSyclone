@@ -319,8 +319,7 @@ value of the ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
 section of the PSyclone config file, followed by an optional "_" and
 an integer. For example, the following code::
 
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType, \
-  >     REAL4_TYPE
+  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL4_TYPE
   > symbol_table = SymbolTable()
   > for i in range(0, 3):
   >     var_name = symbol_table.new_symbol_name()
@@ -347,8 +346,7 @@ readable names, the ``new_symbol_name()`` method allows the user to specify a
 root name as an argument to the method which then takes the place of
 the default root name. For example, the following code::
   
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType, \
-  >     REAL_SINGLE_TYPE
+  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_SINGLE_TYPE
   > symbol_table = SymbolTable()
   > for i in range(0, 3):
   >     var_name = symbol_table.new_symbol_name(root_name="something")

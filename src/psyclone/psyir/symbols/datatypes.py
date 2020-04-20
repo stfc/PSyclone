@@ -44,14 +44,6 @@ from psyclone.errors import InternalError
 class DataType(object):
     '''Base class from which all types are derived.'''
 
-    def __str__(self):
-        '''
-        :returns: a description of this datatype.
-        :rtype: str
-
-        '''
-        return "DataType"
-
 
 class DeferredType(DataType):
     '''Indicates that the type is unknown at this point.'''
@@ -117,7 +109,8 @@ class ScalarType(DataType):
                 "".format(precision))
         if (isinstance(precision, DataSymbol) and
                 not (isinstance(precision.datatype, ScalarType) and
-                     precision.datatype.intrinsic == ScalarType.Intrinsic.INTEGER) and
+                     precision.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER) and
                 not isinstance(precision.datatype, DeferredType)):
             raise ValueError(
                 "A DataSymbol representing the precision of another "
@@ -204,7 +197,8 @@ class ArrayType(DataType):
         for dimension in shape:
             if isinstance(dimension, DataSymbol):
                 if not (dimension.is_scalar and
-                        dimension.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
+                        dimension.datatype.intrinsic ==
+                        ScalarType.Intrinsic.INTEGER):
                     raise TypeError(
                         "DataSymbols that are part of another symbol shape can"
                         " only be scalar integers, but found '{0}'."

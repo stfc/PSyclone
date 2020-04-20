@@ -99,7 +99,8 @@ class Literal(Node):
                 re.search(Literal._real_value, value)):
             raise ValueError(
                 "A scalar real literal value must conform to the "
-                "supported format but found '{0}'.".format(value))
+                "supported format ('{0}') but found '{1}'."
+                "".format(Literal._real_value, value))
 
         self._datatype = datatype
         self._value = value

@@ -153,11 +153,14 @@ def test_gen_datatype_default_precision(type_name, result):
 @pytest.mark.parametrize(
     "type_name,precision,result",
     [(ScalarType.Intrinsic.REAL, ScalarType.Precision.SINGLE, "real"),
-     (ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE, "double precision"),
+     (ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE,
+      "double precision"),
      (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.SINGLE, "integer"),
      (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.DOUBLE, "integer"),
-     (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE, "character"),
-     (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.DOUBLE, "character"),
+     (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE,
+      "character"),
+     (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.DOUBLE,
+      "character"),
      (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),
      (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.DOUBLE, "logical")])
 def test_gen_datatype_relative_precision(type_name, precision, result):

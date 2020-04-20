@@ -46,14 +46,13 @@ import six
 from psyclone.psyGen import Transformation, Kern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
     VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
-    INTEGER_TYPE
+    INTEGER_TYPE, DataSymbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 

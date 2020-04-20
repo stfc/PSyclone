@@ -135,7 +135,8 @@ def test_range_literals_props():
     assert erange.children[1] is stop
     # We didn't supply an increment so check that one was created
     assert isinstance(erange.children[2], Literal)
-    assert erange.children[2].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert (erange.children[2].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
     assert (erange.children[2].datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert erange.children[2].value == "1"

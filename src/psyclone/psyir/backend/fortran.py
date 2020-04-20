@@ -641,7 +641,8 @@ class FortranWriter(PSyIRVisitor):
                isinstance(node.children[0], Reference) and \
                node.children[0].name == array.name and \
                isinstance(node.children[1], Literal) and \
-               node.children[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER and \
+               node.children[1].datatype.intrinsic == \
+               ScalarType.Intrinsic.INTEGER and \
                node.children[1].value == str(array_index):
                 return True
             return False

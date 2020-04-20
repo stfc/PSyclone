@@ -323,8 +323,10 @@ def test_is_range_full_extent():
 
 
 @pytest.mark.parametrize("value",
-                         [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER,
-                          ScalarType.Intrinsic.BOOLEAN, ScalarType.Intrinsic.CHARACTER,
+                         [ScalarType.Intrinsic.REAL,
+                          ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.Intrinsic.CHARACTER,
                           None])
 def test_default_precision(value):
     '''Test the default_precision function returns the same precision

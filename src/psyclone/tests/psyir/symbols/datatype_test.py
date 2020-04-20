@@ -46,14 +46,8 @@ from psyclone.errors import InternalError
 # DataType class
 
 def test_datatype():
-    '''Test that the DataType class can be created successfully.'''
+    '''Test that the DataType class can be created.'''
     assert isinstance(DataType(), DataType)
-
-
-def test_datatype_str():
-    '''Test that the DataType class str method works as expected.'''
-    data_type = DataType()
-    assert str(data_type) == "DataType"
 
 
 # DeferredType class

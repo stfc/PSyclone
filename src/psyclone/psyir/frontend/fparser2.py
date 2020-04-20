@@ -868,7 +868,8 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if (sym.datatype.intrinsic != ScalarType.Intrinsic.INTEGER or
+                        if (sym.datatype.intrinsic !=
+                                ScalarType.Intrinsic.INTEGER or
                                 isinstance(sym.datatype, ArrayType)):
                             _unsupported_type_error(dimensions)
                     except KeyError:
@@ -1245,7 +1246,7 @@ class Fparser2Reader(object):
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
         :param psyir_parent: the parent PSyIR node where the new node \
-        will be attached.
+            will be attached.
         :type psyir_parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the precision associated with the type specification.
@@ -1322,7 +1323,8 @@ class Fparser2Reader(object):
             kind_symbol = symbol_table.lookup(lower_name)
             if not (isinstance(kind_symbol.datatype, DeferredType) or
                     (isinstance(kind_symbol.datatype, ScalarType) and
-                     kind_symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER)):
+                     kind_symbol.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
                     "variable '{0}' used as a kind parameter but it "
