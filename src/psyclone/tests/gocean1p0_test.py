@@ -51,7 +51,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
     GOKernelArgument, GOKernelArguments
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, DeferredType
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1654,8 +1654,8 @@ def test_gosymboltable_conformity_check():
     symbol_table.specify_argument_list([i_var, j_var])
     # Set the datatype of the first datasymbol to have an invalid type
     # in order to raise the required exception.
-    symbol_table._argument_list[0].datatype = DataType()
+    symbol_table._argument_list[0].datatype = DeferredType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
-            "but got 'DataType'." in str(excinfo.value))
+            "but got 'DeferredType'." in str(excinfo.value))

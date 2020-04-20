@@ -37,12 +37,23 @@
 ''' This module contains the datatype definitions.'''
 
 from __future__ import absolute_import
+import abc
+import six
 from enum import Enum
 from psyclone.errors import InternalError
 
 
+@six.add_metaclass(abc.ABCMeta)
 class DataType(object):
-    '''Base class from which all types are derived.'''
+    '''Abstract base class from which all types are derived.'''
+
+    @abc.abstractmethod
+    def __str__(self):
+        '''
+        :returns: a description of this type.
+        :rtype: str
+
+        '''
 
 
 class DeferredType(DataType):

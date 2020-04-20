@@ -43,11 +43,14 @@ from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
 from psyclone.errors import InternalError
 
 
-# DataType class
+# Abstract DataType class
 
 def test_datatype():
-    '''Test that the DataType class can be created.'''
-    assert isinstance(DataType(), DataType)
+    '''Test that the DataType class can't be created.'''
+    with pytest.raises(TypeError) as excinfo:
+        _ = DataType()
+    assert ("Can't instantiate abstract class DataType with abstract methods "
+            "__str__" in str(excinfo.value))
 
 
 # DeferredType class
