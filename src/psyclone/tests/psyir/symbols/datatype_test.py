@@ -47,6 +47,7 @@ from psyclone.errors import InternalError
 
 def test_datatype():
     '''Test that the DataType class can't be created.'''
+    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as excinfo:
         _ = DataType()
     assert ("Can't instantiate abstract class DataType with abstract methods "
