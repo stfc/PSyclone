@@ -157,23 +157,12 @@ class NemoInvoke(Invoke):
     '''
     def __init__(self, ast, name, invokes):
         # pylint: disable=super-init-not-called
-        from fparser.two.Fortran2003 import Execution_Part, Specification_Part
         self._invokes = invokes
         self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
+        # TODO #435 remove this line.
         self._ast = ast
-
-        # Find the section of the tree containing the execution part
-        # of the code
-        exe_part = get_child(ast, Execution_Part)
-        if not exe_part:
-            # This subroutine has no execution part so we skip it
-            # TODO #11 log this event
-            return
-
-        # Store the root of this routine's specification in the AST
-        self._spec_part = get_child(ast, Specification_Part)
 
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
@@ -215,6 +204,8 @@ class NemoInvokes(Invokes):
         # Keep a pointer to the whole fparser2 AST
         self._ast = ast
 
+        # TODO #737 - this routine should really process generic PSyIR to
+        # create domain-specific PSyIR (D-PSyIR) for the NEMO domain.
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
         processor = NemoFparser2Reader()
         # First create a Container representing any Fortran module
@@ -246,6 +237,15 @@ class NemoInvokes(Invokes):
             my_invoke = NemoInvoke(subroutine, sub_name, self)
             self.invoke_map[sub_name] = my_invoke
             self.invoke_list.append(my_invoke)
+
+    @property
+    def container(self):
+        '''
+        :returns: the Container node that encapsulates the invokes \
+                  associated with this object.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def update(self):
         ''' Walk down the tree and update the underlying fparser2 AST

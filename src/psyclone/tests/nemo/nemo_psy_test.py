@@ -386,7 +386,8 @@ def test_empty_routine():
     contain any executable statements. '''
     psy, _ = get_invoke("empty_routine.f90", api=API, idx=0)
     assert len(psy.invokes.invoke_list) == 1
-    assert psy.invokes.invoke_list[0].schedule is None
+    # We should just have an empty schedule
+    assert not psy.invokes.invoke_list[0].schedule.children
     # Calling update() on this Invoke should do nothing
     psy.invokes.invoke_list[0].update()
 

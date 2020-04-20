@@ -295,14 +295,10 @@ class Invokes(object):
     :type invoke_cls: subclass of :py:class:`psyclone.psyGen.Invoke`
     :param psy: the PSy instance containing this Invokes instance.
     :type psy: subclass of :py:class`psyclone.psyGen.PSy`
-    :param container: the Container node that encapsulates the various \
-                      invokes described by this object.
-    :type container: :py:class:`psyclone.psyir.nodes.container`
 
     '''
-    def __init__(self, alg_calls, invoke_cls, psy, container=None):
+    def __init__(self, alg_calls, invoke_cls, psy):
         self._psy = psy
-        self._container = container
         self.invoke_map = {}
         self.invoke_list = []
         for idx, alg_invocation in enumerate(alg_calls):
@@ -325,15 +321,6 @@ class Invokes(object):
     @property
     def names(self):
         return self.invoke_map.keys()
-
-    @property
-    def container(self):
-        '''
-        :returns: the Container node that encapsulates the invokes \
-                  associated with this object.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
-        '''
-        return self._container
 
     def get(self, invoke_name):
         # add a try here for keyerror
