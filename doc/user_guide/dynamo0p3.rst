@@ -567,21 +567,20 @@ Metadata
 
 The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
-4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
-
-::
+4) 'meta_mesh', 5) 'gh_shape', 6) 'iterates_over' and 7) 'procedure'::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
+    type(mesh_data_type) :: meta_mesh(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These six metadata elements are discussed in order in the following
+These various metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -673,9 +672,7 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
   currently supported in PSyclone. This metadata indicates that values
   are summed over calls to Kernel code.
 
-For example:
-
-::
+For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_REAL,  GH_SUM),                                     &
@@ -892,7 +889,13 @@ vector variables are:
 
 * ``W2trace`` is the space of scalar functions defined only on cell faces,
   resulting from taking the trace of a ``W2`` space. DoFs are shared between
-  faces, hence making this space fully continuous.
+  faces, hence making this space fully continuous;
+
+* ``Wchi`` is the space of scalar functions used to store coordinates in
+  LFRic, fully discontinuous except for the coordinate order ``0`` when it
+  becomes the ``W0`` space (i.e. fully continuous). Since LFRic neither
+  performs halo exchange on coordinate fields nor updates them the
+  lowest-order continuity of the ``Wchi`` space can be safely ignored.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -930,15 +933,15 @@ function apaces are summarised in the table below.
 
 .. tabularcolumns:: |l|l|
 
-+---------------------------+----------------------------+
-| Function Space Continuity | Function Space Name        |
-+===========================+============================+
-| Continuous                | W0, W1, W2, W2H, W2trace,  |
-|                           | ANY_W2, ANY_SPACE_n        |
-+---------------------------+----------------------------+
-| Discontinuous             | W2V, W2broken, W3, Wtheta, |
-|                           | ANY_DISCONTINUOUS_SPACE_n  |
-+---------------------------+----------------------------+
++---------------------------+----------------------------------+
+| Function Space Continuity | Function Space Name              |
++===========================+==================================+
+| Continuous                | W0, W1, W2, W2H, W2trace, ANY_W2 |
+|                           | ANY_SPACE_n                      |
++---------------------------+----------------------------------+
+| Discontinuous             | W2V, W2broken, W3, Wtheta, Wchi, |
+|                           | ANY_DISCONTINUOUS_SPACE_n        |
++---------------------------+----------------------------------+
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -1013,9 +1016,7 @@ would be declared as::
 
   STENCIL(CROSS)
 
-Below is an example of stencil information within the full kernel metadata.
-
-::
+Below is an example of stencil information within the full kernel metadata::
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
@@ -1183,6 +1184,35 @@ outward_normals_to_vertical_faces    Array of outward-pointing normals for each
 outward_normals_to_faces             Array of outward-pointing normals for each
                                      face indexed as (component, face).
 ===================================  ===========================================
+
+meta_mesh
+#########
+
+A kernel that requires properties of the LFRic mesh object specifies
+those properties through the ``meta_mesh`` metadata entry. (If no
+mesh properties are required then this metadata should be omitted.)
+Consider the following example kernel metadata::
+
+  type, extends(kernel_type) :: testkern_type
+    type(arg_type), dimension(2) :: meta_args = &
+        (/ arg_type(gh_field, gh_read, w1),     &
+           arg_type(gh_field, gh_inc, w0) /)
+    type(mesh_data_type), dimension(1) ::       &
+      meta_mesh =                               &
+        (/ mesh_data_type(adjacent_face) /)
+  contains
+    procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+This metadata specifies that the ``testkern_type`` kernel requires one
+property of the mesh. There is currently one supported property:
+
+======================= ==================================================
+Name                    Description
+======================= ==================================================
+adjacent_face           Local ID of a neighbouring face in each
+                        horizontally-adjacent cell indexed as (face).
+======================= ==================================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1373,13 +1403,13 @@ rules, along with PSyclone's naming conventions, are:
          +---------------+-----------+------------------------------------+
          | Function Type | Dimension | Function Space Name                |
          +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W3, Wtheta            |
+         | Basis         |    1      | W0, W2trace, W3, Wtheta, Wchi      |
          |               +-----------+------------------------------------+
          |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
          +---------------+-----------+------------------------------------+
          | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
          | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W3, Wtheta        |
+         |               |    3      | W0, W1, W2trace, W3, Wtheta, Wchi  |
          +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.
@@ -1390,14 +1420,14 @@ rules, along with PSyclone's naming conventions, are:
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
-   element are required then pass the number of
-   horizontal faces of the reference element (``nfaces_re_h``). Similarly,
-   if either the ``normals_to_vertical_faces`` or
-   ``outward_normals_to_vertical_faces`` are
+   element are required then pass the number of horizontal faces of the
+   reference element (``nfaces_re_h``). Similarly, if either the
+   ``normals_to_vertical_faces`` or ``outward_normals_to_vertical_faces`` are
    required then pass the number of vertical faces (``nfaces_re_v``). This
    also holds for the ``normals_to_faces`` and ``outward_normals_to_faces``
    where the number of all faces of the reference element (``nfaces_re``)
-   is passed to the kernel. Then, in the order specified in the
+   is passed to the kernel. (All of these quantities are integers of kind
+   ``i_def``.) Then, in the order specified in the
    ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
@@ -1408,7 +1438,16 @@ rules, along with PSyclone's naming conventions, are:
       a rank-2 integer array of type ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
-6) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+6) If the ``adjacent_face`` mesh property is required then:
+
+   1) If the number of horizontal cell faces obtained from the reference
+      element (``nfaces_re_h``) is not already being passed to the kernel (due
+      to rule 5 above) then supply it here. This is an integer of kind
+      ``i_def``.
+   2) Pass a rank-1, integer array of kind ``i_def`` and extent
+      ``nfaces_re_h``.
+
+7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
    1) Include integer, scalar arguments of kind ``i_def`` with intent ``in``

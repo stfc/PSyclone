@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,14 +39,15 @@ program halo_reader_fs
   ! A single kernel call testing all function spaces. Each function
   ! space has a stencil operation so that it requires halo exchange
   ! calls. All extents are passed in and are the same for all fields.
+  use constants_mod,           only: i_def
+  use field_mod,               only: field_type
   use testkern_stencil_fs_mod, only: testkern_stencil_fs_type
-  use inf,                     only: field_type
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, &
-                      f11, f12
-  integer          :: extent = 1
+  type(field_type)    :: f1, f2, f3, f4, f5, f6, f7, f8, &
+                         f9, f10, f11, f12, f13, f14
+  integer(kind=i_def) :: extent = 1
 
   call invoke(                                            &
        testkern_stencil_fs_type(f1,                       &
@@ -55,6 +56,7 @@ program halo_reader_fs
                                 f6, extent, f7, extent,   &
                                 f8, extent, f9, extent,   &
                                 f10, extent, f11, extent, &
-                                f12, extent) )
+                                f12, extent, f13, extent, &
+                                f14, extent) )
 
 end program halo_reader_fs

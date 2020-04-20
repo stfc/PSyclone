@@ -48,6 +48,9 @@ cd eg3/
 psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
 ```
 
+This example also demonstrates the use of `Wchi` function space metadata
+for coordinate fields in LFRic.
+
 ## Example 4
 
 The fourth example illustrates the use of (multiple) calls to built-in
@@ -158,7 +161,8 @@ cd eg10/
 psyclone intergrid_3levels.x90
 ```
 
-This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE` metadata.
+This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE`
+function space metadata.
 
 ## Example 11: Asynchronous halo exchanges
 
