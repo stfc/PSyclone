@@ -897,7 +897,7 @@ class Node(object):
             node (including self).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :raises InternalError: if a symbol table is not found.
+        :raises InternalError: if no symbol table is found.
 
         '''
         current = self

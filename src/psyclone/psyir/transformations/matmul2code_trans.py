@@ -33,12 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a NEMO-API-specific transformation from a PSyIR
-MATMUL operator to PSyIR code. This could be useful if the
-MATMULoperator is not supported by the back-end or if the performance
-in the inline code is better than the intrinsic. MATMUL supports both
-matrix multiply and matrix vector multiply. At the moment this
-transformation is limited to matrix vector multiply.
+'''Module providing a transformation from a PSyIR MATMUL operator to
+PSyIR code. This could be useful if the MATMUL operator is not
+supported by the back-end or if the performance in the inline code is
+better than the intrinsic. MATMUL supports both matrix multiply and
+matrix vector multiply. At the moment this transformation is limited
+to matrix vector multiply.
 
 '''
 from __future__ import absolute_import
@@ -67,8 +67,9 @@ class Matmul2CodeTrans(Transformation):
     .. code-block:: fortran
 
         do i=1,N
-            do j=1,M
-               R(i) += A(i,j) * B(j)
+            R(i) = 0.0
+                do j=1,M
+                    R(i) = R(i) + A(i,j) * B(j)
 
     '''
     def __str__(self):
@@ -202,20 +203,8 @@ class Matmul2CodeTrans(Transformation):
         specified node. This node must be a MATMUL
         BinaryOperation. Currently only the matrix vector version of
         MATMUL is supported. If the transformation is successful then
-        an assignment which includes a MATMUL BinaryOperation node
-
-        .. code-block:: fortran
-
-            R = MATMUL(A,B)
-
-        is converted to the following equivalent inline code:
-
-        .. code-block:: fortran
-
-            do i=1,N
-                R(i) = 0.0
-                    do j=1,M
-                        R(i) = R(i) + A(i,j) * B(j)
+        an assignment which includes a MATMUL BinaryOperation node is
+        converted to equivalent inline code.
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`

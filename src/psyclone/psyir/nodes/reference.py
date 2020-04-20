@@ -221,17 +221,20 @@ class Array(Reference):
 
     def is_full_range(self, index):
         '''Returns True if the specified array index is a Range Node that
-        specified alls elements in this index. In the PSyIR this is
+        specified all elements in this index. In the PSyIR this is
         specified by using LBOUND(name,index) for the lower bound of
         the range, UBOUND(name,index) for the upper bound of the range
         and "1" for the range step.
 
         :param int index: the array index to check.
 
-        :returns: True if the access to this array index is a range \
+        :returns: true if the access to this array index is a range \
             that specifies all index elements. Otherwise returns \
             false.
         :rtype: bool
+
+        :raises ValueError: if the supplied index is not less than the \
+            number of dimensions in the array.
 
         '''
         if index > len(self.children)-1:
