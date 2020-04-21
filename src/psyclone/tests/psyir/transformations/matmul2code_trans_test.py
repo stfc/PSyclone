@@ -37,14 +37,14 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations import Matmul2CodeTrans
-from psyclone.errors import GenerationError
+from psyclone.psyir.transformations import Matmul2CodeTrans, \
+    TransformationError
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
     Reference, Range
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
 from psyclone.psyir.backend.fortran import FortranWriter
-
+from psyclone.tests.utilities import Compile
 
 def create_matmul():
     '''Utility function that creates a valid matmul node for use with
@@ -101,7 +101,7 @@ def test_validate1():
 
     '''
     trans = Matmul2CodeTrans()
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(None)
     assert ("The supplied node should be a BinaryOperation but found "
             "'NoneType'." in str(excinfo.value))
@@ -114,11 +114,11 @@ def test_validate2():
 
     '''
     trans = Matmul2CodeTrans()
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(BinaryOperation.create(
             BinaryOperation.Operator.ADD, Literal("1.0", DataType.REAL),
             Literal("1.0", DataType.REAL)))
-    assert ("Generation Error: The supplied node should be a MATMUL "
+    assert ("Transformation Error: The supplied node should be a MATMUL "
             "BinaryOperation but found 'Operator.ADD'." in str(excinfo.value))
 
 
@@ -135,9 +135,9 @@ def test_validate3():
         BinaryOperation.Operator.MATMUL, array, array)
     _ = BinaryOperation.create(BinaryOperation.Operator.MUL, matmul,
                                Literal("1.0", DataType.REAL))
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: Matmul2CodeTrans only supports the "
+    assert ("Transformation Error: Matmul2CodeTrans only supports the "
             "transformation of a MATMUL operation when it is the sole "
             "operation on the rhs of an assignment." in str(excinfo.value))
 
@@ -156,7 +156,7 @@ def test_validate4():
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, mult, mult)
     _ = Assignment.create(array, matmul)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Expected children of a MATMUL BinaryOperation to be references, "
             "but found 'BinaryOperation', 'BinaryOperation'."
@@ -175,11 +175,11 @@ def test_validate5():
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, scalar, scalar)
     _ = Assignment.create(scalar, matmul)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: Expected children of a MATMUL BinaryOperation "
-            "to be references to arrays, but found 'DataSymbol', "
-            "'DataSymbol'." in str(excinfo.value))
+    assert ("Transformation Error: Expected children of a MATMUL "
+            "BinaryOperation to be references to arrays, but found "
+            "'DataSymbol', 'DataSymbol'." in str(excinfo.value))
 
 
 def test_validate6():
@@ -193,9 +193,9 @@ def test_validate6():
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, array, array)
     _ = Assignment.create(array, matmul)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: Expected 1st child of a MATMUL "
+    assert ("Transformation Error: Expected 1st child of a MATMUL "
             "BinaryOperation to be a matrix with at least 2 dimensions, "
             "but found '1'." in str(excinfo.value))
 
@@ -211,11 +211,11 @@ def test_validate7():
     matmul = create_matmul()
     matrix = matmul.children[0]
     matrix.children[0] = Literal("1", DataType.INTEGER)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: To use matmul2code_trans on matmul, indices 0 "
-            "and 1 of the 1st (matrix) argument 'x' must be full ranges."
-            in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "indices 0 and 1 of the 1st (matrix) argument 'x' must be "
+            "full ranges." in str(excinfo.value))
 
 
 def test_validate8():
@@ -230,11 +230,12 @@ def test_validate8():
     matrix = matmul.children[0]
     my_range = matrix.children[0]
     matrix.children[2] = my_range
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: To use matmul2code_trans on matmul, indices 2 "
-            "onwards of the first (matrix) argument should not be Ranges but "
-            "found Range at index 2." in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "only the first two indices of the 1st (matrix) argument are "
+            "permitted to be Ranges but found Range at index 2."
+            in str(excinfo.value))
 
 
 def test_validate9():
@@ -248,10 +249,10 @@ def test_validate9():
     matmul = create_matmul()
     vector = matmul.children[1]
     vector.children[0] = Literal("1", DataType.INTEGER)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: To use matmul2code_trans on matmul, index 0 "
-            "of the 2nd (vector) argument 'x' must be a full range."
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "index 0 of the 2nd (vector) argument 'x' must be a full range."
             in str(excinfo.value))
 
 
@@ -267,11 +268,12 @@ def test_validate10():
     vector = matmul.children[1]
     my_range = vector.children[0]
     vector.children[1] = my_range
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Generation Error: To use matmul2code_trans on matmul, indices 1 "
-            "onwards of the second (vector) argument should not be Ranges "
-            "but found Range at index 1." in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "only the first index of the 2nd (vector) argument is "
+            "permitted to be a Range but found Range at index 1."
+            in str(excinfo.value))
 
 
 def test_validate11():
@@ -285,7 +287,7 @@ def test_validate11():
     trans.validate(matmul)
 
 
-def test_apply1():
+def test_apply1(tmpdir):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes extra indices for the vector
@@ -305,17 +307,18 @@ def test_apply1():
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
-        "  do i = 1, x, 1\n"
+        "  do i = 1, 10, 1\n"
         "    y(i,idx)=0.0\n"
-        "    do j = 1, y, 1\n"
+        "    do j = 1, 10, 1\n"
         "      y(i,idx)=y(i,idx) + x(i,j,idx) * y(j,idx)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
         "end subroutine my_kern" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply2():
+def test_apply2(tmpdir):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes extra indices for the vector
@@ -337,17 +340,18 @@ def test_apply2():
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
-        "  do i = 1, x, 1\n"
+        "  do i = 1, 10, 1\n"
         "    y(i,2)=0.0\n"
-        "    do j = 1, y, 1\n"
+        "    do j = 1, 10, 1\n"
         "      y(i,2)=y(i,2) + x(i,j,1) * y(j,2)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
         "end subroutine my_kern" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply3():
+def test_apply3(tmpdir):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes the array and vector being
@@ -379,11 +383,12 @@ def test_apply3():
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
-        "  do i = 1, x, 1\n"
+        "  do i = 1, 10, 1\n"
         "    y(i)=0.0\n"
-        "    do j = 1, y, 1\n"
+        "    do j = 1, 10, 1\n"
         "      y(i)=y(i) + x(i,j) * y(j)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
         "end subroutine my_kern" in result)
+    assert Compile(tmpdir).string_compiles(result)
