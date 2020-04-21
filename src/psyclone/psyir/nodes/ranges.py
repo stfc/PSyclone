@@ -32,12 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbuty Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing the definition of the Range node. '''
 
 from psyclone.psyir.nodes import Node, Literal
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 
 
 class Range(Node):
@@ -64,9 +64,9 @@ class Range(Node):
     PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND`` binary
     operators::
 
-      >>> one = Literal("1", DataType.INTEGER)
+      >>> one = Literal("1", INTEGER_TYPE)
       >>> # Declare a 1D real array called 'a' with 10 elements
-      >>> symbol = DataSymbol("a", DataType.REAL, shape=[10])
+      >>> symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
       >>> # Return the lower bound of the first dimension of array 'a'
       >>> lbound = BinaryOperation.create(
               BinaryOperation.Operator.LBOUND,
@@ -134,7 +134,7 @@ class Range(Node):
             step.parent = erange
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", DataType.INTEGER, parent=erange)
+            erange.step = Literal("1", INTEGER_TYPE, parent=erange)
         return erange
 
     @staticmethod
@@ -155,7 +155,8 @@ class Range(Node):
             raise TypeError(
                 "The {0} value of a Range must be a sub-class of "
                 "Node but got: {1}".format(name, type(value).__name__))
-        if isinstance(value, Literal) and value.datatype != DataType.INTEGER:
+        if (isinstance(value, Literal) and
+                value.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise TypeError(
                 "If the {0} value of a Range is a Literal then it "
                 "must be of type INTEGER but got {1}".format(

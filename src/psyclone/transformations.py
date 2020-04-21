@@ -46,13 +46,13 @@ import six
 from psyclone.psyGen import Transformation, Kern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
     VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 from psyclone.psyir.transformations import RegionTrans, TransformationError
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
+    INTEGER_TYPE, DataSymbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -952,13 +952,13 @@ class OMPLoopTrans(ParallelLoopTrans):
                 symtab.lookup_with_tag("omp_thread_index")
             except KeyError:
                 thread_idx = symtab.new_symbol_name("th_idx")
-                symtab.add(DataSymbol(thread_idx, DataType.INTEGER),
+                symtab.add(DataSymbol(thread_idx, INTEGER_TYPE),
                            tag="omp_thread_index")
             try:
                 symtab.lookup_with_tag("omp_num_threads")
             except KeyError:
                 nthread = symtab.new_symbol_name("nthreads")
-                symtab.add(DataSymbol(nthread, DataType.INTEGER),
+                symtab.add(DataSymbol(nthread, INTEGER_TYPE),
                            tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
@@ -2894,11 +2894,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                               len(symbol_table.argument_list)))
             # Perform some basic checks on the argument to make sure
             # it is the expected type
-            if symbol.datatype != DataType.INTEGER or \
-               symbol.shape or symbol.is_constant:
+            if not isinstance(symbol.datatype, ScalarType):
+                raise TransformationError(
+                    "Expected entry to be a scalar argument but found "
+                    "'{0}'.".format(type(symbol.datatype).__name__))
+            if symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(symbol))
+                    "but found '{0}'.".format(symbol.datatype))
+            if symbol.is_constant:
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument "
+                    "but found a constant.")
 
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
@@ -2907,7 +2914,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", DataType.INTEGER,
+            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
                                       constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -3913,7 +3920,7 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_datasymbols[:]:
 
             # Resolve the data type information if it is not available
-            if globalvar.datatype == DataType.DEFERRED:
+            if isinstance(globalvar.datatype, DeferredType):
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
@@ -3943,9 +3950,9 @@ class KernelGlobalsToArguments(Transformation):
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype == DataType.REAL:
+            if globalvar.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype == DataType.INTEGER:
+            elif globalvar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
