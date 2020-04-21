@@ -550,7 +550,7 @@ def test_node_dag(tmpdir, have_graphviz):
 
 def test_find_symbol_table():
     '''Test that the find_symbol_table method in a Node instance returns
-    the nearest symbol table if there is on and raises an exception if
+    the nearest symbol table if there is one and raises an exception if
     not.
 
     '''

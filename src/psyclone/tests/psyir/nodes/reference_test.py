@@ -216,7 +216,7 @@ def test_array_is_full_range():
     reference_error = Reference(symbol_error)
 
     # Index out of bounds
-    array_reference = Array.create(symbol,[one])
+    array_reference = Array.create(symbol, [one])
     with pytest.raises(ValueError) as excinfo:
         array_reference.is_full_range(1)
     assert ("In Array 'my_array' the specified index '1' must be less than "
@@ -228,12 +228,12 @@ def test_array_is_full_range():
     # Check LBOUND
     # Array dimension range lower bound is not a binary operation
     my_range = Range.create(one, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is not an LBOUND binary operation
     my_range = Range.create(ubound, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
@@ -241,7 +241,7 @@ def test_array_is_full_range():
     lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                           zero, zero)
     my_range = Range.create(lbound_error, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
@@ -249,7 +249,7 @@ def test_array_is_full_range():
     lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                           reference_error, zero)
     my_range = Range.create(lbound_error, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
@@ -257,7 +257,7 @@ def test_array_is_full_range():
     lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                           reference, reference)
     my_range = Range.create(lbound_error, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
@@ -266,7 +266,7 @@ def test_array_is_full_range():
         BinaryOperation.Operator.LBOUND, reference,
         Literal("1.0", REAL_SINGLE_TYPE))
     my_range = Range.create(lbound_error, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
@@ -275,13 +275,13 @@ def test_array_is_full_range():
     lbound_error = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, reference, one)
     my_range = Range.create(lbound_error, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Check UBOUND
     # Array dimension range upper bound is not a binary operation
     my_range = Range.create(lbound, one, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range upper bound is not a UBOUND binary operation
@@ -302,7 +302,7 @@ def test_array_is_full_range():
     ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                           reference_error, zero)
     my_range = Range.create(lbound, ubound_error, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range upper bound is a UBOUND binary operation
@@ -310,7 +310,7 @@ def test_array_is_full_range():
     ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                           reference, reference)
     my_range = Range.create(lbound, ubound_error, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range upper bound is a UBOUND binary operation
@@ -319,7 +319,7 @@ def test_array_is_full_range():
         BinaryOperation.Operator.UBOUND, reference,
         Literal("1.0", REAL_SINGLE_TYPE))
     my_range = Range.create(lbound, ubound_error, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range upper bound is a UBOUND binary operation
@@ -328,7 +328,7 @@ def test_array_is_full_range():
     ubound_error = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, reference, zero)
     my_range = Range.create(lbound, ubound_error, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Check Step
@@ -342,7 +342,7 @@ def test_array_is_full_range():
     # We have to change this to a non-integer manually as the create
     # function only accepts integer literals for the step argument.
     my_range.children[2] = Literal("1.0", REAL_SINGLE_TYPE)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range step is is an integer literal with the
@@ -354,5 +354,5 @@ def test_array_is_full_range():
     # All is as it should be.
     # The full range is covered so return true.
     my_range = Range.create(lbound, ubound, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert array_reference.is_full_range(0)
