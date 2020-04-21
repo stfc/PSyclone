@@ -145,6 +145,8 @@
 
 	46) PR #734 for #539. Added the Wchi function space to LFRic
 	(Dynamo0.3 API).
+
+	47) PR #728 for #721. Adds DataType hierarchy decoupled from DataSymbol.
         
 release 1.8.1 29th November 2019
 
