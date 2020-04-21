@@ -43,7 +43,7 @@ from psyclone.configuration import Config
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, KernelArgument
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -250,11 +250,11 @@ class GOLoop(Loop):
             self._variable_name = "j"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def gen_code(self, parent):
@@ -267,7 +267,7 @@ class GOLoop(Loop):
             parent.add(dim_var)
 
             # Update start loop bound
-            self.start_expr = Literal("1", DataType.INTEGER, parent=self)
+            self.start_expr = Literal("1", INTEGER_TYPE, parent=self)
 
             # Update stop loop bound
             if self._loop_type == "inner":
@@ -277,9 +277,9 @@ class GOLoop(Loop):
             self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
                                              parent=self)
             self.stop_expr.addchild(
-                Reference(DataSymbol(self.field_name, DataType.INTEGER),
+                Reference(DataSymbol(self.field_name, INTEGER_TYPE),
                           parent=self.stop_expr))
-            self.stop_expr.addchild(Literal(index, DataType.INTEGER,
+            self.stop_expr.addchild(Literal(index, INTEGER_TYPE,
                                             parent=self.stop_expr))
 
         else:  # one of our spaces so use values provided by the infrastructure

@@ -46,6 +46,8 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
     Assignment, Literal, Reference, BinaryOperation, IfBlock
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+    REAL_TYPE, INTEGER_TYPE
 
 
 def process_where(code, fparser_cls):
@@ -66,6 +68,7 @@ def process_where(code, fparser_cls):
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
+
     if fparser_cls is Fortran2003.Execution_Part:
         processor.process_nodes(sched, fparser2spec.content)
     else:
@@ -121,17 +124,19 @@ def test_where_array_notation_rank():
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
     '''
-    from psyclone.psyir.symbols import DataType, DataSymbol
-    my_array = Array(DataSymbol("my_array", DataType.REAL), None)
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("my_array", array_type)
+    my_array = Array(symbol)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
     from psyclone.psyir.nodes import Range
-    my_array = Array.create(DataSymbol("my_array", DataType.REAL, shape=[10]),
-                            [Range.create(Literal("1", DataType.INTEGER),
-                                          Literal("10", DataType.INTEGER))])
+    array_type = ArrayType(REAL_TYPE, [10])
+    my_array = Array.create(DataSymbol("my_array", array_type),
+                            [Range.create(Literal("1", INTEGER_TYPE),
+                                          Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Node, Reference, Array
-from psyclone.psyir.symbols import DataSymbol, DataType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 
 
 def test_psyirvisitor_defaults():
@@ -262,12 +262,12 @@ def test_reference():
     '''
     # Generate PSyIR Reference
     test_visitor = PSyIRVisitor()
-    reference = Reference(DataSymbol('a', DataType.REAL))
+    reference = Reference(DataSymbol('a', REAL_TYPE))
     result = test_visitor(reference)
     assert result == "a"
 
     # Generate PSyIR Array
-    reference2 = Array.create(DataSymbol('b', DataType.REAL, shape=[1]),
+    reference2 = Array.create(DataSymbol('b', ArrayType(REAL_TYPE, shape=[1])),
                               [reference])
     with pytest.raises(VisitorError) as err:
         result = test_visitor(reference2)

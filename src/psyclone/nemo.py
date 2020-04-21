@@ -50,7 +50,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -317,9 +317,9 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         # at in PR #596, currently we just define a symbol table and the
         # variables that Nemo needs for the implicit loops.
         self._symbol_table = SymbolTable()
-        self._symbol_table.add(DataSymbol("jpi", DataType.INTEGER))
-        self._symbol_table.add(DataSymbol("jpj", DataType.INTEGER))
-        self._symbol_table.add(DataSymbol("jpk", DataType.INTEGER))
+        self._symbol_table.add(DataSymbol("jpi", INTEGER_TYPE))
+        self._symbol_table.add(DataSymbol("jpj", INTEGER_TYPE))
+        self._symbol_table.add(DataSymbol("jpk", INTEGER_TYPE))
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''

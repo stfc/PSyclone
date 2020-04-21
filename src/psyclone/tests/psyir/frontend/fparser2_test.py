@@ -49,10 +49,12 @@ from psyclone.psyir.nodes import Node, Schedule, \
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError, DataType
+    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
+    REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
-    _is_range_full_extent, _check_args
+    _is_range_full_extent, _check_args, default_precision, \
+    default_integer_type, default_real_type
 
 
 def process_declarations(code):
@@ -103,8 +105,9 @@ def test_check_args():
     assert ("'array' argument should be an Array type but found 'NoneType'."
             in str(excinfo.value))
 
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [20])
+    symbol = DataSymbol('a', array_type)
     array_reference = Array.create(symbol, [one])
 
     with pytest.raises(TypeError) as excinfo:
@@ -137,8 +140,9 @@ def test_is_bound_full_extent():
     assert ("'array' argument should be an Array type but found 'NoneType'."
             in str(excinfo.value))
 
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [20])
+    symbol = DataSymbol('a', array_type)
     my_range = Range.create(one, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -172,7 +176,7 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", DataType.INTEGER)), one)
+        Reference(DataSymbol("x", INTEGER_TYPE)), one)
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -182,17 +186,17 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1.0", DataType.REAL))
+        Reference(symbol), Literal("1.0", REAL_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
-    # Expecting integer datatype but found DataType.REAL
+    # Expecting integer but found real
     assert not _is_bound_full_extent(array_reference, 1,
                                      BinaryOperation.Operator.LBOUND)
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("2", DataType.INTEGER))
+        Reference(symbol), Literal("2", INTEGER_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -203,7 +207,7 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -221,11 +225,12 @@ def test_is_array_range_literal():
     assert ("'array' argument should be an Array type but found 'NoneType'."
             in str(excinfo.value))
 
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [20])
+    symbol = DataSymbol('a', array_type)
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
     array_reference = Array.create(symbol, [my_range])
 
@@ -260,7 +265,7 @@ def test_is_array_range_literal():
 
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
-    my_range.children[1] = Literal("1.0", DataType.REAL)
+    my_range.children[1] = Literal("1.0", REAL_TYPE)
     array_reference = Array.create(symbol, [my_range])
 
     # 1st dimension, second argument to range is a real literal,
@@ -276,14 +281,15 @@ def test_is_array_range_literal():
 
 def test_is_range_full_extent():
     ''' Test the _is_range_full_extent function.'''
-    one = Literal("1", DataType.INTEGER)
-    symbol = DataSymbol('a', DataType.REAL, shape=[20])
+    one = Literal("1", INTEGER_TYPE)
+    array_type = ArrayType(REAL_TYPE, [2])
+    symbol = DataSymbol('a', array_type)
     lbound_op = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     ubound_op = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
 
     my_range = Range.create(lbound_op, ubound_op, one)
     _ = Array.create(symbol, [my_range])
@@ -305,6 +311,35 @@ def test_is_range_full_extent():
     _ = Array.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
+
+@pytest.mark.parametrize("value",
+                         [ScalarType.Intrinsic.REAL,
+                          ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.Intrinsic.CHARACTER,
+                          None])
+def test_default_precision(value):
+    '''Test the default_precision function returns the same precision
+    irrespective of the argument passed to it'''
+    assert default_precision(value) == ScalarType.Precision.UNDEFINED
+
+
+def test_default_integer_type():
+    '''Test the default_integer_type function returns the expected result'''
+    result = default_integer_type()
+    assert isinstance(result, ScalarType)
+    assert result.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert result.precision == default_precision(ScalarType.Intrinsic.INTEGER)
+
+
+def test_default_real_type():
+    '''Test the default_real_type function returns the expected result'''
+    result = default_real_type()
+    assert isinstance(result, ScalarType)
+    assert result.intrinsic == ScalarType.Intrinsic.REAL
+    assert result.precision == default_precision(ScalarType.Intrinsic.REAL)
+
+
 # Class Fparser2Reader
 
 
@@ -314,7 +349,8 @@ def test_array_notation_rank():
 
     '''
     # An array with no dimensions raises an exception
-    symbol = DataSymbol("a", DataType.REAL, shape=[10])
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("a", array_type)
     array = Array(symbol, [])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
@@ -323,23 +359,24 @@ def test_array_notation_rank():
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension
-    symbol = DataSymbol("a", DataType.REAL, shape=[10, 10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    symbol = DataSymbol("a", array_type)
     lbound_op1 = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     ubound_op1 = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", DataType.INTEGER))
+        Reference(symbol), Literal("1", INTEGER_TYPE))
     lbound_op3 = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("3", DataType.INTEGER))
+        Reference(symbol), Literal("3", INTEGER_TYPE))
     ubound_op3 = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("3", DataType.INTEGER))
+        Reference(symbol), Literal("3", INTEGER_TYPE))
 
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
-    one = Literal("1", DataType.INTEGER)
+    one = Literal("1", INTEGER_TYPE)
     array = Array.create(symbol, [range1, one, range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
@@ -577,25 +614,32 @@ def test_process_declarations(f2008_parser):
     reader = FortranStringReader("integer :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l1").name == 'l1'
-    assert fake_parent.symbol_table.lookup("l1").datatype == DataType.INTEGER
-    assert fake_parent.symbol_table.lookup("l1").shape == []
-    assert fake_parent.symbol_table.lookup("l1").is_local
-    assert not fake_parent.symbol_table.lookup("l1").precision
+    l1_var = fake_parent.symbol_table.lookup("l1")
+    assert l1_var.name == 'l1'
+    assert isinstance(l1_var.datatype, ScalarType)
+    assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert l1_var.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert l1_var.is_local
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l2").name == "l2"
-    assert fake_parent.symbol_table.lookup("l2").datatype == DataType.REAL
-    assert not fake_parent.symbol_table.lookup("l2").precision
+    l2_var = fake_parent.symbol_table.lookup("l2")
+    assert l2_var.name == "l2"
+    assert isinstance(l2_var.datatype, ScalarType)
+    assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert l2_var.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert l2_var.is_local
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("b").name == "b"
-    assert fake_parent.symbol_table.lookup("b").datatype == DataType.BOOLEAN
-    assert not fake_parent.symbol_table.lookup("b").precision
+    b_var = fake_parent.symbol_table.lookup("b")
+    assert b_var.name == "b"
+    assert isinstance(b_var.datatype, ScalarType)
+    assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert b_var.is_local
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -679,24 +723,28 @@ def test_process_array_declarations():
     reader = FortranStringReader("integer :: l3(l1)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
-    assert fake_parent.symbol_table.lookup("l3").datatype == DataType.INTEGER
-    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
-    assert not fake_parent.symbol_table.lookup("l3").precision
+    l3_var = fake_parent.symbol_table.lookup("l3")
+    assert l3_var.name == 'l3'
+    assert isinstance(l3_var.datatype, ArrayType)
+    assert l3_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert len(l3_var.datatype.shape) == 1
+    assert l3_var.datatype.precision == ScalarType.Precision.UNDEFINED
 
     reader = FortranStringReader("integer :: l4(l1, 2)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
-    assert fake_parent.symbol_table.lookup("l4").datatype == DataType.INTEGER
-    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
-    assert not fake_parent.symbol_table.lookup("l4").precision
+    l4_var = fake_parent.symbol_table.lookup("l4")
+    assert l4_var.name == 'l4'
+    assert isinstance(l4_var.datatype, ArrayType)
+    assert l4_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert len(l4_var.datatype.shape) == 2
+    assert l4_var.datatype.precision == ScalarType.Precision.UNDEFINED
 
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").shape == [3]
+    assert fake_parent.symbol_table.lookup("l5").datatype.shape == [2]
+    assert fake_parent.symbol_table.lookup("l6").datatype.shape == [3]
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
@@ -711,15 +759,16 @@ def test_process_array_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l8")
     assert symbol.name == "l8"
-    assert symbol.shape == [DataSymbol.Extent.DEFERRED]
+    assert symbol.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert symbol.shape == [ArrayType.Extent.DEFERRED]
 
     reader = FortranStringReader("integer, allocatable, dimension(:,:) :: l9")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l9")
     assert symbol.name == "l9"
-    assert symbol.shape == [DataSymbol.Extent.DEFERRED,
-                            DataSymbol.Extent.DEFERRED]
+    assert symbol.shape == [ArrayType.Extent.DEFERRED,
+                            ArrayType.Extent.DEFERRED]
 
     # Unknown extents but not allocatable
     reader = FortranStringReader("integer :: l10(:, :)")
@@ -727,8 +776,8 @@ def test_process_array_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l10")
     assert symbol.name == "l10"
-    assert symbol.shape == [DataSymbol.Extent.ATTRIBUTE,
-                            DataSymbol.Extent.ATTRIBUTE]
+    assert symbol.shape == [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE]
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -877,15 +926,16 @@ def test_process_declarations_kind_new_param():
     '''
     fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1\n"
                                                 "real(kind=Wp) :: var2\n")
-    assert isinstance(fake_parent.symbol_table.lookup("var1").precision,
-                      DataSymbol)
+    var1_var = fake_parent.symbol_table.lookup("var1")
+    assert isinstance(var1_var.datatype.precision, DataSymbol)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
-    assert wp_var.datatype == DataType.INTEGER
-    assert fake_parent.symbol_table.lookup("var1").precision is wp_var
+    assert wp_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert var1_var.datatype.precision is wp_var
     # Check that, despite the difference in case, the second variable
     # references the same 'wp' symbol.
-    assert fake_parent.symbol_table.lookup("var2").precision is wp_var
+    var2_var = fake_parent.symbol_table.lookup("var2")
+    assert var2_var.datatype.precision is wp_var
     # Check that we raise an error if the KIND expression has an unexpected
     # structure
     # Break the parse tree by changing Name('wp') into a str
@@ -922,10 +972,10 @@ def test_process_declarations_kind_use():
     '''
     fake_parent, _ = process_declarations("use kind_mod, only: r_def\n"
                                           "real(kind=r_def) :: var2")
-    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
-                      DataSymbol)
+    var2_var = fake_parent.symbol_table.lookup("var2")
+    assert isinstance(var2_var.datatype.precision, DataSymbol)
     assert fake_parent.symbol_table.lookup("r_def") is \
-        fake_parent.symbol_table.lookup("var2").precision
+        var2_var.datatype.precision
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -941,13 +991,13 @@ def test_wrong_type_kind_param():
 
 
 @pytest.mark.parametrize("vartype, kind, precision",
-                         [("real", "1.0d0", DataSymbol.Precision.DOUBLE),
-                          ("real", "1.0D7", DataSymbol.Precision.DOUBLE),
+                         [("real", "1.0d0", ScalarType.Precision.DOUBLE),
+                          ("real", "1.0D7", ScalarType.Precision.DOUBLE),
                           ("real", "1_t_def", None),
-                          ("real", "1.0", DataSymbol.Precision.SINGLE),
-                          ("real", "1.0E3", DataSymbol.Precision.SINGLE),
+                          ("real", "1.0", ScalarType.Precision.UNDEFINED),
+                          ("real", "1.0E3", ScalarType.Precision.SINGLE),
                           # 32-bit integer
-                          ("integer", "1", DataSymbol.Precision.SINGLE),
+                          ("integer", "1", ScalarType.Precision.UNDEFINED),
                           # 64-bit integer
                           ("integer", str(1 << 31 + 4)+"_t_def", None)])
 @pytest.mark.usefixtures("f2008_parser")
@@ -959,10 +1009,11 @@ def test_process_declarations_kind_literals(vartype, kind, precision):
     fake_parent, _ = process_declarations("{0}(kind=KIND({1})) :: var".
                                           format(vartype, kind))
     if not precision:
-        assert fake_parent.symbol_table.lookup("var").precision is \
+        assert fake_parent.symbol_table.lookup("var").datatype.precision is \
             fake_parent.symbol_table.lookup("t_def")
     else:
-        assert fake_parent.symbol_table.lookup("var").precision == precision
+        assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
+                precision)
 
 
 @pytest.mark.parametrize("vartype, kind",
@@ -1004,9 +1055,10 @@ def test_process_declarations_stmt_functions():
 
     # If 'a' is declared in the symbol table as an array, it is an array
     # assignment which belongs in the execution part.
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     fake_parent.symbol_table.add(
-        DataSymbol('a', DataType.REAL, shape=[DataSymbol.Extent.ATTRIBUTE]))
-    fake_parent.symbol_table.add(DataSymbol('x', DataType.REAL, shape=[]))
+        DataSymbol('a', array_type))
+    fake_parent.symbol_table.add(DataSymbol('x', REAL_TYPE))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -1017,11 +1069,11 @@ def test_process_declarations_stmt_functions():
     fake_parent = KernelSchedule("dummy_schedule")
     reader = FortranStringReader("b(x, y) = 1")
     fparser2spec = Stmt_Function_Stmt(reader)
-    fake_parent.symbol_table.add(
-        DataSymbol('b', DataType.REAL, shape=[DataSymbol.Extent.ATTRIBUTE,
-                                              DataSymbol.Extent.ATTRIBUTE]))
-    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER, shape=[]))
-    fake_parent.symbol_table.add(DataSymbol('y', DataType.INTEGER, shape=[]))
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE])
+    fake_parent.symbol_table.add(DataSymbol('b', array_type))
+    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('y', INTEGER_TYPE))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -1029,7 +1081,7 @@ def test_process_declarations_stmt_functions():
     assert array.name == "b"
 
     # Test that if symbol is not an array, it raises GenerationError
-    fake_parent.symbol_table.lookup('b')._shape = []
+    fake_parent.symbol_table.lookup('b').datatype = INTEGER_TYPE
     with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process '" in str(error.value)
@@ -1061,7 +1113,7 @@ def test_parse_array_dimensions_attributes():
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
 
-    sym_table.add(DataSymbol('var1', DataType.INTEGER, []))
+    sym_table.add(DataSymbol('var1', INTEGER_TYPE))
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
@@ -1080,7 +1132,7 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        sym_table.add(DataSymbol("var2", DataType.REAL, []))
+        sym_table.add(DataSymbol("var2", REAL_TYPE))
         _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
@@ -1105,9 +1157,10 @@ def test_parse_array_dimensions_attributes():
     processor.process_declarations(fake_parent, [fparser2spec],
                                    [Name("array3")])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
-    assert fake_parent.symbol_table.lookup("array3").datatype == DataType.REAL
+    assert fake_parent.symbol_table.lookup("array3").datatype.intrinsic == \
+        ScalarType.Intrinsic.REAL
     assert fake_parent.symbol_table.lookup("array3").shape == \
-        [DataSymbol.Extent.ATTRIBUTE]
+        [ArrayType.Extent.ATTRIBUTE]
     assert fake_parent.symbol_table.lookup("array3").interface.access is \
         ArgumentInterface.Access.READ
 
@@ -1125,7 +1178,7 @@ def test_deferred_array_size():
                                    [Name("array3"), Name("n")])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, ArgumentInterface)
-    assert dim_sym.datatype == DataType.INTEGER
+    assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1140,7 +1193,7 @@ def test_unresolved_array_size():
     processor.process_declarations(fake_parent, fparser2spec, [])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, UnresolvedInterface)
-    assert dim_sym.datatype == DataType.INTEGER
+    assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     # Check that the lookup of the dimensioning symbol is not case sensitive
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
@@ -1258,7 +1311,7 @@ def test_handling_name():
         processor.process_nodes(fake_parent, [fparser2name])
     assert "No Symbol found for name 'x'." in str(error.value)
 
-    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
+    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
     processor.process_nodes(fake_parent, [fparser2name])
     assert len(fake_parent.children) == 1
     assignment = fake_parent.children[0]
@@ -1303,7 +1356,7 @@ def test_handling_part_ref():
         processor.process_nodes(fake_parent, [fparser2part_ref])
     assert "No Symbol found for name 'x'." in str(error.value)
 
-    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER))
+    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
     processor.process_nodes(fake_parent, [fparser2part_ref])
     assert len(fake_parent.children) == 1
     assignment = fake_parent.children[0]
@@ -2387,8 +2440,8 @@ def test_get_symbol_table():
             "but found 'str'." in str(excinfo.value))
 
     # no symbol table
-    lhs = Reference(DataSymbol("x", DataType.REAL))
-    rhs = Literal("1.0", DataType.REAL)
+    lhs = Reference(DataSymbol("x", REAL_TYPE))
+    rhs = Literal("1.0", REAL_TYPE)
     assignment = Assignment.create(lhs, rhs)
     for node in [lhs, rhs, assignment]:
         assert not _get_symbol_table(node)

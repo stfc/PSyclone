@@ -46,7 +46,8 @@ import pytest
 from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
     Assignment, Return, Loop, Literal
-from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError
+from psyclone.psyir.symbols import DataSymbol, SymbolError, \
+    INTEGER_TYPE, REAL_TYPE
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -632,7 +633,7 @@ def test_children_validation():
     '''
     assignment = Assignment()
     return_stmt = Return()
-    reference = Reference(DataSymbol("a", DataType.INTEGER))
+    reference = Reference(DataSymbol("a", INTEGER_TYPE))
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
@@ -662,14 +663,14 @@ def test_children_validation():
     assignment.addchild(reference)
 
     # Check displaced items are also be checked when needed
-    start = Literal("0", DataType.INTEGER)
-    stop = Literal("1", DataType.INTEGER)
-    step = Literal("2", DataType.INTEGER)
-    child_node = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
-                                   Reference(DataSymbol("i", DataType.REAL)))
+    start = Literal("0", INTEGER_TYPE)
+    stop = Literal("1", INTEGER_TYPE)
+    step = Literal("2", INTEGER_TYPE)
+    child_node = Assignment.create(Reference(DataSymbol("tmp", REAL_TYPE)),
+                                   Reference(DataSymbol("i", REAL_TYPE)))
     loop = Loop.create("i", start, stop, step, [child_node])
     with pytest.raises(GenerationError):
-        loop.children.insert(1, Literal("0", DataType.INTEGER))
+        loop.children.insert(1, Literal("0", INTEGER_TYPE))
 
     with pytest.raises(GenerationError):
         loop.children.remove(stop)

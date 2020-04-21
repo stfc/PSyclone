@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     KernelSchedule, AccessType, ACCEnterDataDirective
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolTable, DataType, DataSymbol, Symbol
+from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
+    INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -438,11 +439,11 @@ class GOLoop(Loop):
                 format(self._loop_type, VALID_LOOP_TYPES))
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         if not GOLoop._bounds_lookup:
@@ -658,7 +659,7 @@ class GOLoop(Loop):
                 index_offset = go_kernels[0].index_offset
 
             if not index_offset:
-                return Literal("not_yet_set", DataType.INTEGER, self)
+                return Literal("not_yet_set", INTEGER_TYPE, self)
 
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
@@ -677,7 +678,7 @@ class GOLoop(Loop):
             # but it helps to fix all of the test cases.
             if stop == "2-1":
                 stop = "1"
-            return Literal(stop, DataType.INTEGER, self)
+            return Literal(stop, INTEGER_TYPE, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
@@ -695,11 +696,11 @@ class GOLoop(Loop):
             # must go.
             data = api_config.grid_properties["go_grid_data"].fortran \
                 .format(self.field_name)
-            stop.addchild(Literal(data, DataType.INTEGER, parent=stop))
+            stop.addchild(Literal(data, INTEGER_TYPE, parent=stop))
             if self._loop_type == "inner":
-                stop.addchild(Literal("1", DataType.INTEGER, parent=stop))
+                stop.addchild(Literal("1", INTEGER_TYPE, parent=stop))
             elif self._loop_type == "outer":
-                stop.addchild(Literal("2", DataType.INTEGER, parent=stop))
+                stop.addchild(Literal("2", INTEGER_TYPE, parent=stop))
             return stop
 
         # Loop bounds are pulled from the field object which
@@ -725,7 +726,7 @@ class GOLoop(Loop):
         stop = stop_format.format(self.field_name)
         # TODO 363 - this needs updating once the PSyIR has support for
         # Fortran derived types.
-        return Literal(stop, DataType.INTEGER, self)
+        return Literal(stop, INTEGER_TYPE, self)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -756,7 +757,7 @@ class GOLoop(Loop):
                 index_offset = go_kernels[0].index_offset
 
             if not index_offset:
-                return Literal("not_yet_set", DataType.INTEGER, self)
+                return Literal("not_yet_set", INTEGER_TYPE, self)
 
             if self._loop_type == "inner":
                 stop = schedule.iloop_stop
@@ -774,11 +775,11 @@ class GOLoop(Loop):
             # but it helps with fixing all of the test cases.
             if start == "2-1":
                 start = "1"
-            return Literal(start, DataType.INTEGER, self)
+            return Literal(start, INTEGER_TYPE, self)
 
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", DataType.INTEGER, self)
+            return Literal("1", INTEGER_TYPE, self)
 
         # Loop bounds are pulled from the field object which is more
         # straightforward for us but provides the Fortran compiler
@@ -800,7 +801,7 @@ class GOLoop(Loop):
                              .format(key, self._loop_type)].fortran
         start = start_format.format(self.field_name)
         # TODO 363 - update once the PSyIR supports derived types
-        return Literal(start, DataType.INTEGER, self)
+        return Literal(start, INTEGER_TYPE, self)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -1049,7 +1050,7 @@ class GOKern(CodedKern):
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
         glob_size = symtab.new_symbol_name("globalsize")
-        symtab.add(DataSymbol(glob_size, DataType.INTEGER, shape=[2]))
+        symtab.add(DataSymbol(glob_size, ArrayType(INTEGER_TYPE, [2])))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         api_config = Config.get().api_conf("gocean1.0")
@@ -1062,7 +1063,7 @@ class GOKern(CodedKern):
 
         # Create array for the local work size argument of the kernel
         local_size = symtab.new_symbol_name("localsize")
-        symtab.add(DataSymbol(local_size, DataType.INTEGER, shape=[2]))
+        symtab.add(DataSymbol(local_size, ArrayType(INTEGER_TYPE, [2])))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
@@ -1188,7 +1189,7 @@ class GOKern(CodedKern):
 
         # Declare local variables
         err_name = argsetter_st.new_symbol_name("ierr")
-        argsetter_st.add(DataSymbol(err_name, DataType.INTEGER))
+        argsetter_st.add(DataSymbol(err_name, INTEGER_TYPE))
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
 
         # Set kernel arguments
@@ -2131,15 +2132,12 @@ class GOSymbolTable(SymbolTable):
         for pos, posstr in [(0, "first"), (1, "second")]:
             dtype = self.argument_list[pos].datatype
             shape_len = len(self.argument_list[pos].shape)
-            if (dtype != DataType.INTEGER or shape_len != 0):
-                if shape_len == 0:
-                    shape_str = "a scalar"
-                else:
-                    shape_str = "an array"
+            if not (isinstance(dtype, ScalarType) and
+                    dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
                 raise GenerationError(
                     "GOcean 1.0 API kernels {0} argument should be a scalar "
-                    "integer but got {1} of type '{2}'{3}."
-                    "".format(posstr, shape_str, str(dtype), kname_str))
+                    "integer but got '{1}'{2}."
+                    "".format(posstr, dtype, kname_str))
 
     @property
     def iteration_indices(self):

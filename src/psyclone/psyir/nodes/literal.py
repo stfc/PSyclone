@@ -38,15 +38,20 @@
 
 ''' This module contains the Literal node implementation.'''
 
+from __future__ import absolute_import
+import re
 import six
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
 class Literal(DataNode):
     '''
     Node representing a Literal. The value and datatype properties of
     this node are immutable.
+
+    If the node represents "real" data and the value is expressed with
+    an exponent (e.g. 3.2e4) then the exponent must be a lower case "e".
 
     :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
@@ -61,37 +66,45 @@ class Literal(DataNode):
     :raises TypeError: if the supplied value is not a string.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
                         'true' or 'false'.
+
     '''
-    # A Literal cannot have DEFERRED type
-    VALID_DATA_TYPES = [DataType.INTEGER, DataType.REAL,
-                        DataType.CHARACTER, DataType.BOOLEAN]
     # Class attributes of this node textual representations
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
     _colour_key = "Literal"
+    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
 
         # Checks for the datatype
-        if not isinstance(datatype, DataType):
-            raise TypeError("The datatype of a Literal must be an instance of"
-                            " psyir.symbols.DataType but got '{0}'".format(
-                                type(datatype).__name__))
-        if datatype not in self.VALID_DATA_TYPES:
-            raise ValueError("The datatype of a Literal must be one of {0} "
-                             "but got '{1}'".format(self.VALID_DATA_TYPES,
-                                                    datatype))
-        if not isinstance(value, six.string_types):
-            raise TypeError("Literals must be supplied with "
-                            "a value encoded as a string but got: {0}".
-                            format(type(value).__name__))
+        if not isinstance(datatype, (ScalarType, ArrayType)):
+            raise TypeError(
+                "The datatype of a Literal must be an instance of "
+                "psyir.symbols.ScalarType or psyir.symbols.ArrayType "
+                "but found '{0}'".format(type(datatype).__name__))
 
-        if datatype is DataType.BOOLEAN:
-            if value not in ("true", "false"):
-                raise ValueError(
-                    "A DataType.BOOLEAN Literal can only be: 'true' or "
-                    "'false' but got '{0}' instead.".format(value))
+        if not isinstance(value, six.string_types):
+            raise TypeError(
+                "Literals must be supplied with a value encoded as a string "
+                "but found '{0}'".format(type(value).__name__))
+
+        if not value:
+            raise ValueError("A literal value can not be empty.")
+
+        if (isinstance(datatype, ScalarType) and
+                datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
+                value not in ("true", "false")):
+            raise ValueError(
+                "A scalar boolean literal can only be: 'true' or "
+                "'false' but found '{0}'.".format(value))
+
+        if (datatype.intrinsic == ScalarType.Intrinsic.REAL and not
+                re.search(Literal._real_value, value)):
+            raise ValueError(
+                "A scalar real literal value must conform to the "
+                "supported format ('{0}') but found '{1}'."
+                "".format(Literal._real_value, value))
 
         self._datatype = datatype
         self._value = value

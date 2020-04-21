@@ -242,7 +242,7 @@ class BinaryOperation(Operation):
 
     .. note:: The type of data in `array1` and `array2` must be the
         same and the resultant data will also have the same
-        type. Currently only `DataType.REAL` is supported.
+        type. Currently only REAL data is supported.
 
     '''
     # Class attributes of this node textual representations
