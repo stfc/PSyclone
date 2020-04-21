@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
 
 
 @pytest.mark.xfail(reason="#677 the create() method does not check that the "
@@ -53,13 +53,13 @@ def test_bound_intrinsic_wrong_type(bound):
     with pytest.raises(TypeError) as err:
         # First argument must be an Array
         _ = BinaryOperation.create(bound,
-                                   Literal("1", DataType.INTEGER),
-                                   Literal("1", DataType.INTEGER))
+                                   Literal("1", INTEGER_TYPE),
+                                   Literal("1", INTEGER_TYPE))
     assert "must be an Array but got: 'Literal" in str(err.value)
     with pytest.raises(TypeError) as err:
         # Second argument cannot be a real literal
         _ = BinaryOperation.create(bound,
                                    Array("array"),
-                                   Literal("1.0", DataType.REAL))
+                                   Literal("1.0", REAL_TYPE))
     assert ("must be an integer but got a Literal of type REAL" in
             str(err.value))

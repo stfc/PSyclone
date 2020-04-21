@@ -46,7 +46,7 @@ import pytest
 from psyclone.psyir.nodes import Node, Schedule, Reference, Container, \
     Assignment, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolError, SymbolTable, \
-    DataType
+    REAL_TYPE
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -555,10 +555,10 @@ def test_find_symbol_table():
 
     '''
     kernel_symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", DataType.REAL)
+    symbol = DataSymbol("tmp", REAL_TYPE)
     kernel_symbol_table.add(symbol)
     ref = Reference(symbol)
-    assign = Assignment.create(ref, Literal("0.0", DataType.REAL))
+    assign = Assignment.create(ref, Literal("0.0", REAL_TYPE))
     kernel_schedule = KernelSchedule.create("my_kernel", kernel_symbol_table,
                                             [assign])
     container_symbol_table = SymbolTable()

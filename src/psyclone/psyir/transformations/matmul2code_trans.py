@@ -44,7 +44,7 @@ to matrix vector multiply.
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, Array, Range
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyGen import Transformation
 
 
@@ -52,9 +52,9 @@ def get_array_bound(array, index):
     '''Utility function ... XXX ... '''
     my_dim = array.symbol.shape[index]
     if isinstance(my_dim, int):
-        lower_bound = Literal("1", DataType.INTEGER)
-        upper_bound =  Literal(str(my_dim), DataType.INTEGER)
-        step = Literal("1", DataType.INTEGER)
+        lower_bound = Literal("1", INTEGER_TYPE)
+        upper_bound =  Literal(str(my_dim), INTEGER_TYPE)
+        step = Literal("1", INTEGER_TYPE)
     else:
         raise Exception("ERROR")
     return (lower_bound, upper_bound, step)
@@ -249,10 +249,10 @@ class Matmul2CodeTrans(Transformation):
         # addressed.
         symbol_table = node.find_symbol_table()
         i_loop_name = symbol_table.new_symbol_name("i")
-        i_loop_symbol = DataSymbol(i_loop_name, DataType.INTEGER)
+        i_loop_symbol = DataSymbol(i_loop_name, INTEGER_TYPE)
         symbol_table.add(i_loop_symbol)
         j_loop_name = symbol_table.new_symbol_name("j")
-        j_loop_symbol = DataSymbol(j_loop_name, DataType.INTEGER)
+        j_loop_symbol = DataSymbol(j_loop_name, INTEGER_TYPE)
         symbol_table.add(j_loop_symbol)
 
         # Create "result(i)"
@@ -289,7 +289,7 @@ class Matmul2CodeTrans(Transformation):
         jloop = Loop.create(j_loop_name, lower_bound, upper_bound, step,
                             [assign])
         # Create "result(i) = 0.0"
-        assign = Assignment.create(result, Literal("0.0", DataType.REAL))
+        assign = Assignment.create(result, Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
         lower_bound, upper_bound, step = get_array_bound(matrix, 1)
         iloop = Loop.create(

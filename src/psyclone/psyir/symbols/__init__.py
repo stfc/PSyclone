@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Symbols package module '''
@@ -42,7 +42,11 @@ from psyclone.psyir.symbols.datasymbol import DataSymbol, LocalInterface, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
-from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
+from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
+    ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
+    REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
+    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
@@ -56,4 +60,19 @@ __all__ = ['TYPE_MAP_TO_PYTHON',
            'GlobalInterface',
            'ArgumentInterface',
            'UnresolvedInterface',
-           'ContainerSymbol']
+           'ContainerSymbol',
+           'ScalarType',
+           'ArrayType',
+           'REAL_TYPE',
+           'REAL_SINGLE_TYPE',
+           'REAL_DOUBLE_TYPE',
+           'REAL4_TYPE',
+           'REAL8_TYPE',
+           'INTEGER_TYPE',
+           'INTEGER_SINGLE_TYPE',
+           'INTEGER_DOUBLE_TYPE',
+           'INTEGER4_TYPE',
+           'INTEGER8_TYPE',
+           'BOOLEAN_TYPE',
+           'CHARACTER_TYPE',
+           'DeferredType']

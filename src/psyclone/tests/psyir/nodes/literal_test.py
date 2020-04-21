@@ -41,77 +41,130 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import ScalarType, ArrayType, \
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
 
 
 def test_literal_init():
-    '''Test the initialisation Literal object.'''
-    literal = Literal("1", DataType.INTEGER)
-    assert literal._value == "1"
-    assert literal._datatype == DataType.INTEGER
+    '''Test the initialisation Literal object with ScalarType and
+    ArrayType and different precisions.
 
-    literal = Literal("true", DataType.BOOLEAN)
-    assert literal._value == "true"
-    assert literal._datatype == DataType.BOOLEAN
+    '''
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
+    literal = Literal("1", array_type)
+    assert literal.value == "1"
+    assert isinstance(literal.datatype, ArrayType)
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert literal.datatype.precision == ScalarType.Precision.DOUBLE
+    assert literal.datatype.shape == [10, 10]
 
-    literal = Literal("false", DataType.BOOLEAN)
-    assert literal._value == "false"
-    assert literal._datatype == DataType.BOOLEAN
+    literal = Literal("true", BOOLEAN_TYPE)
+    assert literal.value == "true"
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
+
+    literal = Literal("false", BOOLEAN_TYPE)
+    assert literal.value == "false"
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert literal.datatype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_literal_init_invalid():
+def test_literal_init_invalid_1():
     '''Test the initialisation of a Literal object with invalid parameters.'''
 
     # Test invalid datatype type
     with pytest.raises(TypeError) as err:
         Literal("1", 1)
     assert ("The datatype of a Literal must be an instance of psyir.symbols."
-            "DataType but got" in str(err.value))
-
-    # Test invalid datatype
-    with pytest.raises(ValueError) as err:
-        Literal("1", DataType.DEFERRED)
-    assert "The datatype of a Literal must be one of" in str(err.value)
+            "ScalarType or psyir.symbols.ArrayType but found"
+            in str(err.value))
 
     # Test invalid value type
     with pytest.raises(TypeError) as err:
-        Literal(1, DataType.INTEGER)
-    assert "Literals must be supplied with a value encoded as a string but " \
-        "got: " in str(err.value)
+        Literal(1, INTEGER_SINGLE_TYPE)
+    assert ("Literals must be supplied with a value encoded as a string but "
+            "found" in str(err.value))
 
     # Test invalid boolean value
     with pytest.raises(ValueError) as err:
-        Literal("invalid", DataType.BOOLEAN)
-    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
-        "but got 'invalid' instead." in str(err.value)
+        Literal("invalid", BOOLEAN_TYPE)
+    assert ("A scalar boolean literal can only be: 'true' or 'false' "
+            "but found 'invalid'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
-        Literal("TRUE", DataType.BOOLEAN)
-    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
-        "but got 'TRUE' instead." in str(err.value)
+        Literal("TRUE", BOOLEAN_TYPE)
+    assert ("A scalar boolean literal can only be: 'true' or 'false' "
+            "but found 'TRUE'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
-        Literal("False", DataType.BOOLEAN)
-    assert "A DataType.BOOLEAN Literal can only be: 'true' or 'false' " \
-        "but got 'False' instead." in str(err.value)
+        Literal("False", BOOLEAN_TYPE)
+    assert ("A scalar boolean literal can only be: 'true' or 'false' "
+            "but found 'False'." in str(err.value))
+
+
+@pytest.mark.parametrize("value", ["*2", "++2", ".", ".2", "2..3", "2.3.4",
+                                   "3.2d0", "3.2e+", "3.2e2*", "3e2e2"])
+def test_literal_init_invalid_2(value):
+    '''Test the initialisation of a Literal object with invalid real
+    values raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal(value, REAL_DOUBLE_TYPE)
+    assert ("A scalar real literal value must conform to the supported "
+            "format ('^[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?$') but "
+            "found '{0}'.".format(value) in str(err.value))
+
+
+def test_literal_init_invalid_3():
+    '''Test the initialisation of a Literal object with an empty value
+    argument raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal("", REAL_DOUBLE_TYPE)
+    assert "A literal value can not be empty." in str(err.value)
+
+
+@pytest.mark.parametrize("value",
+                         ["2", "+2", "-2", "2.", "23", "23.4", "-23.45",
+                          "+23.45e0", "23.45e10", "-23.45e-10",
+                          "+23.45e+10", "+23e-10", "23.e10"])
+def test_literal_init_valid_value(value):
+    '''Test the initialisation of a Literal object with valid real values.'''
+    _ = Literal(value, REAL_DOUBLE_TYPE)
 
 
 def test_literal_value():
     '''Test the value property returns the value of the Literal object.'''
-    literal = Literal("1", DataType.INTEGER)
+    integer_type = ScalarType(
+        ScalarType.Intrinsic.INTEGER, ScalarType.Precision.DOUBLE)
+    literal = Literal("1", integer_type)
     assert literal.value == "1"
 
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    literal = Literal("1", DataType.INTEGER)
+
+    # scalar literal
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    assert coloredtext+"[value:'1', DataType.INTEGER]" in literal.node_str()
+    assert (coloredtext+"[value:'1', Scalar<INTEGER, SINGLE>]"
+            in literal.node_str())
+
+    # array literal
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
+    literal = Literal("1", array_type)
+    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
+            "shape=[10, 10]>]" in literal.node_str())
 
 
 def test_literal_can_be_printed():
-    '''Test that an Literal instance can always be printed (i.e. is
+    '''Test that a Literal instance can always be printed (i.e. is
     initialised fully)'''
-    literal = Literal("1", DataType.INTEGER)
-    assert "Literal[value:'1', DataType.INTEGER]" in str(literal)
+    array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
+    literal = Literal("1", array_type)
+    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
+            "shape=[10, 10]>]" in str(literal))

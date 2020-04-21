@@ -889,7 +889,13 @@ vector variables are:
 
 * ``W2trace`` is the space of scalar functions defined only on cell faces,
   resulting from taking the trace of a ``W2`` space. DoFs are shared between
-  faces, hence making this space fully continuous.
+  faces, hence making this space fully continuous;
+
+* ``Wchi`` is the space of scalar functions used to store coordinates in
+  LFRic, fully discontinuous except for the coordinate order ``0`` when it
+  becomes the ``W0`` space (i.e. fully continuous). Since LFRic neither
+  performs halo exchange on coordinate fields nor updates them the
+  lowest-order continuity of the ``Wchi`` space can be safely ignored.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -927,15 +933,15 @@ function apaces are summarised in the table below.
 
 .. tabularcolumns:: |l|l|
 
-+---------------------------+----------------------------+
-| Function Space Continuity | Function Space Name        |
-+===========================+============================+
-| Continuous                | W0, W1, W2, W2H, W2trace,  |
-|                           | ANY_W2, ANY_SPACE_n        |
-+---------------------------+----------------------------+
-| Discontinuous             | W2V, W2broken, W3, Wtheta, |
-|                           | ANY_DISCONTINUOUS_SPACE_n  |
-+---------------------------+----------------------------+
++---------------------------+----------------------------------+
+| Function Space Continuity | Function Space Name              |
++===========================+==================================+
+| Continuous                | W0, W1, W2, W2H, W2trace, ANY_W2 |
+|                           | ANY_SPACE_n                      |
++---------------------------+----------------------------------+
+| Discontinuous             | W2V, W2broken, W3, Wtheta, Wchi, |
+|                           | ANY_DISCONTINUOUS_SPACE_n        |
++---------------------------+----------------------------------+
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -1397,13 +1403,13 @@ rules, along with PSyclone's naming conventions, are:
          +---------------+-----------+------------------------------------+
          | Function Type | Dimension | Function Space Name                |
          +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W3, Wtheta            |
+         | Basis         |    1      | W0, W2trace, W3, Wtheta, Wchi      |
          |               +-----------+------------------------------------+
          |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
          +---------------+-----------+------------------------------------+
          | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
          | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W3, Wtheta        |
+         |               |    3      | W0, W1, W2trace, W3, Wtheta, Wchi  |
          +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.

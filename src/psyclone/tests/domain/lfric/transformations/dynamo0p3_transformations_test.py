@@ -42,7 +42,8 @@ from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone import psyir
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import LocalInterface
+from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
+    REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -3489,8 +3490,9 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    lit_uninit = lit + "[value:'NOT_INITIALISED', DataType.INTEGER]\n"
-    lit_one = lit + "[value:'1', DataType.INTEGER]\n"
+    lit_uninit = (lit + "[value:'NOT_INITIALISED', Scalar<INTEGER, "
+                  "UNDEFINED>]\n")
+    lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
     indent = "    "
 
     _, invoke = get_invoke("15.19.1_three_builtins_two_reductions.f90",
@@ -7071,11 +7073,12 @@ def test_kern_const_ndofs():
                 "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
                 "w2broken": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430,
                              3300],
-                "w2trace": [6, 24, 54, 96, 150, 216, 294, 384, 486, 600]}
+                "w2trace": [6, 24, 54, 96, 150, 216, 294, 384, 486, 600],
+                "wchi": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000]}
     kct = Dynamo0p3KernelConstTrans()
     for order in range(10):
         for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
-                               "w2v", "w2broken", "w2trace"]:
+                               "w2v", "w2broken", "w2trace", "wchi"]:
             assert kct.space_to_dofs[function_space](order) == \
                 expected[function_space][order]
         # wtheta should equal w2v
@@ -7240,9 +7243,23 @@ def test_kern_const_invalid_make_constant2():
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
     symbol = symbol_table._argument_list[7]
-    symbol._datatype = "real"
+    # Expecting scalar integer. Set to array.
+    symbol._datatype = ArrayType(INTEGER_TYPE, [10])
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, {"element_order": 0})
+    assert ("Expected entry to be a scalar argument but found "
+            "'ArrayType'." in str(excinfo.value))
+    # Expecting scalar integer. Set to real.
+    symbol._datatype = REAL_TYPE
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
-            "'ndf_w1: <real, Scalar, Argument("
-            "pass-by-value=False)>'.") in str(excinfo.value)
+            "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
+    # Expecting scalar integer. Set to constant.
+    symbol._datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
+                                  ScalarType.Precision.UNDEFINED)
+    symbol._constant_value = 10
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, {"element_order": 0})
+    assert ("Expected entry to be a scalar integer argument but found "
+            "a constant." in str(excinfo.value))

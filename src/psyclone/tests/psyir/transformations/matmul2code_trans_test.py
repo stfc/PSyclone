@@ -42,7 +42,8 @@ from psyclone.psyir.transformations import Matmul2CodeTrans, \
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
     Reference, Range
 from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
+    INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import Compile
 
@@ -52,11 +53,12 @@ def create_matmul():
 
     '''
     symbol_table = SymbolTable()
-    one = Literal("1", DataType.INTEGER)
-    two = Literal("2", DataType.INTEGER)
-    index = DataSymbol("idx", DataType.INTEGER)
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    index = DataSymbol("idx", INTEGER_TYPE)
     symbol_table.add(index)
-    mat_symbol = DataSymbol("x", DataType.REAL, shape=[10, 10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
     lbound1 = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, Reference(mat_symbol), one)
@@ -70,7 +72,8 @@ def create_matmul():
     my_mat_range2 = Range.create(lbound2, ubound2, one)
     matrix = Array.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                        Reference(index)])
-    vec_symbol = DataSymbol("y", DataType.REAL, shape=[10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
     lbound = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, Reference(vec_symbol), one)
@@ -116,8 +119,8 @@ def test_validate2():
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(BinaryOperation.create(
-            BinaryOperation.Operator.ADD, Literal("1.0", DataType.REAL),
-            Literal("1.0", DataType.REAL)))
+            BinaryOperation.Operator.ADD, Literal("1.0", REAL_TYPE),
+            Literal("1.0", REAL_TYPE)))
     assert ("Transformation Error: The supplied node should be a MATMUL "
             "BinaryOperation but found 'Operator.ADD'." in str(excinfo.value))
 
@@ -129,12 +132,13 @@ def test_validate3():
 
     '''
     trans = Matmul2CodeTrans()
-    array = Array.create(DataSymbol("x", DataType.REAL, shape=[10]),
-                         [Literal("10", DataType.INTEGER)])
+    array_type = ArrayType(REAL_TYPE, [10])
+    array = Array.create(DataSymbol("x", array_type),
+                         [Literal("10", INTEGER_TYPE)])
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, array, array)
     _ = BinaryOperation.create(BinaryOperation.Operator.MUL, matmul,
-                               Literal("1.0", DataType.REAL))
+                               Literal("1.0", REAL_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Matmul2CodeTrans only supports the "
@@ -149,8 +153,9 @@ def test_validate4():
 
     '''
     trans = Matmul2CodeTrans()
-    array = Array.create(DataSymbol("x", DataType.REAL, shape=[10]),
-                         [Literal("10", DataType.INTEGER)])
+    array_type = ArrayType(REAL_TYPE, [10])
+    array = Array.create(DataSymbol("x", array_type),
+                         [Literal("10", INTEGER_TYPE)])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array, array)
     matmul = BinaryOperation.create(
@@ -171,7 +176,7 @@ def test_validate5():
 
     '''
     trans = Matmul2CodeTrans()
-    scalar = Reference(DataSymbol("x", DataType.REAL))
+    scalar = Reference(DataSymbol("x", REAL_TYPE))
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, scalar, scalar)
     _ = Assignment.create(scalar, matmul)
@@ -189,7 +194,8 @@ def test_validate6():
 
     '''
     trans = Matmul2CodeTrans()
-    array = Reference(DataSymbol("x", DataType.REAL, shape=[10]))
+    array_type = ArrayType(REAL_TYPE, [10])
+    array = Reference(DataSymbol("x", array_type))
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, array, array)
     _ = Assignment.create(array, matmul)
@@ -210,7 +216,7 @@ def test_validate7():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.children[0]
-    matrix.children[0] = Literal("1", DataType.INTEGER)
+    matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use matmul2code_trans on matmul, "
@@ -248,7 +254,7 @@ def test_validate9():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.children[1]
-    vector.children[0] = Literal("1", DataType.INTEGER)
+    vector.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use matmul2code_trans on matmul, "
@@ -327,8 +333,8 @@ def test_apply2(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    matmul.children[0].children[2] = Literal("1", DataType.INTEGER)
-    matmul.children[1].children[1] = Literal("2", DataType.INTEGER)
+    matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
+    matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
     trans.apply(matmul)
     writer = FortranWriter()
     result = writer(matmul.root)
@@ -362,11 +368,11 @@ def test_apply3(tmpdir):
     matmul = create_matmul()
     matrix = matmul.children[0]
     matrix_symbol = matrix.symbol
-    matrix_symbol._shape = [10, 10]
     matmul.children[0] = Reference(matrix_symbol)
+    matrix_symbol.datatype._shape = [10, 10]
     rhs_vector = matmul.children[1]
     rhs_vector_symbol = rhs_vector.symbol
-    rhs_vector_symbol._shape = [10]
+    rhs_vector_symbol.datatype._shape = [10]
     matmul.children[1] = Reference(rhs_vector_symbol)
     lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol

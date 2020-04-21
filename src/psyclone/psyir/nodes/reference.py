@@ -43,7 +43,7 @@ from __future__ import absolute_import
 from psyclone.psyir.nodes import Node, BinaryOperation, Literal
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol, DataType
+from psyclone.psyir.symbols import Symbol, ScalarType
 from psyclone.errors import GenerationError
 
 
@@ -260,7 +260,8 @@ class Array(Reference):
                 lower.children[0].name == self.name):
             return False
         if not (isinstance(lower.children[1], Literal) and
-                lower.children[1].datatype == DataType.INTEGER
+                lower.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER
                 and lower.children[1].value == str(index+1)):
             return False
 
@@ -272,13 +273,14 @@ class Array(Reference):
                 upper.children[0].name == self.name):
             return False
         if not (isinstance(upper.children[1], Literal) and
-                upper.children[1].datatype == DataType.INTEGER
+                upper.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER
                 and upper.children[1].value == str(index+1)):
             return False
 
         # step
         if not (isinstance(step, Literal) and
-                step.datatype == DataType.INTEGER
+                step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
                 and step.value == "1"):
             return False
 
