@@ -44,19 +44,52 @@ to matrix vector multiply.
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, Array, Range
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
+    ArrayType
 from psyclone.psyGen import Transformation
 
 
-def get_array_bound(array, index):
-    '''Utility function ... XXX ... '''
+def _get_array_bound(array, index):
+    '''A utility function that returns the appropriate loop bounds (lower,
+    upper and step) for a particular index of an array reference. At
+    the moment all entries for the index are assumed to be accessed.
+    If the array symbol is declared with known bounds (an integer or a
+    symbol) then these bound values are used. If the size is unknown
+    (a deferred or attribute type) then the LBOUND and UBOUND PSyIR
+    nodes are used.
+
+    :param array: the reference that we are interested in.
+    :type array: :py:class:`psyir.nodes.Reference`
+    :param int index: the (array) reference index that we are \
+        interested in.
+    :returns: the loop bounds for this array index.
+    :rtype: (Literal, Literal, Literal) or \
+        (BinaryOperation, BinaryOperation, Literal)
+
+    :raises TransformationError: if the shape of the array's symbol is \
+        not supported.
+
+    '''
     my_dim = array.symbol.shape[index]
     if isinstance(my_dim, int):
         lower_bound = Literal("1", INTEGER_TYPE)
         upper_bound =  Literal(str(my_dim), INTEGER_TYPE)
-        step = Literal("1", INTEGER_TYPE)
+    elif isinstance(my_dim, DataSymbol):
+        lower_bound = Literal("1", INTEGER_TYPE)
+        upper_bound =  Reference(my_dim)
+    elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
+        lower_bound = BinaryOperation.create(
+            BinaryOperation.Operator.LBOUND, Reference(array.symbol),
+            Literal(str(index), INTEGER_TYPE))
+        upper_bound =  BinaryOperation.create(
+            BinaryOperation.Operator.UBOUND, Reference(array.symbol),
+            Literal(str(index), INTEGER_TYPE))
     else:
-        raise Exception("ERROR")
+        # Added import here to avoid circular dependencies.
+        from psyclone.psyir.transformations import TransformationError
+        raise TransformationError("Unsupported index type '{0}' found for array '{1}'."
+                                  "".format(type(my_dim).__name__, array.name))
+    step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
 
@@ -285,13 +318,13 @@ class Matmul2CodeTrans(Transformation):
         assign = Assignment.create(result, rhs)
         # Create j loop and add the above code as a child
         # Work out the bounds
-        lower_bound, upper_bound, step = get_array_bound(vector, 0)
+        lower_bound, upper_bound, step = _get_array_bound(vector, 0)
         jloop = Loop.create(j_loop_name, lower_bound, upper_bound, step,
                             [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result, Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
-        lower_bound, upper_bound, step = get_array_bound(matrix, 1)
+        lower_bound, upper_bound, step = _get_array_bound(matrix, 1)
         iloop = Loop.create(
             i_loop_name, lower_bound, upper_bound, step, [assign, jloop])
         # Add the new code to the PSyIR

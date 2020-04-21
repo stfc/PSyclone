@@ -39,13 +39,15 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
+from psyclone.psyir.transformations.matmul2code_trans import _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
     Reference, Range
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
-    INTEGER_TYPE, REAL_TYPE
+    ScalarType, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import Compile
+
 
 def create_matmul():
     '''Utility function that creates a valid matmul node for use with
@@ -398,3 +400,81 @@ def test_apply3(tmpdir):
         "\n"
         "end subroutine my_kern" in result)
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_get_array_bound_error():
+    '''Test that the _get_array_bound() utility function raises the
+    expected exception if the shape of the array's symbol is not
+    supported.'''
+    array_type = ArrayType(REAL_TYPE, [10])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+    array_type._shape = [0.2]
+    with pytest.raises(TransformationError) as excinfo:
+        _get_array_bound(reference, 0)
+    assert ("Transformation Error: Unsupported index type 'float' found for array "
+            "'x'." in str(excinfo.value))
+    
+    
+def test_get_array_bound():
+    '''Test that the _get_array_bound utility function returns the expected
+    bound values for different types of array declaration.
+
+    '''
+    scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
+    array_type = ArrayType(REAL_TYPE, [10, scalar_symbol,
+                                       ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.ATTRIBUTE])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+    # literal value
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
+    assert isinstance(lower_bound, Literal)
+    assert lower_bound.value == "1"
+    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(upper_bound, Literal)
+    assert upper_bound.value == "10"
+    assert upper_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(step, Literal)
+    assert step.value == "1"
+    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # symbol
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 1)
+    assert isinstance(lower_bound, Literal)
+    assert lower_bound.value == "1"
+    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(upper_bound, Reference)
+    assert upper_bound.symbol.name == "n"
+    assert isinstance(step, Literal)
+    assert step.value == "1"
+    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # deferred and attribute
+    def _check_ulbound(lower_bound, upper_bound, step, index):
+        '''Internal utility routine that checks LBOUND and UBOUND are used
+        correctly for the lower and upper array bounds
+        respectively.
+
+        '''
+        assert isinstance(lower_bound, BinaryOperation)
+        assert lower_bound.operator == BinaryOperation.Operator.LBOUND
+        assert isinstance(lower_bound.children[0], Reference)
+        assert lower_bound.children[0].symbol is array_symbol
+        assert isinstance(lower_bound.children[1], Literal)
+        assert (lower_bound.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER)
+        assert lower_bound.children[1].value == str(index)
+        assert isinstance(upper_bound, BinaryOperation)
+        assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+        assert isinstance(upper_bound.children[0], Reference)
+        assert upper_bound.children[0].symbol is array_symbol
+        assert isinstance(upper_bound.children[1], Literal)
+        assert (upper_bound.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER)
+        assert upper_bound.children[1].value == str(index)
+        assert isinstance(step, Literal)
+        assert step.value == "1"
+        assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 2)
+    _check_ulbound(lower_bound, upper_bound, step, 2)
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 3)
+    _check_ulbound(lower_bound, upper_bound, step, 3)
