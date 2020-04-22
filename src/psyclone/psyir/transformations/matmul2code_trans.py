@@ -73,22 +73,23 @@ def _get_array_bound(array, index):
     my_dim = array.symbol.shape[index]
     if isinstance(my_dim, int):
         lower_bound = Literal("1", INTEGER_TYPE)
-        upper_bound =  Literal(str(my_dim), INTEGER_TYPE)
+        upper_bound = Literal(str(my_dim), INTEGER_TYPE)
     elif isinstance(my_dim, DataSymbol):
         lower_bound = Literal("1", INTEGER_TYPE)
-        upper_bound =  Reference(my_dim)
+        upper_bound = Reference(my_dim)
     elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
-        upper_bound =  BinaryOperation.create(
+        upper_bound = BinaryOperation.create(
             BinaryOperation.Operator.UBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
     else:
         # Added import here to avoid circular dependencies.
         from psyclone.psyir.transformations import TransformationError
-        raise TransformationError("Unsupported index type '{0}' found for array '{1}'."
-                                  "".format(type(my_dim).__name__, array.name))
+        raise TransformationError(
+            "Unsupported index type '{0}' found for array '{1}'."
+            "".format(type(my_dim).__name__, array.name))
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
@@ -124,7 +125,7 @@ class Matmul2CodeTrans(Transformation):
     def name(self):
         '''
         :returns: the name of the transformation as a string.
-        :rtype:str
+        :rtype: str
 
         '''
         return "Matmul2CodeTrans"

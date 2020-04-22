@@ -69,9 +69,11 @@ $ psyclone -s ./matvec_opt.py \
 
 '''
 from __future__ import print_function
+import sys
 from psyclone.psyir.nodes import BinaryOperation
 from psyclone.psyir.transformations.matmul2code_trans import Matmul2CodeTrans
 from psyclone.psyir.backend.fortran import FortranWriter
+
 
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
@@ -102,5 +104,5 @@ def trans(psy):
                 # time being.
                 print("Aborting to view the modifications to the matrix "
                       "vector kernel")
-                exit(1)
+                sys.exit()
     return psy

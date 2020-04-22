@@ -237,6 +237,7 @@ class Array(Reference):
             number of dimensions in the array.
 
         '''
+        # pylint: disable=too-many-return-statements
         if index > len(self.children)-1:
             raise ValueError(
                 "In Array '{0}' the specified index '{1}' must be less than "

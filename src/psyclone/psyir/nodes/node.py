@@ -260,7 +260,6 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
-        from psyclone.psyGen import GenerationError
         try:
             import graphviz as gv
         except ImportError:
@@ -902,11 +901,11 @@ class Node(object):
         '''
         current = self
         while current and not hasattr(current, "symbol_table"):
-            current=current.parent
+            current = current.parent
         if current:
             return current.symbol_table
         raise InternalError("Symbol table not found in any ancestor nodes.")
-        
+
     def find_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
         associated with this node or one of its ancestors.  Raises an

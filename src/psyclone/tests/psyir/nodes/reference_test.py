@@ -286,7 +286,7 @@ def test_array_is_full_range():
 
     # Array dimension range upper bound is not a UBOUND binary operation
     my_range = Range.create(lbound, lbound, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range upper bound is a UBOUND binary operation
@@ -294,7 +294,7 @@ def test_array_is_full_range():
     ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                           zero, zero)
     my_range = Range.create(lbound, ubound_error, one)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range upper bound is a UBOUND binary operation
@@ -334,7 +334,7 @@ def test_array_is_full_range():
     # Check Step
     # Array dimension range step is not a literal.
     my_range = Range.create(lbound, ubound, lbound)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range step is not an integer literal.
@@ -348,7 +348,7 @@ def test_array_is_full_range():
     # Array dimension range step is is an integer literal with the
     # wrong value (not 1).
     my_range = Range.create(lbound, ubound, zero)
-    array_reference = Array.create(symbol,[my_range])
+    array_reference = Array.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # All is as it should be.

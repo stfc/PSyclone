@@ -412,10 +412,10 @@ def test_get_array_bound_error():
     array_type._shape = [0.2]
     with pytest.raises(TransformationError) as excinfo:
         _get_array_bound(reference, 0)
-    assert ("Transformation Error: Unsupported index type 'float' found for array "
-            "'x'." in str(excinfo.value))
-    
-    
+    assert ("Transformation Error: Unsupported index type 'float' found for "
+            "array 'x'." in str(excinfo.value))
+
+
 def test_get_array_bound():
     '''Test that the _get_array_bound utility function returns the expected
     bound values for different types of array declaration.
@@ -448,6 +448,7 @@ def test_get_array_bound():
     assert isinstance(step, Literal)
     assert step.value == "1"
     assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+
     # deferred and attribute
     def _check_ulbound(lower_bound, upper_bound, step, index):
         '''Internal utility routine that checks LBOUND and UBOUND are used
