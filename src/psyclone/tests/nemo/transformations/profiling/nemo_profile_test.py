@@ -266,11 +266,11 @@ def test_profile_single_line_if(parser):
     # (as opposed to manipulating the fparser2 parse tree).
     # TODO #435
     with pytest.raises(TransformationError) as err:
-        _, _ = PTRANS.apply(schedule[0].if_body)
+        PTRANS.apply(schedule[0].if_body)
     assert "single-line if statement" in str(err.value)
     # But we should be able to put the whole If statement in a profiling
     # region...
-    _, _ = PTRANS.apply(schedule[0])
+    PTRANS.apply(schedule[0])
     gen_code = str(psy.gen)
     assert (
         "  CALL psy_data0 % PreStart('one_line_if_test', 'r0', 0, 0)\n"

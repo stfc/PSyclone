@@ -387,6 +387,26 @@ def test_location(parser):
     assert x_accesses[0].location == x_accesses[1].location
 
 
+def test_user_defined_variables(parser):
+    ''' Test reading and writing to user defined variables. This is
+    only partially supported atm because the PSyIR does not support such
+    variables (#363).
+    '''
+    # TODO #363: this uses a work around for user defined types atm.
+    reader = FortranStringReader('''program test_prog
+                                       use some_mod
+                                       a%b%c(ji, jj) = d
+                                       e%f = d
+                                    end program test_prog''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test_prog").schedule
+
+    var_accesses = VariablesAccessInfo(loops)
+    assert var_accesses["a % b % c"].is_written
+    assert var_accesses["e % f"].is_written
+
+
 def test_math_equal(parser):
     '''Tests the math_equal function of nodes in the PSyIR.'''
 

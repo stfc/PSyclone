@@ -594,10 +594,10 @@ class Fparser2Reader(object):
         new_container = Container(mod_name)
 
         # Parse the declarations if it has any
-        spec_part = walk(module, Fortran2003.Specification_Part)
-        if spec_part:
-            decl_list = spec_part[0].children
-            self.process_declarations(new_container, decl_list, [])
+        for child in module.children:
+            if isinstance(child, Fortran2003.Specification_Part):
+                self.process_declarations(new_container, child.children, [])
+                break
 
         return new_container
 
@@ -658,7 +658,7 @@ class Fparser2Reader(object):
                                   "subroutine: {0}".format(name))
 
         # Check whether or not we need to create a Container for this schedule
-        # TODO #738 this routine should just be creating a Subroutine, not
+        # TODO #737 this routine should just be creating a Subroutine, not
         # attempting to create a Container too. Perhaps it should be passed
         # a reference to the parent Container object.
         if not container:
