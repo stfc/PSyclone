@@ -39,13 +39,14 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Node
-from psyclone.psyir.symbols import DataSymbol, DataType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 @pytest.fixture(scope="function")
 def disable_declaration_check(request, monkeypatch):
     ''' By default a Reference checks that it has a corresponding entry in
     the Symbol Table. However, this could make constructing tests very
     long winded so this fixture simply disables the check. '''
-    monkeypatch.setattr(Node, "find_or_create_symbol",
-                        lambda _1, name, _2=None: DataSymbol(name,
-                                                             DataType.INTEGER))
+    monkeypatch.setattr(
+        Node, "find_or_create_symbol",
+        lambda _1, name, _2=None: DataSymbol(name,
+                                             INTEGER_TYPE))

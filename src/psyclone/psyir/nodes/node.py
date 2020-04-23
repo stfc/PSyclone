@@ -922,7 +922,7 @@ class Node(object):
 
         '''
         from psyclone.psyir.symbols import DataSymbol, DataType, \
-            UnresolvedInterface
+            UnresolvedInterface, DeferredType
         if scope_limit:
             # Validate the supplied scope_limit
             if not isinstance(scope_limit, Node):
@@ -993,7 +993,7 @@ class Node(object):
             # it may be being brought into scope. Therefore create a DataSymbol
             # of unknown type and deferred interface and add it to the most
             # local SymbolTable.
-            symbol = DataSymbol(name, DataType.DEFERRED,
+            symbol = DataSymbol(name, DeferredType(),
                                 interface=UnresolvedInterface())
             first_symbol_table.add(symbol)
             return symbol

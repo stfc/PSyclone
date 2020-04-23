@@ -185,7 +185,7 @@ def test_where_symbol_clash(parser):
     we want to introduce.
 
     '''
-    from psyclone.psyir.symbols import Symbol, DataSymbol, DataType
+    from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType
     reader = FortranStringReader("SUBROUTINE widx_array()\n"
                                  "LOGICAL :: widx1(3,3,3)\n"
                                  "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
@@ -198,10 +198,10 @@ def test_where_symbol_clash(parser):
     sched = processor.generate_schedule("widx_array", fparser2spec)
     var = sched.symbol_table.lookup("widx1")
     assert isinstance(var, DataSymbol)
-    assert var.datatype is DataType.BOOLEAN
+    assert var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Check that we have a new symbol for the loop variable
     loop_var = sched.symbol_table.lookup("widx1_1")
-    assert loop_var.datatype is DataType.INTEGER
+    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
     reader = FortranStringReader("module my_test\n"
                                  "use some_module\n"
@@ -228,11 +228,11 @@ def test_where_symbol_clash(parser):
     cblock_var = sym_table.lookup("widx1_0")
     assert isinstance(cblock_var, Symbol)
     loop_var = sym_table.lookup("widx1_1")
-    assert loop_var.datatype is DataType.INTEGER
+    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     loop_var = sym_table.lookup("widx2")
-    assert loop_var.datatype is DataType.INTEGER
+    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     loop_var = sym_table.lookup("widx3")
-    assert loop_var.datatype is DataType.INTEGER
+    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 
 @pytest.mark.usefixtures("parser", "disable_declaration_check")

@@ -3671,7 +3671,7 @@ class NemoExplicitLoopTrans(Transformation):
         from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
-        from psyclone.psyir.symbols import DataSymbol, DataType
+        from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
         self.validate(loop, options)
 
@@ -3717,7 +3717,7 @@ class NemoExplicitLoopTrans(Transformation):
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
         loop_var = symbol_table.new_symbol_name(base_name)
-        symbol_table.add(DataSymbol(loop_var, DataType.INTEGER))
+        symbol_table.add(DataSymbol(loop_var, INTEGER_TYPE))
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"

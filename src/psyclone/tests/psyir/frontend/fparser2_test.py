@@ -1378,11 +1378,11 @@ def test_handling_part_ref():
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = KernelSchedule('assign')
-    fake_parent.symbol_table.add(DataSymbol('x', DataType.INTEGER,
-                                            shape=[10,10,10]))
-    fake_parent.symbol_table.add(DataSymbol('i', DataType.INTEGER))
-    fake_parent.symbol_table.add(DataSymbol('j', DataType.INTEGER))
-    fake_parent.symbol_table.add(DataSymbol('z', DataType.INTEGER))
+    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    fake_parent.symbol_table.add(DataSymbol('x', array_type))
+    fake_parent.symbol_table.add(DataSymbol('i', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('j', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('z', INTEGER_TYPE))
     processor.process_nodes(fake_parent, [fparser2part_ref])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1

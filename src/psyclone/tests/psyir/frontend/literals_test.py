@@ -113,7 +113,7 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
                           ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
                           (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_handling_literal_precision_2(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision value.
@@ -145,7 +145,7 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
                           ("0.0d0", ScalarType.Precision.DOUBLE),
                           ("0.0E0", ScalarType.Precision.SINGLE),
                           ("0.0e0", ScalarType.Precision.SINGLE)])
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_handling_literal_precision_3(value, dprecision):
     '''Check that the fparser2 frontend can handle literals with a
     precision value specified by the exponent. The literal value
@@ -168,7 +168,7 @@ def test_handling_literal_precision_3(value, dprecision):
 
 @pytest.mark.parametrize("value,result",
                          [(".3", "0.3"), (".3e4", "0.3e4")])
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_literal_constant_value_format(value, result):
     '''Test that the Fortran real literal value format which does not have
     a digit before the decimal point is modified to include a "0"

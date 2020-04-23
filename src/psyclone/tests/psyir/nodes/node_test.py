@@ -618,19 +618,19 @@ def test_find_or_create_symbol():
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new
     symbols when appropriate. '''
-    from psyclone.psyir.symbols import SymbolTable, DataType, \
-        ContainerSymbol, UnresolvedInterface
+    from psyclone.psyir.symbols import SymbolTable, REAL_TYPE, \
+        ContainerSymbol, UnresolvedInterface, ScalarType, DeferredType
     from psyclone.psyir.nodes import Assignment, Literal
     from psyclone.psyGen import KernelSchedule
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", DataType.REAL))
+    symbol_table.add(DataSymbol("tmp", REAL_TYPE))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
                                  [kernel1])
-    xvar = DataSymbol("x", DataType.REAL)
+    xvar = DataSymbol("x", REAL_TYPE)
     xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", DataType.REAL))
+    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
     kernel1.addchild(assign)
     assign.parent = kernel1
     # We have no wildcard imports so there can be no symbol named 'undefined'
@@ -639,7 +639,7 @@ def test_find_or_create_new_symbol():
     assert "No Symbol found for name 'undefined'" in str(err.value)
     # We should be able to find the 'tmp' symbol in the parent Container
     sym = assign.find_or_create_symbol("tmp")
-    assert sym.datatype == DataType.REAL
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
     # Add a wildcard import to the SymbolTable of the KernelSchedule
     new_container = ContainerSymbol("some_mod")
     new_container.wildcard_import = True
@@ -649,7 +649,7 @@ def test_find_or_create_new_symbol():
     new_symbol = assign.find_or_create_symbol("undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
-    assert new_symbol.datatype == DataType.DEFERRED
+    assert isinstance(new_symbol.datatype, DeferredType)
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 
@@ -659,7 +659,7 @@ def test_nemo_find_container_symbol(parser):
     searched-for symbol is declared in the parent module. '''
     from fparser.common.readfortran import FortranFileReader
     from psyclone.psyir.nodes import BinaryOperation
-    from psyclone.psyir.symbols import DataType
+    from psyclone.psyir.symbols import ScalarType
     reader = FortranFileReader(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(
@@ -671,4 +671,4 @@ def test_nemo_find_container_symbol(parser):
     bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
     # Use it as the starting point for the search
     symbol = bops[0].find_or_create_symbol("alpha")
-    assert symbol.datatype == DataType.REAL
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
