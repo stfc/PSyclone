@@ -102,20 +102,6 @@ def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert "contains undeclared symbol" in str(err.value)
-    assert "'rdt'" in str(err.value)
-    _, invoke_info = parse(os.path.join(
-        path, "single_invoke_kern_with_unqualified_use.f90"),
-                           api=API)
-    # monkeypatch the check that symbols have been declared in order
-    # to exercise the check on unqualified imports
-    rdt_sym = DataSymbol("rdt", REAL_TYPE)
-    monkeypatch.setattr(Node, "find_symbol", lambda _1, _2: rdt_sym)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-    with pytest.raises(TransformationError) as err:
-        trans.apply(kernel)
     assert ("'kernel_with_use_code' has a wildcard import of symbols from "
             "container 'model_mod'" in str(err.value))
 
