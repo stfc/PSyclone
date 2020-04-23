@@ -38,8 +38,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoSignTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
-    ArgumentInterface
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
+    ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
     Literal
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -75,15 +75,15 @@ def example_psyir(create_expression):
     '''
     symbol_table = SymbolTable()
     name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, DataType.REAL, interface=ArgumentInterface(
+    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg1)
     name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, DataType.REAL, interface=ArgumentInterface(
+    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg2)
     name3 = symbol_table.new_symbol_name()
-    arg3 = DataSymbol(name3, DataType.REAL)
+    arg3 = DataSymbol(name3, REAL_TYPE)
     symbol_table.add(arg3)
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
@@ -100,7 +100,7 @@ def example_psyir(create_expression):
                          [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", DataType.REAL)), "arg * 3.14")])
+                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
 def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     first argument to SIGN is a simple argument and when it is an
@@ -157,12 +157,12 @@ def test_correct_expr(tmpdir):
     operation = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", DataType.REAL)))
+            Literal("3.14", REAL_TYPE)))
     assignment = operation.parent
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", DataType.REAL), operation)
+                                 Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 op1, Literal("2.0", DataType.REAL))
+                                 op1, Literal("2.0", REAL_TYPE))
     op2.parent = assignment
     assignment.children[1] = op2
     writer = FortranWriter()
@@ -213,11 +213,11 @@ def test_correct_2sign(tmpdir):
     operation = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", DataType.REAL)))
+            Literal("3.14", REAL_TYPE)))
     assignment = operation.parent
     sign_op = BinaryOperation.create(
-        BinaryOperation.Operator.SIGN, Literal("1.0", DataType.REAL),
-        Literal("1.0", DataType.REAL))
+        BinaryOperation.Operator.SIGN, Literal("1.0", REAL_TYPE),
+        Literal("1.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  sign_op, operation)
     op1.parent = assignment

@@ -291,7 +291,7 @@ def test_constructor():
 
     with pytest.raises(InternalError) as err:
         VariablesAccessInfo(1)
-    assert "Error in VariablesAccessInfo" in str(err)
+    assert "Error in VariablesAccessInfo" in str(err.value)
     # The error message is slightly different between python 2 and 3
     # so only test for the part that is the same in both:
-    assert "'int'>" in str(err)
+    assert "'int'>" in str(err.value)

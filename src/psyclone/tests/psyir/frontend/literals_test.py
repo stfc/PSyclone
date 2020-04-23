@@ -42,15 +42,17 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import ScalarType, DataSymbol, DeferredType
 from psyclone.psyir.nodes import Node, Literal, CodeBlock
+from psyclone.errors import InternalError
 
 
-@pytest.mark.parametrize("code, dtype", [("'hello'", DataType.CHARACTER),
-                                         ("1", DataType.INTEGER),
-                                         ("1.0", DataType.REAL),
-                                         (".tRue.", DataType.BOOLEAN),
-                                         (".false.", DataType.BOOLEAN)])
+@pytest.mark.parametrize("code, dtype",
+                         [("'hello'", ScalarType.Intrinsic.CHARACTER),
+                          ("1", ScalarType.Intrinsic.INTEGER),
+                          ("1.0", ScalarType.Intrinsic.REAL),
+                          (".tRue.", ScalarType.Intrinsic.BOOLEAN),
+                          (".false.", ScalarType.Intrinsic.BOOLEAN)])
 @pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
@@ -64,11 +66,122 @@ def test_handling_literal(code, dtype):
     assert not fake_parent.walk(CodeBlock)
     literal = fake_parent.children[0].children[1]
     assert isinstance(literal, Literal)
-    assert literal.datatype == dtype
-    if dtype != DataType.BOOLEAN:
+    assert literal.datatype.intrinsic == dtype
+    if dtype != ScalarType.Intrinsic.BOOLEAN:
         assert literal.value == code
     else:
         assert literal.value == code.lower()[1:-1]  # Remove wrapping dots
+
+
+@pytest.mark.parametrize("value,dprecision,intrinsic",
+                         [("0.0", "rdef", ScalarType.Intrinsic.REAL),
+                          ("1", "idef", ScalarType.Intrinsic.INTEGER),
+                          ("'hello'", "cdef", ScalarType.Intrinsic.CHARACTER),
+                          (".tRue.", "ldef", ScalarType.Intrinsic.BOOLEAN),
+                          (".false.", "ldef", ScalarType.Intrinsic.BOOLEAN)])
+@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
+def test_handling_literal_precision_1(value, dprecision, intrinsic):
+    '''Check that the fparser2 frontend can handle literals with a
+    specified precision kind symbol.
+
+    '''
+    if intrinsic == ScalarType.Intrinsic.CHARACTER:
+        code = "x={0}_{1}".format(dprecision, value)
+    else:
+        code = "x={0}_{1}".format(value, dprecision)
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [astmt])
+    assert not fake_parent.walk(CodeBlock)
+    literal = fake_parent.children[0].children[1]
+    assert isinstance(literal, Literal)
+    assert literal.datatype.intrinsic == intrinsic
+    if intrinsic == ScalarType.Intrinsic.BOOLEAN:
+        assert ".{0}.".format(literal.value) == value.lower()
+    else:
+        assert literal.value == value
+    assert isinstance(literal.datatype.precision, DataSymbol)
+    assert literal.datatype.precision.name == dprecision
+    assert isinstance(literal.datatype.precision.datatype, DeferredType)
+
+
+@pytest.mark.parametrize("value,dprecision,intrinsic",
+                         [("0.0", 16, ScalarType.Intrinsic.REAL),
+                          ("1", 8, ScalarType.Intrinsic.INTEGER),
+                          ("'hello'", 1, ScalarType.Intrinsic.CHARACTER),
+                          (".tRue.", 4, ScalarType.Intrinsic.BOOLEAN),
+                          (".false.", 8, ScalarType.Intrinsic.BOOLEAN)])
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_literal_precision_2(value, dprecision, intrinsic):
+    '''Check that the fparser2 frontend can handle literals with a
+    specified precision value.
+
+    '''
+    if intrinsic == ScalarType.Intrinsic.CHARACTER:
+        code = "x={0}_{1}".format(dprecision, value)
+    else:
+        code = "x={0}_{1}".format(value, dprecision)
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [astmt])
+    assert not fake_parent.walk(CodeBlock)
+    literal = fake_parent.children[0].children[1]
+    assert isinstance(literal, Literal)
+    assert literal.datatype.intrinsic == intrinsic
+    if intrinsic == ScalarType.Intrinsic.BOOLEAN:
+        assert ".{0}.".format(literal.value) == value.lower()
+    else:
+        assert literal.value == value
+    assert isinstance(literal.datatype.precision, int)
+    assert literal.datatype.precision == dprecision
+
+
+@pytest.mark.parametrize("value,dprecision",
+                         [("0.0D0", ScalarType.Precision.DOUBLE),
+                          ("0.0d0", ScalarType.Precision.DOUBLE),
+                          ("0.0E0", ScalarType.Precision.SINGLE),
+                          ("0.0e0", ScalarType.Precision.SINGLE)])
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_literal_precision_3(value, dprecision):
+    '''Check that the fparser2 frontend can handle literals with a
+    precision value specified by the exponent. The literal value
+    should always use a lower case "e" for the exponent.
+
+    '''
+    code = "x={0}".format(value)
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [astmt])
+    assert not fake_parent.walk(CodeBlock)
+    literal = fake_parent.children[0].children[1]
+    assert isinstance(literal, Literal)
+    assert literal.value.lower() == "0.0e0"
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert literal.datatype.precision == dprecision
+
+
+@pytest.mark.parametrize("value,result",
+                         [(".3", "0.3"), (".3e4", "0.3e4")])
+@pytest.mark.usefixtures("f2008_parser")
+def test_literal_constant_value_format(value, result):
+    '''Test that the Fortran real literal value format which does not have
+    a digit before the decimal point is modified to include a "0"
+    e.g. ".3" -> "0.3", "-.3e4" -> "-0.3e4" '''
+    reader = FortranStringReader("a = {0}".format(value))
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fake_parent = Node()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [astmt])
+    literal = fake_parent.children[0].children[1]
+    assert isinstance(literal, Literal)
+    assert literal.value == result
+    assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 @pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
@@ -96,3 +209,48 @@ def test_number_handler():
     with pytest.raises(NotImplementedError):
         processor._number_handler(
             Fortran2003.Complex_Literal_Constant(reader), fake_parent)
+
+
+# The get_literal_precision() function is covered by the
+# test_handling_literal_precision_{1-3} tests above, apart from
+# invalid arguments and unsupported datatypes which are tested in the
+# next two tests.
+@pytest.mark.usefixtures("f2008_parser")
+def test_get_literal_precision():
+    '''Make sure the get_literal_precision function in fparser2.py behaves
+    as expected when the arguments are invalid.
+
+    '''
+    from psyclone.psyir.frontend.fparser2 import get_literal_precision
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_literal_precision(None, None)
+    assert ("Unsupported literal type 'NoneType' found in "
+            "get_literal_precision." in str(excinfo.value))
+    code = "x=0.0"
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fparser2_literal = astmt.children[2]
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_literal_precision(fparser2_literal, None)
+    assert ("Expecting argument psyir_literal_parent to be a PSyIR Node but "
+            "found 'NoneType' in get_literal_precision." in str(excinfo.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_get_literal_precision_type(monkeypatch):
+    '''Make sure the get_literal_precision function in fparser2.py behaves
+    as expected when an unsupported datatype is found
+
+    '''
+    from psyclone.psyir.frontend import fparser2
+    from psyclone.psyir.frontend.fparser2 import get_literal_precision
+    monkeypatch.setattr(fparser2, "CONSTANT_TYPE_MAP", {})
+    code = "x=0.0"
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    fparser2_literal = astmt.children[2]
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = get_literal_precision(fparser2_literal, Node())
+    assert ("Could not process Real_Literal_Constant. Only 'real', 'integer', "
+            "'logical' and 'character' intrinsic types are supported."
+            in str(excinfo.value))

@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, DataType, SymbolTable
+    ContainerSymbol, ScalarType, ArrayType, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
@@ -112,7 +112,7 @@ def gen_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
-        elif isinstance(index, DataSymbol.Extent):
+        elif isinstance(index, ArrayType.Extent):
             # unknown extent
             dims.append(":")
         else:
@@ -146,46 +146,43 @@ def gen_datatype(symbol):
 
     '''
     try:
-        datatype = TYPE_MAP_TO_FORTRAN[symbol.datatype]
+        fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.intrinsic]
     except KeyError:
         raise NotImplementedError(
-            "unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(symbol.datatype, symbol.name))
+            "Unsupported datatype '{0}' for symbol '{1}' found in "
+            "gen_datatype().".format(symbol.datatype.intrinsic, symbol.name))
 
-    if not symbol.precision:
-        # This symbol has no precision information so simply return
-        # the name of the datatype.
-        return datatype
+    precision = symbol.datatype.precision
 
-    if isinstance(symbol.precision, int):
-        if datatype not in ['real', 'integer', 'logical']:
+    if isinstance(precision, int):
+        if fortrantype not in ['real', 'integer', 'logical']:
             raise VisitorError("Explicit precision not supported for datatype "
                                "'{0}' in symbol '{1}' in Fortran backend."
-                               "".format(datatype, symbol.name))
-        if datatype == 'real' and symbol.precision not in [4, 8, 16]:
+                               "".format(fortrantype, symbol.name))
+        if fortrantype == 'real' and precision not in [4, 8, 16]:
             raise VisitorError(
                 "Datatype 'real' in symbol '{0}' supports fixed precision of "
                 "[4, 8, 16] but found '{1}'.".format(symbol.name,
-                                                     symbol.precision))
-        if datatype in ['integer', 'logical'] and symbol.precision not in \
+                                                     precision))
+        if fortrantype in ['integer', 'logical'] and precision not in \
            [1, 2, 4, 8, 16]:
             raise VisitorError(
                 "Datatype '{0}' in symbol '{1}' supports fixed precision of "
                 "[1, 2, 4, 8, 16] but found '{2}'."
-                "".format(datatype, symbol.name, symbol.precision))
+                "".format(fortrantype, symbol.name, precision))
         # Precision has an an explicit size. Use the "type*size" Fortran
         # extension for simplicity. We could have used
         # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
         # ISO_FORTRAN_ENV; type(type64) :: MyType.
-        return "{0}*{1}".format(datatype, symbol.precision)
+        return "{0}*{1}".format(fortrantype, precision)
 
-    if isinstance(symbol.precision, DataSymbol.Precision):
+    if isinstance(precision, ScalarType.Precision):
         # The precision information is not absolute so is either
         # machine specific or is specified via the compiler. Fortran
         # only distinguishes relative precision for single and double
         # precision reals.
-        if datatype.lower() == "real" and \
-           symbol.precision == DataSymbol.Precision.DOUBLE:
+        if fortrantype.lower() == "real" and \
+           precision == ScalarType.Precision.DOUBLE:
             return "double precision"
         # This logging warning can be added when issue #11 is
         # addressed.
@@ -194,19 +191,19 @@ def gen_datatype(symbol):
         #      "Fortran does not support relative precision for the '%s' "
         #      "datatype but '%s' was specified for variable '%s'.",
         #      datatype, str(symbol.precision), symbol.name)
-        return datatype
+        return fortrantype
 
-    if isinstance(symbol.precision, DataSymbol):
-        if datatype not in ["real", "integer", "logical"]:
+    if isinstance(precision, DataSymbol):
+        if fortrantype not in ["real", "integer", "logical"]:
             raise VisitorError(
                 "kind not supported for datatype '{0}' in symbol '{1}' in "
-                "Fortran backend.".format(datatype, symbol.name))
+                "Fortran backend.".format(fortrantype, symbol.name))
         # The precision information is provided by a parameter, so use KIND.
-        return "{0}(kind={1})".format(datatype, symbol.precision.name)
+        return "{0}(kind={1})".format(fortrantype, precision.name)
 
     raise VisitorError(
         "Unsupported precision type '{0}' found for symbol '{1}' in Fortran "
-        "backend.".format(type(datatype).__name__, symbol.name))
+        "backend.".format(type(precision).__name__, symbol.name))
 
 
 def _reverse_map(op_map):
@@ -323,8 +320,8 @@ class FortranWriter(PSyIRVisitor):
 
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)
-        if DataSymbol.Extent.DEFERRED in symbol.shape:
-            if not all(dim == DataSymbol.Extent.DEFERRED
+        if ArrayType.Extent.DEFERRED in symbol.shape:
+            if not all(dim == ArrayType.Extent.DEFERRED
                        for dim in symbol.shape):
                 raise VisitorError(
                     "A Fortran declaration of an allocatable array must have"
@@ -333,13 +330,13 @@ class FortranWriter(PSyIRVisitor):
                                                          symbol.shape))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
-        if DataSymbol.Extent.ATTRIBUTE in symbol.shape:
-            if not all(dim == DataSymbol.Extent.ATTRIBUTE
+        if ArrayType.Extent.ATTRIBUTE in symbol.shape:
+            if not all(dim == ArrayType.Extent.ATTRIBUTE
                        for dim in symbol.shape):
                 # If we have an 'assumed-size' array then only the last
                 # dimension is permitted to have an 'ATTRIBUTE' extent
-                if symbol.shape.count(DataSymbol.Extent.ATTRIBUTE) != 1 or \
-                   symbol.shape[-1] != DataSymbol.Extent.ATTRIBUTE:
+                if symbol.shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or \
+                   symbol.shape[-1] != ArrayType.Extent.ATTRIBUTE:
                     raise VisitorError(
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
@@ -644,7 +641,8 @@ class FortranWriter(PSyIRVisitor):
                isinstance(node.children[0], Reference) and \
                node.children[0].name == array.name and \
                isinstance(node.children[1], Literal) and \
-               node.children[1].datatype == DataType.INTEGER and \
+               node.children[1].datatype.intrinsic == \
+               ScalarType.Intrinsic.INTEGER and \
                node.children[1].value == str(array_index):
                 return True
             return False
@@ -667,7 +665,7 @@ class FortranWriter(PSyIRVisitor):
         result = "{0}:{1}".format(start, stop)
 
         if isinstance(node.step, Literal) and \
-           node.step.datatype == DataType.INTEGER and \
+           node.step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER and \
            node.step.value == "1":
             # Step is 1. This is the default in Fortran so no need to
             # output any text.
@@ -689,11 +687,26 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # Booleans need to be converted to Fortran format
-        if node.datatype == DataType.BOOLEAN:
+        if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
+        elif node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            result = "'{0}'".format(node.value)
         else:
             result = node.value
+        precision = node.datatype.precision
+        if isinstance(precision, DataSymbol):
+            # A KIND variable has been specified
+            if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                result = "{0}_{1}".format(precision.name, result)
+            else:
+                result = "{0}_{1}".format(result, precision.name)
+        if isinstance(precision, int):
+            # A KIND value has been specified
+            if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                result = "{0}_{1}".format(precision, result)
+            else:
+                result = "{0}_{1}".format(result, precision)
         return result
 
     # pylint: enable=no-self-use

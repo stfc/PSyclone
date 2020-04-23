@@ -48,7 +48,7 @@ from psyclone.psyir.transformations.nemo_operator_trans import \
         NemoOperatorTrans
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
 class NemoMinTrans(NemoOperatorTrans):
@@ -142,13 +142,13 @@ class NemoMinTrans(NemoOperatorTrans):
         # different types) but this can't be checked as we don't have
         # appropriate methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_min")
-        res_var_symbol = DataSymbol(res_var, DataType.REAL)
+        res_var_symbol = DataSymbol(res_var, REAL_TYPE)
         symbol_table.add(res_var_symbol)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
         # comment (associated issue #658).
         tmp_var = symbol_table.new_symbol_name("tmp_min")
-        tmp_var_symbol = DataSymbol(tmp_var, DataType.REAL)
+        tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
         symbol_table.add(tmp_var_symbol)
 
         # Replace operation with a temporary (res_var).

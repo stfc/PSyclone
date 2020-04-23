@@ -36,7 +36,7 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Node

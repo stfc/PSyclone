@@ -36,6 +36,7 @@
 
 '''This module tests the PSyclone Dynamo 0.1 API.  '''
 
+from __future__ import absolute_import
 import pytest
 from fparser.api import parse as parse1
 from psyclone.parse.utils import ParseError
