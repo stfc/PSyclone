@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _PSy-layer:
 
 PSy layer
@@ -112,18 +147,23 @@ InvokeSchedule visualisation
 ++++++++++++++++++++++++++++
 
 PSyclone supports visualising an InvokeSchedule (or any other PSyIR node)
-in two ways. Firstly the `view()` method outputs textual information about
-the contents of a PSyIR node. If we were to look at the dynamo eg6 example
+in two ways. First the `view()` method outputs textual information about
+the contents of a PSyIR node. If we were to look at the LFRic eg6 example
 we would see the following output:
 ::
 
    >>> schedule.view()
    InvokeSchedule[invoke='invoke_0', dm=True]
-       Directive[OMP parallel do]
-           Loop[type='dofs',field_space='any_space_1',it_space='dofs']
-               BuiltIn setval_X_code(p,z)
-               BuiltIn X_innerproduct_Y_code(rs_old,res,z)
-       GlobalSum[scalar='rs_old']
+       0: Directive[OMP parallel do]
+           Schedule[]
+               0: Loop[type='dofs',field_space='any_space_1',it_space='dofs','upper_bound='ndofs']
+                   Literal[value:'NOT_INITIALISED']
+                   Literal[value:'NOT_INITIALISED']
+                   Literal[value:'1']
+                   Schedule[]
+                       0: BuiltIn setval_X_code(p,z)
+                       1: BuiltIn X_innerproduct_Y_code(rs_old,res,z)
+       1: GlobalSum[scalar='rs_old']
 
 The above output tells us that the invoke name for the InvokeSchedule we are
 looking at is `invoke_0` and that the distributed_memory option has
@@ -133,7 +173,7 @@ latter of the two builtin calls requires a reduction and distributed
 memory is switched on, PSyclone has added a GlobalSum call for the
 appropriate scalar.
 
-Secondly, the `dag()` method (standing for directed acyclic graph),
+Second, the `dag()` method (standing for directed acyclic graph),
 outputs the PSyIR nodes and its data dependencies. By default a file in
 dot format is output with the name ``dag`` and a file in svg format is
 output with the name ``dag.svg``. The file name can be changed using
@@ -148,7 +188,7 @@ should be consulted for valid formats if svg is not required.
 .. note:: The dag method can be called from any node and will
           output the dag for that node and all of its children.
 
-If we were to look at the dynamo eg6 example we would see the
+If we were to look at the LFRic eg6 example we would see the
 following image:
 
 .. image:: dag.png

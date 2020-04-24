@@ -1,0 +1,152 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by A. Porter, STFC
+! Modified by I. Kavcic, Met Office
+!
+!> @brief Contains methods and algorithms for solving a system A.x = b for known
+!! input field b and matrix A and returns field x
+!!
+!! @details Contains a selection of solvers for inverting the matrix vector
+!! system A.x = b to return x = A^{-1}.b Depending upom the type of system to
+!! solve a number of iterative solver algorithms are possible or for
+!! discontinuous systems an exact solver can be used
+module solver_mod
+
+  use constants_mod,                 only : r_def, str_def, i_def
+  use function_space_collection_mod, only : function_space_collection
+  use field_mod,                     only : field_type
+  use finite_element_config_mod,     only : element_order
+  use fs_continuity_mod,             only : W3
+  use function_space_mod,            only : function_space_type
+  use log_mod,                   only : log_event,         &
+                                        log_scratch_space, &
+                                        LOG_LEVEL_ERROR,   &
+                                        LOG_LEVEL_INFO,    &
+                                        LOG_LEVEL_DEBUG,   &
+                                        LOG_LEVEL_TRACE
+  use matrix_vector_kernel_mod,  only : matrix_vector_kernel_type
+  use operator_mod,              only : operator_type
+  use quadrature_mod,            only : quadrature_type
+  use solver_config_mod,         only : solver_method_cg,               &
+                                        solver_method_bicgstab,         &
+                                        solver_method_jacobi,           &
+                                        solver_method_gmres,            &
+                                        solver_method_gcr,              &
+                                        tolerance,                      &
+                                        maximum_iterations,             &
+                                        solver_preconditioner_none,     &
+                                        solver_preconditioner_diagonal, &
+                                        gcrk
+  use w3_solver_kernel_mod,      only : w3_solver_kernel_type
+  use enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
+
+  implicit none
+
+  ! This derived type is purely to illustrate the use of a component
+  ! of a derived type as a kernel argument
+  type :: example_type
+     real(r_def)    :: rflag
+     integer(i_def) :: iflag
+  end type example_type
+
+  private
+  public :: solver_algorithm
+
+contains
+
+!> @brief Jacobi solver for the system A.x = b.
+!! @details solves A.x = b where the operation A.x is encoded in a kernel using
+!! a fixed (n_iter) number of iterations. The choice of matrix is
+!! encoded in the matrix vector kernel that is called. No measure of convergence
+!! is used instead the algorithm is assumed to have converged sufficiently
+!! after (n_iter) iterations
+!! @param[in,out] lhs The answer, x
+!! @param[in] rhs The input b
+!! @param[in] mm operator type, the mass matrix
+!! @param[in] mesh The id of mesh object the model for fields
+!! @param[in] n_iter The number of Jacobi iterations to perform
+subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
+
+  use mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
+  implicit none
+
+  integer(i_def),      intent(in)    :: n_iter
+  type(field_type),    intent(inout) :: lhs
+  type(field_type),    intent(in)    :: rhs
+  type(operator_type), intent(in)    :: mm
+  integer(i_def),      intent(in)    :: mesh
+  type(field_type)                   :: Ax, diagonal, res
+
+  real(kind=r_def), parameter :: MU = 0.9_r_def
+
+  integer(i_def) :: iter
+  type(example_type)                 :: flag_obj
+  type(function_space_type), pointer :: rhs_fs => null()
+
+  flag_obj%rflag = 0.0_r_def
+
+  rhs_fs => function_space_collection%get_fs( mesh, &
+                                              element_order, &
+                                              rhs%which_function_space() )
+
+  diagonal = field_type( vector_space = rhs_fs )
+  res      = field_type( vector_space = rhs_fs )
+  res2     = field_type( vector_space = rhs_fs )
+
+  call invoke( mm_diagonal_kernel_type(diagonal, mm), &
+               X_divideby_Y(lhs, rhs, diagonal),      &
+               name = "jacobi part 1")
+
+  do iter = 1,n_iter
+                  ! Scalar value is supplied by dereferencing
+                  ! a derived type
+    call invoke ( name = "jacobi iteration",            &
+                  setval_c(Ax, flag_obj%rflag),         &
+                  matrix_vector_kernel_type(Ax,lhs,mm), &
+                  enforce_bc_kernel_type(Ax),           &
+                  X_minus_Y(res, rhs, Ax),              &
+                  inc_X_divideby_Y(res, diagonal),      &
+                  inc_aX_plus_Y(MU, lhs, res) )
+
+  ! Ready for next iteration
+  end do
+
+end subroutine jacobi_solver_algorithm
+
+end module solver_mod

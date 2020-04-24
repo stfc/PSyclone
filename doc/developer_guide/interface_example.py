@@ -1,7 +1,7 @@
 def some_function(filename, kernel_path, node=None):
     '''The description starts with a capital letter and must have
     proper punctuation. Use for example :func:`parse.algorithm.parse`
-    to reference functions, or :py:class:`psyclone.psyGen.Node` for
+    to reference functions, or :py:class:`psyclone.psyir.nodes.Node` for
     references to other PSyclone classes. The description must be followed
     by an empty line before the parameters start, but it is not necessary
     to escape each new line with a backslash here.
@@ -21,12 +21,12 @@ def some_function(filename, kernel_path, node=None):
                  type, no filler words like 'return type is integer'.\
                  Notice the empty line between parameter and return\
                  documentation.
-    :type node: :py:class:`psyclone.psyGen.Node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     :return: a new node in the PSyIR. The return type must always be\
              specified in a separate line with an :rtype: entry. An empty\
              line separates the return documentation and the exceptions.
-    :rtype: :py:class:`psyclone.psyGen.Node`
+    :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises IOError: lower case start with punctuation at the end.
     :raises GenerationError: list the same exception more than once if\

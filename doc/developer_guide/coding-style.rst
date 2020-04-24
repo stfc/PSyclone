@@ -12,6 +12,62 @@ The first time a class or function is mentioned, use the full Python path, e.g.:
 class name (again in italics).
 File names and shell commands should be set in double back-ticks (\`\`).
 
+Any code examples provided in the documentation should be using the
+right syntax to allow for syntax highlighting. The option
+``.. highlight:: LANGUAGE`` is used to define the language to be used
+for all text following the directive (until the end of the current file).
+It is recommended to have at most one ``highlight`` directive in
+a file and to avoid switching default languages several times within a file.
+Having a default language set in a file allow use of the very convenient
+shortcut notation "::". Note that the "::" will be replaced with a
+single ":" if the previous character is not a space::
+
+    .. highlight:: fortran
+
+    Code example::
+
+        program this_is_highlighted_using_fortran_syntax
+
+    And if you don't want any ":" in the previous line, just
+    add a white space before the "::" ::
+
+        program there_is_no_colon_in_the_previous_description
+
+If some examples in a file need a different highlighting syntax,
+use the ``.. code-block:: LANGUAGE`` directive, which will only
+change the syntax for the following code example::
+
+    .. highlight:: fortran
+
+    Code example::
+
+        program this_is_highlighted_using_fortran_syntax
+
+    This is a python example:
+
+    .. code-block:: python
+
+        trans = self.get_transform()
+
+
+It is also possible to use ``code-block`` inside a Python docstring that
+is pulled into a document::
+
+
+    class GOConstLoopBoundsTrans(Transformation):
+        ''' Switch on (or off) the use of constant loop bounds within
+        a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
+        generate loops where the bounds are obtained by de-referencing a field
+        object, e.g.:
+
+        .. code-block:: fortran
+
+          DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
+
+        Some compilers are able to produce more efficient code if they are
+        ...
+
+The code block will be highlighted as Fortran code.
 
 Coding Style
 ############
@@ -127,3 +183,44 @@ Some important details:
 
   #) Standard Python functions like `__str__` etc. need only be documented with a
      simple informal comment.
+
+  #) Only document exceptions that are raised directly by a method, not exceptions
+     that might be raised in base classes.
+
+File Names and Directory Layout
+################################
+Any file in PSyclone should only contain one main class (helper classes or functions
+specific to that class are of course possible). While the class name should start
+with a capital letter and be in camel-case (`ExtractTrans`), the corresponding
+file name should be derived from the class name by replacing all upper case letters
+with lower case, and adding a '_' to separate words. So the file containing
+the class `ExtractTrans` should be called `extract_trans.py`.
+
+The directory structure of the PSyclone classes is as follows:
+
+domain:
+    This directory contains the various API-specific classes.
+
+    domain/API_NAME:
+        The following domains are currently supported: `lfric`, `gocean`, `nemo`.
+
+        domain/API_NAME/transformations:
+            These directories contain the API-specific transformations,
+            typically using one of the classes in psyir/transformations as a base
+            class. Any transformation class should have the domain as prefix, and
+            `Trans` as postfix (e.g. `GOceanExtractTrans`), and the corresponding
+            file name should start with the API name and end with `_trans.py`
+            (e.g. `gocean_extract_trans.py`).
+
+psyir:
+    This directory contains all classes and functions related to the PSyIR
+    (PSyclone Internal Representation). The directory itself does not contain
+    any source files (except `__init__.py` to shorten the import paths).
+
+    psyir/transformations
+        This directory contains all basic transformations, i.e. all transformations
+        that are either directly usable in any API, or are base classes for
+        API-specific transformations. Any transformation class should have `Trans`
+        as postfix (e.g. `ExtractTrans`), and the corresponding file name should
+        end with `_trans.py` (e.g. `extract_trans.py`).
+

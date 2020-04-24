@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,10 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    CodedKern, Arguments, KernelArgument, Literal, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    CodedKern, Arguments, KernelArgument
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -112,7 +114,7 @@ class GOPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = GOInvokes(invoke_info.calls)
+        self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -143,11 +145,9 @@ class GOPSy(PSy):
 class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
-    def __init__(self, alg_calls):
-        # pylint: disable=using-constant-test
-        if False:
-            self._0_to_n = GOInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, GOInvoke)
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
 
 class GOInvoke(Invoke):
@@ -158,12 +158,12 @@ class GOInvoke(Invoke):
         method so that we generate GOcean specific invocation code and
         provides to methods which separate arguments that are arrays from
         arguments that are scalars. '''
-    def __init__(self, alg_invocation, idx):
+    def __init__(self, alg_invocation, idx, invokes):
         # pylint: disable=using-constant-test
         if False:
             self._schedule = GOInvokeSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule,
-                        reserved_names=["cf", "ct", "cu", "cv"])
+                        invokes, reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
     def unique_args_arrays(self):
@@ -226,9 +226,10 @@ class GOInvokeSchedule(InvokeSchedule):
     supply our API-specific factories to the base InvokeSchedule class
     constructor. '''
 
-    def __init__(self, alg_calls):
+    def __init__(self, alg_calls, reserved_names=None):
         InvokeSchedule.__init__(self, GOKernCallFactory,
-                                GOBuiltInCallFactory, alg_calls)
+                                GOBuiltInCallFactory, alg_calls,
+                                reserved_names)
 
 
 class GOLoop(Loop):
@@ -249,22 +250,24 @@ class GOLoop(Loop):
             self._variable_name = "j"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
+                              parent=self))  # stop
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def gen_code(self, parent):
 
         if self.field_space == "every":
             from psyclone.f2pygen import DeclGen
-            from psyclone.psyGen import BinaryOperation, Reference
+            from psyclone.psyir.nodes import BinaryOperation, Reference
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
 
             # Update start loop bound
-            self.start_expr = Literal("1", parent=self)
+            self.start_expr = Literal("1", INTEGER_TYPE, parent=self)
 
             # Update stop loop bound
             if self._loop_type == "inner":
@@ -273,9 +276,11 @@ class GOLoop(Loop):
                 index = "2"
             self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
                                              parent=self)
-            self.stop_expr.addchild(Reference(self.field_name,
-                                              parent=self.stop_expr))
-            self.stop_expr.addchild(Literal(index, parent=self.stop_expr))
+            self.stop_expr.addchild(
+                Reference(DataSymbol(self.field_name, INTEGER_TYPE),
+                          parent=self.stop_expr))
+            self.stop_expr.addchild(Literal(index, INTEGER_TYPE,
+                                            parent=self.stop_expr))
 
         else:  # one of our spaces so use values provided by the infrastructure
 

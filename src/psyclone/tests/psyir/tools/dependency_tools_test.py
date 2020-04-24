@@ -39,6 +39,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from psyclone.tests.utilities import get_invoke
 from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.psyGen import PSyFactory
 
@@ -70,7 +71,7 @@ def test_loop_parallelise_errors():
         # The loop object must be a Loop, not e.g. an int:
         loop = 1
         dep_tools.can_loop_be_parallelised(loop, "i")
-    assert "node must be an instance of class Loop but got" in str(err)
+    assert "node must be an instance of class Loop but got" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
@@ -294,3 +295,48 @@ def test_derived_type(parser):
         can_loop_be_parallelised(loops[1], "jj",
                                  variables_to_ignore=["a % b", "b % b"])
     assert parallel
+
+
+# -----------------------------------------------------------------------------
+def test_inout_parameters_nemo(parser):
+    '''Test detection of input and output parameters in NEMO.
+    '''
+    reader = FortranStringReader('''program test
+                         do jj = 1, jpj   ! loop 0
+                            do ji = 1, jpi
+                               a(ji, jj) = b+c(ji, jj)
+                             end do
+                         end do
+                         end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test").schedule
+
+    dep_tools = DependencyTools()
+    input_list = dep_tools.get_input_parameters(loops)
+    # Use set to be order independent
+    input_set = set(input_list)
+    assert input_set == set(["b", "c", "jpi", "jpj"])
+
+    output_list = dep_tools.get_output_parameters(loops)
+    # Use set to be order independent
+    output_set = set(output_list)
+    assert output_set == set(["jj", "ji", "a"])
+
+    in_list1, out_list1 = dep_tools.get_in_out_parameters(loops)
+
+    assert in_list1 == input_list
+    assert out_list1 == output_list
+
+
+# -----------------------------------------------------------------------------
+def test_const_argument():
+    '''Check that using a const scalar as parameter works, i.e. is not
+    listed as input variable.'''
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           api="gocean1.0", idx=0)
+    dep_tools = DependencyTools()
+    input_list = dep_tools.get_input_parameters(invoke.schedule)
+    # Make sure the constant '0' is not listed
+    assert input_list == ['p_fld', 'p_fld%grid%subdomain%internal%xstop',
+                          'p_fld%grid%tmask']

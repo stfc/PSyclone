@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,14 @@
 file.
 
 '''
+from __future__ import absolute_import
 import tempfile
 
 import pytest
 import six
 
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 # function check_line_length() tests
 

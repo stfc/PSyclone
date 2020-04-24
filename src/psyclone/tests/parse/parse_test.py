@@ -45,7 +45,7 @@ from fparser import api as fpapi
 from psyclone.parse.algorithm import parse, ParseError
 from psyclone.parse.kernel import KernelType, KernelTypeFactory, \
     BuiltInKernelTypeFactory
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")
@@ -162,8 +162,8 @@ def test_too_many_names_invoke():
         _, _ = parse(
             os.path.join(TEST_PATH, "1.0.2_many_named_invoke.f90"),
             api="dynamo0.3")
-    assert "An invoke must contain one or zero " in str(err)
-    assert "1.0.2_many_named_invoke.f90" in str(err)
+    assert "An invoke must contain one or zero " in str(err.value)
+    assert "1.0.2_many_named_invoke.f90" in str(err.value)
 
 
 def test_wrong_named_invoke():
@@ -174,7 +174,7 @@ def test_wrong_named_invoke():
             os.path.join(TEST_PATH, "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
     assert ("Expected named identifier to be 'name' but found "
-            "'not_a_name'" in str(err))
+            "'not_a_name'" in str(err.value))
 
 
 def test_wrong_type_named_invoke():
@@ -185,8 +185,8 @@ def test_wrong_type_named_invoke():
             os.path.join(TEST_PATH, "1.0.4_wrong_type_named_arg_invoke.f90"),
             api="dynamo0.3")
     assert ("The (optional) name of an invoke must be specified as a "
-            "string" in str(err))
-    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err)
+            "string" in str(err.value))
+    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err.value)
 
 
 def test_invalid_named_invoke():
@@ -198,8 +198,8 @@ def test_invalid_named_invoke():
             api="dynamo0.3")
     assert ("the (optional) name of an invoke must be a string containing a "
             "valid Fortran name (with any spaces replaced by underscores) but "
-            "got 'ja_ck(1)' " in str(err))
-    assert "1.0.6_invoke_name_invalid_chars.f90" in str(err)
+            "got 'ja_ck(1)' " in str(err.value))
+    assert "1.0.6_invoke_name_invalid_chars.f90" in str(err.value)
 
 
 def test_duplicate_named_invoke():
@@ -210,8 +210,8 @@ def test_duplicate_named_invoke():
             TEST_PATH, "3.3_multi_functions_multi_invokes_name_clash.f90"),
                      api="dynamo0.3")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
-            "when parsing " in str(err))
-    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
+            "when parsing " in str(err.value))
+    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err.value)
 
 
 def test_duplicate_named_invoke_case():
@@ -223,8 +223,8 @@ def test_duplicate_named_invoke_case():
             TEST_PATH, "3.4_multi_invoke_name_clash_case_insensitive.f90"),
                      api="dynamo0.3")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
-            "when parsing " in str(err))
-    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
+            "when parsing " in str(err.value))
+    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err.value)
 
 
 def test_get_stencil():
@@ -236,12 +236,12 @@ def test_get_stencil():
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(enode, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found the "
-            "literal" in str(excinfo))
+            "literal" in str(excinfo.value))
     node = FunctionVar(["stencil()"])
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(node, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
-            in str(excinfo))
+            in str(excinfo.value))
     node = FunctionVar(["stencil", "cross"])
     # Deliberately break the args member of node in order to trigger an
     # internal error
@@ -249,7 +249,7 @@ def test_get_stencil():
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(node, ["cross"])
     assert ("expecting either FunctionVar or str from the expression analyser"
-            in str(excinfo))
+            in str(excinfo.value))
 
 
 MDATA = '''
@@ -276,105 +276,6 @@ end module testkern_eval_mod
 '''
 
 
-def test_get_int():
-    ''' Tests for the KernelType.get_integer(). method '''
-    ast = fpapi.parse(MDATA, ignore_comments=False)
-    ktype = KernelType(ast)
-    iter_val = ktype.get_integer_variable("iterates_over")
-    assert iter_val == "cells"
-
-
-def test_get_int_err():
-    ''' Tests that we raise the expected error if the meta-data contains
-    an integer literal instead of a name. '''
-    mdata = MDATA.replace("= cells", "= 1")
-    ast = fpapi.parse(mdata, ignore_comments=False)
-    with pytest.raises(ParseError) as err:
-        _ = KernelType(ast)
-    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
-            str(err))
-
-
-def test_get_int_array():
-    ''' Tests for the KernelType.get_integer_array() method. '''
-    ast = fpapi.parse(MDATA, ignore_comments=False)
-    ktype = KernelType(ast)
-    targets = ktype.get_integer_array("gh_evaluator_targets")
-    assert targets == ["w0", "w1"]
-    mdata = MDATA.replace("[W0, W1]", "(/W0, W1/)")
-    ast = fpapi.parse(mdata, ignore_comments=False)
-    ktype = KernelType(ast)
-    targets = ktype.get_integer_array("gh_evaluator_targets")
-    assert targets == ["w0", "w1"]
-
-
-def test_get_int_array_err1(monkeypatch):
-    ''' Tests that we raise the correct error if there is something wrong
-    with the assignment statement obtained from fparser2. '''
-    from fparser.two import Fortran2003
-    # This is difficult as we have to break the result returned by fparser2.
-    # We therefore create a valid KernelType object
-    ast = fpapi.parse(MDATA, ignore_comments=False)
-    ktype = KernelType(ast)
-    # Next we create a valid fparser2 result
-    my_assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
-    # Break its `items` property by replacing the Name object with a string
-    # (tuples are immutable so make a new one)
-    broken_items = tuple(["invalid"] + list(my_assign.items[1:]))
-
-    # Use monkeypatch to ensure that that the Assignment_Stmt that
-    # is returned when we attempt to use fparser2 from within the
-    # routine under test now has the broken tuple of items.
-
-    def my_init(self, _):
-        ''' dummy class '''
-        self.items = broken_items
-    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
-
-    with pytest.raises(InternalError) as err:
-        _ = ktype.get_integer_array("gh_evaluator_targets")
-    assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
-
-
-def test_get_int_array_not_array():
-    ''' Test that get_integer_array returns the expected error if the
-    requested variable is not an array. '''
-    ast = fpapi.parse(MDATA, ignore_comments=False)
-    ktype = KernelType(ast)
-    # Erroneously call get_integer_array with the name of a scalar meta-data
-    # entry
-    with pytest.raises(ParseError) as err:
-        _ = ktype.get_integer_array("iterates_over")
-    assert ("RHS of assignment is not an array constructor: 'iterates_over = "
-            "cells'" in str(err))
-
-
-def test_get_int_array_err2(monkeypatch):
-    ''' Check that we raise the appropriate error if we fail to parse the
-    array constructor expression. '''
-    from fparser.two import Fortran2003
-    # First create a valid KernelType object
-    ast = fpapi.parse(MDATA, ignore_comments=False)
-    ktype = KernelType(ast)
-    # Create a valid fparser2 result
-    assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
-    # Break the array constructor expression (tuples are immutable so make a
-    # new one)
-    assign.items[2].items[1].items = tuple(["hello", "goodbye"])
-
-    # Use monkeypatch to ensure that that's the result that is returned
-    # when we attempt to use fparser2 from within the routine under test
-
-    def my_init(self, _):
-        ''' dummy class '''
-        self.items = assign.items
-    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
-
-    with pytest.raises(InternalError) as err:
-        _ = ktype.get_integer_array("gh_evaluator_targets")
-    assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)
-
-
 def test_kernel_binding_not_code():
     ''' Check that we raise the expected error when Kernel meta-data uses
     a specific binding but does not have 'code' as the generic name. '''
@@ -383,7 +284,7 @@ def test_kernel_binding_not_code():
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("binds to a specific procedure but does not use 'code' as the "
-            "generic name" in str(err))
+            "generic name" in str(err.value))
 
 
 def test_kernel_binding_missing():
@@ -395,7 +296,7 @@ def test_kernel_binding_missing():
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("Kernel type testkern_eval_type does not bind a specific "
-            "procedure" in str(err))
+            "procedure" in str(err.value))
 
 
 def test_empty_kernel_name(monkeypatch):
@@ -413,4 +314,4 @@ def test_empty_kernel_name(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = KernelType(ast)
     assert ("Empty Kernel name returned for Kernel type testkern_eval_type"
-            in str(err))
+            in str(err.value))

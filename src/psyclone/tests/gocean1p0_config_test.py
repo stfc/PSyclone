@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,10 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.configuration import Config, ConfigurationError
+from psyclone.configuration import Config, ConfigurationError, GOceanConfig
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -126,8 +126,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "An iteration space must be in the form" in str(err)
-        assert "But got \"a:b\"" in str(err)
+        assert "An iteration space must be in the form" in str(err.value)
+        assert "But got \"a:b\"" in str(err.value)
 
     # Try a multi-line specification to make sure all lines are tested
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:4\n        d:e"
@@ -139,8 +139,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "An iteration space must be in the form" in str(err)
-        assert "But got \"d:e\"" in str(err)
+        assert "An iteration space must be in the form" in str(err.value)
+        assert "But got \"d:e\"" in str(err.value)
 
     # Invalid {} expression in first loop bound
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:3:4"
@@ -153,8 +153,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
-               "expression in an iteration space." in str(err)
-        assert "But got {X}" in str(err)
+               "expression in an iteration space." in str(err.value)
+        assert "But got {X}" in str(err.value)
 
     # Invalid {} expression in last loop bound:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:{Y}"
@@ -167,8 +167,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
-               "expression in an iteration space." in str(err)
-        assert "But got {Y}" in str(err)
+               "expression in an iteration space." in str(err.value)
+        assert "But got {Y}" in str(err.value)
 
     # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
@@ -181,7 +181,7 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
-            format(str(config_file)) in str(err)
+            format(str(config_file)) in str(err.value)
 
         for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
                   "REPRODUCIBLE_REDUCTIONS"]:
@@ -192,17 +192,84 @@ def test_invalid_config_files(tmpdir):
         GOLoop.add_bounds(1)
     # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <type 'int'>)" in str(err) or \
+           "(type <type 'int'>)" in str(err.value) or \
            "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <class 'int'>)" in str(err)
+           "(type <class 'int'>)" in str(err.value)
 
     # Test syntactically invalid loop boundaries
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1(:2:3:4")
-    assert "Expression '1(' is not a valid do loop boundary" in str(err)
+    assert "Expression '1(' is not a valid do loop boundary" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1:2:3:4+")
-    assert "Expression '4+' is not a valid do loop boundary" in str(err)
+    assert "Expression '4+' is not a valid do loop boundary" in str(err.value)
+
+    # Test invalid field properties - too many fields
+    content = _CONFIG_CONTENT + "grid-properties = a: {0}%%b:c:d"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "Invalid property \"a\" found with value \"{0}%b:c:d\"" \
+               in str(err.value)
+
+    # Test invalid field properties - not enough fields
+    content = _CONFIG_CONTENT + "grid-properties = a:b"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert "Invalid property \"a\" found with value \"b\"" \
+               in str(err.value)
+
+    # Test missing required values
+    content = _CONFIG_CONTENT + "grid-properties = a:b:array"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        # The config file {0} does not contain values for "..."
+        assert "does not contain values for the following, mandatory grid " \
+            "property: \"go_grid_xstop\"" in str(err.value)
+
+
+# =============================================================================
+def test_properties():
+    '''Test creation of properties.
+    '''
+
+    config = Config.get()
+    api_config = config.api_conf("gocean1.0")
+
+    all_props = api_config.grid_properties
+
+    assert all_props["go_grid_area_t"].fortran == "{0}%grid%area_t"
+    assert all_props["go_grid_area_t"].type == "array"
+
+    with pytest.raises(InternalError) as error:
+        new_prop = GOceanConfig.make_property("my_fortran", "my_type")
+    assert "Type must be 'array' or 'scalar' but is 'my_type'" \
+        in str(error.value)
+
+    new_prop = GOceanConfig.make_property("my_fortran", "array")
+    assert new_prop.fortran == "my_fortran"
+    assert new_prop.type == "array"
+
+    new_prop = GOceanConfig.make_property("my_fortran", "scalar")
+    assert new_prop.fortran == "my_fortran"
+    assert new_prop.type == "scalar"
 
 
 # =============================================================================
@@ -220,28 +287,26 @@ def test_valid_config_files():
     psy, _ = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
 
     gen = str(psy.gen)
-    # "# nopep8" suppresses the pep8 warning about trailing white space at end of
-    # line (after the "END DO ")
     new_loop1 = '''      DO j=1,2
         DO i=3,4
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO '''   # nopep8
+        END DO
+      END DO'''
     assert new_loop1 in gen
 
     new_loop2 = '''      DO j=2,jstop
         DO i=1,istop+1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO '''   # nopep8
+        END DO
+      END DO'''
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
     new_loop3 = '''      DO j=2-2,1
         DO i=istop,istop+1
           CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO '''   # nopep8
+        END DO
+      END DO'''
     assert new_loop3 in gen
 
     # Note that this file can not be compiled, since the new iteration space

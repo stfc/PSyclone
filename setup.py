@@ -128,13 +128,12 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.9', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.10', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pytest<5.0",  # TODO: Issue 438. Fix > 5.0 broken tests.
-                     "pep8", "pylint==1.6.5", "pytest-cov",
+            'test': ["pep8", "pylint==1.6.5", "pytest-cov",
                      "pytest-pep8", "pytest-pylint", "pytest-flakes",
                      "pytest-pep257"],
         },

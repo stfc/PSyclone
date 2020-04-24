@@ -9,8 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology
-! Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology
+! Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified I. Kavcic, Met Office
+!          A. R. Porter, STFC Daresbury Laboratory
 
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
@@ -119,10 +120,12 @@ module argument_mod
   integer, public, parameter :: GH_QUADRATURE_XYZ   = 504
   integer, public, parameter :: GH_QUADRATURE_XYoZ  = 505
   integer, public, parameter :: GH_QUADRATURE_XoYoZ = 506
+  integer, public, parameter :: GH_QUADRATURE_FACE  = 507
+  integer, public, parameter :: GH_QUADRATURE_EDGE  = 508
 
   ! Evaluator metadata
-  integer, public, parameter :: EVALUATOR           = 507
-  integer, public, parameter :: GH_EVALUATOR        = 508
+  integer, public, parameter :: EVALUATOR           = 509
+  integer, public, parameter :: GH_EVALUATOR        = 510
 
   ! Stencil metadata
   integer, public, parameter :: XORY1D = 1
@@ -134,6 +137,14 @@ module argument_mod
   ! For inter-grid kernels
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
+
+  ! Reference-element properties
+  integer, public, parameter :: normals_to_horizontal_faces = 171
+  integer, public, parameter :: outward_normals_to_horizontal_faces = 007
+  integer, public, parameter :: normals_to_vertical_faces = 172
+  integer, public, parameter :: outward_normals_to_vertical_faces = 008
+  integer, public, parameter :: normals_to_faces = 173
+  integer, public, parameter :: outward_normals_to_faces = 009
 
   type, public :: arg_type
      integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
@@ -149,5 +160,11 @@ module argument_mod
      integer :: wproperties2 = -1 ! { " } optional and must be a distinct property
      integer :: wproperties3 = -1 ! { " } optional and must be a distinct property
   end type func_type
+
+  type, public :: reference_element_data_type
+    ! {normals_to_<horizontal/vertical/all>_faces, &
+    !  outward_normals_to_<horizontal/vertical/all>_faces}
+    integer :: reference_element_data_item
+  end type reference_element_data_type
 
 end module argument_mod

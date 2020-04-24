@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
@@ -40,9 +41,21 @@ gen() method to generate Fortran.
 '''
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyGen import Reference, BinaryOperation, Literal, \
+from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
     Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.psyir.symbols import ScalarType
+
+# Mapping from PSyIR data types to SIR types.
+# SIR does not seem to support the Character datatype. Boolean does
+# seem to be supported but there are no examples with the data value
+# so we don't include it here.
+# We do not yet deal with precision e.g. the SIR supports a DOUBLE
+# type which would probably be equivalent to PSyIR's
+# Precision.DOUBLE. This is the subject of issue #741.
+
+TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
+                   ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
 
 
 def gen_stencil(node):
@@ -52,7 +65,7 @@ def gen_stencil(node):
     stencil access.
 
     :param node: an array access.
-    :type node: :py:class:`psyclone.psyGen.Array`
+    :type node: :py:class:`psyclone.psyir.nodes.Array`
 
     :returns: the SIR stencil access format for the array access.
     :rtype: str
@@ -134,7 +147,7 @@ class SIRWriter(PSyIRVisitor):
         unsupported node is found.
 
         :param node: an unsupported PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyGen.Node`
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -300,7 +313,7 @@ class SIRWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a BinaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -347,7 +360,7 @@ class SIRWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -375,7 +388,7 @@ class SIRWriter(PSyIRVisitor):
         tree.
 
         :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.Array`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -395,24 +408,29 @@ class SIRWriter(PSyIRVisitor):
         tree.
 
         :param node: a Literal PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Literal`
+        :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: the SIR Python code.
         :rtype: str
 
         '''
         result = node.value
-        # There is an assumption here that the literal is a float (see
-        # #468).
-        return ("{0}make_literal_access_expr(\"{1}\", BuiltinType.Float)"
-                "".format(self._nindent, result))
+        try:
+            datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
+        except KeyError:
+            raise VisitorError(
+                "PSyIR type '{0}' has no representation in the SIR backend."
+                "".format(str(node.datatype)))
+
+        return ("{0}make_literal_access_expr(\"{1}\", {2})"
+                "".format(self._nindent, result, datatype))
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
         :param node: a UnaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -436,17 +454,25 @@ class SIRWriter(PSyIRVisitor):
                 isinstance(node.children[0], Literal)):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
-        result = node.children[0].value
-        # There is an assumption here that the literal is a float (see #468)
-        return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
-                "".format(self._nindent, oper, result))
+        literal = node.children[0]
+        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
+                                              ScalarType.Intrinsic.INTEGER]:
+            # The '-' operator can only be applied to REAL and INTEGER
+            # datatypes.
+            raise VisitorError(
+                "PSyIR type '{0}' does not work with the '-' operator."
+                "".format(str(literal.datatype)))
+        result = literal.value
+        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
+        return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
+                "".format(self._nindent, oper, result, datatype))
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in
         the PSyIR tree.
 
         :param node: an IfBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.IfBlock`
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :returns: SIR Python code.
         :rtype: str
@@ -466,7 +492,7 @@ class SIRWriter(PSyIRVisitor):
         else:
             else_part = "None"
 
-        return ("{0}make_if_stmt({1}, {2}, {3})\n"
+        return ("{0}make_if_stmt({1}, {2}, {3}),\n"
                 "".format(self._nindent, cond_part, then_part, else_part))
 
     def schedule_node(self, node):
@@ -479,7 +505,7 @@ class SIRWriter(PSyIRVisitor):
         agregated result.
 
         :param node: a Schedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :returns: the SIR Python code.
         :rtype: str

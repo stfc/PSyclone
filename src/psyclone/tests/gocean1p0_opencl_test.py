@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,9 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyGen import GenerationError, Symbol
+from psyclone.errors import GenerationError
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
+    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
 from psyclone.tests.utilities import Compile, get_invoke
 
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
@@ -103,6 +105,21 @@ def test_use_stmts(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
+def test_grid_proprty(kernel_outputdir):
+    # pylint: disable=unused-argument
+    ''' Test that using nx and ny from the gocean property dictionary
+    works.'''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen).lower()
+    assert "globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)" in generated_code
+    expected = "size_in_bytes = int(p_fld%grid%nx*p_fld%grid%ny, 8)*" \
+               "c_sizeof(p_fld%data(1,1))"
+    assert expected in generated_code
+
+
 def test_psy_init(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
@@ -127,7 +144,7 @@ def test_psy_init(kernel_outputdir):
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF \n"
+        "      END IF\n"
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
@@ -152,18 +169,19 @@ def test_psy_init(kernel_outputdir):
         "the compiled\n"
         "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF \n"
+        "      END IF\n"
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_opencl_options_validation(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_options_validation():
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
     '''
-    from psyclone.transformations import TransformationError
+    from psyclone.psyir.transformations import TransformationError
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -172,34 +190,35 @@ def test_opencl_options_validation(kernel_outputdir):
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'unsupported': 1})
     assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
-        in str(err)
+        in str(err.value)
 
     # end_barrier option must be a boolean
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'end_barrier': 1})
     assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
-        in str(err)
+        in str(err.value)
 
     # Unsupported kernel options are not accepted
     with pytest.raises(AttributeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'unsupported': 1})
     assert "CodedKern does not support the opencl_option 'unsupported'." \
-        in str(err)
+        in str(err.value)
 
     # local_size must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'local_size': 'a'})
     assert "CodedKern opencl_option 'local_size' should be an integer." \
-        in str(err)
+        in str(err.value)
 
     # queue_number must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'queue_number': 'a'})
     assert "CodedKern opencl_option 'queue_number' should be an integer." \
-        in str(err)
+        in str(err.value)
 
 
-def test_opencl_options_effects(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_options_effects():
     ''' Check that the OpenCL options produce the expected changes in the
     PSy layer.
     '''
@@ -327,10 +346,11 @@ def test_set_arg_const_scalar():
     with pytest.raises(NotImplementedError) as err:
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
-            "arguments passed by value" in str(err))
+            "arguments passed by value" in str(err.value))
 
 
-def test_opencl_kernel_code_generation(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_code_generation():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
     '''
@@ -346,7 +366,6 @@ def test_opencl_kernel_code_generation(kernel_outputdir):
         "  __global double * restrict p,\n"
         "  __global double * restrict u\n"
         "  ){\n"
-        "  int go_wp;\n"
         "  int cuLEN1 = get_global_size(0);\n"
         "  int cuLEN2 = get_global_size(1);\n"
         "  int pLEN1 = get_global_size(0);\n"
@@ -405,22 +424,26 @@ def test_symtab_implementation_for_opencl():
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only 0 argument(s).") in str(err)
+            "Table for kernel 'test' has only 0 argument(s)."
+            in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = Symbol("arg1", "integer", [],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg1 = DataSymbol("arg1", INTEGER_TYPE,
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only 1 argument(s).") in str(err)
+            "Table for kernel 'test' has only 1 argument(s)."
+            in str(err.value))
 
     # Test symbol table with 2 kernel argument
-    arg2 = Symbol("arg2", "integer", shape=[],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    arg2 = DataSymbol("arg2", INTEGER_TYPE,
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
     kschedule.symbol_table.specify_argument_list([arg1, arg2])
     iteration_indices = kschedule.symbol_table.iteration_indices
@@ -428,8 +451,10 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    arg3 = Symbol("buffer1", "real", shape=[10, 10],
-                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    arg3 = DataSymbol("buffer1", array_type,
+                      interface=ArgumentInterface(
+                          ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg3)
     kschedule.symbol_table.specify_argument_list([arg1, arg2, arg3])
     iteration_indices = kschedule.symbol_table.iteration_indices
@@ -439,32 +464,32 @@ def test_symtab_implementation_for_opencl():
     assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
-    arg1._datatype = "real"
+    arg1._datatype._intrinsic = ScalarType.Intrinsic.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
-            " but got a scalar of type 'real' for kernel 'test'.")\
-        in str(err)
+    assert ("GOcean 1.0 API kernels first argument should be a scalar "
+            "integer but got 'Scalar<REAL, UNDEFINED>' for kernel 'test'."
+            in str(err.value))
 
-    arg1._datatype = "integer"  # restore
-    arg2._shape = [None]
+    arg1._datatype._intrinsic = ScalarType.Intrinsic.INTEGER  # restore
+    arg2._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
-            " but got an array of type 'integer' for kernel 'test'.")\
-        in str(err)
+            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
+            "kernel 'test'." in str(err.value))
 
 
-@pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
-                          "#323 will add support for Use statments.")
-def test_opencl_kernel_with_use(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_with_use():
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
-    from psyclone.transformations import TransformationError
+    from psyclone.psyir.transformations import TransformationError
     psy, _ = get_invoke("single_invoke_kern_with_use.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. PSyclone cannot currently" in str(err))
+            "'global' scope: ['rdt']. An OpenCL kernel cannot call other "
+            "kernels and all of the data" in str(err.value))

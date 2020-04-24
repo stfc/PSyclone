@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,15 @@
 '''
 
 from __future__ import print_function, absolute_import
-from fparser.two.utils import walk_ast, get_child
+from fparser.two.utils import walk, get_child
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, CodedKern, InternalError, NameSpaceFactory, Schedule
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    InlinedKern
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Node, Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -60,7 +63,7 @@ class NemoFparser2Reader(Fparser2Reader):
         generic Loop.
 
         :param parent: the parent of the node.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str variable_name: name of the iteration variable.
 
         :return: a new NemoLoop instance.
@@ -86,7 +89,7 @@ class NemoFparser2Reader(Fparser2Reader):
         in the loop_body.
 
         :param loop_body: schedule representing the body of the loop.
-        :type loop_body: :py:class:`psyclone.psyGen.Schedule`
+        :type loop_body: :py:class:`psyclone.psyir.nodes.Schedule`
         :param node: fparser loop node being processed.
         :type node: \
             :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
@@ -94,8 +97,7 @@ class NemoFparser2Reader(Fparser2Reader):
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
         fakeparent = Schedule()
-        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1],
-                           nodes_parent=node)
+        self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
 
         if NemoKern.match(fakeparent):
             # Create a new kernel object and make it the only
@@ -118,11 +120,11 @@ class NemoFparser2Reader(Fparser2Reader):
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: parent node in the PSyclone IR we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: returns the PSyIR representation of child or None if \
                  there isn't one.
-        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         '''
         if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
@@ -148,9 +150,8 @@ class NemoInvoke(Invoke):
         self._ast = ast
         # A temporary workaround for the fact that we don't yet have a
         # symbol table to store information on the variable declarations.
-        # TODO (#255) remove this workaround.
+        # TODO (#500) remove this workaround.
         self._loop_vars = []
-        self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
         # Find the section of the tree containing the execution part
@@ -198,8 +199,8 @@ class NemoInvokes(Invokes):
         self._ast = ast
 
         # Find all the subroutines contained in the file
-        routines = walk_ast(ast.content, [Subroutine_Subprogram,
-                                          Function_Subprogram])
+        routines = walk(ast.content, (Subroutine_Subprogram,
+                                      Function_Subprogram))
         # Add the main program as a routine to analyse - take care
         # here as the Fortran source file might not contain a
         # main program (might just be a subroutine in a module)
@@ -246,7 +247,7 @@ class NemoPSy(PSy):
     '''
     def __init__(self, ast):
         # pylint: disable=super-init-not-called
-        names = walk_ast(ast.content, [Fortran2003.Name])
+        names = walk(ast.content, Fortran2003.Name)
         # The name of the program unit will be the first in the list
         if not names:
             raise InternalError("Found no names in supplied Fortran - should "
@@ -306,42 +307,50 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         self._invoke = invoke
         self._ast = ast
         # Whether or not we've already checked the associated Fortran for
-        # potential name-clashes when inserting profiling code.
+        # potential name-clashes when inserting PSyData code.
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
 
-        self.process_nodes(self, ast.content, ast)
+        self.process_nodes(self, ast.content)
+        # A better implementation of the Nemo API symbol table is looked
+        # at in PR #596, currently we just define a symbol table and the
+        # variables that Nemo needs for the implicit loops.
+        self._symbol_table = SymbolTable()
+        self._symbol_table.add(DataSymbol("jpi", INTEGER_TYPE))
+        self._symbol_table.add(DataSymbol("jpj", INTEGER_TYPE))
+        self._symbol_table.add(DataSymbol("jpk", INTEGER_TYPE))
+
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 
     def __str__(self):
         ''' Returns the string representation of this NemoInvokeSchedule. '''
         result = "NemoInvokeSchedule():\n"
-        for entity in self._children:
+        for entity in self.children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
 
     @property
-    def profiling_name_clashes_checked(self):
+    def psy_data_name_clashes_checked(self):
         '''Getter for whether or not the underlying fparser2 AST has been
-        checked for clashes with the symbols required by profiling.
+        checked for clashes with the symbols required by PSyData.
         TODO remove once #435 is complete.
 
         :returns: whether or not we've already checked the underlying \
                   fparser2 parse tree for symbol clashes with code we will \
-                  insert for profiling.
+                  insert for PSyData.
         :rtype: bool
 
         '''
         return self._name_clashes_checked
 
-    @profiling_name_clashes_checked.setter
-    def profiling_name_clashes_checked(self, value):
+    @psy_data_name_clashes_checked.setter
+    def psy_data_name_clashes_checked(self, value):
         ''' Setter for whether or not we've already checked the underlying
         fparser2 parse tree for symbol clashes with code we will insert for
-        profiling.
+        PSyData.
         TODO remove once #435 is complete.
 
         :param bool value: whether or not the check has been performed.
@@ -349,15 +358,26 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
         '''
         self._name_clashes_checked = value
 
+    def coded_kernels(self):
+        '''
+        Returns a list of all of the user-supplied kernels (as opposed to
+        builtins) that are beneath this node in the PSyIR. In the NEMO API
+        this means all instances of InlinedKern.
 
-class NemoKern(CodedKern):
+        :returns: all user-supplied kernel calls below this node.
+        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        '''
+        return self.walk(InlinedKern)
+
+
+class NemoKern(InlinedKern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the PSyIR. I.e. they have
-    no self._children but they do have a KernelSchedule.
+    NEMO code. As an inlined kernel it contains a Schedule as first
+    child.
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
-    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parse_tree: reference to the innermost loop in the fparser2 parse \
                        tree that encloses this kernel.
     :type parse_tree: \
@@ -367,26 +387,17 @@ class NemoKern(CodedKern):
     :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
 
     '''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, psyir_nodes, parse_tree, parent=None):
-        # pylint: disable=super-init-not-called
-        from psyclone.psyGen import KernelSchedule
+        super(NemoKern, self).__init__(psyir_nodes)
         self._name = ""
         self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
-        # Create a kernel schedule
-        self._kern_schedule = KernelSchedule(self._name)
-        # Attach the PSyIR sub-tree to it
-        self._kern_schedule.children = psyir_nodes[:]
-        # Update the parent info for each node we've moved
-        for node in self._kern_schedule.children:
-            node.parent = self._kern_schedule
-        # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
-        # We therefore don't have any children.
-        self._children = []
+
         # Name and colour-code to use for displaying this node
-        self._text_name = "CodedKern"
-        self._colour_key = "CodedKern"
+        self._text_name = "InlinedKern"
+        self._colour_key = "InlinedKern"
         self._reduction = False
 
     @staticmethod
@@ -399,11 +410,11 @@ class NemoKern(CodedKern):
         subroutine calls or IO operations).
 
         :param node: node in the PSyIR to check.
-        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from psyclone.psyGen import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock
         # This function is called with node being a Schedule.
         if not isinstance(node, Schedule):
             raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
@@ -414,6 +425,16 @@ class NemoKern(CodedKern):
         # IO operations and routine calls) or loops. So if there is any
         # node in the result of the walk, this node can not be a kernel.
         return len(nodes) == 0
+
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the kernel code. The
+        kernel_schedule is created in the constructor and always exists.
+
+        :returns: the kernel schedule representing the inlined kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        '''
+        return self.children[0]
 
     def node_str(self, colour=True):
         '''
@@ -444,7 +465,7 @@ class NemoKern(CodedKern):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        self._kern_schedule.reference_accesses(var_accesses)
+        self.children[0].reference_accesses(var_accesses)
 
     @property
     def ast(self):
@@ -459,13 +480,26 @@ class NemoKern(CodedKern):
         '''
         return self._ast
 
+    def gen_code(self, parent):
+        '''This method must not be called for NEMO, since the actual
+        kernels are inlined.
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+
+        :raises InternalError: if this function is called.
+        '''
+        raise InternalError("NEMO kernels are assumed to be in-lined by "
+                            "default therefore the gen_code method should not "
+                            "have been called.")
+
 
 class NemoLoop(Loop):
     '''
     Class representing a Loop in NEMO.
 
     :param parent: parent of this NemoLoop in the PSyclone AST.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
     '''
@@ -505,7 +539,7 @@ class NemoImplicitLoop(NemoLoop):
     :param ast: the part of the fparser2 AST representing the loop.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
     :param parent: the parent of this Loop in the PSyIRe.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     def __init__(self, ast, parent=None):
@@ -548,14 +582,14 @@ class NemoImplicitLoop(NemoLoop):
         if not isinstance(lhs, Fortran2003.Part_Ref):
             # LHS is not an array reference
             return False
-        colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
+        colons = walk(lhs.items, Fortran2003.Subscript_Triplet)
         if not colons:
             # LHS does not use array syntax
             return False
         # Now check the right-hand side...
         rhs = node.items[2]
         try:
-            if not walk_ast(rhs.items, [Fortran2003.Subscript_Triplet]):
+            if not walk(rhs.items, Fortran2003.Subscript_Triplet):
                 # We don't have any array syntax on the RHS
                 return True
         except AttributeError:
@@ -564,23 +598,14 @@ class NemoImplicitLoop(NemoLoop):
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
-        # Part_Ref nodes in the fparser2 AST. This would be easier to do
-        # if the fparser2 AST carried parent information with each node.
-        # As it is we have to walk down the tree rather than come back up
-        # from each colon.
+        # Part_Ref nodes in the fparser2 AST.
         # Find all array references
-        array_refs = []
-        if isinstance(rhs, Fortran2003.Part_Ref):
-            # Since walk_ast is slightly clunky we have to manually allow
-            # for the top-level "rhs" node being an array reference
-            array_refs.append(rhs)
-        array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
+        array_refs = walk(rhs, Fortran2003.Part_Ref)
         for ref in array_refs:
-            nested_refs = walk_ast(ref.items, [Fortran2003.Part_Ref])
+            nested_refs = walk(ref.items, Fortran2003.Part_Ref)
             # Do any of these nested array references use array syntax?
             for nested_ref in nested_refs:
-                colons = walk_ast(nested_ref.items,
-                                  [Fortran2003.Subscript_Triplet])
+                colons = walk(nested_ref.items, Fortran2003.Subscript_Triplet)
                 if colons:
                     return False
         return True

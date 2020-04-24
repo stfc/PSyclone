@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ Kernels
 -------
 
 Any Dynamo0.3 kernel can be used as input to the stub generator.
-Example Kernels can be found in the ``examples/dynamo`` repository or,
+Example Kernels can be found in the ``examples/lfric`` repository or,
 for more simple cases, in the ``tests/test_files/dynamo0p3`` directory.
 These directories are located in the ``<PSYCLONEHOME>/src/psyclone``
 directory where ``<PSYCLONEHOME>`` refers to the location where you
@@ -366,10 +366,10 @@ the number of the vector.
 The introduction of stencil operations on field arguments further complicates
 the argument list of a kernel. An example of the use of the stub generator
 for a kernel that performs stencil operations is provided in
-``examples/dynamo/eg5``.
+``examples/lfric/eg5``.
 ::
 
-  > genkernelstub ../../examples/dynamo/eg5/conservative_flux_kernel_mod.F90
+  > genkernelstub ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
 
 .. _stub-generation-errors:
 

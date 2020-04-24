@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,10 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyGen import Node
+from psyclone.psyir.nodes import Node
 
 
 def test_psyirvisitor_defaults():
@@ -245,11 +245,11 @@ def test_psyirvisitor_visit_return_node():
     Python keyword.
 
     '''
-    from psyclone.psyGen import Return
+    from psyclone.psyir.nodes import Return
     return_node = Return()
     test_visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
             "attempted were ['return_node', 'node_node']."
-            ""in str(excinfo))
+            ""in str(excinfo.value))
