@@ -1059,7 +1059,7 @@ class Directive(Statement):
     @staticmethod
     def _validate_child(position, child):
         '''
-        :param int position: a position to be validated.
+        :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
@@ -2089,7 +2089,7 @@ class GlobalSum(Statement):
     @staticmethod
     def _validate_child(position, child):
         '''
-        :param int position: a position to be validated.
+        :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
@@ -2176,7 +2176,7 @@ class HaloExchange(Statement):
     @staticmethod
     def _validate_child(position, child):
         '''
-        :param int position: a position to be validated.
+        :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
@@ -2370,7 +2370,7 @@ class Kern(Statement):
     @staticmethod
     def _validate_child(position, child):
         '''
-        :param int position: a position to be validated.
+        :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
@@ -3164,7 +3164,7 @@ class InlinedKern(Kern):
     @staticmethod
     def _validate_child(position, child):
         '''
-        :param int position: a position to be validated.
+        :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.node`
 
