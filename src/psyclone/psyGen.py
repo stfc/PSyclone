@@ -779,7 +779,7 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
-    # Class attribute of this node textual representation
+    # Textual description of the node.
     _text_name = "InvokeSchedule"
 
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
@@ -1046,7 +1046,7 @@ class Directive(Statement):
     # The prefix to use when constructing this directive in Fortran
     # (e.g. "OMP"). Must be set by sub-class.
     _PREFIX = ""
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "Directive"
     _colour_key = "Directive"
@@ -2070,7 +2070,7 @@ class GlobalSum(Statement):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
     _colour_key = "GlobalSum"
@@ -2152,7 +2152,7 @@ class HaloExchange(Statement):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
     _colour_key = "HaloExchange"
@@ -2624,7 +2624,7 @@ class CodedKern(Kern):
                              call does not match that in the meta-data.
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _text_name = "CodedKern"
     _colour_key = "CodedKern"
 
@@ -3147,7 +3147,7 @@ class InlinedKern(Kern):
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
     _colour_key = "InlinedKern"
@@ -3191,7 +3191,7 @@ class BuiltIn(Kern):
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _text_name = "BuiltIn"
     _colour_key = "BuiltIn"
 

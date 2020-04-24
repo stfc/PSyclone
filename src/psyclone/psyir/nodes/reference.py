@@ -60,7 +60,7 @@ class Reference(DataNode):
     :raises TypeError: if the symbol argument is not of type Symbol.
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Reference"
     _colour_key = "Reference"
@@ -149,7 +149,7 @@ class Array(Reference):
     subscript list as children 0 and 1, respectively.
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "*[DataNode | Range]"
     _text_name = "ArrayReference"
 

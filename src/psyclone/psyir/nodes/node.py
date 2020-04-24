@@ -259,7 +259,7 @@ class Node(object):
     START_POSITION = 0
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "*[Node]"
     _text_name = "Node"
     _colour_key = "Node"

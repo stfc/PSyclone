@@ -51,7 +51,7 @@ class Assignment(Statement):
     Node representing an Assignment statement. As such it has a LHS and RHS
     as children 0 and 1 respectively.
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "Assignment"
     _colour_key = "Assignment"

@@ -88,7 +88,7 @@ class PSyDataNode(Statement):
     use_stmt = "use psy_data_mod, only: " + ", ".join(symbols)
     # Root of the name to use for variables associated with PSyData regions
     psy_data_var = "psy_data"
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
     _colour_key = "PSyData"

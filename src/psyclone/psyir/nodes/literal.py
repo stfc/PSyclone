@@ -68,7 +68,7 @@ class Literal(DataNode):
                         'true' or 'false'.
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
     _colour_key = "Literal"

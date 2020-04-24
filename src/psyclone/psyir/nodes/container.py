@@ -55,7 +55,7 @@ class Container(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "*[Container | KernelSchedule]"
     _text_name = "Container"
     _colour_key = "Container"

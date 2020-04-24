@@ -47,7 +47,7 @@ class Return(Statement):
     value).
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Return"
     _colour_key = "Return"

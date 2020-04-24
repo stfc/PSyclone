@@ -66,7 +66,7 @@ class Operation(DataNode):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = None
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _text_name = "Operation"
     _colour_key = "Operation"
 
@@ -122,7 +122,7 @@ class UnaryOperation(Operation):
     Node representing a UnaryOperation expression. As such it has one operand
     as child 0, and an attribute with the operator type.
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "DataNode"
     _text_name = "UnaryOperation"
 
@@ -245,7 +245,7 @@ class BinaryOperation(Operation):
         type. Currently only REAL data is supported.
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "BinaryOperation"
 
@@ -327,7 +327,7 @@ class NaryOperation(Operation):
     stored as the 0 - n-1th children of this node and the type of the operator
     is held in an attribute.
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "+[DataNode]"
     _text_name = "NaryOperation"
 

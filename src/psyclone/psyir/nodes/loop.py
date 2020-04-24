@@ -75,7 +75,7 @@ class Loop(Statement):
 
     '''
     valid_annotations = ('was_where', 'was_single_stmt')
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"
     _colour_key = "Loop"

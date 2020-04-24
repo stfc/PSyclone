@@ -87,7 +87,7 @@ class Range(Node):
     notation to PSyIR and the Fortran backend is able to convert PSyIR
     back to array notation.
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode"
     _text_name = "Range"
     _colour_key = "Range"

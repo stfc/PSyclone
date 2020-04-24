@@ -70,7 +70,7 @@ class ExtractNode(PSyDataNode):
     :type options: dictionary of string:values or None
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _text_name = "Extract"
     _colour_key = "Extract"
 

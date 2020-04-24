@@ -47,7 +47,7 @@ class Schedule(Node):
     as a list of children).
 
     '''
-    # Class attributes of this node textual representations
+    # Textual description of the node.
     _children_valid_format = "*[Statement]"
     _text_name = "Schedule"
     _colour_key = "Schedule"
