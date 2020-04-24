@@ -70,7 +70,7 @@ class Container(Node):
         '''
         :param int position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.node`
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
         :rtype: bool

@@ -104,10 +104,10 @@ class ChildrenList(list):
     making use of the validation.
 
     :param node: reference to the node where the list belongs.
-    :type node: :py:class:`psyclone.psyir.nodes.node`
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param validation_function: callback function to the validation method.
     :type validation_function: \
-            function(int, :py:class:`psyclone.psyir.nodes.node`)
+            function(int, :py:class:`psyclone.psyir.nodes.Node`)
     :param str validation_text: textual representation of the valid children.
 
     '''
@@ -123,7 +123,8 @@ class ChildrenList(list):
         item into the list.
 
         :param int index: position where the item is inserted into.
-        :param item: object to be added into the list.
+        :param item: object that needs to be validated in the given position.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: if the given index and item are not valid \
             children for this list.
@@ -216,7 +217,11 @@ class ChildrenList(list):
     def pop(self, index=-1):
         ''' Extends list pop method with children node validation.
 
-        :param int index: position where to insert the item.
+        :param int index: position of the item that is popped out, if not \
+            given, the last element is popped out.
+
+        :returns: The last value or the given index value from the list.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         positiveindex = index if index >= 0 else len(self) - index
@@ -293,7 +298,7 @@ class Node(object):
         '''
         :param int position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.node`
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
         :rtype: bool
