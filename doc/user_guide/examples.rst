@@ -51,6 +51,11 @@ to provide an overview of the various examples so that a user can find
 one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
 
+Alternatively, some of the examples have associated Jupyter notebooks
+that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+This is most easily done by following the links from the top-level
+`README <https://https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+
 The ``check_examples`` bash script (in the ``examples`` directory) is
 primarily intended for correctness checking and is run by Travis
 alongside the test suite. For those examples that support it,
