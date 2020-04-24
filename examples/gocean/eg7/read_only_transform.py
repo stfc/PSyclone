@@ -31,51 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
-# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
 
-''' PSyIR nodes package module '''
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel read-only-verification to
+the invokes.
+'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.extract_node import ExtractNode
-from psyclone.psyir.nodes.profile_node import ProfileNode
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
-from psyclone.psyir.nodes.ranges import Range
+from __future__ import print_function
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'ExtractNode',
-        'ProfileNode',
-        'PSyDataNode',
-        'ReadOnlyVerifyNode']
+
+def trans(psy):
+    '''
+    Take the supplied psy object, and add kernel extraction code.
+
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    '''
+    from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+    read_only_verify = ReadOnlyVerifyTrans()
+
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+    _, _ = read_only_verify.apply(schedule.children,
+                         {"create_driver": True,
+                          "region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
+
+    # Enclose everything in a read_only_verify region
+    newschedule, _ = read_only_verify.apply(schedule.children,
+                                   {"create_driver": True,
+                                    "region_name": ("main", "update")})
+
+    invoke.schedule = newschedule
+    newschedule.view()
+    return psy

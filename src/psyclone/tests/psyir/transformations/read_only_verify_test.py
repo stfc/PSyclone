@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,51 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' PSyIR nodes package module '''
+''' Module containing tests for ReadOnlyVerifyTrans and ReadOnlyVerifyNode
+'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.extract_node import ExtractNode
-from psyclone.psyir.nodes.profile_node import ProfileNode
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
-from psyclone.psyir.nodes.ranges import Range
+from __future__ import absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'ExtractNode',
-        'ProfileNode',
-        'PSyDataNode',
-        'ReadOnlyVerifyNode']
+import pytest
+
+from psyclone.psyir.nodes import ReadOnlyVerifyNode
+from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+
+# --------------------------------------------------------------------------- #
+# ================== Extract Transformation tests =========================== #
+# --------------------------------------------------------------------------- #
+
+
+def test_extract_trans():
+    '''Tests basic functions in ReadOnlyVerifyTrans.'''
+    read_only = ReadOnlyVerifyTrans()
+    assert str(read_only) == "Create a sub-tree of the PSyIR that has " \
+                             "a ReadOnlyVerifyNode at its root."
+    assert read_only.name == "ReadOnlyVerifyTrans"
+
+
+def test_malformed_extract_node(monkeypatch):
+    ''' Check that we raise the expected error if an ReadOnlyVerifyNode does
+    not have a single Schedule node as its child. '''
+    from psyclone.psyir.nodes import Node
+    from psyclone.errors import InternalError
+    enode = ReadOnlyVerifyNode()
+    monkeypatch.setattr(enode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        _ = enode.read_only_verify_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        _ = enode.read_only_verify_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
