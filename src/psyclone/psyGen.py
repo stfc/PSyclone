@@ -851,14 +851,19 @@ class InvokeSchedule(Schedule):
 
         :param str file_name: name of the file to create.
         :param str file_format: format of the file to create. (Must be one \
-                                recognised by Graphvz.)
+                                recognised by Graphviz.)
+
+        :returns: the graph object or None (if the graphviz bindings are not \
+                  installed).
+        :rtype: :py:class:`graphviz.Digraph` or NoneType
+
         :raises GenerationError: if the specified file format is not \
                                  recognised by Graphviz.
         '''
         try:
             import graphviz as gv
         except ImportError:
-            # todo: add a warning to a log file here
+            # TODO #11 add a warning to a log file here
             # silently return if graphviz bindings are not installed
             return None
         try:
