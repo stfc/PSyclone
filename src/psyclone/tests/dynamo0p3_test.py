@@ -5117,11 +5117,11 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
-
+    print(generated_code)
     if dist_mem:
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=1,mesh%get_last_halo_cellzzz(1)\n")
         assert output in generated_code
     else:
         output = (
