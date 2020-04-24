@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
 # Modified by: J. Henrichs, Bureau of Meteorology
-#              A. R. Porter, STFC Daresbury Lab
+#              A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
 
 '''C PSyIR backend. Generates C code from PSyIR nodes.
@@ -43,14 +43,17 @@ it needs to be extended for generating pure C code.
 '''
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import ScalarType
 
 
-# Mapping from PSyIR types to C data types
-TYPE_MAP_TO_C = {DataType.INTEGER: "int",
-                 DataType.CHARACTER: "char",
-                 DataType.BOOLEAN: "bool",
-                 DataType.REAL: "double"}
+# PSyIR datatypes now support precision as well as intrinsics. It is
+# not clear how to map PSyIR intrinsics and precision onto C types,
+# see issue #738.
+# Mapping from PSyIR types to C data types.
+TYPE_MAP_TO_C = {ScalarType.Intrinsic.INTEGER: "int",
+                 ScalarType.Intrinsic.CHARACTER: "char",
+                 ScalarType.Intrinsic.BOOLEAN: "bool",
+                 ScalarType.Intrinsic.REAL: "double"}
 
 
 class CWriter(PSyIRVisitor):
@@ -76,8 +79,9 @@ class CWriter(PSyIRVisitor):
         '''
         code = ""
         try:
-            code = code + TYPE_MAP_TO_C[symbol.datatype] + " "
-        except KeyError:
+            intrinsic = symbol.datatype.intrinsic
+            code = code + TYPE_MAP_TO_C[intrinsic] + " "
+        except (AttributeError, KeyError):
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
                 "type '{1}' is currently not supported."

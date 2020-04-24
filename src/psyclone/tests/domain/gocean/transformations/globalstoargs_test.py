@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' Tests the GlobalsToArgumentsTransformation for the GOcean 1.0 API.'''
 
@@ -40,7 +41,8 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
+    CHARACTER_TYPE
 from psyclone.transformations import KernelGlobalsToArguments, \
     TransformationError
 
@@ -108,7 +110,7 @@ def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
                            api=API)
     # monkeypatch the check that symbols have been declared in order
     # to exercise the check on unqualified imports
-    rdt_sym = DataSymbol("rdt", DataType.REAL)
+    rdt_sym = DataSymbol("rdt", REAL_TYPE)
     monkeypatch.setattr(Node, "find_symbol", lambda _1, _2: rdt_sym)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -146,7 +148,7 @@ def test_globalstoargumentstrans(monkeypatch):
     # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
-        variable._datatype = DataType.REAL
+        variable._datatype = REAL_TYPE
     monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
 
     # Test with invalid node
@@ -219,7 +221,7 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
     def set_to_const_int(variable):
-        variable._datatype = DataType.INTEGER
+        variable._datatype = INTEGER_TYPE
         variable.constant_value = 1
     monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_const_int)
 
@@ -251,15 +253,16 @@ def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
     # In this case we set it to be of type CHARACTER as that is not supported
     # in the GOcean infrastructure.
     def set_to_char(variable):
-        variable._datatype = DataType.CHARACTER
+        variable._datatype = CHARACTER_TYPE
     monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_char)
 
     # Test transforming a single kernel
     with pytest.raises(TypeError) as err:
         trans.apply(kernel)
-    assert "The global variable 'rdt' could not be promoted to an argument " \
-        "because the GOcean infrastructure does not have any scalar type " \
-        "equivalent to the PSyIR DataType.CHARACTER type." in str(err.value)
+    assert ("The global variable 'rdt' could not be promoted to an argument "
+            "because the GOcean infrastructure does not have any scalar type "
+            "equivalent to the PSyIR Scalar<CHARACTER, UNDEFINED> type."
+            in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -293,7 +296,7 @@ def test_globalstoarguments_multiple_kernels():
         # In this case we hardcode all globals to REAL to avoid searching and
         # importing of modules during this test.
         for var in kschedule.symbol_table.global_datasymbols:
-            var._datatype = DataType.REAL
+            var._datatype = REAL_TYPE
 
         trans.apply(kernel)
 
@@ -357,15 +360,15 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
-        variable._datatype = DataType.REAL
+        variable._datatype = REAL_TYPE
     monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
 
     # Add 'rdt' into the symbol table
-    kernel.root.symbol_table.add(DataSymbol("rdt", DataType.REAL))
+    kernel.root.symbol_table.add(DataSymbol("rdt", REAL_TYPE))
 
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert "Couldn't copy 'rdt: <DataType.REAL, Scalar, Global(container=" \
-        "'model_mod')>' into the SymbolTable. The name 'rdt' is already used" \
-        " by another symbol." in str(err.value)
+    assert ("Couldn't copy 'rdt: <Scalar<REAL, UNDEFINED>, "
+            "Global(container='model_mod')>' into the SymbolTable. The name "
+            "'rdt' is already used by another symbol." in str(err.value))

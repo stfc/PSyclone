@@ -41,7 +41,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Assignment, Reference, Literal
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
+    INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -74,7 +75,7 @@ def test_assignment_semantic_navigation():
     assert "' malformed or incomplete. It needs at least 1 child to have " \
         "a lhs." in str(err.value)
 
-    ref = Reference(DataSymbol("a", DataType.REAL), assignment)
+    ref = Reference(DataSymbol("a", REAL_SINGLE_TYPE), assignment)
     assignment.addchild(ref)
 
     # rhs should fail if second child is not present
@@ -83,7 +84,7 @@ def test_assignment_semantic_navigation():
     assert " malformed or incomplete. It needs at least 2 children to have " \
         "a rhs." in str(err.value)
 
-    lit = Literal("1", DataType.INTEGER, assignment)
+    lit = Literal("1", INTEGER_SINGLE_TYPE, assignment)
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]
@@ -94,8 +95,8 @@ def test_assignment_create():
     creates an Assignment instance.
 
     '''
-    lhs = Reference(DataSymbol("tmp", DataType.REAL))
-    rhs = Literal("0.0", DataType.REAL)
+    lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    rhs = Literal("0.0", REAL_SINGLE_TYPE)
     assignment = Assignment.create(lhs, rhs)
     check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
@@ -109,13 +110,13 @@ def test_assignment_create_invalid():
     '''
     # lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Assignment.create("invalid", Literal("0.0", DataType.REAL))
+        _ = Assignment.create("invalid", Literal("0.0", REAL_SINGLE_TYPE))
     assert ("lhs argument in create method of Assignment class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
+        _ = Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
                               "invalid")
     assert ("rhs argument in create method of Assignment class should "
             "be a PSyIR Node but found 'str'.") in str(excinfo.value)

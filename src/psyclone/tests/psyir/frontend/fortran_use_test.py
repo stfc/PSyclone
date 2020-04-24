@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
@@ -233,12 +233,13 @@ def test_use_same_symbol():
 def test_use_local_symbol_error():
     ''' Check that we raise the expected error if we encounter an import of
     a symbol that is already declared to be local. '''
-    from psyclone.psyir.symbols import DataSymbol, DataType, LocalInterface
+    from psyclone.psyir.symbols import DataSymbol, LocalInterface, \
+        INTEGER_SINGLE_TYPE
     fake_parent = KernelSchedule("dummy_schedule")
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.
-    fake_parent.symbol_table.add(DataSymbol("fred", DataType.INTEGER,
+    fake_parent.symbol_table.add(DataSymbol("fred", INTEGER_SINGLE_TYPE,
                                             interface=LocalInterface()))
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: fred\n")

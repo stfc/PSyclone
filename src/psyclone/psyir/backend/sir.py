@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,14 +44,18 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
     Array, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
 # SIR does not seem to support the Character datatype. Boolean does
 # seem to be supported but there are no examples with the data value
 # so we don't include it here.
-TYPE_MAP_TO_SIR = {DataType.REAL: "BuiltinType.Float",
-                   DataType.INTEGER: "BuiltinType.Integer"}
+# We do not yet deal with precision e.g. the SIR supports a DOUBLE
+# type which would probably be equivalent to PSyIR's
+# Precision.DOUBLE. This is the subject of issue #741.
+
+TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
+                   ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
 
 
 def gen_stencil(node):
@@ -412,7 +416,7 @@ class SIRWriter(PSyIRVisitor):
         '''
         result = node.value
         try:
-            datatype = TYPE_MAP_TO_SIR[node.datatype]
+            datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
         except KeyError:
             raise VisitorError(
                 "PSyIR type '{0}' has no representation in the SIR backend."
@@ -451,14 +455,15 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
         literal = node.children[0]
-        if literal.datatype not in [DataType.REAL, DataType.INTEGER]:
+        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
+                                              ScalarType.Intrinsic.INTEGER]:
             # The '-' operator can only be applied to REAL and INTEGER
             # datatypes.
             raise VisitorError(
                 "PSyIR type '{0}' does not work with the '-' operator."
                 "".format(str(literal.datatype)))
         result = literal.value
-        datatype = TYPE_MAP_TO_SIR[literal.datatype]
+        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
         return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
                 "".format(self._nindent, oper, result, datatype))
 

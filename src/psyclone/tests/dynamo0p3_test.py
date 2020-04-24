@@ -683,24 +683,27 @@ def test_field_fs(tmpdir):
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, m5)\n"
+        "m3, m4, f5, m5, m6)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
-        "m4, f5, m5\n"
+        "m4, f5, m5, m6\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
-        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
-        "f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, m5_proxy\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
+        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
+        "m5_proxy, m6_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_any_w2(:,:) => null(), "
         "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => null(), "
         "map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
         "map_w2trace(:,:) => null(), map_w2v(:,:) => null(), "
-        "map_w3(:,:) => null(), map_wtheta(:,:) => null()\n"
+        "map_w3(:,:) => null(), map_wchi(:,:) => null(), "
+        "map_wtheta(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, "
         "ndf_w0, undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
         "undf_w2h, ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, "
-        "ndf_w2trace, undf_w2trace, ndf_any_w2, undf_any_w2\n"
+        "ndf_w2trace, undf_w2trace, ndf_wchi, undf_wchi, "
+        "ndf_any_w2, undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -716,6 +719,7 @@ def test_field_fs(tmpdir):
         "      m4_proxy = m4%get_proxy()\n"
         "      f5_proxy = f5%get_proxy()\n"
         "      m5_proxy = m5%get_proxy()\n"
+        "      m6_proxy = m6%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -736,7 +740,8 @@ def test_field_fs(tmpdir):
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2broken => m4_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2trace => f5_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_w2 => m5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wchi => m5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_w2 => m6_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w1\n"
         "      !\n"
@@ -783,10 +788,15 @@ def test_field_fs(tmpdir):
         "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
         "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise number of DoFs for wchi\n"
+        "      !\n"
+        "      ndf_wchi = m5_proxy%vspace%get_ndf()\n"
+        "      undf_wchi = m5_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Initialise number of DoFs for any_w2\n"
         "      !\n"
-        "      ndf_any_w2 = m5_proxy%vspace%get_ndf()\n"
-        "      undf_any_w2 = m5_proxy%vspace%get_undf()\n"
+        "      ndf_any_w2 = m6_proxy%vspace%get_ndf()\n"
+        "      undf_any_w2 = m6_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
@@ -826,17 +836,23 @@ def test_field_fs(tmpdir):
         "        CALL m5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
+        "      IF (m6_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m6_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
-        "m3_proxy%data, m4_proxy%data, f5_proxy%data, m5_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, "
-        "undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
-        "ndf_wtheta, undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
-        "map_w2h(:,cell), ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_w2broken, "
-        "undf_w2broken, map_w2broken(:,cell), ndf_w2trace, undf_w2trace, "
-        "map_w2trace(:,cell), ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
+        "m3_proxy%data, m4_proxy%data, f5_proxy%data, m5_proxy%data, "
+        "m6_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+        "map_w2(:,cell), ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, "
+        "map_w3(:,cell), ndf_wtheta, undf_wtheta, map_wtheta(:,cell), "
+        "ndf_w2h, undf_w2h, map_w2h(:,cell), ndf_w2v, undf_w2v, "
+        "map_w2v(:,cell), ndf_w2broken, undf_w2broken, map_w2broken(:,cell), "
+        "ndf_w2trace, undf_w2trace, map_w2trace(:,cell), ndf_wchi, "
+        "undf_wchi, map_wchi(:,cell), ndf_any_w2, undf_any_w2, "
+        "map_any_w2(:,cell))\n"
         "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
@@ -3013,7 +3029,7 @@ def test_halo_exchange_different_spaces(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert result.count("halo_exchange") == 12
+    assert result.count("halo_exchange") == 14
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5631,19 +5647,24 @@ def test_arg_discontinuous(monkeypatch, annexed):
         assert field.space == fspace
         assert field.discontinuous
 
-    # 1b) w2broken returns true
+    # 1b) w2broken and wchi return true
     _, info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     if annexed:
-        index = 5
+        index = 8
     else:
-        index = 6
+        index = 9
     kernel = schedule.children[index].loop_body[0]
-    field = kernel.arguments.args[6]
+    # Test w2broken
+    field = kernel.arguments.args[7]
     assert field.space == 'w2broken'
+    assert field.discontinuous
+    # Test wchi
+    field = kernel.arguments.args[4]
+    assert field.space == 'wchi'
     assert field.discontinuous
 
     # 1c) any_discontinuous_space returns true
