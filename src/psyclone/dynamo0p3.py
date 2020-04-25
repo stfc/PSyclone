@@ -67,8 +67,8 @@ from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-# TODO #749: Allow only read access and prevent halo exchanges for Wchi
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
+
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
 # any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
@@ -77,9 +77,12 @@ DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
 # differential basis dimensions.
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
-# Valid FS and FS names
+# Read-only FS
+READ_ONLY_FUNCTION_SPACES = ["wchi"]
+
+# Valid FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-    CONTINUOUS_FUNCTION_SPACES
+    CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
 
 # Valid any_space metadata (general FS, could be continuous or discontinuous)
 VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
@@ -1088,6 +1091,14 @@ class DynKernMetadata(KernelType):
         for arg in self._arg_descriptors:
             if arg.access != AccessType.READ:
                 write_count += 1
+                # We must not write to a field on a read-only function space
+                if arg.type == "gh_field" and \
+                   arg.function_spaces[0] in READ_ONLY_FUNCTION_SPACES:
+                    raise ParseError(
+                        "Found kernel metadata in '{0}' that specifies "
+                        "writing to the read-only function space '{1}'."
+                        "".format(self.name, arg.function_spaces[0]))
+
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
@@ -9231,6 +9242,12 @@ class DynKernelArgument(KernelArgument):
                 fs1 = FunctionSpace(arg_meta_data.function_space,
                                     self._kernel_args)
         self._function_spaces = [fs1, fs2]
+
+        # Addressing issue #753 will allow us to perform static checks
+        # for consistency between the algorithm and the kernel
+        # metadata. This will includes checking that a field on a read
+        # only function space is not passed to a kernel that modifies
+        # it. Note, issue #79 is also related to this.
 
     @property
     def descriptor(self):

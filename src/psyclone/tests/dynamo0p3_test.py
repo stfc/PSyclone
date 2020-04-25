@@ -2493,6 +2493,19 @@ def test_arg_descriptor_funcs_method_error():
         'not get to here' in str(excinfo.value)
 
 
+def test_DynKernMetadata_read_fs_error():
+    '''Tests that an exception is raised if a field on a read only
+    function space is specified as being written to by the kernel
+    metadata.
+
+    '''
+    with pytest.raises(ParseError) as info:
+        parse(os.path.join(BASE_PATH, "24_read_fs_error.f90"), api=TEST_API)
+    assert ("Found kernel metadata in 'testkern_chi_write_type' that "
+            "specifies writing to the read-only function space 'wchi'."
+            in str(info.value))
+
+
 def test_DynKernelArgument_intent_invalid():
     '''Tests that an error is raised in DynKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory '''
