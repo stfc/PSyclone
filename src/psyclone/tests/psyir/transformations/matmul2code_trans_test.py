@@ -413,7 +413,7 @@ def test_get_array_bound_error():
     with pytest.raises(TransformationError) as excinfo:
         _get_array_bound(reference, 0)
     assert ("Transformation Error: Unsupported index type 'float' found for "
-            "array 'x'." in str(excinfo.value))
+            "dimension 1 of array 'x'." in str(excinfo.value))
 
 
 def test_get_array_bound():

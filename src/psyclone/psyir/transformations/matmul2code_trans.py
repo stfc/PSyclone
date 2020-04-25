@@ -88,8 +88,8 @@ def _get_array_bound(array, index):
         # Added import here to avoid circular dependencies.
         from psyclone.psyir.transformations import TransformationError
         raise TransformationError(
-            "Unsupported index type '{0}' found for array '{1}'."
-            "".format(type(my_dim).__name__, array.name))
+            "Unsupported index type '{0}' found for dimension {1} of array "
+            "'{2}'.".format(type(my_dim).__name__, index+1, array.name))
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
@@ -206,7 +206,7 @@ class Matmul2CodeTrans(Transformation):
             # limited to Ranges which specify the full extent of the
             # dimension.
             if not (matrix.is_full_range(0) and matrix.is_full_range(1)):
-                raise TransformationError(
+                raise NotImplementedError(
                     "To use matmul2code_trans on matmul, indices 0 and 1 of "
                     "the 1st (matrix) argument '{0}' must be full ranges."
                     "".format(matrix.name))
@@ -215,7 +215,7 @@ class Matmul2CodeTrans(Transformation):
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix.children[2:]):
                     if isinstance(index, Range):
-                        raise TransformationError(
+                        raise NotImplementedError(
                             "To use matmul2code_trans on matmul, only the "
                             "first two indices of the 1st (matrix) argument "
                             "are permitted to be Ranges but found {0} at "
@@ -234,7 +234,7 @@ class Matmul2CodeTrans(Transformation):
             # transformation is currently limited to Ranges which
             # specify the full extent of the dimension.
             if not vector.is_full_range(0):
-                raise TransformationError(
+                raise NotImplementedError(
                     "To use matmul2code_trans on matmul, index 0 of the 2nd "
                     "(vector) argument '{0}' must be a full range."
                     "".format(matrix.name))
@@ -242,7 +242,7 @@ class Matmul2CodeTrans(Transformation):
                 # The 2nd index and onwards must not be ranges.
                 for (count, index) in enumerate(vector.children[1:]):
                     if isinstance(index, Range):
-                        raise TransformationError(
+                        raise NotImplementedError(
                             "To use matmul2code_trans on matmul, only the "
                             "first index of the 2nd (vector) argument is "
                             "permitted to be a Range but found {0} at index "
@@ -258,10 +258,10 @@ class Matmul2CodeTrans(Transformation):
         indices which are ranges and these must be the first two
         indices and the vector can only have one index that is a range
         and this must be the first index. Further, the ranges must be
-        for the full index space for that dimension (i.e. array slices
-        are not supported). If the transformation is successful then
-        an assignment which includes a MATMUL BinaryOperation node is
-        converted to equivalent inline code.
+        for the full index space for that dimension (i.e. array
+        subsections are not supported). If the transformation is
+        successful then an assignment which includes a MATMUL
+        BinaryOperation node is converted to equivalent inline code.
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyGen.BinaryOperation`
