@@ -921,8 +921,8 @@ class Node(object):
             no ContainerSymbols from which it might be brought into scope.
 
         '''
-        from psyclone.psyir.symbols import DataSymbol, DataType, \
-            UnresolvedInterface, DeferredType
+        from psyclone.psyir.symbols import DataSymbol, UnresolvedInterface, \
+            DeferredType
         if scope_limit:
             # Validate the supplied scope_limit
             if not isinstance(scope_limit, Node):

@@ -43,7 +43,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 @pytest.fixture(scope="function")
-def disable_declaration_check(request, monkeypatch):
+def disable_declaration_check(monkeypatch):
     ''' By default a Reference checks that it has a corresponding entry in
     the Symbol Table. However, this could make constructing tests very
     long winded so this fixture simply disables the check.

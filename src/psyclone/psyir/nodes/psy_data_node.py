@@ -524,7 +524,13 @@ class PSyDataNode(Node):
         # Flag that we have now checked for name clashes so that if there's
         # more than one PSyData node we don't fall over on the symbols
         # we've previous inserted.
+        # TODO #435 the psy_data_name_clashes_checked attribute only exists
+        # for a NemoInvokeSchedule. Since this whole `update()` routine will
+        # be removed once we are able to use the PSyIR backend to re-generate
+        # NEMO code, the pylint warning is disabled.
+        # pylint: disable=attribute-defined-outside-init
         routine_schedule.psy_data_name_clashes_checked = True
+        # pylint: enable=attribute-defined-outside-init
 
         # Create a name for this region by finding where this PSyDataNode
         # is in the list of PSyDataNodes in this Invoke.

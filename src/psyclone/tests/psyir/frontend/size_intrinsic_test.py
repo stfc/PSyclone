@@ -45,8 +45,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 @pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
                                         "n = SIZE(a(:,:,:), 3)"])
-@pytest.mark.usefixtures("disable_declaration_check")
-def test_size(expression, parser):
+@pytest.mark.usefixtures("disable_declaration_check", "parser")
+def test_size(expression):
     ''' Basic test that the SIZE intrinsic is recognised and represented
     in the PSyIR.
 

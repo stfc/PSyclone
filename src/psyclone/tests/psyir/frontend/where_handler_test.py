@@ -46,8 +46,8 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
     Assignment, Literal, Reference, BinaryOperation, IfBlock
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import Symbol, DataSymbol, ArrayType, \
+    ScalarType, REAL_TYPE, INTEGER_TYPE
 
 
 def process_where(code, fparser_cls):
@@ -205,7 +205,6 @@ def test_where_symbol_clash(parser):
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType
     reader = FortranStringReader("SUBROUTINE widx_array()\n"
                                  "LOGICAL :: widx1(3,3,3)\n"
                                  "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"

@@ -3671,7 +3671,6 @@ class NemoExplicitLoopTrans(Transformation):
         from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
         from psyclone import nemo
-        from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
         self.validate(loop, options)
 
