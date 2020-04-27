@@ -25,10 +25,14 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: A. R. Porter, STFC Daresbury Laboratory
+
+RM = rm -f
 
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
+PSYCLONE ?= psyclone
 
 DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
 EXTRACT_DIR = ../../../lib/extract/dl_esm_inf/netcdf
@@ -48,7 +52,12 @@ DRIVER_INIT = driver-main-init
 # The name of the stand-alone driver that will call the update function.
 DRIVER_UPDATE = driver-main-update
 
-all:	$(EXEC)
+transform: alg.f90 psy.f90
+
+all: compile
+
+compile: $(EXEC)
+	# TODO the driver does not yet compile because of #644
 
 test:	$(DRIVER_INIT) $(DRIVER_UPDATE)
 
@@ -68,16 +77,14 @@ $(DRIVER_UPDATE):	$(KERNELS) $(DRIVER_UPDATE).o main.o \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	$$(nf-config --flibs)
 
-
-$(EXEC):	$(KERNELS) alg.o psy.o $(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+$(EXEC):	$(KERNELS) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a alg.o psy.o
 	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	-L $(DL_DIR) -l_fd                     \
 	$$(nf-config --flibs)
-	
 
 alg.f90 psy.f90: test.x90 extract_transform.py
-	psyclone -nodm -l -api "gocean1.0" -s ./extract_transform.py\
+	${PSYCLONE} -nodm -l -api "gocean1.0" -s ./extract_transform.py\
 			 --config ../../../config/psyclone.cfg \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
@@ -88,7 +95,16 @@ psy.o:	$(KERNELS)
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(EXTRACT_DIR) -c $<
 
+# This target requires that the netcdf (Fortran) development package be
+# installed
+$(EXTRACT_DIR)/lib_kernel_data_netcdf.a:
+	make -C $(EXTRACT_DIR)
+
 clean:
-	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC)
-	rm -f $(DRIVER_INIT) $(DRIVER_INIT).f90 \
+	${RM} *.o *.mod $(EXEC)
+	${RM} $(DRIVER_INIT) $(DRIVER_INIT).f90 \
 		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90
+
+allclean: clean
+	${RM} alg.f90 psy.f90
+	make -C $(EXTRACT_DIR) clean
