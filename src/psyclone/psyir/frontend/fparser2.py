@@ -428,8 +428,8 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         symbol_table = _get_symbol_table(psyir_literal_parent)
         if not symbol_table:
             # No symbol table found. This should never happen in
-            # normal usage but could occur if test PSyIR is
-            # constructed without a Schedule.
+            # normal usage but could occur if a test constructs a
+            # PSyIR without a Schedule.
             raise InternalError(
                 "Failed to find a symbol table to which to add the kind "
                 "symbol '{0}'.".format(precision_name))
