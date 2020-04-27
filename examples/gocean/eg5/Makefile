@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -44,6 +45,9 @@
 # Similarly for DrHook:
 #     export DRHOOK_DIR=../../../../drhook
 
+RM = rm -f
+PSYCLONE ?= psyclone
+
 F90 ?= gfortran
 F90FLAGS ?=
 DL_DIR ?= ../../../external/dl_esm_inf/finite_difference/src
@@ -51,14 +55,21 @@ DL_DIR ?= ../../../external/dl_esm_inf/finite_difference/src
 KERNELS = init_field_mod.o update_field_mod.o
 NAME=profile_test
 
-.PHONY: default template simple_timing drhook dl_timer
+.PHONY: all default compile transform template simple_timing drhook dl_timer
 
-default: template
+default: transform
+compile: template
 all: template simple_timing drhook dl_timer
 
 template: PROFILE_DIR=../../../lib/profiling/template
 template: PROFILE_LINK=-ldummy
-template: $(NAME).template
+template: ../../../lib/profiling/template/libdummy.a $(NAME).template
+	./$(NAME).template
+
+# Build the template profiling library
+../../../lib/profiling/template/libdummy.a:
+	${MAKE} -C ../../../lib/profiling/template clean
+	${MAKE} -C ../../../lib/profiling/template
 
 simple_timing: PROFILE_DIR=../../../lib/profiling/simple_timing
 simple_timing: PROFILE_LINK=-lsimple_timing
@@ -85,11 +96,13 @@ dl_timer: $(NAME).dl_timer
 # in order to preserve temporary files:
 #.SECONDARY:
 
-$(NAME).%:	$(KERNELS) psy_%.o alg.o 
+$(NAME).%: $(KERNELS) psy_%.o alg.o
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) -L $(DL_DIR) -l_fd
 
+transform: alg.f90 psy.f90
+
 alg.f90 psy.f90: test.x90
-	psyclone --profile invokes -l -api "gocean1.0" \
+	${PSYCLONE} --profile invokes -l -api "gocean1.0" \
 			 --config ../../../config/psyclone.cfg \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
@@ -102,4 +115,7 @@ psy_%.o: psy.f90 $(KERNELS)
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(PROFILE_DIR) -c $<
 
 clean:
-	rm -f *.o *.mod alg.f90 psy.f90 profile_test.*
+	rm -f *.o *.mod profile_test.*
+
+allclean: clean
+	${RM} alg.f90 psy.f90
