@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,9 @@
 
 program any_space_example
 
+  ! Description: single kernel call in an invoke where the field and operator
+  ! arguments are specified on any_space with basis and differential basis
+  ! functions on any_space for quadrature rule.
   use inf,                      only : field_type,    &
                                        operator_type, &
                                        quadrature_rule

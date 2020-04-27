@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,28 +33,40 @@
 ! Modified: I. Kavcic, Met Office
 
 module testkern_any_space_3_mod
+
   use argument_mod
   use kernel_mod
-  use constants_mod
-  ! Test for any_space producing correct code where there are 1) different
-  ! spaces for the to and from parts of an operator, 2) no other arguments
+  use constants_mod, only : r_def, i_def
 
-type, public, extends(kernel_type) ::testkern_any_space_3_type
-  type(arg_type) :: meta_args(1) = (/                                &
-       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
-       /)
-  integer :: iterates_over = CELLS
+  implicit none
+
+  ! Test for any_space producing correct code where there are
+  ! 1) different spaces for the to and from parts of an operator,
+  ! 2) no other arguments.
+  type, public, extends(kernel_type) ::testkern_any_space_3_type
+    private
+    type(arg_type) :: meta_args(1) = (/                                &
+         arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
+         /)
+    integer :: iterates_over = CELLS
+  contains
+    procedure, public, nopass :: testkern_any_space_3_code
+  end type testkern_any_space_3_type
+
 contains
-  procedure, public, nopass :: testkern_any_space_3_code
-end type testkern_any_space_3_type
-!
-contains
-  subroutine testkern_any_space_3_code(cell, nlayers, ncell_3d, local_stencil, &
-       ndf_any_space_1_op, ndf_any_space_2_op)
+
+  subroutine testkern_any_space_3_code(cell, nlayers,           &
+                                       ncell_3d, local_stencil, &
+                                       ndf_anyspc1_op, ndf_anyspc2_op)
+
     implicit none
-    integer :: cell, nlayers, ncell_3d, ndf_any_space_1_op, &
-         ndf_any_space_2_op
-    real(kind=r_def), dimension(:,:,:) :: local_stencil
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_anyspc1_op, ndf_anyspc2_op
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_3d
+    real(kind=r_def), dimension(ndf_anyspc1_op,ndf_anyspc2_op,ncell_3d) :: local_stencil
+
   end subroutine testkern_any_space_3_code
-!
+
 end module testkern_any_space_3_mod

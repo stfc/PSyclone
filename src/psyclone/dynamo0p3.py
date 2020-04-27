@@ -45,6 +45,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import os
+import re
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
@@ -411,15 +412,34 @@ def cma_on_space(function_space, arguments):
 
 
 class FunctionSpace(object):
-    ''' Manages the name of a function space. If it is an any_space or
+    '''
+    Manages the name of a function space. If it is an any_space or
     any_discontinuous_space then its name is mangled such that it is unique
-    within the scope of an Invoke '''
+    within the scope of an Invoke.
+
+    :param str name: original name of function space to create a \
+                     mangled name for.
+    :param kernel_args: object encapsulating all arguments to the kernel call.
+    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+
+    :raises GenerationError: if an unrecognised function space is encountered.
+
+    '''
 
     def __init__(self, name, kernel_args):
         self._orig_name = name
-        self._short_name = None
         self._kernel_args = kernel_args
-        print("Function Space init: kernel_args: ", dir(kernel_args))
+        self._mangled_name = None
+        self._short_name = None
+        self._sym_name = {}
+
+        # Check whether the function space name a valid name
+        if self._orig_name not in VALID_FUNCTION_SPACE_NAMES:
+            raise GenerationError("Unrecognised function space '{0}'. The "
+                                  "supported spaces are {1}."
+                                  .format(self._orig_name,
+                                          VALID_FUNCTION_SPACE_NAMES))
+
         if self._orig_name not in VALID_ANY_SPACE_NAMES + \
            VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             # We only need to name-mangle any_space and
@@ -427,79 +447,165 @@ class FunctionSpace(object):
             self._mangled_name = self._orig_name
             self._short_name = self._orig_name
         else:
+            # Create short names for any_*_spaces used for mangled names
+            self._short_name = self._create_short_fs_name()
             # We do not construct the name-mangled name at this point
             # as the full list of kernel arguments may still be under
             # construction.
             self._mangled_name = None
-            # Create short names for any_*_spaces to be used for mangled
-            # names from the condensed keyword and function space ID
-            if self._orig_name in VALID_ANY_SPACE_NAMES:
-                self._short_name = "anyspc" + self._orig_name[-1]        
-            if self._orig_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
-                self._short_name = "anydspc" + self._orig_name[-1]
 
     @property
     def orig_name(self):
-        ''' Returns the name of this function space as declared in the
-        kernel meta-data '''
+        '''
+        Returns the name of this function space as declared in the
+        kernel meta-data.
+
+        :returns: original name of this function space.
+        :rtype: str
+
+        '''
         return self._orig_name
 
     @property
     def short_name(self):
-        ''' Returns the short name of this function space '''
+        '''
+        Returns the short name of this function space (original name for
+        regular function spaces and condensed name for any_*_spaces).
+
+        :returns: short name of this function space.
+        :rtype: str
+
+        '''
         return self._short_name
 
     @property
     def mangled_name(self):
-        ''' Returns the mangled name of this function space such that
-        it is unique within the scope of an invoke. If the mangled
-        name has not been generated then we do that the first time we're
-        called. '''
-        print("=== FS mangled_name ===")
-        kern_args = self._kernel_args
-        print("  self._kernel_args: ", kern_args)
-        ####print("  type(self._kernel_args._parent_call.root): ", type(call_root))
-        if isinstance(self._kernel_args._parent_call.root, DynInvokeSchedule):
-            ###call_root = DynInvokeSchedule()
-            call_root = self._kernel_args._parent_call.root
-            print("  DynInvokeSchedule: ", type(call_root))
-            print("           dir(call_root) ", dir(call_root))
-            ###print("     complete symbol_table: ", [sym.name for sym in call_root.symbol_table.symbols])
-            ###print("           call_root: ", call_root)
-            ###print("     schedule.invoke: ", type(schedule.children))
-            argsym = call_root.symbol_table.argument_symbols
-            print("     and argument symbols: ", argsym)
-        elif isinstance(self._kernel_args._parent_call.root, DynKern):
-          print("  DynKern: self._kernel_args.args: ", self._kernel_args.args)
-          print("           self._kernel_args.names: ", self._kernel_args.names)
+        '''
+        Returns the mangled name of this function space such that it is
+        unique within the scope of an invoke. If the mangled name has not
+        been generated then we do that the first time we're called.
+
+        :returns: mangled name of this function space.
+        :rtype: str
+
+        '''
         if self._mangled_name:
             return self._mangled_name
         # Cannot use kernel_args.field_on_space(x) here because that
         # routine itself requires the mangled name in order to identify
         # whether the space is present in the kernel call.
-        self._mangled_name = self.mangle_fs_name(self._kernel_args.args)
+        self._mangled_name = self._mangle_fs_name()
         return self._mangled_name
 
+    def _mangle_fs_name(self):
+        '''
+        Constructs the mangled version of a function-space name given a list
+        of kernel arguments if the argument's function space is any_*_space
+        (if the argument's function space is defined then the mangled name
+        is the original name, set in the class initialisation). The mangled
+        name is the short name of the function space combined with a
+        representative of the argument's name.
 
-    def mangle_fs_name(self, args):
-        ''' Construct the mangled version of a function-space name given
-        a list of kernel arguments '''
+        :returns: original or mangled name of this function space.
+        :rtype: str
+
+        :raises FieldNotFoundError: if no kernel argument was found on \
+                                    the specified function space.
+
+        '''
+        # List kernel arguments
+        args = self._kernel_args.args
+        # Create symbolic names for kernel arguments
+        self._sym_name = self._create_sym_name()
+        # Mangle the function space name
+        # Remove this as it is in the initialisation???
         if self._orig_name not in VALID_ANY_SPACE_NAMES + \
            VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             # If the supplied function-space name is not on any_space
             # or any_discontinuous_space then we don't need to mangle the name
             return self._orig_name
-        else:
-            ####print("mangle_fs_name, args: ", args, [arg.name for arg in args])
-            ##print("  type(args): ", type(args))
-            ##print("  dir(args): ", dir(args), "\n")
-            for arg in args:
-                for fspace in arg.function_spaces:
-                    if fspace and fspace.orig_name.lower() == self._orig_name.lower():
-                        mngl_name = self._short_name + "_" + arg.name
-                        return mngl_name
+
+        for arg in args:
+            for fspace in arg.function_spaces:
+                if (fspace and fspace.orig_name.lower() ==
+                        self._orig_name.lower()):
+                    mngl_name = self._short_name + "_" + \
+                                self._sym_name[arg.name]
+                    return mngl_name
         raise FieldNotFoundError("No kernel argument found for function space "
-                                 "'{0}'".format(fs_name))
+                                 "'{0}'".format(self._orig_name))
+
+    def _create_short_fs_name(self):
+        '''
+        Creates short names for any_*_spaces to be used for mangled names
+        from the condensed keywords and function space IDs.
+
+        :returns: short name of this function space.
+        :rtype: str
+
+        '''
+        fslist = self._orig_name.split("_")
+        # Get first letters in "any" and "discontinuous" (if exists) keywords
+        front = [x[0] for x in fslist[:-2]]
+        # Create a short name as: "any" + ("d") + "spc" + "ID".
+        self._short_name = fslist[0] + "".join(front[1:]) + "spc" + fslist[-1]
+        return self._short_name
+
+    def _create_sym_name(self):
+        '''
+        Creates a symbolic representative of the kernel argument's name.
+        In the kernel stub generator the symbolic name is the full argument
+        names. In the PSy layer the symbolic name is a condensed argument
+        name (first two and the last character of the full name) combined
+        with the position of the argument in the invoke.
+
+        :returns: symbolic name of the kernel argument.
+        :rtype: str
+
+        '''
+        # Collate a list of kernel argument names
+        kern_arg_name = [arg.name for arg in self._kernel_args.args]
+        # Initialise symbolic names with the full argument names
+        self._sym_name = {arg: arg for arg in kern_arg_name}
+        # Determine whether this is an Invoke (PSy layer) or a Kernel (kernel
+        # stub generator)
+        call_root = self._kernel_args._parent_call.root
+        if isinstance(call_root, DynInvokeSchedule):
+            # PSy layer: list all Invoke symbols to check the kernel arguments
+            # against
+            inv_arg_name = [sym.name for sym in call_root.symbol_table.symbols]
+            # Create auxiliary dictionary to enumerate positions of all
+            # arguments in the invoke
+            idct = {arg: pos + 1 for pos, arg in enumerate(inv_arg_name)}
+            # Construct symbolic names for kernel arguments as name stubs
+            # combined with position of the argument
+            for argname in kern_arg_name:
+                # Initialise stub name as argument name
+                stubname = argname
+                if len(argname) > 4:
+                    # Check if the argument name is combined of words
+                    # separated by an underscore
+                    nmlst = re.split('_+', argname)
+                    if len(nmlst) > 1:
+                        # If it is, join the first two letters of each word
+                        stubname = "".join([x[0:2] for x in nmlst])
+                        # Check whether the last word is a numerical index
+                        # (for instance, vector dimension) and replace the
+                        # last two characters in the stub name with the index
+                        if nmlst[-1].isdigit():
+                            stubname = stubname.replace(stubname[-2:],
+                                                        nmlst[-1])
+                    else:
+                        # Create name stub from first and last two characters
+                        stubname = argname[0:2] + argname[-2:]
+                # Create symbolic name by appending the argument position
+                self._sym_name[argname] = stubname + "_" + str(idct[argname])
+        elif isinstance(call_root, DynKern):
+            # Kernel stub generator: use full kernel argument names (already
+            # defined above
+            pass
+
+        return self._sym_name
 
 
 class DynFuncDescriptor03(object):
@@ -2823,6 +2929,9 @@ class DynFunctionSpaces(DynCollection):
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
+            # Find an argument on this space
+            arg = self._invoke.arg_for_funcspace(function_space)
+
             # Initialise information associated with this function space.
             # If we have 1+ kernels that iterate over cells then we
             # will need ndf and undf. If we don't then we only need undf
@@ -2832,13 +2941,13 @@ class DynFunctionSpaces(DynCollection):
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
                                       " Initialise number of DoFs for " +
-                                      function_space.mangled_name + " on " +
+                                      arg.name + " on " +
                                       function_space.orig_name))
                 parent.add(CommentGen(parent, ""))
 
-            # Find an argument on this space to use to dereference
-            arg = self._invoke.arg_for_funcspace(function_space)
+            # Find argument proxy name used to dereference
             name = arg.proxy_name_indexed
+            print(arg.name)
             # Initialise ndf for this function space.
             if not self._dofs_only:
                 ndf_name = get_fs_ndf_name(function_space)
@@ -4982,10 +5091,6 @@ class DynInvoke(Invoke):
         unique_fs_names = []
         for kern_call in self.schedule.kernels():
             kern_fss = kern_call.arguments.unique_fss
-            print("\nDynInvoke, unique_fss: ")
-            print("kern_call.name ", kern_call.name)
-            print("kern_call.arguments.args[0]", kern_call.arguments.args[0])
-            print("kern_fss: ", [fspace.mangled_name for fspace in kern_fss], [a.name for a in kern_call.arguments.args])
             for fspace in kern_fss:
                 if fspace.mangled_name not in unique_fs_names:
                     unique_fs.append(fspace)
@@ -5112,6 +5217,7 @@ class DynInvokeSchedule(InvokeSchedule):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg, reserved_names)
+
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
 
@@ -7046,9 +7152,6 @@ class DynKern(CodedKern):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         '''
-        print("DynKern arguments, args: ", args, [arg.varname for arg in args])
-        print("  type(args): ", type(args))
-        print("  dir(args): ", dir(args), "\n")
         from psyclone.parse.algorithm import KernelCall
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
@@ -8866,13 +8969,9 @@ class DynKernelArguments(Arguments):
         # appropriate.
         self._args = []
         idx = 0
-        print("\nDynKernelArguments, call.args: ", call.args)
         for arg in call.ktype.arg_descriptors:
-
-            print("  self.names  = ", self.names)
             dyn_argument = DynKernelArgument(self, arg, call.args[idx],
                                              parent_call)
-            print("    self.names, idx, call.args[idx], dyn_argument.name: ", self.names, idx, call.args[idx], dyn_argument.name)
             idx += 1
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
@@ -9280,7 +9379,6 @@ class DynKernelArgument(KernelArgument):
                 fs1 = FunctionSpace(arg_meta_data.function_space,
                                     self._kernel_args)
         self._function_spaces = [fs1, fs2]
-        ##print("DynKernelArgument, self.name, kernel_args, arg_info.text, arg_info.varname, type(call) ", self.name, kernel_args.names, arg_info.text, arg_info.varname, type(call))
 
     @property
     def descriptor(self):
