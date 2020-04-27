@@ -219,11 +219,11 @@ def test_validate7():
     matmul = create_matmul()
     matrix = matmul.children[0]
     matrix.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(TransformationError) as excinfo:
+    with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "indices 0 and 1 of the 1st (matrix) argument 'x' must be "
-            "full ranges." in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, indices 0 and 1 of the "
+            "1st (matrix) argument 'x' must be full ranges."
+            in str(excinfo.value))
 
 
 def test_validate8():
@@ -238,12 +238,11 @@ def test_validate8():
     matrix = matmul.children[0]
     my_range = matrix.children[0]
     matrix.children[2] = my_range
-    with pytest.raises(TransformationError) as excinfo:
+    with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "only the first two indices of the 1st (matrix) argument are "
-            "permitted to be Ranges but found Range at index 2."
-            in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, only the first two indices "
+            "of the 1st (matrix) argument are permitted to be Ranges but "
+            "found Range at index 2." in str(excinfo.value))
 
 
 def test_validate9():
@@ -257,11 +256,10 @@ def test_validate9():
     matmul = create_matmul()
     vector = matmul.children[1]
     vector.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(TransformationError) as excinfo:
+    with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "index 0 of the 2nd (vector) argument 'x' must be a full range."
-            in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, index 0 of the 2nd (vector) "
+            "argument 'x' must be a full range." in str(excinfo.value))
 
 
 def test_validate10():
@@ -276,12 +274,11 @@ def test_validate10():
     vector = matmul.children[1]
     my_range = vector.children[0]
     vector.children[1] = my_range
-    with pytest.raises(TransformationError) as excinfo:
+    with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "only the first index of the 2nd (vector) argument is "
-            "permitted to be a Range but found Range at index 1."
-            in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, only the first index of the "
+            "2nd (vector) argument is permitted to be a Range but found "
+            "Range at index 1." in str(excinfo.value))
 
 
 def test_validate11():

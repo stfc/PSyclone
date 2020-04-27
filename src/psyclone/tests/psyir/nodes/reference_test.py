@@ -203,6 +203,7 @@ def test_array_create_invalid3():
 def test_array_is_full_range():
     '''Test that the is_full_range method in the Array Node works as
     expected. '''
+    # pylint: disable=too-many-statements
     zero = Literal("0", INTEGER_SINGLE_TYPE)
     one = Literal("1", INTEGER_SINGLE_TYPE)
     array_type = ArrayType(REAL_SINGLE_TYPE, [10])

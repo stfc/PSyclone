@@ -130,12 +130,14 @@ class Matmul2CodeTrans(Transformation):
         '''
         return "Matmul2CodeTrans"
 
-    def validate(self, node):
+    def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
         Matmul2CodeTran transformation to the supplied node.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
         :raises TransformationError: if the node argument is not the \
             expected type.
@@ -145,6 +147,7 @@ class Matmul2CodeTrans(Transformation):
             the required form.
 
         '''
+        # pylint: disable=too-many-branches
         # Import here to avoid circular dependencies.
         from psyclone.psyir.transformations import TransformationError
         # Check the supplied argument is a matvec node
@@ -269,6 +272,7 @@ class Matmul2CodeTrans(Transformation):
         :type options: dictionary of string:values or None
 
         '''
+        # pylint: disable=too-many-locals
         self.validate(node)
 
         assignment = node.parent
