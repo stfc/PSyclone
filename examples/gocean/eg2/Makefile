@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@
 # export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
 # export LDFLAGS="-acc -ta=tesla,cc70"
 
+
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR = ../../../external
@@ -68,12 +69,20 @@ NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
 # compiles without OpenACC support.
 F90 ?= gfortran
 
-.PHONY: all kernels profile clean allclean
+.PHONY: all compile kernels profile transform transform clean allclean
 
-all: single.exe
+# By default this Makefile only triggers the PSyclone code transformations
+all: transform
 
-# Target to make the same application but instrumented for profiling
+compile: single.exe
+
+# Target to make the same application but instrumented for profiling.
+# Requires both the target profiling library and associated
+# PSyclone wrapper library.
 profile: single_prof.exe
+
+# Perform the PSyclone transformations only
+transform: psy.f90 alg_gen.f90 psy_prof.f90 alg_prof.f90
 
 # The dl_esm_inf library
 ${INF_LIB}:

@@ -38,5 +38,8 @@ EXAMPLES=eg1 eg2 eg3 eg4 eg5 eg6
 all:
 	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg); )
 
+compile:
+	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) compile; )
+
 clean:
 	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) clean; )
