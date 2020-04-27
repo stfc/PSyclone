@@ -60,6 +60,9 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
+from psyclone.f2pygen import IfThenGen, CallGen, CommentGen, DirectiveGen, \
+    ModuleGen, SubroutineGen, UseGen, AssignGen, CallGen, DoGen, DeclGen, \
+    AllocateGen, TypeDeclGen
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -1484,7 +1487,6 @@ class DynamoPSy(PSy):
         :rtype: :py:class:`psyir.nodes.Node`
 
         '''
-        from psyclone.f2pygen import ModuleGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -1844,7 +1846,6 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_extent_vars:
@@ -1879,7 +1880,6 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_direction_vars:
@@ -1932,7 +1932,6 @@ class DynStencils(DynCollection):
 
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
-        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen
         if not self._kern_args:
             return
 
@@ -1996,7 +1995,6 @@ class DynStencils(DynCollection):
 
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
-        from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._kern_args:
@@ -2063,7 +2061,6 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # TODO 719 The symtab is not connected to other parts of the
@@ -2260,7 +2257,6 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._properties:
@@ -2294,7 +2290,6 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._properties:
@@ -2323,8 +2318,6 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
-
         if not self._properties:
             return
 
@@ -2504,7 +2497,6 @@ class DynDofmaps(DynCollection):
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
         f2pygen object. '''
-        from psyclone.f2pygen import CommentGen, AssignGen
 
         # If we've got no dofmaps then we do nothing
         if self._unique_fs_maps:
@@ -2550,7 +2542,6 @@ class DynDofmaps(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
@@ -2586,7 +2577,6 @@ class DynDofmaps(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
@@ -2679,7 +2669,6 @@ class DynOrientations(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for orient in self._orients:
@@ -2698,7 +2687,6 @@ class DynOrientations(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         declns = [orient.name+"(:) => null()" for orient in self._orients]
@@ -2755,7 +2743,6 @@ class DynFunctionSpaces(DynCollection):
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._var_list:
@@ -2773,7 +2760,6 @@ class DynFunctionSpaces(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._var_list:
@@ -2791,7 +2777,6 @@ class DynFunctionSpaces(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
@@ -2849,7 +2834,6 @@ class DynFields(DynCollection):
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import TypeDeclGen
 
         # Add the Invoke subroutine argument declarations for fields
         fld_args = self._invoke.unique_declarations(datatype="gh_field")
@@ -2866,7 +2850,6 @@ class DynFields(DynCollection):
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         fld_args = psyGen.args_filter(self._kernel.args,
@@ -2911,7 +2894,6 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import TypeDeclGen
         field_proxy_decs = self._invoke.unique_proxy_declarations("gh_field")
         if field_proxy_decs:
             parent.add(TypeDeclGen(parent,
@@ -2938,7 +2920,6 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
                               " Initialise field and/or operator proxies"))
@@ -3004,7 +2985,6 @@ class DynCellIterators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # We only need the number of layers in the mesh if we are calling
@@ -3021,7 +3001,6 @@ class DynCellIterators(DynCollection):
         :param parent: the f2pygen node representing the Kernel stub.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
@@ -3037,7 +3016,6 @@ class DynCellIterators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
         if not self._dofs_only:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise number of layers"))
@@ -3094,7 +3072,6 @@ class DynScalarArgs(DynCollection):
         :param parent: the f2pygen node in which to insert declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for intent in FORTRAN_INTENT_NAMES:
@@ -3136,7 +3113,6 @@ class DynLMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         lma_args = psyGen.args_filter(
@@ -3171,8 +3147,6 @@ class DynLMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import TypeDeclGen
-
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(datatype="gh_operator")
         if op_args:
@@ -3250,7 +3224,6 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
@@ -3306,7 +3279,6 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
@@ -3349,7 +3321,6 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
@@ -3536,7 +3507,6 @@ class DynMeshes(object):
         :param parent: the parent node to which to add the declarations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Since we're now generating code, any transformations must
@@ -3608,7 +3578,6 @@ class DynMeshes(object):
         :param parent: the parent node to which to add the initialisations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
 
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
@@ -4032,7 +4001,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an unsupported quadrature shape is found.
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._qr_vars and not self._eval_targets:
@@ -4094,7 +4062,6 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import TypeDeclGen
         # Create a single declaration for each quadrature type
         for shape in VALID_QUADRATURE_SHAPES:
             if shape in self._qr_vars and self._qr_vars[shape]:
@@ -4130,8 +4097,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an invalid entry is encountered in the \
                                self._basis_fns list.
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
-            AllocateGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         basis_declarations = []
@@ -4387,7 +4352,6 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import AssignGen, DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
@@ -4455,8 +4419,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if `qr_type` is not "face" or "edge".
 
         '''
-        from psyclone.f2pygen import AssignGen, DeclGen
-
         if qr_type not in ["face", "edge"]:
             raise InternalError(
                 "_initialise_face_or_edge_qr: qr_type argument must be either "
@@ -4514,8 +4476,7 @@ class DynBasisFunctions(DynCollection):
                        of the assignments created in this routine
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, CallGen, DoGen, \
-            DeclGen
+
         api_config = Config.get().api_conf("dynamo0.3")
 
         loop_var_list = set()
@@ -4642,7 +4603,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an unrecognised type of basis function \
                                is encountered.
         '''
-        from psyclone.f2pygen import CommentGen, DeallocateGen
 
         if self._basis_fns:
             # deallocate all allocated basis function arrays
@@ -4733,7 +4693,6 @@ class DynBoundaryConditions(DynCollection):
         :param parent: node in the PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for dofs in self._boundary_dofs:
@@ -4750,7 +4709,6 @@ class DynBoundaryConditions(DynCollection):
         :param parent: node in the PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for dofs in self._boundary_dofs:
@@ -4769,7 +4727,6 @@ class DynBoundaryConditions(DynCollection):
         :param parent: node in PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        from psyclone.f2pygen import AssignGen
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             parent.add(AssignGen(
@@ -4999,8 +4956,6 @@ class DynInvoke(Invoke):
                        subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, AssignGen, \
-            DeclGen, CommentGen
 
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -5017,12 +4972,42 @@ class DynInvoke(Invoke):
                          self.reference_element_properties]:
             entities.declarations(invoke_sub)
 
+        if True: # config.runtime_checks:
+            # Perform any runtime checks
+            # for each field that is modified in this invoke
+            # *** if it has an unknown static function space
+
+            field_set = set()
+            field_set.update(self.unique_proxy_declarations(
+                datatype="gh_field", access=AccessType.WRITE))
+            field_set.update(self.unique_proxy_declarations(
+                datatype="gh_field", access=AccessType.READWRITE))
+            field_set.update(self.unique_proxy_declarations(
+                datatype="gh_field", access=AccessType.INC))
+            field_list = list(field_set)
+            if field_list:
+                invoke_sub.add(CommentGen(invoke_sub, ""))
+                invoke_sub.add(CommentGen(invoke_sub, " Perform run-time checks"))
+                invoke_sub.add(CommentGen(invoke_sub, ""))
+            for field_name in field_list:
+                if_clause_list = []
+                for ro_fs in READ_ONLY_FUNCTION_SPACES:
+                    if_clause_list.append("{0}%get_function_space() == '{1}'"
+                                          "".format(field_name, ro_fs))
+                if_clause = " .or. ".join(if_clause_list)
+                if_then = IfThenGen(invoke_sub, if_clause)
+                call_abort = CallGen(
+                    if_then, "log_event('In invoke XXX field {0} is on a "
+                    "read-only function space but is modified by kernel.', "
+                    "LOG_LEVEL_ERROR)".format(field_name))
+                if_then.add(call_abort)
+                invoke_sub.add(if_then)
+
         # Initialise all quantities required by this PSy routine (invoke)
 
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
-            from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
             tag = "omp_num_threads"
             nthreads_name = \
@@ -5123,7 +5108,6 @@ class DynGlobalSum(GlobalSum):
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
-        from psyclone.f2pygen import AssignGen, TypeDeclGen, UseGen
         name = self._scalar.name
         sum_name = self.root.symbol_table.name_from_tag("global_sum")
         parent.add(UseGen(parent, name="scalar_mod", only=True,
@@ -5563,7 +5547,6 @@ class DynHaloExchange(HaloExchange):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self.vector_index:
             ref = "(" + str(self.vector_index) + ")"
         else:
@@ -6745,7 +6728,6 @@ class DynLoop(Loop):
         if Config.get().distributed_memory and self._loop_type != "colour":
 
             # Set halo clean/dirty for all fields that are modified
-            from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
             fields = self.unique_modified_args("gh_field")
 
             if fields:
@@ -7260,7 +7242,6 @@ class DynKern(CodedKern):
         :rtype: :py:class:`fparser.one.XXXX`
 
         '''
-        from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -7307,7 +7288,6 @@ class DynKern(CodedKern):
                                  an OpenMP parallel region.
 
         '''
-        from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",
