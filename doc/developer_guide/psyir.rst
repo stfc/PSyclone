@@ -43,6 +43,53 @@ existing code using one of the front-ends (Readers) and it can be
 transformed back to a particular language using the back-ends (Writers)
 provided in PSyclone.
 
+DataTypes
+=========
+
+PSyIR DataTypes currently support Scalar and Array types via the
+``ScalarType`` and ``ArrayType`` classes. However, they are designed
+to be easily extended. For example, a structure could be created thus:
+
+::
+   
+    Class StructureType(DataType):
+       ''' My Structure class.
+
+           :param str: the name of this derived type.
+           :param type_list: a list of datatypes.
+           :type type_list: list of :py:class:`psyclone.psyir.symbols.DataType`
+
+       '''
+       def __init__(self, name, type_list):
+           # Check validity of arguments here
+           self.name = name
+           self.types = type_list
+
+
+It was decided to include datatype intrinsic as an attribute of ScalarType
+rather than subclassing. So, for example, a 4 byte real scalar is
+defined like this
+
+::
+
+   scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+
+and has the following pre-defined shortcut
+
+::
+
+   scalar_type = REAL4_TYPE
+
+If we were to subclass, it would have looked something like this:
+
+::
+
+   scalar_type = RealType(4)
+
+where ``RealType`` subclasses ``ScalarType``. It may be that the
+latter would have provided a better interface, but both approaches have
+the same functionality.
+
 Nodes
 =====
 

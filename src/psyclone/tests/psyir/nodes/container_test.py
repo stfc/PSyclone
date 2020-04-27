@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataType, SymbolTable, DataSymbol
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.psyGen import KernelSchedule
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -100,7 +100,7 @@ def test_container_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", DataType.REAL))
+    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
@@ -125,7 +125,7 @@ def test_container_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("x", DataType.REAL))
+    symbol_table.add(DataSymbol("x", REAL_SINGLE_TYPE))
     children = [KernelSchedule.create("mod_1", SymbolTable(), [])]
 
     # name is not a string.

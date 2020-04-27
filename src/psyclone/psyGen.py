@@ -46,7 +46,8 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, Symbol
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
+    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 
@@ -919,26 +920,27 @@ class InvokeSchedule(Schedule):
 
             # Declare variables needed on a OpenCL PSy-layer invoke
             nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
-            self.symbol_table.add(DataSymbol(nqueues, DataType.INTEGER),
+            self.symbol_table.add(DataSymbol(nqueues, INTEGER_TYPE),
                                   tag="opencl_num_cmd_queues")
             qlist = self.symbol_table.new_symbol_name("cmd_queues")
             self.symbol_table.add(
-                DataSymbol(qlist, DataType.INTEGER,
-                           shape=[DataSymbol.Extent.ATTRIBUTE]),
+                DataSymbol(qlist,
+                           ArrayType(INTEGER_TYPE,
+                                     [ArrayType.Extent.ATTRIBUTE])),
                 tag="opencl_cmd_queues")
             first = self.symbol_table.new_symbol_name("first_time")
             self.symbol_table.add(
-                DataSymbol(first, DataType.BOOLEAN), tag="first_time")
+                DataSymbol(first, BOOLEAN_TYPE), tag="first_time")
             flag = self.symbol_table.new_symbol_name("ierr")
             self.symbol_table.add(
-                DataSymbol(flag, DataType.INTEGER), tag="opencl_error")
+                DataSymbol(flag, INTEGER_TYPE), tag="opencl_error")
             nbytes = self.root.symbol_table.new_symbol_name(
                 "size_in_bytes")
             self.symbol_table.add(
-                DataSymbol(nbytes, DataType.INTEGER), tag="opencl_bytes")
+                DataSymbol(nbytes, INTEGER_TYPE), tag="opencl_bytes")
             wevent = self.root.symbol_table.new_symbol_name("write_event")
             self.symbol_table.add(
-                DataSymbol(wevent, DataType.INTEGER), tag="opencl_wevent")
+                DataSymbol(wevent, INTEGER_TYPE), tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
