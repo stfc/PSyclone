@@ -41,6 +41,7 @@ import pytest
 from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
+
 @pytest.fixture(scope="function")
 def disable_declaration_check(request, monkeypatch):
     ''' By default a Reference checks that it has a corresponding entry in

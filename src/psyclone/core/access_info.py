@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Modified by: S. Siso, STFC Daresbury Laboratory
+#              A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''

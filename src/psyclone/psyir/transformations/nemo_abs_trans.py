@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module providing a NEMO-api-specific transformation from a PSyIR
 ABS operator to PSyIR code. This could be useful if the ABS operator
