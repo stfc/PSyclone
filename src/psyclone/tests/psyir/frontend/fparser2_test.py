@@ -1544,7 +1544,7 @@ def test_handling_nested_intrinsic():
     required.
     '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader(
         "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
         "tmask_i(:,:) ) &\n"

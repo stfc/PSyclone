@@ -41,9 +41,11 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend import fparser2
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    get_literal_precision
 from psyclone.psyir.symbols import ScalarType, DataSymbol, DeferredType
-from psyclone.psyir.nodes import Node, Literal, CodeBlock
+from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule
 from psyclone.errors import InternalError
 
 
@@ -97,7 +99,7 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
         code = "x={0}_{1}".format(value, dprecision)
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -239,7 +241,6 @@ def test_get_literal_precision():
     as expected when the arguments are invalid.
 
     '''
-    from psyclone.psyir.frontend.fparser2 import get_literal_precision
     with pytest.raises(InternalError) as excinfo:
         _ = get_literal_precision(None, None)
     assert ("Unsupported literal type 'NoneType' found in "
@@ -260,8 +261,6 @@ def test_get_literal_precision_type(monkeypatch):
     as expected when an unsupported datatype is found
 
     '''
-    from psyclone.psyir.frontend import fparser2
-    from psyclone.psyir.frontend.fparser2 import get_literal_precision
     monkeypatch.setattr(fparser2, "CONSTANT_TYPE_MAP", {})
     code = "x=0.0"
     reader = FortranStringReader(code)
@@ -272,3 +271,18 @@ def test_get_literal_precision_type(monkeypatch):
     assert ("Could not process Real_Literal_Constant. Only 'real', 'integer', "
             "'logical' and 'character' intrinsic types are supported."
             in str(excinfo.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_get_literal_precision_missing_table():
+    ''' Check that get_literal_precision raises the expected error if it
+    fails to find a symbol table. '''
+    code = "x=0.0_rdef"
+    reader = FortranStringReader(code)
+    astmt = Fortran2003.Assignment_Stmt(reader)
+    # Pass get_literal_precision just a Node() (which does not have an
+    # associated symbol table).
+    with pytest.raises(InternalError) as err:
+        get_literal_precision(astmt.children[2], Node())
+    assert ("Failed to find a symbol table to which to add the kind"
+            in str(err.value))

@@ -382,6 +382,8 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
 
     :raises InternalError: if the arguments are of the wrong type.
+    :raises InternalError: if there's no symbol table associated with \
+                           `psyir_literal_parent` or one of its ancestors.
 
     '''
     if not isinstance(fparser2_node,
@@ -425,11 +427,13 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         # Find the closest symbol table
         symbol_table = _get_symbol_table(psyir_literal_parent)
         if not symbol_table:
-            # There is no symbol table so create a data symbol
-            # with deferred type. Once #500 is implemented
-            # this situation should never happen.
-            return DataSymbol(precision_name, DeferredType())
-        # Found a symbol table so lookup the precision symbol
+            # No symbol table found. This should never happen in
+            # normal usage but could occur if test PSyIR is
+            # constructed without a Schedule.
+            raise InternalError(
+                "Failed to find a symbol table to which to add the kind "
+                "symbol '{0}'.".format(precision_name))
+        # Lookup the precision symbol
         try:
             symbol = symbol_table.lookup(precision_name)
         except KeyError:
