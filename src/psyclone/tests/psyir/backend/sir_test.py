@@ -170,6 +170,9 @@ def test_gen_stencil_1(parser):
     '''Check the gen_stencil function produces the expected dimension
     strings.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+
     '''
     for form, expected in [("i,j,k,l,m", "[0, 0, 0, 0, 0]"),
                            ("i+1,j-1", "[1, -1]"),
@@ -484,6 +487,9 @@ def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
     '''Check the nemoinvokeschedule_node method of the SIRWriter class
     outputs the expected SIR code when there is a scalar variable.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+
     '''
     code = CODE.replace("a(i,j,k) = 1.0", "b = a(i,j,k)")
     schedule = get_schedule(parser, code)
@@ -529,6 +535,9 @@ def test_sirwriter_binaryoperation_node_1(parser, sir_writer, oper):
     outputs the expected SIR code. Check all supported computation
     mappings.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+
     '''
     code = CODE.replace(
         "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
@@ -552,6 +561,9 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code. Check all supported comparator
     mappings.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
 
     '''
     code = CODE.replace(
@@ -580,6 +592,9 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
     managed in this case due to the SIR makeBinaryOperator functions
     being nested.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+
     '''
     code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b*c+d")
     rhs = get_rhs(parser, code)
@@ -601,6 +616,9 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
 def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class raises
     the expected exception if an unsupported binary operator is found.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
 
     '''
     # Choose the sign function as there is no direct support for it in
@@ -775,6 +793,9 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
     creates the expected code when there is an if statement with no
     else clause.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+
     '''
     code = CODE.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
@@ -798,6 +819,9 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
 def test_sirwriter_ifblock_node_2(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class creates the
     expected code when there is an if statement with an else clause.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
 
     '''
     code = CODE.replace(
@@ -826,6 +850,9 @@ def test_sirwriter_ifblock_node_2(parser, sir_writer):
 def test_sirwriter_ifblock_node_3(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class creates the
     expected code when there is more than one if statement in the code.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
 
     '''
     code = CODE.replace(
@@ -862,6 +889,9 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
 def test_sirwriter_ifblock_node_4(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class creates the
     expected code when ifs are nested within each other.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
 
     '''
     code = CODE.replace(
@@ -913,6 +943,9 @@ def test_sirwriter_ifblock_node_4(parser, sir_writer):
 def test_sirwriter_schedule_node_1(parser, sir_writer):
     '''Check the schedule method of the SIRWriter class
     creates the expected code by calling its children.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
 
     '''
     from psyclone.psyir.nodes import Schedule

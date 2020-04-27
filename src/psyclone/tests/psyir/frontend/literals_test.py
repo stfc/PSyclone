@@ -57,7 +57,11 @@ from psyclone.errors import InternalError
 def test_handling_literal(code, dtype):
     ''' Check that the fparser2 frontend can handle literals of all
     supported datatypes. Note that signed literals are represented in the
-    PSyIR as a Unary operation on an unsigned literal. '''
+    PSyIR as a Unary operation on an unsigned literal.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     reader = FortranStringReader("x=" + code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Node()
@@ -84,6 +88,8 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision kind symbol.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
@@ -118,6 +124,8 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision value.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
@@ -149,8 +157,10 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
 def test_handling_literal_precision_3(value, dprecision):
     '''Check that the fparser2 frontend can handle literals with a
     precision value specified by the exponent. The literal value
-    should always use a lower case "e" for the exponent.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    should always use a lower case "e" for the exponent.
     '''
     code = "x={0}".format(value)
     reader = FortranStringReader(code)
@@ -172,7 +182,11 @@ def test_handling_literal_precision_3(value, dprecision):
 def test_literal_constant_value_format(value, result):
     '''Test that the Fortran real literal value format which does not have
     a digit before the decimal point is modified to include a "0"
-    e.g. ".3" -> "0.3", "-.3e4" -> "-0.3e4" '''
+    e.g. ".3" -> "0.3", "-.3e4" -> "-0.3e4"
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     reader = FortranStringReader("a = {0}".format(value))
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Node()
@@ -187,7 +201,11 @@ def test_literal_constant_value_format(value, result):
 @pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
 def test_handling_invalid_logic_literal():
     ''' Test that a logic fparser2 literal with an invalid value produces
-    an error.'''
+    an error.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     from psyclone.errors import GenerationError
     reader = FortranStringReader("x = .true.")
     astmt = Fortran2003.Assignment_Stmt(reader)

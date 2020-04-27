@@ -80,6 +80,10 @@ def process_where(code, fparser_cls):
 def test_where_broken_tree():
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree does not have the correct structure.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+
     '''
     fake_parent, fparser2spec = process_where(
         "WHERE (ptsu(:, :, :) /= 0._wp)\n"
@@ -102,6 +106,9 @@ def test_where_broken_tree():
 def test_missing_array_notation_expr():
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax in the logical expression.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
     '''
     fake_parent, _ = process_where("WHERE (ptsu /= 0._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
@@ -112,7 +119,11 @@ def test_missing_array_notation_expr():
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_missing_array_notation_lhs():
     ''' Check that we get a code block if the WHERE does not use explicit
-    array syntax on the LHS of an assignment within the body. '''
+    array syntax on the LHS of an assignment within the body.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                    "  z1_st = 1._wp / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct)
@@ -146,7 +157,11 @@ def test_where_array_notation_rank():
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_different_ranks_error():
     ''' Check that a WHERE construct containing array references of different
-    ranks results in the creation of a CodeBlock. '''
+    ranks results in the creation of a CodeBlock.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct)
@@ -157,6 +172,9 @@ def test_different_ranks_error():
 def test_array_notation_rank():
     ''' Check that the _array_notation_rank() utility handles various examples
     of array notation.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
     '''
     fake_parent = Schedule()
     processor = Fparser2Reader()
@@ -184,6 +202,8 @@ def test_where_symbol_clash(parser):
     already contains a symbol with the same name as one of the loop variables
     we want to introduce.
 
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
     '''
     from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType
     reader = FortranStringReader("SUBROUTINE widx_array()\n"
@@ -238,7 +258,11 @@ def test_where_symbol_clash(parser):
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_basic_where():
     ''' Check that a basic WHERE using a logical array as a mask is correctly
-    translated into the PSyIR. '''
+    translated into the PSyIR.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct)
@@ -266,7 +290,11 @@ def test_basic_where():
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_where_array_subsections():
     ''' Check that we handle a WHERE construct with non-contiguous array
-    subsections. '''
+    subsections.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where("WHERE (dry(1, :, :))\n"
                                    "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct)
@@ -290,7 +318,11 @@ def test_where_array_subsections():
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_elsewhere():
     ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
-    translated into a canonical form in the PSyIR. '''
+    translated into a canonical form in the PSyIR.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where("WHERE (ptsu(:, :, :) /= 0._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                    "ELSEWHERE\n"
@@ -322,7 +354,11 @@ def test_elsewhere():
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_where_stmt_validity():
     ''' Check that the correct exceptions are raised when the parse tree
-    for a WHERE statement has an unexpected structure. '''
+    for a WHERE statement has an unexpected structure.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, fparser2spec = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
         "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
@@ -343,7 +379,11 @@ def test_where_stmt_validity():
 
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_where_stmt():
-    ''' Basic check that we handle a WHERE statement correctly. '''
+    ''' Basic check that we handle a WHERE statement correctly.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
         "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
@@ -355,7 +395,11 @@ def test_where_stmt():
 @pytest.mark.usefixtures("parser", "disable_declaration_check")
 def test_where_ordering():
     ''' Check that the generated schedule has the correct ordering when
-    a WHERE construct is processed. '''
+    a WHERE construct is processed.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     fake_parent, _ = process_where(
         "      zsml = 1.e-15_wp\n"
         "      DO jj = 2, jpjm1\n"

@@ -50,7 +50,11 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
                                         "n = {0}(a, idx1 + 3)"])
 def test_bound_intrinsics(bound, expression):
     ''' Basic test that the UBOUND and LBROUND intrinsics are recognised
-    and represented in the PSyIR. '''
+    and represented in the PSyIR.
+
+    TODO #754 fix test so that 'disable_declaration_check' fixture is not
+    required.
+    '''
     from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
         Reference, Literal
