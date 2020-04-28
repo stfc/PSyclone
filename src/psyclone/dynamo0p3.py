@@ -1887,10 +1887,7 @@ class DynStencils(DynCollection):
             names = [arg.stencil.extent_arg.varname for arg in
                      self._unique_extent_args]
         elif self._kernel:
-            # TODO 719 The symtab is not connected to other parts of the
-            # Stub generation.
-            symtab = SymbolTable()
-            names = [self.dofmap_size_name(symtab, arg)
+            names = [self.dofmap_size_name(self._symbol_table, arg)
                      for arg in self._unique_extent_args]
         else:
             raise InternalError("_unique_extent_vars: have neither Invoke "
@@ -2065,7 +2062,7 @@ class DynStencils(DynCollection):
         parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
                           funcnames=["stencil_dofmap_type"]))
 
-        symtab = self._invoke.schedule.symbol_table
+        symtab = self._symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -2116,18 +2113,16 @@ class DynStencils(DynCollection):
 
     def _declare_maps_stub(self, parent):
         '''
-        Add declarations for all stencil maps to a Kernel stub.
+        Add declarations for all stencil maps to a kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the Kernel \
+        :param parent: the node in the f2pygen AST representing the kernel \
                        stub routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # TODO 719 The symtab is not connected to other parts of the
-        # Stub generation.
-        symtab = SymbolTable()
+        symtab = self._symbol_table
         for arg in self._kern_args:
             parent.add(DeclGen(
                 parent, datatype="integer",
@@ -2574,8 +2569,7 @@ class DynReferenceElement(DynCollection):
                        " Get the reference element and query its properties"))
         parent.add(CommentGen(parent, ""))
 
-        mesh_obj_name = \
-            self._invoke.schedule.symbol_table.name_from_tag("mesh")
+        mesh_obj_name = self._symbol_table.name_from_tag("mesh")
         parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
                              rhs=mesh_obj_name+"%get_reference_element()"))
 
@@ -3203,13 +3197,7 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        if self._invoke:
-            self._nlayers_name = \
-                self._invoke.schedule.symbol_table.name_from_tag("nlayers")
-        else:
-            # If it is not connected to an invoke (e.g. Stubs) we will hardcode
-            # the name without adding into the SymbolTable.
-            self._nlayers_name = "nlayers"
+        self._nlayers_name = self._symbol_table.name_from_tag("nlayers")
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -3486,8 +3474,7 @@ class DynCMAOperators(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise number of cols"))
         parent.add(CommentGen(parent, ""))
-        ncol_name = \
-            self._invoke.schedule.symbol_table.name_from_tag("ncell_2d")
+        ncol_name = self._symbol_table.name_from_tag("ncell_2d")
         parent.add(
             AssignGen(
                 parent, lhs=ncol_name,
@@ -3504,15 +3491,14 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
             # matrix
-            cma_name = self._invoke.schedule.symbol_table.\
-                name_from_tag(op_name+"_matrix")
+            cma_name = self._symbol_table.name_from_tag(op_name+"_matrix")
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_"+param)
+                param_name = self._symbol_table.name_from_tag(
+                    op_name+"_"+param)
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
@@ -3548,8 +3534,7 @@ class DynCMAOperators(DynCollection):
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
-            cma_name = self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_matrix")
+            cma_name = self._symbol_table.name_from_tag(op_name+"_matrix")
             parent.add(DeclGen(parent, datatype="real",
                                kind=api_config.default_kind["real"],
                                pointer=True,
@@ -3557,8 +3542,8 @@ class DynCMAOperators(DynCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._invoke.schedule.symbol_table.
-                                   name_from_tag(op_name+"_"+param))
+                param_names.append(self._symbol_table.name_from_tag(
+                    op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
@@ -3578,9 +3563,7 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        # TODO 719 The symtab is not connected to other parts of the
-        # Stub generation.
-        symtab = SymbolTable()
+        symtab = self._symbol_table
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
@@ -4328,8 +4311,8 @@ class DynBasisFunctions(DynCollection):
                 # the symbol_table to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    var_names.append(self._invoke.schedule.symbol_table.
-                                     name_from_tag(var+"_proxy"))
+                    var_names.append(self._symbol_table.name_from_tag(
+                        var+"_proxy"))
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -4682,7 +4665,7 @@ class DynBasisFunctions(DynCollection):
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
-        symbol_table = self._invoke.schedule.symbol_table
+        symbol_table = self._symbol_table
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
             # We generate unique names for the integers holding the numbers
@@ -4848,8 +4831,8 @@ class DynBasisFunctions(DynCollection):
         '''
         Add code to deallocate all basis/diff-basis function arrays
 
-        :param parent: node in the f2pygen AST to which the deallocate
-                       calls will be added
+        :param parent: node in the f2pygen AST to which the deallocate \
+                       calls will be added.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises InternalError: if an unrecognised type of basis function \
