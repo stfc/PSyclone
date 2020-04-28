@@ -286,7 +286,7 @@ class PSy(object):
 
 
 class Invokes(object):
-    '''Manage the invoke calls
+    '''Manage the invoke calls.
 
     :param alg_calls: a list of invoke metadata extracted by the \
         parser.
@@ -787,6 +787,9 @@ class InvokeSchedule(Schedule):
 
         # Initialise class attributes
         self._parent = None
+        # TODO #645 once children are not passed to the base-class constructor
+        # we should call that constructor here and have *it* create the symbol
+        # table.
         self._symbol_table = SymbolTable()
         if reserved_names:
             for name in reserved_names:
@@ -809,6 +812,8 @@ class InvokeSchedule(Schedule):
                 sequence.append(BuiltInFactory.create(call, parent=self))
             else:
                 sequence.append(KernFactory.create(call, parent=self))
+        # TODO #645 move this constructor call to the beginning of this
+        # routine.
         Schedule.__init__(self, children=sequence, parent=None)
 
     @property
@@ -4098,8 +4103,7 @@ class ACCDataDirective(ACCDirective):
 
 class KernelSchedule(Schedule):
     '''
-    A KernelSchedule inherits the functionality from Schedule and adds a symbol
-    table to keep a record of the declared variables and their attributes.
+    A kernelSchedule is the parent node of the PSyIR for Kernel source code.
 
     :param str name: Kernel subroutine name.
     :param parent: Parent of the KernelSchedule, defaults to None.
@@ -4109,7 +4113,6 @@ class KernelSchedule(Schedule):
     def __init__(self, name, parent=None):
         super(KernelSchedule, self).__init__(children=None, parent=parent)
         self._name = name
-        self._symbol_table = SymbolTable(self)
 
     @staticmethod
     def create(name, symbol_table, children):
@@ -4177,14 +4180,6 @@ class KernelSchedule(Schedule):
         :param str new_name: New name for the kernel.
         '''
         self._name = new_name
-
-    @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the kernel.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._symbol_table
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes

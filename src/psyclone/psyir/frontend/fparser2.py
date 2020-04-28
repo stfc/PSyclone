@@ -48,8 +48,8 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    GlobalInterface, ArgumentInterface, UnresolvedInterface, LocalInterface, \
-    ScalarType, ArrayType, DeferredType
+    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, ScalarType, ArrayType, DeferredType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -382,6 +382,8 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
 
     :raises InternalError: if the arguments are of the wrong type.
+    :raises InternalError: if there's no symbol table associated with \
+                           `psyir_literal_parent` or one of its ancestors.
 
     '''
     if not isinstance(fparser2_node,
@@ -425,11 +427,13 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         # Find the closest symbol table
         symbol_table = _get_symbol_table(psyir_literal_parent)
         if not symbol_table:
-            # There is no symbol table so create a data symbol
-            # with deferred type. Once #500 is implemented
-            # this situation should never happen.
-            return DataSymbol(precision_name, DeferredType())
-        # Found a symbol table so lookup the precision symbol
+            # No symbol table found. This should never happen in
+            # normal usage but could occur if a test constructs a
+            # PSyIR without a Schedule.
+            raise InternalError(
+                "Failed to find a symbol table to which to add the kind "
+                "symbol '{0}'.".format(precision_name))
+        # Lookup the precision symbol
         try:
             symbol = symbol_table.lookup(precision_name)
         except KeyError:
@@ -692,8 +696,10 @@ class Fparser2Reader(object):
         Create an empty KernelSchedule.
 
         :param str name: Name of the subroutine represented by the kernel.
+
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+
         '''
         return KernelSchedule(name)
 
@@ -704,46 +710,59 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: PSyIR container representing the given module_ast.
+        :returns: PSyIR container representing the given module_ast or None \
+                  if there's no module in the parse tree.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: unable to generate a Container from the \
                                  provided fpaser2 parse tree.
         '''
-        # Assume just 1 Fortran module definition in the file
-        if len(module_ast.content) > 1:
+        # Assume just 1 or 0 Fortran module definitions in the file
+        modules = walk(module_ast, Fortran2003.Module_Stmt)
+        if len(modules) > 1:
             raise GenerationError(
                 "Could not process {0}. Just one module definition per file "
                 "supported.".format(str(module_ast)))
+        if not modules:
+            return None
 
-        module = module_ast.content[0]
-        mod_content = module.content
-        mod_name = str(mod_content[0].items[1])
+        module = modules[0].parent
+        mod_name = str(modules[0].children[1])
 
         # Create a container to capture the module information
         new_container = Container(mod_name)
 
         # Parse the declarations if it has any
-        if isinstance(mod_content[1], Fortran2003.Specification_Part):
-            decl_list = mod_content[1].content
-            self.process_declarations(new_container, decl_list, [])
+        for child in module.children:
+            if isinstance(child, Fortran2003.Specification_Part):
+                self.process_declarations(new_container, child.children, [])
+                break
 
         return new_container
 
-    def generate_schedule(self, name, module_ast):
-        '''
-        Create a KernelSchedule from the supplied fparser2 AST.
+    def generate_schedule(self, name, module_ast, container=None):
+        '''Create a Schedule from the supplied fparser2 AST.
+
+        TODO #737. Currently this routine is also used to create a
+        NemoInvokeSchedule from NEMO source code (hence the optional,
+        'container' argument).  This routine needs re-naming and
+        re-writing so that it *only* creates the PSyIR for a
+        subroutine.
 
         :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+        :param container: the parent Container node associated with this \
+                          Schedule (if any).
+        :type container: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: PSyIR schedule representing the kernel.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
+
         '''
         def first_type_match(nodelist, typekind):
             '''
@@ -758,36 +777,47 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Type not found
 
-        def search_subroutine(nodelist, searchname):
-            '''
-            Returns the first instance of the specified subroutine in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param str searchname: Name of the subroutine we are searching for.
-            '''
-            for node in nodelist:
-                if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
-                        str(node.content[0].get_name()) == searchname):
-                    return node
-            raise ValueError  # Subroutine not found
-
         new_schedule = self._create_schedule(name)
 
-        # Generate the Container of the module enclosing the Kernel
-        new_container = self.generate_container(module_ast)
-        mod_content = module_ast.content[0].content
-
-        new_schedule.parent = new_container
-        new_container.children = [new_schedule]
-
-        try:
-            subroutines = first_type_match(mod_content,
-                                           Fortran2003.Module_Subprogram_Part)
-            subroutine = search_subroutine(subroutines.content, name)
-        except (ValueError, IndexError):
+        routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
+                                     Fortran2003.Main_Program,
+                                     Fortran2003.Function_Subprogram))
+        for routine in routines:
+            if isinstance(routine, Fortran2003.Function_Subprogram):
+                # TODO fparser/#225 Function_Stmt does not have a get_name()
+                # method. Once it does we can remove this branch.
+                routine_name = str(routine.children[0].children[1])
+            else:
+                routine_name = str(routine.children[0].get_name())
+            if routine_name == name:
+                subroutine = routine
+                break
+        else:
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
+
+        # Check whether or not we need to create a Container for this schedule
+        # TODO #737 this routine should just be creating a Subroutine, not
+        # attempting to create a Container too. Perhaps it should be passed
+        # a reference to the parent Container object.
+        if not container:
+            # Is the routine enclosed within a module?
+            current = subroutine.parent
+            while current:
+                if isinstance(current, Fortran2003.Module):
+                    # We have a parent module so create a Container
+                    container = self.generate_container(current)
+                    break
+                current = current.parent
+        if container:
+            new_schedule.parent = container
+            container.children.append(new_schedule)
+
+        # Set pointer from schedule into fparser2 tree
+        # TODO #435 remove this line once fparser2 tree not needed
+        # pylint: disable=protected-access
+        new_schedule._ast = subroutine
+        # pylint: enable=protected-access
 
         try:
             sub_spec = first_type_match(subroutine.content,
@@ -797,8 +827,9 @@ class Fparser2Reader(object):
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
             from fparser.two.Fortran2003 import Dummy_Arg_List
-            if isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
-                arg_list = subroutine.content[0].items[2].items
+            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
+               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
+                arg_list = subroutine.children[0].children[2].children
             else:
                 # Routine has no arguments
                 arg_list = []
@@ -1918,13 +1949,12 @@ class Fparser2Reader(object):
         # notation.
         for assign in assigns:
             _ = self._array_notation_rank(assign.lhs)
-        # TODO #500 if the supplied code accidentally omits array
+        # TODO #717 if the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
         # identify it as a scalar and the code produced from the
         # PSyIR (using e.g. the Fortran backend) will not
-        # compile. In practise most scalars are likely to be local
-        # and so we can check for their declarations. However,
-        # those imported from a module will still be missed.
+        # compile. We need to implement robust identification of the
+        # types of all symbols in the PSyIR fragment.
         arrays = parent.walk(Array)
         first_rank = None
         for array in arrays:
@@ -1940,23 +1970,12 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
-            # Once #667 is implemented we can simplify this logic by
-            # checking for the NEMO API. i.e. if api=="nemo": add local
-            # symbol else: add symbol from symbol table.
-            symbol_table = _get_symbol_table(parent)
+
             # Replace the PSyIR Ranges with the loop variables
             range_idx = 0
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
-                    if symbol_table:
-                        symbol = array.find_symbol(loop_vars[range_idx])
-                    else:
-                        # The NEMO API does not generate symbol tables, so
-                        # create a new Symbol. Choose a datatype as we
-                        # don't know what it is. Remove this code when
-                        # issue #500 is addressed.
-                        symbol = DataSymbol(
-                            loop_vars[range_idx], default_integer_type())
+                    symbol = array.find_or_create_symbol(loop_vars[range_idx])
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2032,7 +2051,7 @@ class Fparser2Reader(object):
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
-        fake_parent = Statement()
+        fake_parent = Statement(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
         arrays = fake_parent.walk(Array)
         if not arrays:
@@ -2040,8 +2059,7 @@ class Fparser2Reader(object):
             # because the code doesn't use explicit array syntax. At least one
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
-            # TODO #500 remove this check once the SymbolTable is working for
-            # the NEMO API.
+            # TODO #717. Look-up the shape of the array in the SymbolTable.
             raise NotImplementedError("Only WHERE constructs using explicit "
                                       "array notation (e.g. my_array(:, :)) "
                                       "are supported.")
@@ -2052,35 +2070,42 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
+        # Since we don't have support for searching a hierarchy of symbol
+        # tables (#630), for now we simply add new symbols to the highest-level
+        # symbol table.
+        symbol_table = parent.root.symbol_table
+
         # Create a set of all of the symbol names in the fparser2 parse
         # tree so that we can find any clashes. We go as far back up the tree
         # as we can before searching for all instances of Fortran2003.Name.
-        # TODO #500 - replace this by using the SymbolTable instead.
-        # pylint: disable=protected-access
+        # We can't just rely on looking in our symbol tables because there
+        # may be CodeBlocks that access symbols that are e.g. imported from
+        # modules without being explicitly named.
         name_list = walk(node.get_root(), Fortran2003.Name)
-        all_names = {str(name) for name in name_list}
-        # pylint: enable=protected-access
-
-        # find the first symbol table attached to an ancestor
-        symbol_table = _get_symbol_table(parent)
+        for name_obj in name_list:
+            name = str(name_obj)
+            if name not in symbol_table:
+                # TODO #630 some of these symbols will be put in the wrong
+                # symbol table. We need support for creating a unique symbol
+                # within a hierarchy of symbol tables. However, until we are
+                # generating code from the PSyIR Fortran backend
+                # (#435) this doesn't matter.
+                symbol_table.add(Symbol(name))
 
         integer_type = default_integer_type()
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
-            # TODO #500 we should be using the SymbolTable for the new loop
-            # variable but that doesn't currently work for NEMO. As part of
-            # #500 we should handle clashes gracefully rather than
-            # simply aborting.
-            loop_vars[idx-1] = "widx{0}".format(idx)
-            if loop_vars[idx-1] in all_names:
-                raise InternalError(
-                    "Cannot create Loop with variable '{0}' because code "
-                    "already contains a symbol with that name.".format(
-                        loop_vars[idx-1]))
-            if symbol_table:
-                symbol_table.add(DataSymbol(loop_vars[idx-1],
-                                            integer_type))
+
+            # TODO #630 this creation of a new symbol really needs to account
+            # for all of the symbols in the hierarchy of symbol tables. Since
+            # we don't yet have that functionality we just add everything to
+            # the top-level symbol table.
+            loop_vars[idx-1] = symbol_table.new_symbol_name(
+                "widx{0}".format(idx))
+
+            symbol_table.add(DataSymbol(loop_vars[idx-1], integer_type))
+
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
@@ -2092,18 +2117,7 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            # Once #667 is implemented we can simplify this logic by
-            # checking for the NEMO API. i.e. if api=="nemo": add local
-            # symbol else: add symbol from symbol table.
-            symbol_table = _get_symbol_table(parent)
-            if symbol_table:
-                symbol = size_node.find_symbol(arrays[0].name)
-            else:
-                # The NEMO API does not generate symbol tables, so
-                # create a new Symbol. Choose a datatype as we
-                # don't know what it is. Remove this code when
-                # issue #500 is addressed.
-                symbol = DataSymbol(arrays[0].name, integer_type)
+            symbol = size_node.find_or_create_symbol(arrays[0].name)
 
             size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), integer_type,
@@ -2384,21 +2398,12 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
         '''
-        # Once #667 is implemented we can simplify this logic by
-        # checking for the NEMO API. i.e. if api=="nemo": add local
-        # symbol else: add symbol from symbol table.
-        symbol_table = _get_symbol_table(parent)
-        if symbol_table:
-            symbol = parent.find_symbol(node.string)
-        else:
-            # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Randomly choose a datatype as we don't
-            # know what it is. Remove this code when issue #500 is
-            # addressed.
-            symbol = DataSymbol(node.string, default_real_type())
+        symbol = parent.find_or_create_symbol(node.string)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2438,18 +2443,8 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-        # Once #667 is implemented we can simplify this logic by
-        # checking for the NEMO API. i.e. if api=="nemo": add local
-        # symbol else: add symbol from symbol table.
-        symbol_table = _get_symbol_table(parent)
-        if symbol_table:
-            symbol = parent.find_symbol(reference_name)
-        else:
-            # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Randomly choose a datatype as we don't
-            # know what it is.  Remove this code when issue #500 is
-            # addressed.
-            symbol = DataSymbol(reference_name, default_real_type())
+        symbol = parent.find_or_create_symbol(reference_name)
+
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array

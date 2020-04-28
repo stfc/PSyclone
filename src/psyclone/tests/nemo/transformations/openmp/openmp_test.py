@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,11 +59,13 @@ def test_omp_explicit_gen():
         if kernel and loop.loop_type == "levels":
             schedule, _ = omp_trans.apply(loop)
     gen_code = str(psy.gen).lower()
+
     expected = (
         "program explicit_do\n"
         "  implicit none\n"
         "  integer :: ji, jj, jk\n"
         "  integer :: jpi, jpj, jpk\n"
+        "  real :: r\n"
         "  real, dimension(jpi, jpj, jpk) :: umask\n"
         "  !$omp parallel do default(shared), private(ji,jj,jk), "
         "schedule(static)\n"
@@ -162,11 +164,11 @@ def test_omp_parallel_multi():
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
             "    do jj = 1, jpjm1\n"
-            "      do ji = 1, fs_jpim1\n"
+            "      do ji = 1, jpim1\n"
             "        zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * "
             "e3u_n(ji, jj, jk)\n" in gen_code)
     assert ("    do jj = 2, jpjm1\n"
-            "      do ji = fs_2, fs_jpim1\n"
+            "      do ji = 2, jpim1\n"
             "        pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + "
             "zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + "
             "zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / "

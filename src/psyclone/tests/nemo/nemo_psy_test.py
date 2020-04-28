@@ -123,9 +123,9 @@ def test_do_while():
     sched = invoke_info.schedule
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
-    assert isinstance(sched.children[0], CodeBlock)
-    assert isinstance(sched.children[1], nemo.NemoLoop)
-    assert isinstance(sched.children[3], CodeBlock)
+    assert isinstance(sched[1], CodeBlock)
+    assert isinstance(sched[2], nemo.NemoLoop)
+    assert isinstance(sched[4], CodeBlock)
 
 
 def test_multi_kern():
@@ -188,6 +188,7 @@ def test_fn_call_no_kernel(parser):
     function call. '''
     from psyclone.psyir.nodes import Assignment
     reader = FortranStringReader("program fn_call\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = my_func()\n"
@@ -207,6 +208,7 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     CodeBlock. '''
     from psyclone.psyir.nodes import CodeBlock
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = 1.0\n"
@@ -243,6 +245,7 @@ def test_no_explicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an explicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "  do idx = 1, 5\n"
@@ -264,6 +267,7 @@ def test_no_implicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an implicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(:,:) = 1.0\n"
@@ -348,6 +352,7 @@ def test_kern_sched_parents(parser):
     ''' Check that the children of a Kernel schedule have that schedule
     as their parent. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jj, jpi, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpi\n"
                                  "  do jj = 1,jpj\n"
@@ -387,7 +392,8 @@ def test_empty_routine():
     contain any executable statements. '''
     psy, _ = get_invoke("empty_routine.f90", api=API, idx=0)
     assert len(psy.invokes.invoke_list) == 1
-    assert psy.invokes.invoke_list[0].schedule is None
+    # We should just have an empty schedule
+    assert not psy.invokes.invoke_list[0].schedule.children
     # Calling update() on this Invoke should do nothing
     psy.invokes.invoke_list[0].update()
 

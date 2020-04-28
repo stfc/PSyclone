@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2018-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 subroutine array_section()
-  INTEGER :: dummy
+  integer :: ji, dummy, n
+  real, dimension(:,:) :: a, b, c
 
   a(:,:) = b(:,:) * c(:,:)
 

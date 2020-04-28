@@ -1192,6 +1192,7 @@ def test_fw_nemoinvokeschedule(fort_writer, parser):
     from psyclone.nemo import NemoInvokeSchedule
     code = (
         "program test\n"
+        "  integer :: a\n"
         "  a=1\n"
         "end program test\n")
     schedule = get_nemo_schedule(parser, code)
@@ -1212,7 +1213,8 @@ def test_fw_nemokern(fort_writer, parser):
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "program test\n"
-        "  integer :: a,b,c\n"
+        "  integer :: i, j, k, n\n"
+        "  real :: a(n,n,n)\n"
         "  do k=1,n\n"
         "    do j=1,n\n"
         "      do i=1,n\n"

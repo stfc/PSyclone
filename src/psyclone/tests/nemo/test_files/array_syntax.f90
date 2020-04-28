@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2018-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,10 @@
 ! Author A. R. Porter, STFC Daresbury Lab
 
 SUBROUTINE tra_ldf_iso()
+  INTEGER :: jpi, jpj, jpk
+  LOGICAL :: l_ptr
   INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
+  REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
   zftv(:,:,:) = 0.0d0
   IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
   CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )

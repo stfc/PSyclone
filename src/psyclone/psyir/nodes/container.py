@@ -56,7 +56,7 @@ class Container(Node):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "*[Container | KernelSchedule]"
+    _children_valid_format = "*[Container | KernelSchedule | InvokeSchedule]"
     _text_name = "Container"
     _colour_key = "Container"
 
@@ -78,8 +78,8 @@ class Container(Node):
         '''
         # pylint: disable=unused-argument
         # Import KernelSchedule here to avoid circular dependency
-        from psyclone.psyGen import KernelSchedule
-        return isinstance(child, (Container, KernelSchedule))
+        from psyclone.psyGen import KernelSchedule, InvokeSchedule
+        return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
 
     @staticmethod
     def create(name, symbol_table, children):

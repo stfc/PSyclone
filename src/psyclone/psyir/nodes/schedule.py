@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.symbols import SymbolTable
 
 
 class Schedule(Node):
@@ -66,6 +67,14 @@ class Schedule(Node):
         # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
+    def __init__(self, children=None, parent=None):
+        super(Schedule, self).__init__(self, children=children, parent=parent)
+        # TODO #645 remove this check that we don't already have a symbol
+        # table (only currently required because InvokeSchedule creates its
+        # own symbol table *before* calling this constructor).
+        if not (hasattr(self, "_symbol_table") and self._symbol_table):
+            self._symbol_table = SymbolTable(self)
+
     @property
     def dag_name(self):
         '''
@@ -73,6 +82,14 @@ class Schedule(Node):
         :rtype: str
         '''
         return "schedule_" + str(self.abs_position)
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: table containing symbol information for the Schedule.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
+        return self._symbol_table
 
     def __getitem__(self, index):
         '''
