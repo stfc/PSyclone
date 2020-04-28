@@ -537,6 +537,8 @@ class NemoImplicitLoop(NemoLoop):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    _text_name = "NemoImplicitLoop"
+
     def __init__(self, ast, parent=None):
         # pylint: disable=super-init-not-called, non-parent-init-called
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
@@ -545,9 +547,19 @@ class NemoImplicitLoop(NemoLoop):
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node.
+        :rtype: str
+
+        '''
+        return self.coloured_name(colour) + "[{0}]".format(self._ast.items[0])
+
     def __str__(self):
-        # Display the LHS of the assignment in the str representation
-        return "NemoImplicitLoop[{0}]\n".format(self._ast.items[0])
+        return self.node_str(False)
 
     @staticmethod
     def match(node):
