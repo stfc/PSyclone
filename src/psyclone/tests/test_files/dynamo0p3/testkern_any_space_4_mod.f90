@@ -65,35 +65,37 @@ module testkern_any_space_4_mod
 
 contains
   
-  subroutine testkern_any_space_4_code(cell, nlayers, adata,               &
-                      ncell_3d_b, b_stencil, ncell_3d_c, c_stencil,        &
-                      ncell_3d_d, d_stencil, ncell_3d_e, e_stencil, fdata, &
-                      ndf_anyspc5_a, undf_anyspc5_a, map_anyspc5_a,        &
-                      ndf_anyspc1_b, basis_anyspc1_b_qr,                   &
-                      ndf_anyspc2_b, ndf_anyspc3_c,                        &
-                      ndf_anyspc4_d, undf_anyspc4_d, map_anyspc4_d,        &
-                      basis_anyspc4_d_qr, diff_basis_anyspc4_d_qr,         &
-                      np_xy, np_z, weights_xy, weights_z)
+  subroutine testkern_any_space_4_code(cell, nlayers, adata,                    &
+                                       ncell_3d_b, b_stencil,                   &
+                                       ncell_3d_c, c_stencil,                   &
+                                       ncell_3d_d, d_stencil,                   &
+                                       ncell_3d_e, e_stencil, fdata,            &
+                                       ndf_aspc5_a, undf_aspc5_a, map_aspc5_a,  &
+                                       ndf_aspc1_b, basis_aspc1_b_qr,           &
+                                       ndf_aspc2_b, ndf_aspc3_c,                &
+                                       ndf_aspc4_d, undf_aspc4_d, map_aspc4_d,  &
+                                       basis_aspc4_d_qr, diff_basis_aspc4_d_qr, &
+                                       np_xy, np_z, weights_xy, weights_z)
 
     implicit none
 
     integer(kind=i_def) :: cell, nlayers
     integer(kind=i_def) :: ncell_3d_b, ncell_3d_c, ncell_3d_d, ncell_3d_e
-    integer(kind=i_def) :: ndf_anyspc5_a, undf_anyspc5_a, &
-                           ndf_anyspc1_b, ndf_anyspc2_b,  &
-                           ndf_anyspc3_c, ndf_anyspc4_d,  undf_anyspc4_d
+    integer(kind=i_def) :: ndf_aspc5_a, undf_aspc5_a, &
+                           ndf_aspc1_b, ndf_aspc2_b,  &
+                           ndf_aspc3_c, ndf_aspc4_d, undf_aspc4_d
     integer(kind=i_def) :: np_xy, np_z
-    integer(kind=i_def), dimension(ndf_anyspc5_a) :: map_anyspc5_a
-    integer(kind=i_def), dimension(ndf_anyspc4_d) :: map_anyspc4_d
-    real(kind=r_def), dimension(undf_anyspc5_a) :: adata
-    real(kind=r_def), dimension(undf_anyspc4_d) :: fdata
-    real(kind=r_def), dimension(ndf_anyspc1_b,ndf_anyspc2_b,ncell_3d_b) :: b_stencil
-    real(kind=r_def), dimension(ndf_anyspc3_c,ndf_anyspc2_b,ncell_3d_c) :: c_stencil
-    real(kind=r_def), dimension(ndf_anyspc4_d,ndf_anyspc4_d,ncell_3d_d) :: d_stencil
-    real(kind=r_def), dimension(ndf_anyspc3_c,ndf_anyspc5_a,ncell_3d_e) :: e_stencil
-    real(kind=r_def), dimension(:,:,:,:) :: basis_anyspc1_b_qr, &
-                                            basis_anyspc4_d_qr, &
-                                            diff_basis_anyspc4_d_qr
+    integer(kind=i_def), dimension(ndf_aspc5_a) :: map_aspc5_a
+    integer(kind=i_def), dimension(ndf_aspc4_d) :: map_aspc4_d
+    real(kind=r_def), dimension(undf_aspc5_a) :: adata
+    real(kind=r_def), dimension(undf_aspc4_d) :: fdata
+    real(kind=r_def), dimension(ndf_aspc1_b,ndf_aspc2_b,ncell_3d_b) :: b_stencil
+    real(kind=r_def), dimension(ndf_aspc3_c,ndf_aspc2_b,ncell_3d_c) :: c_stencil
+    real(kind=r_def), dimension(ndf_aspc4_d,ndf_aspc4_d,ncell_3d_d) :: d_stencil
+    real(kind=r_def), dimension(ndf_aspc3_c,ndf_aspc5_a,ncell_3d_e) :: e_stencil
+    real(kind=r_def), dimension(:,:,:,:) :: basis_aspc1_b_qr, &
+                                            basis_aspc4_d_qr, &
+                                            diff_basis_aspc4_d_qr
     real(kind=r_def), dimension(:) :: weights_xy, weights_z
 
   end subroutine testkern_any_space_4_code

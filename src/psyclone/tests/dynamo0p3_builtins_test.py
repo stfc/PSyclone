@@ -388,13 +388,13 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -444,11 +444,11 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     if not dist_mem:
         output = (
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n")
@@ -500,7 +500,7 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -508,13 +508,13 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -569,20 +569,20 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -637,20 +637,20 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -705,7 +705,7 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -713,13 +713,13 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -775,20 +775,20 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -845,13 +845,13 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -902,13 +902,13 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n")
@@ -959,7 +959,7 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -967,13 +967,13 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1028,7 +1028,7 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1036,13 +1036,13 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1097,20 +1097,20 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1166,7 +1166,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1174,13 +1174,13 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n")
@@ -1230,13 +1230,13 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -1289,20 +1289,20 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1359,13 +1359,13 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
             "      f2_proxy = f2%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f2\n"
+            "      ! Initialise number of DoFs for f2 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -1416,8 +1416,8 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      REAL(KIND=r_def), intent(in) :: a, b\n"
             "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
             "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) ndf_any_space_1_f1, "
-            "undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) ndf_aspc1_f1, "
+            "undf_aspc1_f1\n"
             "      INTEGER(KIND=i_def) nlayers\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
             "      !\n"
@@ -1431,14 +1431,14 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      nlayers = f1_proxy%vspace%get_nlayers()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -1489,13 +1489,13 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) / "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -1545,13 +1545,13 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) / "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -1603,12 +1603,12 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
             "      END DO\n"
             "      !\n")
@@ -1655,12 +1655,12 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
             "      END DO\n"
             "      !\n")
@@ -1712,19 +1712,19 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = c\n"
             "      END DO")
         assert output in code
@@ -1773,20 +1773,20 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2, f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f2\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f2\n"
+            "      ! Initialise number of DoFs for f2 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -1840,9 +1840,9 @@ def test_X_innerproduct_Y(dist_mem):
     assert output in code
     if not dist_mem:
         output_seq = (
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -1851,7 +1851,7 @@ def test_X_innerproduct_Y(dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -1905,9 +1905,9 @@ def test_X_innerproduct_X(dist_mem):
     assert output in code
     if not dist_mem:
         output_seq = (
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -1916,7 +1916,7 @@ def test_X_innerproduct_X(dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -1971,7 +1971,7 @@ def test_sum_X(dist_mem):
     assert output in code
     if not dist_mem:
         output = (
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -1980,7 +1980,7 @@ def test_sum_X(dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -2069,19 +2069,19 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = 0.0\n"
             "      END DO\n"
             "      !\n"
@@ -2107,7 +2107,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
+def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we generate correct code for the builtin operation Z =
     a*X + Y when a scalar is passed by value. Also test with and
     without annexed dofs being computed as this affects the generated
@@ -2123,13 +2123,15 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2137,13 +2139,13 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -2170,7 +2172,7 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
+def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we generate correct code for the builtin operation Z =
     a*X + b*Y when scalars 'a' and 'b' are passed by value. Test with
     and without annexed dofs being computed as this affects the
@@ -2186,13 +2188,15 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2200,13 +2204,13 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
             "0.8*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -2236,7 +2240,7 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
 # ------------- Builtins with multiple calls or mixed with kernels ---------- #
 
 
-def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
+def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that we generate correct code when we have an invoke
     containing multiple set operations. Test with and without annexed
     dofs being computed as this affects the generated code.
@@ -2251,6 +2255,8 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
         API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
@@ -2258,8 +2264,8 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1, "
-            "undf_any_space_1_f2, undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1, "
+            "undf_aspc1_f2, undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2267,27 +2273,27 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      f2_proxy = f2%get_proxy()\n"
             "      f3_proxy = f3%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f2\n"
+            "      ! Initialise number of DoFs for f2 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for f3 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = 3.0\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n")
         assert output in code
@@ -2327,7 +2333,7 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
+def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that we generate correct code for a builtin set operation
     when the invoke also contains a normal kernel. Test with and
     without annexed dofs being computed as this affects the generated
@@ -2344,6 +2350,8 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     dofmap_output = (
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
@@ -2356,15 +2364,15 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "      ! Initialise number of DoFs for w3\n"
+            "      ! Initialise number of DoFs for m2 on w3\n"
             "      !\n"
             "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
             "      undf_w3 = m2_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -2376,7 +2384,7 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = 0.0\n"
             "      END DO")
         assert output in code
@@ -2492,25 +2500,25 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n") in code
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n") in code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for f1 on any_space_1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = "
+            "      undf_aspc1_f1 = "
             "f1_proxy%vspace%get_undf()\n") in code
         assert (
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
             "      END DO\n") in code
 

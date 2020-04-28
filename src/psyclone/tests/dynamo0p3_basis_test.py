@@ -224,12 +224,12 @@ def test_single_kern_eval(tmpdir):
         "      map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w0\n"
+        "      ! Initialise number of DoFs for f0 on w0\n"
         "      !\n"
         "      ndf_w0 = f0_proxy%vspace%get_ndf()\n"
         "      undf_w0 = f0_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
@@ -608,7 +608,7 @@ def test_anyw2(tmpdir):
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
         output = (
-            "      ! Initialise number of DoFs for any_w2\n"
+            "      ! Initialise number of DoFs for f1 on any_w2\n"
             "      !\n"
             "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
@@ -921,26 +921,23 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert gen_code.count(
-        "ndf_any_discontinuous_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_adspc1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_any_discontinuous_space_1_f0\n"
+        "      DO df_nodal=1,ndf_adspc1_f0\n"
         "        DO df_w0=1,ndf_w0\n"
-        "          basis_w0_on_any_discontinuous_space_1_f0(:,df_w0,df_nodal) "
-        "= f1_proxy%vspace%call_function(BASIS,df_w0,"
-        "nodes_any_discontinuous_space_1_f0(:,df_nodal))\n"
+        "          basis_w0_on_adspc1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
+        "%call_function(BASIS,df_w0,nodes_adspc1_f0(:,df_nodal))\n"
         "        END DO\n"
         "      END DO\n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_any_discontinuous_space_1_f0\n"
+        "      DO df_nodal=1,ndf_adspc1_f0\n"
         "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_any_discontinuous_space_1_f0"
-        "(:,df_w1,df_nodal) = f2_proxy%vspace%call_function(DIFF_BASIS,"
-        "df_w1,nodes_any_discontinuous_space_1_f0(:,df_nodal))\n"
+        "          diff_basis_w1_on_adspc1_f0(:,df_w1,df_nodal) = f2_proxy"
+        "%vspace%call_function(DIFF_BASIS,df_w1,nodes_adspc1_f0(:,df_nodal))\n"
         "        END DO\n"
         "      END DO\n") == 1
     assert gen_code.count(
-        "DEALLOCATE (basis_w0_on_any_discontinuous_space_1_f0, "
-        "diff_basis_w1_on_any_discontinuous_space_1_f0)") == 1
+        "DEALLOCATE (basis_w0_on_adspc1_f0, diff_basis_w1_on_adspc1_f0)") == 1
 
 
 def test_two_eval_op_to_space(tmpdir):
@@ -961,7 +958,7 @@ def test_two_eval_op_to_space(tmpdir):
     init_code = (
         "      ndf_w2 = op1_proxy%fs_to%get_ndf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for f2 on w3\n"
         "      !\n"
         "      ndf_w3 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = f2_proxy%vspace%get_undf()\n"

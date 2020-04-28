@@ -57,15 +57,15 @@ contains
 
   subroutine testkern_any_space_3_code(cell, nlayers,           &
                                        ncell_3d, local_stencil, &
-                                       ndf_anyspc1_op, ndf_anyspc2_op)
+                                       ndf_aspc1_op, ndf_aspc2_op)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_anyspc1_op, ndf_anyspc2_op
+    integer(kind=i_def), intent(in) :: ndf_aspc1_op, ndf_aspc2_op
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d
-    real(kind=r_def), dimension(ndf_anyspc1_op,ndf_anyspc2_op,ncell_3d) :: local_stencil
+    real(kind=r_def), dimension(ndf_aspc1_op,ndf_aspc2_op,ncell_3d) :: local_stencil
 
   end subroutine testkern_any_space_3_code
 

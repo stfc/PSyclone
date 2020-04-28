@@ -65,29 +65,29 @@ module testkern_any_space_1_mod
 
 contains
   
-  subroutine testkern_any_space_1_code(                                      &
-                      nlayers, flda, rdt, fldb, fldc1, fldc2, fldc3,         &
-                      ndf_anyspc1, undf_anyspc1, map_anyspc1, basis_anyspc1, &
-                      ndf_anyspc2, undf_anyspc2, map_anyspc2, basis_anyspc2, &
-                      ndf_w0, undf_w0, map_w0, diff_basis_w0,                &
+  subroutine testkern_any_space_1_code(                              &
+                      nlayers, flda, rdt, fldb, fldc1, fldc2, fldc3, &
+                      ndf_aspc1, undf_aspc1, map_aspc1, basis_aspc1, &
+                      ndf_aspc2, undf_aspc2, map_aspc2, basis_aspc2, &
+                      ndf_w0, undf_w0, map_w0, diff_basis_w0,        &
                       np_xy, np_z, weights_xy, weights_z)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_anyspc1, undf_anyspc1
-    integer(kind=i_def), intent(in) :: ndf_anyspc2, undf_anyspc2
+    integer(kind=i_def), intent(in) :: ndf_aspc1, undf_aspc1
+    integer(kind=i_def), intent(in) :: ndf_aspc2, undf_aspc2
     integer(kind=i_def), intent(in) :: ndf_w0, undf_w0
     integer(kind=i_def), intent(in) :: np_xy, np_z
-    integer(kind=i_def), intent(in), dimension(ndf_anyspc1) :: map_anyspc1
-    integer(kind=i_def), intent(in), dimension(ndf_anyspc2) :: map_anyspc2
-    integer(kind=i_def), intent(in), dimension(ndf_w0)      :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc2) :: map_aspc2
+    integer(kind=i_def), intent(in), dimension(ndf_w0)    :: map_w0
     real(kind=r_def), intent(in) :: rdt
-    real(kind=r_def), intent(inout), dimension(undf_anyspc1) :: flda
-    real(kind=r_def), intent(inout), dimension(undf_anyspc2) :: fldb
-    real(kind=r_def), intent(inout), dimension(undf_w0)      :: fldc1, fldc2, fldc3
-    real(kind=r_def), intent(in), dimension(:,:,:,:) :: basis_anyspc1, &
-                                                        basis_anyspc2, &
+    real(kind=r_def), intent(inout), dimension(undf_aspc1) :: flda
+    real(kind=r_def), intent(inout), dimension(undf_aspc2) :: fldb
+    real(kind=r_def), intent(inout), dimension(undf_w0)    :: fldc1, fldc2, fldc3
+    real(kind=r_def), intent(in), dimension(:,:,:,:) :: basis_aspc1, &
+                                                        basis_aspc2, &
                                                         diff_basis_w0
     real(kind=r_def), intent(in), dimension(:) :: weights_xy, weights_z
 
