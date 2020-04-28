@@ -118,7 +118,7 @@ class PSyDataTrans(RegionTrans):
 
         :raises TransformationError: if we're using the NEMO API and the \
             target routine has no Specification_Part.
-        :raises TransformationError: if the PSyData is node is inserted \
+        :raises TransformationError: if the PSyData node is inserted \
             between an OpenMP/ACC directive and the loop(s) to which it \
             applies.
         '''

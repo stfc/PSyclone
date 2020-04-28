@@ -52,10 +52,10 @@ class PSyDataNode(Node):
     '''
     This class can be inserted into a schedule to instrument a set of nodes.
     Instrument means that calls to an external library using the PSyData API
-    will be inserted before and after the child nodes, which will give that \
-    library access to fields and the fact that a region is executed. This \
-    can be used, for example, to add performance profiling calls, in-situ \
-    visualisation of data, or for writing fields to a file (e.g. for creating \
+    will be inserted before and after the child nodes, which will give that
+    library access to fields and the fact that a region is executed. This
+    can be used, for example, to add performance profiling calls, in-situ
+    visualisation of data, or for writing fields to a file (e.g. for creating
     test cases, or using driver to run a certain kernel only). The node
     allows specification of a class string which is used as a prefix for
     the PSyData module name (prefix_psy_data_mod) and for the PSyDataType
@@ -73,10 +73,10 @@ class PSyDataNode(Node):
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
     :param str options["class"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType
+        (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
-        ``psy_data_mode``, and the data type ``PSyDataType``.
+        ``psy_data_mod``, and the data type ``PSyDataType``.
     :param (str,str) options["region_name"]: an optional name to \
         use for this PSyDataNode, provided as a 2-tuple containing a \
         module name followed by a local name. The pair of strings should \
@@ -102,7 +102,7 @@ class PSyDataNode(Node):
         # method 'make_symbol'.
         self._class_string = options.get("class", "")
         if self._class_string:
-            self._class_string = self._class_string+"_"
+            self._class_string = self._class_string + "_"
 
         # The use statement that will be inserted. Any use of a module
         # of the same name that doesn't match this will result in a
@@ -209,9 +209,9 @@ class PSyDataNode(Node):
         become "profilePSyDataType". Typically the class_string will
         contain a trailing "_".
 
-        :param str symbol: The symbol name to get the class string prefixed.
+        :param str symbol: the symbol name to get the class string prefixed.
 
-        :returns: The symbol with the class string as prefix.
+        :returns: the symbol with the class string as prefix.
         :rtype: str
         '''
         return self._class_string + symbol

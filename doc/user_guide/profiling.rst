@@ -45,8 +45,9 @@ be enabled automatically using command line parameters like::
 
     psyclone --profile kernels ...
 
-Or it can be applied more fine grained by applying a profiling
-transformation in a transformation script.
+Or, for finer-grained control, it may be applied via a profiling
+transformation within a transformation script.
+
 
 PSyclone can be used with a variety of existing profiling tools.
 It currently supports dl_timer, Dr Hook, the nvidia GPU profiling toos
@@ -56,9 +57,9 @@ is utilised to implement wrapper libraries that connect the PSyclone
 application to the profiling libraries. Certain adjustments to
 the application's build environment are required:
 
-- An application needs to be able to find the module files for the
-  selected profile wrapper.
-- The applications needs to be linked with the wrapper library
+- The compiler needs to be able to find the module files for the
+  wrapper of the selected profiling library.
+- The application needs to be linked with the wrapper library
   that interfaces between the PSyclone API and the
   tool-specific API.
 - The tool-specific library also needs to be linked in.
@@ -106,7 +107,7 @@ libraries that come with PSyclone:
     from ``https://bitbucket.org/apeg/dl_timer``. This library has
     various compile-time options and may be built with MPI or OpenMP
     support. Additional link options might therefore be required
-    (e.g. enabling openmp, or linking with MPI).
+    (e.g. enabling OpenMP, or linking with MPI).
 
 ``lib/profiling/drhook``
     This wrapper uses the DrHook library. You need to contact

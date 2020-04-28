@@ -158,8 +158,8 @@ REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
                         between elements of the array in which each thread
                         accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
-VALID_PSY_DATA_PREFIXES Which class prefixes are allowed to be used in any
-                        PSyData related transformations. See :ref:`psy_data`
+VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any
+                        PSyData-related transformations. See :ref:`psy_data`
                         for details.
 ======================= =======================================================
 

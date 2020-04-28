@@ -67,9 +67,9 @@ class GOceanExtractNode(ExtractNode):
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
         corresponding values for this region. Defaults to False.
     :param str options["class"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType
+        (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
-        It defaults to "extract", which is set in the base class if
+        It defaults to "extract", which is set in the base class if \
         not overwritten in the options dictionary.
 
     '''

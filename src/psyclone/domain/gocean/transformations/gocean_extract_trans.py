@@ -136,7 +136,7 @@ class GOceanExtractTrans(ExtractTrans):
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "extract", resulting in e.g. \
             ``extract_psy_data_mod``.
-        :param bool options["create-driver"]: whether or not to create a \
+        :param bool options["create_driver"]: whether or not to create a \
             driver program at code-generation time. If set, the driver will \
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \

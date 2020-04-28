@@ -71,8 +71,8 @@ class ProfileNode(PSyDataNode):
             my_options = options.copy()
         else:
             my_options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "profile" class.
+        # If there is no value specified in the constructor, default
+        # to the "profile" prefix.
         my_options["class"] = my_options.get("class", "profile")
 
         super(ProfileNode, self).__init__(ast=ast, children=children,

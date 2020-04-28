@@ -109,7 +109,7 @@ node then creates the actual code, as in the following LFRic example::
       ! ExtractEnd
 
 .. note::
-    At this stage the LFRIc API is not fully supported, as can be seen
+    At this stage the LFRic API is not fully supported, as can be seen
     by missing paramters like ``nlayers``, ``ndf_w1``, ... This is
     tracked in issue #646.
 
@@ -356,7 +356,7 @@ The generated code is now:
 .. note::
 
     At this stage builtins are not fully supported, resulting in ``f2``
-    being incorrectly detected as an input parameters, and not as an
+    being incorrectly detected as an input parameter, and not as an
     output parameter. This issue is tracked in #637.
 
 
@@ -387,9 +387,9 @@ and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
 The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` can automatically create a
-driver program which will read the netcdf file and then calls the
+driver program which will read the netcdf file and then call the
 instrumented region. In order to create this driver program, the
-options parameter ``create-driver`` must be set to true::
+options parameter ``create_driver`` must be set to true::
 
     extract = GOceanExtractTrans()
     extract.apply(schedule.children,

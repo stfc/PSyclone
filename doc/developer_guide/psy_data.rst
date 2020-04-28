@@ -95,7 +95,7 @@ Class Prefix            Description
 profile                 All libraries related to profiling tools like DrHook,
                         NVIDIA's profiling tools etc. See
                         :ref:`user_guide:profiling` for details.
-extract                 For libraries that allow kernel data extraction. See
+extract                 For libraries used for kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
 ======================= =======================================================
 
@@ -108,15 +108,13 @@ to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
     :ref:`psy_data_parameters_to_constructor`).
     This can be used to link with two different libraries of the
     same class at the same time, e.g. you could use ``drhook_profile``
-    and ``nvidia_profile`` as class prefix. Though this also requires
-    that the corresponding wrapper libraries are modified to use this
+    and ``nvidia_profile`` as class es. However, this would also require
+    that the corresponding wrapper libraries be modified to use this
     new prefix.
-
-
 
 Full Example
 ------------
-The following example shows the full code created by PSyclone for an 
+The following example shows the full code created by PSyclone for a
 kernel extraction (excluding declarations for user data). This code
 is automatically inserted by the various transformations that are
 based on ``PSyDataTrans``, like ``ProfileTrans`` and
@@ -133,13 +131,11 @@ based on ``PSyDataTrans``, like ``ProfileTrans`` and
     CALL extract_psy_data%ProvideVariable("a_fld", a_fld)
     CALL extract_psy_data%PreEnd
 
-    ! Begin of PSY-layer kernel call:
     DO j=1,jstop+1
       DO i=1,istop+1
         CALL update_field_code(i, j, a_fld%data, b_fld%data)
       END DO 
     END DO 
-    ! End of PSY-layer kernel call
     
     CALL extract_psy_data%PostStart
     CALL extract_psy_data%ProvideVariable("b_fld", b_fld)
@@ -168,7 +164,7 @@ based on ``PSyDataTrans``, like ``ProfileTrans`` and
 #. A call to ``PostEnd`` is added once all variables have been provided.
 
 .. note::
-    Depending on the options provided to the PSyData transformation
+    Depending on the options provided to the PSyData transformation,
     some of the calls might not be created. For example, for a performance
     profiling library no variables will be declared or provided.
 
@@ -178,18 +174,27 @@ based on ``PSyDataTrans``, like ``ProfileTrans`` and
 
 API
 ---
-This section described the actual PSyData API in detail. It contains
+This section describes the actual PSyData API in detail. It contains
 all functions, data types and methods that need to be implemented for
 a wrapper library.
 
 
-The PSyData API requires two function calls that allow initialisation and
+The PSyData API includes two function calls that allow initialisation and
 shut down of a wrapper library. These two calls must be inserted
 manually into the program, and their location might depend on 
 the wrapper library used - e.g. some libraries might need to be
 initialised before ``MPI_Init`` is called, others might need to
 be called after. Similarly the shutdown function might need to
 be called before or after ``MPI_Finalize``.
+
+ .. note::
+    Not all PSyData libraries require these calls (for example,
+    the NVIDIA profiling library does not need it, the data
+    extraction libraries do not need it, ... ), but any PSyData
+    library should include (potentially empty) subroutines in
+    order to avoid linking problems. It is the responsibility
+    of the user to decide if the initialisation and shutdown
+    calls are unnecessary.
 
 Init and Shutdown Functions
 +++++++++++++++++++++++++++
@@ -242,11 +247,11 @@ a detailed description) or any of the profiling wrapper libraries
     
     ``num_pre_vars``
       This is the number of variables that will be supplied using
-      ``WriteVar`` before the instrumented region is executed.
+      ``ProvideVar`` before the instrumented region is executed.
     
     ``num_post_vars``
       This is the number of variables that will be supplied using
-      ``WriteVar`` after the instrumented region is executed.
+      ``ProvideVar`` after the instrumented region is executed.
       The sum ``num_pre_vars+num_post_vars`` is the number of
       variable declarations that will follow.
     
@@ -258,7 +263,7 @@ a detailed description) or any of the profiling wrapper libraries
 .. method:: PreDeclareVariable(this, name, value)
 
     This method is called for each variable that will be written
-    before or after the user instrumented region. If a variable
+    before or after the user-instrumented region. If a variable
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
@@ -289,12 +294,11 @@ a detailed description) or any of the profiling wrapper libraries
             character(*), intent(in) :: name
             integer, intent(in) :: value
         ...
-        subroutine DeclareFieldDouble(this, name, value)
-            use field_mod, only : r2d_field
+        subroutine DeclareScalarReal(this, name, value)
             implicit none
             class(extract_PSyDataType), intent(inout), target :: this
             character(*), intent(in) :: name
-            type(r2d_field), intent(in) :: value
+            real, intent(in) :: value
         ...
         subroutine DeclareFieldDouble(this, name, value)
             use field_mod, only : r2d_field
@@ -308,8 +312,8 @@ a detailed description) or any of the profiling wrapper libraries
 
     Called once all variables have been declared. This call is only
     inserted if any variables are to be provided either before or after
-    the instrumented region (especially for performance profiling this
-    call is not created).
+    the instrumented region thus this call is not created for
+    performance profiling).
 
 .. method:: ProvideVariable(this, name, value)
 
@@ -323,7 +327,7 @@ a detailed description) or any of the profiling wrapper libraries
       This is the actual content of the variable.
     
     The same method ``ProvideVariable`` is called to provide variable
-    name and content before and after the user instrumented region.
+    name and content before and after the user-instrumented region.
     Again it is expected that a library using the API will provide
     a generic interface to distinguish between the various possible data
     types, which will be different for each infrastructure library::
@@ -334,9 +338,10 @@ a detailed description) or any of the profiling wrapper libraries
     
 .. method:: PreEnd(this)
 
-    The method ``PreEnd`` is called after all variables before the instrumented
-    region have been provided. This call is also not inserted if no variables
-    are provided.
+    The method ``PreEnd`` is called after all variables have been
+    provided before the instrumented region. This call is also not
+    inserted if no variables are provided.
+
 
 .. method:: PostStart(this)
 
@@ -358,7 +363,7 @@ a detailed description) or any of the profiling wrapper libraries
 
     .. note::
 
-        Note that only the ``PreDataStart`` call takes the module-
+        Only the ``PreDataStart`` call takes the module-
         and region-name as parameters. If these names are required
         by the PSyData runtime library in different calls, they must
         be stored in the ``PSyData`` object so that they are
@@ -393,7 +398,7 @@ The derived classes will typically control the behaviour
 of ``PSyDataNode`` by providing additional parameters.
 
 .. autoclass:: psyclone.psyir.nodes.PSyDataNode
-    :members:
+    :members: gen_code
 
 There are two ways of passing options to the
 ``PSyDataNode``. The first one is used to pass
@@ -468,7 +473,7 @@ post_var_list    A list of variable names to be extracted
 pre_var_postfix  An optional postfix that will be appended
                  to each variable name in the
                  ``pre_var_list``.
-post_var_postfix an optional postfix that will be appended
+post_var_postfix An optional postfix that will be appended
                  to each variable name in the
                  ``post_var_list``.
 ================ =========================================
@@ -481,7 +486,7 @@ API libraries (see :ref:`user_guide:ProfilingAPI`) independent of the infrastruc
 library (since a call to ``ProvideVariable`` can contain API-specific
 variable types). It also reduces the number of calls required before
 and after the instrumented region which can affect overall
-performance and precision of any measurements, see :ref:`user_guide:profiling`
+performance and precision of any measurements; see :ref:`user_guide:profiling`
 for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
@@ -514,8 +519,8 @@ PSyData calls to the corresponding call for the profiling tool.
 Since the profiling API does not need access to any fields or variables,
 PSyclone will only create calls to ``PreStart`` and ``PostEnd``.
 The profiling wrapper libraries also
-need the static initialisation and shutdown functions ``_profile_PSyDataInit``
-and ``_profile_PSyDataShutdown``. Details can be found in the section
+need the static initialisation and shutdown functions ``profile_PSyDataInit``
+and ``profile_PSyDataShutdown``. Details can be found in the section
 :ref:`psy_data_api`.
 
 The examples in the ``lib/profiling`` directory show various ways
@@ -528,10 +533,16 @@ print all results in a ProfileFinalise() subroutine.
 
 Kernel Extraction (PSyKE)
 -------------------------
-The PSyclone Kernel Extraction (see :ref:`user_guide:psyke`) as well
-relies on the PSyData API to write kernel input- and output-parameters
-to a file. The corresponding transformations (``LFRicExtractTrans`` 
-and ``GOceanExtractTrans``) just provide the list of variables
-to write to the PSyData ``ExtractNode``. Any wrapper library in
-the ``extract`` class needs to provide all functions and methods
-described above (see :ref:`psy_data_api`).
+The PSyclone Kernel Extraction functionality (see :ref:`user_guide:psyke`)
+also relies on the PSyData API to write kernel input- and output-parameters
+to a file. The domain-specific versions of the extract transformations
+(e.g. ``GOceanExtractTrans``) validate if kernel extraction can be used
+at the specified part of the tree. Then a domain-specific extraction
+node is inserted in the tree (e.g. ``GOceanExtractNode``).
+
+At code creation time the function ``gen_code`` of the inserted node is
+called. This function determines the lists of variable to write before and
+after the instrumented region. These lists are then passed to ``gen_code``
+of the ``PSyDataNode`` base class, which creates required PSyData API calls.
+The domain-specific library is then responsible to write the data in the
+required file format. 
