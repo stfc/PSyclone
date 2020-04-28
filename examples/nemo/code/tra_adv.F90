@@ -5,19 +5,26 @@
    !! ***                             IS-ENES2 - CMCC/STFC                            ***
    !!=====================================================================================
 PROGRAM tra_adv
-   USE dl_timer, only: timer_init, timer_register, timer_start, timer_stop, timer_report
-   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: t3sn, t3ns, t3ew, t3we
-   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: tsn 
-   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: pun, pvn, pwn
-   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: mydomain, zslpx, zslpy, zwx, zwy, umask, vmask, tmask, zind
-   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
-   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:)       :: rnfmsk_z
-   REAL*8                                        :: zice, zu, z0u, zzwx, zv, z0v, zzwy, ztra, zbtr, zdt, zalpha
-   REAL*8                                        :: r
-   REAL*8                                        :: zw, z0w
-   INTEGER                                       :: jpi, jpj, jpk, ji, jj, jk, jt
-   INTEGER*8                                     :: it
-   CHARACTER(len=10)                             :: env
+   USE dl_timer, only: timer_init, timer_register, timer_start, timer_stop, &
+       timer_report
+   USE iso_c_binding, only: C_INT64_T
+   ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
+   ! the KIND intrinsic yet: TODO #585.
+   INTEGER, PARAMETER :: wp = 8
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: t3sn, t3ns, t3ew, t3we
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: tsn 
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: pun, pvn, pwn
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: mydomain, zslpx, zslpy, zwx, zwy, umask, vmask, tmask, zind
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)       :: rnfmsk_z
+   REAL(wp) :: zice, zu, z0u, zzwx, zv, z0v, zzwy, ztra, zbtr, zdt, zalpha
+   REAL(wp) :: r
+   REAL(wp) :: zw, z0w
+   INTEGER  :: jpi, jpj, jpk, ji, jj, jk, jt
+   ! TODO #588 it would be more natural to do INTEGER*8 here but PSyclone does
+   ! not yet support such syntax.
+   INTEGER(KIND=C_INT64_T) :: it
+   CHARACTER(len=10) :: env
    !> Timer indexes, one for initialisation, one for the 'time-stepping'
    INTEGER :: init_timer, step_timer
 

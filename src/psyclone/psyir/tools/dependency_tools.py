@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -360,8 +361,10 @@ class DependencyTools(object):
                 continue
             if var_name in variables_to_ignore:
                 continue
+            # Find the symbol for this variable
+            symbol = loop.find_or_create_symbol(var_name)
             var_info = var_accesses[var_name]
-            if var_info.is_array():
+            if symbol.is_array:
                 # Handle arrays
                 par_able = self.is_array_parallelisable(loop_variable,
                                                         var_info)

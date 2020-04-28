@@ -37,7 +37,7 @@
 '''This module implements the PSyclone NEMO API by specialising
    the required base classes for both code generation (PSy, Invokes,
    Invoke, InvokeSchedule, Loop, CodedKern, Arguments and KernelArgument)
-   and parsing (Descriptor and KernelType).
+   and parsing (Fparser2Reader).
 
 '''
 
@@ -48,15 +48,25 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node, Loop, Schedule
+from psyclone.psyir.nodes import Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
 
 
 class NemoFparser2Reader(Fparser2Reader):
     '''
     Specialisation of Fparser2Reader for the Nemo API.
     '''
+    @staticmethod
+    def _create_schedule(_):
+        '''
+        Create an empty InvokeSchedule. The un-named argument would be 'name'
+        but this isn't used in the NEMO API.
+
+        :returns: New InvokeSchedule empty object.
+        :rtype: py:class:`psyclone.nemo.NemoInvokeSchedule`
+        '''
+        return NemoInvokeSchedule()
+
     def _create_loop(self, parent, variable_name):
         '''
         Specialized method to create a NemoLoop instead of a
@@ -96,7 +106,7 @@ class NemoFparser2Reader(Fparser2Reader):
         '''
         # We create a fake node because we need to parse the children
         # before we decide what to do with them.
-        fakeparent = Schedule()
+        fakeparent = Schedule(parent=loop_body)
         self.process_nodes(parent=fakeparent, nodes=node.content[1:-1])
 
         if NemoKern.match(fakeparent):
@@ -141,33 +151,28 @@ class NemoInvoke(Invoke):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Module`
     :param str name: the name of this Invoke (program unit).
+    :param invokes: the Invokes object that holds this Invoke.
+    :type invokes: :py:class:`psyclone.psyGen.NemoInvokes`
+
     '''
-    def __init__(self, ast, name):
+    def __init__(self, ast, name, invokes):
         # pylint: disable=super-init-not-called
+        self._invokes = invokes
         self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
+        # TODO #435 remove this line.
         self._ast = ast
-        # A temporary workaround for the fact that we don't yet have a
-        # symbol table to store information on the variable declarations.
-        # TODO (#500) remove this workaround.
-        self._loop_vars = []
-        from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
-        # Find the section of the tree containing the execution part
-        # of the code
-        exe_part = get_child(ast, Execution_Part)
-        if not exe_part:
-            # This subroutine has no execution part so we skip it
-            # TODO log this event
-            return
-
-        # Store the root of this routine's specification in the AST
-        self._spec_part = get_child(ast, Specification_Part)
-
-        # We now walk through the AST produced by fparser2 and construct a
-        # new AST using objects from the nemo module.
-        self._schedule = NemoInvokeSchedule(self, exe_part)
+        # We now walk through the fparser2 parse tree and construct the
+        # PSyIR with a NemoInvokeSchedule at its root.
+        processor = NemoFparser2Reader()
+        # TODO #737 the fparser2 processor should really first be used
+        # to explicitly get the Container for this particular Invoke and
+        # then be used to generate a 'subroutine' rather than a Schedule.
+        self._schedule = processor.generate_schedule(name, ast,
+                                                     self.invokes.container)
+        self._schedule.invoke = self
 
     def update(self):
         '''
@@ -183,7 +188,8 @@ class NemoInvoke(Invoke):
 class NemoInvokes(Invokes):
     '''
     Class capturing information on all 'Invokes' (program units) within
-    a single NEMO source file.
+    a single NEMO source file. Contains a reference to the PSyIR Container
+    node for the encapsulating Fortran module.
 
     :param ast: the fparser2 AST for the whole Fortran source file.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
@@ -197,6 +203,14 @@ class NemoInvokes(Invokes):
         self.invoke_list = []
         # Keep a pointer to the whole fparser2 AST
         self._ast = ast
+
+        # TODO #737 - this routine should really process generic PSyIR to
+        # create domain-specific PSyIR (D-PSyIR) for the NEMO domain.
+        # Use the fparser2 frontend to construct the PSyIR from the parse tree
+        processor = NemoFparser2Reader()
+        # First create a Container representing any Fortran module
+        # contained in the parse tree.
+        self._container = processor.generate_container(ast)
 
         # Find all the subroutines contained in the file
         routines = walk(ast.content, (Subroutine_Subprogram,
@@ -220,9 +234,18 @@ class NemoInvokes(Invokes):
             else:
                 sub_name = str(substmt.get_name())
 
-            my_invoke = NemoInvoke(subroutine, name=sub_name)
+            my_invoke = NemoInvoke(subroutine, sub_name, self)
             self.invoke_map[sub_name] = my_invoke
             self.invoke_list.append(my_invoke)
+
+    @property
+    def container(self):
+        '''
+        :returns: the Container node that encapsulates the invokes \
+                  associated with this object.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def update(self):
         ''' Walk down the tree and update the underlying fparser2 AST
@@ -253,7 +276,6 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-
         self._invokes = NemoInvokes(ast)
         self._ast = ast
 
@@ -285,42 +307,24 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoInvokeSchedule(InvokeSchedule, NemoFparser2Reader):
+class NemoInvokeSchedule(InvokeSchedule):
     '''
     The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
 
     :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
-    :param ast: the fparser2 AST of the NEMO code for which to generate \
-                a NemoInvokeSchedule.
-    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
-               :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
-               :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
 
     '''
-    def __init__(self, invoke, ast):
-        # pylint: disable=super-init-not-called, non-parent-init-called
-        Node.__init__(self)
-        NemoFparser2Reader.__init__(self)
+    def __init__(self, invoke=None):
+        super(NemoInvokeSchedule, self).__init__(None, None)
 
         self._invoke = invoke
-        self._ast = ast
         # Whether or not we've already checked the associated Fortran for
         # potential name-clashes when inserting PSyData code.
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
-
-        self.process_nodes(self, ast.content)
-        # A better implementation of the Nemo API symbol table is looked
-        # at in PR #596, currently we just define a symbol table and the
-        # variables that Nemo needs for the implicit loops.
-        self._symbol_table = SymbolTable()
-        self._symbol_table.add(DataSymbol("jpi", INTEGER_TYPE))
-        self._symbol_table.add(DataSymbol("jpj", INTEGER_TYPE))
-        self._symbol_table.add(DataSymbol("jpk", INTEGER_TYPE))
-
         self._text_name = "InvokeSchedule"
         self._colour_key = "Schedule"
 

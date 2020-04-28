@@ -31,12 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Contains the PSyData transformation.
 '''
 
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -142,7 +144,8 @@ class PSyDataTrans(RegionTrans):
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
-        invoke = node_list[0].root.invoke
+        sched = node_list[0].ancestor(InvokeSchedule)
+        invoke = sched.invoke
         if not isinstance(invoke, NemoInvoke):
             return
 

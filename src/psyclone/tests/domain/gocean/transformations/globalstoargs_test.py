@@ -90,28 +90,13 @@ def test_globalstoargumentstrans_no_outer_module_import():
 
 
 def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
-    ''' Check that the transformation rejects kernels with undeclared symbols
-    and/or wildcard imports. '''
-    from psyclone.psyir.nodes import Node
+    ''' Check that the transformation rejects kernels with wildcard
+    imports. '''
     trans = KernelGlobalsToArguments()
     path = os.path.join(BASEPATH, "gocean1p0")
     _, invoke_info = parse(os.path.join(
         path, "single_invoke_kern_with_unqualified_use.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-    with pytest.raises(TransformationError) as err:
-        trans.apply(kernel)
-    assert "contains undeclared symbol" in str(err.value)
-    assert "'rdt'" in str(err.value)
-    _, invoke_info = parse(os.path.join(
-        path, "single_invoke_kern_with_unqualified_use.f90"),
-                           api=API)
-    # monkeypatch the check that symbols have been declared in order
-    # to exercise the check on unqualified imports
-    rdt_sym = DataSymbol("rdt", REAL_TYPE)
-    monkeypatch.setattr(Node, "find_symbol", lambda _1, _2: rdt_sym)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
