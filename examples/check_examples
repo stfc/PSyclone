@@ -290,9 +290,11 @@ ${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
 cd -
 echo "Running example nemo/eg4"
 cd nemo/eg4
-for file in "copy_stencil.f90" \
-		"hori_diff.f90" \
-		"tridiagonal_solve.f90" \
+# As part of #714 (support for ranges and expressions in array-shape
+# declarations), the two files named below should be included back
+# in the list over files.
+echo "TODO #714 skipping copy_stencil.f90 and hori_diff.f90"
+for file in "tridiagonal_solve.f90" \
 		"if_example.f90"; do
     echo "file" ${file} "..."
     ${PSYCLONE} -api "nemo" -s ./sir_trans.py ${file} -opsy /dev/null
