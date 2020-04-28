@@ -35,7 +35,7 @@
 
 '''
 Module containing pytest tests for the mesh-property functionality
-of the Dynamo0.3 API.
+of the LFRic (Dynamo0.3) API.
 '''
 
 from __future__ import absolute_import, print_function
@@ -88,7 +88,7 @@ def setup():
 
 
 def test_mdata_parse():
-    ''' Check that we get the correct list of reference-element properties. '''
+    ''' Check that we get the correct list of mesh properties. '''
     from psyclone.dynamo0p3 import MeshPropertiesMetaData
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = MESH_PROPS_MDATA
@@ -100,8 +100,8 @@ def test_mdata_parse():
 
 
 def test_mdata_invalid_property():
-    ''' Check that we raise the expected error if an unrecognised property
-    is requested. '''
+    ''' Check that we raise the expected error if an unrecognised mesh
+    property is requested. '''
     code = MESH_PROPS_MDATA.replace("adjacent_face", "not_a_property")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
@@ -120,7 +120,9 @@ def test_mdata_wrong_arg_count():
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert "'meta_mesh' metadata, the number of args" in str(err.value)
+    assert ("'meta_mesh' metadata, the number of items in the array "
+            "constructor (1) does not match the extent of the array (4)"
+            in str(err.value))
 
 
 def test_mdata_wrong_name():
@@ -131,7 +133,7 @@ def test_mdata_wrong_name():
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("No kernel metadata with type name 'meta_mesh' found"
+    assert ("No variable named 'meta_mesh' found in the metadata for"
             in str(err.value))
 
 

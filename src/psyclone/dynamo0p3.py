@@ -2534,6 +2534,7 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
         scalars = list(self._arg_properties.values())
+        # TODO #719. Would be better to use lookup_from_tag() here.
         nfaces_h = self._symbol_table.name_from_tag("nfaces_re_h")
         if self._nfaces_h_required and nfaces_h not in scalars:
             scalars.append(nfaces_h)

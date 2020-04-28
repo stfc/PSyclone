@@ -35,7 +35,7 @@
 
 '''
 Module containing pytest tests for the mesh-property support in the kernel-stub
-generation functionality with the Dynamo0.3 API.
+generation functionality with the LFRic (Dynamo0.3) API.
 '''
 
 from __future__ import absolute_import, print_function
@@ -87,9 +87,9 @@ end module testkern_mesh_prop_quad_mod
 '''
 
 
-def test_refelem_stub_gen():
+def test_mesh_prop_stub_gen():
     ''' Check that correct kernel stub code is produced when the kernel
-    metadata contain reference element properties. '''
+    metadata contains a mesh property. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_mesh_prop_mod.F90"),
                       ignore_comments=False)
