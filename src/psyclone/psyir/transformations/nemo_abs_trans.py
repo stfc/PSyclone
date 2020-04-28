@@ -32,15 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module providing a NEMO-api-specific transformation from a PSyIR
 ABS operator to PSyIR code. This could be useful if the ABS operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
 
-The implementation is NEMO-specific as NEMO code generation does not
-currently create a symbol table, see issue #500. Once this has been
-implemented the transformation can be modified to work for all APIs.
+This implementation is no longer NEMO-specific and should be modified
+(and renamed) to work for all APIs (#725).
 
 '''
 from __future__ import absolute_import
@@ -79,7 +79,7 @@ class NemoAbsTrans(NemoOperatorTrans):
         self._classes = (UnaryOperation,)
         self._operators = (UnaryOperation.Operator.ABS,)
 
-    def apply(self, node, symbol_table, options=None):
+    def apply(self, node, options=None):
         '''Apply the ABS intrinsic conversion transformation to the specified
         node. This node must be an ABS UnaryOperation. The ABS
         UnaryOperation is converted to equivalent inline code. This is
@@ -103,20 +103,12 @@ class NemoAbsTrans(NemoOperatorTrans):
         where ``X`` could be an arbitrarily complex PSyIR expression
         and ``...`` could be arbitrary PSyIR code.
 
-        A symbol table is required as the NEMO api does not currently
-        contain a symbol table and one is required in order to create
-        temporary variables whose names do not clash with existing
-        code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO api.
-
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
 
         :param node: an ABS UnaryOperation node.
         :type node: :py:class:`psyclone.psyGen.UnaryOperation`
-        :param symbol_table: the symbol table.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -125,10 +117,11 @@ class NemoAbsTrans(NemoOperatorTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, symbol_table)
+        self.validate(node)
 
         schedule = node.root
-        memento = Memento(schedule, self, [node, symbol_table])
+        symbol_table = schedule.symbol_table
+        memento = Memento(schedule, self, [node])
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
@@ -136,8 +129,7 @@ class NemoAbsTrans(NemoOperatorTrans):
         # that the ABS Operator returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
         # or there may be errors (arguments are of different types)
-        # but this can't be checked as we don't have access to a
-        # symbol table (see #500) and don't have the appropriate
+        # but this can't be checked as we don't have the appropriate
         # methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_abs")
         symbol_res_var = DataSymbol(res_var, REAL_TYPE)

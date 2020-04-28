@@ -138,8 +138,8 @@ class KernelTrans(Transformation):
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
             try:
-                _ = var.find_symbol(var.name,
-                                    scope_limit=var.ancestor(KernelSchedule))
+                _ = var.find_or_create_symbol(
+                    var.name, scope_limit=var.ancestor(KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -3707,44 +3707,49 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # Get a reference to the Invoke to which this loop belongs
-        invoke = loop.root.invoke
+        # Get a reference to the highest-level symbol table
+        symbol_table = loop.root.symbol_table
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = invoke.schedule.symbol_table.name_from_tag(base_name)
+        loop_var = symbol_table.new_symbol_name(base_name)
+        symbol_table.add(DataSymbol(loop_var, INTEGER_TYPE))
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
-        name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #500 When the Nemo API has the SymbolTable implemented,
-        # we should remove the _loop_vars attribute and add the symbols
-        # into the symboltable instead.
-        if loop._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(loop_var)
-            prog_unit = loop.ast.get_root()
-            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
-            if not spec_list:
-                # Routine has no specification part so create one and add it
-                # in to the parse tree
-                from psyclone.psyGen import object_index
-                exe_part = walk(prog_unit.content,
-                                Fortran2003.Execution_Part)[0]
-                idx = object_index(exe_part.parent.content, exe_part)
 
-                spec = Fortran2003.Specification_Part(
-                    FortranStringReader("integer :: {0}".format(loop_var)))
-                spec.parent = exe_part.parent
-                exe_part.parent.content.insert(idx, spec)
-            else:
-                spec = spec_list[0]
+        # TODO remove this as part of #435 (since we will no longer have to
+        # insert declarations into the fparser2 parse tree).
+        prog_unit = loop.ast.get_root()
+        spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
+        if not spec_list:
+            # Routine has no specification part so create one and add it
+            # in to the parse tree
+            from psyclone.psyGen import object_index
+            exe_part = walk(prog_unit.content,
+                            Fortran2003.Execution_Part)[0]
+            idx = object_index(exe_part.parent.content, exe_part)
+
+            spec = Fortran2003.Specification_Part(
+                FortranStringReader("integer :: {0}".format(loop_var)))
+            spec.parent = exe_part.parent
+            exe_part.parent.content.insert(idx, spec)
+        else:
+            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+            reader = Fparser2Reader()
+            fake_parent = Schedule()
+            spec = spec_list[0]
+            reader.process_declarations(fake_parent, [spec], [])
+            if loop_var not in fake_parent.symbol_table:
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader("integer :: {0}".format(loop_var)))
                 decln.parent = spec
                 spec.content.append(decln)
+
+        name = Fortran2003.Name(FortranStringReader(loop_var))
 
         # Modify the line containing the implicit do by replacing every
         # occurrence of the outermost ':' with the new loop variable name.
@@ -3798,7 +3803,6 @@ class NemoExplicitLoopTrans(Transformation):
         astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
-        loop = None
         # Return the new NemoLoop object that we have created
         return psyir_parent.children[0], keep
 

@@ -31,37 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
 
-''' Module containing pytest tests for the handling of the SIZE intrinsic
-in the PSyIR. '''
+
+''' Module which performs pytest set-up specific to the PSyIR tests. '''
 
 from __future__ import absolute_import
-
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
-@pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
-                                        "n = SIZE(a(:,:,:), 3)"])
-@pytest.mark.usefixtures("disable_declaration_check", "parser")
-def test_size(expression):
-    ''' Basic test that the SIZE intrinsic is recognised and represented
-    in the PSyIR.
+@pytest.fixture(scope="function")
+def disable_declaration_check(monkeypatch):
+    ''' By default a Reference checks that it has a corresponding entry in
+    the Symbol Table. However, this could make constructing tests very
+    long winded so this fixture simply disables the check.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
+    TODO #754 fix all tests so that this fixture is not required.
+
     '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    reader = FortranStringReader(expression)
-    fp2intrinsic = Execution_Part(reader).content[0]
-    processor.process_nodes(fake_parent, [fp2intrinsic])
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1], Literal)
+    monkeypatch.setattr(
+        Node, "find_or_create_symbol",
+        lambda _1, name, _2=None: DataSymbol(name,
+                                             INTEGER_TYPE))

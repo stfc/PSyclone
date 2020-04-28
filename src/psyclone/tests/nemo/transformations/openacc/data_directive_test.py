@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # Test code with explicit NEMO-style do loop
 EXPLICIT_DO = ("program explicit_do\n"
+               "  REAL :: r\n"
+               "  INTEGER :: ji, jj, jk, jpi, jpj, jpk\n"
                "  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
                "  DO jk = 1, jpk\n"
                "     DO jj = 1, jpj\n"
@@ -319,6 +321,7 @@ def test_kind_parameter(parser):
     ''' Check that we don't attempt to put kind parameters into the list
     of variables to copyin/out. '''
     reader = FortranStringReader("program kind_param\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = 0._wp\n"
@@ -342,6 +345,7 @@ def test_no_copyin_intrinsics(parser):
                       "mod(ji, 5)"]:
         reader = FortranStringReader(
             "program call_intrinsic\n"
+            "integer :: ji, jpj\n"
             "real(kind=wp) :: sto_tmp(5)\n"
             "do ji = 1,jpj\n"
             "sto_tmp(ji) = {0}\n"
@@ -360,6 +364,7 @@ def test_no_code_blocks(parser):
     ''' Check that we refuse to include CodeBlocks (i.e. code that we
     don't recognise) within a data region. '''
     reader = FortranStringReader("program write_out\n"
+                                 " integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "read(*,*) sto_tmp(ji)\n"
@@ -386,6 +391,7 @@ def test_kernels_in_data_region(parser):
     ''' Check that directives end up in the correct locations when enclosing
     a kernels region inside a data region. '''
     reader = FortranStringReader("program one_loop\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(ji) = 0.0\n"
@@ -463,7 +469,7 @@ def test_array_access_loop_bounds(parser):
     read and write accesses misses an array access. '''
     code = ("program do_bound\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
-            "  integer :: ji, jj\n"
+            "  integer :: ji, jj, dom\n"
             "  do jj = 1, trim_width(dom)\n"
             "    do ji = 1, 8\n"
             "      zdta(ji,jj) = 0.0\n"
@@ -486,8 +492,9 @@ def test_missed_array_case(parser):
     sanity check spots that we've missed an array access.
     TODO #309 - remove this test. '''
     code = ("program do_bound\n"
+            "  integer :: ice_mask(8,8)\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
-            "  integer :: ji, jj\n"
+            "  integer :: ji, jj, dom\n"
             "  do jj = 1, trim_width(dom)\n"
             "    do ji = 1, 8\n"
             "      select case(ice_mask(ji,jj))\n"

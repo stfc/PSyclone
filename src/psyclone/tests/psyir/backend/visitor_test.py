@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
@@ -250,6 +251,6 @@ def test_psyirvisitor_visit_return_node():
     test_visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
-    assert ("Visitor Error: Unsupported node 'Return' found: method names "
+    assert ("Unsupported node 'Return' found: method names "
             "attempted were ['return_node', 'node_node']."
             ""in str(excinfo.value))
