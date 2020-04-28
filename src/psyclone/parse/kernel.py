@@ -646,7 +646,7 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         # returns an integer if the variable is not found.
         raise ParseError(
             "No variable named '{0}' found in the metadata for kernel "
-            "'{1}'.".format(var_name, name))
+            "'{1}': '{2}'.".format(var_name, name, str(ast).strip()))
     try:
         nargs = int(descs.shape[0])
     except AttributeError:

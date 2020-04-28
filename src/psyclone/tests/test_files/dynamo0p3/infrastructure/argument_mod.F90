@@ -173,6 +173,5 @@ module argument_mod
     !  outward_normals_to_<horizontal/vertical/all>_faces}
     integer :: reference_element_data_item
   end type reference_element_data_type
-
   
 end module argument_mod

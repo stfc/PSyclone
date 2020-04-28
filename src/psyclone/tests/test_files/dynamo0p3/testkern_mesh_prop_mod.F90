@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Laboratory
 
+!> Test kernel requiring a property of the mesh (adjacent faces).
 module testkern_mesh_prop_mod
 
   use argument_mod

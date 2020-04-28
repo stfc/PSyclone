@@ -225,7 +225,8 @@ def test_mesh_properties():
 def test_mesh_gen(tmpdir):
     ''' Basic test for code-generation for an invoke containing a single
     kernel requiring reference-element properties. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "24.1_mesh_prop_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 

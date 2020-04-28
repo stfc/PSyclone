@@ -39,6 +39,7 @@ program single_invoke
   ! both the mesh and the reference element as well as face quadrature.
   use testkern_mesh_ref_elem_props_mod, only: testkern_mesh_ref_elem_props_type
   use testkern_mesh_prop_face_qr_mod, only: testkern_mesh_prop_face_qr_type
+
   implicit none
 
   type(field_type) :: f1, f2
