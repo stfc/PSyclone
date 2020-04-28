@@ -4475,8 +4475,8 @@ class DynBasisFunctions(DynCollection):
         :param parent: Node in the f2pygen AST which will be the parent
                        of the assignments created in this routine
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
 
+        '''
         api_config = Config.get().api_conf("dynamo0.3")
 
         loop_var_list = set()
@@ -4972,11 +4972,12 @@ class DynInvoke(Invoke):
                          self.reference_element_properties]:
             entities.declarations(invoke_sub)
 
-        if True: # config.runtime_checks:
+        if Config.get().api_conf("dynamo0.3").run_time_checks:
             # Perform any runtime checks
             # for each field that is modified in this invoke
             # *** if it has an unknown static function space
 
+            # Find all fields that are modified in the invoke.
             field_set = set()
             field_set.update(self.unique_proxy_declarations(
                 datatype="gh_field", access=AccessType.WRITE))

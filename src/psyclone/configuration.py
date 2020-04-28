@@ -760,6 +760,8 @@ class DynConfig(APISpecificConfig):
         self._config = config
         # Initialise redundant computation setting
         self._compute_annexed_dofs = None
+        # Initialise run_time_checks setting
+        self._run_time_checks = None
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._default_kind = {}
         # Set mandatory keys
@@ -772,7 +774,8 @@ class DynConfig(APISpecificConfig):
         if section.name == "dynamo0.3":
             # Define and check mandatory keys
             self._mandatory_keys = ["access_mapping",
-                                    "compute_annexed_dofs", "default_kind"]
+                                    "compute_annexed_dofs", "default_kind",
+                                    "run_time_checks"]
             mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(
@@ -788,6 +791,16 @@ class DynConfig(APISpecificConfig):
             except ValueError as err:
                 raise ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "[dynamo0.3] section of the config file: {0}"
+                    .format(str(err)), config=self._config)
+
+            # Setting for run_time_checks flag
+            try:
+                self._run_time_checks = section.getboolean(
+                    "run_time_checks")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing RUN_TIME_CHECKS in the "
                     "[dynamo0.3] section of the config file: {0}"
                     .format(str(err)), config=self._config)
 
@@ -826,6 +839,17 @@ class DynConfig(APISpecificConfig):
 
         '''
         return self._compute_annexed_dofs
+
+    @property
+    def run_time_checks(self):
+        '''
+        Getter for whether or not we generate run-time checks in the code.
+
+        :returns: true if we are generating run-time checks
+        :rtype: bool
+
+        '''
+        return self._run_time_checks
 
     @property
     def default_kind(self):
