@@ -180,11 +180,11 @@ def test_mesh_properties():
     with pytest.raises(InternalError) as err:
         invoke.mesh_properties.kern_args()
     assert ("only be called when LFRicMeshProperties has been instantiated "
-            "for a Kernel" in str(err.value))
+            "for a kernel" in str(err.value))
     with pytest.raises(InternalError) as err:
         invoke.mesh_properties._stub_declarations(None)
-    assert ("cannot be called because LFRicMeshProperties has been instantiated "
-            "for an Invoke and not a Kernel" in str(err.value))
+    assert ("cannot be called because LFRicMeshProperties has been "
+            "instantiated for an invoke and not a kernel" in str(err.value))
     # Break the list of mesh properties
     invoke.mesh_properties._properties.append("not-a-property")
     with pytest.raises(InternalError) as err:
@@ -210,7 +210,7 @@ def test_mesh_properties():
     with pytest.raises(InternalError) as err:
         mesh_props._invoke_declarations(ModuleGen("test_mod"))
     assert ("cannot be called because LFRicMeshProperties has been "
-            "instantiated for a Kernel and not an Invoke." in str(err.value))
+            "instantiated for a kernel and not an invoke." in str(err.value))
     with pytest.raises(InternalError) as err:
         mesh_props._stub_declarations(ModuleGen("test_mod"))
     assert ("Found unsupported mesh property 'not-a-property' when "

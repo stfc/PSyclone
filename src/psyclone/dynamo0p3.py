@@ -944,20 +944,21 @@ class MeshPropertiesMetaData(object):
     Parses any mesh-property kernel metadata and stores the properties that
     a kernel requires.
 
-    :param str kernel_name: name of the Kernel that the meta-data is for.
+    :param str kernel_name: name of the kernel that the meta-data is for.
     :param type_declns: list of fparser1 parse tree nodes representing type \
-                        declaration statements
+                        declaration statements.
     :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
 
     :raises ParseError: if an unrecognised mesh property is found.
     :raises ParseError: if a duplicate mesh property is found.
 
     '''
+    # pylint: disable=too-few-public-methods
     class Property(Enum):
         '''
         Enumeration of the various properties of the mesh that a kernel may
         request. The names of each of these corresponds to the names that must
-        be used in kernel meta-data.
+        be used in kernel metadata.
 
         '''
         ADJACENT_FACE = 1
@@ -1813,8 +1814,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        return self._invoke.schedule.symbol_table.name_from_tag(
-            unique, root=root_name)
+        return self._symbol_table.name_from_tag(unique, root=root_name)
 
     @staticmethod
     def dofmap_name(symtab, arg):
@@ -2139,12 +2139,13 @@ class DynStencils(DynCollection):
 
 class LFRicMeshProperties(DynCollection):
     '''
-    Holds all information on the the mesh properties required by an Invoke or
-    a Kernel stub. Note that the creation of a suitable mesh object is handled
-    in the `DynMeshes` class. This class merely deals with extracting the
-    necessary properties from that object and providing them to kernels.
+    Holds all information on the the mesh properties required by either an
+    invoke or a kernel stub. Note that the creation of a suitable mesh
+    object is handled in the `DynMeshes` class. This class merely deals with
+    extracting the necessary properties from that object and providing them to
+    kernels.
 
-    :param node: Kernel or Invoke for which to manage mesh properties.
+    :param node: kernel or invoke for which to manage mesh properties.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
@@ -2184,8 +2185,8 @@ class LFRicMeshProperties(DynCollection):
         if not self._kernel:
             raise InternalError(
                 "LFRicMeshProperties.kern_args() can only be called when "
-                "LFRicMeshProperties has been instantiated for a Kernel "
-                "rather than an Invoke.")
+                "LFRicMeshProperties has been instantiated for a kernel "
+                "rather than an invoke.")
 
         arg_list = []
 
@@ -2214,18 +2215,20 @@ class LFRicMeshProperties(DynCollection):
                     "the MeshPropertiesMetaData.Property Enum are permitted "
                     "({2}).".format(
                         str(prop), self._kernel.name,
-                        list(MeshPropertiesMetaData.Property)) )
+                        list(MeshPropertiesMetaData.Property)))
 
         return arg_list
 
     def _invoke_declarations(self, parent):
         '''
-        Create the necessary declarations for variables needed in order to
-        provide mesh properties to a Kernel call.
+        Creates the necessary declarations for variables needed in order to
+        provide mesh properties to a kernel call.
 
         :param parent: node in the f2pygen AST to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if this class has been instantiated for a \
+                               kernel instead of an invoke.
         :raises InternalError: if an unsupported mesh property is found.
 
         '''
@@ -2234,8 +2237,8 @@ class LFRicMeshProperties(DynCollection):
         if not self._invoke:
             raise InternalError(
                 "_invoke_declarations() cannot be called because "
-                "LFRicMeshProperties has been instantiated for a Kernel and "
-                "not an Invoke.")
+                "LFRicMeshProperties has been instantiated for a kernel and "
+                "not an invoke.")
 
         for prop in self._properties:
             # The DynMeshes class will have created a mesh object so we
@@ -2254,15 +2257,16 @@ class LFRicMeshProperties(DynCollection):
                     "({1}).".format(
                         str(prop), list(MeshPropertiesMetaData.Property)))
 
-
     def _stub_declarations(self, parent):
         '''
-        Create the necessary declarations for the variables needed in order
-        to provide properties of the mesh in a Kernel stub.
+        Creates the necessary declarations for the variables needed in order
+        to provide properties of the mesh in a kernel stub.
 
         :param parent: node in the f2pygen AST to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if the class has been instantiated for an \
+                               invoke and not a kernel.
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
@@ -2271,8 +2275,8 @@ class LFRicMeshProperties(DynCollection):
         if not self._kernel:
             raise InternalError(
                 "_stub_declarations() cannot be called because "
-                "LFRicMeshProperties has been instantiated for an Invoke and "
-                "not a Kernel.")
+                "LFRicMeshProperties has been instantiated for an invoke and "
+                "not a kernel.")
 
         for prop in self._properties:
             if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
@@ -3660,9 +3664,8 @@ class DynMeshes(object):
         requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if (call.reference_element.properties or
-                call.mesh.properties):
-                    requires_mesh = True
+            if (call.reference_element.properties or call.mesh.properties):
+                requires_mesh = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -7083,6 +7086,7 @@ class DynKern(CodedKern):
                         ["alg_name", "psy_name", "kernel_args"])
 
     def __init__(self):
+        # pylint: disable=super-init-not-called
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._base_name = ""
