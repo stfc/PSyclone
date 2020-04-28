@@ -37,6 +37,7 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
+from __future__ import absolute_import
 import os
 import pytest
 from fparser.api import parse

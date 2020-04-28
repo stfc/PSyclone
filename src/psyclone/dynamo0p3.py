@@ -59,7 +59,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
-from psyclone.psyir.symbols import DataType, DataSymbol, SymbolTable
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
@@ -72,7 +72,8 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
+# TODO #749: Allow only read access and prevent halo exchanges for Wchi
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
 # any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
@@ -103,13 +104,13 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
 
 # Lists of function spaces that have
 # a) scalar basis functions;
-SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta"]
+SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta", "wchi"]
 # b) vector basis functions;
 VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
 # c) scalar differential basis functions;
 SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
 # d) vector differential basis functions.
-VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta"]
+VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta", "wchi"]
 
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
@@ -6401,17 +6402,17 @@ class DynLoop(Loop):
             except KeyError:
                 self._variable_name = symtab.new_symbol_name("df")
                 symtab.add(
-                    DataSymbol(self._variable_name, DataType.INTEGER),
+                    DataSymbol(self._variable_name, INTEGER_TYPE),
                     tag="dof_loop_idx")
         else:
             self._variable_name = "cell"
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
         # At this stage we don't know what our loop bounds are
@@ -6937,9 +6938,9 @@ class DynLoop(Loop):
         # TODO: Issue #696. Add kind (precision) when the support in Literal
         #                   class is implemented.
         self.start_expr = Literal(self._lower_bound_fortran(),
-                                  DataType.INTEGER, parent=self)
+                                  INTEGER_TYPE, parent=self)
         self.stop_expr = Literal(self._upper_bound_fortran(),
-                                 DataType.INTEGER, parent=self)
+                                 INTEGER_TYPE, parent=self)
 
         Loop.gen_code(self, parent)
 
@@ -8896,7 +8897,7 @@ class FSDescriptors(object):
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
     meta-data.
-    #TODO #274 this should actually be named something like
+    # TODO #274 this should actually be named something like
     BasisFuncDescriptors as it holds information describing the
     basis/diff-basis functions required by a kernel.
 

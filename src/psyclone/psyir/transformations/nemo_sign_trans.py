@@ -31,16 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module providing a NEMO-API-specific transformation from a PSyIR
 SIGN operator to PSyIR code. This could be useful if the SIGN operator
 is not supported by the back-end or if the performance of the inline
 code is better than the intrinsic.
 
-The implementation is NEMO-specific as NEMO code generation does not
-currently create a symbol table, see issue #500. Once this has been
-implemented the transformation can be modified to work for all APIs.
+This implementation is no longer NEMO-specific and should be modified
+(and renamed) to work for all APIs (#725).
 
 '''
 from __future__ import absolute_import
@@ -50,7 +50,7 @@ from psyclone.psyir.transformations.nemo_operator_trans import \
 from psyclone.psyir.transformations import NemoAbsTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
     Reference, Literal, IfBlock
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
 class NemoSignTrans(NemoOperatorTrans):
@@ -81,7 +81,7 @@ class NemoSignTrans(NemoOperatorTrans):
         self._classes = (BinaryOperation,)
         self._operators = (BinaryOperation.Operator.SIGN,)
 
-    def apply(self, node, symbol_table, options=None):
+    def apply(self, node, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified
         node. This node must be a SIGN BinaryOperation. The SIGN
         BinaryOperation is converted to equivalent inline code. This
@@ -111,12 +111,6 @@ class NemoSignTrans(NemoOperatorTrans):
         ``ABS`` has been replaced with inline code by the NemoAbsTrans
         transformation.
 
-        A symbol table is required as the NEMO API does not currently
-        contain a symbol table and one is required in order to create
-        temporary variables whose names do not clash with existing
-        code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO API.
-
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
@@ -133,10 +127,11 @@ class NemoSignTrans(NemoOperatorTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, symbol_table)
+        self.validate(node)
 
         schedule = node.root
-        memento = Memento(schedule, self, [node, symbol_table])
+        symbol_table = schedule.symbol_table
+        memento = Memento(schedule, self, [node])
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
@@ -144,14 +139,13 @@ class NemoSignTrans(NemoOperatorTrans):
         # that the SIGN Operator returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
         # or there may be errors (arguments are of different types)
-        # but this can't be checked as we don't have access to a
-        # symbol table (see #500) and don't have the appropriate
+        # but this can't be checked as we don't have the appropriate
         # methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_sign")
-        res_var_symbol = DataSymbol(res_var, DataType.REAL)
+        res_var_symbol = DataSymbol(res_var, REAL_TYPE)
         symbol_table.add(res_var_symbol)
         tmp_var = symbol_table.new_symbol_name("tmp_sign")
-        tmp_var_symbol = DataSymbol(tmp_var, DataType.REAL)
+        tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
         symbol_table.add(tmp_var_symbol)
 
         # Replace operator with a temporary (res_var).
@@ -178,14 +172,14 @@ class NemoSignTrans(NemoOperatorTrans):
 
         # if_condition: tmp_var<0.0
         lhs = Reference(tmp_var_symbol)
-        rhs = Literal("0.0", DataType.REAL)
+        rhs = Literal("0.0", REAL_TYPE)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
                                               lhs, rhs)
 
         # then_body: res_var=res_var*-1.0
         lhs = Reference(res_var_symbol)
         lhs_child = Reference(res_var_symbol)
-        rhs_child = Literal("-1.0", DataType.REAL)
+        rhs_child = Literal("-1.0", REAL_TYPE)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      lhs_child, rhs_child)
         then_body = [Assignment.create(lhs, rhs)]

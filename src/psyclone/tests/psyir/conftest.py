@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,35 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
-''' pytest module for the U/LBOUND intrinsic PSyIR operators. '''
+
+''' Module which performs pytest set-up specific to the PSyIR tests. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import BinaryOperation, Literal, Array
-from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
-@pytest.mark.xfail(reason="#677 the create() method does not check that the "
-                   "types of the Nodes it is passed are correct for the "
-                   "provided operator.")
-@pytest.mark.parametrize("bound", [BinaryOperation.Operator.LBOUND,
-                                   BinaryOperation.Operator.UBOUND])
-def test_bound_intrinsic_wrong_type(bound):
-    ''' Check that attempting to create an L/UBOUND intrinsic operator
-    with the wrong type of arguments raises the expected error. '''
-    with pytest.raises(TypeError) as err:
-        # First argument must be an Array
-        _ = BinaryOperation.create(bound,
-                                   Literal("1", INTEGER_TYPE),
-                                   Literal("1", INTEGER_TYPE))
-    assert "must be an Array but got: 'Literal" in str(err.value)
-    with pytest.raises(TypeError) as err:
-        # Second argument cannot be a real literal
-        _ = BinaryOperation.create(bound,
-                                   Array("array"),
-                                   Literal("1.0", REAL_TYPE))
-    assert ("must be an integer but got a Literal of type REAL" in
-            str(err.value))
+@pytest.fixture(scope="function")
+def disable_declaration_check(monkeypatch):
+    ''' By default a Reference checks that it has a corresponding entry in
+    the Symbol Table. However, this could make constructing tests very
+    long winded so this fixture simply disables the check.
+
+    TODO #754 fix all tests so that this fixture is not required.
+
+    '''
+    monkeypatch.setattr(
+        Node, "find_or_create_symbol",
+        lambda _1, name, _2=None: DataSymbol(name,
+                                             INTEGER_TYPE))

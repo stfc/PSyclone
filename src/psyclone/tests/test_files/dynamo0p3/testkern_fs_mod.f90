@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ module testkern_fs_mod
   !              and one discontinuous (wtheta) field writer
   type, public, extends(kernel_type) :: testkern_fs_type
      private
-     type(arg_type), dimension(10) :: meta_args = (/ &
+     type(arg_type), dimension(11) :: meta_args = (/ &
           arg_type(gh_field, gh_inc,   w1),          &
           arg_type(gh_field, gh_read,  w2),          &
           arg_type(gh_field, gh_read,  w0),          &
@@ -56,6 +56,7 @@ module testkern_fs_mod
           arg_type(gh_field, gh_read,  w2v),         &
           arg_type(gh_field, gh_read,  w2broken),    &
           arg_type(gh_field, gh_read,  w2trace),     &
+          arg_type(gh_field, gh_read,  wchi),        &
           arg_type(gh_field, gh_read,  any_w2)       &
            /)
      integer :: iterates_over = cells
@@ -66,8 +67,9 @@ module testkern_fs_mod
 contains
 
   subroutine testkern_fs_code(nlayers, field1, field2,                   &
-                              field3, field4, field5, field6,            &
-                              field7, field8, field9, field10,           &
+                              field3, field4, field5,                    &
+                              field6, field7, field8,                    &
+                              field9, field10, field11,                  &
                               ndf_w1, undf_w1, map_w1,                   &
                               ndf_w2, undf_w2, map_w2,                   &
                               ndf_w0, undf_w0, map_w0,                   &
@@ -77,6 +79,7 @@ contains
                               ndf_w2v, undf_w2v, map_w2v,                &
                               ndf_w2broken, undf_w2broken, map_w2broken, &
                               ndf_w2trace, undf_w2trace, map_w2trace,    &
+                              ndf_wchi, undf_wchi, map_wchi,             &
                               ndf_any_w2, undf_any_w2, map_any_w2)
 
     implicit none
@@ -91,10 +94,12 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2v
     integer(kind=i_def), intent(in) :: ndf_w2broken
     integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: ndf_wchi
     integer(kind=i_def), intent(in) :: ndf_any_w2
     integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w0, undf_w3, &
                                        undf_wtheta, undf_w2h, undf_w2v,    &
-                                       undf_w2broken, undf_w2trace, undf_any_w2
+                                       undf_w2broken, undf_w2trace,        &
+                                       undf_wchi, undf_any_w2
     integer(kind=i_def), intent(in), dimension(ndf_w1)       :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2)       :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w0)       :: map_w0
@@ -104,6 +109,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2v)      :: map_w2v
     integer(kind=i_def), intent(in), dimension(ndf_w2trace)  :: map_w2trace
     integer(kind=i_def), intent(in), dimension(ndf_w2broken) :: map_w2broken
+    integer(kind=i_def), intent(in), dimension(ndf_wchi)     :: map_wchi
     integer(kind=i_def), intent(in), dimension(ndf_any_w2)   :: map_any_w2
     real(kind=r_def), intent(inout), dimension(undf_w1)       :: field1
     real(kind=r_def), intent(in),    dimension(undf_w2)       :: field2
@@ -114,7 +120,8 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_w2v)      :: field7
     real(kind=r_def), intent(in),    dimension(undf_w2broken) :: field8
     real(kind=r_def), intent(in),    dimension(undf_w2trace)  :: field9
-    real(kind=r_def), intent(in),    dimension(undf_any_w2)   :: field10
+    real(kind=r_def), intent(in),    dimension(undf_wchi)     :: field10
+    real(kind=r_def), intent(in),    dimension(undf_any_w2)   :: field11
 
   end subroutine testkern_fs_code
 

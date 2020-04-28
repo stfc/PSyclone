@@ -143,6 +143,13 @@
 	45) PR #743 for #740. Remove old unused quadrature_mod.f90 from
 	LFRic (Dynamo0.3 API).
 
+	46) PR #734 for #539. Added the Wchi function space to LFRic
+	(Dynamo0.3 API).
+
+	47) PR #728 for #721. Adds DataType hierarchy decoupled from DataSymbol.
+
+	48) PR #596 for #500. Makes the NEMO API use the symbol table.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version

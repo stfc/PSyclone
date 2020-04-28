@@ -43,7 +43,8 @@ import os
 import pytest
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
+    INTEGER_SINGLE_TYPE
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -80,9 +81,9 @@ def test_loop_navigation_properties():
     assert "Only PSyIR nodes can be assigned as the Loop step expression" \
         ", but found '" in str(err.value)
 
-    loop.addchild(Literal("start", DataType.INTEGER, parent=loop))
-    loop.addchild(Literal("stop", DataType.INTEGER, parent=loop))
-    loop.addchild(Literal("step", DataType.INTEGER, parent=loop))
+    loop.addchild(Literal("start", INTEGER_SINGLE_TYPE, parent=loop))
+    loop.addchild(Literal("stop", INTEGER_SINGLE_TYPE, parent=loop))
+    loop.addchild(Literal("step", INTEGER_SINGLE_TYPE, parent=loop))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -98,17 +99,17 @@ def test_loop_navigation_properties():
         _ = loop.loop_body
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("invalid", DataType.INTEGER, parent=loop)
+        loop.start_expr = Literal("invalid", INTEGER_SINGLE_TYPE, parent=loop)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("invalid", DataType.INTEGER, parent=loop)
+        loop.stop_expr = Literal("invalid", INTEGER_SINGLE_TYPE, parent=loop)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("invalid", DataType.INTEGER, parent=loop)
+        loop.step_expr = Literal("invalid", INTEGER_SINGLE_TYPE, parent=loop)
     assert error_str in str(err.value)
 
     # The fourth child has to be a Schedule
-    loop.addchild(Literal("loop_body", DataType.INTEGER, parent=loop))
+    loop.addchild(Literal("loop_body", INTEGER_SINGLE_TYPE, parent=loop))
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
     assert "Loop malformed or incomplete. Fourth child should be a " \
@@ -125,9 +126,9 @@ def test_loop_navigation_properties():
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("newstart", DataType.INTEGER, parent=loop)
-    loop.stop_expr = Literal("newstop", DataType.INTEGER, parent=loop)
-    loop.step_expr = Literal("newstep", DataType.INTEGER, parent=loop)
+    loop.start_expr = Literal("newstart", INTEGER_SINGLE_TYPE, parent=loop)
+    loop.stop_expr = Literal("newstop", INTEGER_SINGLE_TYPE, parent=loop)
+    loop.step_expr = Literal("newstep", INTEGER_SINGLE_TYPE, parent=loop)
 
     assert loop.start_expr.value == "newstart"
     assert loop.stop_expr.value == "newstop"
@@ -161,7 +162,7 @@ def test_loop_gen_code():
 
     # Change step to 2
     loop = psy.invokes.get('invoke_important_invoke').schedule[3]
-    loop.step_expr = Literal("2", DataType.INTEGER, parent=loop)
+    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE, parent=loop)
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end
     gen = str(psy.gen)
@@ -188,11 +189,12 @@ def test_loop_create():
     creates a Loop instance.
 
     '''
-    start = Literal("0", DataType.INTEGER)
-    stop = Literal("1", DataType.INTEGER)
-    step = Literal("1", DataType.INTEGER)
-    child_node = Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
-                                   Reference(DataSymbol("i", DataType.REAL)))
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
     loop = Loop.create("i", start, stop, step, [child_node])
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
@@ -207,10 +209,11 @@ def test_loop_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    zero = Literal("0", DataType.INTEGER)
-    one = Literal("1", DataType.INTEGER)
-    children = [Assignment.create(Reference(DataSymbol("x", DataType.INTEGER)),
-                                  one)]
+    zero = Literal("0", INTEGER_SINGLE_TYPE)
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    children = [Assignment.create(
+        Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
+        one)]
 
     # var_name is not a string.
     with pytest.raises(GenerationError) as excinfo:
