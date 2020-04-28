@@ -38,7 +38,7 @@ to find the various software packages:
    The location of the dl_esm_inf library, it defaults to
    ``../../../external/dl_esm_inf/finite_difference/src``,
    which is the version included in PSyclone.
-### DL_TIMER_DIR:
+### DL_TIMER_ROOT:
     The location of the apeg-dl_timer library. It defaults to
     ``../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
     is installed next to PSyclone.
