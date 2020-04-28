@@ -57,7 +57,7 @@ def create_matmul():
     symbol_table = SymbolTable()
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
-    index = DataSymbol("idx", INTEGER_TYPE)
+    index = DataSymbol("idx", INTEGER_TYPE, constant_value=3)
     symbol_table.add(index)
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     mat_symbol = DataSymbol("x", array_type)
@@ -306,7 +306,7 @@ def test_apply1(tmpdir):
     result = writer(matmul.root)
     assert (
         "subroutine my_kern()\n"
-        "  integer :: idx\n"
+        "  integer, parameter :: idx = 3\n"
         "  real, dimension(10,10,10) :: x\n"
         "  real, dimension(10,10) :: y\n"
         "  integer :: i\n"
@@ -339,7 +339,7 @@ def test_apply2(tmpdir):
     result = writer(matmul.root)
     assert (
         "subroutine my_kern()\n"
-        "  integer :: idx\n"
+        "  integer, parameter :: idx = 3\n"
         "  real, dimension(10,10,10) :: x\n"
         "  real, dimension(10,10) :: y\n"
         "  integer :: i\n"
@@ -382,7 +382,7 @@ def test_apply3(tmpdir):
     result = writer(matmul.root)
     assert (
         "subroutine my_kern()\n"
-        "  integer :: idx\n"
+        "  integer, parameter :: idx = 3\n"
         "  real, dimension(10,10) :: x\n"
         "  real, dimension(10) :: y\n"
         "  integer :: i\n"
