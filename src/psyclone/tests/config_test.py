@@ -667,3 +667,28 @@ def test_psy_data_prefix(tmpdir):
         config = Config()
         config.load(str(config_file))
         assert not config.valid_psy_data_prefix
+
+
+def test_invalid_prefix(tmpdir):
+    '''Tests invalid PSyData prefixes (i.e. ones that would result
+    in invalid Fortran names when used).
+    '''
+
+    for prefix in ["1", "&AB", "?", "_ab", "ab'", "cd\"", "ef?"]:
+        content = re.sub(r"^VALID_PSY_DATA_PREFIXES.*$",
+                         "VALID_PSY_DATA_PREFIXES="+prefix,
+                         _CONFIG_CONTENT, flags=re.MULTILINE)
+        config_file = tmpdir.join("config.invalid_psydata")
+        with config_file.open(mode="w") as new_cfg:
+            new_cfg.write(content)
+            new_cfg.close()
+            config = Config()
+            with pytest.raises(ConfigurationError) as err:
+                config.load(config_file=str(config_file))
+            # When there is a '"' in the invalid prefix, the "'" in the
+            # error message is escaped with a '\'. So in order to test the
+            # invalid 'cd"' prefix, we need to have two tests in the assert:
+            assert "Invalid PsyData-prefix '{0}' in config file" \
+                   .format(prefix) in str(err.value)  \
+                or "Invalid PsyData-prefix \\'{0}\\' in config file" \
+                   .format(prefix) in str(err.value)

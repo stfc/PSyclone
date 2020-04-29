@@ -327,6 +327,15 @@ class Config(object):
         except KeyError:
             self._valid_psy_data_prefix = []
 
+        # Verify that the prefixes will result in valid Fortran names:
+        import re
+        valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
+        for prefix in self._valid_psy_data_prefix:
+            if not valid_var.match(prefix):
+                raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
+                                         "config file.".format(prefix),
+                                         config=self)
+
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
         self._api_conf = {}
