@@ -54,7 +54,7 @@ module testkern_different_anyspace_stencil_mod
 
 contains
 
-  subroutine testkern_different_anyspace_stencil_code(nlayers, field1_w1,               &
+  subroutine testkern_different_anyspace_stencil_code(nlayers, field1,                  &
                                                       field2, field2_stencil_size,      &
                                                       field2_stencil_dofmap,            &
                                                       field3, field3_stencil_size,      &

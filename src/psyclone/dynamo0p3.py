@@ -45,7 +45,6 @@
 from __future__ import print_function, absolute_import
 import abc
 import os
-import re
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
@@ -431,7 +430,6 @@ class FunctionSpace(object):
         self._kernel_args = kernel_args
         self._mangled_name = None
         self._short_name = None
-        self._sym_name = {}
 
         # Check whether the function space name is a valid name
         if self._orig_name not in VALID_FUNCTION_SPACE_NAMES:
@@ -509,7 +507,7 @@ class FunctionSpace(object):
         initialisation). The mangled name is the short name of the function
         space combined with the argument's name.
 
-        :returns: original or mangled name of this function space.
+        :returns: mangled name of this function space.
         :rtype: str
 
         :raises FieldNotFoundError: if no kernel argument was found on \

@@ -62,20 +62,20 @@ contains
 
   subroutine testkern_any_space_2_code(cell, nlayers, f1_data, f2_data, &
                                        ncell_3d, local_stencil, istep,  &
-                                       ndf_aspc1_f2, undf_aspc1_f2, map_aspc1_f2)
+                                       ndf_aspc1, undf_aspc1, map_aspc1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_aspc1_f1
-    integer(kind=i_def), intent(in) :: undf_aspc1_f1
+    integer(kind=i_def), intent(in) :: ndf_aspc1
+    integer(kind=i_def), intent(in) :: undf_aspc1
     integer(kind=i_def), intent(in) :: istep
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d
-    integer(kind=i_def), intent(in), dimension(ndf_aspc1_f1) :: map_aspc1_f1
-    real(kind=r_def), intent(inout), dimension(undf_aspc1_f1) :: f1_data
-    real(kind=r_def), intent(in), dimension(undf_aspc1_f1)    :: f2_data
-    real(kind=r_def), intent(in), dimension(ndf_aspc1_f1,ndf_aspc1_f1,ncell_3d) :: local_stencil
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
+    real(kind=r_def), intent(inout), dimension(undf_aspc1) :: f1_data
+    real(kind=r_def), intent(in), dimension(undf_aspc1)    :: f2_data
+    real(kind=r_def), intent(in), dimension(ndf_aspc1,ndf_aspc1,ncell_3d) :: local_stencil
 
   end subroutine testkern_any_space_2_code
 
