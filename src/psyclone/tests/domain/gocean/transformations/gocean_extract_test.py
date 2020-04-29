@@ -686,3 +686,38 @@ def test_rename_region(tmpdir):
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
     assert 'CALL extract_psy_data%OpenRead("main", "update")' in driver_code
+
+
+# -----------------------------------------------------------------------------
+def test_change_prefix(tmpdir, monkeypatch):
+    '''
+    This tests that the prefix of an gocean extract transformation
+    can be changed, and that the new prefix is also used in the
+    created driver.
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
+
+    # In order to use a different prefix, this prefix needs to be valid.
+    # So monkeypatch the valid prefix names in the config object:
+    from psyclone.configuration import Config
+    config = Config.get()
+    monkeypatch.setattr(config, "_valid_psy_data_prefix", ["NEW"])
+
+    etrans = GOceanExtractTrans()
+    etrans.apply(invoke.schedule.children[0],
+                 {'create_driver': True, 'region_name': ("main", "update"),
+                  'class': "NEW"})
+
+    # Test that the extraction code contains the new prefix:
+    assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \
+        in str(psy.gen)
+
+    # Now test if the created driver has the right prefix"
+    driver_name = tmpdir.join("driver-main-update.f90")
+    with open(str(driver_name), "r") as driver_file:
+        driver_code = driver_file.read()
+    assert 'CALL NEW_psy_data%OpenRead("main", "update")' in driver_code
