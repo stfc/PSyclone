@@ -92,7 +92,7 @@ def test_psy_data_node_tree_correct():
 
     # 2. Parent, but no children:
     # ===========================
-    parent = Node()
+    parent = Schedule()
     psy_node = PSyDataNode(parent=parent)
 
     # We must have a single node connected to the parent, and an
@@ -123,12 +123,12 @@ def test_psy_data_node_tree_correct():
 
     # 4. Parent and children:
     # =======================
-    parent = Node()
+    parent = Schedule()
     # The children must be added to the parent before creating the ExtractNode
     parent.addchild(Statement())
     parent.addchild(Statement())
     # Add another child that must stay with the parent node
-    third_child = Node(parent=parent)
+    third_child = Statement(parent=parent)
     parent.addchild(third_child)
     assert parent.children[2] is third_child
     # Only move the first two children, leave the third where it is

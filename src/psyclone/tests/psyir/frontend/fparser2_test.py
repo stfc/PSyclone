@@ -1291,7 +1291,7 @@ def test_handling_assignment_stmt():
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2assignment])
     # Check a new node was generated and connected to parent
@@ -1337,15 +1337,14 @@ def test_handling_parenthesis():
     required.
     '''
     reader = FortranStringReader("x=(x+1)")
-    fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
+    fparser2parenthesis = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2parenthesis])
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    # Check parenthesis are ignored and process_nodes uses its child
+    # Check that a new node was generated, parenthesis are ignored and
+    # the new node is connected directly to parent
+    new_node = fake_parent[0].rhs
     assert isinstance(new_node, BinaryOperation)
 
 
@@ -1437,15 +1436,15 @@ def test_handling_intrinsics():
     )
 
     for code, expected_type, expected_op in testlist:
-        fake_parent = Node()
+        fake_parent = Schedule()
         reader = FortranStringReader(code)
-        fp2node = Execution_Part.match(reader)[0][0].items[2]
+        fp2node = Execution_Part.match(reader)[0][0]
         processor.process_nodes(fake_parent, [fp2node])
         assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], expected_type), \
+        assert isinstance(fake_parent[0].rhs, expected_type), \
             "Fails when parsing '" + code + "'"
         if expected_type is not CodeBlock:
-            assert fake_parent.children[0]._operator == expected_op, \
+            assert fake_parent[0].rhs._operator == expected_op, \
                 "Fails when parsing '" + code + "'"
 
 
@@ -1454,7 +1453,7 @@ def test_intrinsic_no_args():
     ''' Check that an intrinsic with no arguments results in a
     NotImplementedError. '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader("x = SUM(a, b)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Manually remove the arguments
@@ -1470,7 +1469,7 @@ def test_unary_op_handler_error():
     parse tree has an unexpected structure. This is a hard error to
     provoke since fparser checks that the number of arguments is correct. '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader("x = exp(a)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Create an fparser node for a binary operation so that we can steal
@@ -1491,7 +1490,7 @@ def test_binary_op_handler_error():
     ''' Check that the binary op handler raises the expected errors if the
     parse tree has an unexpected structure. '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader("x = SUM(a, b)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Break the number of arguments in the fparser node
@@ -1513,7 +1512,7 @@ def test_nary_op_handler_error():
     ''' Check that the Nary op handler raises the expected error if the parse
     tree has an unexpected structure. '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader("x = SUM(a, b, mask)")
     fp2node = Execution_Part.match(reader)[0][0].items[2]
     # Give the node an incorrect number of arguments for the Nary handler
@@ -1576,7 +1575,7 @@ def test_array_section():
 
         '''
         processor = Fparser2Reader()
-        fake_parent = Node()
+        fake_parent = Schedule()
         reader = FortranStringReader(code)
         fp2node = Execution_Part.match(reader)[0][0]
         processor.process_nodes(fake_parent, [fp2node])
@@ -1749,7 +1748,7 @@ def test_handling_array_product():
     required.
     '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader(
         "ze_z(:,:) = e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk)")
     fp2node = Execution_Part.match(reader)
@@ -1768,7 +1767,7 @@ def test_handling_if_stmt():
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_stmt])
     # Check a new node was generated and connected to parent
@@ -1797,7 +1796,7 @@ def test_handling_if_construct():
         endif''')
     fparser2if_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_construct])
 
@@ -1845,7 +1844,7 @@ def test_handling_if_construct_errors():
         elseif (condition2) then
         endif''')
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
 
     # Test with no opening If_Then_Stmt
@@ -1919,7 +1918,7 @@ def test_handling_complex_if_construct():
         endif''')
     fparser2if_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_construct])
 
@@ -1950,7 +1949,7 @@ def test_handling_case_construct():
             END SELECT''')
     fparser2case_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
 
@@ -1998,7 +1997,7 @@ def test_case_default():
         reader = FortranStringReader(fortran_text)
         fparser2case_construct = Execution_Part.match(reader)[0][0]
 
-        fake_parent = Node()
+        fake_parent = Schedule()
         processor = Fparser2Reader()
         processor.process_nodes(fake_parent, [fparser2case_construct])
         assigns = fake_parent.walk(Assignment)
@@ -2032,7 +2031,7 @@ def test_handling_case_list():
             END SELECT''')
     fparser2case_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
@@ -2067,7 +2066,7 @@ def test_handling_case_range():
             END SELECT''')
     fparser2case_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
@@ -2097,7 +2096,7 @@ def test_handling_case_range_list():
     #    my_var <= label1 OR my_var >= label5 OR my_var == label6
     fparser2case_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
@@ -2132,7 +2131,7 @@ def test_handling_invalid_case_construct():
             END SELECT''')
     fparser2case_construct = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert isinstance(fake_parent.children[0], IfBlock)
@@ -2180,20 +2179,20 @@ def test_handling_invalid_case_construct():
     assert "to be a Case_Selector but got" in str(error.value)
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
     reader = FortranStringReader("x=1+4")
-    fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
+    fp2binaryop = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fp2binaryop])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
+    new_node = fake_parent[0].rhs
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
     assert new_node._operator == BinaryOperation.Operator.ADD
@@ -2223,42 +2222,43 @@ def test_handling_binaryopbase():
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
-        fp2binaryop.items = (fp2binaryop.items[0], opstring,
-                             fp2binaryop.items[2])
+        reader = FortranStringReader("x=1" + opstring + "4")
+        fp2binaryop = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
-        fake_parent = Node()
+        fake_parent = Schedule()
         processor.process_nodes(fake_parent, [fp2binaryop])
         assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], BinaryOperation), \
+        assert isinstance(fake_parent[0].rhs, BinaryOperation), \
             "Fails when parsing '" + opstring + "'"
-        assert fake_parent.children[0]._operator == expected, \
+        assert fake_parent[0].rhs._operator == expected, \
             "Fails when parsing '" + opstring + "'"
 
     # Test that an unsupported binary operator creates a CodeBlock
-    fake_parent = Node()
-    fp2binaryop.items = (fp2binaryop.items[0], 'unsupported',
-                         fp2binaryop.items[2])
+    fake_parent = Schedule()
+    print(fp2binaryop.items)
+    fp2binaryop.items = (fp2binaryop.items[0], fp2binaryop.items[1],
+                         (fp2binaryop.items[2].items[0], 'unsupported',
+                          fp2binaryop.items[2].items[2]))
     processor.process_nodes(fake_parent, [fp2binaryop])
     assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert isinstance(fake_parent[0].rhs, CodeBlock)
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_handling_unaryopbase():
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.two.Fortran2003 import UnaryOpBase
     reader = FortranStringReader("x=-4")
-    fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
-    assert isinstance(fp2unaryop, UnaryOpBase)
+    fp2unaryop = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fp2unaryop])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
+    new_node = fake_parent[0].rhs
     assert isinstance(new_node, UnaryOperation)
     assert len(new_node.children) == 1
     assert new_node._operator == UnaryOperation.Operator.MINUS
@@ -2272,23 +2272,25 @@ def test_handling_unaryopbase():
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
-        fp2unaryop.items = (opstring, fp2unaryop.items[1])
+        reader = FortranStringReader("x=" + opstring +"4")
+        fp2unaryop = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
-        fake_parent = Node()
+        fake_parent = Schedule()
         processor.process_nodes(fake_parent, [fp2unaryop])
         assert len(fake_parent.children) == 1
-        assert isinstance(fake_parent.children[0], UnaryOperation), \
+        assert isinstance(fake_parent[0].rhs, UnaryOperation), \
             "Fails when parsing '" + opstring + "'"
-        assert fake_parent.children[0]._operator == expected, \
+        assert fake_parent[0].rhs._operator == expected, \
             "Fails when parsing '" + opstring + "'"
 
     # Test that an unsupported unary operator creates a CodeBlock
-    fp2unaryop.items = ('unsupported', fp2unaryop.items[1])
-    fake_parent = Node()
+    fp2unaryop.items = (fp2unaryop.items[0], fp2unaryop.items[1],
+                        ('unsupported', fp2unaryop.items[2].items[1]))
+    fake_parent = Schedule()
     processor.process_nodes(fake_parent, [fp2unaryop])
 
     assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
+    new_node = fake_parent[0].rhs
     assert isinstance(new_node, CodeBlock)
 
 
@@ -2302,7 +2304,7 @@ def test_handling_return_stmt():
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [return_stmt])
     # Check a new node was generated and connected to parent
@@ -2312,7 +2314,7 @@ def test_handling_return_stmt():
     assert not new_node.children
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_handling_end_do_stmt():
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
     reader = FortranStringReader('''
@@ -2320,12 +2322,12 @@ def test_handling_end_do_stmt():
             a=a+1
         end do
         ''')
-    fparser2enddo = Execution_Part.match(reader)[0][0].content[-1]
+    fparser2enddo = Execution_Part.match(reader)[0][0]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2enddo])
-    assert not fake_parent.children  # No new children created
+    assert len(fake_parent.children) == 1  # Just the loop (no end statement)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2338,7 +2340,7 @@ def test_handling_end_subroutine_stmt():
         ''')
     fparser2endsub = Subroutine_Subprogram.match(reader)[0][-1]
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2endsub])
     assert not fake_parent.children  # No new children created
@@ -2360,7 +2362,7 @@ def test_do_construct():
         ''')
     fparser2do = Execution_Part.match(reader)[0][0]
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor.process_nodes(fake_parent, [fparser2do])
     assert fake_parent.children[0]
     new_loop = fake_parent.children[0]
@@ -2383,7 +2385,7 @@ def test_do_construct_while():
         ''')
     fparser2while = Execution_Part.match(reader)[0][0]
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor.process_nodes(fake_parent, [fparser2while])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
@@ -2492,7 +2494,7 @@ def test_missing_loop_control(monkeypatch):
     fparser2while.content[0].items = tuple(item_list)
     monkeypatch.setattr(fparser2while, "tostr", lambda: "<fparser2while>")
 
-    fake_parent = Node()
+    fake_parent = Schedule()
     with pytest.raises(InternalError) as err:
         processor.process_nodes(fake_parent, [fparser2while])
     assert "Unrecognised form of DO loop - failed to find Loop_Control " \

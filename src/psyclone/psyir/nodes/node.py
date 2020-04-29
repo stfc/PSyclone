@@ -296,6 +296,12 @@ class Node(object):
     @staticmethod
     def _validate_child(position, child):
         '''
+         Decides whether a given child and position are valid for this node.
+         The generic implementation always returns False, this simplifies the
+         specializations as Leaf nodes will have by default the expected
+         behaviour, and non-leaf nodes need to modify this method to its
+         particular constrains anyway.
+
         :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.Node`
@@ -305,9 +311,9 @@ class Node(object):
 
         '''
         # pylint: disable=unused-argument
-        # Node is used loosely in unit-testing when we don't care what the
-        # parent is. To allow this we keep all children of nodes valid.
-        return isinstance(child, Node)
+        # Position and child argument names are kept for better documentation,
+        # but the generic method always returns False.
+        return False
 
     def coloured_name(self, colour=True):
         '''

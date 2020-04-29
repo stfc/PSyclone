@@ -45,7 +45,7 @@ import re
 import pytest
 from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
-    Assignment, Return, Loop, Literal
+    Assignment, Return, Loop, Literal, Statement
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
     UnresolvedInterface, ScalarType, DeferredType
@@ -744,13 +744,13 @@ def test_children_validation():
 def test_children_setter():
     ''' Test that the children setter sets-up accepts lists or None or raises
     the appropriate issue. '''
-    testnode = Node()
+    testnode = Schedule()
 
     # children is initialised as a ChildrenList
     assert isinstance(testnode.children, ChildrenList)
 
     # When is set up with a list, this becomes a ChildrenList
-    testnode.children = [Node(), Node()]
+    testnode.children = [Statement(), Statement()]
     assert isinstance(testnode.children, ChildrenList)
 
     # It also accepts None
