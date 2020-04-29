@@ -166,8 +166,9 @@ class GOceanExtractNode(ExtractNode):
         prog = SubroutineGen(parent=module, name=module_name+"_code",
                              implicitnone=True)
         module.add(prog)
-        use = UseGen(prog, self.make_symbol("psy_data_mod"), only=True,
-                     funcnames=[self.make_symbol("PSyDataType")])
+        use = UseGen(prog, self.add_psydata_class_prefix("psy_data_mod"),
+                     only=True,
+                     funcnames=[self.add_psydata_class_prefix("PSyDataType")])
         prog.add(use)
 
         # Use a symbol table to make sure all variable names are unique
@@ -175,9 +176,11 @@ class GOceanExtractNode(ExtractNode):
         sym = Symbol("PSyDataType")
         sym_table.add(sym)
 
-        psy_data = sym_table.new_symbol_name(self.make_symbol("psy_data"))
+        psy_data = sym_table.new_symbol_name(self.add_psydata_class_prefix
+                                             ("psy_data"))
         sym_table.add(Symbol(psy_data))
-        var_decl = TypeDeclGen(prog, datatype=self.make_symbol("PSyDataType"),
+        var_decl = TypeDeclGen(prog, datatype=self.add_psydata_class_prefix
+                               ("PSyDataType"),
                                entity_decls=[psy_data])
         prog.add(var_decl)
 

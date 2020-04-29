@@ -96,21 +96,22 @@ class PSyDataNode(Node):
 
         # This string stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
-        # method 'make_symbol'.
+        # method 'add_psydata_class_prefix'.
         self._class_string = options.get("class", "")
         if self._class_string:
             self._class_string = self._class_string + "_"
 
         # Root of the name to use for variables associated with
         # PSyData regions
-        self._psy_data_symbol_with_prefix = self.make_symbol("psy_data")
+        self._psy_data_symbol_with_prefix = \
+            self.add_psydata_class_prefix("psy_data")
 
         # The use statement that will be inserted. Any use of a module
         # of the same name that doesn't match this will result in a
         # NotImplementedError at code-generation time.
         self.use_stmt = "use {0}, only: "\
-            .format(self.make_symbol("psy_data_mod")) + \
-            ", ".join(self.make_symbol(symbol) for symbol in
+            .format(self.add_psydata_class_prefix("psy_data_mod")) + \
+            ", ".join(self.add_psydata_class_prefix(symbol) for symbol in
                       PSyDataNode.symbols)
 
         if children:
@@ -136,7 +137,7 @@ class PSyDataNode(Node):
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
         self._var_name = symtab.new_symbol_name(
-            self.make_symbol("psy_data"))
+            self.add_psydata_class_prefix("psy_data"))
         symtab.add(Symbol(self._var_name))
 
         if children and parent:
@@ -206,8 +207,8 @@ class PSyDataNode(Node):
             self.set_region_identifier(self._module_name, self._region_name)
 
     # -------------------------------------------------------------------------
-    def make_symbol(self, symbol):
-        '''Makes a symbol with the class-string as prefix, e.g. if the
+    def add_psydata_class_prefix(self, symbol):
+        '''Returns a string with the class-string as prefix, e.g. if the
         class string is "profile", then the symbol "PSyDataType" will
         become "profilePSyDataType". Typically the class_string will
         contain a trailing "_".
@@ -218,6 +219,7 @@ class PSyDataNode(Node):
         :rtype: str
         '''
         return self._class_string + symbol
+
     # -------------------------------------------------------------------------
     @property
     def region_identifier(self):
@@ -342,13 +344,15 @@ class PSyDataNode(Node):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        symbols = [self.make_symbol(symbol) for symbol in PSyDataNode.symbols]
-        fortran_module = self.make_symbol(self.fortran_module)
+        symbols = [self.add_psydata_class_prefix(symbol)
+                   for symbol in PSyDataNode.symbols]
+        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
         use = UseGen(parent, fortran_module, only=True,
                      funcnames=symbols)
         parent.add(use)
         var_decl = TypeDeclGen(parent,
-                               datatype=self.make_symbol("PSyDataType"),
+                               datatype=self.add_psydata_class_prefix
+                               ("PSyDataType"),
                                entity_decls=[self._var_name],
                                save=True, target=True)
         parent.add(var_decl)
@@ -496,7 +500,7 @@ class PSyDataNode(Node):
         # aborting.
         # Get the existing use statements
         found = False
-        fortran_module = self.make_symbol(self.fortran_module)
+        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
         for node in node_list[:]:
             if isinstance(node, Fortran2003.Use_Stmt) and \
                fortran_module == str(node.items[2]).lower():
@@ -521,8 +525,8 @@ class PSyDataNode(Node):
             # add one.
             reader = FortranStringReader(
                 "use {0}, only: {1}"
-                .format(self.make_symbol("psy_data_mod"),
-                        self.make_symbol("PSyDataType")))
+                .format(self.add_psydata_class_prefix("psy_data_mod"),
+                        self.add_psydata_class_prefix("PSyDataType")))
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             use = Fortran2003.Use_Stmt(reader)
@@ -576,13 +580,13 @@ class PSyDataNode(Node):
             region_name = self._region_name
         else:
             region_name = "r{0}".format(region_idx)
-        var_name = "{0}{1}".format(self.make_symbol("psy_data"),
+        var_name = "{0}{1}".format(self.add_psydata_class_prefix("psy_data"),
                                    region_idx)
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
             "type({0}), target, save :: {1}"
-            .format(self.make_symbol("PSyDataType"), var_name))
+            .format(self.add_psydata_class_prefix("PSyDataType"), var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)
