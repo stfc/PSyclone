@@ -31,30 +31,45 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 
-program multikernel_invokes_6
+module testkern_multi_anyw2_mod
 
-  ! Multiple kernel calls within an invoke where the kernels are specified
-  ! as any_space
-
-  use inf,                      only : field_type, operator_type, quadrature_rule
-  use testkern_any_space_1_mod, only : testkern_any_space_1_type
-  use testkern_any_space_2_mod, only : testkern_any_space_2_type
+  use argument_mod
+  use kernel_mod
+  use constants_mod
 
   implicit none
 
-  type(field_type)      :: f1, f2, f3(3)
-  type(operator_type)   :: op
-  type(quadrature_rule) :: qr
-  real(r_def)           :: rdt
+  type, public, extends(kernel_type) :: testkern_multi_anyw2_type
+    private
+    type(arg_type), dimension(3) :: meta_args = (/ &
+         arg_type(gh_field, gh_inc,  any_w2),      &
+         arg_type(gh_field, gh_read, any_w2),      &
+         arg_type(gh_field, gh_read, any_w2)       &
+         /)
+    integer :: iterates_over = cells
+  contains
+    procedure, nopass :: code => testkern_multi_anyw2_code
+  end type testkern_multi_anyw2_type
 
-  call invoke(                                         &
-       testkern_any_space_1_type(f1, rdt, f2, f3, qr), &
-       testkern_any_space_1_type(f2, rdt, f1, f3, qr), &
-       testkern_any_space_2_type(f1, f2, op, istep),   &
-       testkern_any_space_2_type(f2, f1, op, istep)    &
-       )
+contains
 
-end program multikernel_invokes_6
+  subroutine testkern_multi_anyw2_code(nlayers, field_1_any_w2,        &
+                                       field_2_any_w2, field_3_any_w2, &
+                                       ndf_any_w2, undf_any_w2, map_any_w2)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_any_w2
+    integer(kind=i_def), intent(in) :: undf_any_w2
+    integer(kind=i_def), intent(in), dimension(ndf_any_w2) :: map_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: field_1_any_w2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field_2_any_w2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field_3_any_w2
+
+  end subroutine testkern_multi_anyw2_code
+
+end module testkern_multi_anyw2_mod

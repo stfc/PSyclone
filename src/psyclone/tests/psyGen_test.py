@@ -668,12 +668,6 @@ def test_args_filter2():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    print("IN TEST_ARGS_FILTER2: type(schedule) ", type(schedule))
-    print("                      dir(schedule) ", dir(schedule))
-    print("                      schedule.invoke ", schedule.invoke)
-    print("                      schedule ", schedule)
-    print("                      schedule.children ", schedule.children)
-    print("                      schedule.args.names ", [arg.name for arg in schedule.args])
     loop = schedule.children[3]
 
     # arg_accesses
@@ -692,7 +686,7 @@ def test_args_filter2():
 
     # neither
     args = loop.args_filter()
-    expected_output = ["chi", "mm_w0", "azzz"]
+    expected_output = ["chi", "mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)

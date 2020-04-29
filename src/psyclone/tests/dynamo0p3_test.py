@@ -56,7 +56,8 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     KernCallArgList, DynACCEnterDataDirective, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
+    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES, \
+    VALID_FUNCTION_SPACE_NAMES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -509,17 +510,17 @@ def test_field(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -605,17 +606,17 @@ def test_field_deref(tmpdir, dist_mem):
         "      !\n")
     assert output in generated_code
     output = (
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for est_f2 on w2\n"
         "      !\n"
         "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for est_m2 on w3\n"
         "      !\n"
         "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
@@ -743,57 +744,57 @@ def test_field_fs(tmpdir):
         "      map_wchi => m5_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_w2 => m6_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w0\n"
+        "      ! Initialise number of DoFs for m1 on w0\n"
         "      !\n"
         "      ndf_w0 = m1_proxy%vspace%get_ndf()\n"
         "      undf_w0 = m1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for wtheta\n"
+        "      ! Initialise number of DoFs for f3 on wtheta\n"
         "      !\n"
         "      ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
         "      undf_wtheta = f3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2h\n"
+        "      ! Initialise number of DoFs for f4 on w2h\n"
         "      !\n"
         "      ndf_w2h = f4_proxy%vspace%get_ndf()\n"
         "      undf_w2h = f4_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2v\n"
+        "      ! Initialise number of DoFs for m3 on w2v\n"
         "      !\n"
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2broken\n"
+        "      ! Initialise number of DoFs for m4 on w2broken\n"
         "      !\n"
         "      ndf_w2broken = m4_proxy%vspace%get_ndf()\n"
         "      undf_w2broken = m4_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2trace\n"
+        "      ! Initialise number of DoFs for f5 on w2trace\n"
         "      !\n"
         "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
         "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for wchi\n"
+        "      ! Initialise number of DoFs for m5 on wchi\n"
         "      !\n"
         "      ndf_wchi = m5_proxy%vspace%get_ndf()\n"
         "      undf_wchi = m5_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for any_w2\n"
+        "      ! Initialise number of DoFs for m6 on any_w2\n"
         "      !\n"
         "      ndf_any_w2 = m6_proxy%vspace%get_ndf()\n"
         "      undf_any_w2 = m6_proxy%vspace%get_undf()\n"
@@ -868,7 +869,7 @@ def test_field_fs(tmpdir):
 
 
 def test_real_scalar(tmpdir):
-    ''' tests that we generate correct code when a kernel takes a single,
+    ''' Tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields)'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
@@ -914,17 +915,17 @@ def test_real_scalar(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1000,17 +1001,17 @@ def test_int_scalar(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1086,17 +1087,17 @@ def test_two_real_scalars(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1132,6 +1133,7 @@ def test_two_int_scalars(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
@@ -1170,17 +1172,17 @@ def test_two_int_scalars(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1263,17 +1265,17 @@ def test_two_scalars(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
+        "      ! Initialise number of DoFs for f1 on w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for f2 on w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for m2 on w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1384,59 +1386,59 @@ def test_any_space_1(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    print(generated_code)
-    assert ("INTEGER(KIND=i_def), pointer :: "
-            "map_any_space_1_a(:,:) => null(), "
-            "map_any_space_2_b(:,:) => null(), "
-            "map_w0(:,:) => nullzzzz()\n"
+
+    assert ("INTEGER(KIND=i_def), pointer :: map_aspc1_a(:,:) => null(), "
+            "map_aspc2_b(:,:) => null(), map_w0(:,:) => null()\n"
             in generated_code)
-    assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_a_qr(:,:,:,:),"
-            " basis_any_space_2_b_qr(:,:,:,:)" in generated_code)
-    assert ("ALLOCATE (basis_any_space_1_a_qr(dim_any_space_1_a, "
-            "ndf_any_space_1_a, np_xy_qr, np_z_qr))" in generated_code)
-    assert ("ALLOCATE (basis_any_space_2_b_qr(dim_any_space_2_b, "
-            "ndf_any_space_2_b, np_xy_qr, np_z_qr))" in generated_code)
-    assert ("map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()" in
+    assert ("REAL(KIND=r_def), allocatable :: basis_aspc1_a_qr(:,:,:,:),"
+            " basis_aspc2_b_qr(:,:,:,:)" in generated_code)
+    assert ("ALLOCATE (basis_aspc1_a_qr(dim_aspc1_a, ndf_aspc1_a, "
+            "np_xy_qr, np_z_qr))" in generated_code)
+    assert ("ALLOCATE (basis_aspc2_b_qr(dim_aspc2_b, ndf_aspc2_b, "
+            "np_xy_qr, np_z_qr))" in generated_code)
+    assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()" in
             generated_code)
-    assert ("map_any_space_2_b => b_proxy%vspace%get_whole_dofmap()" in
+    assert ("map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in
             generated_code)
     assert ("CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, "
             "b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, "
-            "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell),"
-            " basis_any_space_1_a_qr, ndf_any_space_2_b, undf_any_space_2_b, "
-            "map_any_space_2_b(:,cell), basis_any_space_2_b_qr, ndf_w0, "
-            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
+            "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
+            "map_aspc2_b(:,cell), basis_aspc2_b_qr, ndf_w0, undf_w0, "
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in generated_code)
-    assert ("DEALLOCATE (basis_any_space_1_a_qr, basis_any_space_2_b_qr, "
-            "diff_basis_w0_qr)" in generated_code)
+    assert ("DEALLOCATE (basis_aspc1_a_qr, basis_aspc2_b_qr, diff_basis_w0_qr)"
+            in generated_code)
 
 
-def test_any_space_2():
+def test_any_space_2(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes multiple declarations of the same space, no
-    func_type declarations and any_space used with an
-    operator. '''
+    func_type declarations and any_space used with an operator. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.1_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert "INTEGER(KIND=i_def), intent(in) :: istp" in generated_code
-    assert ("INTEGER(KIND=i_def), pointer :: map_any_space_1_a(:,:) "
-            "=> null()" in generated_code)
-    assert ("INTEGER(KIND=i_def) ndf_any_space_1_a, "
-            "undf_any_space_1_a" in generated_code)
-    assert "ndf_any_space_1_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_any_space_1_a = a_proxy%vspace%get_undf()" in generated_code
-    assert ("map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()" in
-            generated_code)
-    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
-            "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
-            "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell))"
+    assert ("INTEGER(KIND=i_def), pointer :: map_aspc1_a(:,:) => null()"
+            in generated_code)
+    assert "INTEGER(KIND=i_def) ndf_aspc1_a, undf_aspc1_a" in generated_code
+    assert "ndf_aspc1_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_aspc1_a = a_proxy%vspace%get_undf()" in generated_code
+    assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()"
+            in generated_code)
+    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, "
+            "b_proxy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
+            "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell))"
             in generated_code)
 
 
-def test_op_any_space_different_space_1():
+def test_op_any_space_different_space_1(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
@@ -1444,12 +1446,15 @@ def test_op_any_space_different_space_1():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    assert "ndf_any_space_2_a = a_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()" in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert "ndf_aspc2_a = a_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_aspc1_a = a_proxy%fs_to%get_ndf()" in generated_code
 
 
 def test_op_any_space_different_space_2(tmpdir):
-    ''' tests that any_space is implemented correctly in the PSy
+    ''' Tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
                            api=TEST_API)
@@ -1457,26 +1462,23 @@ def test_op_any_space_different_space_2(tmpdir):
     generated_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
-    assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
-        generated_code
-    assert "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()" in generated_code
-    assert "undf_any_space_4_d = d_proxy%fs_from%get_undf()" in generated_code
-    assert "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()" in \
-        generated_code
-    assert "ndf_any_space_5_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_any_space_5_a = a_proxy%vspace%get_undf()" in generated_code
+
+    assert "ndf_aspc1_b = b_proxy%fs_to%get_ndf()" in generated_code
+    assert "dim_aspc1_b = b_proxy%fs_to%get_dim_space()" in generated_code
+    assert "ndf_aspc2_b = b_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_aspc3_c = c_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_aspc4_d = d_proxy%fs_from%get_ndf()" in generated_code
+    assert "undf_aspc4_d = d_proxy%fs_from%get_undf()" in generated_code
+    assert "dim_aspc4_d = d_proxy%fs_from%get_dim_space()" in generated_code
+    assert "ndf_aspc5_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_aspc5_a = a_proxy%vspace%get_undf()" in generated_code
     assert "CALL qr%compute_function(BASIS, b_proxy%fs_to, " in generated_code
-    assert "CALL qr%compute_function(BASIS, d_proxy%fs_from, " in \
-        generated_code
-    assert "CALL qr%compute_function(DIFF_BASIS, d_proxy%fs_from, " in \
-        generated_code
-    assert "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()" in \
-        generated_code
-    assert "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()" in \
-        generated_code
+    assert ("CALL qr%compute_function(BASIS, d_proxy%fs_from, " in
+            generated_code)
+    assert ("CALL qr%compute_function(DIFF_BASIS, d_proxy%fs_from, " in
+            generated_code)
+    assert "map_aspc5_a => a_proxy%vspace%get_whole_dofmap()" in generated_code
+    assert "map_aspc4_d => f_proxy%vspace%get_whole_dofmap()" in generated_code
 
 
 def test_op_any_discontinuous_space_1(tmpdir):
@@ -1489,41 +1491,33 @@ def test_op_any_discontinuous_space_1(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert "REAL(KIND=r_def), intent(in) :: rdt" in generated_code
-    assert ("INTEGER(KIND=i_def), pointerzzzz :: map_any_discontinuous_space_1_f1"
-            "(:,:) => null()" in generated_code)
-    assert ("INTEGER(KIND=i_def) ndf_any_discontinuous_space_1_f1, "
-            "undf_any_discontinuous_space_1_f1" in generated_code)
-    assert ("ndf_any_discontinuous_space_1_f1 = f1_proxy(1)%vspace%get_ndf()"
+    assert ("INTEGER(KIND=i_def), pointer :: map_adspc1_f1(:,:) => null()"
             in generated_code)
-    assert ("undf_any_discontinuous_space_1_f1 = "
-            "f1_proxy(1)%vspace%get_undf()" in generated_code)
-    assert ("map_any_discontinuous_space_1_f1 => "
-            "f1_proxy(1)%vspace%get_whole_dofmap()" in generated_code)
-    assert ("ndf_any_discontinuous_space_3_op4 = "
-            "op4_proxy%fs_to%get_ndf()" in generated_code)
-    assert ("ndf_any_discontinuous_space_7_op4 = "
-            "op4_proxy%fs_from%get_ndf()" in generated_code)
+    assert ("INTEGER(KIND=i_def) ndf_adspc1_f1, undf_adspc1_f1"
+            in generated_code)
+    assert "ndf_adspc1_f1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
+    assert "undf_adspc1_f1 = f1_proxy(1)%vspace%get_undf()" in generated_code
+    assert ("map_adspc1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()"
+            in generated_code)
+    assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, nlayers, "
             "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
             "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
             "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
-            "ndf_any_discontinuous_space_1_f1, "
-            "undf_any_discontinuous_space_1_f1, "
-            "map_any_discontinuous_space_1_f1(:,cell), "
-            "ndf_any_discontinuous_space_2_f2, "
-            "undf_any_discontinuous_space_2_f2, "
-            "map_any_discontinuous_space_2_f2(:,cell), "
-            "ndf_any_discontinuous_space_3_op4, "
-            "ndf_any_discontinuous_space_7_op4)" in generated_code)
+            "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
+            "ndf_adspc2_f2, undf_adspc2_f2, map_adspc2_f2(:,cell), "
+            "ndf_adspc3_op4, ndf_adspc7_op4)" in generated_code)
 
 
 def test_op_any_discontinuous_space_2(tmpdir):
     ''' Tests that any_discontinuous_space is implemented correctly in the
     PSy layer when including multiple spaces, operators on same and different
-    "to" and "from" spaces) and basis/differential basis functions '''
+    "to" and "from" spaces) and basis/differential basis functions. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11.5_any_discontinuous_space.f90"),
         api=TEST_API)
@@ -1531,34 +1525,25 @@ def test_op_any_discontinuous_space_2(tmpdir):
     generated_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    assert ("ndf_any_discontinuous_space_4_f1 = f1_proxy%vspace%get_ndf()" in
-            generated_code)
-    assert ("undf_any_discontinuous_space_4_f1 = "
-            "f1_proxy%vspace%get_undf()" in generated_code)
-    assert ("map_any_discontinuous_space_4_f1 => "
-            "f1_proxy%vspace%get_whole_dofmap()" in generated_code)
-    assert ("ndf_any_discontinuous_space_1_op1 = op1_proxy%fs_to%get_ndf()" in
-            generated_code)
-    assert ("ndf_any_discontinuous_space_2_op1 = "
-            "op1_proxy%fs_from%get_ndf()" in generated_code)
-    assert ("dim_any_discontinuous_space_4_f1 = "
-            "f1_proxy%vspace%get_dim_space()" in generated_code)
-    assert ("diff_dim_any_discontinuous_space_4_f1 = "
-            "f1_proxy%vspace%get_dim_space_diff()" in generated_code)
-    assert ("ALLOCATE (basis_any_discontinuous_space_1_op1_qr("
-            "dim_any_discontinuous_space_1_op1, "
-            "ndf_any_discontinuous_space_1_op1" in generated_code)
-    assert ("ALLOCATE (diff_basis_any_discontinuous_space_4_f1_qr"
-            "(diff_dim_any_discontinuous_space_4_f1, "
-            "ndf_any_discontinuous_space_4_f1" in generated_code)
-    assert ("CALL qr%compute_function(BASIS, op1_proxy%fs_to, "
-            "dim_any_discontinuous_space_1_op1, "
-            "ndf_any_discontinuous_space_1_op1, "
-            "basis_any_discontinuous_space_1_op1_qr)" in generated_code)
+
+    assert "ndf_adspc4_f1 = f1_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_adspc4_f1 = f1_proxy%vspace%get_undf()" in generated_code
+    assert ("map_adspc4_f1 => f1_proxy%vspace%get_whole_dofmap()"
+            in generated_code)
+    assert "ndf_adspc1_op1 = op1_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_adspc2_op1 = op1_proxy%fs_from%get_ndf()" in generated_code
+    assert "dim_adspc4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
+    assert ("diff_dim_adspc4_f1 = f1_proxy%vspace%get_dim_space_diff()"
+            in generated_code)
+    assert ("ALLOCATE (basis_adspc1_op1_qr(dim_adspc1_op1, ndf_adspc1_op1"
+            in generated_code)
+    assert ("ALLOCATE (diff_basis_adspc4_f1_qr(diff_dim_adspc4_f1, "
+            "ndf_adspc4_f1" in generated_code)
+    assert ("CALL qr%compute_function(BASIS, op1_proxy%fs_to, dim_adspc1_op1, "
+            "ndf_adspc1_op1, basis_adspc1_op1_qr)" in generated_code)
     assert ("CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
-            "diff_dim_any_discontinuous_space_4_f1, "
-            "ndf_any_discontinuous_space_4_f1, "
-            "diff_basis_any_discontinuous_space_4_f1_qr)" in generated_code)
+            "diff_dim_adspc4_f1, ndf_adspc4_f1, diff_basis_adspc4_f1_qr)"
+            in generated_code)
 
 
 def test_invoke_uniq_declns():
@@ -1752,7 +1737,7 @@ def test_kernel_specific(tmpdir):
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
         "fs == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
+        "ndf_anyspc1_f1, undf_anyspc1_f1, map_anyspc1_f1(:,cell), "
         "boundary_dofs)")
     assert output6 not in generated_code
 
@@ -1793,7 +1778,7 @@ def test_multi_kernel_specific(tmpdir):
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
         "fs == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
+        "ndf_anyspc1_f1, undf_anyspc1_f1, map_anyspc1_f1(:,cell), "
         "boundary_dofs)")
     assert output5 not in generated_code
 
@@ -1815,7 +1800,7 @@ def test_multi_kernel_specific(tmpdir):
         "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v "
         ".or. fs_1 == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
+        "ndf_anyspc1_f1, undf_anyspc1_f1, map_anyspc1_f1(:,cell), "
         "boundary_dofs_1)")
     assert output10 not in generated_code
 
@@ -1838,8 +1823,8 @@ def test_field_bc_kernel(tmpdir):
     assert ("INTEGER(KIND=i_def), pointer :: boundary_dofs_a(:,:) => "
             "null()" in gen_code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code
-    assert ("CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
-            "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs_a)"
+    assert ("CALL enforce_bc_code(nlayers, a_proxy%data, ndf_aspc1_a, "
+            "undf_aspc1_a, map_aspc1_a(:,cell), boundary_dofs_a)"
             in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -2004,8 +1989,8 @@ def test_multikern_invoke_oper():
         generated_code
 
 
-def test_2kern_invoke_any_space():
-    ''' Test correct code is generated when there are just two
+def test_2kern_invoke_any_space(tmpdir):
+    ''' Test correct code is generated when there are just two same
     kernels within an invoke with kernel fields declared as
     any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2013,23 +1998,22 @@ def test_2kern_invoke_any_space():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert ("INTEGER(KIND=i_def), pointer :: map_any_space_1_f1(:,:) => "
-            "null(), map_any_space_1_f2(:,:) => null()\n"
-            in gen)
-    assert "map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
-    assert "map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert ("INTEGER(KIND=i_def), pointer :: map_aspc1_f1(:,:) => null(), "
+            "map_aspc1_f2(:,:) => null()\n" in gen)
+    assert "map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
+    assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
         " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, "
-        "map_any_space_1_f1(:,cell))\n" in gen)
-    assert "map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))\n" in gen)
+    assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "        CALL testkern_any_space_2_code(cell, nlayers, f2_proxy%data,"
         " f1_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
-        "ndf_any_space_1_f2, undf_any_space_1_f2, "
-        "map_any_space_1_f2(:,cell))\n"
-        in gen)
+        "ndf_aspc1_f2, undf_aspc1_f2, map_aspc1_f2(:,cell))\n" in gen)
 
 
 def test_multikern_invoke_any_space(tmpdir):
@@ -2041,37 +2025,34 @@ def test_multikern_invoke_any_space(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    assert ("INTEGER(KIND=i_def), pointer :: "
-            "map_any_space_1_f1(:,:) => null(), "
-            "map_any_space_1_f2(:,:) => null(), "
-            "map_any_space_2_f1(:,:) => null(), "
-            "map_any_space_2_f2(:,:) => null(), map_w0(:,:) => null()" in gen)
+
+    assert ("INTEGER(KIND=i_def), pointer :: map_aspc1_f1(:,:) => null(), "
+            "map_aspc1_f2(:,:) => null(), map_aspc2_f1(:,:) => null(), "
+            "map_aspc2_f2(:,:) => null(), map_w0(:,:) => null()" in gen)
     assert (
-        "REAL(KIND=r_def), allocatable :: basis_any_space_1_f1_qr(:,:,:,:), "
-        "basis_any_space_2_f2_qr(:,:,:,:), diff_basis_w0_qr(:,:,:,:), "
-        "basis_any_space_1_f2_qr(:,:,:,:), basis_any_space_2_f1_qr(:,:,:,:)"
-        in gen)
-    assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
-    assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
+        "REAL(KIND=r_def), allocatable :: basis_aspc1_f1_qr(:,:,:,:), "
+        "basis_aspc2_f2_qr(:,:,:,:), diff_basis_w0_qr(:,:,:,:), "
+        "basis_aspc1_f2_qr(:,:,:,:), basis_aspc2_f1_qr(:,:,:,:)" in gen)
+    assert "ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_aspc2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
-    assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_aspc1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_any_space_1_f2, ndf_any_space_1_f2, "
-            "basis_any_space_1_f2_qr)" in gen)
+            "dim_aspc1_f2, ndf_aspc1_f2, basis_aspc1_f2_qr)" in gen)
     assert (
-        "      map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_space_2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_aspc2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()\n"
-        "      map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_aspc2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         in gen)
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
-            "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
-            "map_any_space_1_f1(:,cell), basis_any_space_1_f1_qr, "
-            "ndf_any_space_2_f2, undf_any_space_2_f2, "
-            "map_any_space_2_f2(:,cell), basis_any_space_2_f2_qr, ndf_w0, "
+            "f3_proxy(3)%data, ndf_aspc1_f1, undf_aspc1_f1, "
+            "map_aspc1_f1(:,cell), basis_aspc1_f1_qr, ndf_aspc2_f2, "
+            "undf_aspc2_f2, map_aspc2_f2(:,cell), basis_aspc2_f2_qr, ndf_w0, "
             "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr" in gen)
 
@@ -2085,45 +2066,41 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
+
+    assert "ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_any_space_1_f1, ndf_any_space_1_f1, "
-            "basis_any_space_1_f1_qr)" in gen)
-    assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
+            "dim_aspc1_f1, ndf_aspc1_f1, basis_aspc1_f1_qr)" in gen)
+    assert "ndf_aspc2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_any_space_2_f2, ndf_any_space_2_f2, "
-            "basis_any_space_2_f2_qr)" in gen)
-    assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_any_space_1_op2 = op2_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_any_space_3_op3 = op3_proxy%fs_to%get_ndf()" in gen
-    assert gen.count("ndf_any_space_4_op4 = op4_proxy%fs_from%get_ndf()") == 1
-    assert "ndf_any_space_3_op5" not in gen
-    assert "ndf_any_space_4_f1" not in gen
+            "dim_aspc2_f2, ndf_aspc2_f2, basis_aspc2_f2_qr)" in gen)
+    assert "ndf_aspc1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_aspc1_op = op_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_aspc5_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_aspc1_op2 = op2_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_aspc3_op3 = op3_proxy%fs_to%get_ndf()" in gen
+    assert gen.count("ndf_aspc4_op4 = op4_proxy%fs_from%get_ndf()") == 1
+    assert "ndf_aspc3_op5" not in gen
+    assert "ndf_aspc4_f1" not in gen
     # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
     # DIFF_BASIS on w0
     # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_any_space_1_f1, ndf_any_space_1_f1, "
-            "basis_any_space_1_f1_qr)" in gen)
+            "dim_aspc1_f1, ndf_aspc1_f1, basis_aspc1_f1_qr)" in gen)
     assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_any_space_2_f2, ndf_any_space_2_f2, "
-            "basis_any_space_2_f2_qr)" in gen)
+            "dim_aspc2_f2, ndf_aspc2_f2, basis_aspc2_f2_qr)" in gen)
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
     assert ("CALL qr%compute_function(BASIS, op2_proxy%fs_to, "
-            "dim_any_space_1_op2, ndf_any_space_1_op2, "
-            "basis_any_space_1_op2_qr)" in gen)
+            "dim_aspc1_op2, ndf_aspc1_op2, basis_aspc1_op2_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
     assert ("CALL qr%compute_function(BASIS, op4_proxy%fs_from, "
-            "dim_any_space_4_op4, ndf_any_space_4_op4, "
-            "basis_any_space_4_op4_qr)" in gen)
+            "dim_aspc4_op4, ndf_aspc4_op4, basis_aspc4_op4_qr)" in gen)
     assert ("CALL qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
-            "diff_dim_any_space_4_op4, ndf_any_space_4_op4, "
-            "diff_basis_any_space_4_op4_qr)" in gen)
+            "diff_dim_aspc4_op4, ndf_aspc4_op4, diff_basis_aspc4_op4_qr)"
+            in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -2702,11 +2679,24 @@ def test_arg_desc_func_space_tofrom_err():
             "'gh_columnwise_operator']") in str(excinfo.value)
 
 
+def test_unrecognised_fspace_error():
+    ''' Tests that an error is raised in FunctionSpace initialisation when
+    an unrecognised function space is supplied. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = FunctionSpace("not_a_space", first_kernel.arguments).mangled_name
+    assert ("Unrecognised function space 'not_a_space'. The supported spaces "
+            "are {0}".format(VALID_FUNCTION_SPACE_NAMES) in str(excinfo.value))
+
+
 def test_mangle_no_space_error():
-    ''' Tests that an error is raised in mangle_fs_name()
-    when none of the provided kernel arguments are on the
-    specified space '''
-    from psyclone.dynamo0p3 import mangle_fs_name
+    ''' Tests that an error is raised in FunctionSpace.mangled_name when
+    none of the provided kernel arguments are on the specified space. '''
     from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
@@ -2715,37 +2705,55 @@ def test_mangle_no_space_error():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     with pytest.raises(FieldNotFoundError) as excinfo:
-        _ = mangle_fs_name(first_kernel.arguments.args, "any_space_7")
-    assert "No kernel argument found for function space 'any_space_7'" \
-        in str(excinfo.value)
+        _ = FunctionSpace("any_space_7", first_kernel.arguments).mangled_name
+    assert ("No kernel argument found for function space 'any_space_7'"
+            in str(excinfo.value))
 
 
 def test_mangle_function_space():
-    ''' Tests that we correctly mangle the function space name '''
-    from psyclone.dynamo0p3 import mangle_fs_name
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.5.2_multikernel_invokes.f90"),
-                           api=TEST_API)
+    ''' Tests that we correctly mangle the function space name, including
+    the creation of its short name. '''
+    # Test any_space
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5.2_multikernel_invokes.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
-    name = mangle_fs_name(first_kernel.arguments.args, "any_space_2")
-    assert name == "any_space_2_f2"
+    fs_name = "any_space_2"
+    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
+    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
+    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
+    assert mangled_name == "aspc2_f2"
+    assert short_name == "aspc2"
+    # Test any_discontinuous_space
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    fs_name = "any_discontinuous_space_1"
+    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
+    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
+    assert mangled_name == "adspc1_f1"
+    assert short_name == "adspc1"
 
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space '''
-    from psyclone.dynamo0p3 import mangle_fs_name
-    # Test any_space
+    any_space or any_discontinuous_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
-    name = mangle_fs_name(first_kernel.arguments.args, "w2")
-    assert name == "w2"
+    fs_name = "w2"
+    mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
+    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
+    assert mangled_name == fs_name
+    assert short_name == fs_name
 
 
 def test_fsdescriptors_get_descriptor():
@@ -2816,14 +2824,15 @@ def test_func_descriptor_str():
 
 def test_dynkern_arg_for_fs():
     ''' Test that DynInvoke.arg_for_funcspace() raises an error if
-    passed an invalid function space '''
+    passed an invalid function space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
-    assert "No argument found on 'waah' space" in str(err.value)
+    assert ("Unrecognised function space 'waah'. The supported spaces are "
+            "{0}".format(VALID_FUNCTION_SPACE_NAMES) in str(err.value))
 
 
 def test_dist_memory_true():
@@ -4041,9 +4050,8 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4_proxy%data, f4_stencil_size, direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_any_discontinuous_space_1_f4, "
-        "undf_any_discontinuous_space_1_f4, "
-        "map_any_discontinuous_space_1_f4(:,cell))")
+        "map_w2(:,cell), ndf_adspc1_f4, undf_adspc1_f4, "
+        "map_adspc1_f4(:,cell))")
     assert output5 in result
 
     # Check compilation
@@ -4517,7 +4525,7 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
     assert output5 in result
 
 
-def test_single_kernel_any_space_stencil(dist_mem):
+def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
     '''This is a test for stencils and any_space within a single kernel
     and between kernels. We test when any_space is the same and when
     it is different within kernels and between kernels for the case of
@@ -4532,6 +4540,9 @@ def test_single_kernel_any_space_stencil(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output1 = (
         "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
@@ -4547,24 +4558,22 @@ def test_single_kernel_any_space_stencil(dist_mem):
         "      f5_stencil_size = f5_stencil_map%get_size()\n"
         "      !\n")
     assert output1 in result
-    # use the same stencil dofmap
+    # Use the same stencil dofmap
     output2 = (
         "        CALL testkern_same_anyspace_stencil_code(nlayers, "
         "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, "
-        "map_any_space_1_f1(:,cell))")
+        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))")
     assert output2 in result
     output3 = (
         "        CALL testkern_different_anyspace_stencil_code(nlayers, "
         "f3_proxy%data, f4_proxy%data, f4_stencil_size, "
         "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_any_space_1_f4, undf_any_space_1_f4, "
-        "map_any_space_1_f4(:,cell), ndf_any_space_2_f5, "
-        "undf_any_space_2_f5, map_any_space_2_f5(:,cell))")
-    # use a different stencil dofmap
+        "ndf_aspc1_f4, undf_aspc1_f4, map_aspc1_f4(:,cell), ndf_aspc2_f5, "
+        "undf_aspc2_f5, map_aspc2_f5(:,cell))")
+    # Use a different stencil dofmap
     assert output3 in result
 
 
@@ -4598,15 +4607,15 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
         "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)")
+        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1)")
     assert output2 in result
     output3 = (
         "        CALL testkern_different_anyspace_stencil_code(nlayers, "
         "f3_proxy%data, f1_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
-        "ndf_any_space_2_f2, undf_any_space_2_f2, map_any_space_2_f2)")
+        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1, "
+        "ndf_aspc2_f2, undf_aspc2_f2, map_aspc2_f2)")
     assert output3 in result
 
 
@@ -4636,9 +4645,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers, f0_proxy%data, f1_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_any_discontinuous_space_1_f1, "
-        "undf_any_discontinuous_space_1_f1, "
-        "map_any_discontinuous_space_1_f1(:,cell))")
+        "map_wtheta(:,cell), ndf_adspc1_f1, undf_adspc1_f1, "
+        "map_adspc1_f1(:,cell))")
     assert output1 in result
     # Use a different stencil dofmap
     output2 = (
@@ -4646,12 +4654,9 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers, f3_proxy%data, f4_proxy%data, f4_stencil_size, "
         "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_any_discontinuous_space_1_f4, "
-        "undf_any_discontinuous_space_1_f4, "
-        "map_any_discontinuous_space_1_f4(:,cell), "
-        "ndf_any_discontinuous_space_2_f5, "
-        "undf_any_discontinuous_space_2_f5, "
-        "map_any_discontinuous_space_2_f5(:,cell))")
+        "map_wtheta(:,cell), ndf_adspc1_f4, "
+        "undf_adspc1_f4, map_adspc1_f4(:,cell), "
+        "ndf_adspc2_f5, undf_adspc2_f5, map_adspc2_f5(:,cell))")
     assert output2 in result
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
@@ -5133,11 +5138,11 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
+
     if dist_mem:
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cellzzz(1)\n")
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
         assert output in generated_code
     else:
         output = (
@@ -5177,44 +5182,46 @@ def test_itn_space_fld_and_op_writers(tmpdir):
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_any_discontinuous(tmpdir):
+def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
     ''' Check that generated loop over cells has correct upper
     bound when a kernel writes to fields on any_space (continuous)
-    and any_discontinuous_space '''
+    and any_discontinuous_space. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.5.3_single_invoke_write_any_anyd_space.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        if dist_mem:
-            output = (
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-            assert output in generated_code
-        else:
-            output = (
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
-            assert output in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
 
-        assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert output in generated_code
+    else:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+        assert output in generated_code
 
 
 def test_itn_space_any_w2trace(dist_mem, tmpdir):
     ''' Check generated loop over cells has correct upper bound when a
-    kernel writes to fields on any_space and W2trace (both continuous) '''
+    kernel writes to fields on any_space and W2trace (both continuous). '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
         api=TEST_API)
-
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if dist_mem:
         output = (
             "      !\n"
@@ -5229,8 +5236,6 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
             "      !\n"
             "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
         assert output in generated_code
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_unexpected_type_error():
@@ -5393,71 +5398,75 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
             in str(err.value))
 
 
-def test_multi_anyw2():
-    '''Check generated code works correctly when we have multiple any_w2
-    fields. Particularly check that we only generate a single lookup.'''
+def test_multi_anyw2(dist_mem, tmpdir):
+    ''' Check generated code works correctly when we have multiple any_w2
+    fields. Particularly check that we only generate a single lookup. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.1_single_invoke_multi_anyw2.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        if dist_mem:
-            output = (
-                "      ! Look-up dofmaps for each function space\n"
-                "      !\n"
-                "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
-                "      !\n"
-                "      ! Initialise number of DoFs "
-                "for any_w2\n"
-                "      !\n"
-                "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n"
-                "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n"
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n"
-                "        !\n"
-                "        CALL testkern_multi_anyw2_code(nlayers, "
-                "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
-                "undf_any_w2, map_any_w2(:,cell))\n"
-                "      END DO\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()")
-            assert output in generated_code
-        else:
-            output = (
-                "      ! Look-up dofmaps for each function space\n"
-                "      !\n"
-                "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
-                "      !\n"
-                "      ! Initialise number of DoFs for "
-                "any_w2\n"
-                "      !\n"
-                "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        CALL testkern_multi_anyw2_code(nlayers, "
-                "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
-                "undf_any_w2, map_any_w2(:,cell))\n"
-                "      END DO")
-            assert output in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        output = (
+            "      ! Look-up dofmaps for each function space\n"
+            "      !\n"
+            "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for f1 on any_w2\n"
+            "      !\n"
+            "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+            "        !\n"
+            "        CALL testkern_multi_anyw2_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
+            "undf_any_w2, map_any_w2(:,cell))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()")
+        assert output in generated_code
+    else:
+        output = (
+            "      ! Look-up dofmaps for each function space\n"
+            "      !\n"
+            "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for f1 on any_w2\n"
+            "      !\n"
+            "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL testkern_multi_anyw2_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
+            "undf_any_w2, map_any_w2(:,cell))\n"
+            "      END DO")
+        assert output in generated_code
 
 
 def test_anyw2_vectors():
@@ -5475,32 +5484,34 @@ def test_anyw2_vectors():
         assert "f3_proxy(1)%data, f3_proxy(2)%data" in generated_code
 
 
-def test_anyw2_operators():
-    '''Check generated code works correctly when we have any_w2 fields
-    with operators'''
+def test_anyw2_operators(dist_mem, tmpdir):
+    ''' Check generated code works correctly when we have any_w2 fields
+    with operators. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.4_single_invoke_anyw2_operator.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        output = (
-            "      ! Initialise number of DoFs for any_w2\n"
-            "      !\n"
-            "      ndf_any_w2 = mm_w2_proxy%fs_from%get_ndf()\n"
-            "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n")
-        assert output in generated_code
-        output = (
-            "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
-            "np_xy_qr, np_z_qr))\n"
-            "      !\n"
-            "      ! Compute basis/diff-basis arrays\n"
-            "      !\n"
-            "      CALL qr%compute_function(BASIS, mm_w2_proxy%fs_from, "
-            "dim_any_w2, ndf_any_w2, basis_any_w2_qr)")
-        assert output in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output = (
+        "      ! Initialise number of DoFs for mm_w2 on any_w2\n"
+        "      !\n"
+        "      ndf_any_w2 = mm_w2_proxy%fs_from%get_ndf()\n"
+        "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n")
+    assert output in generated_code
+    output = (
+        "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
+        "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
+        "np_xy_qr, np_z_qr))\n"
+        "      !\n"
+        "      ! Compute basis/diff-basis arrays\n"
+        "      !\n"
+        "      CALL qr%compute_function(BASIS, mm_w2_proxy%fs_from, "
+        "dim_any_w2, ndf_any_w2, basis_any_w2_qr)")
+    assert output in generated_code
 
 
 def test_anyw2_stencils():
