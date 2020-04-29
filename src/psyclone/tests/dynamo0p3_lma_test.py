@@ -338,15 +338,15 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      map_w0 => chi_proxy(1)%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
+        "      ! Initialise number of DoFs for mapping on w3\n"
         "      !\n"
         "      ndf_w3 = mapping_proxy%fs_to%get_ndf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
+        "      ! Initialise number of DoFs for mapping on w2\n"
         "      !\n"
         "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for w0\n"
+        "      ! Initialise number of DoFs for chi on w0\n"
         "      !\n"
         "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
         "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
@@ -657,8 +657,8 @@ def test_operator_bc_kernel(tmpdir):
     assert output2 in generated_code
     output3 = (
         "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
-        "op_a_proxy%local_stencil, ndf_any_space_1_op_a, "
-        "ndf_any_space_2_op_a, boundary_dofs_op_a)")
+        "op_a_proxy%local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
+        "boundary_dofs_op_a)")
     assert output3 in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -773,12 +773,12 @@ def test_operators():
         "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
         "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, ndf_w0, ndf_w1, ndf_w2, "
-        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6)\n"
+        "ndf_w3, ndf_aspc1_op_5, ndf_adspc1_op_6)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0, ndf_w1, ndf_w2, "
-        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6\n"
+        "ndf_w3, ndf_aspc1_op_5, ndf_adspc1_op_6\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
@@ -793,12 +793,11 @@ def test_operators():
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
-        "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_5,"
+        "ndf_aspc1_op_5,op_5_ncell_3d) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_op_6,"
-        "ndf_any_discontinuous_space_1_op_6,op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_6,"
+        "ndf_adspc1_op_6,op_6_ncell_3d) :: op_6\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -858,10 +857,9 @@ def test_stub_operator_different_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
-    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, "
-            "ndf_any_discontinuous_space_2_op_1)") in result
-    assert ("dimension(ndf_w3,ndf_any_discontinuous_space_2_op_1,"
-            "op_1_ncell_3d)") in result
+    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
+            in result)
+    assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     assert "function_space_to[2]='w3'" in result
