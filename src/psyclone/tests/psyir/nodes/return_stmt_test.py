@@ -56,7 +56,7 @@ def test_return_can_be_printed():
     '''Test that a Return instance can always be printed (i.e. is
     initialised fully)'''
     return_stmt = Return()
-    assert "Return[]\n" in str(return_stmt)
+    assert "Return[]" in str(return_stmt)
 
 
 def test_return_children_validation():

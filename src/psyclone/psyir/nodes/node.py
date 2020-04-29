@@ -265,7 +265,7 @@ class Node(object):
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
     # Textual description of the node.
-    _children_valid_format = "*[Node]"
+    _children_valid_format = "<abstract node - re-implement in subclass>"
     _text_name = "Node"
     _colour_key = "Node"
 

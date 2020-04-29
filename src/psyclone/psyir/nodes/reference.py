@@ -41,7 +41,6 @@ nodes.'''
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol
@@ -71,20 +70,6 @@ class Reference(DataNode):
                             "but found '{0}'.".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        return False
 
     @property
     def symbol(self):

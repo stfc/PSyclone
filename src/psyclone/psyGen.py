@@ -2091,20 +2091,6 @@ class GlobalSum(Statement):
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        return False
-
     @property
     def scalar(self):
         ''' Return the scalar field that this global sum acts on '''
@@ -2177,20 +2163,6 @@ class HaloExchange(Statement):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        return False
 
     @property
     def vector_index(self):
@@ -2371,20 +2343,6 @@ class Kern(Statement):
         else:
             self._reduction = False
             self._reduction_arg = None
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        return False
 
     @property
     def args(self):
