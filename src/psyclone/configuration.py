@@ -776,6 +776,7 @@ class DynConfig(APISpecificConfig):
             self._mandatory_keys = ["access_mapping",
                                     "compute_annexed_dofs", "default_kind",
                                     "run_time_checks"]
+            #print (section.keys())
             mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(

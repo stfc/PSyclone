@@ -4973,11 +4973,9 @@ class DynInvoke(Invoke):
             entities.declarations(invoke_sub)
 
         if Config.get().api_conf("dynamo0.3").run_time_checks:
-            # Perform any runtime checks
-            # for each field that is modified in this invoke
-            # *** if it has an unknown static function space
 
             # Find all fields that are modified in the invoke.
+            # *** if it has an unknown static function space
             field_set = set()
             field_set.update(self.unique_proxy_declarations(
                 datatype="gh_field", access=AccessType.WRITE))
