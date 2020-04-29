@@ -142,6 +142,8 @@ def test_exp_loop_unrecognised_implicit(parser):
             "'umask(:, :, :, :) = 0.0D0'" in str(err.value))
 
 
+@pytest.mark.xfail(reason="New loop Symbols not added to SymbolTable. To "
+                   "be replaced as part of #412.")
 def test_exp_loop_missing_spec(parser):
     '''Test that the ExplicitLoop transformation still works when the
     fparser2 AST is missing a Specification_Part for the routine.
