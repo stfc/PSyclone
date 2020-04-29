@@ -465,9 +465,9 @@ def test_profiling_var_clash(parser):
         parser,
         "program my_test\n"
         "  real :: my_array(3,3)\n"
-        "  integer :: {0}\n"
+        "  integer :: profile_psy_data\n"
         "  my_array(:,:) = 0.0\n"
-        "end program my_test\n".format(PSyDataNode.psy_data_var))
+        "end program my_test\n")
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen

@@ -89,9 +89,6 @@ class PSyDataNode(Node):
     # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
 
-    # Root of the name to use for variables associated with PSyData regions
-    psy_data_var = "psy_data"
-
     def __init__(self, ast=None, children=None, parent=None, options=None):
 
         if not options:
@@ -103,6 +100,10 @@ class PSyDataNode(Node):
         self._class_string = options.get("class", "")
         if self._class_string:
             self._class_string = self._class_string + "_"
+
+        # Root of the name to use for variables associated with
+        # PSyData regions
+        self._psy_data_symbol_with_prefix = self.make_symbol("psy_data")
 
         # The use statement that will be inserted. Any use of a module
         # of the same name that doesn't match this will result in a
@@ -122,18 +123,20 @@ class PSyDataNode(Node):
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
 
-        # Store the name of the PSyData variable that is used for this
-        # PSyDataNode. This allows the variable name to be shown in str
-        # (and also, calling create_name in gen() would result in the name
-        # being changed every time gen() is called).
+        # Get or create a symbol table so we can avoid name clashes
+        # when creating variables
         if parent and hasattr(self.root, 'symbol_table'):
             symtab = self.root.symbol_table
         else:
             # FIXME: This may not be a good solution
             symtab = SymbolTable()
 
+        # Store the name of the PSyData variable that is used for this
+        # PSyDataNode. This allows the variable name to be shown in str
+        # (and also, calling create_name in gen() would result in the name
+        # being changed every time gen() is called).
         self._var_name = symtab.new_symbol_name(
-            self.make_symbol(self.psy_data_var))
+            self.make_symbol("psy_data"))
         symtab.add(Symbol(self._var_name))
 
         if children and parent:
@@ -551,13 +554,14 @@ class PSyDataNode(Node):
                             "('{1}')". format(routine_name,
                                               fortran_module))
                     # Check for the names of PSyData variables
-                    if text.startswith(self.psy_data_var):
+                    if text.startswith(self._psy_data_symbol_with_prefix):
                         raise NotImplementedError(
                             "Cannot add PSyData calls to '{0}' because it "
                             "already contains symbols that potentially clash "
                             "with the variables we will insert for each "
                             "PSyData region ('{1}*').".
-                            format(routine_name, self.psy_data_var))
+                            format(routine_name,
+                                   self._psy_data_symbol_with_prefix))
         # Flag that we have now checked for name clashes so that if there's
         # more than one PSyData node we don't fall over on the symbols
         # we've previous inserted.
