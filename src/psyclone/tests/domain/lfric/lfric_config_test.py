@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing tests for LFRic (Dynamo0.3) API configuration handling.
@@ -61,6 +62,7 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
+RUN_TIME_CHECKS = true
 '''
 
 
@@ -101,14 +103,16 @@ def test_no_mandatory_option(tmpdir):
         assert ("Missing mandatory configuration option in the "
                 "\'[dynamo0.3]\' section " in str(err.value))
         assert ("Valid options are: '['access_mapping', "
-                "'compute_annexed_dofs', 'default_kind']" in str(err.value))
+                "'compute_annexed_dofs', 'default_kind', "
+                "'run_time_checks']" in str(err.value))
 
 
-def test_anx_dof_not_bool(tmpdir):
-    ''' Check that we raise an error if the COMPUTE_ANNEXED_DOFS option
-    value is not a Boolean '''
-    content = re.sub(r"^COMPUTE_ANNEXED_DOFS = .*$",
-                     "COMPUTE_ANNEXED_DOFS = tree",
+@pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
+def test_entry_not_bool(tmpdir, option):
+    ''' Check that we raise an error if the value of any options expecting
+    a boolean value are not Boolean '''
+    content = re.sub(r"^{0} = .*$".format(option),
+                     "{0} = tree".format(option),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config_dyn")
@@ -119,7 +123,7 @@ def test_anx_dof_not_bool(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert "error while parsing COMPUTE_ANNEXED_DOFS" in str(err.value)
+        assert "error while parsing {0}".format(option) in str(err.value)
         assert "Not a boolean: tree" in str(err.value)
 
 

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -67,6 +67,7 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
+RUN_TIME_CHECKS = true
 '''
 
 
@@ -95,7 +96,8 @@ def clear_config_instance():
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
-                        "COMPUTE_ANNEXED_DOFS"])
+                        "COMPUTE_ANNEXED_DOFS",
+                        "RUN_TIME_CHECKS"])
 def bool_entry(request):
     '''
     Parameterised fixture that will cause a test that has it as an
