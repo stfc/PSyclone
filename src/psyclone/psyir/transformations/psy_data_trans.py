@@ -151,8 +151,9 @@ class PSyDataTrans(RegionTrans):
                 if prefix not in Config.get().valid_psy_data_prefix:
                     raise TransformationError(
                         "Error in 'class' parameter: found '{0}', expected "
-                        "one of {1}"
-                        .format(prefix, Config.get().valid_psy_data_prefix))
+                        "one of {1} as defined in {2}"
+                        .format(prefix, Config.get().valid_psy_data_prefix,
+                                Config.get().filename))
 
         super(PSyDataTrans, self).validate(node_list, options)
 

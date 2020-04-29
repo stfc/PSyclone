@@ -183,3 +183,4 @@ def test_class_definitions():
         data_trans.apply(schedule, {"class": "invalid-class"})
     assert "Error in 'class' parameter: found 'invalid-class', expected " \
         "one of " in str(err.value)
+    assert "as defined in /" in str(err.value)
