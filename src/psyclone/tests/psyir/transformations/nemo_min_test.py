@@ -38,8 +38,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import NemoMinTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, DataType, \
-    ArgumentInterface
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
+    ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
     Assignment, Literal
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -82,15 +82,15 @@ def example_psyir_binary(create_expression):
     '''
     symbol_table = SymbolTable()
     name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, DataType.REAL, interface=ArgumentInterface(
+    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg1)
     name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, DataType.REAL, interface=ArgumentInterface(
+    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg2)
     name3 = symbol_table.new_symbol_name()
-    arg3 = DataSymbol(name3, DataType.REAL)
+    arg3 = DataSymbol(name3, REAL_TYPE)
     symbol_table.add(arg3)
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
@@ -113,19 +113,19 @@ def example_psyir_nary():
     '''
     symbol_table = SymbolTable()
     name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, DataType.REAL, interface=ArgumentInterface(
+    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg1)
     name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, DataType.REAL, interface=ArgumentInterface(
+    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg2)
     name3 = symbol_table.new_symbol_name("arg")
-    arg3 = DataSymbol(name3, DataType.REAL, interface=ArgumentInterface(
+    arg3 = DataSymbol(name3, REAL_TYPE, interface=ArgumentInterface(
         ArgumentInterface.Access.READWRITE))
     symbol_table.add(arg3)
     name4 = symbol_table.new_symbol_name()
-    arg4 = DataSymbol(name4, DataType.REAL)
+    arg4 = DataSymbol(name4, REAL_TYPE)
     symbol_table.add(arg4)
     symbol_table.specify_argument_list([arg1, arg2, arg3])
     var1 = Reference(arg1)
@@ -143,7 +143,7 @@ def example_psyir_nary():
                          [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", DataType.REAL)), "arg * 3.14")])
+                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
 def test_correct_binary(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     first argument to MIN is a simple argument and when it is an
@@ -192,9 +192,9 @@ def test_correct_expr(tmpdir):
     operation = example_psyir_binary(lambda arg: arg)
     assignment = operation.parent
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", DataType.REAL), operation)
+                                 Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 op1, Literal("2.0", DataType.REAL))
+                                 op1, Literal("2.0", REAL_TYPE))
     op2.parent = assignment
     assignment.children[1] = op2
 
@@ -238,8 +238,8 @@ def test_correct_2min(tmpdir):
     operation = example_psyir_binary(lambda arg: arg)
     assignment = operation.parent
     min_op = BinaryOperation.create(BinaryOperation.Operator.MIN,
-                                    Literal("1.0", DataType.REAL),
-                                    Literal("2.0", DataType.REAL))
+                                    Literal("1.0", REAL_TYPE),
+                                    Literal("2.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  min_op, operation)
     op1.parent = assignment

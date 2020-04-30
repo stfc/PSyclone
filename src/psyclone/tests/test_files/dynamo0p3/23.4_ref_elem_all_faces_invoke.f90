@@ -1,15 +1,7 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
-!
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,27 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modifications: A. R. Porter, STFC Daresbury Lab
+! Authors: I. Kavcic, Met Office and A. R. Porter, STFC Daresbury Lab
 
-module quadrature_rule_mod
-use constants_mod, only: r_def, i_def
+program single_invoke
 
-implicit none
-private
+  ! Description: single kernel (requiring all normals and outward normals to
+  ! faces of the reference element with the common number of faces) specified
+  ! in an invoke call
+  use testkern_ref_elem_all_faces_mod, only: testkern_ref_elem_all_faces_type
 
-type, abstract, public :: quadrature_rule_type
-  private
-contains
-  procedure(quadrature_rule_interface), deferred :: quadrature_rule
-end type
+  implicit none
 
-abstract interface
-  function quadrature_rule_interface(self, nqp_1d)
-    import                          :: r_def, i_def, quadrature_rule_type
-    class(quadrature_rule_type)     :: self
-    integer(kind=i_def), intent(in) :: nqp_1d
-    real(kind=r_def)                :: quadrature_rule_interface(nqp_1d,2)
-  end function quadrature_rule_interface
-end interface
+  type(field_type) :: f1, f2, m1, m2
+  real(r_def) :: a
 
-end module quadrature_rule_mod
+  call invoke( testkern_ref_elem_all_faces_type(a, f1, f2, m1, m2) )
+
+end program single_invoke

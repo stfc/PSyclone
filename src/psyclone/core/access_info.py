@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Modified by: S. Siso, STFC Daresbury Laboratory
+#              A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -160,13 +161,6 @@ class VariableAccessInfo(object):
         :rtype: str
         '''
         return self._var_name
-
-    def is_array(self):
-        ''':returns: True if all accesses to this variable involve indices.
-        :rtype: bool'''
-        # TODO #500: Till we have access to a SymbolTable, we use this
-        # function to detect which variables are arrays.
-        return all(access.indices for access in self._accesses)
 
     def is_written(self):
         ''':returns: True if this variable is written (at least once).

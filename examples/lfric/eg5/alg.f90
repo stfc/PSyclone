@@ -70,11 +70,11 @@ module oned_conservative_flux_alg_mod
 
     implicit none
 
-    integer(i_def), intent(in)          :: direction
+    integer(i_def),      intent(in)     :: direction
     type(field_type),    intent(in)     :: u
     type(field_type),    intent(in)     :: dep_pts
     type(field_type),    intent(in)     :: rho_in
-    type(field_type),    intent(inout)  :: mass_flux
+    type(field_type),    intent(in)     :: mass_flux
     integer(i_def),      intent(in)     :: mesh_id
 
     type( field_type ) :: a0, a1, a2

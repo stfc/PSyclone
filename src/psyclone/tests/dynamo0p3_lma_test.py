@@ -268,7 +268,7 @@ def test_operator():
     assert (
         "SUBROUTINE invoke_0_testkern_operator_type(mm_w0, chi, a, qr)"
         in generated_code)
-    assert "TYPE(operator_type), intent(inout) :: mm_w0" in generated_code
+    assert "TYPE(operator_type), intent(in) :: mm_w0" in generated_code
     assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
     assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
@@ -299,7 +299,7 @@ def test_operator_different_spaces(tmpdir):
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(in) :: chi(3)\n"
-        "      TYPE(operator_type), intent(inout) :: mapping\n"
+        "      TYPE(operator_type), intent(in) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:), "
@@ -429,7 +429,7 @@ def test_operator_nofield(tmpdir):
     assert (
         "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)"
         in gen_code_str)
-    assert "TYPE(operator_type), intent(inout) :: mm_w2" in gen_code_str
+    assert "TYPE(operator_type), intent(in) :: mm_w2" in gen_code_str
     assert "TYPE(operator_proxy_type) mm_w2_proxy" in gen_code_str
     assert "mm_w2_proxy = mm_w2%get_proxy()" in gen_code_str
     assert "undf_w2" not in gen_code_str
@@ -531,7 +531,7 @@ def test_operator_orientation(tmpdir):
     assert (
         "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
         in gen_str)
-    assert "TYPE(operator_type), intent(inout) :: mm_w1" in gen_str
+    assert "TYPE(operator_type), intent(in) :: mm_w1" in gen_str
     assert "TYPE(operator_proxy_type) mm_w1_proxy" in gen_str
     assert "mm_w1_proxy = mm_w1%get_proxy()" in gen_str
     assert (
@@ -594,7 +594,7 @@ def test_operator_deref(tmpdir, dist_mem):
     assert (
         "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, chi, a, qr)"
         in generated_code)
-    assert "TYPE(operator_type), intent(inout) :: mm_w0_op" in generated_code
+    assert "TYPE(operator_type), intent(in) :: mm_w0_op" in generated_code
     assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
     assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
     assert (

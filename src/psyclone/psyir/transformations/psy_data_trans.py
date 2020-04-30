@@ -31,12 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Contains the PSyData transformation.
 '''
 
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -94,9 +96,11 @@ class PSyDataTrans(RegionTrans):
         region already has a Specification_Part (because we've not yet
         implemented the necessary support if it doesn't).
         TODO: #435
-        :param node_list: a list of node_list to be instrumented with \
+
+        :param node_list: a list of nodes to be instrumented with \
             PSyData API calls.
         :type node_list: :py:class:`psyclone.psyir.nodes.Loop`
+
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param (str,str) options["region_name"]: an optional name to \
@@ -140,7 +144,8 @@ class PSyDataTrans(RegionTrans):
 
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
-        invoke = node_list[0].root.invoke
+        sched = node_list[0].ancestor(InvokeSchedule)
+        invoke = sched.invoke
         if not isinstance(invoke, NemoInvoke):
             return
 
@@ -200,7 +205,7 @@ class PSyDataTrans(RegionTrans):
         # An example use case of this is the 'create_driver' flag, where
         # the calling program can control if a stand-alone driver program
         # should be created or not.
-
         self._node_class(parent=node_list[0].parent, children=node_list[:],
                          options=options)
+
         return schedule, keep

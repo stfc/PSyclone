@@ -132,15 +132,15 @@ def test_profile_basic(capsys):
 Constant loop bounds=True]:
 ProfileStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'jstop-1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop-1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 ProfileStart[var=psy_data_1]
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: compute_cv_code
 End Schedule
@@ -149,14 +149,14 @@ ProfileEnd
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_ssh_code
 End Schedule
@@ -212,7 +212,7 @@ def test_profile_invokes_gocean1p0():
     # kernel_ne_offset_mod.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, ONLY: PSyDataType.*"
-                  r"TYPE\(PsyDataType\), save :: psy_data.*"
+                  r"TYPE\(PsyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different_"
                   r"iterates_over\", \"invoke_0:r0\", 0, 0\).*"
                   "do j.*"
@@ -238,7 +238,7 @@ def test_profile_invokes_gocean1p0():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0:r0\", 0, 0\).*"
                   "do j.*"
@@ -276,8 +276,8 @@ def test_unique_region_names():
     # though the kernels have the same name.
     correct_re = ("subroutine invoke.*"
                   "use psy_Data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data.*%PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", "
                   r"\"invoke_0:compute_cu_code:r0\", 0, 0\).*"
@@ -321,8 +321,8 @@ def test_profile_kernels_gocean1p0():
     # in which the tests are executed).
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call (?P<profile1>\w*)%PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0:compute_cu_code:r0\", 0, 0\).*"
                   "do j.*"
@@ -380,7 +380,7 @@ def test_profile_invokes_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"single_invoke_psy\", "
                   r"\"invoke_0_testkern_type:testkern_code:r0\", 0, 0\).*"
                   "do cell.*"
@@ -400,7 +400,7 @@ def test_profile_invokes_dynamo0p3():
     # by PSyclone to avoid name duplications.
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0:r0.*\", 0, 0\).*"
                   "do cell.*"
@@ -417,7 +417,7 @@ def test_profile_invokes_dynamo0p3():
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = str(invoke.gen())
     assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "TYPE(PSyDataType), save :: psy_data" in code
+    assert "TYPE(PSyDataType), target, save :: psy_data" in code
     assert "CALL psy_data%PreStart(\"single_invoke_psy\", "\
            "\"invoke_0:x_plus_y:r0\", 0, 0)"in code
     assert "CALL psy_data%PostEnd" in code
@@ -440,7 +440,7 @@ def test_profile_kernels_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: psy_data.*"
+                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"single_invoke_psy\", "
                   r"\"invoke_0_testkern_type:testkern_code:r0.*\", 0, 0\).*"
                   "do cell.*"
@@ -458,8 +458,8 @@ def test_profile_kernels_dynamo0p3():
 
     correct_re = ("subroutine invoke.*"
                   "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), save :: (?P<profile2>\w*) .*"
-                  r"TYPE\(PSyDataType\), save :: (?P<profile1>\w*) .*"
+                  r"TYPE\(PSyDataType\), target, save :: (?P<profile2>\w*) .*"
+                  r"TYPE\(PSyDataType\), target, save :: (?P<profile1>\w*) .*"
                   r"call (?P=profile1)%PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0:testkern_code:r0\", 0, 0\).*"
                   "do cell.*"
@@ -516,14 +516,14 @@ def test_transform(capsys):
 Constant loop bounds=True]:
 ProfileStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'jstop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_ssh_code
 End Schedule
@@ -531,14 +531,14 @@ End GOLoop
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_solid_u_code
 End Schedule
@@ -546,14 +546,14 @@ End GOLoop
 End Schedule
 End GOLoop
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_solid_v_code
 End Schedule
@@ -571,14 +571,14 @@ End Schedule""")
 Constant loop bounds=True]:
 ProfileStart[var=psy_data]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'jstop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_ssh_code
 End Schedule
@@ -587,14 +587,14 @@ End Schedule
 End GOLoop
 ProfileStart[var=psy_data_1]
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_solid_u_code
 End Schedule
@@ -603,14 +603,14 @@ End Schedule
 End GOLoop
 ProfileEnd
 GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'jstop', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', DataType.INTEGER]
-Literal[value:'istop+1', DataType.INTEGER]
-Literal[value:'1', DataType.INTEGER]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
+Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 Schedule:
 kern call: bc_solid_v_code
 End Schedule

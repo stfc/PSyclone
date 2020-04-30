@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' This module implementes a PSyData node, i.e.a node that at code
@@ -312,7 +313,7 @@ class PSyDataNode(Node):
         parent.add(use)
         var_decl = TypeDeclGen(parent, datatype="PSyDataType",
                                entity_decls=[self._var_name],
-                               save=True)
+                               save=True, target=True)
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
@@ -407,7 +408,7 @@ class PSyDataNode(Node):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.utils import walk
         from fparser.two import Fortran2003
-        from psyclone.psyGen import object_index
+        from psyclone.psyGen import object_index, InvokeSchedule
         from psyclone.psyir.nodes import ProfileNode
 
         # The update function at this stage only supports profiling
@@ -420,9 +421,9 @@ class PSyDataNode(Node):
         super(PSyDataNode, self).update()
 
         # Get the parse tree of the routine containing this region
-        # pylint: disable=protected-access
-        ptree = self.root.invoke._ast
-        # pylint: enable=protected-access
+        routine_schedule = self.ancestor(InvokeSchedule)
+        ptree = routine_schedule.ast
+
         # Rather than repeatedly walk the tree, we do it once for all of
         # the node types we will be interested in...
         node_list = walk([ptree], (Fortran2003.Main_Program,
@@ -491,7 +492,7 @@ class PSyDataNode(Node):
         # symbols required for the PSyData API. This check uses the list of
         # symbols that we created before adding the `use psy_data_mod...`
         # statement.
-        if not self.root.psy_data_name_clashes_checked:
+        if not routine_schedule.psy_data_name_clashes_checked:
             for node in node_list:
                 if isinstance(node, Fortran2003.Name):
                     text = str(node).lower()
@@ -523,12 +524,17 @@ class PSyDataNode(Node):
         # Flag that we have now checked for name clashes so that if there's
         # more than one PSyData node we don't fall over on the symbols
         # we've previous inserted.
-        self.root.psy_data_name_clashes_checked = True
+        # TODO #435 the psy_data_name_clashes_checked attribute only exists
+        # for a NemoInvokeSchedule. Since this whole `update()` routine will
+        # be removed once we are able to use the PSyIR backend to re-generate
+        # NEMO code, the pylint warning is disabled.
+        # pylint: disable=attribute-defined-outside-init
+        routine_schedule.psy_data_name_clashes_checked = True
+        # pylint: enable=attribute-defined-outside-init
 
         # Create a name for this region by finding where this PSyDataNode
         # is in the list of PSyDataNodes in this Invoke.
-        sched = self.root
-        pnodes = sched.walk(PSyDataNode)
+        pnodes = routine_schedule.walk(PSyDataNode)
         region_idx = pnodes.index(self)
         if self._region_name:
             region_name = self._region_name
@@ -538,7 +544,7 @@ class PSyDataNode(Node):
 
         # Create a variable for this PSyData region
         reader = FortranStringReader(
-            "type(PSyDataType), save :: {0}".format(var_name))
+            "type(PSyDataType), target, save :: {0}".format(var_name))
         # Tell the reader that the source is free format
         reader.set_format(FortranFormat(True, False))
         decln = Fortran2003.Type_Declaration_Stmt(reader)
