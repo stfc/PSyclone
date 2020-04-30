@@ -624,8 +624,8 @@ def test_cma_asm_cbanded_dofmap_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0_cma_assembly.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     calls = invoke.schedule.kernels()
@@ -646,8 +646,8 @@ def test_cma_asm(tmpdir, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0_cma_assembly.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
@@ -655,25 +655,19 @@ def test_cma_asm(tmpdir, dist_mem):
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
-        in code
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert ("INTEGER(KIND=i_def), pointer :: "
-            "cbanded_map_any_discontinuous_space_1_lma_op1"
-            "(:,:) => null(), cbanded_map_any_discontinuous_space_2_lma_op1"
-            "(:,:) => null()") in code
+    assert ("INTEGER(KIND=i_def), pointer :: cbanded_map_adspc1_lma_op1(:,:) "
+            "=> null(), cbanded_map_adspc2_lma_op1(:,:) => null()") in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
             "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-            "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-            "cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_discontinuous_space_1_lma_op1, "
-            "cbanded_map_any_discontinuous_space_1_lma_op1, "
-            "ndf_any_discontinuous_space_2_lma_op1, "
-            "cbanded_map_any_discontinuous_space_2_lma_op1)") in code
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_adspc1_lma_op1, cbanded_map_adspc1_lma_op1, "
+            "ndf_adspc2_lma_op1, cbanded_map_adspc2_lma_op1)") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -684,20 +678,20 @@ def test_cma_asm_field(tmpdir, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.3_cma_assembly_field.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
-        in code
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
-            "cbanded_map_any_space_1_afield(:,:) => null(), "
-            "cbanded_map_any_space_2_lma_op1(:,:) => null()") \
+            "cbanded_map_aspc1_afield(:,:) => null(), "
+            "cbanded_map_aspc2_lma_op1(:,:) => null()") \
         in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
@@ -707,56 +701,54 @@ def test_cma_asm_field(tmpdir, dist_mem):
         "afield_proxy%data, lma_op1_proxy%ncell_3d, "
         "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_afield, "
-        "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
-        "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-        "cbanded_map_any_space_2_lma_op1)")
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
+        "undf_aspc1_afield, map_aspc1_afield(:,cell), "
+        "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
+        "cbanded_map_aspc2_lma_op1)")
     assert expected in code
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_cma_asm_scalar(dist_mem):
+def test_cma_asm_scalar(dist_mem, tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a scalar as argument. The
     name of the scalar is deliberately chosen to provoke a clash with the
-    name generated for one of the CMA parameters.'''
+    name generated for one of the CMA parameters. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0.1_cma_assembly_scalar.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
-        in code
+    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
-            "cbanded_map_any_space_1_lma_op1(:,:) => null(), "
-            "cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-        in code
+            "cbanded_map_aspc1_lma_op1(:,:) => null(), "
+            "cbanded_map_aspc2_lma_op1(:,:) => null()") in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-    expected = ("CALL columnwise_op_asm_kernel_code(cell, "
+    expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_proxy%local_stencil, "
-                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                "cma_op1_bandwidth, cma_op1_alpha_1, "
-                "cma_op1_beta, cma_op1_gamma_m, "
-                "cma_op1_gamma_p, cma_op1_alpha, "
-                "ndf_any_space_1_lma_op1, "
-                "cbanded_map_any_space_1_lma_op1, "
-                "ndf_any_space_2_lma_op1, "
-                "cbanded_map_any_space_2_lma_op1)")
+                "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+                "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha_1, "
+                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+                "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
+                "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)")
 
     assert expected in code
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_cma_asm_field_same_fs(dist_mem):
+
+def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a field as argument.
     In this case the fs_from and fs_to spaces of the operator are the
@@ -764,10 +756,11 @@ def test_cma_asm_field_same_fs(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.4_cma_assembly_field_same_fs.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
             "columnwise_operator_type, columnwise_operator_proxy_type") \
         in code
@@ -776,7 +769,7 @@ def test_cma_asm_field_same_fs(dist_mem):
         in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
-            "cbanded_map_any_space_2_lma_op1(:,:) => null()\n") in code
+            "cbanded_map_aspc2_lma_op1(:,:) => null()\n") in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
@@ -787,21 +780,19 @@ def test_cma_asm_field_same_fs(dist_mem):
     else:
         assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
-                "nlayers, ncell_2d, "
-                "lma_op1_proxy%ncell_3d, "
+                "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_proxy%local_stencil, afield_proxy%data, "
-                "cma_op1_matrix, cma_op1_nrow, "
-                "cma_op1_bandwidth, cma_op1_alpha, "
-                "cma_op1_beta, cma_op1_gamma_m, "
-                "cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
-                "undf_any_space_1_lma_op1, "
-                "map_any_space_1_lma_op1(:,cell), "
-                "ndf_any_space_2_lma_op1, "
-                "cbanded_map_any_space_2_lma_op1)")
+                "cma_op1_matrix, cma_op1_nrow, cma_op1_bandwidth, "
+                "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, ndf_aspc1_lma_op1, undf_aspc1_lma_op1, "
+                "map_aspc1_lma_op1(:,cell), ndf_aspc2_lma_op1, "
+                "cbanded_map_aspc2_lma_op1)")
     assert expected in code
     # We do not perform halo swaps for operators
     assert "lma_op1_proxy%is_dirty(" not in code
     assert "cma_op1_proxy%is_dirty(" not in code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_apply_indirection_dofmap_error():
@@ -810,8 +801,8 @@ def test_cma_apply_indirection_dofmap_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     calls = invoke.schedule.kernels()
@@ -833,36 +824,33 @@ def test_cma_apply(tmpdir, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-    assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_any_space_1_"
+    assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_aspc1_"
             "field_a(:) => null(), "
-            "cma_indirection_map_any_space_2_field_b(:) => null()\n") \
+            "cma_indirection_map_aspc2_field_b(:) => null()\n") \
         in code
-    assert ("ndf_any_space_1_field_a = field_a_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_field_a = field_a_proxy%vspace%"
+    assert ("ndf_aspc1_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_field_a = field_a_proxy%vspace%"
             "get_undf()") in code
-    assert ("cma_indirection_map_any_space_1_field_a => "
+    assert ("cma_indirection_map_aspc1_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
-    assert ("cma_indirection_map_any_space_2_field_b => "
+    assert ("cma_indirection_map_aspc2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-            "cma_op1_bandwidth, cma_op1_alpha, "
+            "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+            "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_space_1_field_a, undf_any_space_1_field_a, "
-            "map_any_space_1_field_a(:,cell), "
-            "cma_indirection_map_any_space_1_field_a, "
-            "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
-            "map_any_space_2_field_b(:,cell), "
-            "cma_indirection_map_any_space_2_field_b)") \
-        in code
+            "ndf_aspc1_field_a, undf_aspc1_field_a, "
+            "map_aspc1_field_a(:,cell), cma_indirection_map_aspc1_field_a, "
+            "ndf_aspc2_field_b, undf_aspc2_field_b, map_aspc2_field_b(:,cell),"
+            " cma_indirection_map_aspc2_field_b)") in code
     # We do not perform halo swaps for operators
     assert "cma_op1_proxy%is_dirty(" not in code
 
@@ -876,8 +864,8 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1.2_cma_apply_disc.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
@@ -886,22 +874,19 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
-            "cma_indirection_map_any_discontinuous_space_1_field_a(:) "
-            "=> null(), cma_indirection_map_any_space_1_field_b(:) => "
-            "null()\n") in code
-    assert ("ndf_any_discontinuous_space_1_field_a = "
-            "field_a_proxy%vspace%get_ndf()\n"
-            "      undf_any_discontinuous_space_1_field_a = "
+            "cma_indirection_map_adspc1_field_a(:) => null(), "
+            "cma_indirection_map_aspc1_field_b(:) => null()\n") in code
+    assert ("ndf_adspc1_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "      undf_adspc1_field_a = "
             "field_a_proxy%vspace%get_undf()") in code
-    assert ("cma_indirection_map_any_discontinuous_space_1_field_a => "
+    assert ("cma_indirection_map_adspc1_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
     # Check w2v
     assert "TYPE(columnwise_operator_proxy_type) cma_op2_proxy" in code
     assert "ncell_2d = cma_op2_proxy%ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cma_indirection_map_w2v(:) => null(), "
-            "cma_indirection_map_any_space_2_field_d(:) => "
-            "null()\n") in code
+            "cma_indirection_map_aspc2_field_d(:) => null()\n") in code
     assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
             "      undf_w2v = field_c_proxy%vspace%"
             "get_undf()") in code
@@ -920,25 +905,20 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "ncell_2d, field_a_proxy%data, field_b_proxy%data, "
             "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-            "cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_discontinuous_space_1_field_a, "
-            "undf_any_discontinuous_space_1_field_a, "
-            "map_any_discontinuous_space_1_field_a(:,cell), "
-            "cma_indirection_map_any_discontinuous_space_1_field_a, "
-            "ndf_any_space_1_field_b, undf_any_space_1_field_b, "
-            "map_any_space_1_field_b(:,cell), "
-            "cma_indirection_map_any_space_1_field_b") in code
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_adspc1_field_a, "
+            "undf_adspc1_field_a, map_adspc1_field_a(:,cell), "
+            "cma_indirection_map_adspc1_field_a, ndf_aspc1_field_b, "
+            "undf_aspc1_field_b, map_aspc1_field_b(:,cell), "
+            "cma_indirection_map_aspc1_field_b") in code
     # Check w2v
     assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
-            "field_c_proxy%data, field_d_proxy%data, "
-            "cma_op2_matrix, cma_op2_nrow, cma_op2_ncol, "
-            "cma_op2_bandwidth, cma_op2_alpha, "
-            "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, "
-            "ndf_w2v, undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
-            "ndf_any_space_2_field_d, undf_any_space_2_field_d, "
-            "map_any_space_2_field_d(:,cell), "
-            "cma_indirection_map_any_space_2_field_d)") \
-        in code
+            "field_c_proxy%data, field_d_proxy%data, cma_op2_matrix, "
+            "cma_op2_nrow, cma_op2_ncol, cma_op2_bandwidth, cma_op2_alpha, "
+            "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, ndf_w2v, "
+            "undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
+            "ndf_aspc2_field_d, undf_aspc2_field_d, "
+            "map_aspc2_field_d(:,cell), cma_indirection_map_aspc2_field_d)"
+            in code)
 
     if dist_mem:
         # Check any_discontinuous_space_1
@@ -951,39 +931,42 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_cma_apply_same_space(dist_mem):
+def test_cma_apply_same_space(dist_mem, tmpdir):
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator which has the same to- and from-
     spaces '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1.1_cma_apply_same_spaces.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-    assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_any_space_2_"
+    assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_aspc2_"
             "field_a(:) => null()\n") in code
-    assert ("ndf_any_space_2_field_a = field_a_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_2_field_a = field_a_proxy%vspace%"
+    assert ("ndf_aspc2_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "      undf_aspc2_field_a = field_a_proxy%vspace%"
             "get_undf()") in code
-    assert ("cma_indirection_map_any_space_2_field_a => "
+    assert ("cma_indirection_map_aspc2_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
     assert ("CALL columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
             "field_a_proxy%data, field_b_proxy%data, "
             "cma_op1_matrix, cma_op1_nrow, "
             "cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_space_2_field_a, undf_any_space_2_field_a, "
-            "map_any_space_2_field_a(:,cell), "
-            "cma_indirection_map_any_space_2_field_a)") \
+            "ndf_aspc2_field_a, undf_aspc2_field_a, "
+            "map_aspc2_field_a(:,cell), "
+            "cma_indirection_map_aspc2_field_a)") \
         in code
     if dist_mem:
         assert "CALL field_a_proxy%set_dirty()" in code
         assert "cma_op1_proxy%is_dirty(" not in code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_cma_matrix_matrix(tmpdir, dist_mem):
@@ -992,8 +975,8 @@ def test_cma_matrix_matrix(tmpdir, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.2_cma_matrix_matrix.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
@@ -1031,8 +1014,8 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.2.1_cma_matrix_matrix.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
@@ -1069,10 +1052,11 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     kernels with CMA operator arguments '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "20.5_multi_cma_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
     assert ("      afield_proxy = afield%get_proxy()\n"
             "      lma_op1_proxy = lma_op1%get_proxy()\n"
             "      cma_op1_proxy = cma_op1%get_proxy()\n"
@@ -1088,13 +1072,13 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     assert "cma_op1_alpha = cma_op1_proxy%alpha\n" in code
     assert "cma_op1_beta = cma_op1_proxy%beta\n" in code
 
-    assert ("      cbanded_map_any_space_1_afield => "
+    assert ("      cbanded_map_aspc1_afield => "
             "cma_op1_proxy%column_banded_dofmap_to\n"
-            "      cbanded_map_any_space_2_lma_op1 => "
+            "      cbanded_map_aspc2_lma_op1 => "
             "cma_op1_proxy%column_banded_dofmap_from\n") in code
-    assert ("cma_indirection_map_any_space_1_field_a => "
+    assert ("cma_indirection_map_aspc1_field_a => "
             "cma_op1_proxy%indirection_dofmap_to\n"
-            "      cma_indirection_map_any_space_2_field_b => "
+            "      cma_indirection_map_aspc2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from\n") in code
 
     if dist_mem:
@@ -1111,31 +1095,28 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
             "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
             "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
-            "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
-            "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_space_1_afield, undf_any_space_1_afield, "
-            "map_any_space_1_afield(:,cell), "
-            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-            "cbanded_map_any_space_2_lma_op1)") in code
+            "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
+            "undf_aspc1_afield, map_aspc1_afield(:,cell), "
+            "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
+            "cbanded_map_aspc2_lma_op1)") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
             "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
-            "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
-            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
-            "cma_op1_gamma_p, ndf_any_space_1_field_a, "
-            "undf_any_space_1_field_a, map_any_space_1_field_a(:,cell), "
-            "cma_indirection_map_any_space_1_field_a, "
-            "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
-            "map_any_space_2_field_b(:,cell), "
-            "cma_indirection_map_any_space_2_field_b)\n") in code
+            "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
+            "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_aspc1_field_a, undf_aspc1_field_a, "
+            "map_aspc1_field_a(:,cell), cma_indirection_map_aspc1_field_a, "
+            "ndf_aspc2_field_b, undf_aspc2_field_b, "
+            "map_aspc2_field_b(:,cell), "
+            "cma_indirection_map_aspc2_field_b)\n") in code
     assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-            "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-            "cma_op1_gamma_m, cma_op1_gamma_p, cma_opb_matrix, "
-            "cma_opb_nrow, cma_opb_ncol, cma_opb_bandwidth, "
-            "cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, "
-            "cma_opb_gamma_p, cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
-            "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
-            "cma_opc_gamma_m, cma_opc_gamma_p)") in code
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, cma_opb_bandwidth, "
+            "cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, cma_opc_bandwidth, "
+            "cma_opc_alpha, cma_opc_beta, cma_opc_gamma_m, "
+            "cma_opc_gamma_p)") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1171,7 +1152,7 @@ def test_cma_asm_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_kernel_mod.F90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_asm_kernel_mod\n"
@@ -1180,24 +1161,17 @@ def test_cma_asm_stub_gen():
         "    SUBROUTINE columnwise_op_asm_kernel_code(cell, nlayers, "
         "ncell_2d, op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, "
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
-        "cma_op_2_gamma_m, cma_op_2_gamma_p, "
-        "ndf_any_discontinuous_space_1_op_1, "
-        "cbanded_map_any_discontinuous_space_1_op_1, "
-        "ndf_any_discontinuous_space_2_op_1, "
-        "cbanded_map_any_discontinuous_space_2_op_1)\n"
+        "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_adspc1_op_1, "
+        "cbanded_map_adspc1_op_1, ndf_adspc2_op_1, cbanded_map_adspc2_op_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "ndf_any_discontinuous_space_1_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_op_1,nlayers) :: "
-        "cbanded_map_any_discontinuous_space_1_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "ndf_any_discontinuous_space_2_op_1\n"
+        "ndf_adspc1_op_1,nlayers) :: cbanded_map_adspc1_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc2_op_1\n"
         "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_2_op_1,nlayers) :: "
-        "cbanded_map_any_discontinuous_space_2_op_1\n"
+        "ndf_adspc2_op_1,nlayers) :: cbanded_map_adspc2_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, "
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
@@ -1205,9 +1179,8 @@ def test_cma_asm_stub_gen():
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_2_bandwidth,"
         "cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_op_1,"
-        "ndf_any_discontinuous_space_2_op_1,op_1_ncell_3d) :: op_1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_1,"
+        "ndf_adspc2_op_1,op_1_ncell_3d) :: op_1\n"
         "    END SUBROUTINE columnwise_op_asm_kernel_code\n"
         "  END MODULE columnwise_op_asm_kernel_mod")
     assert expected in str(result)
@@ -1218,45 +1191,41 @@ def test_cma_asm_with_field_stub_gen():
     field is involved '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_field_kernel_mod.F90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_asm_field_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE columnwise_op_asm_field_kernel_code(cell, nlayers, "
-        "ncell_2d, field_1_any_space_1_field_1, op_2_ncell_3d, op_2, "
-        "cma_op_3, cma_op_3_nrow, "
-        "cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
-        "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_any_space_1_field_1, "
-        "undf_any_space_1_field_1, map_any_space_1_field_1, "
-        "cbanded_map_any_space_1_field_1, "
-        "ndf_any_space_2_op_2, cbanded_map_any_space_2_op_2)\n"
+        "ncell_2d, field_1_aspc1_field_1, op_2_ncell_3d, op_2, cma_op_3, "
+        "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
+        "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
+        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
+        "cbanded_map_aspc1_field_1, ndf_aspc2_op_2, cbanded_map_aspc2_op_2)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1) :: map_any_space_1_field_1\n"
+        "dimension(ndf_aspc1_field_1) :: map_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1,nlayers) :: "
-        "cbanded_map_any_space_1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_2_op_2\n"
+        "dimension(ndf_aspc1_field_1,nlayers) :: cbanded_map_aspc1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc2_op_2\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_2_op_2,nlayers) :: "
-        "cbanded_map_any_space_2_op_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_1_field_1\n"
+        "dimension(ndf_aspc2_op_2,nlayers) :: cbanded_map_aspc2_op_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
         "cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      REAL(KIND=r_def), intent(in), dimension("
-        "undf_any_space_1_field_1) :: field_1_any_space_1_field_1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_field_1) :: "
+        "field_1_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_any_space_1_field_1,ndf_any_space_2_op_2,op_2_ncell_3d) :: op_2\n"
+        "ndf_aspc1_field_1,ndf_aspc2_op_2,op_2_ncell_3d) :: op_2\n"
         "    END SUBROUTINE columnwise_op_asm_field_kernel_code\n"
         "  END MODULE columnwise_op_asm_field_kernel_mod")
     assert expected in str(result)
@@ -1267,40 +1236,38 @@ def test_cma_asm_same_fs_stub_gen():
     to and from spaces are the same '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_same_fs_kernel_mod.F90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_asm_same_fs_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE columnwise_op_asm_same_fs_kernel_code(cell, nlayers, "
-        "ncell_2d, op_1_ncell_3d, op_1, field_2_any_space_1_op_1, cma_op_3, "
+        "ncell_2d, op_1_ncell_3d, op_1, field_2_aspc1_op_1, cma_op_3, "
         "cma_op_3_nrow, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
-        "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_any_space_1_op_1, "
-        "undf_any_space_1_op_1, map_any_space_1_op_1, ndf_any_space_2_op_1, "
-        "cbanded_map_any_space_2_op_1)\n"
+        "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_aspc1_op_1, undf_aspc1_op_1, "
+        "map_aspc1_op_1, ndf_aspc2_op_1, cbanded_map_aspc2_op_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_op_1) :: map_any_space_1_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_2_op_1\n"
+        "dimension(ndf_aspc1_op_1) :: map_aspc1_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc2_op_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_2_op_1,nlayers) :: "
-        "cbanded_map_any_space_2_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_1_op_1\n"
+        "dimension(ndf_aspc2_op_1,nlayers) :: cbanded_map_aspc2_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
         "cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_any_space_1_op_1) "
-        ":: field_2_any_space_1_op_1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_op_1) :: "
+        "field_2_aspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,"
-        "ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n")
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_1,"
+        "ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n")
     assert expected in str(result)
 
 
@@ -1309,45 +1276,45 @@ def test_cma_app_stub_gen():
     two fields and one CMA operator as arguments. '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_kernel_mod.F90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_app_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE columnwise_op_app_kernel_code(cell, ncell_2d, "
-        "field_1_any_space_1_field_1, field_2_any_space_2_field_2, cma_op_3, "
+        "field_1_aspc1_field_1, field_2_aspc2_field_2, cma_op_3, "
         "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
         "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
-        "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
-        "map_any_space_1_field_1, cma_indirection_map_any_space_1_field_1, "
-        "ndf_any_space_2_field_2, undf_any_space_2_field_2, "
-        "map_any_space_2_field_2, cma_indirection_map_any_space_2_field_2)\n"
+        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
+        "cma_indirection_map_aspc1_field_1, ndf_aspc2_field_2, "
+        "undf_aspc2_field_2, map_aspc2_field_2, "
+        "cma_indirection_map_aspc2_field_2)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1) :: map_any_space_1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_2_field_2\n"
+        "dimension(ndf_aspc1_field_1) :: map_aspc1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc2_field_2\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_2_field_2) :: map_any_space_2_field_2\n"
+        "dimension(ndf_aspc2_field_2) :: map_aspc2_field_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(cma_op_3_nrow) :: "
-        "cma_indirection_map_any_space_1_field_1\n"
+        "cma_indirection_map_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_ncol\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(cma_op_3_ncol) :: "
-        "cma_indirection_map_any_space_2_field_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_1_field_1, "
-        "undf_any_space_2_field_2\n"
+        "cma_indirection_map_aspc2_field_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_field_1, "
+        "undf_aspc2_field_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_bandwidth, "
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      REAL(KIND=r_def), intent(inout), "
-        "dimension(undf_any_space_1_field_1) :: field_1_any_space_1_field_1\n"
+        "dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1\n"
         "      REAL(KIND=r_def), intent(in), "
-        "dimension(undf_any_space_2_field_2) :: field_2_any_space_2_field_2\n"
+        "dimension(undf_aspc2_field_2) :: field_2_aspc2_field_2\n"
         "    END SUBROUTINE columnwise_op_app_kernel_code\n"
         "  END MODULE columnwise_op_app_kernel_mod")
     assert expected in str(result)
@@ -1359,37 +1326,36 @@ def test_cma_app_same_space_stub_gen():
     two fields and one CMA operator as arguments. '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_same_fs_kernel_mod.F90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_app_same_fs_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
-        "field_1_any_space_2_field_1, field_2_any_space_2_field_1, cma_op_3, "
-        "cma_op_3_nrow, cma_op_3_bandwidth, cma_op_3_alpha, "
-        "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
-        "ndf_any_space_2_field_1, undf_any_space_2_field_1, "
-        "map_any_space_2_field_1, "
-        "cma_indirection_map_any_space_2_field_1)\n"
+        "field_1_aspc2_field_1, field_2_aspc2_field_1, cma_op_3, "
+        "cma_op_3_nrow, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
+        "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_aspc2_field_1, "
+        "undf_aspc2_field_1, map_aspc2_field_1, "
+        "cma_indirection_map_aspc2_field_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_2_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc2_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_2_field_1) :: map_any_space_2_field_1\n"
+        "dimension(ndf_aspc2_field_1) :: map_aspc2_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(cma_op_3_nrow) :: "
-        "cma_indirection_map_any_space_2_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_2_field_1\n"
+        "cma_indirection_map_aspc2_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc2_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_bandwidth, "
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      REAL(KIND=r_def), intent(inout), "
-        "dimension(undf_any_space_2_field_1) :: field_1_any_space_2_field_1\n"
+        "dimension(undf_aspc2_field_1) :: field_1_aspc2_field_1\n"
         "      REAL(KIND=r_def), intent(in), "
-        "dimension(undf_any_space_2_field_1) :: field_2_any_space_2_field_1\n"
+        "dimension(undf_aspc2_field_1) :: field_2_aspc2_field_1\n"
         "    END SUBROUTINE columnwise_op_app_same_fs_kernel_code\n"
         "  END MODULE columnwise_op_app_same_fs_kernel_mod")
     assert expected in str(result)
@@ -1399,7 +1365,7 @@ def test_cma_mul_stub_gen():
     ''' Test the kernel-stub generator for a CMA matrix-matrix kernel '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_mul_kernel_mod.F90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_mul_kernel_mod\n"
@@ -1440,7 +1406,7 @@ def test_cma_mul_with_scalars_stub_gen():
     includes scalar arguments '''
     result = generate(
         os.path.join(BASE_PATH, "columnwise_op_mul_2scalars_kernel_mod.F90"),
-        api="dynamo0.3")
+        api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_mul_2scalars_kernel_mod\n"
