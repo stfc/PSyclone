@@ -5678,7 +5678,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
     # Test wchi
     field = kernel.arguments.args[4]
     assert field.space == 'wchi'
-    assert field.discontinuous
+    assert not field.discontinuous
 
     # 1c) any_discontinuous_space returns true
     _, info = parse(
