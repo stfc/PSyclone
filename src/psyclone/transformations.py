@@ -46,13 +46,13 @@ import six
 from psyclone.psyGen import Transformation, Kern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, DataType
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
     VALID_ANY_DISCONTINUOUS_SPACE_NAMES
 from psyclone.psyir.transformations import RegionTrans, TransformationError
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
+    INTEGER_TYPE, DataSymbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -138,8 +138,8 @@ class KernelTrans(Transformation):
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
             try:
-                _ = var.find_symbol(var.name,
-                                    scope_limit=var.ancestor(KernelSchedule))
+                _ = var.find_or_create_symbol(
+                    var.name, scope_limit=var.ancestor(KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -952,13 +952,13 @@ class OMPLoopTrans(ParallelLoopTrans):
                 symtab.lookup_with_tag("omp_thread_index")
             except KeyError:
                 thread_idx = symtab.new_symbol_name("th_idx")
-                symtab.add(DataSymbol(thread_idx, DataType.INTEGER),
+                symtab.add(DataSymbol(thread_idx, INTEGER_TYPE),
                            tag="omp_thread_index")
             try:
                 symtab.lookup_with_tag("omp_num_threads")
             except KeyError:
                 nthread = symtab.new_symbol_name("nthreads")
-                symtab.add(DataSymbol(nthread, DataType.INTEGER),
+                symtab.add(DataSymbol(nthread, INTEGER_TYPE),
                            tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
@@ -2802,7 +2802,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                      "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
                      "w2v":      (lambda n: (n+2)*(n+1)**2),
                      "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
-                     "w2trace":  (lambda n: 6*(n+1)**2)}
+                     "w2trace":  (lambda n: 6*(n+1)**2),
+                     "wchi":     (lambda n: (n+1)**3)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
@@ -2893,11 +2894,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                               len(symbol_table.argument_list)))
             # Perform some basic checks on the argument to make sure
             # it is the expected type
-            if symbol.datatype != DataType.INTEGER or \
-               symbol.shape or symbol.is_constant:
+            if not isinstance(symbol.datatype, ScalarType):
+                raise TransformationError(
+                    "Expected entry to be a scalar argument but found "
+                    "'{0}'.".format(type(symbol.datatype).__name__))
+            if symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(symbol))
+                    "but found '{0}'.".format(symbol.datatype))
+            if symbol.is_constant:
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument "
+                    "but found a constant.")
 
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
@@ -2906,7 +2914,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", DataType.INTEGER,
+            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
                                       constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -3699,44 +3707,49 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # Get a reference to the Invoke to which this loop belongs
-        invoke = loop.root.invoke
+        # Get a reference to the highest-level symbol table
+        symbol_table = loop.root.symbol_table
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = invoke.schedule.symbol_table.name_from_tag(base_name)
+        loop_var = symbol_table.new_symbol_name(base_name)
+        symbol_table.add(DataSymbol(loop_var, INTEGER_TYPE))
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
-        name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #500 When the Nemo API has the SymbolTable implemented,
-        # we should remove the _loop_vars attribute and add the symbols
-        # into the symboltable instead.
-        if loop._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(loop_var)
-            prog_unit = loop.ast.get_root()
-            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
-            if not spec_list:
-                # Routine has no specification part so create one and add it
-                # in to the parse tree
-                from psyclone.psyGen import object_index
-                exe_part = walk(prog_unit.content,
-                                Fortran2003.Execution_Part)[0]
-                idx = object_index(exe_part.parent.content, exe_part)
 
-                spec = Fortran2003.Specification_Part(
-                    FortranStringReader("integer :: {0}".format(loop_var)))
-                spec.parent = exe_part.parent
-                exe_part.parent.content.insert(idx, spec)
-            else:
-                spec = spec_list[0]
+        # TODO remove this as part of #435 (since we will no longer have to
+        # insert declarations into the fparser2 parse tree).
+        prog_unit = loop.ast.get_root()
+        spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
+        if not spec_list:
+            # Routine has no specification part so create one and add it
+            # in to the parse tree
+            from psyclone.psyGen import object_index
+            exe_part = walk(prog_unit.content,
+                            Fortran2003.Execution_Part)[0]
+            idx = object_index(exe_part.parent.content, exe_part)
+
+            spec = Fortran2003.Specification_Part(
+                FortranStringReader("integer :: {0}".format(loop_var)))
+            spec.parent = exe_part.parent
+            exe_part.parent.content.insert(idx, spec)
+        else:
+            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+            reader = Fparser2Reader()
+            fake_parent = Schedule()
+            spec = spec_list[0]
+            reader.process_declarations(fake_parent, [spec], [])
+            if loop_var not in fake_parent.symbol_table:
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader("integer :: {0}".format(loop_var)))
                 decln.parent = spec
                 spec.content.append(decln)
+
+        name = Fortran2003.Name(FortranStringReader(loop_var))
 
         # Modify the line containing the implicit do by replacing every
         # occurrence of the outermost ':' with the new loop variable name.
@@ -3790,7 +3803,6 @@ class NemoExplicitLoopTrans(Transformation):
         astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
-        loop = None
         # Return the new NemoLoop object that we have created
         return psyir_parent.children[0], keep
 
@@ -3912,7 +3924,7 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_datasymbols[:]:
 
             # Resolve the data type information if it is not available
-            if globalvar.datatype == DataType.DEFERRED:
+            if isinstance(globalvar.datatype, DeferredType):
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
@@ -3942,9 +3954,9 @@ class KernelGlobalsToArguments(Transformation):
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype == DataType.REAL:
+            if globalvar.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype == DataType.INTEGER:
+            elif globalvar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(

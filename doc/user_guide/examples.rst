@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified I. Kavcic, Met Office
+.. Modified by I. Kavcic, Met Office
 
 .. _examples:
 
@@ -136,9 +136,9 @@ with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
 (``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
 available (including ``nc-config`` to detect installation-specific
-paths). You need to compile the NetCDF extraction library 
+paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
-The makefile in this example will link with the compiled NetCDF 
+The makefile in this example will link with the compiled NetCDF
 extraction library and NetCDF. You can execute the created
 binary and it will create two output netcdf files, one for
 each of the two invokes.
@@ -176,7 +176,8 @@ Example 3
 
 Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
-kernels.
+kernels. Also shows the use of ``Wchi`` function space metadata for
+coordinate fields in LFRic.
 
 Example 4
 ^^^^^^^^^
@@ -223,7 +224,7 @@ Example 10
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions), as well as the
-use of ``ANY_DISCONTINUOUS_SPACE`` metadata.
+use of ``ANY_DISCONTINUOUS_SPACE`` function space metadata.
 
 Example 11
 ^^^^^^^^^^
@@ -313,7 +314,7 @@ in progress with the idea being that PSyclone transformations will be
 able to reproduce hand-optimised code.
 
 There is one script which, when run:
-  
+
 .. code-block:: bash
 
    > psyclone ./matvec_opt.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
@@ -371,4 +372,3 @@ create.py: Constructing PSyIR
 
 A Python script that demonstrates the use of ``create`` methods to
 build a PSyIR tree from scratch.
-

@@ -31,16 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module providing a NEMO-API-specific transformation from a PSyIR
 MIN operator to PSyIR code. This could be useful if the MIN operator
 is not supported by the back-end or if the performance in the inline
 code is better than the intrinsic.
 
-The implementation is NEMO-specific as NEMO code generation does not
-currently create a symbol table, see issue #500. Once this has been
-implemented the transformation can be modified to work for all APIs.
+This implementation is no longer NEMO-specific and should be modified
+(and renamed) to work for all APIs (#725).
 
 '''
 from __future__ import absolute_import
@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.nemo_operator_trans import \
         NemoOperatorTrans
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
 class NemoMinTrans(NemoOperatorTrans):
@@ -82,7 +82,7 @@ class NemoMinTrans(NemoOperatorTrans):
         self._operators = (BinaryOperation.Operator.MIN,
                            NaryOperation.Operator.MIN)
 
-    def apply(self, node, symbol_table, options=None):
+    def apply(self, node, options=None):
         '''Apply the MIN intrinsic conversion transformation to the specified
         node. This node must be an MIN NaryOperation. The MIN
         NaryOperation is converted to equivalent inline code.  This is
@@ -110,12 +110,6 @@ class NemoMinTrans(NemoOperatorTrans):
         expressions and the ``...`` before and after ``MIN(A, B, C
         ...)`` can be arbitrary PSyIR code.
 
-        A symbol table is required as the NEMO API does not currently
-        contain a symbol table and one is required in order to create
-        temporary variables whose names do not clash with existing
-        code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO API.
-
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
@@ -133,10 +127,11 @@ class NemoMinTrans(NemoOperatorTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, symbol_table)
+        self.validate(node)
 
         schedule = node.root
-        memento = Memento(schedule, self, [node, symbol_table])
+        symbol_table = schedule.symbol_table
+        memento = Memento(schedule, self, [node])
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
@@ -146,16 +141,15 @@ class NemoMinTrans(NemoOperatorTrans):
         # might not be what is wanted (e.g. the args might PSyIR
         # integers), or there may be errors (arguments are of
         # different types) but this can't be checked as we don't have
-        # access to a symbol table (see #500) and don't have the
         # appropriate methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_min")
-        res_var_symbol = DataSymbol(res_var, DataType.REAL)
+        res_var_symbol = DataSymbol(res_var, REAL_TYPE)
         symbol_table.add(res_var_symbol)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
-        # comment (associated issues #500 and #658).
+        # comment (associated issue #658).
         tmp_var = symbol_table.new_symbol_name("tmp_min")
-        tmp_var_symbol = DataSymbol(tmp_var, DataType.REAL)
+        tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
         symbol_table.add(tmp_var_symbol)
 
         # Replace operation with a temporary (res_var).

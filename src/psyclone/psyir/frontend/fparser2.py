@@ -47,9 +47,9 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     Container, Assignment, Return, Array, Node, Range
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
-from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
-    ContainerSymbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, DataType
+from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
+    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, ScalarType, ArrayType, DeferredType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -57,10 +57,17 @@ from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
 # Mapping from Fortran data types to PSyIR types
-TYPE_MAP_FROM_FORTRAN = {"integer": DataType.INTEGER,
-                         "character": DataType.CHARACTER,
-                         "logical": DataType.BOOLEAN,
-                         "real": DataType.REAL}
+TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
+                         "character": ScalarType.Intrinsic.CHARACTER,
+                         "logical": ScalarType.Intrinsic.BOOLEAN,
+                         "real": ScalarType.Intrinsic.REAL}
+
+# Mapping from fparser2 Fortran Literal types to PSyIR types
+CONSTANT_TYPE_MAP = {
+    Fortran2003.Real_Literal_Constant: ScalarType.Intrinsic.REAL,
+    Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
+    Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
+    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
 
 def _get_symbol_table(node):
@@ -202,7 +209,7 @@ def _is_bound_full_extent(array, dim, operator):
             and isinstance(reference, Reference) and
             reference.symbol is array.symbol
             and isinstance(literal, Literal) and
-            literal.datatype == DataType.INTEGER
+            literal.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
             and literal.value == str(dim)):
         return True
     # pylint: enable=too-many-boolean-expressions
@@ -263,7 +270,7 @@ def _is_array_range_literal(array, dim, index, value):
     literal = array.children[dim-1].children[index]
 
     if (isinstance(literal, Literal) and
-            literal.datatype == DataType.INTEGER and
+            literal.datatype.intrinsic == ScalarType.Intrinsic.INTEGER and
             literal.value == str(value)):
         return True
     return False
@@ -305,6 +312,138 @@ def _is_range_full_extent(my_range):
     # Check step (index 2 is the step index for the range function)
     is_step = _is_array_range_literal(array, dim, 2, 1)
     return is_lower and is_upper and is_step
+
+
+def default_precision(_):
+    '''Returns the default precision specified by the front end. This is
+    currently always set to undefined irrespective of the datatype but
+    could be read from a config file in the future. The unused
+    argument provides the name of the datatype. This name will allow a
+    future implementation of this method to choose different default
+    precisions for different datatypes if required.
+
+    There are alternative options for setting a default precision,
+    such as:
+
+    1) The back-end sets the default precision in a similar manner
+    to this routine.
+    2) A PSyIR transformation is used to set default precision.
+
+    This routine is primarily here as a placeholder and could be
+    replaced by an alternative solution, see issue #748.
+
+    :returns: the default precision for the supplied datatype name.
+    :rtype: :py:class:`psyclone.psyir.symbols.scalartype.Precision`
+
+    '''
+    return ScalarType.Precision.UNDEFINED
+
+
+def default_integer_type():
+    '''Returns the default integer datatype specified by the front end.
+
+    :returns: the default integer datatype.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+
+    '''
+    return ScalarType(ScalarType.Intrinsic.INTEGER,
+                      default_precision(ScalarType.Intrinsic.INTEGER))
+
+
+def default_real_type():
+    '''Returns the default real datatype specified by the front end.
+
+    :returns: the default real datatype.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+
+    '''
+    return ScalarType(ScalarType.Intrinsic.REAL,
+                      default_precision(ScalarType.Intrinsic.REAL))
+
+
+def get_literal_precision(fparser2_node, psyir_literal_parent):
+    '''Takes a Fortran2003 literal node as input and returns the
+    appropriate PSyIR precision type for that node. Adds a deferred
+    type DataSymbol in the SymbolTable if the precision is given by an
+    undefined symbol.
+
+    :param fparser2_node: the fparser2 literal node.
+    :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
+        :py:class:`Fortran2003.Logical_Literal_Constant` or \
+        :py:class:`Fortran2003.Char_Literal_Constant` or \
+        :py:class:`Fortran2003.Int_Literal_Constant`
+    :param psyir_literal_parent: the PSyIR node that will be the \
+        parent of the PSyIR literal node that will be created from the \
+        fparser2 node information.
+    :type psyir_literal_parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    :returns: the PSyIR Precision of this literal value.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`, int or \
+        :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
+
+    :raises InternalError: if the arguments are of the wrong type.
+    :raises InternalError: if there's no symbol table associated with \
+                           `psyir_literal_parent` or one of its ancestors.
+
+    '''
+    if not isinstance(fparser2_node,
+                      (Fortran2003.Real_Literal_Constant,
+                       Fortran2003.Logical_Literal_Constant,
+                       Fortran2003.Char_Literal_Constant,
+                       Fortran2003.Int_Literal_Constant)):
+        raise InternalError(
+            "Unsupported literal type '{0}' found in get_literal_precision."
+            "".format(type(fparser2_node).__name__))
+    if not isinstance(psyir_literal_parent, Node):
+        raise InternalError(
+            "Expecting argument psyir_literal_parent to be a PSyIR Node but "
+            "found '{0}' in get_literal_precision."
+            "".format(type(psyir_literal_parent).__name__))
+    precision_name = fparser2_node.items[1]
+    if not precision_name:
+        # Precision may still be specified by the exponent in a real literal
+        if isinstance(fparser2_node, Fortran2003.Real_Literal_Constant):
+            precision_value = fparser2_node.items[0]
+            if "d" in precision_value.lower():
+                return ScalarType.Precision.DOUBLE
+            if "e" in precision_value.lower():
+                return ScalarType.Precision.SINGLE
+        # Return the default precision
+        try:
+            data_name = CONSTANT_TYPE_MAP[type(fparser2_node)]
+        except KeyError:
+            raise NotImplementedError(
+                "Could not process {0}. Only 'real', 'integer', "
+                "'logical' and 'character' intrinsic types are "
+                "supported.".format(type(fparser2_node).__name__))
+        return default_precision(data_name)
+    try:
+        # Precision is specified as an integer
+        return int(precision_name)
+    except ValueError:
+        # Precision is not an integer so should be a kind symbol
+        # PSyIR stores names as lower case.
+        precision_name = precision_name.lower()
+        # Find the closest symbol table
+        symbol_table = _get_symbol_table(psyir_literal_parent)
+        if not symbol_table:
+            # No symbol table found. This should never happen in
+            # normal usage but could occur if a test constructs a
+            # PSyIR without a Schedule.
+            raise InternalError(
+                "Failed to find a symbol table to which to add the kind "
+                "symbol '{0}'.".format(precision_name))
+        # Lookup the precision symbol
+        try:
+            symbol = symbol_table.lookup(precision_name)
+        except KeyError:
+            # The symbol is not found so create a data
+            # symbol with deferred type and add it to the
+            # symbol table then return the symbol.
+            symbol = DataSymbol(precision_name, DeferredType(),
+                                interface=UnresolvedInterface())
+            symbol_table.add(symbol)
+        return symbol
 
 
 class Fparser2Reader(object):
@@ -557,8 +696,10 @@ class Fparser2Reader(object):
         Create an empty KernelSchedule.
 
         :param str name: Name of the subroutine represented by the kernel.
+
         :returns: New KernelSchedule empty object.
         :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+
         '''
         return KernelSchedule(name)
 
@@ -569,46 +710,59 @@ class Fparser2Reader(object):
         :param module_ast: fparser2 AST of the full module.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: PSyIR container representing the given module_ast.
+        :returns: PSyIR container representing the given module_ast or None \
+                  if there's no module in the parse tree.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: unable to generate a Container from the \
                                  provided fpaser2 parse tree.
         '''
-        # Assume just 1 Fortran module definition in the file
-        if len(module_ast.content) > 1:
+        # Assume just 1 or 0 Fortran module definitions in the file
+        modules = walk(module_ast, Fortran2003.Module_Stmt)
+        if len(modules) > 1:
             raise GenerationError(
                 "Could not process {0}. Just one module definition per file "
                 "supported.".format(str(module_ast)))
+        if not modules:
+            return None
 
-        module = module_ast.content[0]
-        mod_content = module.content
-        mod_name = str(mod_content[0].items[1])
+        module = modules[0].parent
+        mod_name = str(modules[0].children[1])
 
         # Create a container to capture the module information
         new_container = Container(mod_name)
 
         # Parse the declarations if it has any
-        if isinstance(mod_content[1], Fortran2003.Specification_Part):
-            decl_list = mod_content[1].content
-            self.process_declarations(new_container, decl_list, [])
+        for child in module.children:
+            if isinstance(child, Fortran2003.Specification_Part):
+                self.process_declarations(new_container, child.children, [])
+                break
 
         return new_container
 
-    def generate_schedule(self, name, module_ast):
-        '''
-        Create a KernelSchedule from the supplied fparser2 AST.
+    def generate_schedule(self, name, module_ast, container=None):
+        '''Create a Schedule from the supplied fparser2 AST.
+
+        TODO #737. Currently this routine is also used to create a
+        NemoInvokeSchedule from NEMO source code (hence the optional,
+        'container' argument).  This routine needs re-naming and
+        re-writing so that it *only* creates the PSyIR for a
+        subroutine.
 
         :param str name: name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+        :param container: the parent Container node associated with this \
+                          Schedule (if any).
+        :type container: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: PSyIR schedule representing the kernel.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
+
         '''
         def first_type_match(nodelist, typekind):
             '''
@@ -623,36 +777,47 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Type not found
 
-        def search_subroutine(nodelist, searchname):
-            '''
-            Returns the first instance of the specified subroutine in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param str searchname: Name of the subroutine we are searching for.
-            '''
-            for node in nodelist:
-                if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
-                        str(node.content[0].get_name()) == searchname):
-                    return node
-            raise ValueError  # Subroutine not found
-
         new_schedule = self._create_schedule(name)
 
-        # Generate the Container of the module enclosing the Kernel
-        new_container = self.generate_container(module_ast)
-        mod_content = module_ast.content[0].content
-
-        new_schedule.parent = new_container
-        new_container.children = [new_schedule]
-
-        try:
-            subroutines = first_type_match(mod_content,
-                                           Fortran2003.Module_Subprogram_Part)
-            subroutine = search_subroutine(subroutines.content, name)
-        except (ValueError, IndexError):
+        routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
+                                     Fortran2003.Main_Program,
+                                     Fortran2003.Function_Subprogram))
+        for routine in routines:
+            if isinstance(routine, Fortran2003.Function_Subprogram):
+                # TODO fparser/#225 Function_Stmt does not have a get_name()
+                # method. Once it does we can remove this branch.
+                routine_name = str(routine.children[0].children[1])
+            else:
+                routine_name = str(routine.children[0].get_name())
+            if routine_name == name:
+                subroutine = routine
+                break
+        else:
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
+
+        # Check whether or not we need to create a Container for this schedule
+        # TODO #737 this routine should just be creating a Subroutine, not
+        # attempting to create a Container too. Perhaps it should be passed
+        # a reference to the parent Container object.
+        if not container:
+            # Is the routine enclosed within a module?
+            current = subroutine.parent
+            while current:
+                if isinstance(current, Fortran2003.Module):
+                    # We have a parent module so create a Container
+                    container = self.generate_container(current)
+                    break
+                current = current.parent
+        if container:
+            new_schedule.parent = container
+            container.children.append(new_schedule)
+
+        # Set pointer from schedule into fparser2 tree
+        # TODO #435 remove this line once fparser2 tree not needed
+        # pylint: disable=protected-access
+        new_schedule._ast = subroutine
+        # pylint: enable=protected-access
 
         try:
             sub_spec = first_type_match(subroutine.content,
@@ -662,8 +827,9 @@ class Fparser2Reader(object):
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
             from fparser.two.Fortran2003 import Dummy_Arg_List
-            if isinstance(subroutine.content[0].items[2], Dummy_Arg_List):
-                arg_list = subroutine.content[0].items[2].items
+            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
+               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
+                arg_list = subroutine.children[0].children[2].children
             else:
                 # Routine has no arguments
                 arg_list = []
@@ -733,13 +899,15 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if sym.datatype != DataType.INTEGER or sym.shape:
+                        if (sym.datatype.intrinsic !=
+                                ScalarType.Intrinsic.INTEGER or
+                                isinstance(sym.datatype, ArrayType)):
                             _unsupported_type_error(dimensions)
                     except KeyError:
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't
                         # currently know where it is declared).
-                        sym = DataSymbol(dim_name, DataType.INTEGER,
+                        sym = DataSymbol(dim_name, default_integer_type(),
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
                     shape.append(sym)
@@ -893,7 +1061,7 @@ class Fparser2Reader(object):
                     if sym_name not in parent.symbol_table:
                         parent.symbol_table.add(
                             DataSymbol(sym_name,
-                                       datatype=DataType.DEFERRED,
+                                       DeferredType(),
                                        interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
@@ -938,22 +1106,18 @@ class Fparser2Reader(object):
 
             # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
-            datatype = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+                fort_type = str(type_spec.items[0]).lower()
                 try:
-                    fort_type = str(type_spec.items[0]).lower()
-                    datatype = TYPE_MAP_FROM_FORTRAN[fort_type]
+                    data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
                 except KeyError:
-                    pass
-
+                    raise NotImplementedError(
+                        "Could not process {0}. Only 'real', 'integer', "
+                        "'logical' and 'character' intrinsic types are "
+                        "supported.".format(str(decl.items)))
                 # Check for a KIND specification
-                precision = self._process_kind_selector(parent.symbol_table,
-                                                        type_spec)
-            if datatype is None:
-                raise NotImplementedError(
-                    "Could not process {0}. Only 'real', 'integer', "
-                    "'logical' and 'character' intrinsic types are "
-                    "supported.".format(str(decl.items)))
+                precision = self._process_kind_selector(
+                    type_spec, parent)
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -1034,6 +1198,9 @@ class Fparser2Reader(object):
                             "Could not process {0}. Unrecognised attribute "
                             "type {1}.".format(decl.items, str(type(attr))))
 
+            if not precision:
+                precision = default_precision(data_name)
+
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
             for entity in entities.items:
@@ -1059,10 +1226,10 @@ class Fparser2Reader(object):
                 for idx, extent in enumerate(entity_shape):
                     if extent is None:
                         if allocatable:
-                            entity_shape[idx] = DataSymbol.Extent.DEFERRED
+                            entity_shape[idx] = ArrayType.Extent.DEFERRED
                         else:
-                            entity_shape[idx] = DataSymbol.Extent.ATTRIBUTE
-                    elif not isinstance(extent, DataSymbol.Extent) and \
+                            entity_shape[idx] = ArrayType.Extent.ATTRIBUTE
+                    elif not isinstance(extent, ArrayType.Extent) and \
                             allocatable:
                         # We have an allocatable array with a defined extent.
                         # This is invalid Fortran.
@@ -1103,14 +1270,19 @@ class Fparser2Reader(object):
                 else:
                     public = decl_is_public
 
+                if entity_shape:
+                    # array
+                    datatype = ArrayType(ScalarType(data_name, precision),
+                                         entity_shape)
+                else:
+                    # scalar
+                    datatype = ScalarType(data_name, precision)
+
                 if sym_name not in parent.symbol_table:
-                    parent.symbol_table.add(DataSymbol(sym_name,
-                                                       datatype,
+                    parent.symbol_table.add(DataSymbol(sym_name, datatype,
                                                        public=public,
-                                                       shape=entity_shape,
                                                        constant_value=ct_expr,
-                                                       interface=interface,
-                                                       precision=precision))
+                                                       interface=interface))
                 else:
                     # The symbol table already contains an entry with this name
                     # so update its interface information.
@@ -1201,18 +1373,17 @@ class Fparser2Reader(object):
                     "are not supported.".format(str(stmtfn)))
 
     @staticmethod
-    def _process_kind_selector(symbol_table, type_spec):
-        '''
-        Processes the fparser2 parse tree of the type specification of a
+    def _process_kind_selector(type_spec, psyir_parent):
+        '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract KIND information. This
         information is used to determine the precision of the variable (as
         supplied to the DataSymbol constructor).
 
-        :param symbol_table: the SymbolTable associated with the code \
-            being processed.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
+        :param psyir_parent: the parent PSyIR node where the new node \
+            will be attached.
+        :type psyir_parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the precision associated with the type specification.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
@@ -1222,7 +1393,10 @@ class Fparser2Reader(object):
             argument other than a real or integer literal.
         :raises NotImplementedError: if we have `kind=xxx` but cannot find \
             a valid variable name.
+
         '''
+        symbol_table = _get_symbol_table(psyir_parent)
+
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             return None
         # The KIND() intrinsic itself is Fortran specific and has no direct
@@ -1239,26 +1413,11 @@ class Fparser2Reader(object):
             # Actual_Arg_Spec_List with the first entry being the argument.
             kind_arg = intrinsics[0].items[1].items[0]
 
-            # We currently only support literals as arguments to KIND
+            # We currently only support integer and real literals as
+            # arguments to KIND
             if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
                                      Fortran2003.Real_Literal_Constant)):
-
-                if len(kind_arg.items) > 1 and kind_arg.items[1]:
-                    # The literal has an explicit kind specifier (e.g. 1.0_wp)
-                    # so return a Symbol representing it (e.g.'wp').
-                    return Fparser2Reader._kind_symbol_from_name(
-                        str(kind_arg.items[1]), symbol_table)
-
-                if isinstance(kind_arg, Fortran2003.Real_Literal_Constant):
-                    import re
-                    if re.search("d[0-9]", str(kind_arg).lower()):
-                        return DataSymbol.Precision.DOUBLE
-                    return DataSymbol.Precision.SINGLE
-
-                if isinstance(kind_arg, Fortran2003.Int_Literal_Constant):
-                    # An integer with no explict kind specifier must be of
-                    # default precision
-                    return DataSymbol.Precision.SINGLE
+                return get_literal_precision(kind_arg, psyir_parent)
 
             raise NotImplementedError(
                 "Only real and integer literals are supported "
@@ -1298,21 +1457,24 @@ class Fparser2Reader(object):
         lower_name = name.lower()
         try:
             kind_symbol = symbol_table.lookup(lower_name)
-            if kind_symbol.datatype not in [DataType.INTEGER,
-                                            DataType.DEFERRED]:
+            if not (isinstance(kind_symbol.datatype, DeferredType) or
+                    (isinstance(kind_symbol.datatype, ScalarType) and
+                     kind_symbol.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
-                    "variable '{0}' used as a kind parameter but its "
-                    "type ('{1}') is not 'deferred' or 'integer'.".
-                    format(lower_name, kind_symbol.datatype))
-            # A KIND parameter must be of type integer so set it here (in case
-            # it was previously 'deferred')
-            kind_symbol.datatype = DataType.INTEGER
+                    "variable '{0}' used as a kind parameter but it "
+                    "is not a 'deferred' or 'scalar integer' type.".
+                    format(lower_name))
+            # A KIND parameter must be of type integer so set it here
+            # (in case it was previously 'deferred'). We don't know
+            # what precision this is so set it to the default.
+            kind_symbol.datatype = default_integer_type()
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't
             # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, DataType.INTEGER,
+            kind_symbol = DataSymbol(lower_name, default_integer_type(),
                                      interface=UnresolvedInterface())
             symbol_table.add(kind_symbol)
         return kind_symbol
@@ -1475,8 +1637,10 @@ class Fparser2Reader(object):
         if len(limits_list) == 3:
             self.process_nodes(parent=loop, nodes=[limits_list[2]])
         else:
-            # Default loop increment is 1
-            default_step = Literal("1", DataType.INTEGER, parent=loop)
+            # Default loop increment is 1. Use the type of the start
+            # or step nodes once #685 is complete. For the moment use
+            # the default precision.
+            default_step = Literal("1", default_integer_type(), parent=loop)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -1890,13 +2054,12 @@ class Fparser2Reader(object):
         # notation.
         for assign in assigns:
             _ = self._array_notation_rank(assign.lhs)
-        # TODO #500 if the supplied code accidentally omits array
+        # TODO #717 if the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
         # identify it as a scalar and the code produced from the
         # PSyIR (using e.g. the Fortran backend) will not
-        # compile. In practise most scalars are likely to be local
-        # and so we can check for their declarations. However,
-        # those imported from a module will still be missed.
+        # compile. We need to implement robust identification of the
+        # types of all symbols in the PSyIR fragment.
         arrays = parent.walk(Array)
         first_rank = None
         for array in arrays:
@@ -1912,24 +2075,12 @@ class Fparser2Reader(object):
                         format(array.name, rank))
             else:
                 first_rank = rank
-            # Once #667 is implemented we can simplify this logic by
-            # checking for the NEMO API. i.e. if api=="nemo": add local
-            # symbol else: add symbol from symbol table.
-            symbol_table = _get_symbol_table(parent)
 
             # Replace the PSyIR Ranges with the loop variables
             range_idx = 0
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
-                    if symbol_table:
-                        symbol = array.find_symbol(loop_vars[range_idx])
-                    else:
-                        # The NEMO API does not generate symbol tables, so
-                        # create a new Symbol. Choose a datatype as we
-                        # don't know what it is. Remove this code when
-                        # issue #500 is addressed.
-                        symbol = DataSymbol(
-                            loop_vars[range_idx], DataType.INTEGER)
+                    symbol = array.find_or_create_symbol(loop_vars[range_idx])
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2005,7 +2156,7 @@ class Fparser2Reader(object):
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
-        fake_parent = Schedule()
+        fake_parent = Schedule(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
         arrays = fake_parent[0].walk(Array)
         if not arrays:
@@ -2013,8 +2164,7 @@ class Fparser2Reader(object):
             # because the code doesn't use explicit array syntax. At least one
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
-            # TODO #500 remove this check once the SymbolTable is working for
-            # the NEMO API.
+            # TODO #717. Look-up the shape of the array in the SymbolTable.
             raise NotImplementedError("Only WHERE constructs using explicit "
                                       "array notation (e.g. my_array(:, :)) "
                                       "are supported.")
@@ -2025,63 +2175,60 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
+        # Since we don't have support for searching a hierarchy of symbol
+        # tables (#630), for now we simply add new symbols to the highest-level
+        # symbol table.
+        symbol_table = parent.root.symbol_table
+
         # Create a set of all of the symbol names in the fparser2 parse
         # tree so that we can find any clashes. We go as far back up the tree
         # as we can before searching for all instances of Fortran2003.Name.
-        # TODO #500 - replace this by using the SymbolTable instead.
-        # pylint: disable=protected-access
+        # We can't just rely on looking in our symbol tables because there
+        # may be CodeBlocks that access symbols that are e.g. imported from
+        # modules without being explicitly named.
         name_list = walk(node.get_root(), Fortran2003.Name)
-        all_names = {str(name) for name in name_list}
-        # pylint: enable=protected-access
+        for name_obj in name_list:
+            name = str(name_obj)
+            if name not in symbol_table:
+                # TODO #630 some of these symbols will be put in the wrong
+                # symbol table. We need support for creating a unique symbol
+                # within a hierarchy of symbol tables. However, until we are
+                # generating code from the PSyIR Fortran backend
+                # (#435) this doesn't matter.
+                symbol_table.add(Symbol(name))
 
-        # find the first symbol table attached to an ancestor
-        symbol_table = _get_symbol_table(parent)
-
+        integer_type = default_integer_type()
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
-            # TODO #500 we should be using the SymbolTable for the new loop
-            # variable but that doesn't currently work for NEMO. As part of
-            # #500 we should handle clashes gracefully rather than
-            # simply aborting.
-            loop_vars[idx-1] = "widx{0}".format(idx)
-            if loop_vars[idx-1] in all_names:
-                raise InternalError(
-                    "Cannot create Loop with variable '{0}' because code "
-                    "already contains a symbol with that name.".format(
-                        loop_vars[idx-1]))
-            if symbol_table:
-                symbol_table.add(DataSymbol(loop_vars[idx-1],
-                                            DataType.INTEGER))
+
+            # TODO #630 this creation of a new symbol really needs to account
+            # for all of the symbols in the hierarchy of symbol tables. Since
+            # we don't yet have that functionality we just add everything to
+            # the top-level symbol table.
+            loop_vars[idx-1] = symbol_table.new_symbol_name(
+                "widx{0}".format(idx))
+
+            symbol_table.add(DataSymbol(loop_vars[idx-1], integer_type))
+
             loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
             # Add loop lower bound
-            loop.addchild(Literal("1", DataType.INTEGER, parent=loop))
+            loop.addchild(Literal("1", integer_type, parent=loop))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            # Once #667 is implemented we can simplify this logic by
-            # checking for the NEMO API. i.e. if api=="nemo": add local
-            # symbol else: add symbol from symbol table.
-            symbol_table = _get_symbol_table(parent)
-            if symbol_table:
-                symbol = size_node.find_symbol(arrays[0].name)
-            else:
-                # The NEMO API does not generate symbol tables, so
-                # create a new Symbol. Choose a datatype as we
-                # don't know what it is. Remove this code when
-                # issue #500 is addressed.
-                symbol = DataSymbol(arrays[0].name, DataType.INTEGER)
+            symbol = size_node.find_or_create_symbol(arrays[0].name)
 
             size_node.addchild(Reference(symbol, parent=size_node))
-            size_node.addchild(Literal(str(idx), DataType.INTEGER,
+            size_node.addchild(Literal(str(idx), integer_type,
                                        parent=size_node))
             # Add loop increment
-            loop.addchild(Literal("1", DataType.INTEGER, parent=loop))
+            loop.addchild(Literal("1", integer_type, parent=loop))
             # Fourth child of a Loop must be a Schedule
             sched = Schedule(parent=loop)
             loop.addchild(sched)
@@ -2356,21 +2503,12 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
         '''
-        # Once #667 is implemented we can simplify this logic by
-        # checking for the NEMO API. i.e. if api=="nemo": add local
-        # symbol else: add symbol from symbol table.
-        symbol_table = _get_symbol_table(parent)
-        if symbol_table:
-            symbol = parent.find_symbol(node.string)
-        else:
-            # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Randomly choose a datatype as we don't
-            # know what it is. Remove this code when issue #500 is
-            # addressed.
-            symbol = DataSymbol(node.string, DataType.REAL)
+        symbol = parent.find_or_create_symbol(node.string)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2410,18 +2548,8 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-        # Once #667 is implemented we can simplify this logic by
-        # checking for the NEMO API. i.e. if api=="nemo": add local
-        # symbol else: add symbol from symbol table.
-        symbol_table = _get_symbol_table(parent)
-        if symbol_table:
-            symbol = parent.find_symbol(reference_name)
-        else:
-            # The NEMO API does not generate symbol tables, so create
-            # a new Symbol. Randomly choose a datatype as we don't
-            # know what it is.  Remove this code when issue #500 is
-            # addressed.
-            symbol = DataSymbol(reference_name, DataType.REAL)
+        symbol = parent.find_or_create_symbol(reference_name)
+
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
@@ -2449,6 +2577,7 @@ class Fparser2Reader(object):
         # the second dimension being 2, etc.). We therefore add 1 to
         # the number of children added to out parent to determine the
         # Fortran dimension value.
+        integer_type = default_integer_type()
         dimension = str(len(parent.children)+1)
         my_range = Range(parent=parent)
         my_range.children = []
@@ -2461,7 +2590,7 @@ class Fparser2Reader(object):
             # a(:...) becomes a(lbound(a,1):...)
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
-                Literal(dimension, DataType.INTEGER))
+                Literal(dimension, integer_type))
             lbound.parent = my_range
             my_range.children.append(lbound)
         if node.children[1]:
@@ -2473,7 +2602,7 @@ class Fparser2Reader(object):
             # a(...:) becomes a(...:ubound(a,1))
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
-                Literal(dimension, DataType.INTEGER))
+                Literal(dimension, integer_type))
             ubound.parent = my_range
             my_range.children.append(ubound)
         if node.children[2]:
@@ -2483,7 +2612,7 @@ class Fparser2Reader(object):
             # supported in the PSyIR so we create the equivalent code
             # by using a PSyIR integer literal with the value 1
             # a(...:...:) becomes a(...:...:1)
-            literal = Literal("1", DataType.INTEGER)
+            literal = Literal("1", integer_type)
             my_range.children.append(literal)
             literal.parent = my_range
         return my_range
@@ -2505,9 +2634,23 @@ class Fparser2Reader(object):
         '''
         # pylint: disable=no-self-use
         if isinstance(node, Fortran2003.Int_Literal_Constant):
-            return Literal(str(node.items[0]), DataType.INTEGER, parent=parent)
+            integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                                      get_literal_precision(node, parent))
+            return Literal(str(node.items[0]), integer_type, parent=parent)
         if isinstance(node, Fortran2003.Real_Literal_Constant):
-            return Literal(str(node.items[0]), DataType.REAL, parent=parent)
+            real_type = ScalarType(ScalarType.Intrinsic.REAL,
+                                   get_literal_precision(node, parent))
+            # Make sure any exponent is lower case
+            value = str(node.items[0]).lower()
+            # Make all exponents use the letter "e". (Fortran also
+            # allows "d").
+            value = value.replace("d", "e")
+            # If the value has a "." without a digit before it then
+            # add a "0" as the PSyIR does not allow this
+            # format. e.g. +.3 => +0.3
+            if value[0] == "." or value[0:1] in ["+.", "-."]:
+                value = value.replace(".", "0.")
+            return Literal(value, real_type, parent=parent)
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError()
 
@@ -2525,7 +2668,9 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
-        return Literal(str(node.items[0]), DataType.CHARACTER, parent=parent)
+        character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                                    get_literal_precision(node, parent))
+        return Literal(str(node.items[0]), character_type, parent=parent)
 
     def _bool_literal_handler(self, node, parent):
         '''
@@ -2542,11 +2687,13 @@ class Fparser2Reader(object):
 
         '''
         # pylint: disable=no-self-use
+        boolean_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                                  get_literal_precision(node, parent))
         value = str(node.items[0]).lower()
         if value == ".true.":
-            return Literal("true", DataType.BOOLEAN, parent=parent)
+            return Literal("true", boolean_type, parent=parent)
         if value == ".false.":
-            return Literal("false", DataType.BOOLEAN, parent=parent)
+            return Literal("false", boolean_type, parent=parent)
         raise GenerationError(
             "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))

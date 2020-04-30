@@ -58,6 +58,16 @@ about the dynamical core's `formulation
 and `data model
 <http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
 
+The GungHo dynamical core with atmospheric physics parameterisation
+schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
+currently being developed in preparation for exascale computing in the 2020s.
+The LFRic repository and the associated wiki are hosted at the `Met Office
+Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
+The code is BSD-licensed, however browsing the `LFRic wiki
+<https://code.metoffice.gov.uk/trac/lfric/wiki>`_ and
+`code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_
+requires login access to MOSRS.
+
 .. _dynamo0.3-api-algorithm:
 
 Algorithm
@@ -102,10 +112,19 @@ Please see the :ref:`algorithm-layer` section for a description of the
 Objects in the Dynamo0.3 API can be categorised by their functionality
 as data types and information that specifies supported operations on a
 particular data type. The above example introduces four of five data types
-supported by the Dynamo0.3 API: field, scalar, operator and column-wise
+supported by the Dynamo0.3 API: scalar, field, operator and column-wise
 operator (field vector is the fifth). ``qr`` represents a quadrature
 object which provides information required by a kernel to operate
 on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+
+.. _dynamo0.3-scalar:
+
+Scalar
+++++++
+
+In the Dynamo0.3 API a scalar is a single-valued variable that can be
+either real or integer. Real scalars are identified with ``GH_REAL``
+and integer scalars are identified with ``GH_INTEGER`` metadata.
 
 .. _dynamo0.3-field:
 
@@ -140,12 +159,7 @@ size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
 vector size of 3.
 
-Scalar
-++++++
-
-In Dynamo0.3 API a scalar is a single value variable that can be
-either real or integer. Real scalars are identified with ``GH_REAL``
-and integer scalars are identified with ``GH_INTEGER`` metadata.
+.. _dynamo0.3-operator:
 
 Operator
 ++++++++
@@ -153,6 +167,8 @@ Operator
 Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
 metadata.
+
+.. _dynamo0.3-cma-operator:
 
 Column-Wise Operator
 ++++++++++++++++++++
@@ -336,6 +352,8 @@ as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
 
+.. _dynamo0.3-psy:
+
 PSy-layer
 ---------
 
@@ -354,6 +372,28 @@ within a module, or the program name if it is a program.
 
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
+
+.. _dynamo0.3-psy-arg-intents:
+
+Argument Intents
+################
+
+LFRic :ref:`fields <dynamo0.3-field>`, :ref:`field vectors
+<dynamo0.3-field-vector>`, :ref:`operators <dynamo0.3-operator>` and
+:ref:`column-wise operators <dynamo0.3-cma-operator>` are objects that
+contain pointers to data rather than data. The data are accessed by proxies
+of these objects and modified in :ref:`kernels <dynamo0.3-kernel>`.
+As the objects themselves are not modified in the PSy layer, their Fortran
+intents there are always ``intent(in)``.
+
+The Fortran intent of :ref:`scalars <dynamo0.3-scalar>` is still defined
+by their :ref:`access metadata <dynamo0.3-valid-access>` as they are
+actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
+for ``GH_SUM`` (more details in :ref:`meta_args <dynamo0.3-api-meta-args>`
+section below).
+
+The intent of other data structures is mandated by the relevant
+Dynamo0.3 API rules described in sections below.
 
 .. _dynamo0.3-kernel:
 
@@ -527,21 +567,20 @@ Metadata
 
 The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
-4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
-
-::
+4) 'meta_mesh', 5) 'gh_shape', 6) 'iterates_over' and 7) 'procedure'::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
+    type(mesh_data_type) :: meta_mesh(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These six metadata elements are discussed in order in the following
+These various metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -556,7 +595,7 @@ or **operator** passed into the Kernel and the order that these occur
 in the ``meta_args`` array must be the same as they are expected in
 the kernel code argument list. The entry must be of ``arg_type`` which
 itself contains metadata about the associated argument. The size of
-the meta_args array must correspond to the number of **scalars**,
+the ``meta_args`` array must correspond to the number of **scalars**,
 **fields** and **operators** passed into the Kernel.
 
 .. note:: It makes no sense for a Kernel to have only **scalar** arguments
@@ -633,9 +672,7 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
   currently supported in PSyclone. This metadata indicates that values
   are summed over calls to Kernel code.
 
-For example:
-
-::
+For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_REAL,  GH_SUM),                                     &
@@ -747,9 +784,11 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
 ======================  ============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
-          scalar arguments. *Since the LFRic infrastructure does not
-          currently support integer reductions, integer scalar arguments
-          are restricted to having read-only access.*
+          scalar arguments. In practice this means that the only allowed
+          access for the user-defined scalars in kernels is ``GH_READ``.
+          *Furthermore, since the LFRic infrastructure does not currently
+          support integer reductions, integer scalar arguments are
+          restricted to having read-only access.*
 
 .. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
           ``GH_READWRITE`` as its access pattern must be a discontinuous
@@ -850,7 +889,13 @@ vector variables are:
 
 * ``W2trace`` is the space of scalar functions defined only on cell faces,
   resulting from taking the trace of a ``W2`` space. DoFs are shared between
-  faces, hence making this space fully continuous.
+  faces, hence making this space fully continuous;
+
+* ``Wchi`` is the space of scalar functions used to store coordinates in
+  LFRic, fully discontinuous except for the coordinate order ``0`` when it
+  becomes the ``W0`` space (i.e. fully continuous). Since LFRic neither
+  performs halo exchange on coordinate fields nor updates them the
+  lowest-order continuity of the ``Wchi`` space can be safely ignored.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -888,15 +933,15 @@ function apaces are summarised in the table below.
 
 .. tabularcolumns:: |l|l|
 
-+---------------------------+----------------------------+
-| Function Space Continuity | Function Space Name        |
-+===========================+============================+
-| Continuous                | W0, W1, W2, W2H, W2trace,  |
-|                           | ANY_W2, ANY_SPACE_n        |
-+---------------------------+----------------------------+
-| Discontinuous             | W2V, W2broken, W3, Wtheta, |
-|                           | ANY_DISCONTINUOUS_SPACE_n  |
-+---------------------------+----------------------------+
++---------------------------+----------------------------------+
+| Function Space Continuity | Function Space Name              |
++===========================+==================================+
+| Continuous                | W0, W1, W2, W2H, W2trace, ANY_W2 |
+|                           | ANY_SPACE_n                      |
++---------------------------+----------------------------------+
+| Discontinuous             | W2V, W2broken, W3, Wtheta, Wchi, |
+|                           | ANY_DISCONTINUOUS_SPACE_n        |
++---------------------------+----------------------------------+
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -971,9 +1016,7 @@ would be declared as::
 
   STENCIL(CROSS)
 
-Below is an example of stencil information within the full kernel metadata.
-
-::
+Below is an example of stencil information within the full kernel metadata::
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
@@ -1142,6 +1185,35 @@ outward_normals_to_faces             Array of outward-pointing normals for each
                                      face indexed as (component, face).
 ===================================  ===========================================
 
+meta_mesh
+#########
+
+A kernel that requires properties of the LFRic mesh object specifies
+those properties through the ``meta_mesh`` metadata entry. (If no
+mesh properties are required then this metadata should be omitted.)
+Consider the following example kernel metadata::
+
+  type, extends(kernel_type) :: testkern_type
+    type(arg_type), dimension(2) :: meta_args = &
+        (/ arg_type(gh_field, gh_read, w1),     &
+           arg_type(gh_field, gh_inc, w0) /)
+    type(mesh_data_type), dimension(1) ::       &
+      meta_mesh =                               &
+        (/ mesh_data_type(adjacent_face) /)
+  contains
+    procedure, nopass :: code => testkern_code
+  end type testkern_type
+
+This metadata specifies that the ``testkern_type`` kernel requires one
+property of the mesh. There is currently one supported property:
+
+======================= ==================================================
+Name                    Description
+======================= ==================================================
+adjacent_face           Local ID of a neighbouring face in each
+                        horizontally-adjacent cell indexed as (face).
+======================= ==================================================
+
 .. _dynamo0.3-gh-shape:
 
 gh_shape and gh_evaluator_targets
@@ -1206,6 +1278,8 @@ describes.
 For example::
 
   procedure, nopass :: my_kernel_subroutine
+
+.. _dynamo0.3-kern-subroutine:
 
 Subroutine
 ++++++++++
@@ -1329,13 +1403,13 @@ rules, along with PSyclone's naming conventions, are:
          +---------------+-----------+------------------------------------+
          | Function Type | Dimension | Function Space Name                |
          +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W3, Wtheta            |
+         | Basis         |    1      | W0, W2trace, W3, Wtheta, Wchi      |
          |               +-----------+------------------------------------+
          |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
          +---------------+-----------+------------------------------------+
          | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
          | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W3, Wtheta        |
+         |               |    3      | W0, W1, W2trace, W3, Wtheta, Wchi  |
          +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.
@@ -1346,14 +1420,14 @@ rules, along with PSyclone's naming conventions, are:
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
-   element are required then pass the number of
-   horizontal faces of the reference element (``nfaces_re_h``). Similarly,
-   if either the ``normals_to_vertical_faces`` or
-   ``outward_normals_to_vertical_faces`` are
+   element are required then pass the number of horizontal faces of the
+   reference element (``nfaces_re_h``). Similarly, if either the
+   ``normals_to_vertical_faces`` or ``outward_normals_to_vertical_faces`` are
    required then pass the number of vertical faces (``nfaces_re_v``). This
    also holds for the ``normals_to_faces`` and ``outward_normals_to_faces``
    where the number of all faces of the reference element (``nfaces_re``)
-   is passed to the kernel. Then, in the order specified in the
+   is passed to the kernel. (All of these quantities are integers of kind
+   ``i_def``.) Then, in the order specified in the
    ``meta_reference_element`` metadata:
 
    1) For the ``normals_to_horizontal/vertical_faces``, pass a rank-2 integer
@@ -1364,7 +1438,16 @@ rules, along with PSyclone's naming conventions, are:
       a rank-2 integer array of type ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
-6) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+6) If the ``adjacent_face`` mesh property is required then:
+
+   1) If the number of horizontal cell faces obtained from the reference
+      element (``nfaces_re_h``) is not already being passed to the kernel (due
+      to rule 5 above) then supply it here. This is an integer of kind
+      ``i_def``.
+   2) Pass a rank-1, integer array of kind ``i_def`` and extent
+      ``nfaces_re_h``.
+
+7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
    1) Include integer, scalar arguments of kind ``i_def`` with intent ``in``
@@ -1715,6 +1798,29 @@ arguments to inter-grid kernels are as follows:
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
 
+.. _dynamo0.3-kernel-arg-intents:
+
+Argument Intents
+################
+
+As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
+and/or update the data pointed to by objects such as
+:ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
+This data is passed to the kernels as :ref:`subroutine arguments
+<dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
+logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
+
+* ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
+
+* ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
+  is only written to in a kernel. When the argument is defined inside a kernel
+  its intent is ``intent(out)`` and when it is defined outside of a kernel its
+  intent is ``intent(inout)``.
+
+* ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
+  are updated (albeit in a different way due to different access to DoFs, see
+  :ref:`dynamo0.3-api-meta-args` for more details).
+
 .. _dynamo0.3-built-ins:
 
 Built-ins
@@ -1746,6 +1852,11 @@ the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
 Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
 optimised maths library).
+
+As described in the PSy-layer :ref:`Argument Intents
+<dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
+:ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
+scalar that has its data modified by a Built-in is marked in **bold**.
 
 Naming scheme
 +++++++++++++
@@ -1817,9 +1928,7 @@ Sums two fields (Z = X + Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_plus_Y
 ############
@@ -1832,8 +1941,7 @@ Adds the second field to the first and returns it (X = X + Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_plus_Y
 #########
@@ -1847,8 +1955,7 @@ Performs Z = aX + Y::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_aX_plus_Y
 #############
@@ -1862,8 +1969,7 @@ Performs X = aX + Y (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 inc_X_plus_bY
 #############
@@ -1877,8 +1983,7 @@ Performs X = X + bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_plus_bY
 ##########
@@ -1892,8 +1997,7 @@ Performs Z = aX + bY::
 where:
 
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_aX_plus_bY
 ##############
@@ -1907,8 +2011,7 @@ Performs X = aX + bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Subtraction
 +++++++++++
@@ -1927,9 +2030,7 @@ third (Z = X - Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_minus_Y
 #############
@@ -1942,8 +2043,7 @@ Subtracts the second field from the first and returns it (X = X - Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 aX_minus_Y
 ##########
@@ -1957,8 +2057,7 @@ Performs Z = aX - Y::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 X_minus_bY
 ##########
@@ -1972,8 +2071,7 @@ Performs Z = X - bY::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_minus_bY
 ##############
@@ -1987,8 +2085,7 @@ Performs X = X - bY (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Multiplication
 ++++++++++++++
@@ -2007,8 +2104,7 @@ field (Z = X*Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: **field3**, *field1*, *field2*
 
 inc_X_times_Y
 #############
@@ -2021,8 +2117,7 @@ Multiplies the first field by the second and returns it (X = X*Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 inc_aX_times_Y
 ##############
@@ -2036,8 +2131,7 @@ Performs X = a*X*Y (increments the first field)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Scaling
 +++++++
@@ -2058,8 +2152,7 @@ field (Y = a*X)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(out) :: *field2*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: **field2**, *field1*
 
 inc_a_times_X
 #############
@@ -2073,7 +2166,7 @@ Multiplies a field by a scalar value and returns the field (X = a*X)::
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 
 Division
 ++++++++
@@ -2093,8 +2186,7 @@ third (Z = X/Y)::
 
 where:
 
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: **field3**, *field1*, *field2*
 
 inc_X_divideby_Y
 ################
@@ -2107,8 +2199,7 @@ Divides the first field by the second and returns it (X = X/Y)::
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(in) :: **field1**, *field2*
 
 Setting to value
 ++++++++++++++++
@@ -2127,7 +2218,7 @@ Sets all elements of the field *field* to the value *constant* (X = c)::
 
 where:
 
-* type(field_type), intent(out) :: *field*
+* type(field_type), intent(in) :: **field**
 * real(r_def), intent(in) :: *constant*
 
 .. note:: The field may be on any function space.
@@ -2143,8 +2234,7 @@ Sets a field *field2* equal to field *field1* (Y = X)::
 
 where:
 
-* type(field_type), intent(out) :: *field2*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: **field2**, *field1*
 
 Raising to power
 ++++++++++++++++
@@ -2163,7 +2253,7 @@ Raises a field to a real scalar value and returns the field (X = X**a)::
 
 where:
 
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 * real(r_def), intent(in) :: *rscalar*
 
 inc_X_powint_n
@@ -2177,7 +2267,7 @@ Raises a field to an integer scalar value and returns the field (X = X**n)::
 
 where:
 
-* type(field_type), intent(inout) :: *field*
+* type(field_type), intent(in) :: **field**
 * integer(i_def), intent(in) :: *iscalar*
 
 Inner product
@@ -2197,7 +2287,7 @@ Computes the inner product of the fields *field1* and *field2*, *i.e.*::
 
 where:
 
-* real(r_def), intent(out) :: *innprod*
+* real(r_def), intent(out) :: **innprod**
 * type(field_type), intent(in) :: *field1*, *field2*
 
 .. note:: When used with distributed memory this Built-in will trigger
@@ -2215,7 +2305,7 @@ Computes the inner product of the field *field1* by itself, *i.e.*::
 
 where:
 
-* real(r_def), intent(out) :: *innprod*
+* real(r_def), intent(out) :: **innprod**
 * type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this Built-in will trigger
@@ -2239,8 +2329,8 @@ in the scalar variable *sumfld*::
 
 where:
 
-* real(r_def), intent(out) :: sumfld
-* type(field_type), intent(in) :: field
+* real(r_def), intent(out) :: **sumfld**
+* type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the

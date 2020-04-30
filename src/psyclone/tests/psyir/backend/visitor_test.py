@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Node
@@ -250,6 +251,6 @@ def test_psyirvisitor_visit_return_node():
     test_visitor = PSyIRVisitor()
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
-    assert ("Visitor Error: Unsupported node 'Return' found: method names "
+    assert ("Unsupported node 'Return' found: method names "
             "attempted were ['return_node', 'node_node']."
             ""in str(excinfo.value))

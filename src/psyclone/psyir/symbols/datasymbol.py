@@ -38,10 +38,9 @@
 
 ''' This module contains the DataSymbol and its interfaces.'''
 
+from __future__ import absolute_import
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.datatypes import DataType, TYPE_MAP_TO_PYTHON
-from psyclone.errors import InternalError
 
 
 class DataSymbol(Symbol):
@@ -54,21 +53,6 @@ class DataSymbol(Symbol):
     :param datatype: data type of the symbol.
     :param bool public: whether or not this symbol is public.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param list shape: shape of the symbol in column-major order (leftmost \
-        index is contiguous in memory). Each entry represents an array \
-        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that \
-        dimension is unknown but can be obtained by querying the run-time \
-        system (e.g. using the SIZE intrinsic in Fortran). If it is \
-        DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
-        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it holds an integer literal or a reference to an \
-        integer symbol with the extent. If it is an empty list then the symbol\
-        represents a scalar.
-    :param interface: object describing the interface to this symbol (i.e. \
-        whether it is passed as a routine argument or accessed in some other \
-        way).
-    :type interface: \
-        :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
         symbol does not have a fixed constant. Otherwise it can receive \
@@ -76,87 +60,20 @@ class DataSymbol(Symbol):
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
-    :param precision: the amount of storage required by the datatype (bytes) \
-            or a reference to a Symbol holding the type information \
-            or a label identifying a default precision.
-    :type precision: int or :py:class:`psyclone.psyir.symbol.DataSymbol` or \
-                     :py:class:`psyclone.psyir.symbols.DataSymbol.Precision`
-
-    :raises TypeError: if the provided parameters have invalid type.
-    :raises ValueError: if the provided parameters contain invalid values.
+    :param interface: object describing the interface to this symbol (i.e. \
+        whether it is passed as a routine argument or accessed in some other \
+        way).
+    :type interface: \
+        :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
 
     '''
-    class Precision(Enum):
-        '''
-        Enumeration of the different types of 'default' precision that may
-        be specified for a Symbol.
-        '''
-        SINGLE = 1
-        DOUBLE = 2
-
-    class Extent(Enum):
-        '''
-        Enumeration of array shape extents that are unspecified at compile
-        time. When the extent must exist and is accessible via the run-time
-        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
-        current scope (e.g. the array may need to be allocated/malloc'd) it
-        is 'DEFERRED'.
-        '''
-        DEFERRED = 1
-        ATTRIBUTE = 2
-
-    def __init__(self, name, datatype, public=True, shape=None,
-                 constant_value=None, interface=None, precision=None):
+    def __init__(self, name, datatype, public=True, constant_value=None,
+                 interface=None):
 
         super(DataSymbol, self).__init__(name, public)
 
         self._datatype = None
         self.datatype = datatype
-
-        # Check that the supplied 'precision' is valid
-        if precision is not None:
-            if datatype not in [DataType.REAL, DataType.INTEGER]:
-                raise ValueError(
-                    "A DataSymbol of {0} type cannot have an associated "
-                    "precision".format(datatype))
-            if not isinstance(precision,
-                              (int, DataSymbol.Precision, DataSymbol)):
-                raise TypeError(
-                    "DataSymbol precision must be one of integer, "
-                    "DataSymbol.Precision or DataSymbol but got '{0}'"
-                    "".format(type(precision).__name__))
-            if isinstance(precision, int) and precision <= 0:
-                raise ValueError(
-                    "The precision of a DataSymbol when specified as an "
-                    "integer number of bytes must be > 0 but got {0}"
-                    "".format(precision))
-            if (isinstance(precision, DataSymbol) and
-                    (precision.datatype not in [DataType.INTEGER,
-                                                DataType.DEFERRED]
-                     or precision.is_array)):
-                raise ValueError(
-                    "A DataSymbol representing the precision of another "
-                    "DataSymbol must be of either 'deferred' or scalar, "
-                    "integer type but got: {0}".format(str(precision)))
-        self.precision = precision
-
-        if shape is None:
-            shape = []
-        elif not isinstance(shape, list):
-            raise TypeError("DataSymbol shape attribute must be a list.")
-
-        for dimension in shape:
-            if isinstance(dimension, DataSymbol):
-                if dimension.datatype != DataType.INTEGER or dimension.shape:
-                    raise TypeError(
-                        "DataSymbols that are part of another symbol shape can"
-                        " only be scalar integers, but found '{0}'."
-                        "".format(str(dimension)))
-            elif not isinstance(dimension, (self.Extent, int)):
-                raise TypeError(
-                    "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'integer' or DataSymbol.Extent.")
-        self._shape = shape
 
         # The following attributes have setter methods (with error checking)
         self._interface = None
@@ -176,7 +93,8 @@ class DataSymbol(Symbol):
 
         :raises NotImplementedError: if the deferred symbol is not a Global.
         '''
-        if self.datatype == DataType.DEFERRED:
+        from psyclone.psyir.symbols import DeferredType
+        if isinstance(self.datatype, DeferredType):
             if self.is_global:
                 # Copy all the symbol properties but the interface
                 tmp = self.interface
@@ -216,6 +134,7 @@ class DataSymbol(Symbol):
         :raises TypeError: if value is not of the correct type.
         :raises NotImplementedError: if the specified data type is invalid.
         '''
+        from psyclone.psyir.symbols import DataType
         if not isinstance(value, DataType):
             raise TypeError(
                 "The datatype of a DataSymbol must be specified using a "
@@ -234,7 +153,10 @@ class DataSymbol(Symbol):
                   represents a scalar.
         :rtype: list
         '''
-        return self._shape
+        from psyclone.psyir.symbols import ArrayType
+        if isinstance(self._datatype, ArrayType):
+            return self._datatype.shape
+        return []
 
     @property
     def interface(self):
@@ -280,9 +202,8 @@ class DataSymbol(Symbol):
         :rtype: bool
 
         '''
-        # If the shape variable is an empty list then this symbol is a
-        # scalar.
-        return self.shape == []
+        from psyclone.psyir.symbols import ScalarType
+        return isinstance(self.datatype, ScalarType)
 
     @property
     def is_array(self):
@@ -291,11 +212,8 @@ class DataSymbol(Symbol):
         :rtype: bool
 
         '''
-        # The assumption in this method is that if this symbol is not
-        # a scalar then it is an array. If this assumption becomes
-        # invalid then this logic will need to be changed
-        # appropriately.
-        return not self.is_scalar
+        from psyclone.psyir.symbols import ArrayType
+        return isinstance(self.datatype, ArrayType)
 
     @property
     def constant_value(self):
@@ -363,17 +281,19 @@ class DataSymbol(Symbol):
 
         '''
         from psyclone.psyir.nodes import Node, Literal, Operation, Reference
+        from psyclone.psyir.symbols import ScalarType, ArrayType
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(
                     "Error setting constant value for symbol '{0}'. A "
                     "DataSymbol with an ArgumentInterface can not have a "
                     "constant value.".format(self.name))
-            if self.is_array:
+            if not isinstance(self.datatype, (ScalarType, ArrayType)):
                 raise ValueError(
                     "Error setting constant value for symbol '{0}'. A "
-                    "DataSymbol with a constant value must be a scalar but "
-                    "a shape was found.".format(self.name))
+                    "DataSymbol with a constant value must be a scalar or an "
+                    "array but found '{1}'.".format(
+                        self.name, type(self.datatype).__name__))
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
@@ -385,13 +305,11 @@ class DataSymbol(Symbol):
                             " {1}".format(self.name, node))
                 self._constant_value = new_value
             else:
-                try:
-                    lookup = TYPE_MAP_TO_PYTHON[self.datatype]
-                except KeyError:
-                    raise ValueError(
-                        "Error setting constant value for symbol '{0}'. "
-                        "Constant values are not supported for '{1}' "
-                        "datatypes.".format(self.name, self.datatype))
+                from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
+                # No need to check that self.datatype has an intrinsic
+                # attribute as we know it is a ScalarType or ArrayType
+                # due to an earlier test.
+                lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
                         "Error setting constant value for symbol '{0}'. This "
@@ -399,7 +317,7 @@ class DataSymbol(Symbol):
                         " constant value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
-                if self.datatype == DataType.BOOLEAN:
+                if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:
@@ -415,25 +333,7 @@ class DataSymbol(Symbol):
             self._constant_value = None
 
     def __str__(self):
-        ret = self.name + ": <" + str(self.datatype) + ", "
-        if self.is_array:
-            ret += "Array["
-            for dimension in self.shape:
-                if isinstance(dimension, DataSymbol):
-                    ret += dimension.name
-                elif isinstance(dimension, int):
-                    ret += str(dimension)
-                elif isinstance(dimension, DataSymbol.Extent):
-                    ret += "'{0}'".format(dimension.name)
-                else:
-                    raise InternalError(
-                        "DataSymbol shape list elements can only be "
-                        "'DataSymbol', 'integer' or 'None', but found '{0}'."
-                        "".format(type(dimension)))
-                ret += ", "
-            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
-        else:
-            ret += "Scalar"
+        ret = self.name + ": <" + str(self.datatype)
         ret += ", " + str(self._interface)
         if self.is_constant:
             ret += ", constant_value={0}".format(self.constant_value)
@@ -449,7 +349,7 @@ class DataSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return DataSymbol(self.name, self.datatype, shape=self.shape[:],
+        return DataSymbol(self.name, self.datatype,
                           constant_value=self.constant_value,
                           interface=self.interface)
 
@@ -468,10 +368,8 @@ class DataSymbol(Symbol):
                             " '{0}'.".format(type(symbol_in).__name__))
 
         self._datatype = symbol_in.datatype
-        self._shape = symbol_in.shape[:]
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
-        self.precision = symbol_in.precision
 
 
 class DataSymbolInterface(object):
