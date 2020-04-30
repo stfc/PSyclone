@@ -2930,6 +2930,12 @@ class DynRunTimeChecks(DynCollection):
                 if arg.type == "gh_field":
                     fs_name = arg.function_space.orig_name
                     field_name = arg.proxy_name
+                    if fs_name in VALID_ANY_SPACE_NAMES:
+                        # We con't need to check validity of a fields
+                        # function space if the metadata specifies
+                        # any_space as this means that all spaces are
+                        # valid.
+                        continue
                     if (fs_name, field_name) in existing_checks:
                         # This particular combination has already been
                         # checked.
@@ -2969,15 +2975,10 @@ class DynRunTimeChecks(DynCollection):
         modified_fields = list(modified_field_set)
 
         if modified_fields:
-            parent.add(CommentGen(parent,
-                                  " Check that read-only fields are not modified"))
+            parent.add(CommentGen(
+                parent, " Check that read-only fields are not modified"))
         for field_name in modified_fields:
-            if_clause_list = []
-            for ro_fs in READ_ONLY_FUNCTION_SPACES:
-                if_clause_list.append("{0}%get_function_space() == {1}"
-                                      "".format(field_name, ro_fs))
-            if_clause = " .or. ".join(if_clause_list)
-            if_then = IfThenGen(parent, if_clause)
+            if_then = IfThenGen(parent, "{0}%is_readonly()".format(field_name))
             call_abort = CallGen(
                 if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
                 "'{2}' is on a read-only function space but is modified "
