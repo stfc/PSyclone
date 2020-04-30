@@ -1328,7 +1328,7 @@ def test_eval_agglomerate(tmpdir):
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(10) =                              &
+     type(arg_type), meta_args(12) =                              &
           (/ arg_type(gh_field,    gh_inc,   w0),                 &
              arg_type(gh_operator, gh_read,  w1, w1),             &
              arg_type(gh_field,    gh_read,  w2),                 &
@@ -1338,9 +1338,11 @@ module dummy_mod
              arg_type(gh_field,    gh_read,  w2v),                &
              arg_type(gh_operator, gh_read,  w2broken, w2broken), &
              arg_type(gh_field,    gh_read,  wchi),               &
-             arg_type(gh_operator, gh_read,  w2trace, w2trace)    &
+             arg_type(gh_operator, gh_read,  w2trace, w2trace),   &
+             arg_type(gh_field,    gh_read,  w2vtrace),           &
+             arg_type(gh_operator, gh_read,  w2htrace, w2htrace)  &
            /)
-     type(func_type), meta_funcs(10) =      &
+     type(func_type), meta_funcs(12) =      &
           (/ func_type(w0, gh_basis),       &
              func_type(w1, gh_basis),       &
              func_type(w2, gh_basis),       &
@@ -1350,7 +1352,9 @@ module dummy_mod
              func_type(w2v, gh_basis),      &
              func_type(w2broken, gh_basis), &
              func_type(wchi, gh_basis),     &
-             func_type(w2trace, gh_basis)   &
+             func_type(w2trace, gh_basis),  &
+             func_type(w2vtrace, gh_basis), &
+             func_type(w2htrace, gh_basis)  &
            /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
@@ -1366,7 +1370,9 @@ end module dummy_mod
 
 def test_basis_evaluator():
     ''' Check that basis functions for an evaluator are handled correctly for
-    kernel stubs '''
+    kernel stubs.
+
+    '''
     ast = fpapi.parse(BASIS_EVAL, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -1376,14 +1382,16 @@ def test_basis_evaluator():
     output_arg_list = (
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
-        "field_9_wchi, op_10_ncell_3d, op_10, ndf_w0, undf_w0, map_w0, "
-        "basis_w0_on_w0, ndf_w1, basis_w1_on_w0, ndf_w2, undf_w2, map_w2, "
-        "basis_w2_on_w0, ndf_w3, basis_w3_on_w0, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, basis_wtheta_on_w0, ndf_w2h, basis_w2h_on_w0, ndf_w2v, "
-        "undf_w2v, map_w2v, basis_w2v_on_w0, ndf_w2broken, "
-        "basis_w2broken_on_w0, ndf_wchi, undf_wchi, map_wchi, "
-        "basis_wchi_on_w0, ndf_w2trace, basis_w2trace_on_w0)\n")
+        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
+        "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
+        "ndf_w0, undf_w0, map_w0, basis_w0_on_w0, ndf_w1, basis_w1_on_w0, "
+        "ndf_w2, undf_w2, map_w2, basis_w2_on_w0, ndf_w3, basis_w3_on_w0, "
+        "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_on_w0, ndf_w2h, "
+        "basis_w2h_on_w0, ndf_w2v, undf_w2v, map_w2v, basis_w2v_on_w0, "
+        "ndf_w2broken, basis_w2broken_on_w0, ndf_wchi, undf_wchi, map_wchi, "
+        "basis_wchi_on_w0, ndf_w2trace, basis_w2trace_on_w0, ndf_w2vtrace, "
+        "undf_w2vtrace, map_w2vtrace, basis_w2vtrace_on_w0, ndf_w2htrace, "
+        "basis_w2htrace_on_w0)\n")
     assert output_arg_list in generated_code
     output_declns = (
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
@@ -1392,27 +1400,32 @@ def test_basis_evaluator():
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
-        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        ":: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        ":: map_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) :: "
-        "map_wchi\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        ":: map_wchi\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        ":: map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
-        "ndf_w2trace\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: "
-        "field_9_wchi\n"
+        "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        ":: field_1_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
+        ":: field_3_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) "
+        ":: field_5_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
+        ":: field_7_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        ":: field_9_wchi\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2vtrace) "
+        ":: field_11_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w1,ndf_w1,"
@@ -1429,26 +1442,33 @@ def test_basis_evaluator():
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) :: "
-        "basis_w0_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) :: "
-        "basis_w1_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) :: "
-        "basis_w2_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) :: "
-        "basis_w3_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) ::"
-        " basis_wtheta_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) :: "
-        "basis_w2h_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) :: "
-        "basis_w2v_on_w0\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
+        "ndf_w2htrace,op_12_ncell_3d) :: op_12\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) "
+        ":: basis_w0_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) "
+        ":: basis_w1_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) "
+        ":: basis_w2_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) "
+        ":: basis_w3_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) "
+        ":: basis_wtheta_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) "
+        ":: basis_w2h_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) "
+        ":: basis_w2v_on_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2broken,"
         "ndf_w0) :: basis_w2broken_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wchi,ndf_w0) :: "
-        "basis_wchi_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2trace,ndf_w0) "
-        ":: basis_w2trace_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wchi,ndf_w0) "
+        ":: basis_wchi_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2trace,"
+        "ndf_w0) :: basis_w2trace_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2vtrace,"
+        "ndf_w0) :: basis_w2vtrace_on_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2htrace,"
+        "ndf_w0) :: basis_w2htrace_on_w0\n"
     )
     assert output_declns in generated_code
 
@@ -1508,7 +1528,7 @@ def test_basis_unsupported_space():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(10) =                                  &
+     type(arg_type), meta_args(12) =                                  &
           (/ arg_type(gh_field,    gh_inc,       w0),                 &
              arg_type(gh_operator, gh_readwrite, w1, w1),             &
              arg_type(gh_field,    gh_read,      w2),                 &
@@ -1518,9 +1538,11 @@ module dummy_mod
              arg_type(gh_field,    gh_read,      w2v),                &
              arg_type(gh_operator, gh_readwrite, w2broken, w2broken), &
              arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_read,      w2trace, w2trace)    &
+             arg_type(gh_operator, gh_write,     w2trace,  w2trace),  &
+             arg_type(gh_field,    gh_inc,       w2htrace),           &
+             arg_type(gh_operator, gh_read,      w2vtrace, w2vtrace)  &
            /)
-     type(func_type), meta_funcs(10) =           &
+     type(func_type), meta_funcs(12) =           &
           (/ func_type(w0, gh_diff_basis),       &
              func_type(w1, gh_diff_basis),       &
              func_type(w2, gh_diff_basis),       &
@@ -1530,7 +1552,9 @@ module dummy_mod
              func_type(w2v, gh_diff_basis),      &
              func_type(w2broken, gh_diff_basis), &
              func_type(wchi, gh_diff_basis),     &
-             func_type(w2trace, gh_diff_basis)   &
+             func_type(w2trace, gh_diff_basis),  &
+             func_type(w2htrace, gh_diff_basis), &
+             func_type(w2vtrace, gh_diff_basis)  &
            /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_XYoZ
@@ -1546,7 +1570,9 @@ end module dummy_mod
 
 def test_diff_basis():
     ''' Test that differential basis functions are handled correctly
-    for kernel stubs with quadrature '''
+    for kernel stubs with quadrature.
+
+    '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -1558,17 +1584,19 @@ def test_diff_basis():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
-        "field_9_wchi, op_10_ncell_3d, op_10, ndf_w0, undf_w0, map_w0, "
-        "diff_basis_w0_qr_xyoz, ndf_w1, diff_basis_w1_qr_xyoz, "
-        "ndf_w2, undf_w2, map_w2, diff_basis_w2_qr_xyoz, "
-        "ndf_w3, diff_basis_w3_qr_xyoz, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, diff_basis_wtheta_qr_xyoz, ndf_w2h, "
+        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
+        "op_10_ncell_3d, op_10, field_11_w2htrace, op_12_ncell_3d, op_12, "
+        "ndf_w0, undf_w0, map_w0, diff_basis_w0_qr_xyoz, ndf_w1, "
+        "diff_basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, "
+        "diff_basis_w2_qr_xyoz, ndf_w3, diff_basis_w3_qr_xyoz, ndf_wtheta, "
+        "undf_wtheta, map_wtheta, diff_basis_wtheta_qr_xyoz, ndf_w2h, "
         "diff_basis_w2h_qr_xyoz, ndf_w2v, undf_w2v, map_w2v, "
         "diff_basis_w2v_qr_xyoz, ndf_w2broken, diff_basis_w2broken_qr_xyoz, "
-        "ndf_wchi, undf_wchi, map_wchi, diff_basis_wchi_qr_xyoz, "
-        "ndf_w2trace, diff_basis_w2trace_qr_xyoz, np_xy_qr_xyoz, "
-        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
+        "ndf_wchi, undf_wchi, map_wchi, diff_basis_wchi_qr_xyoz, ndf_w2trace, "
+        "diff_basis_w2trace_qr_xyoz, ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace, diff_basis_w2htrace_qr_xyoz, ndf_w2vtrace, "
+        "diff_basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
@@ -1576,28 +1604,33 @@ def test_diff_basis():
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2htrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2htrace) "
+        ":: map_w2htrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
-        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        ":: map_w2v\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) :: "
-        "map_wchi\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        ":: map_wchi\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        ":: map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
-        "ndf_w2trace\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: "
-        "field_9_wchi\n"
+        "ndf_w2trace, undf_w2htrace, ndf_w2vtrace\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        ":: field_1_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
+        ":: field_3_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        ":: field_5_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
+        ":: field_7_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        ":: field_9_wchi\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
+        ":: field_11_w2htrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
@@ -1612,21 +1645,23 @@ def test_diff_basis():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2vtrace,"
+        "ndf_w2vtrace,op_12_ncell_3d) :: op_12\n"
         "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
         "np_z_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy_qr_xyoz,"
-        "np_z_qr_xyoz) :: diff_basis_w0_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy_qr_xyoz,"
-        "np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy_qr_xyoz,"
-        "np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xy_qr_xyoz,"
-        "np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w0_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
-        "np_xy_qr_xyoz,"
-        "np_z_qr_xyoz) :: diff_basis_wtheta_qr_xyoz\n"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_wtheta_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2h_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,"
@@ -1637,10 +1672,14 @@ def test_diff_basis():
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_wchi_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2trace_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
-        "weights_xy_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
-        "weights_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2htrace_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2vtrace_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) "
+        ":: weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) "
+        ":: weights_z_qr_xyoz\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -1652,7 +1691,7 @@ def test_diff_basis():
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(10) =                                  &
+     type(arg_type), meta_args(12) =                                  &
           (/ arg_type(gh_field,    gh_read,      w0),                 &
              arg_type(gh_operator, gh_readwrite, w2, w1),             &
              arg_type(gh_field,    gh_read,      w2),                 &
@@ -1662,9 +1701,11 @@ module dummy_mod
              arg_type(gh_field,    gh_read,      w2v),                &
              arg_type(gh_operator, gh_read,      w2broken, w2broken), &
              arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_read,      w2trace, w2trace)    &
+             arg_type(gh_operator, gh_read,      w2trace, w2trace),   &
+             arg_type(gh_field,    gh_read,      w2vtrace),           &
+             arg_type(gh_operator, gh_read,      w2htrace, w2htrace)  &
            /)
-     type(func_type), meta_funcs(10) =           &
+     type(func_type), meta_funcs(12) =           &
           (/ func_type(w0, gh_diff_basis),       &
              func_type(w1, gh_diff_basis),       &
              func_type(w2, gh_diff_basis),       &
@@ -1674,7 +1715,9 @@ module dummy_mod
              func_type(w2v, gh_diff_basis),      &
              func_type(w2broken, gh_diff_basis), &
              func_type(wchi, gh_diff_basis),     &
-             func_type(w2trace, gh_diff_basis)   &
+             func_type(w2trace, gh_diff_basis),  &
+             func_type(w2vtrace, gh_diff_basis), &
+             func_type(w2htrace, gh_diff_basis)  &
            /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
@@ -1690,7 +1733,9 @@ end module dummy_mod
 
 def test_diff_basis_eval():
     ''' Test that differential basis functions are handled correctly
-    for kernel stubs with an evaluator '''
+    for kernel stubs with an evaluator.
+
+    '''
     ast = fpapi.parse(DIFF_BASIS_EVAL, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -1704,14 +1749,17 @@ def test_diff_basis_eval():
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
-        "op_10_ncell_3d, op_10, ndf_w0, undf_w0, map_w0, diff_basis_w0_on_w2, "
-        "ndf_w2, undf_w2, map_w2, diff_basis_w2_on_w2, ndf_w1, "
-        "diff_basis_w1_on_w2, ndf_w3, diff_basis_w3_on_w2, ndf_wtheta, "
-        "undf_wtheta, map_wtheta, diff_basis_wtheta_on_w2, ndf_w2h, "
-        "diff_basis_w2h_on_w2, ndf_w2v, undf_w2v, map_w2v, "
-        "diff_basis_w2v_on_w2, ndf_w2broken, diff_basis_w2broken_on_w2, "
-        "ndf_wchi, undf_wchi, map_wchi, diff_basis_wchi_on_w2, ndf_w2trace, "
-        "diff_basis_w2trace_on_w2)\n")
+        "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
+        "ndf_w0, undf_w0, map_w0, diff_basis_w0_on_w2, ndf_w2, undf_w2, "
+        "map_w2, diff_basis_w2_on_w2, ndf_w1, diff_basis_w1_on_w2, ndf_w3, "
+        "diff_basis_w3_on_w2, ndf_wtheta, undf_wtheta, map_wtheta, "
+        "diff_basis_wtheta_on_w2, ndf_w2h, diff_basis_w2h_on_w2, ndf_w2v, "
+        "undf_w2v, map_w2v, diff_basis_w2v_on_w2, ndf_w2broken, "
+        "diff_basis_w2broken_on_w2, ndf_wchi, undf_wchi, map_wchi, "
+        "diff_basis_wchi_on_w2, ndf_w2trace, diff_basis_w2trace_on_w2, "
+        "ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
+        "diff_basis_w2vtrace_on_w2, ndf_w2htrace, "
+        "diff_basis_w2htrace_on_w2)\n")
     assert output_args in generated_code
     output_declns = (
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
@@ -1720,27 +1768,32 @@ def test_diff_basis_eval():
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
-        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        ":: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        ":: map_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) :: "
-        "map_wchi\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        ":: map_wchi\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        ":: map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
-        "ndf_w2trace\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: "
-        "field_9_wchi\n"
+        "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) "
+        ":: field_1_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
+        ":: field_3_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) "
+        ":: field_5_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
+        ":: field_7_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        ":: field_9_wchi\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2vtrace) "
+        ":: field_11_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2,ndf_w1,"
@@ -1757,6 +1810,9 @@ def test_diff_basis_eval():
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
+        "ndf_w2htrace,op_12_ncell_3d) :: op_12\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_w2) "
         ":: diff_basis_w0_on_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w2) "
@@ -1773,10 +1829,14 @@ def test_diff_basis_eval():
         ":: diff_basis_w2v_on_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2broken,"
         "ndf_w2) :: diff_basis_w2broken_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,ndf_w2) :: "
-        "diff_basis_wchi_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,ndf_w2) "
-        ":: diff_basis_w2trace_on_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,ndf_w2) "
+        ":: diff_basis_wchi_on_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
+        "ndf_w2) :: diff_basis_w2trace_on_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+        "ndf_w2) :: diff_basis_w2vtrace_on_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+        "ndf_w2) :: diff_basis_w2htrace_on_w2\n"
         "    END SUBROUTINE dummy_code\n"
     )
     assert output_declns in generated_code
@@ -1784,7 +1844,9 @@ def test_diff_basis_eval():
 
 def test_2eval_stubgen():
     ''' Check that we generate the correct kernel stub when an evaluator is
-    required on more than one space. '''
+    required on more than one space.
+
+    '''
     # Modify the meta-data so that it specifies that evaluators be provided
     # on two function spaces
     twoeval_meta = DIFF_BASIS_EVAL.replace(
@@ -1800,8 +1862,9 @@ def test_2eval_stubgen():
     assert (
         "SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
-        "op_10_ncell_3d, op_10, ndf_w0, undf_w0, map_w0, "
+        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
+        "field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
+        "op_12_ncell_3d, op_12, ndf_w0, undf_w0, map_w0, "
         "diff_basis_w0_on_w2h, diff_basis_w0_on_wtheta, ndf_w2, undf_w2, "
         "map_w2, diff_basis_w2_on_w2h, diff_basis_w2_on_wtheta, ndf_w1, "
         "diff_basis_w1_on_w2h, diff_basis_w1_on_wtheta, ndf_w3, "
@@ -1813,7 +1876,10 @@ def test_2eval_stubgen():
         "diff_basis_w2broken_on_w2h, diff_basis_w2broken_on_wtheta, "
         "ndf_wchi, undf_wchi, map_wchi, diff_basis_wchi_on_w2h, "
         "diff_basis_wchi_on_wtheta, ndf_w2trace, diff_basis_w2trace_on_w2h, "
-        "diff_basis_w2trace_on_wtheta)" in
+        "diff_basis_w2trace_on_wtheta, ndf_w2vtrace, undf_w2vtrace, "
+        "map_w2vtrace, diff_basis_w2vtrace_on_w2h, "
+        "diff_basis_w2vtrace_on_wtheta, ndf_w2htrace, "
+        "diff_basis_w2htrace_on_w2h, diff_basis_w2htrace_on_wtheta)\n" in
         generated_code)
     assert (
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
@@ -1822,17 +1888,20 @@ def test_2eval_stubgen():
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
-        "map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        ":: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        ":: map_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) :: "
-        "map_wchi\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        ":: map_wchi\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        ":: map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
-        "ndf_w2trace\n" in generated_code)
+        "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n" in generated_code)
 
     for space in ["w2h", "wtheta"]:
         assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_{0}) "
@@ -1843,8 +1912,9 @@ def test_2eval_stubgen():
                 ":: diff_basis_w1_on_{0}".format(space) in generated_code)
         assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_{0}) "
                 ":: diff_basis_w3_on_{0}".format(space) in generated_code)
-        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,ndf_{0})"
-                " :: diff_basis_wtheta_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
+                "ndf_{0}) :: diff_basis_wtheta_on_{0}".format(space) in
+                generated_code)
         assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,ndf_{0}) "
                 ":: diff_basis_w2h_on_{0}".format(space) in generated_code)
         assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,ndf_{0}) "
@@ -1856,6 +1926,12 @@ def test_2eval_stubgen():
                 ":: diff_basis_wchi_on_{0}".format(space) in generated_code)
         assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
                 "ndf_{0}) :: diff_basis_w2trace_on_{0}".format(space) in
+                generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+                "ndf_{0}) :: diff_basis_w2vtrace_on_{0}".format(space) in
+                generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+                "ndf_{0}) :: diff_basis_w2htrace_on_{0}".format(space) in
                 generated_code)
 
 
