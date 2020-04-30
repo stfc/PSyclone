@@ -44,6 +44,7 @@ import re
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.core.access_type import AccessType
 
 
 TEST_API = "dynamo0.3"
@@ -62,7 +63,7 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
-RUN_TIME_CHECKS = true
+RUN_TIME_CHECKS = false
 '''
 
 
@@ -169,7 +170,6 @@ def test_invalid_default_kind(tmpdir):
 
 def test_access_mapping():
     '''Check that we load the expected default access mapping values'''
-    from psyclone.core.access_type import AccessType
     api_config = Config().get().api_conf(TEST_API)
     assert api_config.get_access_mapping()["gh_read"] == AccessType.READ
     assert api_config.get_access_mapping()["gh_write"] == AccessType.WRITE
@@ -189,10 +189,12 @@ def test_compute_annexed_dofs():
 
 
 def test_default_kind():
-    ''' Check that we load correct default kinds (precisions) for all
+    '''Check that we load correct default kinds (precisions) for all
     datatypes. This test will be modified to test whether the default
     kinds are in a list of allowed kinds for each datatype when the
-    functionality is introduced. '''
+    functionality is introduced.
+
+    '''
     api_config = Config().get().api_conf(TEST_API)
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
@@ -200,8 +202,11 @@ def test_default_kind():
 
 
 def test_run_time_checks():
-    '''Check that we load the expected default RUN_TIME_CHECKS value'''
+    '''Check that we load the expected default RUN_TIME_CHECKS value
+    (False)
+
+    '''
     api_config = Config().get().api_conf(TEST_API)
-    assert api_config.run_time_checks == True
+    assert not api_config.run_time_checks
 
 
