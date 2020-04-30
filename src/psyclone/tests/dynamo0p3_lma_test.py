@@ -735,15 +735,23 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
             "gh_readwrite") in str(excinfo.value)
 
 
-# operators : spaces and intent
+# Operators : spaces and intent (except for Wchi space as the fields on
+# this space are read-only).
 OPERATORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(6) =                                         &
+     type(arg_type), meta_args(13) =                                        &
           (/ arg_type(gh_operator, gh_write,     w0, w0),                   &
              arg_type(gh_operator, gh_readwrite, w1, w1),                   &
              arg_type(gh_operator, gh_read,      w2, w2),                   &
+             arg_type(gh_operator, gh_read,      w2h, w2h),                 &
+             arg_type(gh_operator, gh_readwrite, w2v, w2v),                 &
+             arg_type(gh_operator, gh_write,     w2broken, w2broken),       &
+             arg_type(gh_operator, gh_read,      w2trace, w2trace),         &
+             arg_type(gh_operator, gh_read,      w2htrace, w2htrace),       &
+             arg_type(gh_operator, gh_readwrite, w2vtrace, w2vtrace),       &
              arg_type(gh_operator, gh_write,     w3, w3),                   &
+             arg_type(gh_operator, gh_write,     wtheta, wtheta),           &
              arg_type(gh_operator, gh_read,      any_space_1, any_space_1), &
              arg_type(gh_operator, gh_read,      any_discontinuous_space_1, &
                                                  any_discontinuous_space_1) &
@@ -760,7 +768,10 @@ end module dummy_mod
 
 
 def test_operators():
-    ''' Test that operators are handled correctly for kernel stubs '''
+    ''' Test that operators are handled correctly for kernel stubs (except
+    for Wchi space as the fields on this space are read-only).
+
+    '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -772,13 +783,19 @@ def test_operators():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
-        "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, ndf_w0, ndf_w1, ndf_w2, "
-        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6)\n"
+        "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, op_7_ncell_3d, op_7, "
+        "op_8_ncell_3d, op_8, op_9_ncell_3d, op_9, op_10_ncell_3d, op_10, "
+        "op_11_ncell_3d, op_11, op_12_ncell_3d, op_12, op_13_ncell_3d, "
+        "op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, ndf_w2broken, "
+        "ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, "
+        "ndf_any_space_1_op_12, ndf_any_discontinuous_space_1_op_13)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0, ndf_w1, ndf_w2, "
-        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6\n"
+        "ndf_w2h, ndf_w2v, ndf_w2broken, ndf_w2trace, ndf_w2htrace, "
+        "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_any_space_1_op_12, "
+        "ndf_any_discontinuous_space_1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
@@ -790,15 +807,36 @@ def test_operators():
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,"
         "op_3_ncell_3d) :: op_3\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
-        "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2v,ndf_w2v,"
+        "op_5_ncell_3d) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_op_6,"
-        "ndf_any_discontinuous_space_1_op_6,op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2broken,"
+        "ndf_w2broken,op_6_ncell_3d) :: op_6\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_7_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
+        "ndf_w2trace,op_7_ncell_3d) :: op_7\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
+        "ndf_w2htrace,op_8_ncell_3d) :: op_8\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_9_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2vtrace,"
+        "ndf_w2vtrace,op_9_ncell_3d) :: op_9\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_10_ncell_3d) :: op_10\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_11_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_wtheta,ndf_wtheta,"
+        "op_11_ncell_3d) :: op_11\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_12,"
+        "ndf_any_space_1_op_12,op_12_ncell_3d) :: op_12\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_13_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension"
+        "(ndf_any_discontinuous_space_1_op_13,"
+        "ndf_any_discontinuous_space_1_op_13,op_13_ncell_3d) :: op_13\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
