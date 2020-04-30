@@ -1302,13 +1302,16 @@ class Fparser2Reader(object):
                      list(explicit_private_symbols)):
             if name not in parent.symbol_table:
                 _is_public = name in explicit_public_symbols
-                # TODO 736 Ideally we would perform a validation check here that
-                # there is a possible source for this previously-unseen symbol.
-                # However, we cannot yet do this because we don't
-                # capture symbols for routine names.
-
-                # TODO this should probably use parent.find_or_create() but
-                # that's not on master yet.
+                # TODO 736 Ideally we would use parent.find_or_create_symbol()
+                # here since that checks that there is a possible source for
+                # this previously-unseen symbol. However, we cannot yet do this
+                # because we don't capture symbols for routine names so
+                # that, e.g.:
+                #   module my_mod
+                #     public my_routine
+                #   contains
+                #     subroutine my_routine()
+                # would cause us to raise an exception.
                 parent.symbol_table.add(Symbol(name, public=_is_public))
 
         try:
