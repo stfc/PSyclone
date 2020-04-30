@@ -2901,14 +2901,15 @@ class DynRunTimeChecks(DynCollection):
                              funcnames=READ_ONLY_FUNCTION_SPACES))
 
     def _check_field_fs(self, parent):
-        ''' xxx '''
+        '''Internal method that adds runtime checks to make sure that the
+        field's function space is consistent with the appropriate
+        kernel metadata function spaces.
 
-        # infrastructure/source/function_space/fs_continuity_mod.F90
-        # use fs_continuity_mod, only: W0, W1, W2, W2V, W2H, W2broken, W2trace, W3, Wtheta, Wchi
-        # infrastructure/source/field/argument_mod.F90
-        # use argument_mod, only : ANY_SPACE_{1..10},
-        #     ANY_DISCONTINUOUS_SPACE+{1..10}, ANY_W2
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        '''
         if not self._invoke.unique_proxy_declarations(datatype="gh_field"):
             # There are no fields in this invoke so there is nothing
             # to check.
@@ -2927,44 +2928,61 @@ class DynRunTimeChecks(DynCollection):
         existing_checks = []
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
-                if arg.type == "gh_field":
-                    fs_name = arg.function_space.orig_name
-                    field_name = arg.proxy_name
-                    if fs_name in VALID_ANY_SPACE_NAMES:
-                        # We con't need to check validity of a fields
-                        # function space if the metadata specifies
-                        # any_space as this means that all spaces are
-                        # valid.
-                        continue
-                    if (fs_name, field_name) in existing_checks:
-                        # This particular combination has already been
-                        # checked.
-                        continue
-                    existing_checks.append((fs_name, field_name))
-                    parent.add(CallGen(
-                        parent, "{0}%valid_function_space('{1}')"
-                        "".format(field_name, fs_name)))
+                if arg.type != "gh_field":
+                    # We only check fields
+                    continue
+                fs_name = arg.function_space.orig_name
+                field_name = arg.proxy_name
+                if fs_name in VALID_ANY_SPACE_NAMES:
+                    # We don't need to check validity of a field's
+                    # function space if the metadata specifies
+                    # any_space as this means that all spaces are
+                    # valid.
+                    continue
+                if (fs_name, field_name) in existing_checks:
+                    # This particular combination has already been
+                    # checked.
+                    continue
+                existing_checks.append((fs_name, field_name))
+                # Temporary info in case we need to map to LFRic infrastructure types.
+                # infrastructure/source/function_space/fs_continuity_mod.F90
+                # use fs_continuity_mod, only: W0, W1, W2, W2V, W2H, W2broken, W2trace, W3, Wtheta, Wchi
+                # infrastructure/source/field/argument_mod.F90
+                # use argument_mod, only : ANY_SPACE_{1..10},
+                #     ANY_DISCONTINUOUS_SPACE+{1..10}, ANY_W2
+                parent.add(CallGen(
+                    parent, "{0}%valid_function_space('{1}')"
+                    "".format(field_name, fs_name)))
 
     def _check_field_ro(self, parent):
-        ''' xxx '''
-        
-        # As we make use of the LFRic infrastructure halo exchange,
-        # there is no need to check whether the halo of a read-only
-        # field is clean (which it should be) as the LFric
-        # halo-exchange will raises an exception if it is called with
-        # a read-only field.
-        
-        # However, it is still useful to check that a kernel does not
-        # modify a read only field as that would only be picked up by a
-        # future LFRic halo exchange, not where the error occured.
+        '''Internal method that adds runtime checks to make sure that if the
+        field is on a read-only function space then the associated
+        kernel metadata does not specify that the field is modified.
 
+        As we make use of the LFRic infrastructure halo exchange
+        function, there is no need to check whether the halo of a
+        read-only field is clean (which it should always be) as the
+        LFric halo-exchange will raise an exception if it is called
+        with a read-only field.
+
+        Whilst the LFRic infrastructure halo exchange would also
+        indirectly pick up a readonly field being modified, it would
+        not be picked up where the error occured. Therefore adding
+        checks here is still useful.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         # When issue #753 is addressed (with isue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
         # generation time).
 
-        # Create a list of fields that are modified in the invoke.
+        # Create a list of modified fields by creating a union of all
+        # fields with accesses that modify the field.
         modified_field_set = set()
         modified_field_set.update(self._invoke.unique_proxy_declarations(
             datatype="gh_field", access=AccessType.WRITE))
@@ -2989,11 +3007,14 @@ class DynRunTimeChecks(DynCollection):
             parent.add(if_then)
 
     def initialise(self, parent):
-        '''
-        Insert code into the PSy layer to initialise all necessary proxies.
+        '''Add runtime checks to make sure that the arguments being passed
+        from the algorithm layer are consistent with the metadata
+        specified in the associated kernels. Currently checks are
+        limited to ensuring that field function spaces are consistent
+        with the associated kernel function space metadata.
 
-        :param parent: node in the f2pygen AST representing the PSy-layer \
-                       routine.
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
