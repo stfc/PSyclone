@@ -2272,7 +2272,7 @@ def test_handling_unaryopbase():
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
-        reader = FortranStringReader("x=" + opstring +"4")
+        reader = FortranStringReader("x=" + opstring + "4")
         fp2unaryop = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()

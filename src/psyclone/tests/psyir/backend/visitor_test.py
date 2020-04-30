@@ -259,6 +259,7 @@ def test_psyirvisitor_visit_return_node():
             "attempted were ['return_node', 'statement_node', 'node_node']."
             ""in str(excinfo.value))
 
+
 def test_reference():
     '''Test that the common reference visitor writes the referenced symbol name
     or raises an error if the node is not Leaf node reference.
