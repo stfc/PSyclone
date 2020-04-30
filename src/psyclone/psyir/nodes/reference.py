@@ -135,7 +135,7 @@ class Array(Reference):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "*[DataNode | Range]"
+    _children_valid_format = "[DataNode | Range]*"
     _text_name = "ArrayReference"
 
     @staticmethod

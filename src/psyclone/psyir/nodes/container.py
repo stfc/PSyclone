@@ -56,7 +56,7 @@ class Container(Node):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "*[Container | KernelSchedule | InvokeSchedule]"
+    _children_valid_format = "[Container | KernelSchedule | InvokeSchedule]*"
     _text_name = "Container"
     _colour_key = "Container"
 

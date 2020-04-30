@@ -328,7 +328,7 @@ class NaryOperation(Operation):
     is held in an attribute.
     '''
     # Textual description of the node.
-    _children_valid_format = "+[DataNode]"
+    _children_valid_format = "[DataNode]+"
     _text_name = "NaryOperation"
 
     Operator = Enum('Operator', [
