@@ -436,7 +436,9 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):
     ''' Test when we have a single invoke containing a chain of
-    restrictions and prolongations '''
+    restrictions and prolongations.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2_intergrid_3levels.f90"),
                            api=API)
@@ -651,8 +653,9 @@ def test_no_stub_gen():
 
 def test_restrict_prolong_chain_anyd(tmpdir):
     ''' Test that we generate correct code for an invoke containing a
-    chain of discontinuous restrictions and continuous prolongations '''
+    chain of discontinuous restrictions and continuous prolongations.
 
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2.1_intergrid_3levels_anyd.f90"),
                            api=API)

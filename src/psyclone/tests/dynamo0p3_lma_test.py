@@ -280,7 +280,9 @@ def test_operator():
 
 def test_operator_different_spaces(tmpdir):
     ''' Tests that an operator with different to and from spaces is
-    implemented correctly in the PSy layer '''
+    implemented correctly in the PSy layer.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
                            api=TEST_API)
@@ -642,9 +644,11 @@ def test_operator_read_level1_halo():
 
 
 def test_operator_bc_kernel(tmpdir):
-    ''' Tests that a kernel with a particular name is recognised as a
-    kernel that applies boundary conditions to operators and that
-    appropriate code is added to support this. '''
+    ''' Tests that a kernel with a particular name is recognised as
+    a kernel that applies boundary conditions to operators and that
+    appropriate code is added to support this.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
@@ -760,7 +764,9 @@ end module dummy_mod
 
 
 def test_operators():
-    ''' Test that operators are handled correctly for kernel stubs '''
+    ''' Test that operators are handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -839,7 +845,9 @@ end module dummy_mod
 def test_stub_operator_different_spaces():
     ''' Test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on
-    different spaces '''
+    different spaces.
+
+    '''
     # Check the original code (to- and from- spaces both continuous)
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)

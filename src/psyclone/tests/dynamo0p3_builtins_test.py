@@ -362,10 +362,10 @@ def test_dynbuiltfactory_str():
 
 
 def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXPlusYKern returns the expected
+    ''' Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
-    where X and Y are fields. Also check that we generate correct
-    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True
+    where X and Y are fields. Also check that we generate correct bounds
+    when Config.api_conf(API)._compute_annexed_dofs is False and True.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -381,6 +381,9 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Add fields"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         # The value of _compute_annexed_dofs should make no difference
         output = (
@@ -419,13 +422,11 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-
-def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in X
-    = X + Y where X and Y are fields. Test with and without annexed
+def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    X = X + Y where X and Y are fields. Test with and without annexed
     dofs being computed as this affects the generated code.
 
     '''
@@ -442,6 +443,9 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Increment field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
@@ -471,12 +475,12 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynAXPlusYKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynAXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -492,6 +496,8 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: aX_plus_Y"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -541,8 +547,8 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncAXPlusYKern returns the
+def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + Y where 'a' is a scalar and X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -561,6 +567,8 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: inc_aX_plus_Y"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -609,8 +617,8 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPlusBYKern returns the
+def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X + b*Y where 'b' is a scalar and X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -629,6 +637,8 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: inc_X_plus_bY"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -677,8 +687,8 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynAXPlusBYKern returns the
+def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + b*Y where 'a' and 'b' are scalars and Z, X and
     Y are fields. Test with and without annexed dofs being computed as
@@ -697,6 +707,8 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: aX_plus_bY"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -746,8 +758,8 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncAXPlusBYKern returns the
+def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + b*Y where 'a' and 'b' are scalars and X and Y
     are fields. Test with and without annexed dofs being computed as
@@ -767,6 +779,8 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: inc_aX_plus_bY"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -818,12 +832,11 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
 # ------------- Subtracting (scaled) fields --------------------------------- #
 
 
-def test_X_minus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXMinusYKern returns the expected
+def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXMinusYKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Z = X - Y where Z, X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated
-    code.
+    Z = X - Y where Z, X and Y are fields. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -838,6 +851,8 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Subtract fields"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -876,12 +891,11 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXMinusYKern returns the
+def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are fields. Test with and
-    without annexed dofs being computed as this affects the generated
-    code.
+    operation X = X - Y where X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -896,6 +910,8 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Decrement field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -931,8 +947,8 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynAXMinusYKern returns the
+def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -951,6 +967,8 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: aX_minus_Y"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1000,8 +1018,8 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_X_minus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXMinusBYKern returns the
+def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -1020,6 +1038,8 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: X_minus_bY"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1069,12 +1089,12 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXMinusBYKern returns the
+def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - b*Y where 'b' is a scalar and X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation X = X - b*Y where 'b' is a scalar and X and Y are fields.
+    Test with and without annexed dofs being computed as this affects
+    the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1089,6 +1109,8 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: inc_X_minus_bY"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1140,11 +1162,11 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
 # ------------- Multiplying (scaled) fields --------------------------------- #
 
 
-def test_X_times_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXTimesYKern returns the expected
+def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXTimesYKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Z = X*Y where Z, X and Y are fields. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    Z = X*Y where Z, X and Y are fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1159,6 +1181,8 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Multiply fields"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1203,12 +1227,11 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXTimesYKern returns the
+def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X*Y where X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated
-    code.
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1224,6 +1247,8 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Multiply field by another"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1261,8 +1286,8 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncAXTimesYKern returns the
+def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X*Y where 'a' is a scalar and X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -1281,6 +1306,8 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: inc_aX_times_Y"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1332,12 +1359,11 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
 # ------------- Scaling fields (multiplying by a scalar --------------------- #
 
 
-def test_a_times_X(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynATimesXKern returns the expected
+def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynATimesXKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Y = a*X where 'a' is a scalar and X and Y are fields. Test with
-    and without annexed dofs being computed as this affects the
-    generated code.
+    Y = a*X where 'a' is a scalar and X and Y are fields. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1353,6 +1379,8 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Copy scaled field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1388,8 +1416,8 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncATimesXKern returns the
+def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X where 'a' is a scalar and X is a field. Test
     with and without annexed dofs being computed as this affects the
@@ -1409,6 +1437,8 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Scale a field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1462,12 +1492,11 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
 # ------------- Dividing (scaled) fields ------------------------------------ #
 
 
-def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXDividebyYKern returns the
+def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X/Y where Z, X and Y are fields. Test with and
-    without annexed dofs being computed as this affects the generated
-    code.
+    operation Z = X/Y where Z, X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1482,6 +1511,8 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Divide fields"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1520,8 +1551,8 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXDividebyYKern returns the
+def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X/Y where X and Y are fields. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -1539,6 +1570,8 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Divide one field by another"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1579,8 +1612,8 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
 # ------------- Raising field to a scalar ----------------------------------- #
 
 
-def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPowrealAKern returns the
+def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
     field. Test with and without annexed dofs being computed as this
@@ -1600,6 +1633,8 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: raise a field to a real power"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1630,7 +1665,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPowintNKern returns the
+    ''' Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
     field. Also test with and without annexed dofs being computed as
@@ -1684,12 +1719,11 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Setting field elements to a value --------------------------- #
 
 
-def test_setval_c(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynSetvalCKern returns the expected
+def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynSetvalCKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    X = c where 'c' is a constant scalar value and X is a field. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+    X = c where 'c' is a constant scalar value and X is a field. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1704,6 +1738,8 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Set field to a scalar value"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1747,8 +1783,8 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_setval_X(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynSetvalXKern returns the expected
+def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynSetvalXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = X where X and Y are fields. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1766,6 +1802,8 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Set a field equal to another field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1816,7 +1854,9 @@ def test_X_innerproduct_Y(dist_mem):
     ''' Test that 1) the str method of DynXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of fields X and Y as
-    innprod = innprod + X(:)*Y(:) '''
+    innprod = innprod + X(:)*Y(:).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.1_X_innerproduct_Y_builtin.f90"),
@@ -1882,7 +1922,9 @@ def test_X_innerproduct_X(dist_mem):
     ''' Test that 1) the str method of DynXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of a field X by itself as
-    innprod = innprod + X(:)*X(:) '''
+    innprod = innprod + X(:)*X(:).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.2_X_innerproduct_X_builtin.f90"),
@@ -1947,9 +1989,11 @@ def test_X_innerproduct_X(dist_mem):
 
 
 def test_sum_X(dist_mem):
-    ''' Test that 1) the str method of DynSumXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation which sums elements of a field X as sumfld = sum(X(:)) '''
+    ''' Test that 1) the str method of DynSumXKern returns the expected
+    string and 2) we generate correct code for the built-in operation which
+    sums elements of a field X as sumfld = sum(X(:)).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.8.1_sum_X_builtin.f90"), api=API)
@@ -2047,9 +2091,9 @@ def test_X_times_Y_deduce_space(dist_mem):
 
 
 def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code for a serial builtin setval_c
-    operation with a scalar passed by value. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    ''' Tests that we generate correct code for a serial builtin setval_c
+    operation with a scalar passed by value. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -2108,8 +2152,8 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code for the builtin operation Z =
-    a*X + Y when a scalar is passed by value. Also test with and
+    ''' Test that we generate correct code for the builtin operation
+    Z = a*X + Y when a scalar is passed by value. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
 
@@ -2173,9 +2217,9 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code for the builtin operation Z =
-    a*X + b*Y when scalars 'a' and 'b' are passed by value. Test with
-    and without annexed dofs being computed as this affects the
+    ''' Test that we generate correct code for the builtin operation
+    Z = a*X + b*Y when scalars 'a' and 'b' are passed by value. Test
+    with and without annexed dofs being computed as this affects the
     generated code.
 
     '''
@@ -2241,7 +2285,7 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code when we have an invoke
+    ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations. Test with and without annexed
     dofs being computed as this affects the generated code.
 
@@ -2334,7 +2378,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code for a builtin set operation
+    ''' Tests that we generate correct code for a builtin set operation
     when the invoke also contains a normal kernel. Test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2436,7 +2480,7 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
-    '''Test that multiple builtins, including one with reductions, produce
+    ''' Test that multiple builtins, including one with reductions, produce
     correct code. Also test with and without annexed dofs being
     computed as this affects the generated code.
 

@@ -465,7 +465,9 @@ def test_unecessary_shape():
 
 def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
-    no distributed memory, produces correct code.'''
+    no distributed memory, produces correct code.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -542,7 +544,9 @@ def test_field(tmpdir):
 def test_field_deref(tmpdir, dist_mem):
     ''' Tests that a call with a set of fields (some obtained by
     de-referencing derived types) and no basis functions produces
-    correct code.'''
+    correct code.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.13_single_invoke_field_deref.f90"),
                            api=TEST_API)
@@ -667,7 +671,9 @@ def test_field_deref(tmpdir, dist_mem):
 
 def test_field_fs(tmpdir):
     ''' Tests that a call with a set of fields making use of all
-    function spaces and no basis functions produces correct code '''
+    function spaces and no basis functions produces correct code.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -870,7 +876,9 @@ def test_field_fs(tmpdir):
 
 def test_real_scalar(tmpdir):
     ''' Tests that we generate correct code when a kernel takes a single,
-    real scalar argument (plus fields)'''
+    real scalar argument (plus fields).
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
@@ -953,8 +961,10 @@ def test_real_scalar(tmpdir):
 
 
 def test_int_scalar(tmpdir):
-    ''' tests that we generate correct code when a kernel takes a single,
-    integer scalar argument (plus fields) '''
+    ''' Tests that we generate correct code when a kernel takes a single,
+    integer scalar argument (plus fields).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.6.1_single_invoke_1_int_scalar.f90"),
@@ -1040,8 +1050,10 @@ def test_int_scalar(tmpdir):
 
 
 def test_two_real_scalars(tmpdir):
-    ''' tests that we generate correct code when a kernel has two real,
-    scalar arguments '''
+    ''' Tests that we generate correct code when a kernel has two real,
+    scalar arguments.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.9_single_invoke_2_real_scalars.f90"),
@@ -1126,8 +1138,10 @@ def test_two_real_scalars(tmpdir):
 
 
 def test_two_int_scalars(tmpdir):
-    ''' tests that we generate correct code when a kernel has two integer,
-    scalar arguments '''
+    ''' Tests that we generate correct code when a kernel has two integer,
+    scalar arguments.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.6_single_invoke_2_int_scalars.f90"),
                            api=TEST_API)
@@ -1218,8 +1232,10 @@ def test_two_int_scalars(tmpdir):
 
 
 def test_two_scalars(tmpdir):
-    ''' tests that we generate correct code when a kernel has two scalar
-    arguments, one real and one integer '''
+    ''' Tests that we generate correct code when a kernel has two scalar
+    arguments, one real and one integer.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1381,7 +1397,9 @@ def test_orientation():
 def test_any_space_1(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
-    and func_type basis functions on any_space. '''
+    and func_type basis functions on any_space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1416,7 +1434,9 @@ def test_any_space_1(tmpdir):
 def test_any_space_2(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes multiple declarations of the same space, no
-    func_type declarations and any_space used with an operator. '''
+    func_type declarations and any_space used with an operator.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.1_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1439,9 +1459,10 @@ def test_any_space_2(tmpdir):
 
 
 def test_op_any_space_different_space_1(tmpdir):
-    ''' Tests that any_space is implemented correctly in the PSy
-    layer. Includes different spaces for an operator and no other
-    fields.'''
+    ''' Tests that any_space is implemented correctly in the PSy layer.
+    Includes different spaces for an operator and no other fields.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1455,7 +1476,9 @@ def test_op_any_space_different_space_1(tmpdir):
 
 def test_op_any_space_different_space_2(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
-    layer in a more complicated example. '''
+    layer in a more complicated example.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1485,7 +1508,9 @@ def test_op_any_discontinuous_space_1(tmpdir):
     ''' Tests that any_discontinuous_space is implemented correctly
     in the PSy layer. Includes multiple declarations of the same space,
     field vectors and any_discontinuous_space used with operators
-    (same and different "to" and "from" spaces). '''
+    (same and different "to" and "from" spaces).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
         api=TEST_API)
@@ -1517,7 +1542,9 @@ def test_op_any_discontinuous_space_1(tmpdir):
 def test_op_any_discontinuous_space_2(tmpdir):
     ''' Tests that any_discontinuous_space is implemented correctly in the
     PSy layer when including multiple spaces, operators on same and different
-    "to" and "from" spaces) and basis/differential basis functions. '''
+    "to" and "from" spaces) and basis/differential basis functions.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11.5_any_discontinuous_space.f90"),
         api=TEST_API)
@@ -1711,7 +1738,9 @@ def test_dyninvoke_arg_for_fs():
 def test_kernel_specific(tmpdir):
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
-    conditions are now explicity specified in the Algorithm as required. '''
+    conditions are now explicity specified in the Algorithm as required.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1745,9 +1774,12 @@ def test_kernel_specific(tmpdir):
 
 
 def test_multi_kernel_specific(tmpdir):
-    '''Test that a call to enforce boundary conditions is *not* added following
-    multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
-    must now be explicitly specified as part of the Algorithm. '''
+    ''' Test that a call to enforce boundary conditions is *not* added
+    following multiple calls to the matrix_vector_kernel_type kernel.
+    Boundary conditions must now be explicitly specified as part of the
+    Algorithm.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.3_multi_kernel_specific.f90"),
                            api=TEST_API)
@@ -1814,7 +1846,9 @@ def test_field_bc_kernel(tmpdir):
     know about boundary conditions but this kernel requires them. This
     "hack" is only supported to get PSyclone to generate correct code
     for the current implementation of dynamo. Future API's will not
-    support any hacks. '''
+    support any hacks.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -1831,8 +1865,8 @@ def test_field_bc_kernel(tmpdir):
 
 
 def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
-    '''Tests that the recognised boundary-condition kernel is rejected if
-    it has an operator as argument instead of a field. Test with and
+    ''' Tests that the recognised boundary-condition kernel is rejected
+    if it has an operator as argument instead of a field. Test with and
     without annexed as different numbers of halo exchanges are
     produced.
 
@@ -1870,8 +1904,8 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
 
 
 def test_bc_kernel_anyspace1_only():
-    '''Tests that the recognised boundary-condition kernel is rejected if
-    its argument is not specified as being on ANY_SPACE_1.
+    ''' Tests that the recognised boundary-condition kernel is rejected
+    if its argument is not specified as being on ANY_SPACE_1.
 
     '''
     from psyclone.dynamo0p3 import DynBoundaryConditions
@@ -1991,8 +2025,9 @@ def test_multikern_invoke_oper():
 
 def test_2kern_invoke_any_space(tmpdir):
     ''' Test correct code is generated when there are just two same
-    kernels within an invoke with kernel fields declared as
-    any_space. '''
+    kernels within an invoke with kernel fields declared as any_space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.1_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2018,8 +2053,9 @@ def test_2kern_invoke_any_space(tmpdir):
 
 def test_multikern_invoke_any_space(tmpdir):
     ''' Test that we generate correct code when there are multiple
-    kernels within an invoke with kernel fields declared as
-    any_space.  '''
+    kernels within an invoke with kernel fields declared as any_space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2059,8 +2095,9 @@ def test_multikern_invoke_any_space(tmpdir):
 
 def test_mkern_invoke_multiple_any_spaces(tmpdir):
     ''' Test that we generate correct code when there are multiple
-    kernels within an invoke with kernel fields declared as
-    any_space.  '''
+    kernels within an invoke with kernel fields declared as any_space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2681,7 +2718,9 @@ def test_arg_desc_func_space_tofrom_err():
 
 def test_unrecognised_fspace_error():
     ''' Tests that an error is raised in FunctionSpace initialisation when
-    an unrecognised function space is supplied. '''
+    an unrecognised function space is supplied.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2696,7 +2735,9 @@ def test_unrecognised_fspace_error():
 
 def test_mangle_no_space_error():
     ''' Tests that an error is raised in FunctionSpace.mangled_name when
-    none of the provided kernel arguments are on the specified space. '''
+    none of the provided kernel arguments are on the specified space.
+
+    '''
     from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
@@ -2712,7 +2753,9 @@ def test_mangle_no_space_error():
 
 def test_mangle_function_space():
     ''' Tests that we correctly mangle the function space name, including
-    the creation of its short name. '''
+    the creation of its short name.
+
+    '''
     # Test any_space
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5.2_multikernel_invokes.f90"),
@@ -2742,7 +2785,9 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space. '''
+    any_space or any_discontinuous_space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
@@ -2824,7 +2869,9 @@ def test_func_descriptor_str():
 
 def test_dynkern_arg_for_fs():
     ''' Test that DynInvoke.arg_for_funcspace() raises an error if
-    passed an invalid function space. '''
+    passed an invalid function space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3972,8 +4019,10 @@ def test_multiple_stencil_same_name(dist_mem):
 
 
 def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
-    '''test the case where there is more than one stencil in a kernel with
-    the same name for direction'''
+    ''' Test the case where there is more than one stencil in a kernel
+    with the same name for direction.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90"),
         api=TEST_API)
@@ -4526,13 +4575,15 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
 
 
 def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
-    '''This is a test for stencils and any_space within a single kernel
+    ''' This is a test for stencils and any_space within a single kernel
     and between kernels. We test when any_space is the same and when
     it is different within kernels and between kernels for the case of
     different fields. When it is the same we should have the same
     stencil dofmap (as all other stencil information is the same) and
     when it is different we should have a different stencil dofmap (as
-    we do not know whether they are on the same space). '''
+    we do not know whether they are on the same space).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.18_anyspace_stencil_1.f90"),
@@ -4579,14 +4630,16 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
 
 @pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
 def test_multi_kernel_any_space_stencil_1(dist_mem):
-    '''This is a test for stencils and any_space with two kernels. We test
+    ''' This is a test for stencils and any_space with two kernels. We test
     when any_space is the same and when it is different for the same
     field. In our example we should have a single dofmap. However, at
     the moment we produce two. This is valid but not optimal. It is
     not a big deal at the moment as the Met Office do not plan to use
     any_space but it should be able to be fixed when we get dependence
     analysis within invokes working. Therefore making it xfail for the
-    moment. '''
+    moment.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.19_anyspace_stencil_2.f90"),
@@ -4627,7 +4680,9 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     When it is the same we should have the same stencil dofmap
     (as all other stencil information is the same) and when it is
     different we should have a different stencil dofmap (as we do not
-    know whether they are on the same space). '''
+    know whether they are on the same space).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.24_any_discontinuous_space_stencil.f90"),
@@ -5185,7 +5240,9 @@ def test_itn_space_fld_and_op_writers(tmpdir):
 def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
     ''' Check that generated loop over cells has correct upper
     bound when a kernel writes to fields on any_space (continuous)
-    and any_discontinuous_space. '''
+    and any_discontinuous_space.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.5.3_single_invoke_write_any_anyd_space.f90"),
@@ -5211,7 +5268,9 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
 
 def test_itn_space_any_w2trace(dist_mem, tmpdir):
     ''' Check generated loop over cells has correct upper bound when a
-    kernel writes to fields on any_space and W2trace (both continuous). '''
+    kernel writes to fields on any_space and W2trace (both continuous).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
@@ -5400,7 +5459,9 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
 
 def test_multi_anyw2(dist_mem, tmpdir):
     ''' Check generated code works correctly when we have multiple any_w2
-    fields. Particularly check that we only generate a single lookup. '''
+    fields. Particularly check that we only generate a single lookup.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.1_single_invoke_multi_anyw2.f90"),
         api=TEST_API)
@@ -5486,7 +5547,9 @@ def test_anyw2_vectors():
 
 def test_anyw2_operators(dist_mem, tmpdir):
     ''' Check generated code works correctly when we have any_w2 fields
-    with operators. '''
+    with operators.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.4_single_invoke_anyw2_operator.f90"),
         api=TEST_API)

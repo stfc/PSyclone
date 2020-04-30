@@ -642,7 +642,9 @@ def test_cma_asm_cbanded_dofmap_error():
 
 def test_cma_asm(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
-    a kernel that assembles a CMA operator '''
+    a kernel that assembles a CMA operator.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0_cma_assembly.f90"),
@@ -674,7 +676,9 @@ def test_cma_asm(tmpdir, dist_mem):
 
 def test_cma_asm_field(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
-    a kernel that assembles a CMA operator with a field as argument '''
+    a kernel that assembles a CMA operator with a field as argument.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.3_cma_assembly_field.f90"),
@@ -684,15 +688,14 @@ def test_cma_asm_field(tmpdir, dist_mem):
     code = str(psy.gen)
 
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type") \
-        in code
+            "columnwise_operator_type, columnwise_operator_proxy_type"
+            in code)
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cbanded_map_aspc1_afield(:,:) => null(), "
-            "cbanded_map_aspc2_lma_op1(:,:) => null()") \
-        in code
+            "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
@@ -714,7 +717,9 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a scalar as argument. The
     name of the scalar is deliberately chosen to provoke a clash with the
-    name generated for one of the CMA parameters. '''
+    name generated for one of the CMA parameters.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0.1_cma_assembly_scalar.f90"),
@@ -724,14 +729,14 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     code = str(psy.gen)
 
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type") \
-        in code
+            "columnwise_operator_type, columnwise_operator_proxy_type"
+            in code)
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cbanded_map_aspc1_lma_op1(:,:) => null(), "
-            "cbanded_map_aspc2_lma_op1(:,:) => null()") in code
+            "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
@@ -752,7 +757,9 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a field as argument.
     In this case the fs_from and fs_to spaces of the operator are the
-    same so we only need to pass in one banded dofmap. '''
+    same so we only need to pass in one banded dofmap.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.4_cma_assembly_field_same_fs.f90"),
@@ -762,14 +769,14 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     code = str(psy.gen)
 
     assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type") \
-        in code
+            "columnwise_operator_type, columnwise_operator_proxy_type"
+            in code)
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-    assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" \
-        in code
+    assert ("TYPE(columnwise_operator_type), intent(in) :: cma_op1"
+            in code)
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
-            "cbanded_map_aspc2_lma_op1(:,:) => null()\n") in code
+            "cbanded_map_aspc2_lma_op1(:,:) => null()\n" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
@@ -819,8 +826,10 @@ def test_cma_apply_indirection_dofmap_error():
 
 
 def test_cma_apply(tmpdir, dist_mem):
-    ''' Test that we generate correct code for
-    a kernel that applies a CMA operator '''
+    ''' Test that we generate correct code for a kernel that applies
+    a CMA operator.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),
@@ -834,8 +843,7 @@ def test_cma_apply(tmpdir, dist_mem):
     assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_aspc1_"
             "field_a(:) => null(), "
-            "cma_indirection_map_aspc2_field_b(:) => null()\n") \
-        in code
+            "cma_indirection_map_aspc2_field_b(:) => null()\n") in code
     assert ("ndf_aspc1_field_a = field_a_proxy%vspace%get_ndf()\n"
             "      undf_aspc1_field_a = field_a_proxy%vspace%"
             "get_undf()") in code
@@ -860,7 +868,9 @@ def test_cma_apply(tmpdir, dist_mem):
 def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     ''' Test that we generate correct code for a kernel that applies a CMA
     operator to fields on discontinuous spaces any_discontinuous_space_1
-    and w2v '''
+    and w2v.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1.2_cma_apply_disc.f90"),
@@ -888,8 +898,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "cma_indirection_map_w2v(:) => null(), "
             "cma_indirection_map_aspc2_field_d(:) => null()\n") in code
     assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
-            "      undf_w2v = field_c_proxy%vspace%"
-            "get_undf()") in code
+            "      undf_w2v = field_c_proxy%vspace%get_undf()") in code
     assert ("cma_indirection_map_w2v => "
             "cma_op2_proxy%indirection_dofmap_to") in code
     if dist_mem:
@@ -916,9 +925,8 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "cma_op2_nrow, cma_op2_ncol, cma_op2_bandwidth, cma_op2_alpha, "
             "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, ndf_w2v, "
             "undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
-            "ndf_aspc2_field_d, undf_aspc2_field_d, "
-            "map_aspc2_field_d(:,cell), cma_indirection_map_aspc2_field_d)"
-            in code)
+            "ndf_aspc2_field_d, undf_aspc2_field_d, map_aspc2_field_d"
+            "(:,cell), cma_indirection_map_aspc2_field_d)") in code
 
     if dist_mem:
         # Check any_discontinuous_space_1
@@ -934,7 +942,9 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
 def test_cma_apply_same_space(dist_mem, tmpdir):
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator which has the same to- and from-
-    spaces '''
+    spaces.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1.1_cma_apply_same_spaces.f90"),
@@ -960,8 +970,7 @@ def test_cma_apply_same_space(dist_mem, tmpdir):
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc2_field_a, undf_aspc2_field_a, "
             "map_aspc2_field_a(:,cell), "
-            "cma_indirection_map_aspc2_field_a)") \
-        in code
+            "cma_indirection_map_aspc2_field_a)") in code
     if dist_mem:
         assert "CALL field_a_proxy%set_dirty()" in code
         assert "cma_op1_proxy%is_dirty(" not in code
@@ -1049,7 +1058,9 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
 
 def test_cma_multi_kernel(tmpdir, dist_mem):
     ''' Test that we generate correct code when an invoke contains multiple
-    kernels with CMA operator arguments '''
+    kernels with CMA operator arguments.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "20.5_multi_cma_invoke.f90"),
         api=TEST_API)
@@ -1149,7 +1160,9 @@ def test_dyndofmap_stubdecln_err():
 
 
 def test_cma_asm_stub_gen():
-    ''' Test the kernel-stub generator for CMA operator assembly '''
+    ''' Test the kernel-stub generator for CMA operator assembly.
+
+    '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_kernel_mod.F90"),
                       api=TEST_API)
@@ -1188,7 +1201,9 @@ def test_cma_asm_stub_gen():
 
 def test_cma_asm_with_field_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly when a
-    field is involved '''
+    field is involved.
+
+    '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_field_kernel_mod.F90"),
                       api=TEST_API)
@@ -1233,7 +1248,9 @@ def test_cma_asm_with_field_stub_gen():
 
 def test_cma_asm_same_fs_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly when the
-    to and from spaces are the same '''
+    to and from spaces are the same.
+
+    '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_same_fs_kernel_mod.F90"),
                       api=TEST_API)
@@ -1273,7 +1290,9 @@ def test_cma_asm_same_fs_stub_gen():
 
 def test_cma_app_stub_gen():
     ''' Test the kernel-stub generator for a CMA apply kernel. This has
-    two fields and one CMA operator as arguments. '''
+    two fields and one CMA operator as arguments.
+
+    '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_kernel_mod.F90"),
                       api=TEST_API)
@@ -1323,7 +1342,9 @@ def test_cma_app_stub_gen():
 def test_cma_app_same_space_stub_gen():
     ''' Test the kernel-stub generator for a CMA apply kernel where the
     to/from function spaces of the CMA operator are the same. This kernel has
-    two fields and one CMA operator as arguments. '''
+    two fields and one CMA operator as arguments.
+
+    '''
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_same_fs_kernel_mod.F90"),
                       api=TEST_API)

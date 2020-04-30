@@ -181,7 +181,9 @@ def test_eval_targets_op_space():
 def test_single_kern_eval(tmpdir):
     ''' Check that we generate correct code for a single kernel that
     requires both basis and differential basis functions for an
-    evaluator '''
+    evaluator.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1_eval_invoke.f90"),
                            api=API)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -596,7 +598,9 @@ def test_two_qr_different_shapes(tmpdir):
 
 def test_anyw2(tmpdir):
     ''' Check generated code works correctly when we have any_w2 fields
-    and basis functions'''
+    and basis functions.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
         api=API)
@@ -909,7 +913,9 @@ def test_two_eval_diff_space(tmpdir):
 def test_two_eval_same_var_same_space(tmpdir):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
-    same space '''
+    same space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.7_2eval_same_var_invoke.f90"),
                            api=API)
@@ -943,7 +949,9 @@ def test_two_eval_same_var_same_space(tmpdir):
 def test_two_eval_op_to_space(tmpdir):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
-    different spaces, one of which is the 'to' space of an operator. '''
+    different spaces, one of which is the 'to' space of an operator.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.5_2eval_op_to_invoke.f90"),
                            api=API)

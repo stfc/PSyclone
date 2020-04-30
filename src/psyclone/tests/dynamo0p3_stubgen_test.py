@@ -445,8 +445,10 @@ end module dummy_mod
 
 
 def test_any_spaces():
-    ''' Test that any_*_space metadata are handled correctly
-    for kernel stubs '''
+    ''' Test that any_space and any_discontinuous_space metadata are handled
+    correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -608,7 +610,9 @@ def test_orientation_stubs():
 
 def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
-    is handled correctly for kernel stubs '''
+    is handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -640,7 +644,9 @@ def test_enforce_bc_kernel_stub_gen():
 
 def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
-    modification is handled correctly for kernel stubs '''
+    modification is handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
