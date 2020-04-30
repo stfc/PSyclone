@@ -2878,6 +2878,142 @@ class DynFields(DynCollection):
                                           fld.function_space.mangled_name]))
 
 
+class DynRunTimeChecks(DynCollection):
+    '''Handle declarations and run-time checks. This is not used in the
+    stub generator.
+
+    '''
+
+    def _invoke_declarations(self, parent):
+        '''
+        Insert declarations of all proxy-related quantities into the PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if Config.get().api_conf("dynamo0.3").run_time_checks:
+            # Only add if run-time checks are requested
+            parent.add(UseGen(parent, name="log_mod", only=True,
+                          funcnames=["log_event", "LOG_LEVEL_ERROR"]))
+            parent.add(UseGen(parent, name="fs_continuity_mod", only=True,
+                             funcnames=READ_ONLY_FUNCTION_SPACES))
+
+    def _check_field_fs(self, parent):
+        ''' xxx '''
+
+        # infrastructure/source/function_space/fs_continuity_mod.F90
+        # use fs_continuity_mod, only: W0, W1, W2, W2V, W2H, W2broken, W2trace, W3, Wtheta, Wchi
+        # infrastructure/source/field/argument_mod.F90
+        # use argument_mod, only : ANY_SPACE_{1..10},
+        #     ANY_DISCONTINUOUS_SPACE+{1..10}, ANY_W2
+
+        if not self._invoke.unique_proxy_declarations(datatype="gh_field"):
+            # There are no fields in this invoke so there is nothing
+            # to check.
+            return
+
+        parent.add(CommentGen(
+            parent, " Check field function space and kernel metadata "
+            "function spaces are compatible"))
+
+        # When issue #753 is addressed (with isue #79 helping further)
+        # we may know some or all field function spaces statically. If
+        # so, we should remove these from the fields to check at run
+        # time (as they will have already been checked at code
+        # generation time).
+
+        existing_checks = []
+        for kern_call in self._invoke.schedule.kernels():
+            for arg in kern_call.arguments.args:
+                if arg.type == "gh_field":
+                    fs_name = arg.function_space.orig_name
+                    field_name = arg.proxy_name
+                    if (fs_name, field_name) in existing_checks:
+                        # This particular combination has already been
+                        # checked.
+                        continue
+                    existing_checks.append((fs_name, field_name))
+                    parent.add(CallGen(
+                        parent, "{0}%valid_function_space('{1}')"
+                        "".format(field_name, fs_name)))
+
+    def _check_field_ro(self, parent):
+        ''' xxx '''
+        
+        # As we make use of the LFRic infrastructure halo exchange,
+        # there is no need to check whether the halo of a read-only
+        # field is clean (which it should be) as the LFric
+        # halo-exchange will raises an exception if it is called with
+        # a read-only field.
+        
+        # However, it is still useful to check that a kernel does not
+        # modify a read only field as that would only be picked up by a
+        # future LFRic halo exchange, not where the error occured.
+
+        # When issue #753 is addressed (with isue #79 helping further)
+        # we may know some or all field function spaces statically. If
+        # so, we should remove these from the fields to check at run
+        # time (as they will have already been checked at code
+        # generation time).
+
+        # Create a list of fields that are modified in the invoke.
+        modified_field_set = set()
+        modified_field_set.update(self._invoke.unique_proxy_declarations(
+            datatype="gh_field", access=AccessType.WRITE))
+        modified_field_set.update(self._invoke.unique_proxy_declarations(
+            datatype="gh_field", access=AccessType.READWRITE))
+        modified_field_set.update(self._invoke.unique_proxy_declarations(
+            datatype="gh_field", access=AccessType.INC))
+        modified_fields = list(modified_field_set)
+
+        if modified_fields:
+            parent.add(CommentGen(parent,
+                                  " Check that read-only fields are not modified"))
+        for field_name in modified_fields:
+            if_clause_list = []
+            for ro_fs in READ_ONLY_FUNCTION_SPACES:
+                if_clause_list.append("{0}%get_function_space() == {1}"
+                                      "".format(field_name, ro_fs))
+            if_clause = " .or. ".join(if_clause_list)
+            if_then = IfThenGen(parent, if_clause)
+            call_abort = CallGen(
+                if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
+                "'{2}' is on a read-only function space but is modified "
+                "by one of the kernels.\", LOG_LEVEL_ERROR)"
+                "".format(self._invoke.invokes.psy._name, self._invoke.name,
+                          field_name))
+            if_then.add(call_abort)
+            parent.add(if_then)
+
+    def initialise(self, parent):
+        '''
+        Insert code into the PSy layer to initialise all necessary proxies.
+
+        :param parent: node in the f2pygen AST representing the PSy-layer \
+                       routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if not Config.get().api_conf("dynamo0.3").run_time_checks:
+            # Run-time checks are not requested.
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Perform run-time checks"))
+        parent.add(CommentGen(parent, ""))
+
+        # Check that a field's function space is compatible with the
+        # function space specified in the kernel metadata.
+        self._check_field_fs(parent)
+
+        # Check a field on a read-only function space is not passed
+        # into a kernel where the kernel metadata specifies that the
+        # field will be modified.
+        self._check_field_ro(parent)
+
+
 class DynProxies(DynCollection):
     '''
     Handles all proxy-related declarations and initialisation. Unlike other
@@ -4809,6 +4945,9 @@ class DynInvoke(Invoke):
         # Information on all proxies required by this Invoke
         self.proxies = DynProxies(self)
 
+        # Run-time checks for this invoke
+        self.run_time_checks = DynRunTimeChecks(self)
+
         # Information required by kernels that iterate over cells
         self.cell_iterators = DynCellIterators(self)
 
@@ -4969,38 +5108,9 @@ class DynInvoke(Invoke):
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
-                         self.reference_element_properties]:
+                         self.reference_element_properties,
+                         self.run_time_checks]:
             entities.declarations(invoke_sub)
-
-        if Config.get().api_conf("dynamo0.3").run_time_checks:
-
-            # Find all fields that are modified in the invoke.
-            # *** if it has an unknown static function space
-            field_set = set()
-            field_set.update(self.unique_proxy_declarations(
-                datatype="gh_field", access=AccessType.WRITE))
-            field_set.update(self.unique_proxy_declarations(
-                datatype="gh_field", access=AccessType.READWRITE))
-            field_set.update(self.unique_proxy_declarations(
-                datatype="gh_field", access=AccessType.INC))
-            field_list = list(field_set)
-            if field_list:
-                invoke_sub.add(CommentGen(invoke_sub, ""))
-                invoke_sub.add(CommentGen(invoke_sub, " Perform run-time checks"))
-                invoke_sub.add(CommentGen(invoke_sub, ""))
-            for field_name in field_list:
-                if_clause_list = []
-                for ro_fs in READ_ONLY_FUNCTION_SPACES:
-                    if_clause_list.append("{0}%get_function_space() == '{1}'"
-                                          "".format(field_name, ro_fs))
-                if_clause = " .or. ".join(if_clause_list)
-                if_then = IfThenGen(invoke_sub, if_clause)
-                call_abort = CallGen(
-                    if_then, "log_event('In invoke XXX field {0} is on a "
-                    "read-only function space but is modified by kernel.', "
-                    "LOG_LEVEL_ERROR)".format(field_name))
-                if_then.add(call_abort)
-                invoke_sub.add(if_then)
 
         # Initialise all quantities required by this PSy routine (invoke)
 
@@ -5025,14 +5135,16 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
                                      rhs=omp_function_name+"()"))
 
-        for entities in [self.proxies, self.cell_iterators, self.meshes,
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties]:
             entities.initialise(invoke_sub)
 
-        # Now that everything is initialised, we can call our kernels
+        # Now that everything is initialised and checked, we can call
+        # our kernels
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if Config.get().distributed_memory:

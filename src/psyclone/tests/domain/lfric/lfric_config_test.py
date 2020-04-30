@@ -85,11 +85,13 @@ def clear_config_instance():
     Config._instance = None
 
 
-def test_no_mandatory_option(tmpdir):
+@pytest.mark.parametrize("option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
+                                    "default_kind", "RUN_TIME_CHECKS"])
+def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
 
-    content = re.sub(r"^default_kind = .*$", "",
+    content = re.sub(r"^{0} = .*$".format(option), "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config_dyn")
@@ -165,6 +167,27 @@ def test_invalid_default_kind(tmpdir):
                 in str(err.value))
 
 
+def test_access_mapping():
+    '''Check that we load the expected default access mapping values'''
+    from psyclone.core.access_type import AccessType
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.get_access_mapping()["gh_read"] == AccessType.READ
+    assert api_config.get_access_mapping()["gh_write"] == AccessType.WRITE
+    assert (api_config.get_access_mapping()["gh_readwrite"] ==
+            AccessType.READWRITE)
+    assert api_config.get_access_mapping()["gh_inc"] == AccessType.INC
+    assert api_config.get_access_mapping()["gh_sum"] == AccessType.SUM
+
+
+def test_compute_annexed_dofs():
+    '''Check that we load the expected default COMPUTE_ANNEXED_DOFS
+    value
+
+    '''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.compute_annexed_dofs == False
+
+
 def test_default_kind():
     ''' Check that we load correct default kinds (precisions) for all
     datatypes. This test will be modified to test whether the default
@@ -174,3 +197,11 @@ def test_default_kind():
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
+
+
+def test_run_time_checks():
+    '''Check that we load the expected default RUN_TIME_CHECKS value'''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.run_time_checks == True
+
+
