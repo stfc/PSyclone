@@ -62,7 +62,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 from psyclone.f2pygen import IfThenGen, CallGen, CommentGen, DirectiveGen, \
     ModuleGen, SubroutineGen, UseGen, AssignGen, CallGen, DoGen, DeclGen, \
-    AllocateGen, TypeDeclGen
+    AllocateGen, TypeDeclGen, DeallocateGen
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -2897,8 +2897,6 @@ class DynRunTimeChecks(DynCollection):
             # Only add if run-time checks are requested
             parent.add(UseGen(parent, name="log_mod", only=True,
                           funcnames=["log_event", "LOG_LEVEL_ERROR"]))
-            parent.add(UseGen(parent, name="fs_continuity_mod", only=True,
-                             funcnames=READ_ONLY_FUNCTION_SPACES))
 
     def _check_field_fs(self, parent):
         '''Internal method that adds runtime checks to make sure that the
@@ -2910,10 +2908,10 @@ class DynRunTimeChecks(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        if not self._invoke.unique_proxy_declarations(datatype="gh_field"):
-            # There are no fields in this invoke so there is nothing
-            # to check.
-            return
+        #if not self._invoke.unique_proxy_declarations(datatype="gh_field"):
+        #    # There are no fields in this invoke so there is nothing
+        #    # to check.
+        #    return
 
         parent.add(CommentGen(
             parent, " Check field function space and kernel metadata "
@@ -2932,7 +2930,7 @@ class DynRunTimeChecks(DynCollection):
                     # We only check fields
                     continue
                 fs_name = arg.function_space.orig_name
-                field_name = arg.proxy_name
+                field_name = arg.proxy_name_indexed
                 if fs_name in VALID_ANY_SPACE_NAMES:
                     # We don't need to check validity of a field's
                     # function space if the metadata specifies
@@ -2981,28 +2979,27 @@ class DynRunTimeChecks(DynCollection):
         # time (as they will have already been checked at code
         # generation time).
 
-        # Create a list of modified fields by creating a union of all
-        # fields with accesses that modify the field.
-        modified_field_set = set()
-        modified_field_set.update(self._invoke.unique_proxy_declarations(
-            datatype="gh_field", access=AccessType.WRITE))
-        modified_field_set.update(self._invoke.unique_proxy_declarations(
-            datatype="gh_field", access=AccessType.READWRITE))
-        modified_field_set.update(self._invoke.unique_proxy_declarations(
-            datatype="gh_field", access=AccessType.INC))
-        modified_fields = list(modified_field_set)
-
+        # Create a list of modified fields
+        modified_fields = []
+        for call in self._invoke.schedule.kernels():
+            for arg in call.arguments.args:
+                if (arg.text and arg.type == "gh_field" and \
+                        arg.access != AccessType.READ) and \
+                        not [entry for entry in modified_fields if
+                             entry.name==arg.name]:
+                    modified_fields.append(arg)
         if modified_fields:
             parent.add(CommentGen(
                 parent, " Check that read-only fields are not modified"))
-        for field_name in modified_fields:
-            if_then = IfThenGen(parent, "{0}%is_readonly()".format(field_name))
+        for field in modified_fields:
+            if_then = IfThenGen(
+                parent, "{0}%is_readonly()".format(field.proxy_name_indexed))
             call_abort = CallGen(
                 if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
                 "'{2}' is on a read-only function space but is modified "
                 "by one of the kernels.\", LOG_LEVEL_ERROR)"
                 "".format(self._invoke.invokes.psy._name, self._invoke.name,
-                          field_name))
+                          field.proxy_name))
             if_then.add(call_abort)
             parent.add(if_then)
 

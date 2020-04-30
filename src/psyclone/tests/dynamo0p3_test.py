@@ -6436,3 +6436,170 @@ def test_dynaccenterdatadirective_dataondevice():
     assert directive.data_on_device(None) is None
 
 # Class DynKernelArguments end
+
+
+def test_dyninvoke_runtime(monkeypatch):
+    '''Test that run-time checks are added to the PSy-layer via dyninvoke
+    in the expected way (correct location and correct code).
+
+    '''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected1 = (
+        "      USE testkern_mod, ONLY: testkern_code\n"
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE mesh_mod, ONLY: mesh_type\n")
+    assert expected1 in generated_code
+    expected2 = (
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function "
+        "spaces are compatible\n"
+        "      CALL f1_proxy%valid_function_space('w1')\n"
+        "      CALL f2_proxy%valid_function_space('w2')\n"
+        "      CALL m1_proxy%valid_function_space('w2')\n"
+        "      CALL m2_proxy%valid_function_space('w3')\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (f1_proxy%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_test"
+        "kern_type', field 'f1_proxy' is on a read-only function space but is"
+        " modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Initialise number of layers\n")
+    assert expected2 in generated_code
+
+
+def test_dynruntimechecks_anyspace(monkeypatch):
+    '''Test that run-time checks are not added for fields where the kernel
+    metadata specifies anyspace.
+
+    '''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected1 = (
+        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE mesh_mod, ONLY: mesh_type")
+    assert expected1 in generated_code
+    expected2 = (
+        "      c_proxy(3) = c(3)%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function "
+        "spaces are compatible\n"
+        "      CALL c_proxy(1)%valid_function_space('w0')\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (a_proxy%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'any_space_example' invoke 'invoke_0"
+        "_testkern_any_space_1_type', field 'a_proxy' is on a read-only func"
+        "tion space but is modified by one of the kernels.\", LOG_LEVEL_ERROR"
+        ")\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Initialise number of layers\n")
+    assert expected2 in generated_code
+
+
+def test_dynruntimechecks_vector(monkeypatch):
+    '''Test that run-time checks work for vector fields'''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected1 = (
+        "      USE testkern_chi_2, ONLY: testkern_code\n"
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE mesh_mod, ONLY: mesh_type\n")
+    assert expected1 in generated_code
+    expected2 = (
+        "      f1_proxy = f1%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function "
+        "spaces are compatible\n"
+        "      CALL chi_proxy(1)%valid_function_space('w0')\n"
+        "      CALL f1_proxy%valid_function_space('w0')\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (chi_proxy(1)%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_tes"
+        "tkern_chi_type', field 'chi_proxy' is on a read-only function spac"
+        "e but is modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      IF (f1_proxy%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_tes"
+        "tkern_chi_type', field 'f1_proxy' is on a read-only function space"
+        " but is modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Initialise number of layers\n")
+    assert expected2 in generated_code
+
+
+def test_dynruntimechecks_multikern(monkeypatch):
+    '''Test that run-time checks work when there are multiple kernels and
+    at least one field is specified as being on the a function space
+    more than once. In this case we want to avoid checking the same
+    thing twice.
+
+    '''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected1 = (
+        "      USE testkern_mod, ONLY: testkern_code\n"
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE mesh_mod, ONLY: mesh_type\n")
+    assert expected1 in generated_code
+    expected2 = (
+        "      f3_proxy = f3%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function "
+        "spaces are compatible\n"
+        "      CALL f1_proxy%valid_function_space('w1')\n"
+        "      CALL f2_proxy%valid_function_space('w2')\n"
+        "      CALL m1_proxy%valid_function_space('w2')\n"
+        "      CALL m2_proxy%valid_function_space('w3')\n"
+        "      CALL f3_proxy%valid_function_space('w2')\n"
+        "      CALL m2_proxy%valid_function_space('w2')\n"
+        "      CALL m1_proxy%valid_function_space('w3')\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (f1_proxy%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
+        "field 'f1_proxy' is on a read-only function space but is modified"
+        " by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Initialise number of layers\n")
+    assert expected2 in generated_code
