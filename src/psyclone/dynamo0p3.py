@@ -78,6 +78,8 @@ DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
 # (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
 # it needs to a) be treated as continuous and b) have vector basis and scalar
 # differential basis dimensions.
+ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
+
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
 # Read-only FS
@@ -2895,6 +2897,7 @@ class DynRunTimeChecks(DynCollection):
         '''
         if Config.get().api_conf("dynamo0.3").run_time_checks:
             # Only add if run-time checks are requested
+            parent.add(UseGen(parent, name="fs_continuity_mod"))
             parent.add(UseGen(parent, name="log_mod", only=True,
                           funcnames=["log_event", "LOG_LEVEL_ERROR"]))
 
@@ -2908,11 +2911,6 @@ class DynRunTimeChecks(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        #if not self._invoke.unique_proxy_declarations(datatype="gh_field"):
-        #    # There are no fields in this invoke so there is nothing
-        #    # to check.
-        #    return
-
         parent.add(CommentGen(
             parent, " Check field function space and kernel metadata "
             "function spaces are compatible"))
@@ -2942,15 +2940,34 @@ class DynRunTimeChecks(DynCollection):
                     # checked.
                     continue
                 existing_checks.append((fs_name, field_name))
-                # Temporary info in case we need to map to LFRic infrastructure types.
-                # infrastructure/source/function_space/fs_continuity_mod.F90
-                # use fs_continuity_mod, only: W0, W1, W2, W2V, W2H, W2broken, W2trace, W3, Wtheta, Wchi
-                # infrastructure/source/field/argument_mod.F90
-                # use argument_mod, only : ANY_SPACE_{1..10},
-                #     ANY_DISCONTINUOUS_SPACE+{1..10}, ANY_W2
-                parent.add(CallGen(
-                    parent, "{0}%valid_function_space('{1}')"
-                    "".format(field_name, fs_name)))
+
+                if fs_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+                    # We need to check against all discontinuous
+                    # function spaces
+                    function_space_names = DISCONTINUOUS_FUNCTION_SPACES
+                elif fs_name == "any_w2":
+                    # We need to check against all any_w2 function
+                    # spaces
+                    function_space_names = ANY_W2_FUNCTION_SPACES
+                else:
+                    # We need to check against a specific function space
+                    function_space_names = [fs_name]
+
+                if_condition = " .and. ".join(
+                    ["{0}%which_function_space() .ne. {1}".format(
+                        field_name, name.upper())
+                     for name in function_space_names])
+                if_then = IfThenGen(parent, if_condition)
+                call_abort = CallGen(
+                    if_then, "log_event(\"In alg '{0}' invoke '{1}', the "
+                    "function space for field '{2}' is not compatible "
+                    "with the kernel metadata function space '{3}' specified "
+                    "in kernel '{4}'.\", LOG_LEVEL_ERROR)"
+                    "".format(self._invoke.invokes.psy._name,
+                              self._invoke.name, arg.proxy_name,
+                              fs_name, kern_call.name))
+                if_then.add(call_abort)
+                parent.add(if_then)
 
     def _check_field_ro(self, parent):
         '''Internal method that adds runtime checks to make sure that if the
