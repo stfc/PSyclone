@@ -75,7 +75,12 @@ def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
-    assert tnode.coloured_name(False) == "Node"
+    # Node is an abstract class
+    with pytest.raises(NotImplementedError) as err:
+        tnode.node_str()
+    assert ("_text_name is an abstract attribute which needs to be given a "
+            "string value in the concrete class 'Node'." in str(err.value))
+
     # Check that we can change the name of the Node and the colour associated
     # with it
     tnode._text_name = "ATest"
@@ -92,11 +97,19 @@ def test_node_str():
     ''' Tests for the Node.node_str method. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
-    # Manually set the colour key for this node to something that will result
-    # in coloured output (if requested *and* termcolor is installed).
+    # Node is an abstract class
+    with pytest.raises(NotImplementedError) as err:
+        tnode.node_str()
+    assert ("_text_name is an abstract attribute which needs to be given a "
+            "string value in the concrete class 'Node'." in str(err.value))
+
+    # Manually set the _text_name and _colour_key for this node to something
+    # that will result in coloured output (if requested *and* termcolor is
+    # installed).
+    tnode._text_name = "FakeName"
     tnode._colour_key = "Loop"
-    assert tnode.node_str(False) == "Node[]"
-    assert tnode.node_str(True) == colored("Node",
+    assert tnode.node_str(False) == "FakeName[]"
+    assert tnode.node_str(True) == colored("FakeName",
                                            SCHEDULE_COLOUR_MAP["Loop"]) + "[]"
 
 

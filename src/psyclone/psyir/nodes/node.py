@@ -264,10 +264,13 @@ class Node(object):
     START_POSITION = 0
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
-    # Textual description of the node.
-    _children_valid_format = "<abstract node - re-implement in subclass>"
-    _text_name = "Node"
-    _colour_key = "Node"
+    # Textual description of the node. (Set up with None since this is
+    # an abstract class, subclasses need to initialize them with strings.)
+    # In python >= 3 this can be better implemented by creating @classmethod
+    # properties for each of them and chain the ABC @abstractmethod annotation.
+    _children_valid_format = None
+    _text_name = None
+    _colour_key = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
         self._children = ChildrenList(self, self._validate_child,
@@ -326,6 +329,11 @@ class Node(object):
         :returns: the name of this node, optionally with colour control codes.
         :rtype: str
         '''
+        if not self._text_name:
+            raise NotImplementedError(
+                "_text_name is an abstract attribute which needs to be "
+                "given a string value in the concrete class '{0}'."
+                "".format(type(self).__name__))
         if colour:
             try:
                 return colored(self._text_name,
