@@ -666,7 +666,9 @@ def test_field_deref(tmpdir, dist_mem):
 
 def test_field_fs(tmpdir):
     ''' Tests that a call with a set of fields making use of all
-    function spaces and no basis functions produces correct code '''
+    function spaces and no basis functions produces correct code.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -683,27 +685,28 @@ def test_field_fs(tmpdir):
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, m5, m6)\n"
+        "m3, m4, f5, f6, m5, m6, m7)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
-        "m4, f5, m5, m6\n"
+        "m4, f5, f6, m5, m6, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
-        "m5_proxy, m6_proxy\n"
+        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_any_w2(:,:) => null(), "
-        "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => null(), "
-        "map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
-        "map_w2trace(:,:) => null(), map_w2v(:,:) => null(), "
-        "map_w3(:,:) => null(), map_wchi(:,:) => null(), "
-        "map_wtheta(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, "
-        "ndf_w0, undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
+        "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => "
+        "null(), map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
+        "map_w2htrace(:,:) => null(), map_w2trace(:,:) => null(), "
+        "map_w2v(:,:) => null(), map_w2vtrace(:,:) => null(), map_w3(:,:) "
+        "=> null(), map_wchi(:,:) => null(), map_wtheta(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, "
+        "undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
         "undf_w2h, ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, "
-        "ndf_w2trace, undf_w2trace, ndf_wchi, undf_wchi, "
-        "ndf_any_w2, undf_any_w2\n"
+        "ndf_w2trace, undf_w2trace, ndf_w2htrace, undf_w2htrace, "
+        "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
+        "undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -718,8 +721,10 @@ def test_field_fs(tmpdir):
         "      m3_proxy = m3%get_proxy()\n"
         "      m4_proxy = m4%get_proxy()\n"
         "      f5_proxy = f5%get_proxy()\n"
+        "      f6_proxy = f6%get_proxy()\n"
         "      m5_proxy = m5%get_proxy()\n"
         "      m6_proxy = m6%get_proxy()\n"
+        "      m7_proxy = m7%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -740,8 +745,10 @@ def test_field_fs(tmpdir):
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2broken => m4_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2trace => f5_proxy%vspace%get_whole_dofmap()\n"
-        "      map_wchi => m5_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_w2 => m6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2htrace => f6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2vtrace => m5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wchi => m6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_w2 => m7_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w1\n"
         "      !\n"
@@ -788,15 +795,25 @@ def test_field_fs(tmpdir):
         "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
         "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise number of DoFs for w2htrace\n"
+        "      !\n"
+        "      ndf_w2htrace = f6_proxy%vspace%get_ndf()\n"
+        "      undf_w2htrace = f6_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2vtrace\n"
+        "      !\n"
+        "      ndf_w2vtrace = m5_proxy%vspace%get_ndf()\n"
+        "      undf_w2vtrace = m5_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Initialise number of DoFs for wchi\n"
         "      !\n"
-        "      ndf_wchi = m5_proxy%vspace%get_ndf()\n"
-        "      undf_wchi = m5_proxy%vspace%get_undf()\n"
+        "      ndf_wchi = m6_proxy%vspace%get_ndf()\n"
+        "      undf_wchi = m6_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Initialise number of DoFs for any_w2\n"
         "      !\n"
-        "      ndf_any_w2 = m6_proxy%vspace%get_ndf()\n"
-        "      undf_any_w2 = m6_proxy%vspace%get_undf()\n"
+        "      ndf_any_w2 = m7_proxy%vspace%get_ndf()\n"
+        "      undf_any_w2 = m7_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
@@ -832,6 +849,10 @@ def test_field_fs(tmpdir):
         "        CALL f5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
+        "      IF (f6_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f6_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
@@ -840,19 +861,25 @@ def test_field_fs(tmpdir):
         "        CALL m6_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
+        "      IF (m7_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m7_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
-        "m3_proxy%data, m4_proxy%data, f5_proxy%data, m5_proxy%data, "
-        "m6_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell), ndf_wtheta, undf_wtheta, map_wtheta(:,cell), "
-        "ndf_w2h, undf_w2h, map_w2h(:,cell), ndf_w2v, undf_w2v, "
-        "map_w2v(:,cell), ndf_w2broken, undf_w2broken, map_w2broken(:,cell), "
-        "ndf_w2trace, undf_w2trace, map_w2trace(:,cell), ndf_wchi, "
-        "undf_wchi, map_wchi(:,cell), ndf_any_w2, undf_any_w2, "
-        "map_any_w2(:,cell))\n"
+        "m3_proxy%data, m4_proxy%data, f5_proxy%data, f6_proxy%data, "
+        "m5_proxy%data, m6_proxy%data, m7_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
+        "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
+        "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
+        "map_w2h(:,cell), ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_w2broken, "
+        "undf_w2broken, map_w2broken(:,cell), ndf_w2trace, undf_w2trace, "
+        "map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
+        "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
         "      END DO\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
@@ -3023,13 +3050,15 @@ def test_no_set_dirty_for_operator():
 def test_halo_exchange_different_spaces(tmpdir):
     ''' Test that all of our different function spaces with a stencil
     access result in halo calls including any_space, any_w2 and
-    any_discontinuous_space '''
+    any_discontinuous_space.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.3_halo_readers_all_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    assert result.count("halo_exchange") == 14
+    assert result.count("halo_exchange") == 16
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5126,7 +5155,9 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
     correct upper bound when a kernel writes to two fields, the first on
     a discontinuous space (w2broken) and the second on a continuous space (w1).
     The resulting loop (when dm=True) must include the L1 halo because of
-    the second field argument which is continuous '''
+    the second field argument which is continuous.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api=TEST_API)
@@ -5206,7 +5237,9 @@ def test_itn_space_any_any_discontinuous(tmpdir):
 
 def test_itn_space_any_w2trace(dist_mem, tmpdir):
     ''' Check generated loop over cells has correct upper bound when a
-    kernel writes to fields on any_space and W2trace (both continuous) '''
+    kernel writes to fields on any_space and W2trace (both continuous).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
@@ -5617,7 +5650,9 @@ def test_arg_discontinuous(monkeypatch, annexed):
     class returns the correct values. Check that the code is generated
     correctly when annexed dofs are and are not computed by default as
     the number of halo exchanges produced is different in the two
-    cases. '''
+    cases.
+
+    '''
 
     # 1) Discontinuous fields return true
     # 1a) Check w3, wtheta and w2v in turn
@@ -5647,20 +5682,24 @@ def test_arg_discontinuous(monkeypatch, annexed):
         assert field.space == fspace
         assert field.discontinuous
 
-    # 1b) w2broken and wchi return true
+    # 1b) w2broken, w2vtrace and wchi return true
     _, info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     if annexed:
-        index = 8
+        index = 12
     else:
-        index = 9
+        index = 13
     kernel = schedule.children[index].loop_body[0]
     # Test w2broken
     field = kernel.arguments.args[7]
     assert field.space == 'w2broken'
+    assert field.discontinuous
+    # Test w2vtrace
+    field = kernel.arguments.args[11]
+    assert field.space == 'w2vtrace'
     assert field.discontinuous
     # Test wchi
     field = kernel.arguments.args[4]
@@ -5707,7 +5746,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
     assert not field.discontinuous
-    # 3b) Test w2trace
+    # 3b) Test w2trace and w2htrace
     _, info = parse(
         os.path.join(BASE_PATH,
                      "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
@@ -5715,12 +5754,17 @@ def test_arg_discontinuous(monkeypatch, annexed):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     if annexed:
-        index = 5
+        index = 6
     else:
-        index = 7
+        index = 8
     kernel = schedule.children[index].loop_body[0]
+    # Test w2trace
     field = kernel.arguments.args[3]
     assert field.space == 'w2trace'
+    assert not field.discontinuous
+    # Test w2htrace
+    field = kernel.arguments.args[7]
+    assert field.space == 'w2htrace'
     assert not field.discontinuous
 
 

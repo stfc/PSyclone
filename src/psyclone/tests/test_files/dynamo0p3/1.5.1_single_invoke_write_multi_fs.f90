@@ -44,10 +44,12 @@ program single_invoke_fs
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
+  type(field_type) :: f1, f2, f3, f4, f5, f6, &
+                      m1, m2, m3, m4, m5, m6
 
-  call invoke(                                                         &
-       testkern_write_w2broken_w1_type(f1, f2, m1, m2, f3, f4, m3, m4) &
+  call invoke(                                                 &
+       testkern_write_w2broken_w1_type(f1, f2, m1, m2, f3, f4, &
+                                       m3, m4, f5, f6, m5, m6) &
              )
 
 end program single_invoke_fs

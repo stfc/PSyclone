@@ -71,10 +71,12 @@ module argument_mod
   integer, public, parameter :: W2H       = 104
   integer, public, parameter :: W2broken  = 105
   integer, public, parameter :: W2trace   = 106
-  integer, public, parameter :: W3        = 107
-  integer, public, parameter :: Wtheta    = 108
-  integer, public, parameter :: Wchi      = 109
-  integer, public, parameter :: ANY_W2    = 110
+  integer, public, parameter :: W2Htrace  = 107
+  integer, public, parameter :: W2Vtrace  = 108
+  integer, public, parameter :: W3        = 109
+  integer, public, parameter :: Wtheta    = 110
+  integer, public, parameter :: Wchi      = 111
+  integer, public, parameter :: ANY_W2    = 112
 
   ! Distinct any_space IDs. Separate IDs required as we may have
   ! groups of fields that must be on the same space within a kernel

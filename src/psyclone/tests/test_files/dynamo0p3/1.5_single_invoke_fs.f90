@@ -43,11 +43,12 @@ program single_invoke_fs
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4, f5, m1, m2, m3, m4, m5, m6
+  type(field_type) :: f1, f2, f3, f4, f5, f6, &
+                      m1, m2, m3, m4, m5, m6, m7
 
-  call invoke(                                  &
-       testkern_fs_type(f1, f2, m1, m2, f3,     &
-                        f4, m3, m4, f5, m5, m6) &
+  call invoke(                                      &
+       testkern_fs_type(f1, f2, m1, m2, f3, f4,     &
+                        m3, m4, f5, f6, m5, m6, m7) &
           )
 
 end program single_invoke_fs
