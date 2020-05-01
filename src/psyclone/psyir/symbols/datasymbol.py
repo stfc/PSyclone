@@ -108,6 +108,12 @@ class DataSymbol(Symbol):
                         "interface points to module '{1}' but could not find "
                         "the definition of '{0}' in that module."
                         "".format(self.name, module.name))
+                if not extern_symbol.is_public:
+                    raise SymbolError(
+                        "Error trying to resolve the properties of symbol "
+                        "'{0}'. The interface points to module '{1}' but the "
+                        "symbol it contains is not public.".format(
+                            self.name, module.name))
                 self.copy_properties(extern_symbol)
                 self.interface = tmp
             else:
@@ -355,7 +361,8 @@ class DataSymbol(Symbol):
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name which is immutable.
+        symbol_in, apart from the name and scope (public/private) which are
+        immutable.
 
         :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`

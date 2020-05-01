@@ -406,6 +406,8 @@ def test_datasymbol_resolve_deferred():
     container.symbol_table.add(DataSymbol('b', REAL_SINGLE_TYPE))
     container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
                                           constant_value=3.14))
+    container.symbol_table.add(DataSymbol('f', INTEGER_SINGLE_TYPE,
+                                          public=False))
     module = ContainerSymbol("dummy_module")
     module._reference = container  # Manually linking the container
 
@@ -449,6 +451,14 @@ def test_datasymbol_resolve_deferred():
     assert ("Error trying to resolve symbol 'e' properties, the lazy "
             "evaluation of 'Local' interfaces is not supported."
             in str(err.value))
+
+    # Test with a symbol that is private to the linked container
+    symbol = DataSymbol('f', DeferredType(), interface=GlobalInterface(module))
+    with pytest.raises(SymbolError) as err:
+        symbol.resolve_deferred()
+    assert ("Error trying to resolve the properties of symbol 'f'. The "
+            "interface points to module 'dummy_module' but the symbol it "
+            "contains is not public" in str(err.value))
 
 
 def test_datasymbol_shape():
