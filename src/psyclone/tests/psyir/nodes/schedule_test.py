@@ -110,7 +110,7 @@ def test_sched_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         schedule.addchild(nonstatement)
     assert ("Item 'Range' can't be child 0 of 'Schedule'. The valid"
-            " format is: '*[Statement]'." in str(excinfo.value))
+            " format is: '[Statement]*'." in str(excinfo.value))
 
     # Valid children
     schedule.addchild(statement)

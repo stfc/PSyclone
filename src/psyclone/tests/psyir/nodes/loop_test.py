@@ -227,7 +227,7 @@ def test_loop_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create("i", zero, one, one, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Schedule'. The valid format is: "
-            "'*[Statement]'." in str(excinfo.value))
+            "'[Statement]*'." in str(excinfo.value))
 
 
 def test_loop_children_validation():

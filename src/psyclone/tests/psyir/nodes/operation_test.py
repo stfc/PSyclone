@@ -356,4 +356,4 @@ def test_naryoperation_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         nary.addchild(statement)
     assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
-            "format is: '+[DataNode]'.") in str(excinfo.value)
+            "format is: '[DataNode]+'.") in str(excinfo.value)
