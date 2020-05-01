@@ -91,7 +91,12 @@ class DataSymbol(Symbol):
         ''' If the symbol has a deferred datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
+        :raises SymbolError: if the module pointed to by the symbol interface \
+                             does not contain the symbol.
+        :raises SymbolError: if the symbol exists in the module pointed to by \
+                             the interface but is not public.
         :raises NotImplementedError: if the deferred symbol is not a Global.
+
         '''
         from psyclone.psyir.symbols import DeferredType
         if isinstance(self.datatype, DeferredType):
