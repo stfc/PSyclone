@@ -64,6 +64,7 @@ from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, Array, \
     Assignment, BinaryOperation, NaryOperation, Loop, Literal
+from psyclone.nemo import NemoInvokeSchedule
 
 # Which version of the PGI compiler we are targetting (different versions
 # have different bugs we have to workaround).
@@ -312,12 +313,12 @@ def valid_acc_kernel(node):
             # Check for derived types. Should not have to do this as
             # derived-types should end up in CodeBlocks
             # but this does not happen for implicit loops.
-            if walk([node.ast], [Fortran2003.Data_Ref]):
+            if walk(node.ast, Fortran2003.Data_Ref):
                 log_msg(routine_name, "Contains derived type", node)
                 return False
             # Check for Function calls. Again, we should not have to do this
             # but currently Implicit Loops are leaves in the PSyIR.
-            refs = walk([node.ast], [Fortran2003.Part_Ref])
+            refs = walk(node.ast, Fortran2003.Part_Ref)
             for ref in refs:
                 array_name = str(ref.items[0])
                 if array_name in NEMO_FUNCTIONS:
@@ -405,7 +406,7 @@ def contains_unsupported_sum(fpnode):
     '''
     from fparser.two.utils import walk
     from fparser.two import Fortran2003
-    intrinsics = walk([fpnode], [Fortran2003.Intrinsic_Function_Reference])
+    intrinsics = walk(fpnode, Fortran2003.Intrinsic_Function_Reference)
     for intrinsic in intrinsics:
         if str(intrinsic.items[0]).lower() == "sum":
             # If there's only one argument then we'll just have a Name
@@ -415,7 +416,7 @@ def contains_unsupported_sum(fpnode):
                           Fortran2003.Actual_Arg_Spec_List):
                 # items[1] contains the Actual_Arg_Spec_List
                 actual_args = walk(intrinsic.items[1].items,
-                                   [Fortran2003.Actual_Arg_Spec])
+                                   Fortran2003.Actual_Arg_Spec)
                 for arg in actual_args:
                     if str(arg.items[0]).lower() == "dim":
                         return True
@@ -438,7 +439,7 @@ def contains_reshape(fpnode):
     '''
     from fparser.two.utils import walk
     from fparser.two import Fortran2003
-    intrinsics = walk([fpnode], [Fortran2003.Intrinsic_Function_Reference])
+    intrinsics = walk(fpnode, Fortran2003.Intrinsic_Function_Reference)
     for intrinsic in intrinsics:
         if str(intrinsic.items[0]).lower() == "reshape":
             return True
@@ -615,8 +616,8 @@ def try_kernels_trans(nodes):
             break
     else:
         return False
-
-    routine_name = nodes[0].root.invoke.name.lower()
+    invokesched = nodes[0].ancestor(NemoInvokeSchedule)
+    routine_name = invokesched.invoke.name.lower()
     try:
         excluding = EXCLUDING[routine_name]
     except KeyError:
@@ -687,8 +688,8 @@ def trans(psy):
 
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
-        if invoke.name.lower() not in ACC_IGNORE:
         #if not any([ignore in invoke.name.lower() for ignore in ACC_IGNORE]):
+        if invoke.name.lower() not in ACC_IGNORE:
             print("Transforming invoke {0}:".format(invoke.name))
             add_kernels(sched.children)
         else:
