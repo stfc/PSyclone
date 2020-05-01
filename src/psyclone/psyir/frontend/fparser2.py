@@ -1195,8 +1195,9 @@ class Fparser2Reader(object):
                                                                str(attr)))
                     else:
                         raise NotImplementedError(
-                            "Could not process {0}. Unrecognised attribute "
-                            "type {1}.".format(decl.items, str(type(attr))))
+                            "Could not process declaration: '{0}'. "
+                            "Unrecognised attribute type '{1}'.".format(
+                                str(decl), str(type(attr).__name__)))
 
             if not precision:
                 precision = default_precision(data_name)

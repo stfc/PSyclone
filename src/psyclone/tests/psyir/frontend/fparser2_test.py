@@ -840,7 +840,8 @@ def test_process_not_supported_declarations():
 
 
 def test_default_public_container(parser):
-    ''' Test when all symbols default to public within a module. '''
+    ''' Test when all symbols default to public within a module and some
+    are explicitly listed as being private. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -848,12 +849,15 @@ def test_default_public_container(parser):
         "public\n"
         "integer, private :: var1\n"
         "integer :: var2\n"
+        "integer :: var3\n"
+        "private var3\n"
         "end module modulename")
     fparser2spec = parser(reader).children[0].children[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "var1" in fake_parent.symbol_table
     assert not fake_parent.symbol_table.lookup("var1").is_public
     assert fake_parent.symbol_table.lookup("var2").is_public
+    assert not fake_parent.symbol_table.lookup("var3").is_public
 
 
 def test_default_private_container(parser):
@@ -899,8 +903,9 @@ def test_access_stmt_undeclared_symbol(parser):
     assert var4.is_public
 
 
-def test_parse_access_statements(parser):
-    ''' Tests for the _parse_access_statements() method. '''
+def test_parse_access_statements_invalid(parser):
+    ''' Tests for the _parse_access_statements() method when an
+    invalid parse tree is encountered. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -1419,6 +1424,21 @@ def test_use_stmt_error(monkeypatch):
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Expected the parse tree for a USE statement to contain 5 items "
             "but found 3 for 'hello'" in str(err.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unrecognised_optional(monkeypatch):
+    ''' Check that a declaration with an unrecognised attribute raises the
+    expected error. '''
+    fake_parent = Schedule("dummy")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("integer, private :: idx1\n")
+    fparser2spec = Specification_Part(reader)
+    # Replace the Attr_Spec with a str
+    fparser2spec.children[0].children[1].items = ("not-a-spec",)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
+    assert "Unrecognised attribute type 'str'" in str(err.value)
 
 
 @pytest.mark.usefixtures("f2008_parser")
