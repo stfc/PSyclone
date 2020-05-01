@@ -6678,3 +6678,132 @@ def test_dynruntimechecks_multikern(monkeypatch):
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
+
+
+def test_dynruntimechecks_anydiscontinuous(monkeypatch):
+    '''Test that run-time checks work when we have checks for a field
+    function space being consistent with an any_discontinuous_*
+    function space.
+
+    '''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "11.4_any_discontinuous_space.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected1 = (
+        "      USE testkern_any_discontinuous_space_op_1_mod, ONLY: testkern_"
+        "any_discontinuous_space_op_1_code\n"
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE fs_continuity_mod\n"
+        "      USE mesh_mod, ONLY: mesh_type\n")
+    assert expected1 in generated_code
+    expected2 = (
+        "      op4_proxy = op4%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function spac"
+        "es are compatible\n"
+        "      IF (f1_proxy(1)%which_function_space() .ne. W3 .and. f1_proxy("
+        "1)%which_function_space() .ne. WTHETA .and. f1_proxy(1)%which_functi"
+        "on_space() .ne. W2V .and. f1_proxy(1)%which_function_space() .ne. W2"
+        "BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_1"
+        "' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the f"
+        "unction space for field 'f1_proxy' is not compatible with the kernel "
+        "metadata function space 'any_discontinuous_space_1' specified in kern"
+        "el 'testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      IF (f2_proxy%which_function_space() .ne. W3 .and. f2_proxy%whic"
+        "h_function_space() .ne. WTHETA .and. f2_proxy%which_function_space() "
+        ".ne. W2V .and. f2_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_1"
+        "' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the f"
+        "unction space for field 'f2_proxy' is not compatible with the kernel "
+        "metadata function space 'any_discontinuous_space_2' specified in kern"
+        "el 'testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (f2_proxy%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_1"
+        "' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', field"
+        " 'f2_proxy' is on a read-only function space but is modified by one o"
+        "f the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Initialise number of layers\n")
+    assert expected2 in generated_code
+
+
+def test_dynruntimechecks_anyw2(monkeypatch):
+    '''Test that run-time checks work when we have checks for a field
+    function space being consistent with an anyw2 function
+    space.
+
+    '''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "21.1_single_invoke_multi_anyw2.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected1 = (
+        "      USE testkern_multi_anyw2, ONLY: testkern_multi_anyw2_code\n"
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE fs_continuity_mod\n"
+        "      USE mesh_mod, ONLY: mesh_type\n")
+    assert expected1 in generated_code
+    expected2 = (
+        "      f3_proxy = f3%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function spac"
+        "es are compatible\n"
+        "      IF (f1_proxy%which_function_space() .ne. W2 .and. f1_proxy%whi"
+        "ch_function_space() .ne. W2H .and. f1_proxy%which_function_space() ."
+        "ne. W2V .and. f1_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
+        "invoke_0_testkern_multi_anyw2_type', the function space for field 'f"
+        "1_proxy' is not compatible with the kernel metadata function space '"
+        "any_w2' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVE"
+        "L_ERROR)\n"
+        "      END IF\n"
+        "      IF (f2_proxy%which_function_space() .ne. W2 .and. f2_proxy%whi"
+        "ch_function_space() .ne. W2H .and. f2_proxy%which_function_space() ."
+        "ne. W2V .and. f2_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
+        "invoke_0_testkern_multi_anyw2_type', the function space for field 'f"
+        "2_proxy' is not compatible with the kernel metadata function space '"
+        "any_w2' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVE"
+        "L_ERROR)\n"
+        "      END IF\n"
+        "      IF (f3_proxy%which_function_space() .ne. W2 .and. f3_proxy%whi"
+        "ch_function_space() .ne. W2H .and. f3_proxy%which_function_space() ."
+        "ne. W2V .and. f3_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
+        "invoke_0_testkern_multi_anyw2_type', the function space for field 'f"
+        "3_proxy' is not compatible with the kernel metadata function space '"
+        "any_w2' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVE"
+        "L_ERROR)\n"
+        "      END IF\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (f1_proxy%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
+        "invoke_0_testkern_multi_anyw2_type', field 'f1_proxy' is on a read-o"
+        "nly function space but is modified by one of the kernels.\", LOG_LEV"
+        "EL_ERROR)\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Initialise number of layers\n")
+    assert expected2 in generated_code
