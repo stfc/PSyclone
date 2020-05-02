@@ -2928,7 +2928,7 @@ class DynRunTimeChecks(DynCollection):
                     # We only check fields
                     continue
                 fs_name = arg.function_space.orig_name
-                field_name = arg.proxy_name_indexed
+                field_name = arg.name_indexed
                 if fs_name in VALID_ANY_SPACE_NAMES:
                     # We don't need to check validity of a field's
                     # function space if the metadata specifies
@@ -2964,7 +2964,7 @@ class DynRunTimeChecks(DynCollection):
                     "with the kernel metadata function space '{3}' specified "
                     "in kernel '{4}'.\", LOG_LEVEL_ERROR)"
                     "".format(self._invoke.invokes.psy._name,
-                              self._invoke.name, arg.proxy_name,
+                              self._invoke.name, arg.name,
                               fs_name, kern_call.name))
                 if_then.add(call_abort)
                 parent.add(if_then)
@@ -3010,13 +3010,13 @@ class DynRunTimeChecks(DynCollection):
                 parent, " Check that read-only fields are not modified"))
         for field in modified_fields:
             if_then = IfThenGen(
-                parent, "{0}%is_readonly()".format(field.proxy_name_indexed))
+                parent, "{0}%is_readonly()".format(field.name_indexed))
             call_abort = CallGen(
                 if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
                 "'{2}' is on a read-only function space but is modified "
                 "by one of the kernels.\", LOG_LEVEL_ERROR)"
                 "".format(self._invoke.invokes.psy._name, self._invoke.name,
-                          field.proxy_name))
+                          field.name))
             if_then.add(call_abort)
             parent.add(if_then)
 

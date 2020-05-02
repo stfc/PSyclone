@@ -6438,7 +6438,7 @@ def test_dynaccenterdatadirective_dataondevice():
 # Class DynKernelArguments end
 
 
-def test_dyninvoke_runtime(monkeypatch):
+def test_dyninvoke_runtime(tmpdir, monkeypatch):
     '''Test that run-time checks are added to the PSy-layer via dyninvoke
     in the expected way (correct location and correct code).
 
@@ -6450,7 +6450,7 @@ def test_dyninvoke_runtime(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_mod, ONLY: testkern_code\n"
@@ -6463,44 +6463,44 @@ def test_dyninvoke_runtime(monkeypatch):
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
-        "      ! Check field function space and kernel metadata function "
-        "spaces are compatible\n"
-        "      IF (f1_proxy%which_function_space() .ne. W1) THEN\n"
-        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_"
-        "testkern_type', the function space for field 'f1_proxy' is not co"
-        "mpatible with the kernel metadata function space 'w1' specified i"
-        "n kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "      ! Check field function space and kernel metadata function spac"
+        "es are compatible\n"
+        "      IF (f1%which_function_space() .ne. W1) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
+        "tkern_type', the function space for field 'f1' is not compatible wit"
+        "h the kernel metadata function space 'w1' specified in kernel 'testk"
+        "ern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (f2_proxy%which_function_space() .ne. W2) THEN\n"
-        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_"
-        "testkern_type', the function space for field 'f2_proxy' is not co"
-        "mpatible with the kernel metadata function space 'w2' specified i"
-        "n kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f2%which_function_space() .ne. W2) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
+        "tkern_type', the function space for field 'f2' is not compatible wit"
+        "h the kernel metadata function space 'w2' specified in kernel 'testk"
+        "ern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (m1_proxy%which_function_space() .ne. W2) THEN\n"
-        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_"
-        "testkern_type', the function space for field 'm1_proxy' is not co"
-        "mpatible with the kernel metadata function space 'w2' specified i"
-        "n kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (m1%which_function_space() .ne. W2) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
+        "tkern_type', the function space for field 'm1' is not compatible wit"
+        "h the kernel metadata function space 'w2' specified in kernel 'testk"
+        "ern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (m2_proxy%which_function_space() .ne. W3) THEN\n"
-        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_"
-        "testkern_type', the function space for field 'm2_proxy' is not co"
-        "mpatible with the kernel metadata function space 'w3' specified i"
-        "n kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (m2%which_function_space() .ne. W3) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
+        "tkern_type', the function space for field 'm2' is not compatible wit"
+        "h the kernel metadata function space 'w3' specified in kernel 'testk"
+        "ern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
-        "      IF (f1_proxy%is_readonly()) THEN\n"
-        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_test"
-        "kern_type', field 'f1_proxy' is on a read-only function space but is"
-        " modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f1%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
+        "tkern_type', field 'f1' is on a read-only function space but is modi"
+        "fied by one of the kernels.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_anyspace(monkeypatch):
+def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
     '''Test that run-time checks are not added for fields where the kernel
     metadata specifies anyspace.
 
@@ -6512,7 +6512,7 @@ def test_dynruntimechecks_anyspace(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -6525,28 +6525,26 @@ def test_dynruntimechecks_anyspace(monkeypatch):
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
-        "      ! Check field function space and kernel metadata function "
-        "spaces are compatible\n"
-        "      IF (c_proxy(1)%which_function_space() .ne. W0) THEN\n"
-        "        CALL log_event(\"In alg 'any_space_example' invoke 'invo"
-        "ke_0_testkern_any_space_1_type', the function space for field 'c"
-        "_proxy' is not compatible with the kernel metadata function spac"
-        "e 'w0' specified in kernel 'testkern_any_space_1_code'.\", LOG_L"
-        "EVEL_ERROR)\n"
+        "      ! Check field function space and kernel metadata function spac"
+        "es are compatible\n"
+        "      IF (c(1)%which_function_space() .ne. W0) THEN\n"
+        "        CALL log_event(\"In alg 'any_space_example' invoke 'invoke_0"
+        "_testkern_any_space_1_type', the function space for field 'c' is not"
+        " compatible with the kernel metadata function space 'w0' specified i"
+        "n kernel 'testkern_any_space_1_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
-        "      IF (a_proxy%is_readonly()) THEN\n"
+        "      IF (a%is_readonly()) THEN\n"
         "        CALL log_event(\"In alg 'any_space_example' invoke 'invoke_0"
-        "_testkern_any_space_1_type', field 'a_proxy' is on a read-only func"
-        "tion space but is modified by one of the kernels.\", LOG_LEVEL_ERROR"
-        ")\n"
+        "_testkern_any_space_1_type', field 'a' is on a read-only function sp"
+        "ace but is modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_vector(monkeypatch):
+def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     '''Test that run-time checks work for vector fields'''
     # run-time checks are off by default so switch them on
     config = Config.get()
@@ -6555,7 +6553,7 @@ def test_dynruntimechecks_vector(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_chi_2, ONLY: testkern_code\n"
@@ -6568,37 +6566,37 @@ def test_dynruntimechecks_vector(monkeypatch):
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
-        "      ! Check field function space and kernel metadata function "
-        "spaces are compatible\n"
-        "      IF (chi_proxy(1)%which_function_space() .ne. W0) THEN\n"
-        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_t"
-        "estkern_chi_type', the function space for field 'chi_proxy' is n"
-        "ot compatible with the kernel metadata function space 'w0' speci"
-        "fied in kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "      ! Check field function space and kernel metadata function spac"
+        "es are compatible\n"
+        "      IF (chi(1)%which_function_space() .ne. W0) THEN\n"
+        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
+        "kern_chi_type', the function space for field 'chi' is not compatible"
+        " with the kernel metadata function space 'w0' specified in kernel 't"
+        "estkern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (f1_proxy%which_function_space() .ne. W0) THEN\n"
-        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_t"
-        "estkern_chi_type', the function space for field 'f1_proxy' is no"
-        "t compatible with the kernel metadata function space 'w0' specif"
-        "ied in kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f1%which_function_space() .ne. W0) THEN\n"
+        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
+        "kern_chi_type', the function space for field 'f1' is not compatible "
+        "with the kernel metadata function space 'w0' specified in kernel 'te"
+        "stkern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
-        "      IF (chi_proxy(1)%is_readonly()) THEN\n"
-        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_tes"
-        "tkern_chi_type', field 'chi_proxy' is on a read-only function spac"
-        "e but is modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      IF (chi(1)%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
+        "kern_chi_type', field 'chi' is on a read-only function space but is "
+        "modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (f1_proxy%is_readonly()) THEN\n"
-        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_tes"
-        "tkern_chi_type', field 'f1_proxy' is on a read-only function space"
-        " but is modified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f1%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
+        "kern_chi_type', field 'f1' is on a read-only function space but is m"
+        "odified by one of the kernels.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_multikern(monkeypatch):
+def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     '''Test that run-time checks work when there are multiple kernels and
     at least one field is specified as being on the a function space
     more than once. In this case we want to avoid checking the same
@@ -6612,7 +6610,7 @@ def test_dynruntimechecks_multikern(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_mod, ONLY: testkern_code\n"
@@ -6625,62 +6623,62 @@ def test_dynruntimechecks_multikern(monkeypatch):
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
-        "      ! Check field function space and kernel metadata function "
-        "spaces are compatible\n"
-        "      IF (f1_proxy%which_function_space() .ne. W1) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'f1_proxy' is not compatible with the"
-        " kernel metadata function space 'w1' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      ! Check field function space and kernel metadata function spac"
+        "es are compatible\n"
+        "      IF (f1%which_function_space() .ne. W1) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'f1' is not compatible with the kernel me"
+        "tadata function space 'w1' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (f2_proxy%which_function_space() .ne. W2) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'f2_proxy' is not compatible with the"
-        " kernel metadata function space 'w2' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f2%which_function_space() .ne. W2) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'f2' is not compatible with the kernel me"
+        "tadata function space 'w2' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (m1_proxy%which_function_space() .ne. W2) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'm1_proxy' is not compatible with the"
-        " kernel metadata function space 'w2' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (m1%which_function_space() .ne. W2) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'm1' is not compatible with the kernel me"
+        "tadata function space 'w2' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (m2_proxy%which_function_space() .ne. W3) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'm2_proxy' is not compatible with the"
-        " kernel metadata function space 'w3' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (m2%which_function_space() .ne. W3) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'm2' is not compatible with the kernel me"
+        "tadata function space 'w3' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (f3_proxy%which_function_space() .ne. W2) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'f3_proxy' is not compatible with the"
-        " kernel metadata function space 'w2' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f3%which_function_space() .ne. W2) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'f3' is not compatible with the kernel me"
+        "tadata function space 'w2' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (m2_proxy%which_function_space() .ne. W2) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'm2_proxy' is not compatible with the"
-        " kernel metadata function space 'w2' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (m2%which_function_space() .ne. W2) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'm2' is not compatible with the kernel me"
+        "tadata function space 'w2' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (m1_proxy%which_function_space() .ne. W3) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "the function space for field 'm1_proxy' is not compatible with the"
-        " kernel metadata function space 'w3' specified in kernel 'testkern"
-        "_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (m1%which_function_space() .ne. W3) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
+        "e function space for field 'm1' is not compatible with the kernel me"
+        "tadata function space 'w3' specified in kernel 'testkern_code'.\", L"
+        "OG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
-        "      IF (f1_proxy%is_readonly()) THEN\n"
-        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', "
-        "field 'f1_proxy' is on a read-only function space but is modified"
-        " by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f1%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'multi_invoke' invoke 'invoke_0', fi"
+        "eld 'f1' is on a read-only function space but is modified by one of "
+        "the kernels.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_anydiscontinuous(monkeypatch):
+def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     '''Test that run-time checks work when we have checks for a field
     function space being consistent with an any_discontinuous_*
     function space.
@@ -6694,7 +6692,7 @@ def test_dynruntimechecks_anydiscontinuous(monkeypatch):
                                         "11.4_any_discontinuous_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_any_discontinuous_space_op_1_mod, ONLY: testkern_"
@@ -6710,38 +6708,37 @@ def test_dynruntimechecks_anydiscontinuous(monkeypatch):
         "      !\n"
         "      ! Check field function space and kernel metadata function spac"
         "es are compatible\n"
-        "      IF (f1_proxy(1)%which_function_space() .ne. W3 .and. f1_proxy("
-        "1)%which_function_space() .ne. WTHETA .and. f1_proxy(1)%which_functi"
-        "on_space() .ne. W2V .and. f1_proxy(1)%which_function_space() .ne. W2"
-        "BROKEN) THEN\n"
-        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_1"
-        "' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the f"
-        "unction space for field 'f1_proxy' is not compatible with the kernel "
-        "metadata function space 'any_discontinuous_space_1' specified in kern"
-        "el 'testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f1(1)%which_function_space() .ne. W3 .and. f1(1)%which_fun"
+        "ction_space() .ne. WTHETA .and. f1(1)%which_function_space() .ne. W2"
+        "V .and. f1(1)%which_function_space() .ne. W2BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_"
+        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the"
+        " function space for field 'f1' is not compatible with the kernel met"
+        "adata function space 'any_discontinuous_space_1' specified in kernel"
+        " 'testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
-        "      IF (f2_proxy%which_function_space() .ne. W3 .and. f2_proxy%whic"
-        "h_function_space() .ne. WTHETA .and. f2_proxy%which_function_space() "
-        ".ne. W2V .and. f2_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
-        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_1"
-        "' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the f"
-        "unction space for field 'f2_proxy' is not compatible with the kernel "
-        "metadata function space 'any_discontinuous_space_2' specified in kern"
-        "el 'testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f2%which_function_space() .ne. W3 .and. f2%which_function_"
+        "space() .ne. WTHETA .and. f2%which_function_space() .ne. W2V .and. f"
+        "2%which_function_space() .ne. W2BROKEN) THEN\n"
+        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_"
+        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the"
+        " function space for field 'f2' is not compatible with the kernel met"
+        "adata function space 'any_discontinuous_space_2' specified in kernel"
+        " 'testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
-        "      IF (f2_proxy%is_readonly()) THEN\n"
-        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_1"
-        "' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', field"
-        " 'f2_proxy' is on a read-only function space but is modified by one o"
-        "f the kernels.\", LOG_LEVEL_ERROR)\n"
+        "      IF (f2%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'any_discontinuous_space_op_example_"
+        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', fie"
+        "ld 'f2' is on a read-only function space but is modified by one of t"
+        "he kernels.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_anyw2(monkeypatch):
+def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     '''Test that run-time checks work when we have checks for a field
     function space being consistent with an anyw2 function
     space.
@@ -6755,7 +6752,7 @@ def test_dynruntimechecks_anyw2(monkeypatch):
                                         "21.1_single_invoke_multi_anyw2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_multi_anyw2, ONLY: testkern_multi_anyw2_code\n"
@@ -6770,39 +6767,39 @@ def test_dynruntimechecks_anyw2(monkeypatch):
         "      !\n"
         "      ! Check field function space and kernel metadata function spac"
         "es are compatible\n"
-        "      IF (f1_proxy%which_function_space() .ne. W2 .and. f1_proxy%whi"
-        "ch_function_space() .ne. W2H .and. f1_proxy%which_function_space() ."
-        "ne. W2V .and. f1_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "      IF (f1%which_function_space() .ne. W2 .and. f1%which_function_"
+        "space() .ne. W2H .and. f1%which_function_space() .ne. W2V .and. f1%w"
+        "hich_function_space() .ne. W2BROKEN) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
         "invoke_0_testkern_multi_anyw2_type', the function space for field 'f"
-        "1_proxy' is not compatible with the kernel metadata function space '"
-        "any_w2' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVE"
-        "L_ERROR)\n"
+        "1' is not compatible with the kernel metadata function space 'any_w2"
+        "' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVEL_ERRO"
+        "R)\n"
         "      END IF\n"
-        "      IF (f2_proxy%which_function_space() .ne. W2 .and. f2_proxy%whi"
-        "ch_function_space() .ne. W2H .and. f2_proxy%which_function_space() ."
-        "ne. W2V .and. f2_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "      IF (f2%which_function_space() .ne. W2 .and. f2%which_function_"
+        "space() .ne. W2H .and. f2%which_function_space() .ne. W2V .and. f2%w"
+        "hich_function_space() .ne. W2BROKEN) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
         "invoke_0_testkern_multi_anyw2_type', the function space for field 'f"
-        "2_proxy' is not compatible with the kernel metadata function space '"
-        "any_w2' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVE"
-        "L_ERROR)\n"
+        "2' is not compatible with the kernel metadata function space 'any_w2"
+        "' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVEL_ERRO"
+        "R)\n"
         "      END IF\n"
-        "      IF (f3_proxy%which_function_space() .ne. W2 .and. f3_proxy%whi"
-        "ch_function_space() .ne. W2H .and. f3_proxy%which_function_space() ."
-        "ne. W2V .and. f3_proxy%which_function_space() .ne. W2BROKEN) THEN\n"
+        "      IF (f3%which_function_space() .ne. W2 .and. f3%which_function_"
+        "space() .ne. W2H .and. f3%which_function_space() .ne. W2V .and. f3%w"
+        "hich_function_space() .ne. W2BROKEN) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
         "invoke_0_testkern_multi_anyw2_type', the function space for field 'f"
-        "3_proxy' is not compatible with the kernel metadata function space '"
-        "any_w2' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVE"
-        "L_ERROR)\n"
+        "3' is not compatible with the kernel metadata function space 'any_w2"
+        "' specified in kernel 'testkern_multi_anyw2_code'.\", LOG_LEVEL_ERRO"
+        "R)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
-        "      IF (f1_proxy%is_readonly()) THEN\n"
+        "      IF (f1%is_readonly()) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', field 'f1_proxy' is on a read-o"
-        "nly function space but is modified by one of the kernels.\", LOG_LEV"
-        "EL_ERROR)\n"
+        "invoke_0_testkern_multi_anyw2_type', field 'f1' is on a read-only fu"
+        "nction space but is modified by one of the kernels.\", LOG_LEVEL_ERR"
+        "OR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")

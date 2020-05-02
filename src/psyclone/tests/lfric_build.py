@@ -76,7 +76,9 @@ class LFRicBuild(Compile):
                               "quadrature_edge_mod",
                               "quadrature_face_mod",
                               "operator_mod",
-                              "flux_direction_mod"]
+                              "flux_direction_mod",
+                              "log_mod",
+                              "fs_continuity_mod"]
 
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.

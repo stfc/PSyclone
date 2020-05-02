@@ -9,7 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,6 +38,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modifications R. W. Ford, STFC Daresbury Lab
 !
 module field_mod
 
@@ -60,6 +62,7 @@ module field_mod
     procedure, public :: get_proxy
     procedure, public :: write_checksum
     procedure, public :: which_function_space
+    procedure, public :: is_readonly
 
     procedure         :: get_mesh
     procedure         :: get_mesh_id
@@ -163,6 +166,15 @@ contains
     fs = 0
     return
   end function which_function_space
+
+  function is_readonly(self) result(answer)
+    implicit none
+    class(field_type), intent(in) :: self
+    logical :: answer
+
+    answer = .false.
+    return
+  end function is_readonly
 
   subroutine halo_exchange( self, depth )
 
