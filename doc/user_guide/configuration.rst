@@ -89,32 +89,33 @@ section e.g.:
 ::
 
     [DEFAULT]
-    API = dynamo0.3
+    DEFAULTAPI = dynamo0.3
     DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
+    PSYIR_ROOT_NAME = psyir_tmp
 
-and an optional API specific section, for example for
+and an optional API specific section, for example for the
 ``dynamo0.3`` section:
 ::
 
    [dynamo0.3]
    access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                     gh_inc: inc, gh_sum: sum
-
    COMPUTE_ANNEXED_DOFS = false
-
    default_kind = real: r_def, integer: i_def, logical: l_def
+   RUN_TIME_CHECKS = false
 
 or for ``gocean1.0``:
 ::
 
    [gocean1.0]
    access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
-
-   iteration-spaces = offset_sw:ct:internal_we_halo:1:2:3:4
-                      offset_sw:ct:internal_ns_halo:1:{stop}:1:{stop}+1
+   grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
+                  go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
+                  go_grid_data: {0}%%data: array,
+                  ...
 
 The meaning of the various entries is described in the following sub-sections.
 
@@ -134,7 +135,7 @@ supported by PSyclone.
 ======================= =======================================================
 Entry                   Description
 ======================= =======================================================
-API                     The API that PSyclone assumes an Algorithm/Kernl
+DEFAULRAPI              The API that PSyclone assumes an Algorithm/Kernel
                         conforms to if no API is specified. Must be one of the
                         APIs supported by PSyclone (dynamo0.1, dynamo0.3,
                         gocean0.1, gocean1.0 and nemo). If there is no
@@ -157,6 +158,9 @@ REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
                         between elements of the array in which each thread
                         accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
+PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not
+                        supplied when creating a symbol. Defaults to
+			"psyir_tmp".
 ======================= =======================================================
 
 Common Sections
@@ -200,12 +204,14 @@ Entry             		Description
 =======================	=======================================================
 COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
-                        exchanges. See :ref:`annexed_dofs` in the Developers'
-                        guide.
+                        exchanges, see :ref:`lfric-annexed_dofs`.
 
 default_kind            Captures the default kinds (precisions) for the
                         supported datatypes in LFRic (`real`, `integer` and
                         `logical`).
+
+RUN_TIME_CHECKS         Specifies whether to generate run-time validation
+                        checks, see :ref:`lfric-run-time-checks`.
 ======================= =======================================================
 
 ``gocean1.0`` Section
