@@ -6804,3 +6804,26 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
+
+
+def test_read_only_fields_hex():
+    '''Test that halo exchange code is produced for read-only fields.'''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "24.1_read_fs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    expected = (
+        "      IF (f2_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f2_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f2_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF\n")
+    assert expected in generated_code
