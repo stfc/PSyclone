@@ -2493,7 +2493,7 @@ def test_arg_descriptor_funcs_method_error():
         'not get to here' in str(excinfo.value)
 
 
-def test_DynKernMetadata_read_fs_error():
+def test_dynkernmetadata_read_fs_error():
     '''Tests that an exception is raised if a field on a read only
     function space is specified as being written to by the kernel
     metadata.
@@ -2506,7 +2506,7 @@ def test_DynKernMetadata_read_fs_error():
             in str(info.value))
 
 
-def test_DynKernelArgument_intent_invalid():
+def test_dynkernelargument_intent_invalid():
     '''Tests that an error is raised in DynKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),

@@ -61,7 +61,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 from psyclone.f2pygen import IfThenGen, CallGen, CommentGen, DirectiveGen, \
-    ModuleGen, SubroutineGen, UseGen, AssignGen, CallGen, DoGen, DeclGen, \
+    ModuleGen, SubroutineGen, UseGen, AssignGen, DoGen, DeclGen, \
     AllocateGen, TypeDeclGen, DeallocateGen
 
 # --------------------------------------------------------------------------- #
@@ -2899,7 +2899,7 @@ class DynRunTimeChecks(DynCollection):
             # Only add if run-time checks are requested
             parent.add(UseGen(parent, name="fs_continuity_mod"))
             parent.add(UseGen(parent, name="log_mod", only=True,
-                          funcnames=["log_event", "LOG_LEVEL_ERROR"]))
+                              funcnames=["log_event", "LOG_LEVEL_ERROR"]))
 
     def _check_field_fs(self, parent):
         '''Internal method that adds runtime checks to make sure that the
@@ -3000,10 +3000,10 @@ class DynRunTimeChecks(DynCollection):
         modified_fields = []
         for call in self._invoke.schedule.kernels():
             for arg in call.arguments.args:
-                if (arg.text and arg.type == "gh_field" and \
-                        arg.access != AccessType.READ) and \
+                if (arg.text and arg.type == "gh_field" and
+                        arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
-                             entry.name==arg.name]:
+                             entry.name == arg.name]):
                     modified_fields.append(arg)
         if modified_fields:
             parent.add(CommentGen(

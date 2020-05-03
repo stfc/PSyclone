@@ -185,7 +185,7 @@ def test_compute_annexed_dofs():
 
     '''
     api_config = Config().get().api_conf(TEST_API)
-    assert api_config.compute_annexed_dofs == False
+    assert not api_config.compute_annexed_dofs
 
 
 def test_default_kind():
@@ -208,5 +208,3 @@ def test_run_time_checks():
     '''
     api_config = Config().get().api_conf(TEST_API)
     assert not api_config.run_time_checks
-
-
