@@ -103,10 +103,10 @@ class Schedule(Node):
         return self._children[index]
 
     def __str__(self):
-        result = "Schedule:\n"
+        result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End Schedule"
+        result += "End " + self.coloured_name(False)
         return result
 
     def gen_code(self, parent):

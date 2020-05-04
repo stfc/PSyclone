@@ -298,7 +298,7 @@ def test_schedule_view(capsys):
     # Have to allow for colouring of output text
     loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     kern_str = colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
-    isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched_str = colored("NemoInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])

@@ -316,6 +316,8 @@ class NemoInvokeSchedule(InvokeSchedule):
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
 
     '''
+    _text_name = "NemoInvokeSchedule"
+
     def __init__(self, invoke=None):
         super(NemoInvokeSchedule, self).__init__(None, None)
 
@@ -325,14 +327,6 @@ class NemoInvokeSchedule(InvokeSchedule):
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
-
-    def __str__(self):
-        ''' Returns the string representation of this NemoInvokeSchedule. '''
-        result = "NemoInvokeSchedule():\n"
-        for entity in self.children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
-        return result
 
     @property
     def psy_data_name_clashes_checked(self):
@@ -435,18 +429,6 @@ class NemoKern(InlinedKern):
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
         return self.children[0]
-
-    def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: the class-specific text describing this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
 
     def local_vars(self):
         '''

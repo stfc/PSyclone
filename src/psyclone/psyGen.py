@@ -873,10 +873,10 @@ class InvokeSchedule(Schedule):
             self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
-        result = "InvokeSchedule:\n"
+        result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End InvokeSchedule\n"
+        result += "End " + self.coloured_name(False) +"\n"
         return result
 
     def gen_code(self, parent):
@@ -3137,8 +3137,20 @@ class InlinedKern(Kern):
         '''
         return position == 0 and isinstance(child, Schedule)
 
+    def node_str(self, colour=True):
+        '''
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
+
     def __str__(self):
-        return "inlined kern: " + self._name
+        return self.coloured_name(False)
 
     @abc.abstractmethod
     def local_vars(self):
