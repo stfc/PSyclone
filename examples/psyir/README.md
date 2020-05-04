@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author R. W. Ford, STFC Daresbury Lab
+Authors: R. W. Ford, S. Siso STFC Daresbury Lab
 -->
 
 # PSyclone PSyIR Examples
@@ -50,4 +50,16 @@ then run:
 
 ```sh
 > python create.py
+```
+
+## Example 2:
+
+Create an instance of PSyIR using many of the generic PSyIR nodes and
+output the resultant tree as Fortran and C. Currently the C
+backend does not support all of the node types so it only outputs a
+subset of the tree. First, ensure that PSyclone is installed,
+then run:
+
+```sh
+> python newnode.py
 ```
