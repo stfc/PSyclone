@@ -54,11 +54,8 @@ then run:
 
 ## Example 2:
 
-Create an instance of PSyIR using many of the generic PSyIR nodes and
-output the resultant tree as Fortran and C. Currently the C
-backend does not support all of the node types so it only outputs a
-subset of the tree. First, ensure that PSyclone is installed,
-then run:
+Create a new PSyIR node with the basic children validation functionality.
+To run, first ensure that PSyclone is installed, then execute:
 
 ```sh
 > python newnode.py
