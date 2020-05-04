@@ -246,7 +246,7 @@ def test_invalid():
     with pytest.raises(TransformationError) as excinfo:
         trans.apply(operation, operation.root.symbol_table)
     assert (
-        "Error in Abs2CodeTrans transformation. This transformation only works "
-        "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
+        "Error in Abs2CodeTrans transformation. This transformation only "
+        "works for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
     # Remove the created config instance
     Config._instance = None

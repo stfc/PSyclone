@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans, TransformationError
+    Operator2CodeTrans
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
 from psyclone.configuration import Config
