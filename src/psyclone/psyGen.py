@@ -876,7 +876,7 @@ class InvokeSchedule(Schedule):
         result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End " + self.coloured_name(False) +"\n"
+        result += "End " + self.coloured_name(False) + "\n"
         return result
 
     def gen_code(self, parent):

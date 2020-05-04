@@ -1076,7 +1076,6 @@ class Node(object):
             sched.ast = ast
         return sched
 
-
     def find_symbol_table(self):
         '''
         :returns: the symbol table attached to the nearest ancestor \
@@ -1092,7 +1091,6 @@ class Node(object):
         if current:
             return current.symbol_table
         raise InternalError("Symbol table not found in any ancestor nodes.")
-
 
     def find_or_create_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
