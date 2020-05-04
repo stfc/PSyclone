@@ -45,7 +45,6 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
-from psyclone.configuration import Config
 
 
 def test_create():
@@ -90,8 +89,6 @@ def test_str_name():
 def test_validate():
     '''Check that the validate method raises exceptions as expected.'''
 
-    Config.get().api = "nemo"
-
     dummy = DummyTrans()
     # operator_name, classes and operators are usually set by the
     # Transformation's __init__ method but set them manually here to
@@ -123,11 +120,3 @@ def test_validate():
             "operator is invalid, found 'Operator.SIN'." in str(excinfo.value))
 
     dummy.validate(operator)
-
-    Config.get().api = "dynamo0.3"
-    with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(operator)
-    assert ("This transformation only works for the nemo API, but found "
-            "'dynamo0.3'." in str(excinfo.value))
-
-    Config._instance = None

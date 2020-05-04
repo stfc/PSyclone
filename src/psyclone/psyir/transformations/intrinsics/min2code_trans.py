@@ -119,6 +119,7 @@ class Min2CodeTrans(Operator2CodeTrans):
         :type options: dictionary of string:values or None
 
         '''
+        # pylint: disable=too-many-locals
         self.validate(node)
 
         schedule = node.root

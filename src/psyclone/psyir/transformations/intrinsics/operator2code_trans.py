@@ -106,13 +106,6 @@ class Operator2CodeTrans(Transformation):
                 "Error in {0} transformation. The supplied node operator is "
                 "invalid, found '{1}'."
                 "".format(self.name, str(node.operator)))
-        # Check that this is the nemo API.
-        from psyclone.configuration import Config
-        if not Config.get().api == "nemo":
-            raise TransformationError(
-                "Error in {0} transformation. This transformation only "
-                "works for the nemo API, but found '{1}'."
-                "".format(self.name, Config.get().api))
         # Check that there is an Assignment node that is an ancestor
         # of this Operation.
         if not node.ancestor(Assignment):

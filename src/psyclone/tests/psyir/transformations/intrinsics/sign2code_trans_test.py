@@ -280,14 +280,9 @@ def test_correct_2sign(tmpdir):
 def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
-    Config.get().api = "dynamo0.3"
-    operation = example_psyir(lambda arg: arg)
     trans = Sign2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
-        trans.apply(operation, operation.root.symbol_table)
+        trans.apply(None)
     assert (
-        "Error in Sign2CodeTrans transformation. This transformation only "
-        "works for the nemo API, but found 'dynamo0.3'"
-        in str(excinfo.value))
-    # Remove the created config instance
-    Config._instance = None
+        "Error in Sign2CodeTrans transformation. The supplied node argument "
+        "is not a SIGN operator, found 'NoneType'." in str(excinfo.value))
