@@ -34,14 +34,15 @@
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: A. R. Porter, STFC Daresbury Laboratory
 
-'''Module containing tests for the nemo operator abstract class which
+'''Module containing tests for the operator abstract class which
 provides common functionality for the intrinsic operator
 transformations (such as MIN, ABS and SIGN).'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations.nemo_operator_trans import \
-    NemoOperatorTrans, TransformationError
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
+    Operator2CodeTrans, TransformationError
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
 from psyclone.configuration import Config
@@ -49,15 +50,15 @@ from psyclone.configuration import Config
 
 def test_create():
     # pylint: disable=abstract-class-instantiated
-    '''Check that NemoOperatorTrans is abstract.'''
+    '''Check that Operator2CodeTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
-        _ = NemoOperatorTrans()
-    assert ("Can't instantiate abstract class NemoOperatorTrans with "
+        _ = Operator2CodeTrans()
+    assert ("Can't instantiate abstract class Operator2CodeTrans with "
             "abstract methods apply" in str(excinfo.value))
 
 
-class DummyTrans(NemoOperatorTrans):
-    '''Dummy transformation class used to test NemoOperatorTrans
+class DummyTrans(Operator2CodeTrans):
+    '''Dummy transformation class used to test Operator2CodeTrans
     methods.'''
     # pylint: disable=arguments-differ, no-method-argument
     def apply():
@@ -83,7 +84,7 @@ def test_str_name():
     dummy._operator_name = "hello"
     assert (str(dummy) == "Convert the PSyIR HELLO intrinsic to equivalent "
             "PSyIR code.")
-    assert dummy.name == "NemoHelloTrans"
+    assert dummy.name == "Hello2CodeTrans"
 
 
 def test_validate():
@@ -118,7 +119,7 @@ def test_validate():
 
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(UnaryOperation(UnaryOperation.Operator.SIN, var))
-    assert ("Error in NemoHelloTrans transformation. The supplied node "
+    assert ("Error in Hello2CodeTrans transformation. The supplied node "
             "operator is invalid, found 'Operator.SIN'." in str(excinfo.value))
 
     dummy.validate(operator)

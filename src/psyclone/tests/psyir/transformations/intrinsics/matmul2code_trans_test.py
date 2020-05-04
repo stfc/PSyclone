@@ -39,7 +39,8 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
-from psyclone.psyir.transformations.matmul2code_trans import _get_array_bound
+from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
+    _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
     Reference, Range
 from psyclone.psyGen import KernelSchedule
