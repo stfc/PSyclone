@@ -1062,8 +1062,8 @@ class Fparser2Reader(object):
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
             interface = LocalInterface()
-            # 3) Record initialized constant values
-            has_constant_value = False
+            # 3) Record whether or not this symbol is a constant
+            is_constant = False
             allocatable = False
             if attr_specs:
                 for attr in attr_specs.items:
@@ -1088,7 +1088,7 @@ class Fparser2Reader(object):
 
                         elif normalized_string == "parameter":
                             # Flag the existence of a constant value in the RHS
-                            has_constant_value = True
+                            is_constant = True
                         elif normalized_string == "allocatable":
                             allocatable = True
                         else:
@@ -1163,17 +1163,12 @@ class Fparser2Reader(object):
                             format(str(decl)))
 
                 if initialisation:
-                    if has_constant_value:
-                        # If it is a parameter parse its initialization
-                        tmp = Node()
-                        expr = initialisation.items[1]
-                        self.process_nodes(parent=tmp, nodes=[expr])
-                        ct_expr = tmp.children[0]
-                    else:
-                        raise NotImplementedError(
-                            "Could not process {0}. Initialisations on the"
-                            " declaration statements are only supported for "
-                            "parameter declarations.".format(decl.items))
+                    # Parse the initialisation expression
+                    tmp = Node()
+                    expr = initialisation.items[1]
+                    # TODO handle unseen vars on RHS
+                    self.process_nodes(parent=tmp, nodes=[expr])
+                    ct_expr = tmp.children[0]
 
                 if char_len is not None:
                     raise NotImplementedError(
@@ -1193,7 +1188,8 @@ class Fparser2Reader(object):
 
                 if sym_name not in parent.symbol_table:
                     parent.symbol_table.add(DataSymbol(sym_name, datatype,
-                                                       constant_value=ct_expr,
+                                                       initial_value=ct_expr,
+                                                       constant=is_constant,
                                                        interface=interface))
                 else:
                     # The symbol table already contains an entry with this name

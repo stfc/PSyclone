@@ -52,12 +52,13 @@ class DataSymbol(Symbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param constant_value: sets a fixed known expression as a permanent \
-        value for this DataSymbol. If the value is None then this \
-        symbol does not have a fixed constant. Otherwise it can receive \
-        PSyIR expressions or Python intrinsic types available in the \
-        TYPE_MAP_TO_PYTHON map. By default it is None.
-    :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+    :param bool constant: whether this DataSymbol has a permanent, constant \
+        value. If True then an `initial_value` must be provided.
+    :param initial_value: sets an expression as the initial value for this \
+        DataSymbol. If the value is None (the default) then this symbol does \
+        not have an initial value. Otherwise it can receive PSyIR expressions \
+        or Python intrinsic types available in the TYPE_MAP_TO_PYTHON map.
+    :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
     :param interface: object describing the interface to this symbol (i.e. \
         whether it is passed as a routine argument or accessed in some other \
@@ -66,16 +67,17 @@ class DataSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
 
     '''
-    def __init__(self, name, datatype, constant_value=None, interface=None):
-
+    def __init__(self, name, datatype, initial_value=None, constant=False,
+                 interface=None):
         super(DataSymbol, self).__init__(name)
 
         self._datatype = None
         self.datatype = datatype
+        self._is_constant = constant
 
         # The following attributes have setter methods (with error checking)
         self._interface = None
-        self._constant_value = None
+        self._initial_value = None
 
         # If an interface is not provided, use LocalInterface by default
         if not interface:
@@ -83,7 +85,7 @@ class DataSymbol(Symbol):
         else:
             self.interface = interface
 
-        self.constant_value = constant_value
+        self.initial_value = initial_value
 
     def resolve_deferred(self):
         ''' If the symbol has a deferred datatype, find where it is defined
@@ -191,7 +193,7 @@ class DataSymbol(Symbol):
         :rtype: bool
 
         '''
-        return self._constant_value is not None
+        return self._is_constant
 
     @property
     def is_scalar(self):
@@ -214,13 +216,13 @@ class DataSymbol(Symbol):
         return isinstance(self.datatype, ArrayType)
 
     @property
-    def constant_value(self):
+    def initial_value(self):
         '''
-        :returns: the fixed known value of this symbol.
+        :returns: the initial value of this symbol.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        return self._constant_value
+        return self._initial_value
 
     @property
     def is_local(self):
@@ -258,14 +260,13 @@ class DataSymbol(Symbol):
         '''
         return isinstance(self._interface, UnresolvedInterface)
 
-    @constant_value.setter
-    def constant_value(self, new_value):
+    @initial_value.setter
+    def initial_value(self, new_value):
         '''
-        :param new_value: set or change the fixed known value of the \
-            constant for this DataSymbol. If the value is None then this \
-            symbol does not have a fixed constant. Otherwise it can receive \
-            PSyIR expressions or Python intrinsic types available in the \
-            TYPE_MAP_TO_PYTHON map.
+        :param new_value: set or change the initial value of this DataSymbol.
+            If the value is None then this symbol does not have an initial
+            value. Otherwise it can receive PSyIR expressions or Python
+            intrinsic types available in the TYPE_MAP_TO_PYTHON map.
         :type new_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
             :py:class:`psyclone.psyir.nodes.Node`
 
@@ -281,15 +282,15 @@ class DataSymbol(Symbol):
         from psyclone.psyir.nodes import Node, Literal, Operation, Reference
         from psyclone.psyir.symbols import ScalarType, ArrayType
         if new_value is not None:
-            if self.is_argument:
+            if self.is_argument:  # TODO and is_intent_in:
                 raise ValueError(
-                    "Error setting constant value for symbol '{0}'. A "
-                    "DataSymbol with an ArgumentInterface can not have a "
-                    "constant value.".format(self.name))
+                    "Error setting initial value for symbol '{0}'. A "
+                    "DataSymbol with an ArgumentInterface can not have an "
+                    "initial value.".format(self.name))
             if not isinstance(self.datatype, (ScalarType, ArrayType)):
                 raise ValueError(
-                    "Error setting constant value for symbol '{0}'. A "
-                    "DataSymbol with a constant value must be a scalar or an "
+                    "Error setting initial value for symbol '{0}'. A "
+                    "DataSymbol with an initial value must be a scalar or an "
                     "array but found '{1}'.".format(
                         self.name, type(self.datatype).__name__))
 
@@ -301,7 +302,7 @@ class DataSymbol(Symbol):
                             "PSyIR static expressions can only contain PSyIR "
                             "literal, operation or reference nodes but found:"
                             " {1}".format(self.name, node))
-                self._constant_value = new_value
+                self._initial_value = new_value
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
                 # No need to check that self.datatype has an intrinsic
@@ -310,31 +311,33 @@ class DataSymbol(Symbol):
                 lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
-                        "Error setting constant value for symbol '{0}'. This "
+                        "Error setting initial value for symbol '{0}'. This "
                         "DataSymbol instance datatype is '{1}' which means the"
-                        " constant value is expected to be '{2}' but found "
+                        " initial value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
                 if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:
-                        self._constant_value = Literal('true', self.datatype)
+                        self._initial_value = Literal('true', self.datatype)
                     else:
-                        self._constant_value = Literal('false', self.datatype)
+                        self._initial_value = Literal('false', self.datatype)
                 else:
                     # Otherwise we convert the Python intrinsic to a PSyIR
                     # Literal using its string representation.
-                    self._constant_value = Literal(str(new_value),
-                                                   self.datatype)
+                    self._initial_value = Literal(str(new_value),
+                                                  self.datatype)
         else:
-            self._constant_value = None
+            self._initial_value = None
 
     def __str__(self):
         ret = self.name + ": <" + str(self.datatype)
         ret += ", " + str(self._interface)
         if self.is_constant:
-            ret += ", constant_value={0}".format(self.constant_value)
+            ret += ", constant_value={0}".format(self.initial_value)
+        elif self.initial_value:
+            ret += ", initial_value={0}".format(self.initial_value)
         return ret + ">"
 
     def copy(self):
@@ -348,7 +351,8 @@ class DataSymbol(Symbol):
 
         '''
         return DataSymbol(self.name, self.datatype,
-                          constant_value=self.constant_value,
+                          constant=self.is_constant,
+                          initial_value=self.initial_value,
                           interface=self.interface)
 
     def copy_properties(self, symbol_in):
@@ -366,7 +370,8 @@ class DataSymbol(Symbol):
                             " '{0}'.".format(type(symbol_in).__name__))
 
         self._datatype = symbol_in.datatype
-        self._constant_value = symbol_in.constant_value
+        self._is_constant = symbol_in.is_constant
+        self._initial_value = symbol_in.initial_value
         self._interface = symbol_in.interface
 
 

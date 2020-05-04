@@ -1105,6 +1105,14 @@ def test_process_declarations_stmt_functions():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_declaration_inits():
+    ''' Test processing of declarations of variables with initialisation
+    expressions. '''
+    fake_parent, _ = process_declarations("real :: a = 1.0")
+    assert 0
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
