@@ -33,10 +33,13 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.PHONY: all gocean nemo
+EXAMPLES=$(wildcard eg*)
 
-all: gocean
+all:
+	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg); )
 
-gocean nemo:
-	${MAKE} -C $@
+compile:
+	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) compile; )
 
+clean:
+	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) clean; )

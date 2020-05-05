@@ -33,10 +33,15 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.PHONY: all gocean nemo
+all: basic omp_levels
 
-all: gocean
+basic:
+	./runme_openmp.py
 
-gocean nemo:
-	${MAKE} -C $@
+omp_levels:
+	psyclone -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
 
+compile: all
+
+clean:
+	rm -f *~

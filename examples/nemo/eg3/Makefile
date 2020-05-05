@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,9 @@
 
 # Makefile for the 3rd NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
-# the tracer-advection benchmark. Depends upon the dl_timer
-# library (bitbucket.org/apeg/dl_timer) which must be installed
-# and the location specified in SHARED_DIR below.
+# the tracer-advection benchmark. The 'compile' target requires
+# the dl_timer library (bitbucket.org/apeg/dl_timer) which must
+# be installed and the location specified in DL_TIMER_ROOT below.
 #
 # The compiler to use must be specified via the F90 environment
 # variable. e.g. to use PGI and OpenACC:
@@ -45,25 +45,31 @@
 # export F90=pgf90
 # export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
 # export LDFLAGS="-acc -ta=tesla,cc70"
+F90 ?= gfortran
+F90FLAGS ?= -fopenmp
+LDFLAGS ?= -fopenmp
 
 # Location of the dl_timer library
-SHARED_DIR = /home/aporter/MyInstalls
-TIMER_DIR = ${SHARED_DIR}/dl_timer
-TIMER_INC = ${TIMER_DIR}/src
-TIMER_LIB = ${TIMER_DIR}/dl_timer_lib.a
+DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
+TIMER_INC = ${DL_TIMER_ROOT}/src
+TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
 
-.PHONY: all clean allclean dl_timer
+.PHONY: all compile clean allclean dl_timer transform
 
-all: traadv.exe
+all: transform
+
+compile: traadv.exe
 
 traadv.exe: dl_timer psy.o
 	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
 
 dl_timer:
-	make -C ${TIMER_DIR} sm_lib
+	make -C ${DL_TIMER_ROOT} sm_lib
 
-psy.f90:
+transform:
 	psyclone -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 ../code/tra_adv.F90
+
+psy.f90: transform
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
@@ -74,4 +80,4 @@ clean:
 # Delete generated Fortran and exe
 allclean: clean
 	rm -f psy.f90 traadv.exe
-	make -C ${TIMER_DIR} allclean
+	make -C ${DL_TIMER_ROOT} allclean

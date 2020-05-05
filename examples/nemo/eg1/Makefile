@@ -33,10 +33,10 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.PHONY: all gocean nemo
+all:
+	./runme_openmp.py
 
-all: gocean
+compile: all
 
-gocean nemo:
-	${MAKE} -C $@
-
+clean:
+	rm -f *~
