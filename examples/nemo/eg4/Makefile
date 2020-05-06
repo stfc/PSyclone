@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,55 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-# Makefile for the 3rd NEMO example. Uses PSyclone (which must
-# be installed) to generate Fortran with OpenACC directives for
-# the tracer-advection benchmark. The 'compile' target requires
-# the dl_timer library (bitbucket.org/apeg/dl_timer) which must
-# be installed and the location specified in DL_TIMER_ROOT below.
-#
-# The compiler to use must be specified via the F90 environment
-# variable. e.g. to use PGI and OpenACC:
-#
-# export F90=pgf90
-# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
-# export LDFLAGS="-acc -ta=tesla,cc70"
-F90 ?= gfortran
-F90FLAGS ?= -fopenmp
-LDFLAGS ?= -fopenmp
+PSYCLONE ?= psyclone
+# We apply the same PSyclone script to every Fortran file *apart* from
+# intrinsic_example.f90 and tra_adv_compute.F90 (because the latter
+# contains features that the SIR backend does not yet support).
+FORTRAN_FILES = $(filter-out ./intrinsic_example.%,$(wildcard ./*f90))
 
-# Location of the dl_timer library
-DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
-TIMER_INC = ${DL_TIMER_ROOT}/src
-TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
+.PHONY: all transform transform-intrinsic compile clean
 
-.PHONY: all compile clean allclean dl_timer transform
-
-# By default we only do the PSyclone transformation
-all: transform
-
-# Compilation requires that dl_timer be installed
-compile: traadv.exe
-
-traadv.exe: dl_timer psy.o
-	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
-
-dl_timer:
-	make -C ${DL_TIMER_ROOT} sm_lib
+all: transform transform-intrinsic
 
 transform:
-	psyclone -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 ../code/tra_adv.F90
+	$(foreach file, ${FORTRAN_FILES}, ${PSYCLONE} -s ./sir_trans.py -api nemo $(file) -opsy /dev/null; )
 
-psy.f90: transform
+# intrinsic_example.f90 requires a different transformation script
+transform-intrinsic:
+	${PSYCLONE} -s ./sir_trans_intrinsics.py -api nemo intrinsic_example.f90 -opsy /dev/null
 
-%.o: %.f90
-	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
+# We don't do any compilation for this example
+compile: all
 
 clean:
-	rm -f *.o *.mod *~
-
-# Delete generated Fortran and exe
-allclean: clean
-	rm -f psy.f90 traadv.exe
-	make -C ${DL_TIMER_ROOT} allclean
+	rm -f *~
