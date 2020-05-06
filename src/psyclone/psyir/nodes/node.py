@@ -220,7 +220,7 @@ class ChildrenList(list):
         :param int index: position of the item that is popped out, if not \
             given, the last element is popped out.
 
-        :returns: The last value or the given index value from the list.
+        :returns: the last value or the given index value from the list.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -754,8 +754,8 @@ class Node(object):
     def children(self, my_children):
         ''' Set a new children list.
 
-        :param my_children: New list of children.
-        :type my_children: List or NoneType
+        :param my_children: new list of children.
+        :type my_children: list or NoneType
 
         :raises TypeError: if the given children parameter is not a list \
             nor NoneType.
