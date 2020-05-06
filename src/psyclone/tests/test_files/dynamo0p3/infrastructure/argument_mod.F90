@@ -41,11 +41,17 @@
 ! Modified I. Kavcic, Met Office
 !          A. R. Porter, STFC Daresbury Laboratory
 
-!> @brief The argument type to hold kernel metadata required by the psy layer.
+!> @brief The argument type to hold kernel metadata required by the PSy layer.
 
 module argument_mod
 
+  ! TODO #764: Remove this "use" statement when PSyclone test
+  ! kernels and examples are updated to use fs_continuity_mod
+  use fs_continuity_mod
+
   implicit none
+
+  private
 
   ! Argument types
   integer, public, parameter :: GH_FIELD               = 1
@@ -63,23 +69,10 @@ module argument_mod
   integer, public, parameter :: GH_MIN       = 16
   integer, public, parameter :: GH_MAX       = 17
 
-  ! Function-space labels
-  integer, public, parameter :: W0        = 100
-  integer, public, parameter :: W1        = 101
-  integer, public, parameter :: W2        = 102
-  integer, public, parameter :: W2V       = 103
-  integer, public, parameter :: W2H       = 104
-  integer, public, parameter :: W2broken  = 105
-  integer, public, parameter :: W2trace   = 106
-  integer, public, parameter :: W2Htrace  = 107
-  integer, public, parameter :: W2Vtrace  = 108
-  integer, public, parameter :: W3        = 109
-  integer, public, parameter :: Wtheta    = 110
-  integer, public, parameter :: Wchi      = 111
-  integer, public, parameter :: ANY_W2    = 112
-
-  ! Distinct any_space IDs. Separate IDs required as we may have
-  ! groups of fields that must be on the same space within a kernel
+  ! General function space IDs. Distinct IDs required as we may
+  ! have groups of fields that must be on the same space within
+  ! a kernel.
+  ! IDs for any space regardless of continuity.
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
   integer, public, parameter :: ANY_SPACE_3  = 203
@@ -90,9 +83,9 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
-  ! Distinct any_discontinuous_space IDs. Separate IDs required
-  ! as we may have groups of fields that must be on the same space
-  ! within a kernel
+  ! IDs for any W2-type space regardless of continuity
+  integer, public, parameter :: ANY_W2       = 112
+  ! IDs for any discontinuous space
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_2  = 252
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_3  = 253
