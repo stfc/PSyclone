@@ -122,18 +122,10 @@ For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a
 child, we would write something like:
 
-::
 
-    from psyclone.psyir.nodes import Statement, DataNode
-
-    class MyNode(Statement):
-        _text_name = "MyNodeName"
-        _colour_key = ""
-        _children_valid_format = "DataNode"
-
-        @staticmethod
-        def _validate_child(position, child):
-            return position == 0 and isinstance(child, DataNode)
+    .. literalinclude:: code_snippets/newnode.py
+        :language: python
+        :lines: 47-59
 
 This implementation already provides the basic PSyIR functionality and the
 node can be integrated and used in the PSyIR tree:

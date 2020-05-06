@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,8 @@
 
 '''A simple Python script showing how to create new PSyIR nodes and
 provide them with the basic functionality. In order to use it you must
-first install PSyclone. See README.md in the top-level psyclone directory.
-
-Once you have psyclone installed, this script may be run by doing:
+first install PSyclone. Once you have psyclone installed, this script
+may be run by doing:
 
 >>> python newnode.py
 
@@ -45,16 +44,14 @@ This should output a PSyIR tree containing the new node.
 
 '''
 
-from psyclone.psyir.nodes import Schedule, Statement, DataNode, Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import Statement, DataNode
 
 class MyNode(Statement):
     ''' MyNode is an example node that can be found anywhere where statement
     is valid, and in turn it accepts one and only one DataNode as a children.
     '''
-
     _text_name = "MyNodeName"
-    _colour_key = ""
+    _colour_key = "Assignment"
     _children_valid_format = "DataNode"
 
     @staticmethod
@@ -63,6 +60,8 @@ class MyNode(Statement):
 
 def example():
     ''' Example of MyNode usage'''
+    from psyclone.psyir.nodes import Schedule, Literal
+    from psyclone.psyir.symbols import INTEGER_TYPE
     psyir_schedule = Schedule()
 
     mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])

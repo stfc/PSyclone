@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Authors: R. W. Ford, S. Siso STFC Daresbury Lab
+Author R. W. Ford, STFC Daresbury Lab
 -->
 
 # PSyclone PSyIR Examples
@@ -50,13 +50,4 @@ then run:
 
 ```sh
 > python create.py
-```
-
-## Example 2:
-
-Create a new PSyIR node with the basic children validation functionality.
-To run, first ensure that PSyclone is installed, then execute:
-
-```sh
-> python newnode.py
 ```
