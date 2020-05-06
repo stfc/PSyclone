@@ -3013,7 +3013,7 @@ class LFRicRunTimeChecks(DynCollection):
                 if (arg.text and arg.type == "gh_field" and
                         arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
-                             entry.name == arg.name]):
+                             entry[0].name == arg.name]):
                     modified_fields.append((arg, call))
         if modified_fields:
             parent.add(CommentGen(
