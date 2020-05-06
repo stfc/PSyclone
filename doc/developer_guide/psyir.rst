@@ -106,7 +106,22 @@ to perform the following steps:
    of the new node:
 
     - ``_children_valid_format`` is the textual representation that will be
-      used in error messages. It is expressed using a regex-like expression.
+      used in error messages. It is expressed using tokens with the same name
+      as the PSyIR classes and the following symbols:
+
+        - ``|``: or operand.
+
+        - ``,``: concatenation operand.
+
+        - ``[ expression ]*``: zero or more instances of the expression.
+
+        - ``[ expression ]+``: one or more instances of the expression.
+
+        - ``<LeafNode>``: NULL operand (no children accepted).
+
+      For instance, an expression that accepts a statement as a first child and
+      one or more DataNodes after it would be: ``Statement [, DataNode]+``.
+
 
     - ``_validate_child(position, child)`` returns a boolean which indicates
       whether the given child is a valid component for the given position.
