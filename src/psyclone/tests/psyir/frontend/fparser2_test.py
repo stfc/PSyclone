@@ -725,6 +725,43 @@ def test_process_declarations(f2008_parser):
             "supported.") in str(error.value)
 
 
+def test_process_declarations_precision(f2008_parser):
+    '''Test that process_declarations method of Fparser2Reader converts
+    the fparser2 declarations with explicit precision of the form
+    datatype*precision e.g. real*8, to symbols in the provided parent
+    Kernel Schedule.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Test simple declarations
+    reader = FortranStringReader("integer*4 :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l1_var = fake_parent.symbol_table.lookup("l1")
+    assert l1_var.name == 'l1'
+    assert isinstance(l1_var.datatype, ScalarType)
+    assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert l1_var.datatype.precision == 4
+    assert l1_var.is_local
+
+    reader = FortranStringReader("Real*8      ::      l2")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l2_var = fake_parent.symbol_table.lookup("l2")
+    assert l2_var.name == "l2"
+    assert isinstance(l2_var.datatype, ScalarType)
+    assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert l2_var.datatype.precision == 8
+    assert l2_var.is_local
+
+    # param over sizes 4, 8, 16 ...
+    # check for exception if unsupported value given to PSyIR.
+    # check for exception if unsupported datatype given
+    # add support for double precision (in a separate test)
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_array_declarations():
     ''' Test that Fparser2Reader.process_declarations() handles various forms
