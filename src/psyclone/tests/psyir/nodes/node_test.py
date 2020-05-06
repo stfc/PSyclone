@@ -43,14 +43,15 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes import Node, Schedule, Reference, Container
-from psyclone.psyir.symbols import DataSymbol, SymbolError
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+from psyclone.psyir.nodes import Node, Schedule, Reference, Container, \
+    Assignment, Literal
+from psyclone.psyir.symbols import DataSymbol, SymbolError, SymbolTable, \
+    REAL_TYPE
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
-
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -545,6 +546,33 @@ def test_node_dag(tmpdir, have_graphviz):
     with pytest.raises(GenerationError) as excinfo:
         schedule.dag(file_name=my_file.strpath, file_format="rubbish")
     assert "unsupported graphviz file format" in str(excinfo.value)
+
+
+def test_find_symbol_table():
+    '''Test that the find_symbol_table method in a Node instance returns
+    the nearest symbol table if there is one and raises an exception if
+    not.
+    '''
+    kernel_symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    kernel_symbol_table.add(symbol)
+    ref = Reference(symbol)
+    assign = Assignment.create(ref, Literal("0.0", REAL_TYPE))
+    kernel_schedule = KernelSchedule.create("my_kernel", kernel_symbol_table,
+                                            [assign])
+    container_symbol_table = SymbolTable()
+    container = Container.create("my_container", container_symbol_table,
+                                 [kernel_schedule])
+    assert ref.find_symbol_table() is kernel_symbol_table
+    assert assign.find_symbol_table() is kernel_symbol_table
+    assert kernel_schedule.find_symbol_table() is kernel_symbol_table
+    assert container.find_symbol_table() is container_symbol_table
+
+    node = Node()
+    with pytest.raises(InternalError) as excinfo:
+        node.find_symbol_table()
+    assert ("PSyclone internal error: Symbol table not found in any "
+            "ancestor nodes." in str(excinfo.value))
 
 
 def test_find_or_create_symbol():
