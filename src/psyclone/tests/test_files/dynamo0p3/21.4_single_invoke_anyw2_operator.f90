@@ -37,7 +37,9 @@ program single_invoke_anyw2_operator
 
   ! Description: test that correct code is produced when we have an
   ! any_w2 function space with an operator in a kernel call
-  use inf,                         only: field_type, operator_type, quadrature_type
+  use field_mod,                   only: field_type
+  use operator_mod,                only: operator_type
+  use quadrature_xyoz_mod,         only: quadrature_xyoz_type
   use testkern_anyw2_operator_mod, only: testkern_anyw2_operator_type
 
   implicit none

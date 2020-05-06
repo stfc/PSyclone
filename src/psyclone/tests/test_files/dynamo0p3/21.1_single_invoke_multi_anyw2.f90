@@ -38,7 +38,7 @@ program single_invoke_multi_anyw2
 
   ! Description: test that correct code is produced when we have multiple
   ! any_w2 function spaces in a kernel call
-  use inf,                      only: field_type
+  use field_mod,                only: field_type
   use testkern_multi_anyw2_mod, only: testkern_multi_anyw2_type
 
   implicit none

@@ -37,7 +37,9 @@
 program single_invoke_cma
 
   ! Description: single CMA-assembly function specified in an invoke call
-  use inf,      only: operator_type, field_type, columnwise_operator_type
+  use field_mod,                            only: field_type
+  use operator_mod,                         only: operator_type
+  use columnwise_operator_mod,              only: columnwise_operator_type
   use columnwise_op_asm_same_fs_kernel_mod, only: columnwise_op_asm_same_fs_kernel_type
 
   implicit none

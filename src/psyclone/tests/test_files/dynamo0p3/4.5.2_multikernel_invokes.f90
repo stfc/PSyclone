@@ -39,7 +39,9 @@ program multikernel_invokes_452
   ! Multiple kernel calls within an invoke where the arguments are specified
   ! as any_space
 
-  use inf,                      only : field_type, operator_type, quadrature_rule
+  use field_mod,                only : field_type
+  use operator_mod,             only : operator_type
+  use quadrature_xyoz_mod,      only : quadrature_xyoz_type
   use testkern_any_space_1_mod, only : testkern_any_space_1_type
   use testkern_any_space_2_mod, only : testkern_any_space_2_type
   use testkern_any_space_3_mod, only : testkern_any_space_3_type

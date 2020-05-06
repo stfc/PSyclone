@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,17 +31,21 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke_cma
 
   ! Description: single CMA-apply kernel specified in an invoke call. The
   ! two field arguments are on the same function space.
+  use field_mod,                            only: field_type
+  use columnwise_operator_mod,              only: columnwise_operator_type
   use columnwise_op_app_same_fs_kernel_mod, only: &
                             columnwise_op_app_same_fs_kernel_type
-  use inf,      only: field_type
+
   implicit none
-  type(field_type) :: field_a, field_b
+
+  type(field_type)               :: field_a, field_b
   type(columnwise_operator_type) :: cma_op1
 
   call invoke(                      &

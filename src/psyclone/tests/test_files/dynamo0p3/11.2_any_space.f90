@@ -29,14 +29,14 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 
 program any_space_example
 
-  ! Description: single kernel call in an invoke where the a single operator
+  ! Description: single kernel call in an invoke where the single operator
   ! argument is specified as any_space. 
-  use inf,                      only : operator_type
+  use operator_mod,             only : operator_type
   use testkern_any_space_3_mod, only : testkern_any_space_3_type
 
   implicit none

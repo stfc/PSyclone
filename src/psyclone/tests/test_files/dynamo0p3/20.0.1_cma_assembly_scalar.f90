@@ -38,8 +38,8 @@ program single_invoke_cma
 
   ! Description: single CMA assembly kernel which includes a scalar
   ! argument
-  use inf,                                 only: operator_type, &
-                                                 columnwise_operator_type
+  use operator_mod,                        only: operator_type
+  use columnwise_operator_mod,             only: columnwise_operator_type
   use columnwise_op_asm_kernel_scalar_mod, only: columnwise_op_asm_kernel_scalar_type
 
   implicit none

@@ -31,14 +31,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 
 program any_space_example
 
   ! Description: single kernel call in an invoke where the field and operator
   ! arguments are specified on any_space.
-  use inf,                      only : field_type, operator_type
+  use field_mod,                only : field_type
+  use operator_mod,             only : operator_type
   use testkern_any_space_2_mod, only : testkern_any_space_2_type
 
   implicit none

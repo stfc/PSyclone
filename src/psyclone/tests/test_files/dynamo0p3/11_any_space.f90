@@ -31,14 +31,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 
 program any_space_example
 
   ! Description: single kernel call in an invoke where the field arguments are
   ! specified on any_space with basis functions on any_space for quadrature rule.
-  use inf,                      only : field_type, quadrature_xyoz_type
+  use field_mod,                only : field_type
+  use quadrature_xyoz_mod,      only : quadrature_xyoz_type
   use testkern_any_space_1_mod, only : testkern_any_space_1_type
 
   implicit none
