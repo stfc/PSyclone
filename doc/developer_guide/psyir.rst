@@ -367,29 +367,36 @@ PSyIR tree. In theory, language interfaces could be written between
 CodeBlocks and other PSyIR Nodes to support different back-ends but
 this has not been implemented.
 
-The CodeBlock ``structure`` method indicates whether the code contains
-one or more Fortran expressions or one or more statements (which may
-themselves contain expressions). This is required by the Fortran
-back-end as expressions do not need indentation and a newline whereas
-statements do.
+Currently PSyIR have a single CodeBlock node that can be found
+in place of full Statements or being part of an expression that
+evaluates to a DataNode. To make this possible CodeBlock is a subclass
+of both: Statement and DataNode. However, in certain situations we
+still need to differentiate which one it is, for instance the Fortran
+back-end needs this information as expressions do not need indentation
+and a newline whereas statements do.
+For this reason, CodeBlock has a ``structure`` method that indicates
+whether the code contains one or more unrecognized language expressions
+or one or more statements (which may themselves contain expressions).
 
-A feature of the fparser2 node list is that if the first node in the
+The Fortran front-end populates the ``structure`` attribute using a
+feature of the fparser2 node list that is if the first node in the
 list is a statement then so are all the other nodes in the list and
 that if the first node in the list is an expression then so are all
 the other nodes in the list. This allows the ``structure`` method to
 return a single value that represents all nodes in the list.
-
 The structure of the PSyIR hierarchy is used to determine whether the
 code in a CodeBlock contains expressions or statements. This is
 achieved by looking at the parent PSyIR Node. If the parent Node is a
 Schedule then the CodeBlock contains one or more statements, otherwise
-it contains one or more expressions. This logic works for existing
-PSyIR nodes and relies on any future PSyIR nodes being constructed so
-this continues to be true. The one exception to this rule is
-Directives. Directives currently do not place their children in a
-Schedule. As the structure of Directives is under discussion, it was
-decided to raise an exception if the parent node of a CodeBlock is a
-Directive (for the time being).
+it contains one or more expressions.
+
+This logic works for existing PSyIR nodes and relies on any future PSyIR
+nodes being constructed so this continues to be true. Another solution
+would be to have two different nodes: StatementsCodeBlock which subclasses
+Statement, and DataCodeBlock which subclasses DataNode. We have chose the
+first implementation for the simplicity of having a single PSyIR node instead
+of two, but if things get more complicated using this implementation, the
+second alternative could be considered again.
 
 Reference Node
 --------------
