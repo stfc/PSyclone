@@ -2963,7 +2963,7 @@ class LFRicRunTimeChecks(DynCollection):
                     function_space_names = [fs_name]
 
                 if_condition = " .and. ".join(
-                    ["{0}%which_function_space() .ne. {1}".format(
+                    ["{0}%which_function_space() /= {1}".format(
                         field_name, name.upper())
                      for name in function_space_names])
                 if_then = IfThenGen(parent, if_condition)
@@ -3020,7 +3020,8 @@ class LFRicRunTimeChecks(DynCollection):
                 parent, " Check that read-only fields are not modified"))
         for field, call in modified_fields:
             if_then = IfThenGen(
-                parent, "{0}%is_readonly()".format(field.name_indexed))
+                parent, "{0}%vspace%is_readonly()".format(
+                    field.proxy_name_indexed))
             call_abort = CallGen(
                 if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
                 "'{2}' is on a read-only function space but is modified "
