@@ -926,28 +926,10 @@ class Fparser2Reader(object):
 
         return shape
 
-    def process_declarations(self, parent, nodes, arg_list):
+    def _process_use_stmts(self, parent, nodes):
         '''
-        Transform the variable declarations in the fparser2 parse tree into
-        symbols in the symbol table of the PSyIR parent node.
-
-        :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
-        :param nodes: fparser2 AST nodes to search for declaration statements.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
-        :param arg_list: fparser2 AST node containing the argument list.
-        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
-
-        :raises NotImplementedError: the provided declarations contain \
-                                     attributes which are not supported yet.
-        :raises GenerationError: if the parse tree for a USE statement does \
-                                 not have the expected structure.
-        :raises SymbolError: if a declaration is found for a Symbol that is \
-                    already in the symbol table with a defined interface.
-        :raises InternalError: if the provided declaration is an unexpected \
-                               or invalid fparser or Fortran expression.
+        TODO
         '''
-        # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
             # Check that the parse tree is what we expect
@@ -1037,174 +1019,212 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
-            (type_spec, attr_specs, entities) = decl.items
+    def _process_decln(self, parent, decl):
+        '''
+        '''
+        (type_spec, attr_specs, entities) = decl.items
 
-            # Parse type_spec, currently just 'real', 'integer', 'logical' and
-            # 'character' intrinsic types are supported.
-            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
-                fort_type = str(type_spec.items[0]).lower()
-                try:
-                    data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
-                except KeyError:
-                    raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
-                # Check for a KIND specification
-                precision = self._process_kind_selector(
-                    type_spec, parent)
+        # Parse type_spec, currently just 'real', 'integer', 'logical' and
+        # 'character' intrinsic types are supported.
+        if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+            fort_type = str(type_spec.items[0]).lower()
+            try:
+                data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
+            except KeyError:
+                raise NotImplementedError(
+                    "Could not process {0}. Only 'real', 'integer', "
+                    "'logical' and 'character' intrinsic types are "
+                    "supported.".format(str(decl.items)))
+            # Check for a KIND specification
+            precision = self._process_kind_selector(
+                type_spec, parent)
 
-            # Parse declaration attributes:
-            # 1) If no dimension attribute is provided, it defaults to scalar.
-            attribute_shape = []
-            # 2) If no intent attribute is provided, it is provisionally
-            # marked as a local variable (when the argument list is parsed,
-            # arguments with no explicit intent are updated appropriately).
-            interface = LocalInterface()
-            # 3) Record initialized constant values
-            has_constant_value = False
-            allocatable = False
-            if attr_specs:
-                for attr in attr_specs.items:
-                    if isinstance(attr, Fortran2003.Attr_Spec):
-                        normalized_string = str(attr).lower().replace(' ', '')
-                        if "save" in normalized_string:
-                            # Variables declared with SAVE attribute inside a
-                            # module, submodule or main program are implicitly
-                            # SAVE'd (see Fortran specification 8.5.16.4) so it
-                            # is valid to ignore the attribute in these
-                            # situations.
-                            if not (decl.parent and
-                                    isinstance(decl.parent.parent,
-                                               (Fortran2003.Module,
-                                                Fortran2003.Main_Program))):
-                                raise NotImplementedError(
-                                    "Could not process {0}. The 'SAVE' "
-                                    "attribute is not yet supported when it is"
-                                    " not part of a module, submodule or main_"
-                                    "program specification part.".
-                                    format(decl.items))
-
-                        elif normalized_string == "parameter":
-                            # Flag the existence of a constant value in the RHS
-                            has_constant_value = True
-                        elif normalized_string == "allocatable":
-                            allocatable = True
-                        else:
+        # Parse declaration attributes:
+        # 1) If no dimension attribute is provided, it defaults to scalar.
+        attribute_shape = []
+        # 2) If no intent attribute is provided, it is provisionally
+        # marked as a local variable (when the argument list is parsed,
+        # arguments with no explicit intent are updated appropriately).
+        interface = LocalInterface()
+        # 3) Record initialized constant values
+        has_constant_value = False
+        allocatable = False
+        if attr_specs:
+            for attr in attr_specs.items:
+                if isinstance(attr, Fortran2003.Attr_Spec):
+                    normalized_string = str(attr).lower().replace(' ', '')
+                    if "save" in normalized_string:
+                        # Variables declared with SAVE attribute inside a
+                        # module, submodule or main program are implicitly
+                        # SAVE'd (see Fortran specification 8.5.16.4) so it
+                        # is valid to ignore the attribute in these
+                        # situations.
+                        if not (decl.parent and
+                                isinstance(decl.parent.parent,
+                                           (Fortran2003.Module,
+                                            Fortran2003.Main_Program))):
                             raise NotImplementedError(
-                                "Could not process {0}. Unrecognized "
-                                "attribute '{1}'.".format(decl.items,
-                                                          str(attr)))
-                    elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
-                        (_, intent) = attr.items
-                        normalized_string = \
-                            intent.string.lower().replace(' ', '')
-                        if normalized_string == "in":
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        elif normalized_string == "out":
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif normalized_string == "inout":
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READWRITE)
-                        else:
-                            raise InternalError(
-                                "Could not process {0}. Unexpected intent "
-                                "attribute '{1}'.".format(decl.items,
-                                                          str(attr)))
-                    elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                        attribute_shape = \
-                            self._parse_dimensions(attr, parent.symbol_table)
+                                "Could not process {0}. The 'SAVE' "
+                                "attribute is not yet supported when it is"
+                                " not part of a module, submodule or main_"
+                                "program specification part.".
+                                format(decl.items))
+
+                    elif normalized_string == "parameter":
+                        # Flag the existence of a constant value in the RHS
+                        has_constant_value = True
+                    elif normalized_string == "allocatable":
+                        allocatable = True
                     else:
                         raise NotImplementedError(
-                            "Could not process {0}. Unrecognized attribute "
-                            "type {1}.".format(decl.items, str(type(attr))))
-
-            if not precision:
-                precision = default_precision(data_name)
-
-            # Parse declarations RHS and declare new symbol into the
-            # parent symbol table for each entity found.
-            for entity in entities.items:
-                (name, array_spec, char_len, initialisation) = entity.items
-                ct_expr = None
-
-                # If the entity has an array-spec shape, it has priority.
-                # Otherwise use the declaration attribute shape.
-                if array_spec is not None:
-                    entity_shape = \
-                        self._parse_dimensions(array_spec, parent.symbol_table)
-                else:
-                    entity_shape = attribute_shape
-
-                if allocatable and not entity_shape:
-                    # We have an allocatable attribute on something that we
-                    # don't recognise as an array - this is not supported.
-                    raise NotImplementedError(
-                        "Could not process {0}. The 'allocatable' attribute is"
-                        " only supported on array declarations.".format(
-                            str(decl)))
-
-                for idx, extent in enumerate(entity_shape):
-                    if extent is None:
-                        if allocatable:
-                            entity_shape[idx] = ArrayType.Extent.DEFERRED
-                        else:
-                            entity_shape[idx] = ArrayType.Extent.ATTRIBUTE
-                    elif not isinstance(extent, ArrayType.Extent) and \
-                            allocatable:
-                        # We have an allocatable array with a defined extent.
-                        # This is invalid Fortran.
+                            "Could not process {0}. Unrecognized "
+                            "attribute '{1}'.".format(decl.items,
+                                                      str(attr)))
+                elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                    (_, intent) = attr.items
+                    normalized_string = \
+                        intent.string.lower().replace(' ', '')
+                    if normalized_string == "in":
+                        interface = ArgumentInterface(
+                            ArgumentInterface.Access.READ)
+                    elif normalized_string == "out":
+                        interface = ArgumentInterface(
+                            ArgumentInterface.Access.WRITE)
+                    elif normalized_string == "inout":
+                        interface = ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE)
+                    else:
                         raise InternalError(
-                            "Invalid Fortran: '{0}'. An array with defined "
-                            "extent cannot have the ALLOCATABLE attribute.".
-                            format(str(decl)))
-
-                if initialisation:
-                    if has_constant_value:
-                        # If it is a parameter parse its initialization
-                        tmp = Node()
-                        expr = initialisation.items[1]
-                        self.process_nodes(parent=tmp, nodes=[expr])
-                        ct_expr = tmp.children[0]
-                    else:
-                        raise NotImplementedError(
-                            "Could not process {0}. Initialisations on the"
-                            " declaration statements are only supported for "
-                            "parameter declarations.".format(decl.items))
-
-                if char_len is not None:
+                            "Could not process {0}. Unexpected intent "
+                            "attribute '{1}'.".format(decl.items,
+                                                      str(attr)))
+                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                    attribute_shape = \
+                        self._parse_dimensions(attr, parent.symbol_table)
+                else:
                     raise NotImplementedError(
-                        "Could not process {0}. Character length "
-                        "specifications are not supported."
-                        "".format(decl.items))
+                        "Could not process {0}. Unrecognized attribute "
+                        "type {1}.".format(decl.items, str(type(attr))))
 
-                sym_name = str(name).lower()
+        if not precision:
+            precision = default_precision(data_name)
 
-                if entity_shape:
-                    # array
-                    datatype = ArrayType(ScalarType(data_name, precision),
-                                         entity_shape)
+        # Parse declarations RHS and declare new symbol into the
+        # parent symbol table for each entity found.
+        for entity in entities.items:
+            (name, array_spec, char_len, initialisation) = entity.items
+            ct_expr = None
+
+            # If the entity has an array-spec shape, it has priority.
+            # Otherwise use the declaration attribute shape.
+            if array_spec is not None:
+                entity_shape = \
+                    self._parse_dimensions(array_spec, parent.symbol_table)
+            else:
+                entity_shape = attribute_shape
+
+            if allocatable and not entity_shape:
+                # We have an allocatable attribute on something that we
+                # don't recognise as an array - this is not supported.
+                raise NotImplementedError(
+                    "Could not process {0}. The 'allocatable' attribute is"
+                    " only supported on array declarations.".format(
+                        str(decl)))
+
+            for idx, extent in enumerate(entity_shape):
+                if extent is None:
+                    if allocatable:
+                        entity_shape[idx] = ArrayType.Extent.DEFERRED
+                    else:
+                        entity_shape[idx] = ArrayType.Extent.ATTRIBUTE
+                elif not isinstance(extent, ArrayType.Extent) and \
+                        allocatable:
+                    # We have an allocatable array with a defined extent.
+                    # This is invalid Fortran.
+                    raise InternalError(
+                        "Invalid Fortran: '{0}'. An array with defined "
+                        "extent cannot have the ALLOCATABLE attribute.".
+                        format(str(decl)))
+
+            if initialisation:
+                if has_constant_value:
+                    # If it is a parameter parse its initialization
+                    tmp = Node()
+                    expr = initialisation.items[1]
+                    self.process_nodes(parent=tmp, nodes=[expr])
+                    ct_expr = tmp.children[0]
                 else:
-                    # scalar
-                    datatype = ScalarType(data_name, precision)
+                    raise NotImplementedError(
+                        "Could not process {0}. Initialisations on the"
+                        " declaration statements are only supported for "
+                        "parameter declarations.".format(decl.items))
 
-                if sym_name not in parent.symbol_table:
-                    parent.symbol_table.add(DataSymbol(sym_name, datatype,
-                                                       constant_value=ct_expr,
-                                                       interface=interface))
-                else:
-                    # The symbol table already contains an entry with this name
-                    # so update its interface information.
-                    sym = parent.symbol_table.lookup(sym_name)
-                    if not sym.unresolved_interface:
-                        raise SymbolError(
-                            "Symbol '{0}' already present in SymbolTable with "
-                            "a defined interface ({1}).".format(
-                                sym_name, str(sym.interface)))
-                    sym.interface = interface
+            if char_len is not None:
+                raise NotImplementedError(
+                    "Could not process {0}. Character length "
+                    "specifications are not supported."
+                    "".format(decl.items))
+
+            sym_name = str(name).lower()
+
+            if entity_shape:
+                # array
+                datatype = ArrayType(ScalarType(data_name, precision),
+                                     entity_shape)
+            else:
+                # scalar
+                datatype = ScalarType(data_name, precision)
+
+            if sym_name not in parent.symbol_table:
+                parent.symbol_table.add(DataSymbol(sym_name, datatype,
+                                                   constant_value=ct_expr,
+                                                   interface=interface))
+            else:
+                # The symbol table already contains an entry with this name
+                # so update its interface information.
+                sym = parent.symbol_table.lookup(sym_name)
+                if not sym.unresolved_interface:
+                    raise SymbolError(
+                        "Symbol '{0}' already present in SymbolTable with "
+                        "a defined interface ({1}).".format(
+                            sym_name, str(sym.interface)))
+                sym.interface = interface
+
+    def process_declarations(self, parent, nodes, arg_list):
+        '''
+        Transform the variable declarations in the fparser2 parse tree into
+        symbols in the symbol table of the PSyIR parent node.
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param arg_list: fparser2 AST node containing the argument list.
+        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+
+        :raises NotImplementedError: the provided declarations contain \
+                                     attributes which are not supported yet.
+        :raises GenerationError: if the parse tree for a USE statement does \
+                                 not have the expected structure.
+        :raises SymbolError: if a declaration is found for a Symbol that is \
+                    already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected \
+                               or invalid fparser or Fortran expression.
+        '''
+        # Look at any USE statments
+        self._process_use_stmts(parent, nodes)
+
+        # Variable declarations
+        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
+            try:
+                self._process_decln(parent, decl)
+            except NotImplementedError:
+                # Found an unsupported variable declaration. Create a
+                # DataSymbol with deferred type for each entity being declared.
+                for entity in decl.children[2].children:
+                    # TODO need to store original Fortran declaration
+                    parent.symbol_table.add(DataSymbol(str(entity.children[0]),
+                                                       DeferredType()))
 
         try:
             arg_symbols = []
@@ -1377,9 +1397,7 @@ class Fparser2Reader(object):
     def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
-        fparser2 AST. Currently also inserts parent information back
-        into the fparser2 AST. This is a workaround until fparser2
-        itself generates and stores this information.
+        fparser2 AST.
 
         :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`

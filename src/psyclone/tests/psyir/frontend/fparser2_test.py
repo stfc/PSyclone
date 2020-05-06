@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE
+    REAL_TYPE, DeferredType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -678,14 +678,14 @@ def test_process_declarations(f2008_parser):
     assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
                       BinaryOperation)
 
-    # Initial values for variables are not supported
+    # Initial values for variables are not supported so should get a symbol 'a'
+    # with deferred type.
     reader = FortranStringReader("real:: a = 1.1")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Initialisations on the declaration statements are only " \
-           "supported for parameter declarations." in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    newsymbol = fake_parent.symbol_table.lookup("a")
+    assert isinstance(newsymbol, DataSymbol)
+    assert isinstance(newsymbol.datatype, DeferredType)
 
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
@@ -698,19 +698,18 @@ def test_process_declarations(f2008_parser):
     # Test with unsupported data type
     reader = FortranStringReader("doubleprecision     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
-            "types are supported.") in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    newsymbol = fake_parent.symbol_table.lookup("c2")
+    assert isinstance(newsymbol, DataSymbol)
+    assert isinstance(newsymbol.datatype, DeferredType)
 
     # Test with unsupported attribute
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Unrecognized attribute type " in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    newsymbol = fake_parent.symbol_table.lookup("p2")
+    assert isinstance(newsymbol, DataSymbol)
+    assert isinstance(newsymbol.datatype, DeferredType)
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
@@ -719,10 +718,10 @@ def test_process_declarations(f2008_parser):
                                  "\nend program")
     program = f2008_parser(reader)
     fparser2spec = program.content[0].content[1].content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Character length specifications are not "
-            "supported.") in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    newsymbol = fake_parent.symbol_table.lookup("l")
+    assert isinstance(newsymbol, DataSymbol)
+    assert isinstance(newsymbol.datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -804,18 +803,17 @@ def test_process_not_supported_declarations():
 
     reader = FortranStringReader("integer, external :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("arg1")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ("'allocatable' attribute is only supported on array "
-            "declarations" in str(error.value))
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("p3")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
@@ -842,48 +840,42 @@ def test_process_save_attribute_declarations(parser):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    # Test with no context about where the declaration. Not even that is
-    # in the Specification_Part.
+    # Test with no context about where the declaration is. Not even that it
+    # is in the Specification_Part.
     reader = FortranStringReader("integer, save :: var1")
     fparser2spec = Type_Declaration_Stmt(reader)
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
-        " of a module, submodule or main_program specification part." \
-        in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("var1")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
     # Test with no context about where the declaration is.
-    reader = FortranStringReader("integer, save :: var1")
+    reader = FortranStringReader("integer, save :: var2")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
-        " of a module, submodule or main_program specification part." \
-        in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("var2")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
     # Test with a subroutine.
     reader = FortranStringReader(
         "subroutine name()\n"
-        "integer, save :: var1\n"
+        "integer, save :: var3\n"
         "end subroutine name")
     fparser2spec = parser(reader).content[0].content[1]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ". The 'SAVE' attribute is not yet supported when it is not part" \
-        " of a module, submodule or main_program specification part." \
-        in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("var3")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
     # Test with a module.
     reader = FortranStringReader(
         "module modulename\n"
-        "integer, save :: var1\n"
+        "integer, save :: var4\n"
         "end module modulename")
     fparser2spec = parser(reader).content[0].content[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "var1" in fake_parent.symbol_table
+    assert "var4" in fake_parent.symbol_table
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -950,15 +942,17 @@ def test_process_declarations_kind_new_param():
     # references the same 'wp' symbol.
     var2_var = fake_parent.symbol_table.lookup("var2")
     assert var2_var.datatype.precision is wp_var
-    # Check that we raise an error if the KIND expression has an unexpected
-    # structure
+    # Check that we create a symbol with DeferredType if the KIND expression
+    # has an unexpected structure.
     # Break the parse tree by changing Name('wp') into a str
-    fp2spec[0].items[0].items[1].items = ("(", "blah", ")")
+    fp2spec[0].children[0].children[1].items = ("(", "blah", ")")
+    # Change the variable name too to prevent a clash
+    fp2spec[0].children[2].children[0].children[0].string = "var3"
     processor = Fparser2Reader()
-    with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(fake_parent, fp2spec, [])
-    assert ("Failed to find valid Name in Fortran Kind Selector: "
-            "'(KIND = blah)'" in str(err.value))
+    processor.process_declarations(fake_parent, [fp2spec[0]], [])
+    sym = fake_parent.symbol_table.lookup("var3")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
 
 @pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
@@ -1041,11 +1035,11 @@ def test_unsupported_kind(vartype, kind):
         TODO #569 - add support for some/all of these.
 
     '''
-    with pytest.raises(NotImplementedError) as err:
-        process_declarations("{0}(kind=KIND({1})) :: var".format(vartype,
-                                                                 kind))
-    assert ("Only real and integer literals are supported as arguments to"
-            in str(err.value))
+    (sched, ptree) = process_declarations(
+        "{0}(kind=KIND({1})) :: var".format(vartype, kind))
+    sym = sched.symbol_table.lookup("var")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
