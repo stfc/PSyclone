@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code

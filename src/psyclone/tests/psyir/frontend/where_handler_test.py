@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''

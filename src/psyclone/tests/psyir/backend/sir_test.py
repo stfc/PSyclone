@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by: A. R. Porter, STFC Daresbury Lab
+# Modified by: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''

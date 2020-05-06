@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' This module implementes a PSyData node, i.e.a node that at code
