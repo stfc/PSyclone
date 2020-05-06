@@ -115,8 +115,8 @@ to perform the following steps:
     up to the developer to keep them coherent in order to provide sensible
     error messages. Alternatively we could create an implementation where
     the textual representation is parsed and the validation method is
-    generated automatically, hence avoiding the duplication. This will be
-    considered in the future.)
+    generated automatically, hence avoiding the duplication. Issue #765
+    explores this alternative.)
 
 For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a

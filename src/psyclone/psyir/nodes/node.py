@@ -303,7 +303,8 @@ class Node(object):
          The generic implementation always returns False, this simplifies the
          specializations as Leaf nodes will have by default the expected
          behaviour, and non-leaf nodes need to modify this method to its
-         particular constrains anyway.
+         particular constrains anyway. Issue #765 explores if this method
+         can be auto-generated using the _children_valid_format string.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
