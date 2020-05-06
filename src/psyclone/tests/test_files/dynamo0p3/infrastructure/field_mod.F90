@@ -9,7 +9,7 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Modifications copyright (c) 2017, Science and Technology Facilities
 ! Council
 ! All rights reserved.
 !
@@ -38,7 +38,6 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modifications R. W. Ford, STFC Daresbury Lab
 !
 module field_mod
 
