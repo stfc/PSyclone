@@ -49,11 +49,11 @@ program multikernel_invokes_452
 
   implicit none
 
-  type(field_type)      :: f1, f2, f3(3)
-  type(operator_type)   :: op, op2, op3, op4, op5
-  type(quadrature_rule) :: qr
-  integer(i_def)        :: scalar
-  real(r_def)           :: rdt
+  type(field_type)           :: f1, f2, f3(3)
+  type(operator_type)        :: op, op2, op3, op4, op5
+  type(quadrature_xyoz_type) :: qr
+  integer(i_def)             :: scalar
+  real(r_def)                :: rdt
 
   call invoke(                                             &
        ! any1, any2, W0

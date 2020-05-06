@@ -40,15 +40,13 @@ program multikernel_invokes_6
   ! specfied as any_space
   use field_mod,                only : field_type
   use operator_mod,             only : operator_type
-  use quadrature_xyoz_mod,      only : quadrature_xyoz_type
   use testkern_any_space_2_mod, only : testkern_any_space_2_type
 
   implicit none
 
-  type(field_type)      :: f1, f2
-  type(operator_type)   :: op
-  type(quadrature_rule) :: qr
-  integer(i_def)        :: scalar
+  type(field_type)    :: f1, f2
+  type(operator_type) :: op
+  integer(i_def)      :: scalar
 
   call invoke(                                        &
        testkern_any_space_2_type(f1, f2, op, scalar), &

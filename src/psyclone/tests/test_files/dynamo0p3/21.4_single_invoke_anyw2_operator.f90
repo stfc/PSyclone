@@ -44,9 +44,9 @@ program single_invoke_anyw2_operator
 
   implicit none
 
-  type(field_type)      :: f1, f2, f3
-  type(quadrature_type) :: qr
-  type(operator_type)   :: mm_w2
+  type(field_type)           :: f1, f2, f3
+  type(operator_type)        :: mm_w2
+  type(quadrature_xyoz_type) :: qr
   
   call invoke(                                             &
        testkern_anyw2_operator_type(mm_w2, f1, f2, f3, qr) &
