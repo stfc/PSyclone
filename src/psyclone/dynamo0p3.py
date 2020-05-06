@@ -1481,6 +1481,15 @@ class DynamoPSy(PSy):
         return self._name + "_psy"
 
     @property
+    def orig_name(self):
+        '''
+        :returns: the unmodified psy-layer name.
+        :rtype: str
+
+        '''
+        return self._name
+
+    @property
     def gen(self):
         '''
         Generate PSy code for the Dynamo0.3 api.
@@ -2880,15 +2889,15 @@ class DynFields(DynCollection):
                                           fld.function_space.mangled_name]))
 
 
-class DynRunTimeChecks(DynCollection):
-    '''Handle declarations and run-time checks. This is not used in the
-    stub generator.
+class LFRicRunTimeChecks(DynCollection):
+    '''Handle declarations and code generation for run-time checks. This
+    is not used in the stub generator.
 
     '''
 
     def _invoke_declarations(self, parent):
-        '''
-        Insert declarations of all proxy-related quantities into the PSy layer.
+        '''Insert declarations of all data and functions required by the
+        run-time checks code into the PSy layer.
 
         :param parent: the node in the f2pygen AST representing the PSy- \
                        layer routine.
@@ -2902,7 +2911,7 @@ class DynRunTimeChecks(DynCollection):
                               funcnames=["log_event", "LOG_LEVEL_ERROR"]))
 
     def _check_field_fs(self, parent):
-        '''Internal method that adds runtime checks to make sure that the
+        '''Internal method that adds run-time checks to make sure that the
         field's function space is consistent with the appropriate
         kernel metadata function spaces.
 
@@ -2925,7 +2934,7 @@ class DynRunTimeChecks(DynCollection):
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
                 if arg.type != "gh_field":
-                    # We only check fields
+                    # This check is limited to fields
                     continue
                 fs_name = arg.function_space.orig_name
                 field_name = arg.name_indexed
@@ -2960,12 +2969,13 @@ class DynRunTimeChecks(DynCollection):
                 if_then = IfThenGen(parent, if_condition)
                 call_abort = CallGen(
                     if_then, "log_event(\"In alg '{0}' invoke '{1}', the "
-                    "function space for field '{2}' is not compatible "
-                    "with the kernel metadata function space '{3}' specified "
-                    "in kernel '{4}'.\", LOG_LEVEL_ERROR)"
-                    "".format(self._invoke.invokes.psy._name,
+                    "field '{2}' is passed to kernel '{3}' but its function "
+                    "space is not not compatible with the function space "
+                    "specified in the kernel metadata '{4}'.\", "
+                    "LOG_LEVEL_ERROR)"
+                    "".format(self._invoke.invokes.psy.orig_name,
                               self._invoke.name, arg.name,
-                              fs_name, kern_call.name))
+                              kern_call.name, fs_name))
                 if_then.add(call_abort)
                 parent.add(if_then)
 
@@ -3004,19 +3014,19 @@ class DynRunTimeChecks(DynCollection):
                         arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
                              entry.name == arg.name]):
-                    modified_fields.append(arg)
+                    modified_fields.append((arg, call))
         if modified_fields:
             parent.add(CommentGen(
                 parent, " Check that read-only fields are not modified"))
-        for field in modified_fields:
+        for field, call in modified_fields:
             if_then = IfThenGen(
                 parent, "{0}%is_readonly()".format(field.name_indexed))
             call_abort = CallGen(
                 if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
                 "'{2}' is on a read-only function space but is modified "
-                "by one of the kernels.\", LOG_LEVEL_ERROR)"
-                "".format(self._invoke.invokes.psy._name, self._invoke.name,
-                          field.name))
+                "by kernel '{3}'.\", LOG_LEVEL_ERROR)"
+                "".format(self._invoke.invokes.psy.orig_name,
+                          self._invoke.name, field.name, call.name))
             if_then.add(call_abort)
             parent.add(if_then)
 
@@ -3025,7 +3035,7 @@ class DynRunTimeChecks(DynCollection):
         from the algorithm layer are consistent with the metadata
         specified in the associated kernels. Currently checks are
         limited to ensuring that field function spaces are consistent
-        with the associated kernel function space metadata.
+        with the associated kernel function-space metadata.
 
         :param parent: the node in the f2pygen AST representing the PSy- \
                        layer routine.
@@ -3040,13 +3050,13 @@ class DynRunTimeChecks(DynCollection):
         parent.add(CommentGen(parent, " Perform run-time checks"))
         parent.add(CommentGen(parent, ""))
 
-        # Check that a field's function space is compatible with the
-        # function space specified in the kernel metadata.
+        # Check that field function spaces are compatible with the
+        # function spaces specified in the kernel metadata.
         self._check_field_fs(parent)
 
-        # Check a field on a read-only function space is not passed
-        # into a kernel where the kernel metadata specifies that the
-        # field will be modified.
+        # Check that fields on read-only function spaces are not
+        # passed into a kernel where the kernel metadata specifies
+        # that the field will be modified.
         self._check_field_ro(parent)
 
 
@@ -4982,7 +4992,7 @@ class DynInvoke(Invoke):
         self.proxies = DynProxies(self)
 
         # Run-time checks for this invoke
-        self.run_time_checks = DynRunTimeChecks(self)
+        self.run_time_checks = LFRicRunTimeChecks(self)
 
         # Information required by kernels that iterate over cells
         self.cell_iterators = DynCellIterators(self)
@@ -9372,7 +9382,7 @@ class DynKernelArgument(KernelArgument):
 
         # Addressing issue #753 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
-        # metadata. This will includes checking that a field on a read
+        # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
 

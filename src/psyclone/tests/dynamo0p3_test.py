@@ -2499,8 +2499,27 @@ def test_dynkernmetadata_read_fs_error():
     metadata.
 
     '''
+    code = (
+        "module testkern_chi_write_mod\n"
+        "  use argument_mod\n"
+        "  use kernel_mod\n"
+        "  use constants_mod\n"
+        "  type, extends(kernel_type) :: testkern_chi_write_type\n"
+        "     type(arg_type), dimension(2) :: meta_args =  &\n"
+        "          (/ arg_type(gh_field,gh_write,wchi),    &\n"
+        "             arg_type(gh_field,gh_read,wchi)      &\n"
+        "           /)\n"
+        "     integer :: iterates_over = cells\n"
+        "   contains\n"
+        "     procedure, nopass :: code => testkern_chi_write_code\n"
+        "  end type testkern_chi_write_type\n"
+        "contains\n"
+        "  subroutine testkern_chi_write_code()\n"
+        "  end subroutine testkern_chi_write_code\n"
+        "end module testkern_chi_write_mod\n")
+    ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as info:
-        parse(os.path.join(BASE_PATH, "24_read_fs_error.f90"), api=TEST_API)
+        _ = DynKernMetadata(ast)
     assert ("Found kernel metadata in 'testkern_chi_write_type' that "
             "specifies writing to the read-only function space 'wchi'."
             in str(info.value))
@@ -6467,33 +6486,33 @@ def test_dyninvoke_runtime(tmpdir, monkeypatch):
         "es are compatible\n"
         "      IF (f1%which_function_space() .ne. W1) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the function space for field 'f1' is not compatible wit"
-        "h the kernel metadata function space 'w1' specified in kernel 'testk"
-        "ern_code'.\", LOG_LEVEL_ERROR)\n"
-        "      END IF\n"
+        "tkern_type', the field 'f1' is passed to kernel 'testkern_code' but "
+        "its function space is not not compatible with the function space spe"
+        "cified in the kernel metadata 'w1'.\", LOG_LEVEL_ERROR)\n"
+"      END IF\n"
         "      IF (f2%which_function_space() .ne. W2) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the function space for field 'f2' is not compatible wit"
-        "h the kernel metadata function space 'w2' specified in kernel 'testk"
-        "ern_code'.\", LOG_LEVEL_ERROR)\n"
+        "tkern_type', the field 'f2' is passed to kernel 'testkern_code' but "
+        "its function space is not not compatible with the function space spe"
+        "cified in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      IF (m1%which_function_space() .ne. W2) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the function space for field 'm1' is not compatible wit"
-        "h the kernel metadata function space 'w2' specified in kernel 'testk"
-        "ern_code'.\", LOG_LEVEL_ERROR)\n"
+        "tkern_type', the field 'm1' is passed to kernel 'testkern_code' but "
+        "its function space is not not compatible with the function space spe"
+        "cified in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      IF (m2%which_function_space() .ne. W3) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the function space for field 'm2' is not compatible wit"
-        "h the kernel metadata function space 'w3' specified in kernel 'testk"
-        "ern_code'.\", LOG_LEVEL_ERROR)\n"
+        "tkern_type', the field 'm2' is passed to kernel 'testkern_code' but "
+        "its function space is not not compatible with the function space spe"
+        "cified in the kernel metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
         "      IF (f1%is_readonly()) THEN\n"
         "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
         "tkern_type', field 'f1' is on a read-only function space but is modi"
-        "fied by one of the kernels.\", LOG_LEVEL_ERROR)\n"
+        "fied by kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")
@@ -6598,7 +6617,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
 
 def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     '''Test that run-time checks work when there are multiple kernels and
-    at least one field is specified as being on the a function space
+    at least one field is specified as being on a given function space
     more than once. In this case we want to avoid checking the same
     thing twice.
 
@@ -6676,6 +6695,41 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
         "      !\n"
         "      ! Initialise number of layers\n")
     assert expected2 in generated_code
+
+
+def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
+    '''Test that run-time checks work when there are builtins.'''
+    # run-time checks are off by default so switch them on
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.1_X_plus_Y_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
+    expected_code1 = (
+        "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
+        "      USE fs_continuity_mod\n"
+        "      TYPE(field_type), intent(in) :: f3, f1, f2\n")
+    assert expected_code1 in generated_code
+    expected_code2 = (
+        "      f2_proxy = f2%get_proxy()\n"
+        "      !\n"
+        "      ! Perform run-time checks\n"
+        "      !\n"
+        "      ! Check field function space and kernel metadata function "
+        "spaces are compatible\n"
+        "      ! Check that read-only fields are not modified\n"
+        "      IF (f3%is_readonly()) THEN\n"
+        "        CALL log_event(\"In alg 'single_invoke' invoke 'invoke_0', "
+        "field 'f3' is on a read-only function space but is modified by "
+        "kernel 'f3'.\", LOG_LEVEL_ERROR)\n"
+        "      END IF\n"
+        "      !\n"
+        "      ! Call kernels and communication routines\n")
+    assert expected_code2 in generated_code
 
 
 def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
@@ -6806,13 +6860,14 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     assert expected2 in generated_code
 
 
-def test_read_only_fields_hex():
+def test_read_only_fields_hex(tmpdir):
     '''Test that halo exchange code is produced for read-only fields.'''
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "24.1_read_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected = (
         "      IF (f2_proxy(1)%is_dirty(depth=1)) THEN\n"

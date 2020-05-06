@@ -59,6 +59,7 @@ class LFRicBuild(Compile):
     # order can be important, they will be compiled in the order
     # specified here.
     INFRASTRUCTURE_MODULES = ["constants_mod",
+                              "fs_continuity_mod",
                               "linked_list_data_mod",
                               "argument_mod",
                               "kernel_mod",
@@ -77,8 +78,7 @@ class LFRicBuild(Compile):
                               "quadrature_face_mod",
                               "operator_mod",
                               "flux_direction_mod",
-                              "log_mod",
-                              "fs_continuity_mod"]
+                              "log_mod"]
 
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.

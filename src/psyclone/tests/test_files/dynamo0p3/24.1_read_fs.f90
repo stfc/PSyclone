@@ -37,7 +37,7 @@ program single_invoke
 
   ! Description: call a kernel that reads from a chi field
   use testkern_chi_read_mod, only: testkern_chi_read_type
-  use inf,          only: field_type
+  use field_mod,             only: field_type
 
   implicit none
 

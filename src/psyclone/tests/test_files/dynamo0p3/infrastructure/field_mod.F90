@@ -173,7 +173,6 @@ contains
     logical :: answer
 
     answer = .false.
-    return
   end function is_readonly
 
   subroutine halo_exchange( self, depth )

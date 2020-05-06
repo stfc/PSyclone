@@ -135,7 +135,7 @@ supported by PSyclone.
 ======================= =======================================================
 Entry                   Description
 ======================= =======================================================
-DEFAULRAPI              The API that PSyclone assumes an Algorithm/Kernel
+DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
                         conforms to if no API is specified. Must be one of the
                         APIs supported by PSyclone (dynamo0.1, dynamo0.3,
                         gocean0.1, gocean1.0 and nemo). If there is no
@@ -160,7 +160,7 @@ REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
                         sharing of cache lines by different threads.)
 PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not
                         supplied when creating a symbol. Defaults to
-			"psyir_tmp".
+                        "psyir_tmp".
 ======================= =======================================================
 
 Common Sections
