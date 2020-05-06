@@ -38,8 +38,8 @@ program single_invoke_fs
 
   ! Description: single function that writes to fields on ANY_SPACE
   ! and W2trace (both continuous).
+  use field_mod,                      only: field_type
   use testkern_write_any_w2trace_mod, only: testkern_write_any_w2trace_type
-  use inf,                            only: field_type
 
   implicit none
 

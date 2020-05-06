@@ -38,8 +38,8 @@ program single_invoke_fs
 
   ! Description: single function specified in an invoke call using all
   ! function spaces
+  use field_mod,       only: field_type
   use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
 
   implicit none
 

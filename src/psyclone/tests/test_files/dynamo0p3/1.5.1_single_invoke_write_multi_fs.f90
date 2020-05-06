@@ -39,8 +39,8 @@ program single_invoke_fs
   ! Description: single function specified in an invoke call using
   ! all function spaces with one continuous writer (w1) and one
   ! discontinuous writer (w2broken)
+  use field_mod,                      only: field_type
   use testkern_write_w2broken_w1_mod, only: testkern_write_w2broken_w1_type
-  use inf,                            only: field_type
 
   implicit none
 
