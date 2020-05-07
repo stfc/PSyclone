@@ -37,6 +37,8 @@ program single_invoke
 
   ! Description: single kernel requiring a property of the mesh
   ! specified in an invoke call.
+  use constants_mod, only: r_def
+  use field_mod, only: field_type
   use testkern_mesh_prop_mod, only: testkern_mesh_prop_type
 
   implicit none

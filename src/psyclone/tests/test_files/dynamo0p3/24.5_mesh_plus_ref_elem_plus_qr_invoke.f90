@@ -37,13 +37,16 @@ program single_invoke
 
   ! Description: single invoke containing kernels that require properties from
   ! both the mesh and the reference element as well as face quadrature.
+  use constants_mod, only: r_def
+  use field_mod, only: field_type
+  use quadrature_face_mod, only: quadrature_face_type
   use testkern_mesh_ref_elem_props_mod, only: testkern_mesh_ref_elem_props_type
   use testkern_mesh_prop_face_qr_mod, only: testkern_mesh_prop_face_qr_type
 
   implicit none
 
   type(field_type) :: f1, f2
-  type(quadrature_rule) :: qr
+  type(quadrature_face_type) :: qr
   real(r_def) :: a
 
   call invoke( testkern_mesh_ref_elem_props_type(a,f1), &

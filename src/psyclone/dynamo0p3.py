@@ -2035,7 +2035,7 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
-                symtab = self._invoke.schedule.symbol_table
+                symtab = self._symbol_table
                 parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
@@ -2168,7 +2168,7 @@ class LFRicMeshProperties(DynCollection):
         properties that the kernel requires.
 
         :param bool stub: whether or not we are generating code for a \
-            kernel stub.
+                          kernel stub.
 
         :returns: the kernel arguments associated with the mesh properties.
         :rtype: list of str

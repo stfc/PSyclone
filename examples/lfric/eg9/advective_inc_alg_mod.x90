@@ -92,7 +92,7 @@ contains
     type(field_type), pointer           :: mt_lumped_inv => null()
     integer(kind=i_def)                 :: advective_stencil_extent
     ! Stencil depth for the boundary integral kernel
-    integer(kind=i_def), parameter         :: bd_stencil_depth = 1
+    integer(kind=i_def), parameter      :: bd_stencil_depth = 1
 
     mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
 
