@@ -39,6 +39,7 @@ program multikernel_invokes_452
   ! Multiple kernel calls within an invoke where the arguments are specified
   ! as any_space
 
+  use constants_mod,            only : i_def, r_def
   use field_mod,                only : field_type
   use operator_mod,             only : operator_type
   use quadrature_xyoz_mod,      only : quadrature_xyoz_type

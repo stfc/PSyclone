@@ -37,7 +37,6 @@
 program single_invoke
 
   ! Description: two builtin reductions specified in an invoke call.
-
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 

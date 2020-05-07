@@ -41,6 +41,7 @@ program single_kernel_anyspace_stencil
   ! we do not know if they are on the same space). This also tests the
   ! case where we have different fields with the same and different
   ! any_space names in different kernels.
+  use constants_mod,                           only: i_def
   use field_mod,                               only: field_type
   use testkern_same_anyspace_stencil_mod,      only: testkern_same_anyspace_stencil_type
   use testkern_different_anyspace_stencil_mod, only: testkern_different_anyspace_stencil_type

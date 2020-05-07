@@ -38,6 +38,7 @@ program any_space_example
 
   ! Description: single kernel call in an invoke where the field and operator
   ! arguments are specified on any_space.
+  use constants_mod,            only : i_def
   use field_mod,                only : field_type
   use operator_mod,             only : operator_type
   use testkern_any_space_2_mod, only : testkern_any_space_2_type

@@ -48,7 +48,7 @@ program single_invoke_cma
   type(field_type)               :: field_a, field_b
   type(columnwise_operator_type) :: cma_op1
 
-  call invoke(                      &
+  call invoke( &
           columnwise_op_app_same_fs_kernel_type(field_a, field_b, cma_op1) &
           )
 

@@ -37,7 +37,6 @@ program single_invoke
 
   ! Description: single point-wise operation (Z = aX - Y)
   ! specified in an invoke call.
-  use testkern_mod, only: testkern_type
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 

@@ -37,6 +37,7 @@ program any_discontinuous_space_op_example_1
 
   ! Description: single kernel call in an invoke where the arguments are
   ! specified as any_discontinuous_space
+  use constants_mod,                             only : r_def
   use field_mod,                                 only : field_type
   use operator_mod,                              only : operator_type
   use testkern_any_discontinuous_space_op_1_mod, only : &

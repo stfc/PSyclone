@@ -37,6 +37,7 @@ program multi_kernel_anyspace_stencil
   ! Description: an example where stencils and any_space are used
   ! in different kernels. We check that the same field always has the
   ! same stencil dofmap irrespective of the any_space name.
+  use constants_mod,                           only: i_def
   use field_mod,                               only: field_type
   use testkern_same_anyspace_stencil_mod,      only: testkern_same_anyspace_stencil_type
   use testkern_different_anyspace_stencil_mod, only: testkern_different_anyspace_stencil_type
