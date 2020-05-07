@@ -2506,11 +2506,6 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-<<<<<<< HEAD
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        if not self._properties:
-=======
         # Get the list of the required scalars
         if self._properties:
             # remove duplicates with an OrderedDict
@@ -2521,7 +2516,6 @@ class DynReferenceElement(DynCollection):
             nface_vars = [self._nfaces_h_name]
         else:
             # No reference-element properties required
->>>>>>> master
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
@@ -2590,11 +2584,7 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-<<<<<<< HEAD
-        if not self._properties:
-=======
         if not (self._properties or self._nfaces_h_required):
->>>>>>> master
             return
 
         parent.add(CommentGen(parent, ""))
@@ -4021,10 +4011,6 @@ class DynMeshes(object):
 
         :param parent: the parent node to which to add the initialisations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
-<<<<<<< HEAD
-        '''
-=======
->>>>>>> master
 
         '''
         # If we haven't got any need for a mesh in this invoke then we
@@ -5051,10 +5037,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an unrecognised type of basis function \
                                is encountered.
         '''
-<<<<<<< HEAD
-
-=======
->>>>>>> master
         if self._basis_fns:
             # deallocate all allocated basis function arrays
             parent.add(CommentGen(parent, ""))
@@ -5415,10 +5397,6 @@ class DynInvoke(Invoke):
                        generated) to which the node describing the PSy \
                        subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-<<<<<<< HEAD
-        '''
-=======
->>>>>>> master
 
         '''
         # Create the subroutine
@@ -5434,11 +5412,8 @@ class DynInvoke(Invoke):
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
                          self.reference_element_properties,
-<<<<<<< HEAD
+                         self.mesh_properties,
                          self.run_time_checks]:
-=======
-                         self.mesh_properties]:
->>>>>>> master
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
@@ -5548,9 +5523,6 @@ class DynGlobalSum(GlobalSum):
         super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
-<<<<<<< HEAD
-        ''' Dynamo specific code generation for this class '''
-=======
         '''
         Dynamo-specific code generation for this class.
 
@@ -5558,7 +5530,6 @@ class DynGlobalSum(GlobalSum):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
->>>>>>> master
         name = self._scalar.name
         sum_name = self.root.symbol_table.name_from_tag("global_sum")
         parent.add(UseGen(parent, name="scalar_mod", only=True,
