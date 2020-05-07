@@ -2467,10 +2467,10 @@ Currently run-time checks can be generated to:
    enforced by checking that all fields that are marked (in kernel
    metadata) as being updated by a kernel are not on a read-only function
    space. A second check that is required for fields on read-only
-   function spaces is to ensure that fields halo is valid when it is
-   accessed. This check is currently implemented within the LFRic
+   function spaces is to ensure that the halo is clean before it is accessed.
+   This check is currently implemented within the LFRic
    infrastructure halo exchange call (that the PSyclone LFRic API places
-   at appropriate locations). If the halo is valid then the halo exchange
+   at appropriate locations). If the halo is clean then the halo exchange
    will not be called. However, if the halo is not clean then the
    resulting halo exchange call will cause the infrastructure to raise an
    error (because the field is on a read-only space).

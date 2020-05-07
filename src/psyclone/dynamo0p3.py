@@ -2970,7 +2970,7 @@ class LFRicRunTimeChecks(DynCollection):
                 call_abort = CallGen(
                     if_then, "log_event(\"In alg '{0}' invoke '{1}', the "
                     "field '{2}' is passed to kernel '{3}' but its function "
-                    "space is not not compatible with the function space "
+                    "space is not compatible with the function space "
                     "specified in the kernel metadata '{4}'.\", "
                     "LOG_LEVEL_ERROR)"
                     "".format(self._invoke.invokes.psy.orig_name,
@@ -3059,6 +3059,9 @@ class LFRicRunTimeChecks(DynCollection):
         # passed into a kernel where the kernel metadata specifies
         # that the field will be modified.
         self._check_field_ro(parent)
+
+        # These checks should be expanded. Issue #768 suggests
+        # extending function space checks to operators.
 
 
 class DynProxies(DynCollection):
