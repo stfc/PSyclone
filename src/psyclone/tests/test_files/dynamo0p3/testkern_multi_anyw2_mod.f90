@@ -42,8 +42,8 @@ module testkern_multi_anyw2_mod
 
   implicit none
 
-  ! Test for multiple read and write arguments on any_w2 space
-  ! producing correct code.
+  ! Test that multiple read and write arguments on any_w2 space
+  ! produce correct code.
   type, public, extends(kernel_type) :: testkern_multi_anyw2_type
     private
     type(arg_type), dimension(3) :: meta_args = (/ &
