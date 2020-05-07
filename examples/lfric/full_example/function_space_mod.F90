@@ -491,7 +491,6 @@ subroutine init_function_space( self )
 
   allocate( self%global_dof_id ( self%ndof_glob*self%ndata ) )
   allocate( self%global_dof_id_2d ( self%mesh%get_last_edge_cell()*self%ndata) )
-  print *,"Halo depth", self%mesh%get_halo_depth()
   allocate( self%last_dof_halo ( self%mesh % get_halo_depth()) )
 
   call dofmap_setup ( self%mesh, self%fs, self%element_order, self%ndata,  &
@@ -1109,7 +1108,6 @@ function get_last_dof_halo_deepest(self) result (last_dof_halo)
   class(function_space_type) :: self
 
   integer(i_def) :: last_dof_halo
-  print *,"get_last_dof_halo_deepest", self%last_dof_halo, self%last_dof_halo(size(self%last_dof_halo))
   last_dof_halo = self%last_dof_halo(size(self%last_dof_halo))
 
   return

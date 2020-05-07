@@ -292,7 +292,6 @@ contains
                                        advection_flag=advection_flag)
 
     ! Create space for holding field data
-    print *,"Allocating", self%vspace%get_last_dof_halo()
     allocate( self%data(self%vspace%get_last_dof_halo()) )
 
   end subroutine field_initialiser

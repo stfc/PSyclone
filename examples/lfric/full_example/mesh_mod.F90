@@ -1627,7 +1627,6 @@ contains
     class(mesh_type), intent(in) :: self
     integer(i_def)               :: halo_depth
 
-    print *,"Returning get_halo_depth", self%partition%get_halo_depth()
     halo_depth = self%partition%get_halo_depth()
 
   end function get_halo_depth

@@ -14,7 +14,6 @@ program main
     type(global_mesh_type), pointer :: global_mesh_ptr
     type(partition_type)                    :: partition
     type(mesh_type), target                 :: mesh
-    type(mesh_type), pointer                :: mesh_ptr
     type(uniform_extrusion_type), target    :: extrusion
     type(uniform_extrusion_type), pointer   :: extrusion_ptr
     type(function_space_type), target       :: vector_space
@@ -50,14 +49,19 @@ program main
     extrusion_ptr => extrusion
     mesh = mesh_type(global_mesh, partition, extrusion_ptr)
     print *,"Have mesh", mesh%get_nlayers()
+    ndata_sz = 1
     vector_space = function_space_type( mesh,          &
                                         element_order, &
                                         lfric_fs,      &
                                         ndata_sz)
     vector_space_ptr => vector_space
-    mesh_ptr => vector_space_ptr%get_mesh()
     call wind%initialise( vector_space = vector_space_ptr, name="wind" )
     print *,"I have wind"
     wind_proxy = wind%get_proxy()
-    print *,size(wind_proxy%data), wind_proxy%data
+    wind_proxy%data = 123
+    print *,size(wind_proxy%data), wind_proxy%data(1:10)
+    call invoke( name = 'Initialise wind',        &
+                 setval_c( wind,     0.0_r_def ))
+    print *,"NOW", size(wind_proxy%data), wind_proxy%data(1:10)
+
 end program main

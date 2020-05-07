@@ -300,7 +300,6 @@ contains
 
     ! Possible modifications to number of dofs
     ! on edges depending on presets
-    print *,"ndof setup", gungho_fs, k
     select case (gungho_fs)
 
     case (W0)
@@ -1530,7 +1529,6 @@ contains
                 +     mesh % get_nverts_2d()
     nface_layer =     mesh % get_nedges_2d() &
                 + 2 * ncells
-    print *,"dofmap_setup", nlayers, nvert_layer, nedge_layer, nface_layer
     dofmap_size(:) = 1
     dofmap_size(0) = max( dofmap_size(0), ndof_vert )
     dofmap_size(1) = max( dofmap_size(1), ndof_edge )
