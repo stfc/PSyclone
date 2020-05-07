@@ -728,14 +728,13 @@ def test_process_declarations(f2008_parser):
 def test_process_declarations_precision(f2008_parser):
     '''Test that process_declarations method of Fparser2Reader converts
     the fparser2 declarations with explicit precision of the form
-    datatype*precision e.g. real*8, to symbols in the provided parent
-    Kernel Schedule.
+    datatype*precision e.g. real*8, to symbols with the expected
+    precision in the provided parent Kernel Schedule.
 
     '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    # Test simple declarations
     reader = FortranStringReader("integer*4 :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
