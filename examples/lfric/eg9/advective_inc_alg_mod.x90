@@ -91,6 +91,8 @@ contains
     type(field_type), pointer           :: chi(:) => null()
     type(field_type), pointer           :: mt_lumped_inv => null()
     integer(kind=i_def)                 :: advective_stencil_extent
+    ! Stencil depth for the boundary integral kernel
+    integer(kind=i_def), parameter      :: bd_stencil_depth = 1
 
     mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
 
@@ -118,8 +120,9 @@ contains
 
         call invoke( setval_c(rtheta, 0.0_r_def) )
         if ( wtheta_on ) then
-          call invoke( rtheta_wtheta_kernel_type (rtheta, theta, wind, qr), &
-                       rtheta_bd_kernel_type ( rtheta, theta, wind, qrf ) )
+          call invoke( rtheta_wtheta_kernel_type (rtheta, theta, wind, qr),   &
+                       rtheta_bd_kernel_type(rtheta, theta, bd_stencil_depth, &
+                                             wind, bd_stencil_depth, qrf) )
         else
           call invoke( rtheta_kernel_type(rtheta, theta, wind, qr) )
         end if
