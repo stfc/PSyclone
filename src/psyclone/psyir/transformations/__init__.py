@@ -44,6 +44,7 @@ from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.nemo_abs_trans import NemoAbsTrans
 from psyclone.psyir.transformations.nemo_sign_trans import NemoSignTrans
 from psyclone.psyir.transformations.nemo_min_trans import NemoMinTrans
+from psyclone.psyir.transformations.matmul2code_trans import Matmul2CodeTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -55,4 +56,5 @@ __all__ = ['ExtractTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'RegionTrans',
+           'Matmul2CodeTrans',
            'TransformationError']

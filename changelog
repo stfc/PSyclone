@@ -150,6 +150,9 @@
 
 	48) PR #596 for #500. Makes the NEMO API use the symbol table.
 
+	49) PR #686 for #684. Adds the MatMul2CodeTrans which transforms
+	a MATMUL PSyIR operation into the equivalent PSyIR expression.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
