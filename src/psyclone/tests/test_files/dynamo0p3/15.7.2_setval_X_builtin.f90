@@ -38,7 +38,7 @@ program single_invoke
 
   ! Description: single point-wise operation (set field values to another field)
   ! specified in an invoke call.
-  use field_mod,    only: field_type
+  use field_mod, only: field_type
 
   implicit none
 

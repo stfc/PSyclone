@@ -1850,7 +1850,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Inner product of fields ------------------------------------- #
 
 
-def test_X_innerproduct_Y(dist_mem):
+def test_X_innerproduct_Y(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of fields X and Y as
@@ -1869,6 +1869,8 @@ def test_X_innerproduct_Y(dist_mem):
     assert str(kern) == "Built-in: X_innerproduct_Y"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      !\n"
@@ -1918,7 +1920,7 @@ def test_X_innerproduct_Y(dist_mem):
         assert "      TYPE(scalar_type) global_sum\n" in code
 
 
-def test_X_innerproduct_X(dist_mem):
+def test_X_innerproduct_X(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of a field X by itself as
@@ -1937,6 +1939,8 @@ def test_X_innerproduct_X(dist_mem):
     assert str(kern) == "Built-in: X_innerproduct_X"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      !\n"
@@ -1988,7 +1992,7 @@ def test_X_innerproduct_X(dist_mem):
 # ------------- Sum field elements ------------------------------------------ #
 
 
-def test_sum_X(dist_mem):
+def test_sum_X(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynSumXKern returns the expected
     string and 2) we generate correct code for the built-in operation which
     sums elements of a field X as sumfld = sum(X(:)).
@@ -2005,6 +2009,8 @@ def test_sum_X(dist_mem):
     assert str(kern) == "Built-in: sum a field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      !\n"
@@ -2479,7 +2485,7 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Builtins with reductions ------------------------------------ #
 
 
-def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
+def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that multiple builtins, including one with reductions, produce
     correct code. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -2493,6 +2499,8 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert(
