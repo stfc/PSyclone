@@ -278,7 +278,7 @@ def test_kerneltype_typename():
 
     with pytest.raises(ParseError) as excinfo:
         _ = KernelType(parse_tree)
-    assert "No kernel metadata with type name 'meta_args' found." \
+    assert "No variable named 'meta_args' found in the metadata for" \
         in str(excinfo.value)
 
 
@@ -336,8 +336,9 @@ def test_kerneltype_nargs():
 
     with pytest.raises(ParseError) as excinfo:
         _ = KernelType(parse_tree)
-    assert ("In the 'meta_args' metadata, the number of args '2' and extent "
-            "of the dimension '1' do not match.") in str(excinfo.value)
+    assert ("In the 'meta_args' metadata, the number of items in the array "
+            "constructor (1) does not match the extent of the array (2)"
+            in str(excinfo.value))
 
 
 def test_kerneltype_repr():
