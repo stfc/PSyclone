@@ -506,9 +506,9 @@ class FunctionSpace(object):
         :returns: mangled name of this function space.
         :rtype: str
 
-       :raises InternalError: if a function space to create the mangled \
-                              name for is not one of 'any_space' or \
-                              'any_discontinuous_space' spaces.
+        :raises InternalError: if a function space to create the mangled \
+                               name for is not one of 'any_space' or \
+                               'any_discontinuous_space' spaces.
         :raises FieldNotFoundError: if no kernel argument was found on \
                                     the specified function space.
 
@@ -544,9 +544,9 @@ class FunctionSpace(object):
         :returns: short name of this function space.
         :rtype: str
 
-       :raises InternalError: if a function space to create the short \
-                              name for is not one of 'any_space' or \
-                              'any_discontinuous_space' spaces.
+        :raises InternalError: if a function space to create the short \
+                               name for is not one of 'any_space' or \
+                               'any_discontinuous_space' spaces.
 
         '''
         # Create a start for the short name and check whether the function

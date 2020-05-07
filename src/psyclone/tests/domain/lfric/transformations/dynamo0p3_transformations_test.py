@@ -1274,7 +1274,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_cma(dist_mem):
+def test_loop_fuse_cma(tmpdir, dist_mem):
     ''' Test that we can loop fuse two loops when one contains a
     call to a CMA-related kernel.
 
@@ -1301,6 +1301,8 @@ def test_loop_fuse_cma(dist_mem):
     schedule, _ = ftrans.apply(schedule.children[index],
                                schedule.children[index+1])
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "      ! Look-up required column-banded dofmaps\n"
@@ -1392,7 +1394,7 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
+def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate correct code if an OpenMP PARALLEL DO is
     applied to a single builtin. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1408,6 +1410,8 @@ def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
     schedule, _ = otrans.apply(schedule.children[0])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1435,7 +1439,7 @@ def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do") in result
 
 
-def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
+def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate correct code if OpenMP PARALLEL DOs are
     applied to multiple builtins. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1452,6 +1456,8 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
         schedule, _ = otrans.apply(child)
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1515,7 +1521,7 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n") in result
 
 
-def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
+def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate correct code if an OpenMP PARALLEL DO is
     applied to multiple loop fused builtins. We have to assert that it
     is safe to loop fuse. Also test with and without annexed
@@ -1536,6 +1542,8 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
     schedule, _ = otrans.apply(schedule.children[0])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1569,7 +1577,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do") in result
 
 
-def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
+def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate correct code if an OpenMP DO (with an
     outer OpenMP parallel) is applied to a single builtin. Also test
     with and without annexed dofs being computed as this affects the
@@ -1591,6 +1599,8 @@ def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
     # Put an OMP DO around this loop
     schedule, _ = olooptrans.apply(schedule[0].dir_body[0])
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1623,7 +1633,7 @@ def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel\n") in result
 
 
-def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
+def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate correct code if OpenMP DOs are applied
     to multiple builtins. Also test with and without annexed dofs
     being computed as this affects the generated code.
@@ -1645,6 +1655,8 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
     for child in schedule[0].dir_body[:]:
         schedule, _ = olooptrans.apply(child)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1713,7 +1725,7 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel") in result
 
 
-def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
+def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate correct code if an OpenMP DO is applied
     to multiple loop fused builtins. We need to assert it is safe to
     perform loop fusion. Also test with and without annexed dofs
@@ -1739,6 +1751,8 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
     # Put an OMP DO around the loop
     schedule, _ = olooptrans.apply(schedule[0].dir_body[0])
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1777,7 +1791,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel") in result
 
 
-def test_reduction_real_pdo(dist_mem):
+def test_reduction_real_pdo(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     a real scalar summed in a builtin. We use inner product in this case.
 
@@ -1790,6 +1804,8 @@ def test_reduction_real_pdo(dist_mem):
     schedule, _ = otrans.apply(schedule.children[0])
     invoke.schedule = schedule
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert (
@@ -1812,7 +1828,7 @@ def test_reduction_real_pdo(dist_mem):
             "      !$omp end parallel do\n") in code
 
 
-def test_reduction_real_do(dist_mem):
+def test_reduction_real_do(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for a real
     scalar summed in a builtin. We use inner product in this case.
 
@@ -1828,6 +1844,8 @@ def test_reduction_real_do(dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0])
     invoke.schedule = schedule
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert (
@@ -1851,7 +1869,7 @@ def test_reduction_real_do(dist_mem):
             "      !$omp end parallel\n") in code
 
 
-def test_multi_reduction_real_pdo(dist_mem):
+def test_multi_reduction_real_pdo(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for a
     real scalar summed in a builtin. We use inner product in this case.
 
@@ -1866,6 +1884,8 @@ def test_multi_reduction_real_pdo(dist_mem):
             schedule, _ = otrans.apply(child)
     invoke.schedule = schedule
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert (
@@ -1917,7 +1937,8 @@ def test_multi_reduction_real_pdo(dist_mem):
             "      !$omp end parallel do\n") in code
 
 
-def test_reduction_after_normal_real_do(monkeypatch, annexed, dist_mem):
+def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
+                                        dist_mem):
     ''' Test that we produce correct code when we have a reduction after
     a "normal" builtin and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls. Also test with and
@@ -1940,6 +1961,8 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed, dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         expected_output = (
@@ -1993,7 +2016,8 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed, dist_mem):
     assert expected_output in result
 
 
-def test_reprod_red_after_normal_real_do(monkeypatch, annexed, dist_mem):
+def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
+                                         dist_mem):
     ''' Test that we produce correct code when we have a reproducible
     reduction after a "normal" builtin and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls. Also
@@ -2016,6 +2040,8 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed, dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         expected_output = (
@@ -2089,7 +2115,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed, dist_mem):
     assert expected_output in result
 
 
-def test_two_reductions_real_do(dist_mem):
+def test_two_reductions_real_do(tmpdir, dist_mem):
     ''' Test that we produce correct code when we have more than one
     builtin with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
@@ -2115,6 +2141,8 @@ def test_two_reductions_real_do(dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         expected_output = (
@@ -2161,7 +2189,7 @@ def test_two_reductions_real_do(dist_mem):
     assert expected_output in result
 
 
-def test_two_reprod_reductions_real_do(dist_mem):
+def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     ''' Test that we produce correct code when we have more than one
     builtin with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
@@ -2187,6 +2215,8 @@ def test_two_reprod_reductions_real_do(dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         expected_output = (
@@ -2326,7 +2356,7 @@ def test_multi_reduction_real_fuse():
                 "reduction") in str(excinfo.value)
 
 
-def test_multi_different_reduction_real_pdo(dist_mem):
+def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction
     for two different builtins. We use inner product and sum_X.
 
@@ -2341,6 +2371,8 @@ def test_multi_different_reduction_real_pdo(dist_mem):
             schedule, _ = otrans.apply(child)
     invoke.schedule = schedule
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert (
@@ -2394,7 +2426,7 @@ def test_multi_different_reduction_real_pdo(dist_mem):
             "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_red_then_pdo(monkeypatch, annexed, dist_mem):
+def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different builtins, first a reduction then not. Also test with
     and without annexed dofs being computed as this affects the
@@ -2413,6 +2445,8 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed, dist_mem):
             schedule, _ = otrans.apply(child)
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -2462,7 +2496,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n") in result
 
 
-def test_multi_builtins_red_then_do(monkeypatch, annexed, dist_mem):
+def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for two
     different builtins, first a reduction then not. Also test with and
     without annexed dofs being computed as this affects the generated
@@ -2488,6 +2522,8 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed, dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -2540,7 +2576,8 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel\n") in result
 
 
-def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed, dist_mem):
+def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
+                                          dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different loop-fused builtins, first a reduction then not. We
     need to specify that the fused loops are on the same iteration
@@ -2614,8 +2651,11 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed, dist_mem):
                 "      !$omp end parallel do\n")
         assert code in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed, dist_mem):
+
+def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
+                                         dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for two
     different loop-fused builtins, first a reduction then not. We need
     to specify that the fused loops are on the same iteration
@@ -2690,8 +2730,11 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed, dist_mem):
                 "      !$omp end parallel\n")
         assert code in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed, dist_mem):
+
+def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
+                                           dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different builtins, first a standard builtin then a
     reduction. Also test with and without annexed dofs being computed
@@ -2710,6 +2753,8 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed, dist_mem):
             schedule, _ = otrans.apply(child)
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -2762,7 +2807,8 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n") in result
 
 
-def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed, dist_mem):
+def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
+                                          dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -2777,6 +2823,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     ftrans.same_space = True
+
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
             schedule, _ = ftrans.apply(schedule.children[0],
@@ -2826,8 +2873,11 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed, dist_mem):
                 "      !$omp end parallel do\n")
         assert code in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed, dist_mem):
+
+def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
+                                         dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -2842,6 +2892,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     ftrans.same_space = True
+
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
             schedule, _ = ftrans.apply(schedule.children[0],
@@ -2893,6 +2944,8 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed, dist_mem):
                 "      !$omp end parallel\n")
         assert code in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 # There are no tests requires for integer reduction and no tests
 # required for a builtin with more than 1 reduction as we have no
 # examples in either case
@@ -2936,7 +2989,7 @@ def test_loop_fuse_error(dist_mem):
 
 # Repeat the reduction tests for the reproducible version
 
-def test_reprod_reduction_real_do(dist_mem):
+def test_reprod_reduction_real_do(tmpdir, dist_mem):
     ''' Test that we generate a correct reproducible OpenMP DO reduction
     for a real scalar summed in a builtin. We use inner product in
     this case.
@@ -2953,6 +3006,8 @@ def test_reprod_reduction_real_do(dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0])
     invoke.schedule = schedule
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "      USE omp_lib, ONLY: omp_get_thread_num\n"
@@ -3041,7 +3096,8 @@ def test_no_global_sum_in_parallel_region():
             "containing children of different types") in str(excinfo.value)
 
 
-def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed, dist_mem):
+def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
+                                           dist_mem):
     ''' Test that we generate a correct reproducible OpenMP DO reduction
     for two different builtins, first a reduction then not when we
     have reprod set to True. Also test with and without annexed dofs
@@ -3067,6 +3123,8 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed, dist_mem):
     schedule, _ = rtrans.apply(schedule.children[0:2])
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "      USE omp_lib, ONLY: omp_get_thread_num\n"
@@ -3151,7 +3209,8 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed, dist_mem):
             "      DEALLOCATE (l_asum)\n") in result
 
 
-def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed, dist_mem):
+def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
+                                            dist_mem):
     ''' Test that we generate a correct reproducible OpenMP DO reduction
     for two different loop-fused builtins, first a reduction then
     not. We need to specify that the fused loops are on the same
@@ -3166,6 +3225,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     ftrans.same_space = True
+
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         schedule, _ = mtrans.apply(schedule.children[1],
@@ -3260,8 +3320,11 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed, dist_mem):
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed, dist_mem):
+
+def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
+                                            dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for two
     different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -3276,6 +3339,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     ftrans.same_space = True
+
     if dist_mem and annexed:
         with pytest.raises(TransformationError) as excinfo:
             schedule, _ = ftrans.apply(schedule.children[0],
@@ -3349,8 +3413,10 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed, dist_mem):
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_repr_3_builtins_2_reductions_do(dist_mem):
+
+def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
     ''' Test that we generate correct reproducible OpenMP DO reductions
     when we have three different builtins, first a reduction, then a
     normal builtin then a reduction. '''
@@ -3369,6 +3435,8 @@ def test_repr_3_builtins_2_reductions_do(dist_mem):
             schedule, _ = rtrans.apply(child)
     invoke.schedule = schedule
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "INTEGER th_idx\n" in code
     if dist_mem:
@@ -6188,7 +6256,7 @@ def test_accenterdatatrans():
     # add one.
 
 
-def test_accenterdata_builtin():
+def test_accenterdata_builtin(tmpdir):
     ''' Check that the enter-data transformation can be applied to an invoke
     containing a call to a BuiltIn kernel.
 
@@ -6206,6 +6274,8 @@ def test_accenterdata_builtin():
     _, _ = parallel_trans.apply(sched.children)
     _, _ = acc_enter_trans.apply(sched)
     output = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
             "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
