@@ -512,17 +512,17 @@ def test_field(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -610,17 +610,17 @@ def test_field_deref(tmpdir, dist_mem):
         "      !\n")
     assert output in generated_code
     output = (
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for est_f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for est_m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
@@ -750,57 +750,57 @@ def test_field_fs(tmpdir):
         "      map_wchi => m5_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_w2 => m6_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m1 on w0\n"
+        "      ! Initialise number of DoFs for w0\n"
         "      !\n"
         "      ndf_w0 = m1_proxy%vspace%get_ndf()\n"
         "      undf_w0 = m1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f3 on wtheta\n"
+        "      ! Initialise number of DoFs for wtheta\n"
         "      !\n"
         "      ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
         "      undf_wtheta = f3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f4 on w2h\n"
+        "      ! Initialise number of DoFs for w2h\n"
         "      !\n"
         "      ndf_w2h = f4_proxy%vspace%get_ndf()\n"
         "      undf_w2h = f4_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m3 on w2v\n"
+        "      ! Initialise number of DoFs for w2v\n"
         "      !\n"
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m4 on w2broken\n"
+        "      ! Initialise number of DoFs for w2broken\n"
         "      !\n"
         "      ndf_w2broken = m4_proxy%vspace%get_ndf()\n"
         "      undf_w2broken = m4_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f5 on w2trace\n"
+        "      ! Initialise number of DoFs for w2trace\n"
         "      !\n"
         "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
         "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m5 on wchi\n"
+        "      ! Initialise number of DoFs for wchi\n"
         "      !\n"
         "      ndf_wchi = m5_proxy%vspace%get_ndf()\n"
         "      undf_wchi = m5_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m6 on any_w2\n"
+        "      ! Initialise number of DoFs for any_w2\n"
         "      !\n"
         "      ndf_any_w2 = m6_proxy%vspace%get_ndf()\n"
         "      undf_any_w2 = m6_proxy%vspace%get_undf()\n"
@@ -923,17 +923,17 @@ def test_real_scalar(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1011,17 +1011,17 @@ def test_int_scalar(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1099,17 +1099,17 @@ def test_two_real_scalars(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1186,17 +1186,17 @@ def test_two_int_scalars(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1281,17 +1281,17 @@ def test_two_scalars(tmpdir):
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for m2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1542,7 +1542,7 @@ def test_op_any_discontinuous_space_1(tmpdir):
 def test_op_any_discontinuous_space_2(tmpdir):
     ''' Tests that any_discontinuous_space is implemented correctly in the
     PSy layer when including multiple spaces, operators on same and different
-    "to" and "from" spaces) and basis/differential basis functions.
+    "to" and "from" spaces and basis/differential basis functions.
 
     '''
     _, invoke_info = parse(
@@ -1738,7 +1738,7 @@ def test_dyninvoke_arg_for_fs():
 def test_kernel_specific(tmpdir):
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
-    conditions are now explicity specified in the Algorithm as required.
+    conditions are now explicitly specified in the Algorithm as required.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
@@ -1845,7 +1845,7 @@ def test_field_bc_kernel(tmpdir):
     support this. This code is required as the dynamo0.3 api does not
     know about boundary conditions but this kernel requires them. This
     "hack" is only supported to get PSyclone to generate correct code
-    for the current implementation of dynamo. Future API's will not
+    for the current implementation of LFRic. Future APIs will not
     support any hacks.
 
     '''
@@ -2727,8 +2727,8 @@ def test_unrecognised_fspace_error():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
-    with pytest.raises(GenerationError) as excinfo:
-        _ = FunctionSpace("not_a_space", first_kernel.arguments).mangled_name
+    with pytest.raises(InternalError) as excinfo:
+        _ = FunctionSpace("not_a_space", first_kernel.arguments)
     assert ("Unrecognised function space 'not_a_space'. The supported spaces "
             "are {0}".format(VALID_FUNCTION_SPACE_NAMES) in str(excinfo.value))
 
@@ -2764,7 +2764,6 @@ def test_mangle_function_space():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     fs_name = "any_space_2"
-    short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == "aspc2_f2"
@@ -2785,7 +2784,8 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space.
+    any_space or any_discontinuous_space. Also test that an attempt to
+    create a short name for such a space will fail.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2799,6 +2799,19 @@ def test_no_mangle_specified_function_space():
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == fs_name
     assert short_name == fs_name
+    # Try to call the internal _mangle_fs_name function with a FS name other
+    # than any_*_space name (not allowed)
+    with pytest.raises(InternalError) as excinfo:
+        _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
+    assert ("_mangle_fs_name: function space name 'w2' is not one of "
+            "'any_space' or 'any_discontinuous_space' names."
+            in str(excinfo.value))
+    # Try to create a short name for this function space (not allowed)
+    with pytest.raises(InternalError) as excinfo:
+        _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
+    assert ("_shorten_fs_name: function space name 'w2' is not one of "
+            "'any_space' or 'any_discontinuous_space' names."
+            in str(excinfo.value))
 
 
 def test_fsdescriptors_get_descriptor():
@@ -2876,7 +2889,7 @@ def test_dynkern_arg_for_fs():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(InternalError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
     assert ("Unrecognised function space 'waah'. The supported spaces are "
             "{0}".format(VALID_FUNCTION_SPACE_NAMES) in str(err.value))
@@ -5477,7 +5490,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      !\n"
             "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for f1 on any_w2\n"
+            "      ! Initialise number of DoFs for any_w2\n"
             "      !\n"
             "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
@@ -5514,7 +5527,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      !\n"
             "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for f1 on any_w2\n"
+            "      ! Initialise number of DoFs for any_w2\n"
             "      !\n"
             "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
@@ -5560,7 +5573,7 @@ def test_anyw2_operators(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
-        "      ! Initialise number of DoFs for mm_w2 on any_w2\n"
+        "      ! Initialise number of DoFs for any_w2\n"
         "      !\n"
         "      ndf_any_w2 = mm_w2_proxy%fs_from%get_ndf()\n"
         "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n")

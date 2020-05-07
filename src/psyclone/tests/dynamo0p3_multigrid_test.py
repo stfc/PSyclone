@@ -672,14 +672,12 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     # Check ndf and undf initialisations the second restrict kernel
     # (fld_m to fld_c)
     expected = (
-        "      ! Initialise number of DoFs for fld_c on "
-        "any_discontinuous_space_1\n"
+        "      ! Initialise number of DoFs for adspc1_fld_c\n"
         "      !\n"
         "      ndf_adspc1_fld_c = fld_c_proxy%vspace%get_ndf()\n"
         "      undf_adspc1_fld_c = fld_c_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for fld_m on "
-        "any_discontinuous_space_2\n"
+        "      ! Initialise number of DoFs for adspc2_fld_m\n"
         "      !\n"
         "      ndf_adspc2_fld_m = fld_m_proxy%vspace%get_ndf()\n"
         "      undf_adspc2_fld_m = fld_m_proxy%vspace%get_undf()\n")

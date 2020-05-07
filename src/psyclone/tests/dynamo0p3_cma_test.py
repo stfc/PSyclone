@@ -827,9 +827,7 @@ def test_cma_apply_indirection_dofmap_error():
 
 def test_cma_apply(tmpdir, dist_mem):
     ''' Test that we generate correct code for a kernel that applies
-    a CMA operator.
-
-    '''
+    a CMA operator. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),

@@ -340,15 +340,15 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      map_w0 => chi_proxy(1)%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for mapping on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = mapping_proxy%fs_to%get_ndf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for mapping on w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for chi on w0\n"
+        "      ! Initialise number of DoFs for w0\n"
         "      !\n"
         "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
         "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
@@ -764,9 +764,7 @@ end module dummy_mod
 
 
 def test_operators():
-    ''' Test that operators are handled correctly for kernel stubs.
-
-    '''
+    ''' Test that operators are handled correctly for kernel stubs. '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

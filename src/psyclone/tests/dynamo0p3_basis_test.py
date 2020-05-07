@@ -181,12 +181,10 @@ def test_eval_targets_op_space():
 def test_single_kern_eval(tmpdir):
     ''' Check that we generate correct code for a single kernel that
     requires both basis and differential basis functions for an
-    evaluator.
-
-    '''
+    evaluator. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1_eval_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -226,12 +224,12 @@ def test_single_kern_eval(tmpdir):
         "      map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f0 on w0\n"
+        "      ! Initialise number of DoFs for w0\n"
         "      !\n"
         "      ndf_w0 = f0_proxy%vspace%get_ndf()\n"
         "      undf_w0 = f0_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f1 on w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
@@ -288,7 +286,7 @@ def test_single_kern_eval_op(tmpdir):
     functions for an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1.1_eval_op_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -357,7 +355,7 @@ def test_two_qr_same_shape(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.2_single_invoke_2qr.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -492,7 +490,7 @@ def test_two_identical_qr(tmpdir):
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.1.3_single_invoke_2_identical_qr.f90"),
         api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -563,7 +561,7 @@ def test_two_qr_different_shapes(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.8_single_invoke_2qr_shapes.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -596,52 +594,49 @@ def test_two_qr_different_shapes(tmpdir):
             in gen_code)
 
 
-def test_anyw2(tmpdir):
+def test_anyw2(tmpdir, dist_mem):
     ''' Check generated code works correctly when we have any_w2 fields
-    and basis functions.
-
-    '''
+    and basis functions. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
         api=API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
+    psy = PSyFactory(API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
 
-        assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        output = (
-            "      ! Initialise number of DoFs for f1 on any_w2\n"
-            "      !\n"
-            "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Look-up quadrature variables\n"
-            "      !\n"
-            "      qr_proxy = qr%get_quadrature_proxy()\n"
-            "      np_xy_qr = qr_proxy%np_xy\n"
-            "      np_z_qr = qr_proxy%np_z\n"
-            "      weights_xy_qr => qr_proxy%weights_xy\n"
-            "      weights_z_qr => qr_proxy%weights_z\n"
-            "      !\n"
-            "      ! Allocate basis/diff-basis arrays\n"
-            "      !\n"
-            "      dim_any_w2 = f1_proxy%vspace%get_dim_space()\n"
-            "      diff_dim_any_w2 = f1_proxy%vspace%"
-            "get_dim_space_diff()\n"
-            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
-            "np_xy_qr, np_z_qr))\n"
-            "      ALLOCATE (diff_basis_any_w2_qr(diff_dim_any_w2, "
-            "ndf_any_w2, np_xy_qr, np_z_qr))\n"
-            "      !\n"
-            "      ! Compute basis/diff-basis arrays\n"
-            "      !\n"
-            "      CALL qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_any_w2, ndf_any_w2, basis_any_w2_qr)\n"
-            "      CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
-            "diff_dim_any_w2, ndf_any_w2, diff_basis_any_w2_qr)")
-        assert output in generated_code
+    output = (
+        "      ! Initialise number of DoFs for any_w2\n"
+        "      !\n"
+        "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Look-up quadrature variables\n"
+        "      !\n"
+        "      qr_proxy = qr%get_quadrature_proxy()\n"
+        "      np_xy_qr = qr_proxy%np_xy\n"
+        "      np_z_qr = qr_proxy%np_z\n"
+        "      weights_xy_qr => qr_proxy%weights_xy\n"
+        "      weights_z_qr => qr_proxy%weights_z\n"
+        "      !\n"
+        "      ! Allocate basis/diff-basis arrays\n"
+        "      !\n"
+        "      dim_any_w2 = f1_proxy%vspace%get_dim_space()\n"
+        "      diff_dim_any_w2 = f1_proxy%vspace%"
+        "get_dim_space_diff()\n"
+        "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
+        "np_xy_qr, np_z_qr))\n"
+        "      ALLOCATE (diff_basis_any_w2_qr(diff_dim_any_w2, "
+        "ndf_any_w2, np_xy_qr, np_z_qr))\n"
+        "      !\n"
+        "      ! Compute basis/diff-basis arrays\n"
+        "      !\n"
+        "      CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+        "dim_any_w2, ndf_any_w2, basis_any_w2_qr)\n"
+        "      CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
+        "diff_dim_any_w2, ndf_any_w2, diff_basis_any_w2_qr)")
+    assert output in generated_code
 
 
 def test_qr_plus_eval(tmpdir):
@@ -649,7 +644,7 @@ def test_qr_plus_eval(tmpdir):
     requiring quadrature and one requiring an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -773,7 +768,7 @@ def test_two_eval_same_space(tmpdir):
     the same space '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.3_2eval_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -833,7 +828,7 @@ def test_two_eval_diff_space(tmpdir):
     different spaces '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.4_2eval_op_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -913,13 +908,11 @@ def test_two_eval_diff_space(tmpdir):
 def test_two_eval_same_var_same_space(tmpdir):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
-    same space.
-
-    '''
+    same space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.7_2eval_same_var_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -955,7 +948,7 @@ def test_two_eval_op_to_space(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "6.5_2eval_op_to_invoke.f90"),
                            api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -966,7 +959,7 @@ def test_two_eval_op_to_space(tmpdir):
     init_code = (
         "      ndf_w2 = op1_proxy%fs_to%get_ndf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for f2 on w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = f2_proxy%vspace%get_undf()\n"
@@ -1061,7 +1054,7 @@ def test_eval_diff_nodal_space(tmpdir):
         os.path.join(BASE_PATH,
                      "6.6_2eval_diff_nodal_space_invoke.f90"),
         api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1156,7 +1149,7 @@ def test_eval_2fs(tmpdir):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "6.8_eval_2fs_invoke.f90"), api=API)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
     assert ("      REAL(KIND=r_def), allocatable :: "

@@ -421,7 +421,7 @@ class FunctionSpace(object):
     :param kernel_args: object encapsulating all arguments to the kernel call.
     :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
 
-    :raises GenerationError: if an unrecognised function space is encountered.
+    :raises InternalError: if an unrecognised function space is encountered.
 
     '''
 
@@ -433,10 +433,10 @@ class FunctionSpace(object):
 
         # Check whether the function space name is a valid name
         if self._orig_name not in VALID_FUNCTION_SPACE_NAMES:
-            raise GenerationError("Unrecognised function space '{0}'. The "
-                                  "supported spaces are {1}."
-                                  .format(self._orig_name,
-                                          VALID_FUNCTION_SPACE_NAMES))
+            raise InternalError("Unrecognised function space '{0}'. The "
+                                "supported spaces are {1}."
+                                .format(self._orig_name,
+                                        VALID_FUNCTION_SPACE_NAMES))
 
         if self._orig_name not in VALID_ANY_SPACE_NAMES + \
            VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
@@ -450,7 +450,6 @@ class FunctionSpace(object):
             # We do not construct the name-mangled name at this point
             # as the full list of kernel arguments may still be under
             # construction.
-            self._mangled_name = None
 
     @property
     def orig_name(self):
@@ -474,9 +473,6 @@ class FunctionSpace(object):
         :rtype: str
 
         '''
-        if self._short_name:
-            return self._short_name
-        self._short_name = self._shorten_fs_name()
         return self._short_name
 
     @property
@@ -510,10 +506,22 @@ class FunctionSpace(object):
         :returns: mangled name of this function space.
         :rtype: str
 
+       :raises InternalError: if a function space to create the mangled \
+                              name for is not one of 'any_space' or \
+                              'any_discontinuous_space' spaces.
         :raises FieldNotFoundError: if no kernel argument was found on \
                                     the specified function space.
 
         '''
+        # First check that the the function space is one of any_*_space
+        # spaces and then proceed with name-mangling.
+        if self._orig_name not in VALID_ANY_SPACE_NAMES + \
+           VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+            raise InternalError(
+                "_mangle_fs_name: function space name '{0}' is not one of "
+                "'any_space' or 'any_discontinuous_space' names.".
+                format(self._orig_name))
+
         # List kernel arguments
         args = self._kernel_args.args
         # Mangle the function space name for any_*_space
@@ -523,8 +531,8 @@ class FunctionSpace(object):
                         self._orig_name.lower()):
                     mngl_name = self._short_name + "_" + arg.name
                     return mngl_name
-        # Raise an error if a function space that has no kernel arguments
-        # on it is passed to the class
+        # Raise an error if there are no kernel arguments on this
+        # function space
         raise FieldNotFoundError("No kernel argument found for function space "
                                  "'{0}'".format(self._orig_name))
 
@@ -536,12 +544,27 @@ class FunctionSpace(object):
         :returns: short name of this function space.
         :rtype: str
 
+       :raises InternalError: if a function space to create the short \
+                              name for is not one of 'any_space' or \
+                              'any_discontinuous_space' spaces.
+
         '''
+        # Create a start for the short name and check whether the function
+        # space is one of any_*_space spaces
+        if self._orig_name in VALID_ANY_SPACE_NAMES:
+            start = "a"
+        elif self._orig_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+            start = "ad"
+        else:
+            raise InternalError(
+                "_shorten_fs_name: function space name '{0}' is not one of "
+                "'any_space' or 'any_discontinuous_space' names.".
+                format(self._orig_name))
+
+        # Split name string to find any_*_space ID and create a short name as
+        # "<start>" + "spc" + "ID"
         fslist = self._orig_name.split("_")
-        # Get first letters in "any" and "discontinuous" (if exists) keywords
-        lett = [x[0] for x in fslist[:-2]]
-        # Create a short name as: "a" + ("d") + "spc" + "ID".
-        self._short_name = "".join(lett[0:2]) + "spc" + fslist[-1]
+        self._short_name = start + "spc" + fslist[-1]
         return self._short_name
 
 
@@ -2866,9 +2889,6 @@ class DynFunctionSpaces(DynCollection):
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
-            # Find an argument on this space
-            arg = self._invoke.arg_for_funcspace(function_space)
-
             # Initialise information associated with this function space.
             # If we have 1+ kernels that iterate over cells then we
             # will need ndf and undf. If we don't then we only need undf
@@ -2878,11 +2898,11 @@ class DynFunctionSpaces(DynCollection):
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
                                       " Initialise number of DoFs for " +
-                                      arg.name + " on " +
-                                      function_space.orig_name))
+                                      function_space.mangled_name))
                 parent.add(CommentGen(parent, ""))
 
             # Find argument proxy name used to dereference the argument
+            arg = self._invoke.arg_for_funcspace(function_space)
             name = arg.proxy_name_indexed
             # Initialise ndf for this function space.
             if not self._dofs_only:
@@ -5149,7 +5169,7 @@ class DynInvokeSchedule(InvokeSchedule):
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
-    def __init__(self, arg, reserved_names=None, my_invoke=None):
+    def __init__(self, arg, reserved_names=None):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
         InvokeSchedule.__init__(self, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg, reserved_names)

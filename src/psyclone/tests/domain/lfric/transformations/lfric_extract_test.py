@@ -359,7 +359,7 @@ def test_single_node_dynamo0p3():
 
 def test_node_list_dynamo0p3():
     ''' Test that applying Extract Transformation on a list of Nodes
-    produces the correct result in Dynamo0.3 API.
+    produces the correct result in the Dynamo0.3 API.
 
     '''
     etrans = LFRicExtractTrans()
