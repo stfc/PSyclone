@@ -49,13 +49,16 @@
 !>
 module rtheta_bd_kernel_mod
 
-  use argument_mod,          only : arg_type, func_type, mesh_data_type, &
-                                    reference_element_data_type,         &
-                                    GH_FIELD, GH_READ, GH_READWRITE,     &
-                                    GH_BASIS, GH_DIFF_BASIS,             &
-                                    CELLS, GH_QUADRATURE_face,           &
-                                    adjacent_face,                       &
-                                    normals_to_horizontal_faces,         &
+  use argument_mod,          only : arg_type, func_type,         &
+                                    mesh_data_type,              &
+                                    reference_element_data_type, &
+                                    GH_FIELD, GH_READ,           &
+                                    GH_READWRITE,                &
+                                    STENCIL, CROSS,              &
+                                    GH_BASIS, GH_DIFF_BASIS,     &
+                                    CELLS, GH_QUADRATURE_face,   &
+                                    adjacent_face,               &
+                                    normals_to_horizontal_faces, &
                                     outward_normals_to_horizontal_faces
   use constants_mod,         only : r_def, i_def, l_def
   use cross_product_mod,     only : cross_product
@@ -75,9 +78,9 @@ module rtheta_bd_kernel_mod
   type, public, extends(kernel_type) :: rtheta_bd_kernel_type
     private
     type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_FIELD,   GH_READWRITE,  Wtheta),                       &
-         arg_type(GH_FIELD,   GH_READ,       Wtheta),                       &
-         arg_type(GH_FIELD,   GH_READ,       W2)                            &
+         arg_type(GH_FIELD, GH_READWRITE, Wtheta),                          &
+         arg_type(GH_FIELD, GH_READ,      Wtheta, STENCIL(CROSS)),          &
+         arg_type(GH_FIELD, GH_READ,      W2,     STENCIL(CROSS))           &
          /)
     type(func_type) :: meta_funcs(2) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &
@@ -106,63 +109,60 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Computes the boundary integral terms in the potential temperature.
   !>
-  !! @param[in] nlayers Integer the number of layers
-  !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-  !! @param[in] undf_w2 Number of unique degrees of freedom for w2
-  !! @param[in] stencil_w2_map W2 dofmaps for the stencil
-  !! @param[in] stencil_w2_size Size of the W2 stencil (number of cells)
-  !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
-  !! @param[in] undf_wtheta Number of unique degrees of freedom for
-  !!                        wtheta
-  !! @param[in] stencil_wtheta_map Wtheta dofmaps for the stencil
-  !! @param[in] stencil_wtheta_size Size of the wtheta stencil
-  !!                                (number of cells)
-  !! @param[in,out] r_theta_bd Right hand side of the thermodynamic equation
-  !! @param[in] theta Potential temperature field
-  !! @param[in] u Wind field
-  !! @param[in] nfaces_qr Number of faces in the quadrature rule
-  !! @param[in] nqp_f Number of quadrature points on horizontal faces
-  !! @param[in] wqp_f Quadrature weights on horizontal faces
-  !! @param[in] w2_basis_face 4-dim array holding w2 basis functions
-  !!                          evaluated at gaussian quadrature points on
-  !!                          horizontal faces
-  !! @param[in] wtheta_basis_face 4-dim array holding wtheta basis
-  !!                              functions evaluated at gaussian quadrature
-  !!                              points on horizontal faces
-  !! @param[in] nfaces_re_h Number of reference element faces bisected by a
+  !> @param[in] nlayers Number of layers
+  !> @param[in,out] r_theta_bd Right-hand side of the thermodynamic equation
+  !> @param[in] theta Potential temperature field
+  !> @param[in] stencil_wtheta_size Size of the Wtheta stencil (number of cells)
+  !> @param[in] stencil_wtheta_map Wtheta dofmaps for the stencil
+  !> @param[in] u Wind field
+  !> @param[in] stencil_w2_size Size of the W2 stencil (number of cells)
+  !> @param[in] stencil_w2_map W2 dofmaps for the stencil
+  !> @param[in] ndf_wtheta Number of degrees of freedom per cell for Wtheta
+  !> @param[in] undf_wtheta Number of unique degrees of freedom for Wtheta
+  !> @param[in] map_wtheta Dofmap for the cell at the base of the column for
+  !!                       Wtheta
+  !> @param[in] wtheta_basis_face Wtheta basis functions evaluated at Gaussian
+  !!                              quadrature points on horizontal faces
+  !> @param[in] ndf_w2 Number of degrees of freedom per cell for W2
+  !> @param[in] undf_w2 Number of unique degrees of freedom for W2
+  !> @param[in] map_w2 Dofmap for the cell at the base of the column for W2
+  !> @param[in] w2_basis_face W2 basis functions evaluated at Gaussian
+  !!                          quadrature points on horizontal faces
+  !> @param[in] nfaces_re_h Number of reference element faces bisected by a
   !!                        horizontal plane
-  !! @param[in] adjacent_face Vector containing information on neighbouring
-  !!                          face index for the current cell
-  !! @param[in] normals_to_horizontal_faces Vector of normals to the reference
+  !> @param[in] normals_to_horizontal_faces Vector of normals to the reference
   !!                                        element horizontal faces
-  !! @param[in] outward_normals_to_horizontal_faces Vector of normals to the
+  !> @param[in] outward_normals_to_horizontal_faces Vector of normals to the
   !!                                                reference element horizontal
   !!                                                "outward faces"
-  !!
-  subroutine rtheta_bd_code( nlayers,                     &
-                             ndf_w2, undf_w2,             &
-                             stencil_w2_map,              &
-                             stencil_w2_size,             &
-                             ndf_wtheta, undf_wtheta,     &
-                             stencil_wtheta_map,          &
-                             stencil_wtheta_size,         &
-                             r_theta_bd,                  &
-                             theta, u,                    &
-                             nfaces_qr, nqp_f, wqp_f,     &
-                             w2_basis_face,               &
-                             wtheta_basis_face,           &
-                             nfaces_re_h,                 &
-                             adjacent_face,               &
-                             normals_to_horizontal_faces, &
-                             outward_normals_to_horizontal_faces )
+  !> @param[in] adjacent_face Vector containing information on neighbouring
+  !!                          face index for the current cell
+  !> @param[in] nfaces_qr Number of faces in the quadrature rule
+  !> @param[in] nqp_f Number of quadrature points on horizontal faces
+  !> @param[in] wqp_f Quadrature weights on horizontal faces
+  !>
+  subroutine rtheta_bd_code( nlayers,                             &
+                             r_theta_bd, theta,                   &
+                             stencil_wtheta_size,                 &
+                             stencil_wtheta_map,                  &
+                             u,                                   &
+                             stencil_w2_size, stencil_w2_map,     &
+                             ndf_wtheta, undf_wtheta, map_wtheta, &
+                             wtheta_basis_face,                   &
+                             ndf_w2, undf_w2, map_w2,             &
+                             w2_basis_face,                       &
+                             nfaces_re_h,                         &
+                             normals_to_horizontal_faces,         &
+                             outward_normals_to_horizontal_faces, &
+                             adjacent_face,                       &
+                             nfaces_qr, nqp_f, wqp_f )
 
     implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: nfaces_qr, nqp_f
-    integer(kind=i_def), intent(in) :: ndf_w2
-    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
     integer(kind=i_def), intent(in) :: ndf_wtheta, undf_wtheta
     integer(kind=i_def), intent(in) :: nfaces_re_h
 
@@ -172,18 +172,21 @@ contains
     integer(kind=i_def), dimension(ndf_w2,stencil_w2_size),         intent(in) :: stencil_w2_map
     integer(kind=i_def), dimension(ndf_wtheta,stencil_wtheta_size), intent(in) :: stencil_wtheta_map
 
+    integer(kind=i_def), dimension(ndf_w2),     intent(in) :: map_w2
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+
     real(kind=r_def), dimension(3,ndf_w2,nqp_f,nfaces_qr),     intent(in) :: w2_basis_face
     real(kind=r_def), dimension(1,ndf_wtheta,nqp_f,nfaces_qr), intent(in) :: wtheta_basis_face
-    real(kind=r_def), dimension(nqp_f,nfaces_qr), intent(in)              :: wqp_f
+    real(kind=r_def), dimension(nqp_f,nfaces_qr),              intent(in) :: wqp_f
 
     integer(kind=i_def), intent(in) :: adjacent_face(:)
 
-    real(kind=r_def), intent(in) :: normals_to_horizontal_faces(:,:)
-    real(kind=r_def), intent(in) :: outward_normals_to_horizontal_faces(:,:)
+    real(kind=r_def),    intent(in) :: normals_to_horizontal_faces(:,:)
+    real(kind=r_def),    intent(in) :: outward_normals_to_horizontal_faces(:,:)
 
     real(kind=r_def), dimension(undf_wtheta), intent(inout) :: r_theta_bd
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
-    real(kind=r_def), dimension(undf_w2), intent(in)        :: u
+    real(kind=r_def), dimension(undf_w2),     intent(in)    :: u
 
     ! Internal variables
     integer(kind=i_def) :: df, k, face, face_next
