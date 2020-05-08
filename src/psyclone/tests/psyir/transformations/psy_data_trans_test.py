@@ -149,7 +149,7 @@ def test_class_definitions():
 
     # This puts the new PSyDataNode with prefix "extract" around the
     # previous PSyDataNode, but the prefix was not used previously.
-    data_trans.apply(schedule, {"class": "extract"})
+    data_trans.apply(schedule, {"prefix": "extract"})
     code = str(psy.gen)
     assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
     assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
@@ -163,7 +163,7 @@ def test_class_definitions():
 
     # Now add a third class: "profile", and make sure all previous
     # and new declarations and calls are there:
-    data_trans.apply(schedule, {"class": "profile"})
+    data_trans.apply(schedule, {"prefix": "profile"})
     code = str(psy.gen)
     assert "USE psy_data_mod, ONLY: PSyDataType" in code
     assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
@@ -180,7 +180,7 @@ def test_class_definitions():
     assert "CALL profile_psy_data" in code
 
     with pytest.raises(TransformationError) as err:
-        data_trans.apply(schedule, {"class": "invalid-class"})
-    assert "Error in 'class' parameter: found 'invalid-class', expected " \
+        data_trans.apply(schedule, {"prefix": "invalid-prefix"})
+    assert "Error in 'prefix' parameter: found 'invalid-prefix', expected " \
         "one of " in str(err.value)
     assert "as defined in /" in str(err.value)

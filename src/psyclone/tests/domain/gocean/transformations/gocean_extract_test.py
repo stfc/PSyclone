@@ -710,7 +710,7 @@ def test_change_prefix(tmpdir, monkeypatch):
     etrans = GOceanExtractTrans()
     etrans.apply(invoke.schedule.children[0],
                  {'create_driver': True, 'region_name': ("main", "update"),
-                  'class': "NEW"})
+                  'prefix': "NEW"})
 
     # Test that the extraction code contains the new prefix:
     assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \

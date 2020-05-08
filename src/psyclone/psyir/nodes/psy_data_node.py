@@ -73,7 +73,7 @@ class PSyDataNode(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param str options["class"]: a prefix to use for the PSyData module name \
+    :param str options[prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
@@ -98,7 +98,7 @@ class PSyDataNode(Node):
         # This string stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
-        self._class_string = options.get("class", "")
+        self._class_string = options.get("prefix", "")
         if self._class_string:
             self._class_string = self._class_string + "_"
 

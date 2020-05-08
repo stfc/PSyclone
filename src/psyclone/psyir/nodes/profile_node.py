@@ -57,7 +57,7 @@ class ProfileNode(PSyDataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param str options["class"]: The PSyData class to use. This string \
+    :param str options["prefix"]: The PSyData prefix to use. This string \
         is a prefix attached to all PSyData-related symbols. Defaults \
         to "profile".
     :param (str,str) options["region_name"]: an optional name for this \
@@ -73,7 +73,7 @@ class ProfileNode(PSyDataNode):
             my_options = {}
         # If there is no value specified in the constructor, default
         # to the "profile" prefix.
-        my_options["class"] = my_options.get("class", "profile")
+        my_options["prefix"] = my_options.get("prefix", "profile")
 
         super(ProfileNode, self).__init__(ast=ast, children=children,
                                           parent=parent, options=my_options)

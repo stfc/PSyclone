@@ -78,14 +78,14 @@ is linked the above code will actually look like this::
     is not necessary, it helps improves the readability of the created code.
 
 
-The list of valid classes is specified in the configuration file. It can be
-extended by the user to support additional classes::
+The list of valid class prefixes is specified in the configuration file. It
+can be extended by the user to support additional classes::
 
     [DEFAULT]
     ...
     VALID_PSY_DATA_PREFIXES = profile extract
 
-The classes supported at the moment are:
+The class prefixes supported at the moment are:
 
 .. tabularcolumns:: |l|L|
 
@@ -100,7 +100,7 @@ extract                 For libraries used for kernel data extraction. See
 ======================= =======================================================
 
 In the following documentation the string ``PREFIX_`` is used
-to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
+to indicate the class prefix used (e.g. ``profile`` or ``extract``).
 
 .. note:: 
     The transformations for profiling or kernel extraction allow
@@ -445,7 +445,7 @@ node supports in the option dictionary:
                     code region, or by ``GOceanExtractNode``
                     to define the file name for the output
                     data- and driver-files.
-    class           A prefix to be used for the module name,
+    prefix          A prefix to be used for the module name,
                     the user-defined data type and the
                     variables declared for the API.
     =============== =========================================
