@@ -695,14 +695,15 @@ def test_process_declarations(f2008_parser):
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
 
-    # Test with unsupported data type
-    reader = FortranStringReader("doubleprecision     ::      c2")
+    # Test with unsupported data type. Note the space before complex
+    # below which stops the line being treated as a comment.
+    reader = FortranStringReader(" complex     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
-            "types are supported.") in str(error.value)
+    assert (". Only 'real', 'double precision', 'integer', 'logical' and "
+            "'character' intrinsic types are supported.") in str(error.value)
 
     # Test with unsupported attribute
     reader = FortranStringReader("real, public :: p2")

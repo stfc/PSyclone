@@ -54,11 +54,13 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
-# Mapping from PSyIR types to Fortran data types - simply reverse the map
-# from the frontend.
+# Mapping from PSyIR types to Fortran data types. Simply reverse the
+# map from the frontend, removing the special case of "double
+# precision", which is captured as a REAL intrinsic in the PSyIR.
 TYPE_MAP_TO_FORTRAN = {}
 for key, item in TYPE_MAP_FROM_FORTRAN.items():
-    TYPE_MAP_TO_FORTRAN[item] = key
+    if key != "double precision":
+        TYPE_MAP_TO_FORTRAN[item] = key
 
 
 def gen_intent(symbol):
