@@ -89,6 +89,7 @@ module mesh_mod
     integer(i_def), allocatable :: edge_cell_owner(:,:)
     integer(i_def), allocatable :: vertex_ownership(:,:)
     integer(i_def), allocatable :: edge_ownership(:,:)
+    integer(i_def), allocatable :: face_id_in_adjacent_cell(:,:)
 
     integer(i_def),              private :: ncolours
     integer(i_def), allocatable, private :: ncells_per_colour(:)
@@ -98,6 +99,7 @@ module mesh_mod
 
   contains
 
+    procedure, public :: get_adjacent_face
     procedure, public :: get_reference_element
     procedure, public :: get_nlayers
     procedure, public :: get_ncells_2d
@@ -172,6 +174,17 @@ module mesh_mod
   integer(i_def), parameter, public :: PLANE_BI_PERIODIC = 2
 
 contains
+
+  function get_adjacent_face( self ) result( adjacent_face )
+    
+    implicit none
+
+    class(mesh_type), target, intent(in) :: self
+    integer(i_def), pointer :: adjacent_face(:,:)
+    
+    adjacent_face => self%face_id_in_adjacent_cell(:,:)
+
+  end function get_adjacent_face
 
   function get_reference_element( self )
     implicit none

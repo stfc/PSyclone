@@ -645,7 +645,8 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         # INTEGER in above 'if' test is an fparser1 hack as get_variable()
         # returns an integer if the variable is not found.
         raise ParseError(
-            "No kernel metadata with type name '{0}' found.".format(var_name))
+            "No variable named '{0}' found in the metadata for kernel "
+            "'{1}': '{2}'.".format(var_name, name, str(ast).strip()))
     try:
         nargs = int(descs.shape[0])
     except AttributeError:
@@ -669,9 +670,9 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     nargs = int(descs.shape[0])
     if len(inits) != nargs:
         raise ParseError(
-            "In the '{0}' metadata, the number of args '{1}' and extent of the"
-            " dimension '{2}' do not match.".format(var_name, nargs,
-                                                    len(inits)))
+            "In the '{0}' metadata, the number of items in the array "
+            "constructor ({1}) does not match the extent of the "
+            "array ({2}).".format(var_name, len(inits), nargs))
     if var_type:
         # Check that each element in the list is of the correct type
         if not all([init.name == var_type for init in inits]):

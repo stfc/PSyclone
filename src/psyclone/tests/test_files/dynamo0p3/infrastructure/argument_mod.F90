@@ -138,6 +138,9 @@ module argument_mod
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
 
+  ! Mesh properties
+  integer, public, parameter :: adjacent_face = 533
+
   ! Reference-element properties
   integer, public, parameter :: normals_to_horizontal_faces = 171
   integer, public, parameter :: outward_normals_to_horizontal_faces = 007
@@ -161,10 +164,14 @@ module argument_mod
      integer :: wproperties3 = -1 ! { " } optional and must be a distinct property
   end type func_type
 
+  type, public :: mesh_data_type
+    integer :: mesh_data_item ! {adjacent_face}
+  end type mesh_data_type
+
   type, public :: reference_element_data_type
     ! {normals_to_<horizontal/vertical/all>_faces, &
     !  outward_normals_to_<horizontal/vertical/all>_faces}
     integer :: reference_element_data_item
   end type reference_element_data_type
-
+  
 end module argument_mod
