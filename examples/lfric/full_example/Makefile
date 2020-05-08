@@ -1,5 +1,5 @@
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g $$(nf-config --fflags)
+F90FLAGS ?= -Wall -g $$(nf-config --fflags) -fcheck=bound
 
 OBJ = main_psy.o main_alg.o global_mesh_mod.o mesh_mod.o linked_list_data_mod.o \
 		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
@@ -9,7 +9,7 @@ OBJ = main_psy.o main_alg.o global_mesh_mod.o mesh_mod.o linked_list_data_mod.o 
 		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o field_mod.o \
 		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
 		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
-		operator_mod.o
+		operator_mod.o testkern_w0_mod.o argument_mod.o kernel_mod.o
 
 EXEC = example
 
@@ -20,7 +20,10 @@ $(EXEC): $(OBJ)
 
 
 # Dependencies
-main_psy.o:	global_mesh_mod.o mesh_mod.o function_space_mod.o field_mod.o operator_mod.o
+main_psy.o:	global_mesh_mod.o mesh_mod.o function_space_mod.o field_mod.o \
+	operator_mod.o testkern_w0_mod.o
+testkern_w0_mod.o: argument_mod.o kernel_mod.o
+
 global_mesh_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
 linked_list_data_mod.o: constants_mod.o
 mesh_mod.o: extrusion_mod.o linked_list_mod.o mesh_colouring_mod.o \
