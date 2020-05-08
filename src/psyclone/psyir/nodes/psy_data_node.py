@@ -138,7 +138,7 @@ class PSyDataNode(Node):
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
         self._var_name = symtab.new_symbol_name(
-            self.add_psydata_class_prefix("psy_data"))
+            self._psy_data_symbol_with_prefix)
         symtab.add(Symbol(self._var_name))
 
         if children and parent:
@@ -214,9 +214,9 @@ class PSyDataNode(Node):
         become "profilePSyDataType". Typically the class_string will
         contain a trailing "_".
 
-        :param str symbol: the symbol name to get the class string prefixed.
+        :param str symbol: the symbol name to prefix with the class string.
 
-        :returns: the symbol with the class string as prefix.
+        :returns: the symbol name with the class string as prefix.
         :rtype: str
         '''
         return self._class_string + symbol

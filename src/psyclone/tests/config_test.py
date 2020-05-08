@@ -692,3 +692,5 @@ def test_invalid_prefix(tmpdir):
                    .format(prefix) in str(err.value)  \
                 or "Invalid PsyData-prefix \\'{0}\\' in config file" \
                    .format(prefix) in str(err.value)
+            assert "The prefix must be valid for use as the start of a " \
+                   "Fortran variable name." in str(err.value)

@@ -691,7 +691,7 @@ def test_rename_region(tmpdir):
 # -----------------------------------------------------------------------------
 def test_change_prefix(tmpdir, monkeypatch):
     '''
-    This tests that the prefix of an gocean extract transformation
+    This tests that the prefix of a gocean extract transformation
     can be changed, and that the new prefix is also used in the
     created driver.
     '''
@@ -716,7 +716,7 @@ def test_change_prefix(tmpdir, monkeypatch):
     assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \
         in str(psy.gen)
 
-    # Now test if the created driver has the right prefix"
+    # Now test if the created driver has the right prefix:
     driver_name = tmpdir.join("driver-main-update.f90")
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()

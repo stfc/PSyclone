@@ -108,9 +108,9 @@ to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
     :ref:`psy_data_parameters_to_constructor`).
     This can be used to link with two different libraries of the
     same class at the same time, e.g. you could use ``drhook_profile``
-    and ``nvidia_profile`` as class es. However, this would also require
-    that the corresponding wrapper libraries be modified to use this
-    new prefix.
+    and ``nvidia_profile`` as class prefixes. However, this would also
+    require that the corresponding wrapper libraries be modified to use
+    this new prefix.
 
 Full Example
 ------------
@@ -312,7 +312,7 @@ a detailed description) or any of the profiling wrapper libraries
 
     Called once all variables have been declared. This call is only
     inserted if any variables are to be provided either before or after
-    the instrumented region thus this call is not created for
+    the instrumented region (thus this call is not created for
     performance profiling).
 
 .. method:: ProvideVariable(this, name, value)
@@ -544,5 +544,5 @@ At code creation time the function ``gen_code`` of the inserted node is
 called. This function determines the lists of variable to write before and
 after the instrumented region. These lists are then passed to ``gen_code``
 of the ``PSyDataNode`` base class, which creates required PSyData API calls.
-The domain-specific library is then responsible to write the data in the
+The domain-specific library is then responsible for writing the data in the
 required file format. 

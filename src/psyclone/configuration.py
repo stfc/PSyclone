@@ -333,7 +333,10 @@ class Config(object):
         for prefix in self._valid_psy_data_prefix:
             if not valid_var.match(prefix):
                 raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
-                                         "config file.".format(prefix),
+                                         "config file. The prefix must be "
+                                         "valid for use as the start of a "
+                                         "Fortran variable name."
+                                         .format(prefix),
                                          config=self)
 
         # Now we deal with the API-specific sections of the config file. We
