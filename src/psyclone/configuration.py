@@ -117,7 +117,7 @@ class Config(object):
     _default_psyir_root_name = "psyir_tmp"
 
     # The list of valid PSyData class prefixes
-    _valid_psy_data_prefix = []
+    _valid_psy_data_prefixes = []
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -322,15 +322,15 @@ class Config(object):
         # Read the valid PSyData class prefixes:
         try:
             # Convert it to a list of strings:
-            self._valid_psy_data_prefix = \
+            self._valid_psy_data_prefixes = \
                 self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
         except KeyError:
-            self._valid_psy_data_prefix = []
+            self._valid_psy_data_prefixes = []
 
         # Verify that the prefixes will result in valid Fortran names:
         import re
         valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
-        for prefix in self._valid_psy_data_prefix:
+        for prefix in self._valid_psy_data_prefixes:
             if not valid_var.match(prefix):
                 raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
                                          "config file. The prefix must be "
@@ -658,10 +658,10 @@ class Config(object):
                              format(type(path_list)))
 
     @property
-    def valid_psy_data_prefix(self):
+    def valid_psy_data_prefixes(self):
         ''':returns: The list of all valid class prefixes.
         :rtype: list of str'''
-        return self._valid_psy_data_prefix
+        return self._valid_psy_data_prefixes
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

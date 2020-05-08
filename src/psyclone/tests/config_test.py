@@ -652,9 +652,9 @@ def test_psy_data_prefix(tmpdir):
         config = Config()
         config.load(config_file=str(config_file))
 
-        assert "profile" in config.valid_psy_data_prefix
-        assert "extract" in config.valid_psy_data_prefix
-        assert len(config.valid_psy_data_prefix) == 2
+        assert "profile" in config.valid_psy_data_prefixes
+        assert "extract" in config.valid_psy_data_prefixes
+        assert len(config.valid_psy_data_prefixes) == 2
 
     # Now handle a config file without psy data prefixes:
     # This should not raise an exception, but define an empty list
@@ -666,7 +666,7 @@ def test_psy_data_prefix(tmpdir):
         new_cfg.close()
         config = Config()
         config.load(str(config_file))
-        assert not config.valid_psy_data_prefix
+        assert not config.valid_psy_data_prefixes
 
 
 def test_invalid_prefix(tmpdir):

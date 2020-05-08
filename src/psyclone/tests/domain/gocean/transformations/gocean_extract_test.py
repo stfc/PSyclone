@@ -705,7 +705,7 @@ def test_change_prefix(tmpdir, monkeypatch):
     # So monkeypatch the valid prefix names in the config object:
     from psyclone.configuration import Config
     config = Config.get()
-    monkeypatch.setattr(config, "_valid_psy_data_prefix", ["NEW"])
+    monkeypatch.setattr(config, "_valid_psy_data_prefixes", ["NEW"])
 
     etrans = GOceanExtractTrans()
     etrans.apply(invoke.schedule.children[0],
