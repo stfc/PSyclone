@@ -751,7 +751,26 @@ def test_process_declarations_precision(precision, type_name, fort_name):
     assert l1_var.datatype.precision == precision
     assert l1_var.is_local
 
-    # add support for double precision (in a separate test)
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_double_precision():
+    '''Test that process_declarations method of Fparser2Reader converts
+    the fparser2 declarations specified as double precision to symbols
+    with the expected precision.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    reader = FortranStringReader("double precision :: x")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    x_var = fake_parent.symbol_table.lookup("x")
+    assert x_var.name == 'x'
+    assert isinstance(x_var.datatype, ScalarType)
+    assert x_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert x_var.datatype.precision == ScalarType.Precision.DOUBLE
+    assert x_var.is_local
 
 
 @pytest.mark.usefixtures("f2008_parser")

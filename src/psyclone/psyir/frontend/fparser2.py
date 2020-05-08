@@ -60,7 +60,8 @@ FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "character": ScalarType.Intrinsic.CHARACTER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
-                         "real": ScalarType.Intrinsic.REAL}
+                         "real": ScalarType.Intrinsic.REAL,
+                         "double precision": ScalarType.Intrinsic.REAL}
 
 # Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
@@ -1048,11 +1049,17 @@ class Fparser2Reader(object):
                     data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
                 except KeyError:
                     raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
-                # Check for precision being specified.
-                precision = self._process_precision(type_spec, parent)
+                        "Could not process {0}. Only 'real', 'double "
+                        "precision', 'integer', 'logical' and 'character' "
+                        "intrinsic types are supported."
+                        "".format(str(decl.items)))
+                if fort_type == "double precision":
+                    # Fortran double precision is equivalent to a REAL
+                    # intrinsic with precision DOUBLE in the PSyIR.
+                    precision = ScalarType.Precision.DOUBLE
+                else:
+                    # Check for precision being specified.
+                    precision = self._process_precision(type_spec, parent)
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
