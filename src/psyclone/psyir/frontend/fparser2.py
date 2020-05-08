@@ -1051,9 +1051,8 @@ class Fparser2Reader(object):
                         "Could not process {0}. Only 'real', 'integer', "
                         "'logical' and 'character' intrinsic types are "
                         "supported.".format(str(decl.items)))
-                # Check for a KIND specification
-                precision = self._process_kind_selector(
-                    type_spec, parent)
+                # Check for precision being specified.
+                precision = self._process_precision(type_spec, parent)
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -1268,11 +1267,12 @@ class Fparser2Reader(object):
                     "are not supported.".format(str(stmtfn)))
 
     @staticmethod
-    def _process_kind_selector(type_spec, psyir_parent):
+    def _process_precision(type_spec, psyir_parent):
         '''Processes the fparser2 parse tree of the type specification of a
-        variable declaration in order to extract KIND information. This
-        information is used to determine the precision of the variable (as
-        supplied to the DataSymbol constructor).
+        variable declaration in order to extract precision
+        information. Two formats for specifying precision are
+        supported a) "*N" e.g. real*8 and b) "kind=" e.g. kind=i_def, or
+        kind=KIND(x).
 
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
@@ -1293,11 +1293,18 @@ class Fparser2Reader(object):
         symbol_table = _get_symbol_table(psyir_parent)
 
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+            # No precision is specified
             return None
-        # The KIND() intrinsic itself is Fortran specific and has no direct
-        # representation in the PSyIR. We therefore can't use
-        # self.process_nodes() here.
+
         kind_selector = type_spec.items[1]
+
+        if (isinstance(kind_selector.children[0], str) and \
+            kind_selector.children[0] == "*"):
+            # Precision is provided in the form *N
+            precision = int(str(kind_selector.children[1]))
+            return precision
+
+        # Precision is supplied in the form "kind=..."
         intrinsics = walk(kind_selector.items,
                           Fortran2003.Intrinsic_Function_Reference)
         if intrinsics and isinstance(intrinsics[0].items[0],
