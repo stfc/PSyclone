@@ -1305,8 +1305,8 @@ class Fparser2Reader(object):
 
         kind_selector = type_spec.items[1]
 
-        if (isinstance(kind_selector.children[0], str) and \
-            kind_selector.children[0] == "*"):
+        if (isinstance(kind_selector.children[0], str) and
+                kind_selector.children[0] == "*"):
             # Precision is provided in the form *N
             precision = int(str(kind_selector.children[1]))
             return precision
