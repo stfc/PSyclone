@@ -124,7 +124,7 @@ def test_mdata_wrong_arg_count():
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("'meta_reference_element' metadata, the number of args" in
+    assert ("'meta_reference_element' metadata, the number of items in" in
             str(err.value))
 
 
@@ -138,7 +138,7 @@ def test_mdata_wrong_name():
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("No kernel metadata with type name 'meta_reference_element' found"
+    assert ("No variable named 'meta_reference_element' found"
             in str(err.value))
 
 
