@@ -96,12 +96,13 @@ def example_psyir(create_expression):
     return operation
 
 
-@pytest.mark.parametrize("func,output",
-                         [(lambda arg: arg, "arg"),
+@pytest.mark.parametrize("func,output,brackets",
+                         [(lambda arg: arg, "arg", False),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
-def test_correct(func, output, tmpdir):
+                              Literal("3.14", REAL_TYPE)), "arg * 3.14",
+                              True)])
+def test_correct(func, output, tmpdir, brackets):
     '''Check that a valid example produces the expected output when the
     first argument to SIGN is a simple argument and when it is an
     expression.
@@ -111,13 +112,23 @@ def test_correct(func, output, tmpdir):
     operation = example_psyir(func)
     writer = FortranWriter()
     result = writer(operation.root)
-    assert (
+    if brackets:
+        expected = (
+        "subroutine sign_example(arg,arg_1)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=SIGN(({0}), arg_1)\n\n"
+        "end subroutine sign_example\n".format(output))
+    else:
+        expected = (
         "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=SIGN({0}, arg_1)\n\n"
-        "end subroutine sign_example\n".format(output)) in result
+        "end subroutine sign_example\n".format(output))
+    assert expected in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
@@ -172,7 +183,7 @@ def test_correct_expr(tmpdir):
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
+        "  psyir_tmp=1.0 + SIGN((arg * 3.14), arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
@@ -229,7 +240,7 @@ def test_correct_2sign(tmpdir):
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
+        "  psyir_tmp=SIGN(1.0, 1.0) + SIGN((arg * 3.14), arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)

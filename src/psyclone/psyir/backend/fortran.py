@@ -46,7 +46,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, SymbolTable
-from psyclone.psyir.nodes import BinaryOperation, Reference, Literal
+from psyclone.psyir.nodes import BinaryOperation, Reference, Literal, \
+    Assignment, Operation
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -551,7 +552,15 @@ class FortranWriter(PSyIRVisitor):
             if oper.upper() in FORTRAN_INTRINSICS:
                 # This is a binary intrinsic function.
                 return "{0}({1}, {2})".format(oper.upper(), lhs, rhs)
-            return "{0} {1} {2}".format(lhs, oper, rhs)
+            if isinstance(node.parent, Operation) and \
+               not node.operator == node.parent.operator and \
+               not (node.operator == BinaryOperation.Operator.MUL and \
+                    node.parent.operator == BinaryOperation.Operator.ADD):
+                # Place brackets round this operation.
+                return "({0} {1} {2})".format(lhs, oper, rhs)
+            else:
+                # No need for brackets.
+                return "{0} {1} {2}".format(lhs, oper, rhs)
         except KeyError:
             raise VisitorError("Unexpected binary op '{0}'."
                                "".format(node.operator))

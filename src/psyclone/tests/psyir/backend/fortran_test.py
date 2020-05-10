@@ -784,6 +784,68 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
+def test_fw_binaryoperator_precedence(fort_writer):
+    '''Check the FortranWriter class binary_operation method complies with
+    the operator precedence rules. This is achieved by placing the
+    operation in brackets.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  real :: a, b, c, d\n"
+        "    a = b * (c + d)\n"
+        "    a = b * c + d\n"
+        "    a = (b * c) + d\n"
+        "    a = b * c * d * a\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    print (result)
+    expected = (
+        "  a=b * (c + d)\n"
+        "  a=b * c + d\n"
+        "  a=b * c + d\n"
+        "  a=b * c * d * a\n")
+    assert expected in result
+
+
+def test_fw_mixed_operator_precedence(fort_writer):
+    '''Check the FortranWriter class unary_operation and binary_operation
+    methods complies with the operator precedence rules. This is
+    achieved by placing the binary operation in brackets.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  real :: a, b, c, d\n"
+        "  logical :: e, f, g\n"
+        "    a = -a * (-b + c)\n"
+        "    a = (-a) * (-b + c)\n"
+        "    a = -a + (-b + c)\n"
+        "    e = .not. f .or. .not. g\n"
+        "    a = log(b*c)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    expected = (
+        "  a=-(a * (-b + c))\n"
+        "  a=-a * (-b + c)\n"
+        "  a=-a + -b + c\n"
+        "  e=.not.f .or. .not.g\n"
+        "  a=LOG((b * c))\n")
+    assert expected in result
+
+
 def test_fw_naryoperator(fort_writer, tmpdir):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
@@ -1006,6 +1068,7 @@ def test_fw_ifblock(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
+    print (result)
     assert (
         "  if (n > 2) then\n"
         "    n=n + 1\n"
