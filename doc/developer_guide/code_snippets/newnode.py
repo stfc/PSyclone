@@ -46,6 +46,7 @@ This should output a PSyIR tree containing the new node.
 
 from psyclone.psyir.nodes import Statement, DataNode
 
+
 class MyNode(Statement):
     ''' MyNode is an example node that can be found anywhere where statement
     is valid, and in turn it accepts one and only one DataNode as a children.
@@ -57,6 +58,7 @@ class MyNode(Statement):
     @staticmethod
     def _validate_child(position, child):
         return position == 0 and isinstance(child, DataNode)
+
 
 def example():
     ''' Example of MyNode usage'''
@@ -77,6 +79,7 @@ def example():
     # assignment.addchild(mynode)
 
     psyir_schedule.view()
+
 
 if __name__ == "__main__":
     example()
