@@ -43,9 +43,9 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name
-from psyclone.psyir.nodes import Node, Schedule, \
-    CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation, \
-    NaryOperation, IfBlock, Reference, Array, Container, Literal, Range
+from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
+    UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
+    Array, Container, Literal, Range
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
@@ -2235,7 +2235,6 @@ def test_handling_binaryopbase():
 
     # Test that an unsupported binary operator creates a CodeBlock
     fake_parent = Schedule()
-    print(fp2binaryop.items)
     fp2binaryop.items = (fp2binaryop.items[0], fp2binaryop.items[1],
                          (fp2binaryop.items[2].items[0], 'unsupported',
                           fp2binaryop.items[2].items[2]))
@@ -2249,7 +2248,6 @@ def test_handling_unaryopbase():
     ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import UnaryOpBase
     reader = FortranStringReader("x=-4")
     fp2unaryop = Execution_Part.match(reader)[0][0]
 

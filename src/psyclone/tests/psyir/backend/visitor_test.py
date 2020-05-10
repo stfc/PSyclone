@@ -223,8 +223,8 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
 
         '''
         @staticmethod
-        def _validate_child(_, node):
-            return isinstance(node, TestNode2)
+        def _validate_child(_, child):
+            return isinstance(child, TestNode2)
 
     # Create a simple Node hierachy with an instance of class
     # TestNode2 being the child of an instance of class TestNode1.

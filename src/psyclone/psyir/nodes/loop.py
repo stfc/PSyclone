@@ -38,7 +38,6 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes import Schedule, Literal

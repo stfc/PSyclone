@@ -40,9 +40,8 @@ from __future__ import absolute_import
 
 import re
 import pytest
-
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke

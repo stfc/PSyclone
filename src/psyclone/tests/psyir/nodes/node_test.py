@@ -661,7 +661,6 @@ def test_find_or_create_symbol():
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new
     symbols when appropriate. '''
-    from psyclone.psyGen import KernelSchedule
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", REAL_TYPE))
