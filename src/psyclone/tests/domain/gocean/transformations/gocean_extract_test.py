@@ -207,17 +207,17 @@ def test_single_node_ompparalleldo_gocean1p0():
     code = str(psy.gen)
     output = """      ! ExtractStart
       !
-      CALL psy_data%PreStart("psy_single_invoke_three_kernels", """ \
+      CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
       """"invoke_0:compute_cv_code:r0", 2, 3)
-      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
-      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
-      CALL psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL psy_data%PreDeclareVariable("i_post", i)
-      CALL psy_data%PreDeclareVariable("j_post", j)
-      CALL psy_data%PreEndDeclaration
-      CALL psy_data%ProvideVariable("p_fld", p_fld)
-      CALL psy_data%ProvideVariable("v_fld", v_fld)
-      CALL psy_data%PreEnd
+      CALL extract_psy_data%PreDeclareVariable("p_fld", p_fld)
+      CALL extract_psy_data%PreDeclareVariable("v_fld", v_fld)
+      CALL extract_psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
+      CALL extract_psy_data%PreDeclareVariable("i_post", i)
+      CALL extract_psy_data%PreDeclareVariable("j_post", j)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
+      CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
+      CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(i,j), schedule(static)
       DO j=2,jstop+1
         DO i=2,istop
@@ -225,11 +225,11 @@ def test_single_node_ompparalleldo_gocean1p0():
         END DO
       END DO
       !$omp end parallel do
-      CALL psy_data%PostStart
-      CALL psy_data%ProvideVariable("cv_fld_post", cv_fld)
-      CALL psy_data%ProvideVariable("i_post", i)
-      CALL psy_data%ProvideVariable("j_post", j)
-      CALL psy_data%PostEnd
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cv_fld_post", cv_fld)
+      CALL extract_psy_data%ProvideVariable("i_post", i)
+      CALL extract_psy_data%ProvideVariable("j_post", j)
+      CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
 
@@ -265,20 +265,20 @@ def test_node_list_ompparallel_gocean1p0():
     output = """
       ! ExtractStart
       !
-      CALL psy_data%PreStart("psy_single_invoke_three_kernels", """ \
+      CALL extract_psy_data%PreStart("psy_single_invoke_three_kernels", """ \
       """"invoke_0:r0", 3, 4)
-      CALL psy_data%PreDeclareVariable("p_fld", p_fld)
-      CALL psy_data%PreDeclareVariable("u_fld", u_fld)
-      CALL psy_data%PreDeclareVariable("v_fld", v_fld)
-      CALL psy_data%PreDeclareVariable("cu_fld_post", cu_fld)
-      CALL psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL psy_data%PreDeclareVariable("i_post", i)
-      CALL psy_data%PreDeclareVariable("j_post", j)
-      CALL psy_data%PreEndDeclaration
-      CALL psy_data%ProvideVariable("p_fld", p_fld)
-      CALL psy_data%ProvideVariable("u_fld", u_fld)
-      CALL psy_data%ProvideVariable("v_fld", v_fld)
-      CALL psy_data%PreEnd
+      CALL extract_psy_data%PreDeclareVariable("p_fld", p_fld)
+      CALL extract_psy_data%PreDeclareVariable("u_fld", u_fld)
+      CALL extract_psy_data%PreDeclareVariable("v_fld", v_fld)
+      CALL extract_psy_data%PreDeclareVariable("cu_fld_post", cu_fld)
+      CALL extract_psy_data%PreDeclareVariable("cv_fld_post", cv_fld)
+      CALL extract_psy_data%PreDeclareVariable("i_post", i)
+      CALL extract_psy_data%PreDeclareVariable("j_post", j)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("p_fld", p_fld)
+      CALL extract_psy_data%ProvideVariable("u_fld", u_fld)
+      CALL extract_psy_data%ProvideVariable("v_fld", v_fld)
+      CALL extract_psy_data%PreEnd
       !$omp parallel default(shared), private(i,j)
       !$omp do schedule(static)
       DO j=2,jstop
@@ -295,12 +295,12 @@ def test_node_list_ompparallel_gocean1p0():
       END DO
       !$omp end do
       !$omp end parallel
-      CALL psy_data%PostStart
-      CALL psy_data%ProvideVariable("cu_fld_post", cu_fld)
-      CALL psy_data%ProvideVariable("cv_fld_post", cv_fld)
-      CALL psy_data%ProvideVariable("i_post", i)
-      CALL psy_data%ProvideVariable("j_post", j)
-      CALL psy_data%PostEnd
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cu_fld_post", cu_fld)
+      CALL extract_psy_data%ProvideVariable("cv_fld_post", cv_fld)
+      CALL extract_psy_data%ProvideVariable("i_post", i)
+      CALL extract_psy_data%ProvideVariable("j_post", j)
+      CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
     assert output in code
@@ -374,7 +374,8 @@ def test_driver_creation(tmpdir):
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
     # property dx. The grid property will be renamed to 'dx_1':
-    expected = '''      IMPLICIT NONE
+    expected = '''USE extract_psy_data_mod, ONLY: extract_PSyDataType
+      IMPLICIT NONE
       REAL(KIND=8), allocatable, dimension(:,:) :: gphiu
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld_post
@@ -384,16 +385,16 @@ def test_driver_creation(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post
 
-      TYPE(PSyDataType) psy_data
-      CALL psy_data%OpenRead("psy_extract_example_with_various_variable''' \
+      TYPE(extract_PSyDataType) extract_psy_data
+      CALL extract_psy_data%OpenRead("psy_extract_example_with_various_variable''' \
       '''_access_patterns", "invoke_0_compute_kernel:compute_kernel_code:r0")
-      CALL psy_data%ReadVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data%ReadVariable("out_fld_post", out_fld_post)
       ALLOCATE (out_fld, mold=out_fld_post)
       out_fld = 0.0
-      CALL psy_data%ReadVariable("in_fld", in_fld)
-      CALL psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
-      CALL psy_data%ReadVariable("dx", dx)
-      CALL psy_data%ReadVariable("in_fld%grid%dx", dx_1)
+      CALL extract_psy_data%ReadVariable("in_fld", in_fld)
+      CALL extract_psy_data%ReadVariable("in_out_fld_post", in_out_fld_post)
+      CALL extract_psy_data%ReadVariable("dx", dx)
+      CALL extract_psy_data%ReadVariable("in_fld%grid%dx", dx_1)
       ! RegionStart
       DO j=2,jstop
         DO i=2,istop+1
@@ -407,7 +408,6 @@ def test_driver_creation(tmpdir):
       ! Check i
       ! Check j
       ! Check in_out_fld'''
-
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code
@@ -437,13 +437,13 @@ def test_rename_suffix_if_name_clash(tmpdir):
     # contain out_fld_post for the input variable out_fld_post,
     # and "out_fld_post0" for the output value of out_fld.
     expected = """
-      CALL psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
-      CALL psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
-      CALL psy_data%PreDeclareVariable("out_fld_post0", out_fld)
-      CALL psy_data%ProvideVariable("in_out_fld", in_out_fld)
-      CALL psy_data%ProvideVariable("out_fld_post", out_fld_post)
-      CALL psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
-      CALL psy_data%ProvideVariable("out_fld_post0", out_fld)"""
+      CALL extract_psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data%PreDeclareVariable("out_fld_post0", out_fld)
+      CALL extract_psy_data%ProvideVariable("in_out_fld", in_out_fld)
+      CALL extract_psy_data%ProvideVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data%ProvideVariable("out_fld_post0", out_fld)"""
     expected_lines = expected.split("\n")
     ordered_lines_in_text(expected_lines, extract_code)
 
@@ -464,11 +464,11 @@ def test_rename_suffix_if_name_clash(tmpdir):
       REAL(KIND=8), allocatable, dimension(:,:) :: out_fld
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld_post0
       REAL(KIND=8), allocatable, dimension(:,:) :: in_out_fld
-      CALL psy_data%ReadVariable("in_out_fld", in_out_fld)
-      CALL psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
-      CALL psy_data%ReadVariable("out_fld_post0", out_fld_post0)
+      CALL extract_psy_data%ReadVariable("in_out_fld", in_out_fld)
+      CALL extract_psy_data%ReadVariable("in_out_fld_post0", in_out_fld_post0)
+      CALL extract_psy_data%ReadVariable("out_fld_post0", out_fld_post0)
       ALLOCATE (out_fld, mold=out_fld_post0)
-      CALL psy_data%ReadVariable("out_fld_post", out_fld_post)"""
+      CALL extract_psy_data%ReadVariable("out_fld_post", out_fld_post)"""
 
     ordered_lines_in_text(expected.split("\n"), driver_code)
 
@@ -566,9 +566,11 @@ def test_driver_scalars(tmpdir):
     extract_code = str(psy.gen)
 
     # Test the handling of scalar parameter in extraction code:
-    expected_lines = ['CALL psy_data%PreDeclareVariable("a_scalar", '
+    expected_lines = ['USE extract_psy_data_mod, ONLY: extract_PSyDataType',
+                      'CALL extract_psy_data%PreDeclareVariable("a_scalar", '
                       'a_scalar)',
-                      'CALL psy_data%ProvideVariable("a_scalar", a_scalar)']
+                      'CALL extract_psy_data%ProvideVariable("a_scalar", '
+                      'a_scalar)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -582,11 +584,14 @@ def test_driver_scalars(tmpdir):
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
 
-    expected_lines = ['INTEGER :: xstop',
+    expected_lines = ['USE extract_psy_data_mod, ONLY: extract_PSyDataType',
+                      'TYPE(extract_PSyDataType) extract_psy_data',
+                      'INTEGER :: xstop',
                       'REAL(KIND=8) :: a_scalar',
-                      'CALL psy_data%OpenRead("kernel_scalar_float", '
+                      'CALL extract_psy_data%OpenRead("kernel_scalar_float", '
                       '"bc_ssh_code")',
-                      'CALL psy_data%ReadVariable("a_scalar", a_scalar)']
+                      'CALL extract_psy_data%ReadVariable("a_scalar", '
+                      'a_scalar)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -616,16 +621,16 @@ def test_driver_grid_properties(tmpdir):
     extract_code = str(psy.gen)
 
     # Test the handling of scalar and array grid properties
-    expected_lines = ['CALL psy_data%PreDeclareVariable("ssh_fld%grid%'
+    expected_lines = ['CALL extract_psy_data%PreDeclareVariable("ssh_fld%grid%'
                       'subdomain%internal%xstop", ssh_fld%grid%subdomain%'
                       'internal%xstop)',
-                      'CALL psy_data%PreDeclareVariable("ssh_fld%grid%tmask", '
-                      'ssh_fld%grid%tmask)',
-                      'CALL psy_data%ProvideVariable("ssh_fld%grid%subdomain%'
-                      'internal%xstop", ssh_fld%grid%subdomain%internal%'
-                      'xstop)',
-                      'CALL psy_data%ProvideVariable("ssh_fld%grid%tmask", '
-                      'ssh_fld%grid%tmask)']
+                      'CALL extract_psy_data%PreDeclareVariable('
+                      '"ssh_fld%grid%tmask", ssh_fld%grid%tmask)',
+                      'CALL extract_psy_data%ProvideVariable('
+                      '"ssh_fld%grid%subdomain%internal%xstop", '
+                      'ssh_fld%grid%subdomain%internal%xstop)',
+                      'CALL extract_psy_data%ProvideVariable('
+                      '"ssh_fld%grid%tmask", ssh_fld%grid%tmask)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -641,13 +646,13 @@ def test_driver_grid_properties(tmpdir):
 
     expected_lines = ['REAL(KIND=8), allocatable, dimension(:,:) :: tmask',
                       'INTEGER :: xstop',
-                      'CALL psy_data%OpenRead(',
+                      'CALL extract_psy_data%OpenRead(',
                       '"psy_single_invoke_scalar_float_test", '
                       '"invoke_0_bc_ssh:bc_ssh_code:r0")',
-                      'CALL psy_data%ReadVariable("ssh_fld%grid%subdomain%'
-                      'internal%xstop", xstop)',
-                      'CALL psy_data%ReadVariable("ssh_fld%grid%tmask", '
-                      'tmask)']
+                      'CALL extract_psy_data%ReadVariable('
+                      '"ssh_fld%grid%subdomain%internal%xstop", xstop)',
+                      'CALL extract_psy_data%ReadVariable('
+                      '"ssh_fld%grid%tmask", tmask)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -672,11 +677,47 @@ def test_rename_region(tmpdir):
                  {'create_driver': True, 'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
-    assert 'CALL psy_data%PreStart("main", "update", 4, 3)' in str(psy.gen)
+    assert 'CALL extract_psy_data%PreStart("main", "update", 4, 3)' \
+        in str(psy.gen)
 
     # Now test if the created driver has the right name, and will open the
     # right file:
     driver_name = tmpdir.join("driver-main-update.f90")
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()
-    assert 'CALL psy_data%OpenRead("main", "update")' in driver_code
+    assert 'CALL extract_psy_data%OpenRead("main", "update")' in driver_code
+
+
+# -----------------------------------------------------------------------------
+def test_change_prefix(tmpdir, monkeypatch):
+    '''
+    This tests that the prefix of a gocean extract transformation
+    can be changed, and that the new prefix is also used in the
+    created driver.
+    '''
+    # Use tmpdir so that the driver is created in tmp
+    tmpdir.chdir()
+
+    psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
+                             GOCEAN_API, idx=0, dist_mem=False)
+
+    # In order to use a different prefix, this prefix needs to be valid.
+    # So monkeypatch the valid prefix names in the config object:
+    from psyclone.configuration import Config
+    config = Config.get()
+    monkeypatch.setattr(config, "_valid_psy_data_prefixes", ["NEW"])
+
+    etrans = GOceanExtractTrans()
+    etrans.apply(invoke.schedule.children[0],
+                 {'create_driver': True, 'region_name': ("main", "update"),
+                  'prefix': "NEW"})
+
+    # Test that the extraction code contains the new prefix:
+    assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \
+        in str(psy.gen)
+
+    # Now test if the created driver has the right prefix:
+    driver_name = tmpdir.join("driver-main-update.f90")
+    with open(str(driver_name), "r") as driver_file:
+        driver_code = driver_file.read()
+    assert 'CALL NEW_psy_data%OpenRead("main", "update")' in driver_code

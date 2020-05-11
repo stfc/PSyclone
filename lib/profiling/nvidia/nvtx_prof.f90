@@ -31,7 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 
-module psy_data_mod
+module profile_psy_data_mod
   use iso_c_binding, only: C_CHAR, C_INT, C_INT16_T, C_INT64_T, C_PTR, &
        C_NULL_CHAR, C_LOC
   implicit none
@@ -41,7 +41,7 @@ module psy_data_mod
   !> The derived type passed to us from the profiled application. Required for
   !! consistency with the PSyclone Profiling interface and used here to
   !! prevent repeated string operations.
-  type, public :: PSyDataType
+  type, public :: profile_PSyDataType
      !> Whether or not we've seen this region before
      logical :: initialised = .false.
      !> The colour assigned to this region
@@ -51,7 +51,7 @@ module psy_data_mod
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
-  end type PSyDataType
+  end type profile_PSyDataType
 
   ! The colour index of the last region created.
   integer, save :: last_colour = 0
@@ -103,16 +103,16 @@ module psy_data_mod
   end interface nvtxRangePop
 
   ! Only the routines making up the PSyclone profiling API are public
-  public ProfileInit, ProfileFinalise
+  public profile_PSyDataInit, profile_PSyDataShutdown
 
 contains
 
   !> An optional initialisation subroutine. This is not used for the NVTX
   !! library.
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     implicit none
     return
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
@@ -129,7 +129,7 @@ contains
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
     implicit none
-    class(PSyDataType), target, intent(inout) :: this
+    class(profile_PSyDataType), target, intent(inout) :: this
     character*(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
     ! Locals
@@ -165,7 +165,7 @@ contains
   !! @param[inout] this: Persistent data, not used in this case.
   subroutine PostEnd(this)
     implicit none
-    class(PSyDataType), target :: this
+    class(profile_PSyDataType), target :: this
     
     call nvtxRangePop()
     
@@ -173,9 +173,9 @@ contains
 
   !> The finalise function would normally print the results. However, this
   !> is unnecessary for the NVTX library so we do nothing.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     implicit none
     return
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
-end module psy_data_mod
+end module profile_psy_data_mod

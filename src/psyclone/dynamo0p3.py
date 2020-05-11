@@ -72,19 +72,24 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-# TODO #749: Allow only read access and prevent halo exchanges for Wchi
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
+
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
 # any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
 # (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
 # it needs to a) be treated as continuous and b) have vector basis and scalar
 # differential basis dimensions.
+ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
+
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
-# Valid FS and FS names
+# Read-only FS
+READ_ONLY_FUNCTION_SPACES = ["wchi"]
+
+# Valid FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-    CONTINUOUS_FUNCTION_SPACES
+    CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
 
 # Valid any_space metadata (general FS, could be continuous or discontinuous)
 VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
@@ -1162,6 +1167,14 @@ class DynKernMetadata(KernelType):
         for arg in self._arg_descriptors:
             if arg.access != AccessType.READ:
                 write_count += 1
+                # We must not write to a field on a read-only function space
+                if arg.type == "gh_field" and \
+                   arg.function_spaces[0] in READ_ONLY_FUNCTION_SPACES:
+                    raise ParseError(
+                        "Found kernel metadata in '{0}' that specifies "
+                        "writing to the read-only function space '{1}'."
+                        "".format(self.name, arg.function_spaces[0]))
+
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
@@ -1537,6 +1550,15 @@ class DynamoPSy(PSy):
         name. We override the default value as the Met Office prefer
         _psy to be appended, rather than prepended'''
         return self._name + "_psy"
+
+    @property
+    def orig_name(self):
+        '''
+        :returns: the unmodified psy-layer name.
+        :rtype: str
+
+        '''
+        return self._name
 
     @property
     def gen(self):
@@ -3121,6 +3143,181 @@ class DynFields(DynCollection):
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
                                           fld.function_space.mangled_name]))
+
+
+class LFRicRunTimeChecks(DynCollection):
+    '''Handle declarations and code generation for run-time checks. This
+    is not used in the stub generator.
+
+    '''
+
+    def _invoke_declarations(self, parent):
+        '''Insert declarations of all data and functions required by the
+        run-time checks code into the PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if Config.get().api_conf("dynamo0.3").run_time_checks:
+            # Only add if run-time checks are requested
+            parent.add(UseGen(parent, name="fs_continuity_mod"))
+            parent.add(UseGen(parent, name="log_mod", only=True,
+                              funcnames=["log_event", "LOG_LEVEL_ERROR"]))
+
+    def _check_field_fs(self, parent):
+        '''Internal method that adds run-time checks to make sure that the
+        field's function space is consistent with the appropriate
+        kernel metadata function spaces.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        parent.add(CommentGen(
+            parent, " Check field function space and kernel metadata "
+            "function spaces are compatible"))
+
+        # When issue #753 is addressed (with isue #79 helping further)
+        # we may know some or all field function spaces statically. If
+        # so, we should remove these from the fields to check at run
+        # time (as they will have already been checked at code
+        # generation time).
+
+        existing_checks = []
+        for kern_call in self._invoke.schedule.kernels():
+            for arg in kern_call.arguments.args:
+                if arg.type != "gh_field":
+                    # This check is limited to fields
+                    continue
+                fs_name = arg.function_space.orig_name
+                field_name = arg.name_indexed
+                if fs_name in VALID_ANY_SPACE_NAMES:
+                    # We don't need to check validity of a field's
+                    # function space if the metadata specifies
+                    # any_space as this means that all spaces are
+                    # valid.
+                    continue
+                if (fs_name, field_name) in existing_checks:
+                    # This particular combination has already been
+                    # checked.
+                    continue
+                existing_checks.append((fs_name, field_name))
+
+                if fs_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+                    # We need to check against all discontinuous
+                    # function spaces
+                    function_space_names = DISCONTINUOUS_FUNCTION_SPACES
+                elif fs_name == "any_w2":
+                    # We need to check against all any_w2 function
+                    # spaces
+                    function_space_names = ANY_W2_FUNCTION_SPACES
+                else:
+                    # We need to check against a specific function space
+                    function_space_names = [fs_name]
+
+                if_condition = " .and. ".join(
+                    ["{0}%which_function_space() /= {1}".format(
+                        field_name, name.upper())
+                     for name in function_space_names])
+                if_then = IfThenGen(parent, if_condition)
+                call_abort = CallGen(
+                    if_then, "log_event(\"In alg '{0}' invoke '{1}', the "
+                    "field '{2}' is passed to kernel '{3}' but its function "
+                    "space is not compatible with the function space "
+                    "specified in the kernel metadata '{4}'.\", "
+                    "LOG_LEVEL_ERROR)"
+                    "".format(self._invoke.invokes.psy.orig_name,
+                              self._invoke.name, arg.name,
+                              kern_call.name, fs_name))
+                if_then.add(call_abort)
+                parent.add(if_then)
+
+    def _check_field_ro(self, parent):
+        '''Internal method that adds runtime checks to make sure that if the
+        field is on a read-only function space then the associated
+        kernel metadata does not specify that the field is modified.
+
+        As we make use of the LFRic infrastructure halo exchange
+        function, there is no need to check whether the halo of a
+        read-only field is clean (which it should always be) as the
+        LFric halo-exchange will raise an exception if it is called
+        with a read-only field.
+
+        Whilst the LFRic infrastructure halo exchange would also
+        indirectly pick up a readonly field being modified, it would
+        not be picked up where the error occured. Therefore adding
+        checks here is still useful.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # When issue #753 is addressed (with isue #79 helping further)
+        # we may know some or all field function spaces statically. If
+        # so, we should remove these from the fields to check at run
+        # time (as they will have already been checked at code
+        # generation time).
+
+        # Create a list of modified fields
+        modified_fields = []
+        for call in self._invoke.schedule.kernels():
+            for arg in call.arguments.args:
+                if (arg.text and arg.type == "gh_field" and
+                        arg.access != AccessType.READ and
+                        not [entry for entry in modified_fields if
+                             entry[0].name == arg.name]):
+                    modified_fields.append((arg, call))
+        if modified_fields:
+            parent.add(CommentGen(
+                parent, " Check that read-only fields are not modified"))
+        for field, call in modified_fields:
+            if_then = IfThenGen(
+                parent, "{0}%vspace%is_readonly()".format(
+                    field.proxy_name_indexed))
+            call_abort = CallGen(
+                if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
+                "'{2}' is on a read-only function space but is modified "
+                "by kernel '{3}'.\", LOG_LEVEL_ERROR)"
+                "".format(self._invoke.invokes.psy.orig_name,
+                          self._invoke.name, field.name, call.name))
+            if_then.add(call_abort)
+            parent.add(if_then)
+
+    def initialise(self, parent):
+        '''Add runtime checks to make sure that the arguments being passed
+        from the algorithm layer are consistent with the metadata
+        specified in the associated kernels. Currently checks are
+        limited to ensuring that field function spaces are consistent
+        with the associated kernel function-space metadata.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if not Config.get().api_conf("dynamo0.3").run_time_checks:
+            # Run-time checks are not requested.
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Perform run-time checks"))
+        parent.add(CommentGen(parent, ""))
+
+        # Check that field function spaces are compatible with the
+        # function spaces specified in the kernel metadata.
+        self._check_field_fs(parent)
+
+        # Check that fields on read-only function spaces are not
+        # passed into a kernel where the kernel metadata specifies
+        # that the field will be modified.
+        self._check_field_ro(parent)
+
+        # These checks should be expanded. Issue #768 suggests
+        # extending function space checks to operators.
 
 
 class DynProxies(DynCollection):
@@ -5048,6 +5245,9 @@ class DynInvoke(Invoke):
         # Information on all proxies required by this Invoke
         self.proxies = DynProxies(self)
 
+        # Run-time checks for this invoke
+        self.run_time_checks = LFRicRunTimeChecks(self)
+
         # Information required by kernels that iterate over cells
         self.cell_iterators = DynCellIterators(self)
 
@@ -5212,7 +5412,8 @@ class DynInvoke(Invoke):
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
                          self.reference_element_properties,
-                         self.mesh_properties]:
+                         self.mesh_properties,
+                         self.run_time_checks]:
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
@@ -5238,7 +5439,8 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
                                      rhs=omp_function_name+"()"))
 
-        for entities in [self.proxies, self.cell_iterators, self.meshes,
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
@@ -5246,7 +5448,8 @@ class DynInvoke(Invoke):
                          self.mesh_properties]:
             entities.initialise(invoke_sub)
 
-        # Now that everything is initialised, we can call our kernels
+        # Now that everything is initialised and checked, we can call
+        # our kernels
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if Config.get().distributed_memory:
@@ -9462,6 +9665,12 @@ class DynKernelArgument(KernelArgument):
                 fs1 = FunctionSpace(arg_meta_data.function_space,
                                     self._kernel_args)
         self._function_spaces = [fs1, fs2]
+
+        # Addressing issue #753 will allow us to perform static checks
+        # for consistency between the algorithm and the kernel
+        # metadata. This will include checking that a field on a read
+        # only function space is not passed to a kernel that modifies
+        # it. Note, issue #79 is also related to this.
 
     @property
     def descriptor(self):

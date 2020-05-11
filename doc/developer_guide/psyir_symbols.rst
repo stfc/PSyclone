@@ -136,7 +136,6 @@ properties, when needed.
     code as the method will be deprecated in favour of a finer control
     of when variables are defined and used.
 
-
 Dependence Analysis
 ===================
 
@@ -314,7 +313,7 @@ of a node can be gathered by creating an object of type
 `psyclone.core.access_info.VariablesAccessInfo`, and then calling
 the function `reference_accesses()` for the node:
 
-.. autofunction:: psyclone.psyir.nodes.Node.reference_accesses
+.. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
 .. autoclass:: psyclone.core.access_info.VariablesAccessInfo
     :members:

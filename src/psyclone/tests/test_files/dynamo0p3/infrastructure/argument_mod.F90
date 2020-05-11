@@ -45,6 +45,12 @@
 
 module argument_mod
 
+  ! Test files need to be updated to reference function spaces from
+  ! fs_continuity_mod rather than the old location argument_mod.f90. The
+  ! inclusion of fs_continuity_mod here is a temporary solution until
+  ! this issue (#764) is addressed.
+  use fs_continuity_mod
+
   implicit none
 
   ! Argument types
@@ -64,16 +70,6 @@ module argument_mod
   integer, public, parameter :: GH_MAX       = 17
 
   ! Function-space labels
-  integer, public, parameter :: W0        = 100
-  integer, public, parameter :: W1        = 101
-  integer, public, parameter :: W2        = 102
-  integer, public, parameter :: W2V       = 103
-  integer, public, parameter :: W2H       = 104
-  integer, public, parameter :: W2broken  = 105
-  integer, public, parameter :: W2trace   = 106
-  integer, public, parameter :: W3        = 107
-  integer, public, parameter :: Wtheta    = 108
-  integer, public, parameter :: Wchi      = 109
   integer, public, parameter :: ANY_W2    = 110
 
   ! Distinct any_space IDs. Separate IDs required as we may have
