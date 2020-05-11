@@ -66,7 +66,7 @@ def test_handling_literal(code, dtype):
     '''
     reader = FortranStringReader("x=" + code)
     astmt = Fortran2003.Assignment_Stmt(reader)
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -135,7 +135,7 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
         code = "x={0}_{1}".format(value, dprecision)
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -167,7 +167,7 @@ def test_handling_literal_precision_3(value, dprecision):
     code = "x={0}".format(value)
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -191,7 +191,7 @@ def test_literal_constant_value_format(value, result):
     '''
     reader = FortranStringReader("a = {0}".format(value))
     astmt = Fortran2003.Assignment_Stmt(reader)
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     literal = fake_parent.children[0].children[1]
@@ -212,7 +212,7 @@ def test_handling_invalid_logic_literal():
     reader = FortranStringReader("x = .true.")
     astmt = Fortran2003.Assignment_Stmt(reader)
     astmt.items[2].items = ('invalid', None)
-    fake_parent = Node()
+    fake_parent = Schedule()
     processor = Fparser2Reader()
     with pytest.raises(GenerationError) as error:
         processor.process_nodes(fake_parent, [astmt])
@@ -224,7 +224,7 @@ def test_number_handler():
     ''' Check that the number_handler raises a NotImplementedError for an
     unrecognised fparser2 node. '''
     processor = Fparser2Reader()
-    fake_parent = Node()
+    fake_parent = Schedule()
     reader = FortranStringReader("(1.0, 1.0)")
     with pytest.raises(NotImplementedError):
         processor._number_handler(

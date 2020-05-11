@@ -103,20 +103,29 @@ def test_assignment_create():
     assert result == "tmp=0.0\n"
 
 
-def test_assignment_create_invalid():
-    '''Test that the create method in an Assignment class raises the expected
-    exception if the provided input is invalid.
+def test_assignment_children_validation():
+    '''Test that children added to assignment are validated. Assignment
+    accepts just 2 children and both are DataNodes.
 
     '''
-    # lhs not a Node.
+    # Create method with lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Assignment.create("invalid", Literal("0.0", REAL_SINGLE_TYPE))
-    assert ("lhs argument in create method of Assignment class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 0 of 'Assignment'. The valid format "
+            "is: 'DataNode, DataNode'.") in str(excinfo.value)
 
-    # rhs not a Node.
+    # Create method with rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
                               "invalid")
-    assert ("rhs argument in create method of Assignment class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Assignment'. The valid format "
+            "is: 'DataNode, DataNode'.") in str(excinfo.value)
+
+    # Direct assignment of a 3rd children
+    assignment = Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        assignment.children.append(Literal("0.0", REAL_SINGLE_TYPE))
+    assert ("Item 'Literal' can't be child 2 of 'Assignment'. The valid format"
+            " is: 'DataNode, DataNode'.") in str(excinfo.value)

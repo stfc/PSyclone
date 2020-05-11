@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
@@ -146,8 +146,8 @@ def test_where_array_notation_rank():
     from psyclone.psyir.nodes import Range
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = Array.create(DataSymbol("my_array", array_type),
-                            [Range(Literal("1", INTEGER_TYPE),
-                                   Literal("10", INTEGER_TYPE))])
+                            [Range.create(Literal("1", INTEGER_TYPE),
+                                          Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "

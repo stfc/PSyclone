@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,55 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# -----------------------------------------------------------------------------
+# Author: S. Siso, STFC Daresbury Lab
 
-''' This module contains the Return node implementation.'''
+'''A simple Python script showing how to create new PSyIR nodes and
+provide them with the basic functionality. In order to use it you must
+first install PSyclone. Once you have psyclone installed, this script
+may be run by doing:
 
-from psyclone.psyir.nodes.statement import Statement
+>>> python newnode.py
+
+This should output a PSyIR tree containing the new node.
+
+'''
+
+from psyclone.psyir.nodes import Statement, DataNode
 
 
-class Return(Statement):
+class MyNode(Statement):
+    ''' MyNode is an example node that can be found anywhere where statement
+    is valid, and in turn it accepts one and only one DataNode as a children.
     '''
-    Node representing a Return statement (subroutine break without return
-    value).
+    _text_name = "MyNodeName"
+    _colour_key = "Assignment"
+    _children_valid_format = "DataNode"
 
-    '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "Return"
-    _colour_key = "Return"
+    @staticmethod
+    def _validate_child(position, child):
+        return position == 0 and isinstance(child, DataNode)
+
+
+def example():
+    ''' Example of MyNode usage'''
+    from psyclone.psyir.nodes import Schedule, Literal
+    from psyclone.psyir.symbols import INTEGER_TYPE
+    psyir_schedule = Schedule()
+
+    mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
+
+    psyir_schedule.addchild(mynode)
+
+    # The following statement is not valid as MyNode only accepts 1 child.
+    # mynode.children.append(Literal("2", INTEGER_TYPE))
+
+    # The following statement is not valid as Assignment expects DataNodes
+    # from psyclone.psyir.nodes import Assignment
+    # assignment = Assignment()
+    # assignment.addchild(mynode)
+
+    psyir_schedule.view()
+
+
+if __name__ == "__main__":
+    example()

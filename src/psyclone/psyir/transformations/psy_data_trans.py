@@ -37,6 +37,7 @@
 '''Contains the PSyData transformation.
 '''
 
+from psyclone.configuration import Config
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -66,6 +67,10 @@ class PSyDataTrans(RegionTrans):
     >>> # Enclose all children within a single PSyData region
     >>> newschedule, _ = data_trans.apply(schedule.children)
     >>> newschedule.view()
+    >>> # Or to use a class-prefix string and different region name:
+    >>> newschedule, _ = data_trans.apply(schedule.children,
+    >>>                                   {"prefix": "my_prefix",
+    >>>                                    "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
@@ -103,6 +108,10 @@ class PSyDataTrans(RegionTrans):
 
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param str options["prefix"]: a prefix to use for the PSyData module \
+            name (``PREFIX_psy_data_mod``) and the PSyDataType \
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
+            It defaults to "".
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
@@ -111,7 +120,7 @@ class PSyDataTrans(RegionTrans):
 
         :raises TransformationError: if we're using the NEMO API and the \
             target routine has no Specification_Part.
-        :raises TransformationError: if the PSyData is node is inserted \
+        :raises TransformationError: if the PSyData node is inserted \
             between an OpenMP/ACC directive and the loop(s) to which it \
             applies.
         '''
@@ -139,6 +148,14 @@ class PSyDataTrans(RegionTrans):
                         "tuple containing two non-empty strings."
                         "".format(self.name))
                 # pylint: enable=too-many-boolean-expressions
+            if "prefix" in options:
+                prefix = options["prefix"]
+                if prefix not in Config.get().valid_psy_data_prefixes:
+                    raise TransformationError(
+                        "Error in 'prefix' parameter: found '{0}', expected "
+                        "one of {1} as defined in {2}"
+                        .format(prefix, Config.get().valid_psy_data_prefixes,
+                                Config.get().filename))
 
         super(PSyDataTrans, self).validate(node_list, options)
 
@@ -172,6 +189,10 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param str options["prefix"]: a prefix to use for the PSyData module \
+            name (``PREFIX_psy_data_mod``) and the PSyDataType \
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
+            It defaults to "".
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
