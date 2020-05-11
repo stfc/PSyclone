@@ -535,7 +535,7 @@ of a node can be gathered by creating an object of type
 `psyclone.core.access_info.VariablesAccessInfo`, and then calling
 the function `reference_accesses()` for the node:
 
-.. autofunction:: psyclone.psyir.nodes.Node.reference_accesses
+.. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
 .. autoclass:: psyclone.core.access_info.VariablesAccessInfo
     :members:

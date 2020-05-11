@@ -95,6 +95,7 @@ section e.g.:
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
     PSYIR_ROOT_NAME = psyir_tmp
+    VALID_PSY_DATA_PREFIXES = profile extract
 
 and an optional API specific section, for example for the
 ``dynamo0.3`` section:
@@ -161,6 +162,9 @@ REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
 PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not
                         supplied when creating a symbol. Defaults to
                         "psyir_tmp".
+VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any
+                        PSyData-related transformations. See :ref:`psy_data`
+                        for details.
 ======================= =======================================================
 
 Common Sections
