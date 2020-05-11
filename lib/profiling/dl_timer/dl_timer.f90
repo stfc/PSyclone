@@ -35,8 +35,8 @@
 !> An implemention of the PSyData API for profiling, which wraps the use
 !> of the dl_timer library (https://bitbucket.org/apeg/dl_timer).
 
-module psy_data_mod
-  type :: PSyDataType
+module profile_psy_data_mod
+  type :: profile_PSyDataType
      character(:), allocatable :: module_name
      character(:), allocatable :: region_name
      integer                   :: timer_index
@@ -44,22 +44,22 @@ module psy_data_mod
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
-  end type PSyDataType
+  end type profile_PSyDataType
 
 
 contains
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
-  !! any PSyclone created code, so a call to ProfileInit must be inserted
-  !! manually by the developer.
+  !! any PSyclone created code, so a call to profile_PSyDataInit must be
+  !! inserted manually by the developer.
   !!
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     use dl_timer, only :timer_init
 
     implicit none
     call timer_init()
 
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -79,7 +79,7 @@ contains
     use dl_timer, only : timer_register, timer_start
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     character*(*) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
@@ -100,7 +100,7 @@ contains
     use dl_timer, only : timer_stop
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     
     call timer_stop(this%timer_index)
   end subroutine PostEnd
@@ -108,11 +108,11 @@ contains
   ! ---------------------------------------------------------------------------
   !> Called at the end of the execution of a program, usually to generate
   !! all output for the profiling library. Calls timer_report in dl_timer.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     use dl_timer, only : timer_report
     implicit none
     call timer_report()
 
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
-end module psy_data_mod
+end module profile_psy_data_mod

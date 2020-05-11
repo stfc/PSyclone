@@ -57,6 +57,8 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
+# pylint: disable=too-many-lines
+
 
 # pylint: disable=too-many-lines
 class ConfigurationError(Exception):
@@ -113,6 +115,9 @@ class Config(object):
     # The default name to use when creating new names in the
     # PSyIR symbol table.
     _default_psyir_root_name = "psyir_tmp"
+
+    # The list of valid PSyData class prefixes
+    _valid_psy_data_prefixes = []
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -313,6 +318,26 @@ class Config(object):
             self._psyir_root_name = Config._default_psyir_root_name
         else:
             self._psyir_root_name = self._config['DEFAULT']['PSYIR_ROOT_NAME']
+
+        # Read the valid PSyData class prefixes:
+        try:
+            # Convert it to a list of strings:
+            self._valid_psy_data_prefixes = \
+                self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
+        except KeyError:
+            self._valid_psy_data_prefixes = []
+
+        # Verify that the prefixes will result in valid Fortran names:
+        import re
+        valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
+        for prefix in self._valid_psy_data_prefixes:
+            if not valid_var.match(prefix):
+                raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
+                                         "config file. The prefix must be "
+                                         "valid for use as the start of a "
+                                         "Fortran variable name."
+                                         .format(prefix),
+                                         config=self)
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
@@ -631,6 +656,12 @@ class Config(object):
         except (TypeError, ValueError):
             raise ValueError("include_paths must be a list but got: {0}".
                              format(type(path_list)))
+
+    @property
+    def valid_psy_data_prefixes(self):
+        ''':returns: The list of all valid class prefixes.
+        :rtype: list of str'''
+        return self._valid_psy_data_prefixes
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

@@ -68,11 +68,23 @@ class ExtractNode(PSyDataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
     :type options: dictionary of string:values or None
+    :param str options["prefix"]: a prefix to use for the PSyData module name \
+        (``prefix_psy_data_mod``) and the PSyDataType
+        (``prefix_PSyDataType``) - a "_" will be added automatically. \
+        It defaults to "extract", which means the module name used will be \
+        ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
+        if options:
+            my_options = options.copy()
+        else:
+            my_options = {}
+        # If there is no value specified by in the constructor, default
+        # to the "extract" class.
+        my_options["prefix"] = my_options.get("prefix", "extract")
         super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=options)
+                                          parent=parent, options=my_options)
         self._text_name = "Extract"
         self._colour_key = "Extract"
 

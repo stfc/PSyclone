@@ -40,7 +40,7 @@
 # The dl_esm_inf infrastructure library:
 #     export DL_DIR=../../../external/dl_esm_inf/finite_difference/src
 # If you are using the dl_timer, you can also use:
-#     export DL_TIMER_DIR=../../../../apeg-dl_timer
+#     export DL_TIMER_ROOT=../../../../apeg-dl_timer
 # Similarly for DrHook:
 #     export DRHOOK_DIR=../../../../drhook
 
@@ -73,9 +73,9 @@ drhook: $(NAME).drhook
 
 # Needs to compile with openmp and link in apeg-dl_timer library. As
 # default assume apeg-dl_timer is installed 'next' to PSyclone.
-dl_timer: DL_TIMER_DIR?=../../../../apeg-dl_timer
+dl_timer: DL_TIMER_ROOT?=../../../../apeg-dl_timer
 dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
-dl_timer: PROFILE_LINK=-ldl_timer -L$(DL_TIMER_DIR) -l:dl_timer_lib.a -fopenmp
+dl_timer: PROFILE_LINK=-ldl_timer -L$(DL_TIMER_ROOT) -l:dl_timer_lib.a -fopenmp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
 
