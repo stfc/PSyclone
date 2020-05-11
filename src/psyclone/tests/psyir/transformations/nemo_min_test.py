@@ -139,13 +139,12 @@ def example_psyir_nary():
     return operation
 
 
-@pytest.mark.parametrize("func,output,brackets",
-                         [(lambda arg: arg, "arg", False),
+@pytest.mark.parametrize("func,output",
+                         [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", REAL_TYPE)), "arg * 3.14",
-                              True)])
-def test_correct_binary(func, output, tmpdir, brackets):
+                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
+def test_correct_binary(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     first argument to MIN is a simple argument and when it is an
     expression.
@@ -155,22 +154,13 @@ def test_correct_binary(func, output, tmpdir, brackets):
     operation = example_psyir_binary(func)
     writer = FortranWriter()
     result = writer(operation.root)
-    if brackets:
-        expected = (
-            "subroutine min_example(arg,arg_1)\n"
-            "  real, intent(inout) :: arg\n"
-            "  real, intent(inout) :: arg_1\n"
-            "  real :: psyir_tmp\n\n"
-            "  psyir_tmp=MIN(({0}), arg_1)\n\n"
-            "end subroutine min_example\n".format(output))
-    else:
-        expected = (
-            "subroutine min_example(arg,arg_1)\n"
-            "  real, intent(inout) :: arg\n"
-            "  real, intent(inout) :: arg_1\n"
-            "  real :: psyir_tmp\n\n"
-            "  psyir_tmp=MIN({0}, arg_1)\n\n"
-            "end subroutine min_example\n".format(output))
+    expected = (
+        "subroutine min_example(arg,arg_1)\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n"
+        "  real :: psyir_tmp\n\n"
+        "  psyir_tmp=MIN({0}, arg_1)\n\n"
+        "end subroutine min_example\n".format(output))
     assert expected in result
 
     trans = NemoMinTrans()
