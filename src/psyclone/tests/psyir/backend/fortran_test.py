@@ -817,11 +817,11 @@ def test_fw_mixed_operator_precedence(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     expected = (
-        "  a=-(a * (-b + c))\n"
+        "  a=-a * (-b + c)\n"
         "  a=-a * (-b + c)\n"
         "  a=-a + -b + c\n"
-        "  e=.not.f .or. .not.g\n"
-        "  a=LOG((b * c))\n")
+        "  e=.not.f .OR. .not.g\n"
+        "  a=LOG(b * c)\n")
     assert expected in result
 
 

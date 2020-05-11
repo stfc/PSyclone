@@ -232,6 +232,38 @@ def _reverse_map(op_map):
     return mapping
 
 
+def fortran_operator(operator):
+    ''' xxx '''
+    unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
+    if operator in unary_mapping:
+        return unary_mapping[operator].upper()
+
+    binary_mapping = _reverse_map(Fparser2Reader.binary_operators)
+    if operator in binary_mapping:
+        return binary_mapping[operator].upper()
+
+    nary_mapping = _reverse_map(Fparser2Reader.nary_operators)
+    if operator in nary_mapping:
+        return nary_mapping[operator].upper()
+    raise KeyError()
+
+
+def is_fortran_intrinsic(fortran_operator):
+    ''' xxx '''
+    if fortran_operator in FORTRAN_INTRINSICS:
+        return True
+    return False
+
+
+def precedence(fortran_operator):
+    ''' xxx '''
+    fp = [['**'], ['*', '/'], ['+', '-'], ['//'], ['.EQ.', '.NE.', '.LT.', '.LE.', '.GT.', '.GE.', '==', '/=', '<', '<=', '>', '>='], ['.NOT.'], ['.AND.'], ['.OR.'], ['.EQV.', 'NEQV']]
+    for oper_list in fp:
+        if fortran_operator in oper_list:
+            return fp.index(oper_list)
+    raise KeyError()
+
+
 class FortranWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
@@ -541,26 +573,20 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping
-        mapping = _reverse_map(Fparser2Reader.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
-            oper = mapping[node.operator]
-            # This is a binary operation
-            if oper.upper() in FORTRAN_INTRINSICS:
+            fort_oper = fortran_operator(node.operator)
+            if is_fortran_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
-                return "{0}({1}, {2})".format(oper.upper(), lhs, rhs)
-            if isinstance(node.parent, Operation) and \
-               not node.operator == node.parent.operator and \
-               not (node.operator == BinaryOperation.Operator.MUL and \
-                    node.parent.operator == BinaryOperation.Operator.ADD):
-                # Place brackets round this operation.
-                return "({0} {1} {2})".format(lhs, oper, rhs)
-            else:
-                # No need for brackets.
-                return "{0} {1} {2}".format(lhs, oper, rhs)
+                return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
+            if isinstance(node.parent, Operation):
+                parent_fort_oper = fortran_operator(node.parent.operator)
+                if not is_fortran_intrinsic(parent_fort_oper) and \
+                   precedence(fort_oper) > precedence(parent_fort_oper):
+                    # We need brackets to enforce precedence
+                    return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+            return "{0} {1} {2}".format(lhs, fort_oper, rhs)
         except KeyError:
             raise VisitorError("Unexpected binary op '{0}'."
                                "".format(node.operator))
