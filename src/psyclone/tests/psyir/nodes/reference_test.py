@@ -93,6 +93,17 @@ def test_reference_optional_parent():
     assert ref.parent is None
 
 
+def test_reference_children_validation():
+    '''Test that children added to Reference are validated. A Reference node
+    does not accept any children.
+
+    '''
+    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        ref.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
+
 # Test Array class
 
 
@@ -190,14 +201,25 @@ def test_array_create_invalid3():
     assert ("children argument in create method of Array class should "
             "be a list but found 'str'." in str(excinfo.value))
 
-    # contents of children list are not Node
+
+def test_array_children_validation():
+    '''Test that children added to Array are validated. Array accepts
+    DataNodes and Range children.'''
+    array_type = ArrayType(REAL_SINGLE_TYPE, shape=[5, 5])
+    array = Array(DataSymbol("rname", array_type))
+    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
+    erange = Range()
+    assignment = Assignment()
+
+    # Invalid child
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create(DataSymbol("temp", REAL_SINGLE_TYPE),
-                         [Reference(DataSymbol("i", INTEGER_SINGLE_TYPE)),
-                          "invalid"])
-    assert (
-        "child of children argument in create method of Array class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+        array.addchild(assignment)
+    assert ("Item 'Assignment' can't be child 0 of 'ArrayReference'. The valid"
+            " format is: '[DataNode | Range]*'." in str(excinfo.value))
+
+    # Valid children
+    array.addchild(datanode1)
+    array.addchild(erange)
 
 
 def test_array_is_full_range():

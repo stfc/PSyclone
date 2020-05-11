@@ -39,24 +39,35 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.errors import InternalError, GenerationError
+from psyclone.errors import InternalError
 
 
-class Assignment(Node):
+class Assignment(Statement):
     '''
     Node representing an Assignment statement. As such it has a LHS and RHS
     as children 0 and 1 respectively.
-
-    :param ast: node in the fparser2 AST representing the assignment.
-    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
-    :param parent: the parent node of this Assignment in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
-    def __init__(self, ast=None, parent=None):
-        super(Assignment, self).__init__(ast=ast, parent=parent)
+    # Textual description of the node.
+    _children_valid_format = "DataNode, DataNode"
+    _text_name = "Assignment"
+    _colour_key = "Assignment"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position < 2 and isinstance(child, DataNode)
 
     @property
     def lhs(self):
@@ -104,21 +115,11 @@ class Assignment(Node):
         :returns: an Assignment instance.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
-
         '''
-        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of Assignment class "
-                    "should be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
-
         new_assignment = Assignment()
+        new_assignment.children = [lhs, rhs]
         lhs.parent = new_assignment
         rhs.parent = new_assignment
-        new_assignment.children = [lhs, rhs]
         return new_assignment
 
     def __str__(self):

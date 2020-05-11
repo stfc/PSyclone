@@ -38,11 +38,13 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.errors import InternalError, GenerationError
 
 
-class IfBlock(Node):
+class IfBlock(Statement):
     '''
     Node representing an if-block within the PSyIR. It has two mandatory
     children: the first one represents the if-condition and the second one
@@ -60,6 +62,10 @@ class IfBlock(Node):
     # WHERE construct.
     valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
                          'was_where')
+    # Textual description of the node.
+    _children_valid_format = "DataNode, Schedule [, Schedule]"
+    _text_name = "If"
+    _colour_key = "If"
 
     def __init__(self, parent=None, annotations=None):
         super(IfBlock, self).__init__(parent=parent)
@@ -72,8 +78,20 @@ class IfBlock(Node):
                         "IfBlock with unrecognized annotation '{0}', valid "
                         "annotations are: {1}.".format(
                             annotation, IfBlock.valid_annotations))
-        self._text_name = "If"
-        self._colour_key = "If"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return (position == 0 and isinstance(child, DataNode)) or (
+            position in (1, 2) and isinstance(child, Schedule))
 
     @property
     def condition(self):
@@ -143,36 +161,25 @@ class IfBlock(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyir.nodes import Schedule
-        if not isinstance(if_condition, Node):
-            raise GenerationError(
-                "if_condition argument in create method of IfBlock class "
-                "should be a PSyIR Node but found '{0}'."
-                "".format(type(if_condition).__name__))
-        if not (isinstance(if_body, list) and all(isinstance(child, Node)
-                                                  for child in if_body)):
+        if not isinstance(if_body, list):
             raise GenerationError(
                 "if_body argument in create method of IfBlock class should be "
-                "a list of PSyIR Nodes but it is either not a list or "
-                "one of the list's children is not a Node.")
-        if else_body is not None and \
-           not (isinstance(if_body, list) and
-                all(isinstance(child, Node) for child in else_body)):
+                "a list.")
+        if else_body is not None and not isinstance(else_body, list):
             raise GenerationError(
                 "else_body argument in create method of IfBlock class should "
-                "be a list of PSyIR Nodes but it is either not a list or "
-                "one of the list's children is not a Node.")
+                "be a list.")
 
         if_stmt = IfBlock()
         if_schedule = Schedule(parent=if_stmt)
+        if_schedule.children = if_body
         for node in if_body:
             node.parent = if_schedule
-        if_schedule.children = if_body
         if else_body is not None:
             else_schedule = Schedule(parent=if_stmt)
+            else_schedule.children = else_body
             for node in else_body:
                 node.parent = else_schedule
-            else_schedule.children = else_body
             if_stmt.children = [if_condition, if_schedule, else_schedule]
         else:
             if_stmt.children = [if_condition, if_schedule]

@@ -482,7 +482,7 @@ If there is no variable to be provided by the PSyData API (i.e both
 ``pre_variable_list`` and ``post_variable_list`` are empty), then the
 ``PSyDataNode`` will only create a call to ``PreStart`` and
 ``PostEnd``. This is utilised by the profiling node to make the profiling
-API libraries (see :ref:`user_guide:ProfilingAPI`) independent of the infrastructure
+API libraries (see :ref:`user_guide:profiling`) independent of the infrastructure
 library (since a call to ``ProvideVariable`` can contain API-specific
 variable types). It also reduces the number of calls required before
 and after the instrumented region which can affect overall

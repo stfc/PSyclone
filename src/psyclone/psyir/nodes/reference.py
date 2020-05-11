@@ -40,14 +40,15 @@
 nodes.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import Node, BinaryOperation, Literal
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes import BinaryOperation, Literal
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol, ScalarType
 from psyclone.errors import GenerationError
 
 
-class Reference(Node):
+class Reference(DataNode):
     '''
     Node representing a Reference Expression.
 
@@ -59,6 +60,11 @@ class Reference(Node):
     :raises TypeError: if the symbol argument is not of type Symbol.
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "Reference"
+    _colour_key = "Reference"
+
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):
             raise TypeError("In Reference initialisation expecting a symbol "
@@ -128,15 +134,24 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param str reference_name: name of the array symbol.
-    :param parent: the parent node of this Array in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    def __init__(self, symbol, parent=None):
-        super(Array, self).__init__(symbol, parent=parent)
-        self._text_name = "ArrayReference"
-        self._colour_key = "Reference"
+    # Textual description of the node.
+    _children_valid_format = "[DataNode | Range]*"
+    _text_name = "ArrayReference"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return isinstance(child, (DataNode, Range))
 
     @staticmethod
     def create(symbol, children):
@@ -165,12 +180,6 @@ class Array(Reference):
                 "children argument in create method of Array class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "Array class should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
         if not symbol.is_array:
             raise GenerationError(
                 "expecting the symbol to be an array, not a scalar.")
@@ -182,9 +191,9 @@ class Array(Reference):
                     len(children), len(symbol.shape)))
 
         array = Array(symbol)
+        array.children = children
         for child in children:
             child.parent = array
-        array.children = children
         return array
 
     def __str__(self):
