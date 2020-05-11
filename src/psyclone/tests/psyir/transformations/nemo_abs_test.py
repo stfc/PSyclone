@@ -106,13 +106,12 @@ def test_correct(func, output, tmpdir):
     operation = example_psyir(func)
     writer = FortranWriter()
     result = writer(operation.root)
-    expected = (
+    assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=ABS({0})\n\n"
-        "end subroutine abs_example\n".format(output))
-    assert expected in result
+        "end subroutine abs_example\n".format(output)) in result
     trans = NemoAbsTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)

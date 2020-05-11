@@ -111,14 +111,13 @@ def test_correct(func, output, tmpdir):
     operation = example_psyir(func)
     writer = FortranWriter()
     result = writer(operation.root)
-    expected = (
+    assert (
         "subroutine sign_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=SIGN({0}, arg_1)\n\n"
-        "end subroutine sign_example\n".format(output))
-    assert expected in result
+        "end subroutine sign_example\n".format(output)) in result
     trans = NemoSignTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)

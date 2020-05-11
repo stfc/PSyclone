@@ -784,7 +784,6 @@ def test_fw_binaryoperator_precedence(fort_writer):
     schedule = create_schedule(code, "tmp")
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    print (result)
     expected = (
         "  a=b * (c + d)\n"
         "  a=b * c + d\n"
@@ -1035,7 +1034,6 @@ def test_fw_ifblock(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    print (result)
     assert (
         "  if (n > 2) then\n"
         "    n=n + 1\n"

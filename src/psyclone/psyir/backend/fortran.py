@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, SymbolTable
 from psyclone.psyir.nodes import BinaryOperation, Reference, Literal, \
-    Assignment, Operation
+    Operation
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -104,7 +104,6 @@ def gen_dims(symbol):
     supported.
 
     '''
-
     dims = []
     for index in symbol.shape:
         if isinstance(index, DataSymbol):
@@ -232,8 +231,23 @@ def _reverse_map(op_map):
     return mapping
 
 
-def fortran_operator(operator):
-    ''' xxx '''
+def get_fortran_operator(operator):
+    '''Determine the Fortran operator that is equivalent to the provided
+    PSyIR operator. This is achieved by reversing the Fparser2Reader
+    maps that are used to convert from Fortran operator names to PSyIR
+    operator names.
+
+    :param operator: a PSyIR operator.
+    :type operator: \
+        :py:class:`psyclone.psyir.nodes.[Unary,Binary,Nary]Operation.Operator`
+
+    :return: the Fortran operator name.
+    :rtype: str
+
+    :raises KeyError: if the supplied operator is not known by the \
+        PSyIR.
+
+    '''
     unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
     if operator in unary_mapping:
         return unary_mapping[operator].upper()
@@ -249,14 +263,36 @@ def fortran_operator(operator):
 
 
 def is_fortran_intrinsic(fortran_operator):
-    ''' xxx '''
+    '''Determine whether the supplied Fortran operator is an intrinsic
+    Fortran function or not.
+
+    :param str fortran_operator: the supplied Fortran operator.
+
+    :returns: true if the supplied Fortran operator is a Fortran
+        intrinsic and false otherwise.
+
+    '''
     if fortran_operator in FORTRAN_INTRINSICS:
         return True
     return False
 
 
 def precedence(fortran_operator):
-    ''' xxx '''
+    '''Determine the relative precedence of the supplied Fortran operator.
+
+    :param str fortran_operator: the supplied Fortran operator.
+
+    :returns: an integer indicating the relative precedence of the
+        supplied Fortran operator. The higher the value, the higher
+        the precedence. Operator precednence values are taken from the
+        Fortran 2008 specification document.
+
+    :raises KeyError: if the supplied operator is not in the
+        precedence list.
+
+    '''
+    # The index of the list indicates precedence. Strings within
+    # sub-lists have the same precendence.
     fortran_precedence = [
         ['.EQV.', 'NEQV'],
         ['.OR.'],
@@ -586,12 +622,12 @@ class FortranWriter(PSyIRVisitor):
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
-            fort_oper = fortran_operator(node.operator)
+            fort_oper = get_fortran_operator(node.operator)
             if is_fortran_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
                 return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
             if isinstance(node.parent, Operation):
-                parent_fort_oper = fortran_operator(node.parent.operator)
+                parent_fort_oper = get_fortran_operator(node.parent.operator)
                 if not is_fortran_intrinsic(parent_fort_oper) and \
                    precedence(fort_oper) < precedence(parent_fort_oper):
                     # We need brackets to enforce precedence
@@ -618,7 +654,7 @@ class FortranWriter(PSyIRVisitor):
         for child in node.children:
             arg_list.append(self._visit(child))
         try:
-            fort_oper = fortran_operator(node.operator)
+            fort_oper = get_fortran_operator(node.operator)
             return "{0}({1})".format(fort_oper, ", ".join(arg_list))
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
@@ -834,7 +870,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         content = self._visit(node.children[0])
         try:
-            fort_oper = fortran_operator(node.operator)
+            fort_oper = get_fortran_operator(node.operator)
             if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
                 return "{0}({1})".format(fort_oper, content)

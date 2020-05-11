@@ -154,14 +154,13 @@ def test_correct_binary(func, output, tmpdir):
     operation = example_psyir_binary(func)
     writer = FortranWriter()
     result = writer(operation.root)
-    expected = (
+    assert (
         "subroutine min_example(arg,arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=MIN({0}, arg_1)\n\n"
-        "end subroutine min_example\n".format(output))
-    assert expected in result
+        "end subroutine min_example\n".format(output)) in result
 
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
