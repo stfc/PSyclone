@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
@@ -224,7 +224,7 @@ wmask(ji, jj, jk)
     directive.ast = None
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
-    directive.children.append(new_sched[0].loop_body[3])
+    directive.dir_body.children.append(new_sched[0].loop_body[3])
 
     with pytest.raises(GenerationError) as err:
         _ = directive.update()
@@ -266,7 +266,7 @@ def test_omp_do_children_err():
     assert isinstance(directive, OMPParallelDoDirective)
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
-    directive.children.append(new_sched[0].loop_body[3])
+    directive.dir_body.children.append(new_sched[0].loop_body[3])
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "

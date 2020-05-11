@@ -36,7 +36,7 @@
 !> dummy-profiling library which prints begin and end of code regions to
 !> stdout. Expected output:
 !>
-!>  ProfileInit called
+!>  profile_PSyDataInit called
 !>  PreStart called for module 'psy_test' region 'invoke_0:r0'
 !>  PostEnd called for module 'psy_test' region 'invoke_0:r0'
 !>  PreStart called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
@@ -45,17 +45,18 @@
 Program test
     USE field_mod
     USE grid_mod
-    use decomposition_mod, only : decomposition_type
-    use parallel_mod, only      : parallel_init
-    use psy_data_mod, only      : ProfileInit, ProfileFinalise
+    use decomposition_mod, only    : decomposition_type
+    use parallel_mod, only         : parallel_init
+    use profile_psy_data_mod, only : profile_PSyDataInit, profile_PSyDataShutdown
 
-    use init_field_mod,   only : init_field
-    use update_field_mod, only : update_field
+    use init_field_mod,   only     : init_field
+    use update_field_mod, only     : update_field
 
-    TYPE(r2d_field)          :: a_fld, b_fld, c_fld, d_fld
-    TYPE(grid_type), target  :: grid
+    TYPE(r2d_field)                :: a_fld, b_fld, c_fld, d_fld
+    TYPE(grid_type), target        :: grid
+    type(decomposition_type)       :: decomp
 
-    call ProfileInit()
+    call profile_PSyDataInit()
     call parallel_init()
     grid = grid_type(GO_ARAKAWA_C,                                 &
                      (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
@@ -78,5 +79,5 @@ Program test
     call invoke (update_field(a_fld, b_fld, c_fld, d_fld) )
 
     print *,a_fld%data(1:5, 1:5)
-    call ProfileFinalise()
+    call profile_PSyDataShutdown()
 end program test

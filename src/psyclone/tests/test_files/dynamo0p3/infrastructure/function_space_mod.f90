@@ -9,7 +9,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 
 module function_space_mod
 
-use constants_mod,         only: r_def, i_def
+use constants_mod,         only: r_def, i_def, l_def
 use mesh_mod,              only: mesh_type
 use stencil_dofmap_mod,    only: stencil_dofmap_type, STENCIL_POINT
 
@@ -115,7 +115,9 @@ contains
   generic :: get_last_dof_halo => get_last_dof_halo_any, &
                                   get_last_dof_halo_deepest
 
-  procedure, public   :: get_stencil_dofmap
+  procedure, public  :: is_readonly
+  procedure, public  :: is_writable
+  procedure, public  :: get_stencil_dofmap
   procedure, public  :: get_colours
   procedure, public  :: get_ncolours
   procedure, public  :: set_colours
@@ -413,6 +415,26 @@ function get_last_dof_halo_deepest(self) result (last_dof_halo)
   last_dof_halo = 0
   return
 end function get_last_dof_halo_deepest
+
+function is_readonly(self) result(return_readonly)
+  implicit none
+
+  class(function_space_type), intent(in) :: self
+  logical(l_def) :: return_readonly
+
+  return_readonly = .false.
+
+end function is_readonly
+
+function is_writable(self) result(return_writable)
+  implicit none
+
+  class(function_space_type), intent(in) :: self
+  logical(l_def) :: return_writable
+
+  return_writable = .false.
+
+end function is_writable
 
 function get_stencil_dofmap(self, stencil_shape, stencil_size) result(map)
 
