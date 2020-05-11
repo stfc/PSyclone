@@ -1417,10 +1417,10 @@ def test_use_stmt_error(monkeypatch):
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_unrecognised_optional(monkeypatch):
+def test_process_declarations_unrecognised_attribute():
     ''' Check that a declaration with an unrecognised attribute raises the
     expected error. '''
-    fake_parent = Schedule("dummy")
+    fake_parent = KernelSchedule("dummy")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, private :: idx1\n")
     fparser2spec = Specification_Part(reader)
