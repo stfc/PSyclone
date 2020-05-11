@@ -6904,7 +6904,7 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     expected1 = (
-        "      USE testkern_multi_anyw2, ONLY: testkern_multi_anyw2_code\n"
+        "      USE testkern_multi_anyw2_mod, ONLY: testkern_multi_anyw2_code\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
