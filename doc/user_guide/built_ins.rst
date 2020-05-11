@@ -73,6 +73,7 @@ that, unlike the kernel call, no ``use`` association is required for the
 Built-ins since they are provided as part of the environment (*c.f.* Fortran
 intrinsics such as ``sin()``).
 ::
+
   module solver_mod
     ...
     use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
@@ -148,6 +149,7 @@ and the translated algorithm code are:
   ``CALL invoke_<xx>``. The calls within the ``CALL invoke_jacobi_mass_lump``
   are removed, as are duplicate arguments and any literals leaving the
   five fields and one operator being passed in;
+
 * A ``use`` statement is added for the each of the new ``CALL invoke_<xx>``
   which will call the generated PSy layer code.
 
@@ -184,8 +186,10 @@ A vanilla (with no distributed and shared-memory optimisations) version
 of the generated PSy layer is given below. As expected the kernel code is
 called from the PSy layer. However, in the case of the Built-ins, the code
 for these has been written directly into the PSy layer:
+
 * ``setval_c`` translates to the loop setting
   ``ax_proxy%data(df) = 1.0_r_def``;
+
 * ``X_divideby_Y`` translates to the loop setting
   ``lhs_proxy%data(df) = rhs_proxy%data(df) / lumped_weight_proxy%data(df)``.
 
