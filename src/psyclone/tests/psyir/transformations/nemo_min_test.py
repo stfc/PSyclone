@@ -161,7 +161,6 @@ def test_correct_binary(func, output, tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=MIN({0}, arg_1)\n\n"
         "end subroutine min_example\n".format(output)) in result
-
     trans = NemoMinTrans()
     _, _ = trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
