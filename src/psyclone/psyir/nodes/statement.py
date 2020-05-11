@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# Author S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Return node implementation.'''
+''' This module contains the Statement abstract node implementation.'''
 
-from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.node import Node
 
 
-class Return(Statement):
+class Statement(Node):
     '''
-    Node representing a Return statement (subroutine break without return
-    value).
-
+    Abstract node representing a general PSyIR Statement.
     '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "Return"
-    _colour_key = "Return"

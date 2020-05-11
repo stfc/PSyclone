@@ -316,6 +316,8 @@ class NemoInvokeSchedule(InvokeSchedule):
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
 
     '''
+    _text_name = "NemoInvokeSchedule"
+
     def __init__(self, invoke=None):
         super(NemoInvokeSchedule, self).__init__(None, None)
 
@@ -325,16 +327,6 @@ class NemoInvokeSchedule(InvokeSchedule):
         # TODO this can be removed once #435 is done and we're no longer
         # manipulating the fparser2 parse tree.
         self._name_clashes_checked = False
-        self._text_name = "InvokeSchedule"
-        self._colour_key = "Schedule"
-
-    def __str__(self):
-        ''' Returns the string representation of this NemoInvokeSchedule. '''
-        result = "NemoInvokeSchedule():\n"
-        for entity in self.children:
-            result += str(entity)+"\n"
-        result += "End Schedule"
-        return result
 
     @property
     def psy_data_name_clashes_checked(self):
@@ -400,8 +392,6 @@ class NemoKern(InlinedKern):
         self._ast = parse_tree
 
         # Name and colour-code to use for displaying this node
-        self._text_name = "InlinedKern"
-        self._colour_key = "InlinedKern"
         self._reduction = False
 
     @staticmethod
@@ -439,18 +429,6 @@ class NemoKern(InlinedKern):
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
         return self.children[0]
-
-    def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: the class-specific text describing this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
 
     def local_vars(self):
         '''
@@ -546,6 +524,8 @@ class NemoImplicitLoop(NemoLoop):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    _text_name = "NemoImplicitLoop"
+
     def __init__(self, ast, parent=None):
         # pylint: disable=super-init-not-called, non-parent-init-called
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
@@ -553,12 +533,20 @@ class NemoImplicitLoop(NemoLoop):
                       valid_loop_types=valid_loop_types)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
-        self._text_name = "NemoImplicitLoop"
-        self._colour_key = "Loop"
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for \
+                            coloured text.
+
+        :returns: a text description of this node.
+        :rtype: str
+
+        '''
+        return self.coloured_name(colour) + "[{0}]".format(self._ast.items[0])
 
     def __str__(self):
-        # Display the LHS of the assignment in the str representation
-        return "NemoImplicitLoop[{0}]\n".format(self._ast.items[0])
+        return self.node_str(False)
 
     @staticmethod
     def match(node):

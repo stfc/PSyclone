@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -62,11 +62,13 @@ DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
+VALID_PSY_DATA_PREFIXES = profile extract
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
+RUN_TIME_CHECKS = false
 '''
 
 
@@ -95,7 +97,8 @@ def clear_config_instance():
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
-                        "COMPUTE_ANNEXED_DOFS"])
+                        "COMPUTE_ANNEXED_DOFS",
+                        "RUN_TIME_CHECKS"])
 def bool_entry(request):
     '''
     Parameterised fixture that will cause a test that has it as an
@@ -640,3 +643,56 @@ def test_access_mapping_order(tmpdir):
         api_config = Config.get().api_conf("dynamo0.3")
         for access_mode in api_config.get_access_mapping().values():
             assert isinstance(access_mode, AccessType)
+
+
+def test_psy_data_prefix(tmpdir):
+    ''' Check the handling of PSyData class prefixes.'''
+    config_file = tmpdir.join("config.correct")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(_CONFIG_CONTENT)
+        new_cfg.close()
+        config = Config()
+        config.load(config_file=str(config_file))
+
+        assert "profile" in config.valid_psy_data_prefixes
+        assert "extract" in config.valid_psy_data_prefixes
+        assert len(config.valid_psy_data_prefixes) == 2
+
+    # Now handle a config file without psy data prefixes:
+    # This should not raise an exception, but define an empty list
+    content = re.sub(r"VALID_PSY_DATA_PREFIXES", "NO-PSY-DATA",
+                     _CONFIG_CONTENT)
+    config_file = tmpdir.join("config.no_psydata")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+        assert not config.valid_psy_data_prefixes
+
+
+def test_invalid_prefix(tmpdir):
+    '''Tests invalid PSyData prefixes (i.e. ones that would result
+    in invalid Fortran names when used).
+    '''
+
+    for prefix in ["1", "&AB", "?", "_ab", "ab'", "cd\"", "ef?"]:
+        content = re.sub(r"^VALID_PSY_DATA_PREFIXES.*$",
+                         "VALID_PSY_DATA_PREFIXES="+prefix,
+                         _CONFIG_CONTENT, flags=re.MULTILINE)
+        config_file = tmpdir.join("config.invalid_psydata")
+        with config_file.open(mode="w") as new_cfg:
+            new_cfg.write(content)
+            new_cfg.close()
+            config = Config()
+            with pytest.raises(ConfigurationError) as err:
+                config.load(config_file=str(config_file))
+            # When there is a '"' in the invalid prefix, the "'" in the
+            # error message is escaped with a '\'. So in order to test the
+            # invalid 'cd"' prefix, we need to have two tests in the assert:
+            assert "Invalid PsyData-prefix '{0}' in config file" \
+                   .format(prefix) in str(err.value)  \
+                or "Invalid PsyData-prefix \\'{0}\\' in config file" \
+                   .format(prefix) in str(err.value)
+            assert "The prefix must be valid for use as the start of a " \
+                   "Fortran variable name." in str(err.value)
