@@ -48,7 +48,7 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
-from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.kernel import Descriptor, KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
@@ -60,6 +60,11 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
+from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
+                              DeallocateGen, DeclGen, DirectiveGen, DoGen,
+                              IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
+                              UseGen)
+
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -67,19 +72,24 @@ from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-# TODO #749: Allow only read access and prevent halo exchanges for Wchi
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken", "wchi"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
+
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
 # any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
 # (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
 # it needs to a) be treated as continuous and b) have vector basis and scalar
 # differential basis dimensions.
+ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
+
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
 
-# Valid FS and FS names
+# Read-only FS
+READ_ONLY_FUNCTION_SPACES = ["wchi"]
+
+# Valid FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-    CONTINUOUS_FUNCTION_SPACES
+    CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
 
 # Valid any_space metadata (general FS, could be continuous or discontinuous)
 VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
@@ -892,8 +902,6 @@ class RefElementMetaData(object):
         OUTWARD_NORMALS_TO_FACES = 6
 
     def __init__(self, kernel_name, type_declns):
-        from psyclone.parse.kernel import getkerneldescriptors
-
         # The list of properties requested in the meta-data (if any)
         self.properties = []
 
@@ -934,6 +942,74 @@ class RefElementMetaData(object):
         for prop in self.properties:
             if self.properties.count(prop) > 1:
                 raise ParseError("Duplicate reference-element property "
+                                 "found: '{0}'.".format(prop))
+
+
+class MeshPropertiesMetaData(object):
+    '''
+    Parses any mesh-property kernel metadata and stores the properties that
+    a kernel requires.
+
+    :param str kernel_name: name of the kernel that the meta-data is for.
+    :param type_declns: list of fparser1 parse tree nodes representing type \
+                        declaration statements.
+    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
+
+    :raises ParseError: if an unrecognised mesh property is found.
+    :raises ParseError: if a duplicate mesh property is found.
+
+    '''
+    # pylint: disable=too-few-public-methods
+    class Property(Enum):
+        '''
+        Enumeration of the various properties of the mesh that a kernel may
+        request. The names of each of these corresponds to the names that must
+        be used in kernel metadata.
+
+        '''
+        ADJACENT_FACE = 1
+
+    def __init__(self, kernel_name, type_declns):
+        # The list of mesh properties requested in the meta-data.
+        self.properties = []
+
+        mesh_props = []
+        # Search the supplied list of type declarations for the one
+        # describing the reference-element properties required by the kernel.
+        for line in type_declns:
+            for entry in line.selector:
+                if entry == "mesh_data_type":
+                    # getkerneldescriptors raises a ParseError if the named
+                    # element cannot be found.
+                    mesh_props = getkerneldescriptors(
+                        kernel_name, line, var_name="meta_mesh",
+                        var_type="mesh_data_type")
+                    break
+            if mesh_props:
+                # Optimisation - stop searching if we've found a type
+                # declaration for the mesh data
+                break
+        try:
+            # The meta-data entry is a declaration of a Fortran array of type
+            # mesh_data_type. The initialisation of each member
+            # of this array is done as a Fortran structure constructor, the
+            # argument to which gives a mesh property.
+            for prop in mesh_props:
+                for arg in prop.args:
+                    self.properties.append(
+                        self.Property[str(arg).upper()])
+        except KeyError:
+            # We found a reference-element property that we don't recognise.
+            # Sort for consistency when testing.
+            sorted_names = sorted([prop.name for prop in self.Property])
+            raise ParseError(
+                "Unsupported mesh property: '{0}'. Supported "
+                "values are: {1}".format(arg, sorted_names))
+
+        # Check for duplicate properties
+        for prop in self.properties:
+            if self.properties.count(prop) > 1:
+                raise ParseError("Duplicate mesh property "
                                  "found: '{0}'.".format(prop))
 
 
@@ -1069,6 +1145,9 @@ class DynKernMetadata(KernelType):
         # Does this kernel require any properties of the reference element?
         self.reference_element = RefElementMetaData(self.name, type_declns)
 
+        # Does this kernel require any properties of the mesh?
+        self.mesh = MeshPropertiesMetaData(self.name, type_declns)
+
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
         self._validate(need_evaluator)
@@ -1088,6 +1167,14 @@ class DynKernMetadata(KernelType):
         for arg in self._arg_descriptors:
             if arg.access != AccessType.READ:
                 write_count += 1
+                # We must not write to a field on a read-only function space
+                if arg.type == "gh_field" and \
+                   arg.function_spaces[0] in READ_ONLY_FUNCTION_SPACES:
+                    raise ParseError(
+                        "Found kernel metadata in '{0}' that specifies "
+                        "writing to the read-only function space '{1}'."
+                        "".format(self.name, arg.function_spaces[0]))
+
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
@@ -1465,6 +1552,15 @@ class DynamoPSy(PSy):
         return self._name + "_psy"
 
     @property
+    def orig_name(self):
+        '''
+        :returns: the unmodified psy-layer name.
+        :rtype: str
+
+        '''
+        return self._name
+
+    @property
     def gen(self):
         '''
         Generate PSy code for the Dynamo0.3 api.
@@ -1473,7 +1569,6 @@ class DynamoPSy(PSy):
         :rtype: :py:class:`psyir.nodes.Node`
 
         '''
-        from psyclone.f2pygen import ModuleGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -1535,12 +1630,16 @@ class DynCollection(object):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
+            self._symbol_table = self._invoke.schedule.symbol_table
             # The list of kernel calls we are responsible for
             self._calls = node.schedule.kernels()
         elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
+            # TODO 719 The symbol table is not connected to other parts of
+            # the Stub generation.
+            self._symbol_table = SymbolTable()
             # We only have a single kernel call in this case
             self._calls = [node]
         else:
@@ -1738,8 +1837,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        return self._invoke.schedule.symbol_table.name_from_tag(
-            unique, root=root_name)
+        return self._symbol_table.name_from_tag(unique, root=root_name)
 
     @staticmethod
     def dofmap_name(symtab, arg):
@@ -1812,10 +1910,7 @@ class DynStencils(DynCollection):
             names = [arg.stencil.extent_arg.varname for arg in
                      self._unique_extent_args]
         elif self._kernel:
-            # TODO 719 The symtab is not connected to other parts of the
-            # Stub generation.
-            symtab = SymbolTable()
-            names = [self.dofmap_size_name(symtab, arg)
+            names = [self.dofmap_size_name(self._symbol_table, arg)
                      for arg in self._unique_extent_args]
         else:
             raise InternalError("_unique_extent_vars: have neither Invoke "
@@ -1833,7 +1928,6 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_extent_vars:
@@ -1868,7 +1962,6 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_direction_vars:
@@ -1921,7 +2014,6 @@ class DynStencils(DynCollection):
 
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
-        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen
         if not self._kern_args:
             return
 
@@ -1965,7 +2057,7 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
-                symtab = self._invoke.schedule.symbol_table
+                symtab = self._symbol_table
                 parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
@@ -1985,7 +2077,6 @@ class DynStencils(DynCollection):
 
         :raises GenerationError: if an unsupported stencil type is encountered.
         '''
-        from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._kern_args:
@@ -1994,7 +2085,7 @@ class DynStencils(DynCollection):
         parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
                           funcnames=["stencil_dofmap_type"]))
 
-        symtab = self._invoke.schedule.symbol_table
+        symtab = self._symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -2045,19 +2136,16 @@ class DynStencils(DynCollection):
 
     def _declare_maps_stub(self, parent):
         '''
-        Add declarations for all stencil maps to a Kernel stub.
+        Add declarations for all stencil maps to a kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the Kernel \
+        :param parent: the node in the f2pygen AST representing the kernel \
                        stub routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # TODO 719 The symtab is not connected to other parts of the
-        # Stub generation.
-        symtab = SymbolTable()
+        symtab = self._symbol_table
         for arg in self._kern_args:
             parent.add(DeclGen(
                 parent, datatype="integer",
@@ -2065,6 +2153,190 @@ class DynStencils(DynCollection):
                 dimension=",".join([get_fs_ndf_name(arg.function_space),
                                     self.dofmap_size_name(symtab, arg)]),
                 entity_decls=[self.dofmap_name(symtab, arg)]))
+
+
+class LFRicMeshProperties(DynCollection):
+    '''
+    Holds all information on the the mesh properties required by either an
+    invoke or a kernel stub. Note that the creation of a suitable mesh
+    object is handled in the `DynMeshes` class. This class merely deals with
+    extracting the necessary properties from that object and providing them to
+    kernels.
+
+    :param node: kernel or invoke for which to manage mesh properties.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    '''
+    def __init__(self, node):
+        super(LFRicMeshProperties, self).__init__(node)
+
+        # The (ordered) list of mesh properties required by this invoke or
+        # kernel stub.
+        self._properties = []
+
+        for call in self._calls:
+            if call.mesh:
+                self._properties += [prop for prop in call.mesh.properties
+                                     if prop not in self._properties]
+
+        # Store properties in symbol table
+        for prop in self._properties:
+            self._symbol_table.name_from_tag(prop.name.lower())
+
+    def kern_args(self, stub=False):
+        '''
+        Provides the list of kernel arguments associated with the mesh
+        properties that the kernel requires.
+
+        :param bool stub: whether or not we are generating code for a \
+                          kernel stub.
+
+        :returns: the kernel arguments associated with the mesh properties.
+        :rtype: list of str
+
+        :raises InternalError: if the class has been constructed for an \
+                               invoke rather than a single kernel call.
+        :raises InternalError: if an unsupported mesh property is encountered.
+
+        '''
+        if not self._kernel:
+            raise InternalError(
+                "LFRicMeshProperties.kern_args() can only be called when "
+                "LFRicMeshProperties has been instantiated for a kernel "
+                "rather than an invoke.")
+
+        arg_list = []
+
+        for prop in self._properties:
+            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+                # Is this kernel already being passed the number of horizontal
+                # faces of the reference element?
+                has_nfaces = (
+                    RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
+                    in self._kernel.reference_element.properties or
+                    RefElementMetaData.Property.
+                    OUTWARD_NORMALS_TO_HORIZONTAL_FACES
+                    in self._kernel.reference_element.properties)
+                if not has_nfaces:
+                    arg_list.append(
+                        self._symbol_table.name_from_tag("nfaces_re_h"))
+                adj_face = self._symbol_table.name_from_tag("adjacent_face")
+                if not stub:
+                    # This is a kernel call from within an invoke
+                    adj_face += "(:,cell)"
+                arg_list.append(adj_face)
+            else:
+                raise InternalError(
+                    "kern_args: found unsupported mesh property '{0}' when "
+                    "generating arguments for kernel '{1}'. Only members of "
+                    "the MeshPropertiesMetaData.Property Enum are permitted "
+                    "({2}).".format(
+                        str(prop), self._kernel.name,
+                        list(MeshPropertiesMetaData.Property)))
+
+        return arg_list
+
+    def _invoke_declarations(self, parent):
+        '''
+        Creates the necessary declarations for variables needed in order to
+        provide mesh properties to a kernel call.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if this class has been instantiated for a \
+                               kernel instead of an invoke.
+        :raises InternalError: if an unsupported mesh property is found.
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if not self._invoke:
+            raise InternalError(
+                "_invoke_declarations() cannot be called because "
+                "LFRicMeshProperties has been instantiated for a kernel and "
+                "not an invoke.")
+
+        for prop in self._properties:
+            # The DynMeshes class will have created a mesh object so we
+            # don't need to do that here.
+            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+                adj_face = self._symbol_table.name_from_tag(
+                    "adjacent_face") + "(:,:) => null()"
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True, entity_decls=[adj_face]))
+            else:
+                raise InternalError(
+                    "Found unsupported mesh property '{0}' when "
+                    "generating invoke declarations. Only members of "
+                    "the MeshPropertiesMetaData.Property Enum are permitted "
+                    "({1}).".format(
+                        str(prop), list(MeshPropertiesMetaData.Property)))
+
+    def _stub_declarations(self, parent):
+        '''
+        Creates the necessary declarations for the variables needed in order
+        to provide properties of the mesh in a kernel stub.
+
+        :param parent: node in the f2pygen AST to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if the class has been instantiated for an \
+                               invoke and not a kernel.
+        :raises InternalError: if an unsupported mesh property is encountered.
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if not self._kernel:
+            raise InternalError(
+                "_stub_declarations() cannot be called because "
+                "LFRicMeshProperties has been instantiated for an invoke and "
+                "not a kernel.")
+
+        for prop in self._properties:
+            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+                adj_face = self._symbol_table.name_from_tag("adjacent_face")
+                # 'nfaces_re_h' will have been declared by the
+                # DynReferenceElement class.
+                parent.add(
+                    DeclGen(
+                        parent, datatype="integer",
+                        kind=api_config.default_kind["integer"],
+                        dimension=self._symbol_table.name_from_tag(
+                            "nfaces_re_h"),
+                        intent="in", entity_decls=[adj_face]))
+            else:
+                raise InternalError(
+                    "Found unsupported mesh property '{0}' when generating "
+                    "declarations for kernel stub. Only members of the "
+                    "MeshPropertiesMetaData.Property Enum are permitted "
+                    "({1})".format(str(prop),
+                                   list(MeshPropertiesMetaData.Property)))
+
+    def initialise(self, parent):
+        '''
+        Creates the f2pygen nodes for the initialisation of properties of
+        the mesh.
+
+        :param parent: node in the f2pygen tree to which to add statements.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if not self._properties:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Initialise mesh properties"))
+        parent.add(CommentGen(parent, ""))
+
+        adj_face = self._symbol_table.name_from_tag("adjacent_face")
+        mesh = self._symbol_table.name_from_tag("mesh")
+
+        parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
+                             rhs=mesh+"%get_adjacent_face()"))
 
 
 class DynReferenceElement(DynCollection):
@@ -2090,20 +2362,24 @@ class DynReferenceElement(DynCollection):
         # kernel metadata (in the case of a kernel stub) and remove duplicate
         # entries by using OrderedDict.
         self._properties = []
+        self._nfaces_h_required = False
+
         for call in self._calls:
             if call.reference_element:
                 self._properties.extend(call.reference_element.properties)
-        if not self._properties:
-            return
-        self._properties = list(OrderedDict.fromkeys(self._properties))
+            if call.mesh and call.mesh.properties:
+                # If a kernel requires a property of the mesh then it will
+                # also require the number of horizontal faces of the
+                # reference element.
+                self._nfaces_h_required = True
 
-        # Store properties in a SymbolTable
-        if self._invoke:
-            symtab = self._invoke.schedule.symbol_table
-        elif self._kernel:
-            # TODO 719 The symtab is not connected to other parts of the
-            # Stub generation.
-            symtab = SymbolTable()
+        if not (self._properties or self._nfaces_h_required):
+            return
+
+        if self._properties:
+            self._properties = list(OrderedDict.fromkeys(self._properties))
+
+        symtab = self._symbol_table
 
         # Create and store a name for the reference element object
         self._ref_elem_name = symtab.name_from_tag("reference_element")
@@ -2132,7 +2408,8 @@ class DynReferenceElement(DynCollection):
         if (RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
-                in self._properties):
+                in self._properties or
+                self._nfaces_h_required):
             self._nfaces_h_name = symtab.name_from_tag("nfaces_re_h")
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
@@ -2206,35 +2483,15 @@ class DynReferenceElement(DynCollection):
                         str(prop), self._kernel.name,
                         [str(sprop) for sprop in RefElementMetaData.Property]))
 
-    @property
-    def arg_properties(self):
-        '''
-        Returns the dictionary of reference element argument properties
-        for kernel calls and stub declarations where keys are the reference
-        element arrays and values are the relevant number of faces.
-
-        :return: reference element properties for kernel call and stub \
-                 declarations and argument lists.
-        :rtype: OrderedDict containing key-value pairs of \
-                (reference element array, number of faces).
-
-        '''
-        return self._arg_properties
-
-    @classmethod
-    def kern_args(cls, kern):
+    def kern_args(self):
         '''
         Create argument list for kernel call and stub.
-
-        :param kern: kernel to create the argument list for.
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
         :return: kernel call/stub arguments.
         :rtype: list
 
         '''
-        # Use classmethod to avoid instantiating the class for argument list
-        argdict = cls(kern).arg_properties
+        argdict = self._arg_properties
         # Remove duplicate "nfaces" by using OrderedDict
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         kern_args = nfaces + list(argdict.keys())
@@ -2249,11 +2506,19 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        if not self._properties:
+        # Get the list of the required scalars
+        if self._properties:
+            # remove duplicates with an OrderedDict
+            nface_vars = list(OrderedDict.fromkeys(
+                self._arg_properties.values()))
+        elif self._nfaces_h_required:
+            # We only need the number of 'horizontal' faces
+            nface_vars = [self._nfaces_h_name]
+        else:
+            # No reference-element properties required
             return
+
+        api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(UseGen(parent, name="reference_element_mod", only=True,
                           funcnames=["reference_element_type"]))
@@ -2262,11 +2527,13 @@ class DynReferenceElement(DynCollection):
                         datatype="reference_element_type",
                         entity_decls=[self._ref_elem_name + " => null()"]))
 
-        # Declare the necessary scalars (remove duplicates with an OrderedDict)
-        nface_vars = list(OrderedDict.fromkeys(self._arg_properties.values()))
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
+
+        if not self._properties:
+            # We only need the number of horizontal faces so we're done
+            return
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
@@ -2283,14 +2550,19 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
-        if not self._properties:
+        if not (self._properties or self._nfaces_h_required):
             return
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
-        for nface in list(self._arg_properties.values()):
+        scalars = list(self._arg_properties.values())
+        # TODO #719. Would be better to use lookup_from_tag() here.
+        nfaces_h = self._symbol_table.name_from_tag("nfaces_re_h")
+        if self._nfaces_h_required and nfaces_h not in scalars:
+            scalars.append(nfaces_h)
+
+        for nface in scalars:
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[nface]))
@@ -2312,9 +2584,7 @@ class DynReferenceElement(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
-
-        if not self._properties:
+        if not (self._properties or self._nfaces_h_required):
             return
 
         parent.add(CommentGen(parent, ""))
@@ -2323,8 +2593,7 @@ class DynReferenceElement(DynCollection):
                        " Get the reference element and query its properties"))
         parent.add(CommentGen(parent, ""))
 
-        mesh_obj_name = \
-            self._invoke.schedule.symbol_table.name_from_tag("mesh")
+        mesh_obj_name = self._symbol_table.name_from_tag("mesh")
         parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
                              rhs=mesh_obj_name+"%get_reference_element()"))
 
@@ -2493,7 +2762,6 @@ class DynDofmaps(DynCollection):
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
         f2pygen object. '''
-        from psyclone.f2pygen import CommentGen, AssignGen
 
         # If we've got no dofmaps then we do nothing
         if self._unique_fs_maps:
@@ -2539,7 +2807,6 @@ class DynDofmaps(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
@@ -2575,7 +2842,6 @@ class DynDofmaps(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
@@ -2668,7 +2934,6 @@ class DynOrientations(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for orient in self._orients:
@@ -2687,7 +2952,6 @@ class DynOrientations(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         declns = [orient.name+"(:) => null()" for orient in self._orients]
@@ -2743,8 +3007,8 @@ class DynFunctionSpaces(DynCollection):
         :param parent: the node in the f2pygen AST representing the kernel \
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._var_list:
@@ -2762,7 +3026,6 @@ class DynFunctionSpaces(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._var_list:
@@ -2780,7 +3043,6 @@ class DynFunctionSpaces(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
@@ -2837,9 +3099,8 @@ class DynFields(DynCollection):
         :param parent: the node in the f2pygen AST representing the PSy-layer \
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
-        from psyclone.f2pygen import TypeDeclGen
 
+        '''
         # Add the Invoke subroutine argument declarations for fields
         fld_args = self._invoke.unique_declarations(datatype="gh_field")
         if fld_args:
@@ -2854,8 +3115,8 @@ class DynFields(DynCollection):
         :param parent: the node in the f2pygen AST representing the Kernel \
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         fld_args = psyGen.args_filter(self._kernel.args,
@@ -2884,6 +3145,181 @@ class DynFields(DynCollection):
                                           fld.function_space.mangled_name]))
 
 
+class LFRicRunTimeChecks(DynCollection):
+    '''Handle declarations and code generation for run-time checks. This
+    is not used in the stub generator.
+
+    '''
+
+    def _invoke_declarations(self, parent):
+        '''Insert declarations of all data and functions required by the
+        run-time checks code into the PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if Config.get().api_conf("dynamo0.3").run_time_checks:
+            # Only add if run-time checks are requested
+            parent.add(UseGen(parent, name="fs_continuity_mod"))
+            parent.add(UseGen(parent, name="log_mod", only=True,
+                              funcnames=["log_event", "LOG_LEVEL_ERROR"]))
+
+    def _check_field_fs(self, parent):
+        '''Internal method that adds run-time checks to make sure that the
+        field's function space is consistent with the appropriate
+        kernel metadata function spaces.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        parent.add(CommentGen(
+            parent, " Check field function space and kernel metadata "
+            "function spaces are compatible"))
+
+        # When issue #753 is addressed (with isue #79 helping further)
+        # we may know some or all field function spaces statically. If
+        # so, we should remove these from the fields to check at run
+        # time (as they will have already been checked at code
+        # generation time).
+
+        existing_checks = []
+        for kern_call in self._invoke.schedule.kernels():
+            for arg in kern_call.arguments.args:
+                if arg.type != "gh_field":
+                    # This check is limited to fields
+                    continue
+                fs_name = arg.function_space.orig_name
+                field_name = arg.name_indexed
+                if fs_name in VALID_ANY_SPACE_NAMES:
+                    # We don't need to check validity of a field's
+                    # function space if the metadata specifies
+                    # any_space as this means that all spaces are
+                    # valid.
+                    continue
+                if (fs_name, field_name) in existing_checks:
+                    # This particular combination has already been
+                    # checked.
+                    continue
+                existing_checks.append((fs_name, field_name))
+
+                if fs_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+                    # We need to check against all discontinuous
+                    # function spaces
+                    function_space_names = DISCONTINUOUS_FUNCTION_SPACES
+                elif fs_name == "any_w2":
+                    # We need to check against all any_w2 function
+                    # spaces
+                    function_space_names = ANY_W2_FUNCTION_SPACES
+                else:
+                    # We need to check against a specific function space
+                    function_space_names = [fs_name]
+
+                if_condition = " .and. ".join(
+                    ["{0}%which_function_space() /= {1}".format(
+                        field_name, name.upper())
+                     for name in function_space_names])
+                if_then = IfThenGen(parent, if_condition)
+                call_abort = CallGen(
+                    if_then, "log_event(\"In alg '{0}' invoke '{1}', the "
+                    "field '{2}' is passed to kernel '{3}' but its function "
+                    "space is not compatible with the function space "
+                    "specified in the kernel metadata '{4}'.\", "
+                    "LOG_LEVEL_ERROR)"
+                    "".format(self._invoke.invokes.psy.orig_name,
+                              self._invoke.name, arg.name,
+                              kern_call.name, fs_name))
+                if_then.add(call_abort)
+                parent.add(if_then)
+
+    def _check_field_ro(self, parent):
+        '''Internal method that adds runtime checks to make sure that if the
+        field is on a read-only function space then the associated
+        kernel metadata does not specify that the field is modified.
+
+        As we make use of the LFRic infrastructure halo exchange
+        function, there is no need to check whether the halo of a
+        read-only field is clean (which it should always be) as the
+        LFric halo-exchange will raise an exception if it is called
+        with a read-only field.
+
+        Whilst the LFRic infrastructure halo exchange would also
+        indirectly pick up a readonly field being modified, it would
+        not be picked up where the error occured. Therefore adding
+        checks here is still useful.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # When issue #753 is addressed (with isue #79 helping further)
+        # we may know some or all field function spaces statically. If
+        # so, we should remove these from the fields to check at run
+        # time (as they will have already been checked at code
+        # generation time).
+
+        # Create a list of modified fields
+        modified_fields = []
+        for call in self._invoke.schedule.kernels():
+            for arg in call.arguments.args:
+                if (arg.text and arg.type == "gh_field" and
+                        arg.access != AccessType.READ and
+                        not [entry for entry in modified_fields if
+                             entry[0].name == arg.name]):
+                    modified_fields.append((arg, call))
+        if modified_fields:
+            parent.add(CommentGen(
+                parent, " Check that read-only fields are not modified"))
+        for field, call in modified_fields:
+            if_then = IfThenGen(
+                parent, "{0}%vspace%is_readonly()".format(
+                    field.proxy_name_indexed))
+            call_abort = CallGen(
+                if_then, "log_event(\"In alg '{0}' invoke '{1}', field "
+                "'{2}' is on a read-only function space but is modified "
+                "by kernel '{3}'.\", LOG_LEVEL_ERROR)"
+                "".format(self._invoke.invokes.psy.orig_name,
+                          self._invoke.name, field.name, call.name))
+            if_then.add(call_abort)
+            parent.add(if_then)
+
+    def initialise(self, parent):
+        '''Add runtime checks to make sure that the arguments being passed
+        from the algorithm layer are consistent with the metadata
+        specified in the associated kernels. Currently checks are
+        limited to ensuring that field function spaces are consistent
+        with the associated kernel function-space metadata.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        if not Config.get().api_conf("dynamo0.3").run_time_checks:
+            # Run-time checks are not requested.
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Perform run-time checks"))
+        parent.add(CommentGen(parent, ""))
+
+        # Check that field function spaces are compatible with the
+        # function spaces specified in the kernel metadata.
+        self._check_field_fs(parent)
+
+        # Check that fields on read-only function spaces are not
+        # passed into a kernel where the kernel metadata specifies
+        # that the field will be modified.
+        self._check_field_ro(parent)
+
+        # These checks should be expanded. Issue #768 suggests
+        # extending function space checks to operators.
+
+
 class DynProxies(DynCollection):
     '''
     Handles all proxy-related declarations and initialisation. Unlike other
@@ -2900,7 +3336,6 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import TypeDeclGen
         field_proxy_decs = self._invoke.unique_proxy_declarations("gh_field")
         if field_proxy_decs:
             parent.add(TypeDeclGen(parent,
@@ -2927,7 +3362,6 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
                               " Initialise field and/or operator proxies"))
@@ -2962,13 +3396,7 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        if self._invoke:
-            self._nlayers_name = \
-                self._invoke.schedule.symbol_table.name_from_tag("nlayers")
-        else:
-            # If it is not connected to an invoke (e.g. Stubs) we will hardcode
-            # the name without adding into the SymbolTable.
-            self._nlayers_name = "nlayers"
+        self._nlayers_name = self._symbol_table.name_from_tag("nlayers")
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -2993,7 +3421,6 @@ class DynCellIterators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # We only need the number of layers in the mesh if we are calling
@@ -3009,8 +3436,8 @@ class DynCellIterators(DynCollection):
 
         :param parent: the f2pygen node representing the Kernel stub.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
@@ -3026,7 +3453,6 @@ class DynCellIterators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen
         if not self._dofs_only:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise number of layers"))
@@ -3082,8 +3508,8 @@ class DynScalarArgs(DynCollection):
 
         :param parent: the f2pygen node in which to insert declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for intent in FORTRAN_INTENT_NAMES:
@@ -3125,7 +3551,6 @@ class DynLMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         lma_args = psyGen.args_filter(
@@ -3160,8 +3585,6 @@ class DynLMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import TypeDeclGen
-
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(datatype="gh_operator")
         if op_args:
@@ -3239,7 +3662,6 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
@@ -3251,8 +3673,7 @@ class DynCMAOperators(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise number of cols"))
         parent.add(CommentGen(parent, ""))
-        ncol_name = \
-            self._invoke.schedule.symbol_table.name_from_tag("ncell_2d")
+        ncol_name = self._symbol_table.name_from_tag("ncell_2d")
         parent.add(
             AssignGen(
                 parent, lhs=ncol_name,
@@ -3269,15 +3690,14 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
             # matrix
-            cma_name = self._invoke.schedule.symbol_table.\
-                name_from_tag(op_name+"_matrix")
+            cma_name = self._symbol_table.name_from_tag(op_name+"_matrix")
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_"+param)
+                param_name = self._symbol_table.name_from_tag(
+                    op_name+"_"+param)
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
@@ -3295,7 +3715,6 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
@@ -3314,8 +3733,7 @@ class DynCMAOperators(DynCollection):
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
-            cma_name = self._invoke.schedule.symbol_table.\
-                    name_from_tag(op_name+"_matrix")
+            cma_name = self._symbol_table.name_from_tag(op_name+"_matrix")
             parent.add(DeclGen(parent, datatype="real",
                                kind=api_config.default_kind["real"],
                                pointer=True,
@@ -3323,8 +3741,8 @@ class DynCMAOperators(DynCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._invoke.schedule.symbol_table.
-                                   name_from_tag(op_name+"_"+param))
+                param_names.append(self._symbol_table.name_from_tag(
+                    op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
@@ -3338,16 +3756,13 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
 
-        # TODO 719 The symtab is not connected to other parts of the
-        # Stub generation.
-        symtab = SymbolTable()
+        symtab = self._symbol_table
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
@@ -3428,11 +3843,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        requires_ref_element = False
+        requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if call.reference_element.properties:
-                requires_ref_element = True
+            if (call.reference_element.properties or call.mesh.properties):
+                requires_mesh = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3469,12 +3884,12 @@ class DynMeshes(object):
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
         # more kernels that iterate over cells. We also require a mesh object
-        # if any of the kernels require properties of the reference element.
-        # (Colourmaps also require a mesh object but that is handled in
-        # _colourmap_init().)
+        # if any of the kernels require properties of either the reference
+        # element or the mesh. (Colourmaps also require a mesh object but that
+        # is handled in _colourmap_init().)
         if not _name_set:
-            if (requires_ref_element or (Config.get().distributed_memory and
-                                         not invoke.iterate_over_dofs_only)):
+            if (requires_mesh or (Config.get().distributed_memory and
+                                  not invoke.iterate_over_dofs_only)):
                 _name_set.add(
                     self._schedule.symbol_table.name_from_tag("mesh"))
 
@@ -3524,8 +3939,8 @@ class DynMeshes(object):
 
         :param parent: the parent node to which to add the declarations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Since we're now generating code, any transformations must
@@ -3596,9 +4011,8 @@ class DynMeshes(object):
 
         :param parent: the parent node to which to add the initialisations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-        from psyclone.f2pygen import CommentGen, AssignGen
 
+        '''
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
         if len(self._mesh_names) == 0:
@@ -4021,7 +4435,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an unsupported quadrature shape is found.
 
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._qr_vars and not self._eval_targets:
@@ -4083,7 +4496,6 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import TypeDeclGen
         # Create a single declaration for each quadrature type
         for shape in VALID_QUADRATURE_SHAPES:
             if shape in self._qr_vars and self._qr_vars[shape]:
@@ -4098,8 +4510,8 @@ class DynBasisFunctions(DynCollection):
                 # the symbol_table to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    var_names.append(self._invoke.schedule.symbol_table.
-                                     name_from_tag(var+"_proxy"))
+                    var_names.append(self._symbol_table.name_from_tag(
+                        var+"_proxy"))
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -4119,8 +4531,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if an invalid entry is encountered in the \
                                self._basis_fns list.
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
-            AllocateGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         basis_declarations = []
@@ -4376,7 +4786,6 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.f2pygen import AssignGen, DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
@@ -4444,8 +4853,6 @@ class DynBasisFunctions(DynCollection):
         :raises InternalError: if `qr_type` is not "face" or "edge".
 
         '''
-        from psyclone.f2pygen import AssignGen, DeclGen
-
         if qr_type not in ["face", "edge"]:
             raise InternalError(
                 "_initialise_face_or_edge_qr: qr_type argument must be either "
@@ -4457,7 +4864,7 @@ class DynBasisFunctions(DynCollection):
             return
 
         api_config = Config.get().api_conf("dynamo0.3")
-        symbol_table = self._invoke.schedule.symbol_table
+        symbol_table = self._symbol_table
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
             # We generate unique names for the integers holding the numbers
@@ -4502,9 +4909,8 @@ class DynBasisFunctions(DynCollection):
         :param parent: Node in the f2pygen AST which will be the parent
                        of the assignments created in this routine
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
-        from psyclone.f2pygen import CommentGen, AssignGen, CallGen, DoGen, \
-            DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         loop_var_list = set()
@@ -4624,15 +5030,13 @@ class DynBasisFunctions(DynCollection):
         '''
         Add code to deallocate all basis/diff-basis function arrays
 
-        :param parent: node in the f2pygen AST to which the deallocate
-                       calls will be added
+        :param parent: node in the f2pygen AST to which the deallocate \
+                       calls will be added.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises InternalError: if an unrecognised type of basis function \
                                is encountered.
         '''
-        from psyclone.f2pygen import CommentGen, DeallocateGen
-
         if self._basis_fns:
             # deallocate all allocated basis function arrays
             parent.add(CommentGen(parent, ""))
@@ -4721,8 +5125,8 @@ class DynBoundaryConditions(DynCollection):
 
         :param parent: node in the PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for dofs in self._boundary_dofs:
@@ -4738,8 +5142,8 @@ class DynBoundaryConditions(DynCollection):
 
         :param parent: node in the PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
-        from psyclone.f2pygen import DeclGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         for dofs in self._boundary_dofs:
@@ -4757,8 +5161,8 @@ class DynBoundaryConditions(DynCollection):
 
         :param parent: node in PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
-        from psyclone.f2pygen import AssignGen
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             parent.add(AssignGen(
@@ -4841,6 +5245,9 @@ class DynInvoke(Invoke):
         # Information on all proxies required by this Invoke
         self.proxies = DynProxies(self)
 
+        # Run-time checks for this invoke
+        self.run_time_checks = LFRicRunTimeChecks(self)
+
         # Information required by kernels that iterate over cells
         self.cell_iterators = DynCellIterators(self)
 
@@ -4849,6 +5256,9 @@ class DynInvoke(Invoke):
 
         # Information on the required properties of the reference element
         self.reference_element_properties = DynReferenceElement(self)
+
+        # Properties of the mesh
+        self.mesh_properties = LFRicMeshProperties(self)
 
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -4987,10 +5397,8 @@ class DynInvoke(Invoke):
                        generated) to which the node describing the PSy \
                        subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        '''
-        from psyclone.f2pygen import SubroutineGen, AssignGen, \
-            DeclGen, CommentGen
 
+        '''
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
@@ -5003,7 +5411,9 @@ class DynInvoke(Invoke):
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
-                         self.reference_element_properties]:
+                         self.reference_element_properties,
+                         self.mesh_properties,
+                         self.run_time_checks]:
             entities.declarations(invoke_sub)
 
         # Initialise all quantities required by this PSy routine (invoke)
@@ -5011,7 +5421,6 @@ class DynInvoke(Invoke):
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
-            from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
             tag = "omp_num_threads"
             nthreads_name = \
@@ -5030,14 +5439,17 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
                                      rhs=omp_function_name+"()"))
 
-        for entities in [self.proxies, self.cell_iterators, self.meshes,
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
                          self.stencil, self.orientation, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
-                         self.reference_element_properties]:
+                         self.reference_element_properties,
+                         self.mesh_properties]:
             entities.initialise(invoke_sub)
 
-        # Now that everything is initialised, we can call our kernels
+        # Now that everything is initialised and checked, we can call
+        # our kernels
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if Config.get().distributed_memory:
@@ -5111,8 +5523,13 @@ class DynGlobalSum(GlobalSum):
         super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
-        ''' Dynamo specific code generation for this class '''
-        from psyclone.f2pygen import AssignGen, TypeDeclGen, UseGen
+        '''
+        Dynamo-specific code generation for this class.
+
+        :param parent: f2pygen node to which to add AST nodes.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         name = self._scalar.name
         sum_name = self.root.symbol_table.name_from_tag("global_sum")
         parent.add(UseGen(parent, name="scalar_mod", only=True,
@@ -5552,7 +5969,6 @@ class DynHaloExchange(HaloExchange):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self.vector_index:
             ref = "(" + str(self.vector_index) + ")"
         else:
@@ -5603,6 +6019,9 @@ class DynHaloExchangeStart(DynHaloExchange):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _text_name = "HaloExchangeStart"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
@@ -5613,8 +6032,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         self._field.access = AccessType.READ
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_start"
-        self._text_name = "HaloExchangeStart"
-        self._colour_map_name = "HaloExchangeStart"
 
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
@@ -5714,6 +6131,9 @@ class DynHaloExchangeEnd(DynHaloExchange):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _text_name = "HaloExchangeEnd"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
@@ -5725,8 +6145,6 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._field.access = AccessType.READWRITE
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_finish"
-        self._text_name = "HaloExchangeEnd"
-        self._colour_map_name = "HaloExchangeEnd"
 
 
 class HaloDepth(object):
@@ -6734,7 +7152,6 @@ class DynLoop(Loop):
         if Config.get().distributed_memory and self._loop_type != "colour":
 
             # Set halo clean/dirty for all fields that are modified
-            from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
             fields = self.unique_modified_args("gh_field")
 
             if fields:
@@ -6859,6 +7276,7 @@ class DynKern(CodedKern):
                         ["alg_name", "psy_name", "kernel_args"])
 
     def __init__(self):
+        # pylint: disable=super-init-not-called
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._base_name = ""
@@ -6880,7 +7298,10 @@ class DynKern(CodedKern):
         self._qr_rules = OrderedDict()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+        # The reference-element properties required by this kernel
         self._reference_element = None
+        # The mesh properties required by this kernel
+        self._mesh_properties = None
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7097,6 +7518,9 @@ class DynKern(CodedKern):
         # Properties of the reference element required by this kernel
         self._reference_element = ktype.reference_element
 
+        # Properties of the mesh required by this kernel
+        self._mesh_properties = ktype.mesh
+
     @property
     def qr_rules(self):
         '''
@@ -7219,6 +7643,14 @@ class DynKern(CodedKern):
         '''
         return self._reference_element
 
+    @property
+    def mesh(self):
+        '''
+        :returns: the mesh properties required by this kernel.
+        :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
+        '''
+        return self._mesh_properties
+
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
@@ -7249,7 +7681,6 @@ class DynKern(CodedKern):
         :rtype: :py:class:`fparser.one.XXXX`
 
         '''
-        from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -7268,7 +7699,7 @@ class DynKern(CodedKern):
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
                          DynOrientations, DynBoundaryConditions,
-                         DynReferenceElement]:
+                         DynReferenceElement, LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
         # Create the arglist
@@ -7296,7 +7727,6 @@ class DynKern(CodedKern):
                                  an OpenMP parallel region.
 
         '''
-        from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",
@@ -7520,6 +7950,10 @@ class ArgOrdering(object):
         if self._kern.reference_element:
             self.ref_element_properties()
 
+        # Mesh properties
+        if self._kern.mesh:
+            self.mesh_properties()
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -7708,10 +8142,17 @@ class ArgOrdering(object):
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
 
-    @abc.abstractmethod
     def ref_element_properties(self):
         ''' Add kernel arguments relating to properties of the reference
         element. '''
+        if self._kern.reference_element.properties:
+            refelem_args = DynReferenceElement(self._kern).kern_args()
+            self._arglist.extend(refelem_args)
+
+    @abc.abstractmethod
+    def mesh_properties(self):
+        ''' Provide the kernel arguments required for the mesh properties
+        specified in the kernel metadata. '''
 
     @abc.abstractmethod
     def quad_rule(self):
@@ -8029,16 +8470,14 @@ class KernCallArgList(ArgOrdering):
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
 
-    def ref_element_properties(self):
-        ''' Provide kernel arguments required by the reference-element
-        properties specified in the kernel metadata.
+    def mesh_properties(self):
+        ''' Provide the kernel arguments required for the mesh properties
+        specified in the kernel metadata.
 
         '''
-        # Argument information is produced by a DynReferenceElement
-        # class method
-        if self._kern.reference_element.properties:
-            refelem_args = DynReferenceElement.kern_args(self._kern)
-            self._arglist.extend(refelem_args)
+        if self._kern.mesh.properties:
+            self._arglist.extend(
+                LFRicMeshProperties(self._kern).kern_args(stub=False))
 
     def quad_rule(self):
         ''' Add quadrature-related information to the kernel argument list.
@@ -8466,16 +8905,14 @@ class KernStubArgList(ArgOrdering):
         the operator. '''
         self.field_bcs_kernel(function_space)
 
-    def ref_element_properties(self):
-        ''' Provide kernel arguments required by the reference-element
-        properties specified in the kernel metadata.
+    def mesh_properties(self):
+        ''' Provide the kernel arguments required for the mesh properties
+        specified in the kernel metadata.
 
         '''
-        # Argument information is produced by a DynReferenceElement
-        # class method
-        if self._kern.reference_element.properties:
-            refelem_args = DynReferenceElement.kern_args(self._kern)
-            self._arglist.extend(refelem_args)
+        if self._kern.mesh.properties:
+            self._arglist.extend(
+                LFRicMeshProperties(self._kern).kern_args(stub=True))
 
     def quad_rule(self):
         ''' Provide quadrature information for this kernel stub (necessary
@@ -8598,7 +9035,6 @@ class KernStubArgList(ArgOrdering):
 #    def generate(self):
 #        '''perform any additional actions before and after kernel
 #        argument-list based generation'''
-#        from psyclone.f2pygen import CommentGen
 #        self._parent.add(CommentGen(self._parent, " dino output start"),
 #                         position=["before", self._position])
 #        scalar_comment = CommentGen(self._parent, " dino scalars")
@@ -8617,14 +9053,12 @@ class KernStubArgList(ArgOrdering):
 #
 #    def _add_dino_scalar(self, name):
 #        ''' add a dino output call for a scalar variable '''
-#        from psyclone.f2pygen import CallGen
 #        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
 #                                 args=[name]),
 #                         position=["after", self._scalar_position])
 #
 #    def _add_dino_array(self, name):
 #        ''' add a dino output call for an array variable '''
-#        from psyclone.f2pygen import CallGen
 #        self._parent.add(CallGen(self._parent, name="dino%output_array",
 #                                 args=[name]),
 #                         position=["after", self._array_position])
@@ -9231,6 +9665,12 @@ class DynKernelArgument(KernelArgument):
                 fs1 = FunctionSpace(arg_meta_data.function_space,
                                     self._kernel_args)
         self._function_spaces = [fs1, fs2]
+
+        # Addressing issue #753 will allow us to perform static checks
+        # for consistency between the algorithm and the kernel
+        # metadata. This will include checking that a field on a read
+        # only function space is not passed to a kernel that modifies
+        # it. Note, issue #79 is also related to this.
 
     @property
     def descriptor(self):

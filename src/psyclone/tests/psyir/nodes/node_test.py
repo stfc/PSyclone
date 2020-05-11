@@ -43,14 +43,17 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes import Node, Schedule, Reference, Container
-from psyclone.psyir.symbols import DataSymbol, SymbolError
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+from psyclone.psyir.nodes.node import ChildrenList, Node
+from psyclone.psyir.nodes import Schedule, Reference, Container, \
+    Assignment, Return, Loop, Literal, Statement
+from psyclone.psyir.symbols import DataSymbol, SymbolError, \
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
+    UnresolvedInterface, ScalarType, DeferredType
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
-
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -71,7 +74,12 @@ def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
-    assert tnode.coloured_name(False) == "Node"
+    # Node is an abstract class
+    with pytest.raises(NotImplementedError) as err:
+        tnode.node_str()
+    assert ("_text_name is an abstract attribute which needs to be given a "
+            "string value in the concrete class 'Node'." in str(err.value))
+
     # Check that we can change the name of the Node and the colour associated
     # with it
     tnode._text_name = "ATest"
@@ -88,11 +96,19 @@ def test_node_str():
     ''' Tests for the Node.node_str method. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
-    # Manually set the colour key for this node to something that will result
-    # in coloured output (if requested *and* termcolor is installed).
+    # Node is an abstract class
+    with pytest.raises(NotImplementedError) as err:
+        tnode.node_str()
+    assert ("_text_name is an abstract attribute which needs to be given a "
+            "string value in the concrete class 'Node'." in str(err.value))
+
+    # Manually set the _text_name and _colour_key for this node to something
+    # that will result in coloured output (if requested *and* termcolor is
+    # installed).
+    tnode._text_name = "FakeName"
     tnode._colour_key = "Loop"
-    assert tnode.node_str(False) == "Node[]"
-    assert tnode.node_str(True) == colored("Node",
+    assert tnode.node_str(False) == "FakeName[]"
+    assert tnode.node_str(True) == colored("FakeName",
                                            SCHEDULE_COLOUR_MAP["Loop"]) + "[]"
 
 
@@ -547,6 +563,33 @@ def test_node_dag(tmpdir, have_graphviz):
     assert "unsupported graphviz file format" in str(excinfo.value)
 
 
+def test_find_symbol_table():
+    '''Test that the find_symbol_table method in a Node instance returns
+    the nearest symbol table if there is one and raises an exception if
+    not.
+    '''
+    kernel_symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    kernel_symbol_table.add(symbol)
+    ref = Reference(symbol)
+    assign = Assignment.create(ref, Literal("0.0", REAL_TYPE))
+    kernel_schedule = KernelSchedule.create("my_kernel", kernel_symbol_table,
+                                            [assign])
+    container_symbol_table = SymbolTable()
+    container = Container.create("my_container", container_symbol_table,
+                                 [kernel_schedule])
+    assert ref.find_symbol_table() is kernel_symbol_table
+    assert assign.find_symbol_table() is kernel_symbol_table
+    assert kernel_schedule.find_symbol_table() is kernel_symbol_table
+    assert container.find_symbol_table() is container_symbol_table
+
+    node = Node()
+    with pytest.raises(InternalError) as excinfo:
+        node.find_symbol_table()
+    assert ("PSyclone internal error: Symbol table not found in any "
+            "ancestor nodes." in str(excinfo.value))
+
+
 def test_find_or_create_symbol():
     '''Test that the find_or_create_symbol method in a Node instance
     returns the associated symbol if there is one and raises an
@@ -618,10 +661,6 @@ def test_find_or_create_symbol():
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new
     symbols when appropriate. '''
-    from psyclone.psyir.symbols import SymbolTable, REAL_TYPE, \
-        ContainerSymbol, UnresolvedInterface, ScalarType, DeferredType
-    from psyclone.psyir.nodes import Assignment, Literal
-    from psyclone.psyGen import KernelSchedule
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", REAL_TYPE))
@@ -659,7 +698,6 @@ def test_nemo_find_container_symbol(parser):
     searched-for symbol is declared in the parent module. '''
     from fparser.common.readfortran import FortranFileReader
     from psyclone.psyir.nodes import BinaryOperation
-    from psyclone.psyir.symbols import ScalarType
     reader = FortranFileReader(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(
@@ -672,3 +710,93 @@ def test_nemo_find_container_symbol(parser):
     # Use it as the starting point for the search
     symbol = bops[0].find_or_create_symbol("alpha")
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
+
+
+def test_children_validation():
+    ''' Test that nodes are validated when inserted as children of other
+    nodes. For simplicity we use Node subclasses to test this functionality
+    across a range of possible operations.
+
+    The specific logic of each validate method will be tested individually
+    inside each Node test file.
+    '''
+    assignment = Assignment()
+    return_stmt = Return()
+    reference = Reference(DataSymbol("a", INTEGER_TYPE))
+
+    assert isinstance(assignment.children, (ChildrenList, list))
+
+    # Try adding a invalid child (e.g. a return_stmt into an assingment)
+    with pytest.raises(GenerationError) as error:
+        assignment.addchild(return_stmt)
+    assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
+        " is: 'DataNode, DataNode'." in str(error.value)
+
+    # The same behaviour occurs when list insertion operations are used.
+    with pytest.raises(GenerationError):
+        assignment.children.append(return_stmt)
+
+    with pytest.raises(GenerationError):
+        assignment.children[0] = return_stmt
+
+    with pytest.raises(GenerationError):
+        assignment.children.insert(0, return_stmt)
+
+    with pytest.raises(GenerationError):
+        assignment.children.extend([return_stmt])
+
+    with pytest.raises(GenerationError):
+        assignment.children = assignment.children + [return_stmt]
+
+    # Valid nodes are accepted
+    assignment.addchild(reference)
+
+    # Check displaced items are also be checked when needed
+    start = Literal("0", INTEGER_TYPE)
+    stop = Literal("1", INTEGER_TYPE)
+    step = Literal("2", INTEGER_TYPE)
+    child_node = Assignment.create(Reference(DataSymbol("tmp", REAL_TYPE)),
+                                   Reference(DataSymbol("i", REAL_TYPE)))
+    loop = Loop.create("i", start, stop, step, [child_node])
+    with pytest.raises(GenerationError):
+        loop.children.insert(1, Literal("0", INTEGER_TYPE))
+
+    with pytest.raises(GenerationError):
+        loop.children.remove(stop)
+
+    with pytest.raises(GenerationError):
+        del loop.children[2]
+
+    with pytest.raises(GenerationError):
+        loop.children.pop(2)
+
+    with pytest.raises(GenerationError):
+        loop.children.reverse()
+
+    # But the in the right circumstances they work fine
+    assert isinstance(loop.children.pop(), Schedule)
+    loop.children.reverse()
+    assert loop.children[0].value == "2"
+
+
+def test_children_setter():
+    ''' Test that the children setter sets-up accepts lists or None or raises
+    the appropriate issue. '''
+    testnode = Schedule()
+
+    # children is initialised as a ChildrenList
+    assert isinstance(testnode.children, ChildrenList)
+
+    # When is set up with a list, this becomes a ChildrenList
+    testnode.children = [Statement(), Statement()]
+    assert isinstance(testnode.children, ChildrenList)
+
+    # It also accepts None
+    testnode.children = None
+    assert testnode.children is None
+
+    # Other types are not accepted
+    with pytest.raises(TypeError) as error:
+        testnode.children = Node()
+    assert "The 'my_children' parameter of the node.children setter must be" \
+           " a list or None." in str(error.value)

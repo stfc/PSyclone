@@ -1,4 +1,4 @@
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -27,8 +27,10 @@
 
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_multi_anyw2_mod
-  !
+module testkern_multi_anyw2
+  use argument_mod
+  use kernel_mod
+  use constants_mod
   type, extends(kernel_type) :: testkern_multi_anyw2_type
      type(arg_type), dimension(3) :: meta_args = &
           (/ arg_type(gh_field,gh_write,any_w2), &
@@ -54,4 +56,4 @@ contains
       REAL(KIND=r_def), intent(in), dimension(undf_any_w2) :: field_3_any_w2
   end subroutine testkern_multi_anyw2_code
   !
-end module testkern_multi_anyw2_mod
+end module testkern_multi_anyw2

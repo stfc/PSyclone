@@ -41,12 +41,13 @@
 from __future__ import absolute_import
 import re
 import six
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
-class Literal(Node):
-    '''Node representing a Literal. The value and datatype properties of
+class Literal(DataNode):
+    '''
+    Node representing a Literal. The value and datatype properties of
     this node are immutable.
 
     If the node represents "real" data and the value is expressed with
@@ -67,7 +68,10 @@ class Literal(Node):
                         'true' or 'false'.
 
     '''
-
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "Literal"
+    _colour_key = "Literal"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
 
     def __init__(self, value, datatype, parent=None):

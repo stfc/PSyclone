@@ -1242,7 +1242,7 @@ class Fparser2Reader(object):
                 if initialisation:
                     if has_constant_value:
                         # If it is a parameter parse its initialization
-                        tmp = Node()
+                        tmp = Assignment()
                         expr = initialisation.items[1]
                         self.process_nodes(parent=tmp, nodes=[expr])
                         ct_expr = tmp.children[0]
@@ -2160,9 +2160,9 @@ class Fparser2Reader(object):
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
-        fake_parent = Schedule(parent=parent)
+        fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
-        arrays = fake_parent[0].walk(Array)
+        arrays = fake_parent.walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
             # because the code doesn't use explicit array syntax. At least one

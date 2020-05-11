@@ -212,6 +212,15 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Matmul2CodeTrans
+    :members: apply
+    :noindex:
+
+.. note:: This transformation is currently limited to translating the
+          matrix vector form of MATMUL to equivalent PSyIR code.
+
+####
+
 .. _sec_move_trans:
 
 .. autoclass:: psyclone.transformations.MoveTrans

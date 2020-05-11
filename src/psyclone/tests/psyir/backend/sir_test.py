@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by: A. R. Porter, STFC Daresbury Lab
+# Modified by: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
@@ -262,7 +262,11 @@ def test_sirwriter_node_1(parser):
 
     # pylint: disable=abstract-method
     class Unsupported(Node):
-        '''A PSyIR node that will not be supported by the SIR writer.'''
+        '''A PSyIR node that will not be supported by the SIR writer but
+        accepts any children inside.'''
+        @staticmethod
+        def _validate_child(_1, _2):
+            return True
     # pylint: enable=abstract-method
 
     unsupported = Unsupported()

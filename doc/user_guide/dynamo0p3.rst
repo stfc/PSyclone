@@ -891,11 +891,11 @@ vector variables are:
   resulting from taking the trace of a ``W2`` space. DoFs are shared between
   faces, hence making this space fully continuous;
 
-* ``Wchi`` is the space of scalar functions used to store coordinates in
-  LFRic, fully discontinuous except for the coordinate order ``0`` when it
-  becomes the ``W0`` space (i.e. fully continuous). Since LFRic neither
-  performs halo exchange on coordinate fields nor updates them the
-  lowest-order continuity of the ``Wchi`` space can be safely ignored.
+* ``Wchi`` is the space of scalar functions used to store coordinates
+  in LFRic. It is fully discontinuous except for the coordinate order
+  ``0`` when it becomes the ``W0`` space (i.e. fully
+  continuous). Please see the next section for more details on this
+  function space.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -929,7 +929,7 @@ specifies ``GH_INC`` as its access pattern (see
 case the code is the same. This principle of horizontal continuity also
 applies to the three generic ``ANY_*_*`` function space identifiers
 above. The valid metadata values for continuous and discontinuous
-function apaces are summarised in the table below.
+function spaces are summarised in the table below.
 
 .. tabularcolumns:: |l|l|
 
@@ -939,7 +939,7 @@ function apaces are summarised in the table below.
 | Continuous                | W0, W1, W2, W2H, W2trace, ANY_W2 |
 |                           | ANY_SPACE_n                      |
 +---------------------------+----------------------------------+
-| Discontinuous             | W2V, W2broken, W3, Wtheta, Wchi, |
+| Discontinuous             | W2V, W2broken, W3, Wtheta,       |
 |                           | ANY_DISCONTINUOUS_SPACE_n        |
 +---------------------------+----------------------------------+
 
@@ -952,6 +952,29 @@ function space ``Wtheta`` is given in ``examples/lfric/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
+
+.. _lfric-ro-function-space:
+
+Read-Only Function Spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+LFRic supports the concept of a **read-only function space**. A field
+on such a function space must not be modified by any kernels contained
+within `invoke` calls (i.e. within any code that PSyclone is
+responsible for). Further, a field on a read-only function space must
+contain clean halos in order to avoid any halo exchanges that would
+occur if the field is read within a kernel where redundant
+computation is performed.
+
+The primary reason for including a read-only function space is that it
+does not need any halo-exchange support e.g. it does not require a
+routing table, which can reduce the memory footprint.
+
+Currently ``Wchi`` is the only read-only function space in LFRic.
+
+As a read-only function space is not modified, it does not matter
+whether it is classified as continuous or discontinuous. LFRic
+therefore treats read-only as a third category of function space.
 
 Optional Field Metadata
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -2400,6 +2423,8 @@ by PSyclone.
 Configuration
 -------------
 
+.. _lfric-annexed_dofs:
+
 Annexed DoFs
 ++++++++++++
 
@@ -2424,6 +2449,41 @@ will then generate code to iterate over both owned and annexed DoFs,
 thereby reducing the number of halo exchanges required (at the expense
 of redundantly computing annexed DoFs). For more details please refer
 to the :ref:`dynamo0.3-developers` developers section.
+
+.. _lfric-run-time-checks:
+
+Run-time Checks
++++++++++++++++
+
+PSyclone performs static consistency checks where possible. When this
+is not possible PSyclone can generate run-time checks. As there may be
+performance costs associated with run-time checks they may be switched
+on or off by the `RUN_TIME_CHECKS` option in the configuration file.
+
+Currently run-time checks can be generated to:
+
+1) check that a field with a read-only function space (see section
+   :ref:`lfric-ro-function-space`) is not modified by a kernel. This is
+   enforced by checking that all fields that are marked (in kernel
+   metadata) as being updated by a kernel are not on a read-only function
+   space. A second check that is required for fields on read-only
+   function spaces is to ensure that the halo is clean before it is accessed.
+   This check is currently implemented within the LFRic
+   infrastructure halo exchange call (that the PSyclone LFRic API places
+   at appropriate locations). If the halo is clean then the halo exchange
+   will not be called. However, if the halo is not clean then the
+   resulting halo exchange call will cause the infrastructure to raise an
+   error (because the field is on a read-only space).
+
+2) check that the function space of a field is consistent with the
+   kernel function space metadata that the field's data is passed
+   into. For example, if kernel metadata specifies that a field is on
+   the W2 function space then a run-time check is added to ensure that
+   the field object passed into the PSy layer is indeed on that space.
+   For more general kernel function space metadata, such as
+   `ANY_DISCONTINUOUS_SPACE_*` then a run-time check is added to
+   ensure that the field is on one of the discontinuous function
+   spaces supported in the LFRic API.
 
 .. _dynamo0.3-api-transformations:
 

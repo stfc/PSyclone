@@ -40,13 +40,15 @@
 nodes.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes import BinaryOperation, Literal
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, ScalarType
 from psyclone.errors import GenerationError
 
 
-class Reference(Node):
+class Reference(DataNode):
     '''
     Node representing a Reference Expression.
 
@@ -58,6 +60,11 @@ class Reference(Node):
     :raises TypeError: if the symbol argument is not of type Symbol.
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "Reference"
+    _colour_key = "Reference"
+
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):
             raise TypeError("In Reference initialisation expecting a symbol "
@@ -127,15 +134,24 @@ class Array(Reference):
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
 
-    :param str reference_name: name of the array symbol.
-    :param parent: the parent node of this Array in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
-    def __init__(self, symbol, parent=None):
-        super(Array, self).__init__(symbol, parent=parent)
-        self._text_name = "ArrayReference"
-        self._colour_key = "Reference"
+    # Textual description of the node.
+    _children_valid_format = "[DataNode | Range]*"
+    _text_name = "ArrayReference"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return isinstance(child, (DataNode, Range))
 
     @staticmethod
     def create(symbol, children):
@@ -164,12 +180,6 @@ class Array(Reference):
                 "children argument in create method of Array class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "Array class should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
         if not symbol.is_array:
             raise GenerationError(
                 "expecting the symbol to be an array, not a scalar.")
@@ -181,9 +191,9 @@ class Array(Reference):
                     len(children), len(symbol.shape)))
 
         array = Array(symbol)
+        array.children = children
         for child in children:
             child.parent = array
-        array.children = children
         return array
 
     def __str__(self):
@@ -217,3 +227,71 @@ class Array(Reference):
             # The last entry in all_accesses is the one added above
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
+
+    def is_full_range(self, index):
+        '''Returns True if the specified array index is a Range Node that
+        specified all elements in this index. In the PSyIR this is
+        specified by using LBOUND(name,index) for the lower bound of
+        the range, UBOUND(name,index) for the upper bound of the range
+        and "1" for the range step.
+
+        :param int index: the array index to check.
+
+        :returns: true if the access to this array index is a range \
+            that specifies all index elements. Otherwise returns \
+            false.
+        :rtype: bool
+
+        :raises ValueError: if the supplied index is not less than the \
+            number of dimensions in the array.
+
+        '''
+        # pylint: disable=too-many-return-statements
+        if index > len(self.children)-1:
+            raise ValueError(
+                "In Array '{0}' the specified index '{1}' must be less than "
+                "the number of dimensions '{2}'."
+                "".format(self.name, index, len(self.children)))
+
+        array_dimension = self.children[index]
+
+        if not isinstance(array_dimension, Range):
+            return False
+
+        lower = array_dimension.children[0]
+        upper = array_dimension.children[1]
+        step = array_dimension.children[2]
+
+        # lower
+        if not (isinstance(lower, BinaryOperation) and
+                lower.operator == BinaryOperation.Operator.LBOUND):
+            return False
+        if not (isinstance(lower.children[0], Reference) and
+                lower.children[0].name == self.name):
+            return False
+        if not (isinstance(lower.children[1], Literal) and
+                lower.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER
+                and lower.children[1].value == str(index+1)):
+            return False
+
+        # upper
+        if not (isinstance(upper, BinaryOperation) and
+                upper.operator == BinaryOperation.Operator.UBOUND):
+            return False
+        if not (isinstance(upper.children[0], Reference) and
+                upper.children[0].name == self.name):
+            return False
+        if not (isinstance(upper.children[1], Literal) and
+                upper.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER
+                and upper.children[1].value == str(index+1)):
+            return False
+
+        # step
+        if not (isinstance(step, Literal) and
+                step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+                and step.value == "1"):
+            return False
+
+        return True

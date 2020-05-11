@@ -34,10 +34,10 @@
 
 !> An implemention of the PSyData API for profiling which wraps the use of Dr Hook.
 
-module psy_data_mod
+module profile_psy_data_mod
 
   use parkind1, only : jprb
-  type :: PSyDataType
+  type :: profile_PSyDataType
      ! The opaque DrHook handle for a specific region
      real(kind=jprb) :: zhook_handle
      ! The name of the subroutine and module to be used by DrHook
@@ -49,18 +49,18 @@ module psy_data_mod
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
-  end type PSyDataType
+  end type profile_PSyDataType
 
 
 contains
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
-  !! any PSyclone created code, so a call to ProfileInit must be inserted
-  !! manually by the developer. In case of Dr Hook an initialisation is not
-  !! necessary.
+  !! any PSyclone created code, so a call to profile_PSyDataInit must be
+  !! inserted manually by the developer. In case of Dr Hook an initialisation
+  !! is not necessary.
 
-  subroutine ProfileInit()
-  end subroutine ProfileInit
+  subroutine profile_PSyDataInit()
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -81,7 +81,7 @@ contains
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     character*(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
@@ -101,7 +101,7 @@ contains
     use yomhook, only : lhook, dr_hook
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     
     if(lhook) call dr_hook(this%name, 1, this%zhook_handle)
   end subroutine PostEnd
@@ -109,7 +109,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> Called at the end of the execution of a program, usually to generate
   !! all output for the profiling library. Not required in the case of Dr Hook.
-  subroutine ProfileFinalise()
-  end subroutine ProfileFinalise
+  subroutine profile_PSyDataShutdown()
+  end subroutine profile_PSyDataShutdown
 
-end module psy_data_mod
+end module profile_psy_data_mod
