@@ -1,7 +1,11 @@
-! -----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,35 +33,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-
-module testkern_mod
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field,gh_write,w1),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w3)      &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
-contains
-
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer, intent(in) :: nlayers
-    real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(:), intent(out) :: fld1
-    real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
-    integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
-
-  end subroutine testkern_code
-end module testkern_mod
+!
+module fs_continuity_mod
+  use constants_mod, only: i_native
+  private
+  integer(i_native), public, parameter :: W0       = 173
+  integer(i_native), public, parameter :: W1       = 194
+  integer(i_native), public, parameter :: W2       = 889
+  integer(i_native), public, parameter :: W2V      = 857
+  integer(i_native), public, parameter :: W2H      = 884
+  integer(i_native), public, parameter :: W2broken = 211
+  integer(i_native), public, parameter :: W2trace  = 213
+  integer(i_native), public, parameter :: W3       = 424
+  integer(i_native), public, parameter :: Wtheta   = 274
+  integer(i_native), public, parameter :: Wchi     = 869
+end module fs_continuity_mod

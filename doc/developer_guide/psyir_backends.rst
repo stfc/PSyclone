@@ -35,7 +35,7 @@
 
 
 
-PSyIR back-ends
+PSyIR Back-ends
 ###############
 
 PSyIR back-ends translate PSyIR into another form (such as Fortran, C

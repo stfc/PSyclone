@@ -38,13 +38,14 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.core.access_info import AccessType
 from psyclone.errors import InternalError, GenerationError
 
 
-class Loop(Node):
+class Loop(Statement):
     '''
     Node representing a loop within the PSyIR. It has 4 mandatory children:
     the first one represents the loop lower bound, the second one represents
@@ -73,10 +74,15 @@ class Loop(Node):
 
     '''
     valid_annotations = ('was_where', 'was_single_stmt')
+    # Textual description of the node.
+    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
+    _text_name = "Loop"
+    _colour_key = "Loop"
 
     def __init__(self, parent=None, variable_name="", valid_loop_types=None,
                  annotations=None):
-        Node.__init__(self, parent=parent, annotations=annotations)
+        super(Loop, self).__init__(self, parent=parent,
+                                   annotations=annotations)
 
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
@@ -101,14 +107,26 @@ class Loop(Node):
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
         self._kern = None             # Kernel associated with this loop
-        self._text_name = "Loop"
-        self._colour_key = "Loop"
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
         self._variable_name = variable_name
         self._id = ""
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return (position in (0, 1, 2) and isinstance(child, DataNode)) or (
+            position == 3 and isinstance(child, Schedule))
 
     @staticmethod
     def create(var_name, start, stop, step, children):
@@ -143,34 +161,20 @@ class Loop(Node):
                 "var_name argument in create method of Loop class "
                 "should be a string but found '{0}'."
                 "".format(type(var_name).__name__))
-        for name, instance in [("start", start), ("stop", stop),
-                               ("step", step)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of Loop class should "
-                    "be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Loop class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of Loop "
-                    "class should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
 
-        loop = Loop()
+        loop = Loop(variable_name=var_name)
+        schedule = Schedule(parent=loop, children=children)
+        loop.children = [start, stop, step, schedule]
+        for child in children:
+            child.parent = schedule
         start.parent = loop
         stop.parent = loop
         step.parent = loop
-        schedule = Schedule(parent=loop, children=children)
-        for child in children:
-            child.parent = schedule
-        loop.children = [start, stop, step, schedule]
-        loop._variable_name = var_name
         return loop
 
     def _check_completeness(self):
@@ -184,14 +188,8 @@ class Loop(Node):
         # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
-                "Loop malformed or incomplete. It should have exactly 4 "
+                "Loop is incomplete. It should have exactly 4 "
                 "children, but found loop with '{0}'.".format(
-                    ", ".join([str(child) for child in self.children])))
-
-        if not isinstance(self.children[3], Schedule):
-            raise InternalError(
-                "Loop malformed or incomplete. Fourth child should be a "
-                "Schedule node, but found loop with '{0}'.".format(
                     ", ".join([str(child) for child in self.children])))
 
     @property
@@ -211,13 +209,7 @@ class Loop(Node):
         :param expr: New PSyIR start expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises TypeError: if expr is not a PSyIR node.
-
         '''
-        if not isinstance(expr, Node):
-            raise TypeError(
-                "Only PSyIR nodes can be assigned as the Loop start expression"
-                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[0] = expr
 
@@ -238,13 +230,7 @@ class Loop(Node):
         :param expr: New PSyIR stop expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises TypeError: if expr is not a PSyIR node.
-
         '''
-        if not isinstance(expr, Node):
-            raise TypeError(
-                "Only PSyIR nodes can be assigned as the Loop stop expression"
-                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[1] = expr
 
@@ -265,13 +251,7 @@ class Loop(Node):
         :param expr: New PSyIR step expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises TypeError: if expr is not a PSyIR node.
-
         '''
-        if not isinstance(expr, Node):
-            raise TypeError(
-                "Only PSyIR nodes can be assigned as the Loop step expression"
-                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[2] = expr
 
@@ -521,15 +501,15 @@ class Loop(Node):
             else:
                 step_str = fwriter(self.step_expr)
 
-            do = DoGen(parent, self._variable_name,
-                       fwriter(self.start_expr),
-                       fwriter(self.stop_expr),
-                       step_str)
+            do_stmt = DoGen(parent, self._variable_name,
+                            fwriter(self.start_expr),
+                            fwriter(self.stop_expr),
+                            step_str)
             # need to add do loop before children as children may want to add
             # info outside of do loop
-            parent.add(do)
+            parent.add(do_stmt)
             for child in self.loop_body:
-                child.gen_code(do)
+                child.gen_code(do_stmt)
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self._variable_name])
             parent.add(my_decl)

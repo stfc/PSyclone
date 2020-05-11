@@ -1,7 +1,11 @@
-! -----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,35 +33,20 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-
-module testkern_mod
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field,gh_write,w1),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w3)      &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
-contains
-
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer, intent(in) :: nlayers
-    real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(:), intent(out) :: fld1
-    real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
-    integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
-
-  end subroutine testkern_code
-end module testkern_mod
+! Modified R. W. Ford, STFC Daresbury Lab
+!
+module log_mod
+  implicit none
+  integer, public, parameter :: LOG_LEVEL_ALWAYS  = 100000
+  integer, public, parameter :: LOG_LEVEL_ERROR   = 200
+  integer, public, parameter :: LOG_LEVEL_WARNING = 150
+  integer, public, parameter :: LOG_LEVEL_INFO    = 100
+  integer, public, parameter :: LOG_LEVEL_DEBUG   =  50
+  integer, public, parameter :: LOG_LEVEL_TRACE   =   0
+  contains
+  subroutine log_event(message, level)
+    implicit none
+    character (*), intent( in ) :: message
+    integer,       intent( in ) :: level
+  end subroutine log_event
+end module log_mod

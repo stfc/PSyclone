@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,35 +29,36 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 
-module testkern_mod
+module testkern_chi_read_mod
   use argument_mod
   use kernel_mod
   use constants_mod
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field,gh_write,w1),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w3)      &
+  type, extends(kernel_type) :: testkern_chi_read_type
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field,gh_inc,w0),        &
+             arg_type(gh_field*3,gh_read,wchi)    &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
+     procedure, nopass :: code => testkern_chi_read_code
+  end type testkern_chi_read_type
 contains
-
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer, intent(in) :: nlayers
-    real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(:), intent(out) :: fld1
-    real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
-    integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
-
-  end subroutine testkern_code
-end module testkern_mod
+  subroutine testkern_chi_read_code(nlayers, field_1_w0, field_2_wchi_v1,   &
+       field_2_wchi_v2, field_2_wchi_v3, ndf_w0, undf_w0, map_w0, ndf_wchi, &
+       undf_wchi, map_wchi)
+      USE constants_mod, ONLY: r_def, i_def
+      IMPLICIT NONE
+      INTEGER(KIND=i_def), intent(in) :: nlayers
+      INTEGER(KIND=i_def), intent(in) :: ndf_w0
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0
+      INTEGER(KIND=i_def), intent(in) :: ndf_wchi
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) :: map_wchi
+      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_wchi
+      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0
+      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: field_2_wchi_v1
+      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: field_2_wchi_v2
+      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: field_2_wchi_v3
+  end subroutine testkern_chi_read_code
+end module testkern_chi_read_mod
