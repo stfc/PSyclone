@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -45,66 +45,132 @@ be enabled automatically using command line parameters like::
 
     psyclone --profile kernels ...
 
-Or more fine grained by applying a profiling transformation in
-a transformation script.
+Or, for finer-grained control, it may be applied via a profiling
+transformation within a transformation script.
+
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, Dr Hook, and comes with a simple
-stand-alone timer library.
-An application needs to be able to find the module files for the 
-profile wrapper, and needs to be linked with the included wrapper
-library that interfaces between the PSyclone API and the
-tool-specific API. It is the responsibility of the user to
-supply the corresponding compiler command line options when building
+It currently supports dl_timer, Dr Hook, the nvidia GPU profiling toos
+and it comes with a simple
+stand-alone timer library. The PSyData API (:ref:`dev_guide:psy_data`)
+is utilised to implement wrapper libraries that connect the PSyclone
+application to the profiling libraries. Certain adjustments to
+the application's build environment are required:
+
+- The compiler needs to be able to find the module files for the
+  wrapper of the selected profiling library.
+- The application needs to be linked with the wrapper library
+  that interfaces between the PSyclone API and the
+  tool-specific API.
+- The tool-specific library also needs to be linked in.
+
+It is the responsibility of the user to supply the corresponding
+compiler command line options when building
 the application that incorporates the PSyclone-generated code.
 
 
-.. _ProfilingAPI:
+.. _profiling_third_party_tools:
 
-Profiling API
--------------
-In order to be used with different profiling tools, PSyclone uses the
-PSyData API. For each existing profiling tool a simple interface
-library needs to be implemented that maps the PSyclone PSyData calls
-to the corresponding call for the profiling tool. 
+Interface to Third Party Profiling Tools
+----------------------------------------
+PSyclone comes with wrapper libraries to support usage of
+Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
+and a simple non-thread-safe timing
+library. Support for further profiling libraries will be
+added in the future. To compile the wrapper libraries,
+change into the directory ``lib/profiling`` of PSyclone
+and type ``make`` to compile all wrappers. If only some
+of the wrappers are required, you can either use
+``make wrapper-name`` (e.g. ``make drhook``), or change
+into the corresponding directory and use ``make``. The
+corresponding README files contain additional parameters
+that can be set in order to find third party profiling tools.
+Below are short descriptions of each of the various wrapper
+libraries that come with PSyclone:
 
-Since the profiling API does not need access to any fields or variables,
-PSyclone will only create calls to ``PreStart`` and ``PostEnd``
-(see :ref:`psy_data_transformation`).
+``lib/profiling/template``
+    This is a simple library that just prints out the name
+    as regions are entered and exited. It could act as a
+    template to develop new wrapper libraries, hence its
+    name.
 
-PSyclone utilises two additional profile-specific calls which are described in
-the following sub-sections.
+``lib/profiling/simple_timing``
+    This is a simple, stand-alone library that uses Fortran
+    system calls to measure the execution time, and reports
+    average, minimum and maximum execution time for all regions.
+    It is not MPI aware (i.e. it will just report independently
+    for each MPI process), and not thread-safe.
 
-ProfileInit()
-~~~~~~~~~~~~~
+``lib/profiling/dl_timer``
+    This wrapper uses the apeg-dl_timer library. In order to use
+    this wrapper, you must download and install the dl_timer library
+    from ``https://bitbucket.org/apeg/dl_timer``. This library has
+    various compile-time options and may be built with MPI or OpenMP
+    support. Additional link options might therefore be required
+    (e.g. enabling OpenMP, or linking with MPI).
+
+``lib/profiling/drhook``
+    This wrapper uses the DrHook library. You need to contact
+    ECMWF to obtain a copy of DrHook.
+
+``lib/profiling/nvidia``
+    This is a wrapper library that maps the PSyclone profiling API
+    to the NVIDIA Tools Extension library (NVTX). This library is
+    available from ``https://developer.nvidia.com/cuda-toolkit``.
+
+
+Any user can create similar wrapper libraries for
+other profiling tools by providing a corresponding Fortran
+module. The functions that need to be implemented are described in
+the developer's guide (:ref:`dev_guide:psy_data`).
+
+Most libraries in ``lib/profiling`` need to be linked in
+with the corresponding 3rd party profiling tool. The
+exception is the template- and simple_timing-library,
+which are stand alone. The profiling example in
+``examples/gocean/eg5`` can be used with any of the
+wrapper libraries (except nvidia) to see how they work.
+
+.. _required_profiling_calls:
+
+Required Modifications to the Program
+-------------------------------------
+In order to guarantee that any profiling library is properly
+initialised, PSyclone's profiling wrappers utilise two additional
+function calls that the user must manually insert into the program:
+
+profile_PSyDataInit()
+~~~~~~~~~~~~~~~~~~~~~
 This method needs to be called once to initialise the profiling tool.
 At this stage this call is not automatically inserted by PSyclone, so
 it is the responsibility of the user to add the call to an appropriate
 location in the application::
 
-   use profile_mod, only : ProfileInit
+   use profile_psy_data_mod, only : profile_PSyDataInit
    ...
-   call ProfileInit()
+   call profile_PSyDataInit()
 
 The 'appropriate' location might depend on the profiling library used. 
 For example, it might be necessary to invoke this before or after
 a call to ``MPI_Init()``.
 
 
-ProfileFinalise()
-~~~~~~~~~~~~~~~~~
-At the end of the program the function ``ProfileFinalise()`` must be called.
+profile_PSyDataShutdown()
+~~~~~~~~~~~~~~~~~~~~~~~~~
+At the end of the program the function ``profile_PSyDataShutdown()``
+must be called.
 It will make sure that the measurements are printed, files are flushed,
 and that the profiling tool is closed correctly. Again at
 this stage it is necessary to manually insert the call at an appropriate
 location::
 
-    use profile_mod, only : ProfileFinalise
+    use profile_psy_data_mod, only : profile_PSyDataShutdown
     ...
-    call ProfileFinalise()
+    call profile_PSyDataShutdown()
 
 And again the appropriate location might depend on the profiling library
 used (e.g. before or after a call to ``MPI_Finalize()``).
+
 
 
 Profiling Command Line Options
@@ -114,14 +180,13 @@ code with profiling regions. It can create profile regions around
 a full invoke (including all kernel calls in this invoke), and/or
 around each individual kernel. 
 
-The option ``--profile invokes`` will automatically add a call to 
-``ProfileStart`` and ``ProfileEnd`` at the beginning and end of every
+The option ``--profile invokes`` will automatically add calls to 
+start and end a profile region at the beginning and end of every
 invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
-The option ``--profile kernels`` will add a call to ``ProfileStart``
-before each loop created by PSyclone, and a ``ProfileEnd`` call at the
-end of each loop.
+The option ``--profile kernels`` will surround each outer loop
+created by PSyclone with start and end profiling calls.
 
 .. note:: In some APIs (for example dynamo when using distributed
           memory) additional minor code might get included in a
@@ -129,8 +194,9 @@ end of each loop.
           (expensive calls like HaloExchange are excluded).
 
 .. note:: It is still the responsibility of the user to manually
-    add the calls to ``ProfileInit`` and ``ProfileFinalise`` to the
-    code base.
+    add the calls to ``profile_PSyDataInit`` and 
+    ``profile_PSyDataShutdown`` to the
+    code base (see :ref:`required_profiling_calls`).
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created
@@ -268,7 +334,7 @@ As an example::
     schedule = psy.invokes.get('invoke_0').schedule
     schedule.view()
     
-    # Enclose all children within a single profile region
+    # Enclose some children within a single profile region
     newschedule, _ = p_trans.apply(schedule.children[1:3])
     newschedule.view()
 
@@ -320,7 +386,7 @@ By default PSyclone will generate appropriate names to uniquely
 determine a particular region. Since those names can be
 somewhat cryptic, alternative names can be specified by the user
 when adding profiling via a transformation script, see
-:ref:`psy_data_parameters_to_constructor`.
+:ref:`dev_guide:psy_data_parameters_to_constructor`.
 
 The automatic name generation depends on the API according
 to the following rules:
@@ -436,73 +502,3 @@ This is the code created for this example::
       END SUBROUTINE invoke_0
     END MODULE container
 
-
-.. _profiling_third_party_tools:
-
-Interface to Third Party Profiling Tools
-----------------------------------------
-PSyclone comes with wrapper libraries to support usage of
-Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
-and a simple non-thread-safe timing
-library. Support for further profiling libraries will be
-added in the future. To compile the wrapper libraries,
-change into the directory ``lib/profiling`` of PSyclone
-and type ``make`` to compile all wrappers. If only some
-of the wrappers are required, you can either use
-``make wrapper-name`` (e.g. ``make drhook``), or change
-into the corresponding directory and use ``make``. The
-corresponding README files contain additional parameters
-that can be set in order to find third party profiling tools.
-Below are short descriptions of each of the various wrapper
-libraries that come with PSyclone:
-
-``lib/profiling/template``
-    This is a simple library that just prints out the name
-    as regions are entered and exited. It could act as a
-    template to develop new wrapper libraries, hence its
-    name.
-
-``lib/profiling/simple_timing``
-    This is a simple, stand-alone library that uses Fortran
-    system calls to measure the execution time, and reports
-    average, minimum and maximum execution time for all regions.
-    It is not MPI aware (i.e. it will just report independently
-    for each MPI process), and not thread-safe.
-
-``lib/profiling/dl_timer``
-    This wrapper uses the apeg-dl_timer library. In order to use
-    this wrapper, you must download and install the dl_timer library
-    from ``https://bitbucket.org/apeg/dl_timer``. This library has
-    various compile-time options and may be built with MPI or OpenMP
-    support. Additional link options might therefore be required
-    (e.g. enabling openmp, or linking with MPI).
-
-``lib/profiling/drhook``
-    This wrapper uses the DrHook library. You need to contact
-    ECMWF to obtain a copy of DrHook.
-
-``lib/profiling/nvidia``
-    This is a wrapper library that maps the PSyclone profiling API
-    to the NVIDIA Tools Extension library (NVTX). This library is
-    available from ``https://developer.nvidia.com/cuda-toolkit``.
-
-
-Any user can create similar wrapper libraries for
-other profiling tools by providing a corresponding Fortran
-module. The functions that need to be implemented are described in
-:ref:`ProfilingAPI`, including the opaque, user-defined type
-``PSyData``.
-
-The examples in the ``lib/profiling`` directory show various ways
-in which the opaque data type can be used to interface
-with existing profiling tools - for example by storing 
-an index used by the profiling tool in ``PSyData``, or 
-by storing pointers to the profiling data to be able to 
-print all results in a ProfileFinalise() subroutine.
-
-Most libraries in ``lib/profiling`` need to be linked in
-with the corresponding 3rd party profiling tool. The
-exception is the template-and simple_timing-library,
-which are stand alone. The profiling example in
-``examples/gocean/eg5`` can be used with any of the
-wrapper libraries (except nvidia) to see how they work.

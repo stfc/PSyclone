@@ -3,8 +3,8 @@
 This is a wrapper library that maps the PSyclone profiling API to the
 NVIDIA Tools Extension library (NVTX). Unlike some of the other
 profiling tools, the use of this library does *not* require that calls
-to `ProfileInit()` and `ProfileFinalise()` be inserted into the
-application.
+to `profile_PSyDataInit()` and `profile_PSyDataShutdown()` be inserted
+into the application.
 
 ## Dependencies
 

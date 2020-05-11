@@ -45,7 +45,7 @@
 
 module argument_mod
 
-  ! Test and files need to be updated to reference function spaces from
+  ! Test files need to be updated to reference function spaces from
   ! fs_continuity_mod rather than the old location argument_mod.f90. The
   ! inclusion of fs_continuity_mod here is a temporary solution until
   ! this issue (#764) is addressed.
