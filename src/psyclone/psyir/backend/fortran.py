@@ -241,7 +241,7 @@ def get_fortran_operator(operator):
     :type operator: \
         :py:class:`psyclone.psyir.nodes.[Unary,Binary,Nary]Operation.Operator`
 
-    :return: the Fortran operator name.
+    :returns: the Fortran operator name.
     :rtype: str
 
     :raises KeyError: if the supplied operator is not known by the \
@@ -268,7 +268,7 @@ def is_fortran_intrinsic(fortran_operator):
 
     :param str fortran_operator: the supplied Fortran operator.
 
-    :returns: true if the supplied Fortran operator is a Fortran
+    :returns: true if the supplied Fortran operator is a Fortran \
         intrinsic and false otherwise.
 
     '''
@@ -279,20 +279,21 @@ def is_fortran_intrinsic(fortran_operator):
 
 def precedence(fortran_operator):
     '''Determine the relative precedence of the supplied Fortran operator.
+    Relative Operator precedence is taken from the Fortran 2008
+    specification document and encoded as a list.
 
     :param str fortran_operator: the supplied Fortran operator.
 
-    :returns: an integer indicating the relative precedence of the
-        supplied Fortran operator. The higher the value, the higher
-        the precedence. Operator precednence values are taken from the
-        Fortran 2008 specification document.
+    :returns: an integer indicating the relative precedence of the \
+        supplied Fortran operator. The higher the value, the higher \
+        the precedence.
 
-    :raises KeyError: if the supplied operator is not in the
+    :raises KeyError: if the supplied operator is not in the \
         precedence list.
 
     '''
-    # The index of the list indicates precedence. Strings within
-    # sub-lists have the same precendence.
+    # The index of the fortran_precedence list indicates relative
+    # precedence. Strings within sub-lists have the same precendence.
     fortran_precedence = [
         ['.EQV.', 'NEQV'],
         ['.OR.'],
