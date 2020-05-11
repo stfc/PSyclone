@@ -1400,8 +1400,8 @@ rules, along with PSyclone's naming conventions, are:
             as appropriate:
 
             1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
-            (``dimension``, ``number_of_dofs``, ``np_xy``,
-            ``np_z``).
+               (``dimension``, ``number_of_dofs``, ``np_xy``,
+               ``np_z``).
 
             2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
                then the  arrays have extent

@@ -87,7 +87,10 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
-  ! IDs for any W2-type space regardless of continuity
+  ! IDs for any vector W2-type space regardless of continuity
+  ! (w2, w2h, w2v, w2broken but not w2*trace spaces of scalar
+  ! functions). Issue #540 will resolve what W2* spaces should
+  ! be included in ANY_W2 list and how they should be treated.
   integer, public, parameter :: ANY_W2       = 112
   ! IDs for any discontinuous space
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251

@@ -80,6 +80,8 @@ DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2vtrace", "w2broken"]
 # (spaces of scalar functions). As any_w2 stands for all vector "w2*" spaces
 # it needs to a) be treated as continuous and b) have vector basis and scalar
 # differential basis dimensions.
+# TODO #540: resolve what W2* spaces should be included in ANY_W2 list and
+# whether ANY_W2 should be in the continuous function space list.
 ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
 
 CONTINUOUS_FUNCTION_SPACES = \

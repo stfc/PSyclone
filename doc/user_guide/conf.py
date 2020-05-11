@@ -214,6 +214,11 @@ latex_documents = [
      'Sergi Siso', 'manual'),
 ]
 
+# Set maximum depth for the nested lists
+latex_elements = {
+    'maxlistdepth': '6',
+}
+
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 # latex_logo = None
