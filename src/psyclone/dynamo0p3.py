@@ -523,9 +523,10 @@ class FunctionSpace(object):
         if self._orig_name not in VALID_ANY_SPACE_NAMES + \
            VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             raise InternalError(
-                "_mangle_fs_name: function space name '{0}' is not one of "
-                "'any_space' or 'any_discontinuous_space' names.".
-                format(self._orig_name))
+                "_mangle_fs_name: function space '{0}' is not one of "
+                "{1} or {2} spaces.".
+                format(self._orig_name, VALID_ANY_SPACE_NAMES,
+                       VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
 
         # List kernel arguments
         args = self._kernel_args.args
@@ -562,9 +563,10 @@ class FunctionSpace(object):
             start = "ad"
         else:
             raise InternalError(
-                "_shorten_fs_name: function space name '{0}' is not one of "
-                "'any_space' or 'any_discontinuous_space' names.".
-                format(self._orig_name))
+                "_shorten_fs_name: function space '{0}' is not one of "
+                "{1} or {2} spaces.".
+                format(self._orig_name, VALID_ANY_SPACE_NAMES,
+                       VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
 
         # Split name string to find any_*_space ID and create a short name as
         # "<start>" + "spc" + "ID"

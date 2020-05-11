@@ -2788,6 +2788,7 @@ def test_no_mangle_specified_function_space():
     create a short name for such a space will fail.
 
     '''
+    from psyclone.dynamo0p3 import VALID_ANY_DISCONTINUOUS_SPACE_NAMES
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
@@ -2803,14 +2804,16 @@ def test_no_mangle_specified_function_space():
     # than any_*_space name (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
-    assert ("_mangle_fs_name: function space name 'w2' is not one of "
-            "'any_space' or 'any_discontinuous_space' names."
+    assert ("_mangle_fs_name: function space '{0}' is not one of {1} or {2} "
+            "spaces.".format(fs_name, VALID_ANY_SPACE_NAMES,
+                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
     # Try to create a short name for this function space (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
-    assert ("_shorten_fs_name: function space name 'w2' is not one of "
-            "'any_space' or 'any_discontinuous_space' names."
+    assert ("_shorten_fs_name: function space '{0}' is not one of {1} or {2} "
+            "spaces.".format(fs_name, VALID_ANY_SPACE_NAMES,
+                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
 
 
