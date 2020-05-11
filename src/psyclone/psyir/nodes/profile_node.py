@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -66,6 +66,9 @@ class ProfileNode(PSyDataNode):
         identify a region unless aggregate information is required.
 
     '''
+    _text_name = "Profile"
+    _colour_key = "Profile"
+
     def __init__(self, ast=None, children=None, parent=None, options=None):
         if options:
             my_options = options.copy()
@@ -77,10 +80,6 @@ class ProfileNode(PSyDataNode):
 
         super(ProfileNode, self).__init__(ast=ast, children=children,
                                           parent=parent, options=my_options)
-
-        # Name and colour to use for this node
-        self._text_name = "Profile"
-        self._colour_key = "Profile"
 
     # -------------------------------------------------------------------------
     def __str__(self):

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' This module implementes a PSyData node, i.e.a node that at code
@@ -43,12 +43,13 @@ or profiling.'''
 from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import Symbol, SymbolTable
 
 
 # =============================================================================
-class PSyDataNode(Node):
+class PSyDataNode(Statement):
     # pylint: disable=too-many-instance-attributes, too-many-locals
     '''
     This class can be inserted into a schedule to instrument a set of nodes.
@@ -89,6 +90,10 @@ class PSyDataNode(Node):
     fortran_module = "psy_data_mod"
     # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "PSyData"
+    _colour_key = "PSyData"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
 
@@ -157,11 +162,6 @@ class PSyDataNode(Node):
         elif parent:
             parent.addchild(self)
 
-        # Name and colour to use for this node - must be set after calling
-        # the constructor
-        self._text_name = "PSyData"
-        self._colour_key = "PSyData"
-
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so
         # the name is left empty, unless explicitly provided by the
@@ -206,6 +206,19 @@ class PSyDataNode(Node):
             self._module_name = name[0]
             self._region_name = name[1]
             self.set_region_identifier(self._module_name, self._region_name)
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
 
     # -------------------------------------------------------------------------
     def add_psydata_class_prefix(self, symbol):
@@ -262,7 +275,6 @@ class PSyDataNode(Node):
         :raises InternalError: if this PSyData node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyir.nodes import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -523,35 +523,14 @@ def test_fw_exception(fort_writer):
     unsupported PSyIR node is found.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
-        "  integer :: a,b,c\n"
-        "  a = b/c\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = create_schedule(code, "tmp")
+    # 'unsupported' should be a node that neither its generic classes nor
+    # itself have a visitor implemented.
+    unsupported = Node()
 
-    # pylint: disable=abstract-method
-    # modify the reference to b to be something unsupported
-    class Unsupported(Node):
-        '''A PSyIR node that will not be supported by the Fortran visitor.'''
-    # pylint: enable=abstract-method
-
-    unsupported = Unsupported()
-    assignment = schedule[0]
-    binary_operation = assignment.rhs
-    # The assignment.rhs method has no setter so access the reference
-    # directly instead via children.
-    assignment.children[1] = unsupported
-    unsupported.children = binary_operation.children
-
-    # Generate Fortran from the PSyIR schedule
+    # Generate Fortran from the given PSyIR
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer(schedule)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
+        _ = fort_writer(unsupported)
+    assert "Unsupported node 'Node' found" in str(excinfo.value)
 
 
 def test_fw_container_1(fort_writer, monkeypatch):
@@ -834,8 +813,6 @@ def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
 def test_fw_reference(fort_writer):
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
-    Also check the method raises an exception if it has children as
-    this is not expected.
 
     '''
     # Generate fparser2 parse tree from Fortran code. The line of
@@ -867,16 +844,6 @@ def test_fw_reference(fort_writer):
         "  a(n)=0.0\n"
         "\n"
         "end subroutine tmp\n") in result
-
-    # Now add a child to the reference node
-    reference = schedule[1].lhs.children[0]
-    reference.children = ["hello"]
-
-    # Generate Fortran from the PSyIR schedule
-    with pytest.raises(VisitorError) as excinfo:
-        result = fort_writer(schedule)
-    assert ("Expecting a Reference with no children but found"
-            in str(excinfo.value))
 
 
 def test_fw_array(fort_writer):

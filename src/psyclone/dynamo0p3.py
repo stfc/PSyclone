@@ -6024,6 +6024,9 @@ class DynHaloExchangeStart(DynHaloExchange):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _text_name = "HaloExchangeStart"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
@@ -6034,8 +6037,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         self._field.access = AccessType.READ
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_start"
-        self._text_name = "HaloExchangeStart"
-        self._colour_map_name = "HaloExchangeStart"
 
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
@@ -6135,6 +6136,9 @@ class DynHaloExchangeEnd(DynHaloExchange):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _text_name = "HaloExchangeEnd"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
@@ -6146,8 +6150,6 @@ class DynHaloExchangeEnd(DynHaloExchange):
         self._field.access = AccessType.READWRITE
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_finish"
-        self._text_name = "HaloExchangeEnd"
-        self._colour_map_name = "HaloExchangeEnd"
 
 
 class HaloDepth(object):
