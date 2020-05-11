@@ -820,7 +820,7 @@ def test_fw_mixed_operator_precedence(fort_writer):
         "  a=-a * (-b + c)\n"
         "  a=-a * (-b + c)\n"
         "  a=-a + -b + c\n"
-        "  e=.not.f .OR. .not.g\n"
+        "  e=.NOT.f .OR. .NOT.g\n"
         "  a=LOG(b * c)\n")
     assert expected in result
 

@@ -257,10 +257,20 @@ def is_fortran_intrinsic(fortran_operator):
 
 def precedence(fortran_operator):
     ''' xxx '''
-    fp = [['**'], ['*', '/'], ['+', '-'], ['//'], ['.EQ.', '.NE.', '.LT.', '.LE.', '.GT.', '.GE.', '==', '/=', '<', '<=', '>', '>='], ['.NOT.'], ['.AND.'], ['.OR.'], ['.EQV.', 'NEQV']]
-    for oper_list in fp:
+    fortran_precedence = [
+        ['.EQV.', 'NEQV'],
+        ['.OR.'],
+        ['.AND.'],
+        ['.NOT.'],
+        ['.EQ.', '.NE.', '.LT.', '.LE.', '.GT.', '.GE.', '==', '/=', '<',
+         '<=', '>', '>='],
+        ['//'],
+        ['+', '-'],
+        ['*', '/'],
+        ['**']]
+    for oper_list in fortran_precedence:
         if fortran_operator in oper_list:
-            return fp.index(oper_list)
+            return fortran_precedence.index(oper_list)
     raise KeyError()
 
 
@@ -583,7 +593,7 @@ class FortranWriter(PSyIRVisitor):
             if isinstance(node.parent, Operation):
                 parent_fort_oper = fortran_operator(node.parent.operator)
                 if not is_fortran_intrinsic(parent_fort_oper) and \
-                   precedence(fort_oper) > precedence(parent_fort_oper):
+                   precedence(fort_oper) < precedence(parent_fort_oper):
                     # We need brackets to enforce precedence
                     return "({0} {1} {2})".format(lhs, fort_oper, rhs)
             return "{0} {1} {2}".format(lhs, fort_oper, rhs)
@@ -604,15 +614,12 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if an unexpected N-ary operator is found.
 
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = _reverse_map(Fparser2Reader.nary_operators)
         arg_list = []
         for child in node.children:
             arg_list.append(self._visit(child))
         try:
-            oper = mapping[node.operator]
-            return "{0}({1})".format(oper.upper(), ", ".join(arg_list))
+            fort_oper = fortran_operator(node.operator)
+            return "{0}({1})".format(fort_oper, ", ".join(arg_list))
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
@@ -825,18 +832,13 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if an unexpected Unary op is encountered.
 
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = _reverse_map(Fparser2Reader.unary_operators)
-
         content = self._visit(node.children[0])
         try:
-            oper = mapping[node.operator]
-            # This is a unary operation
-            if oper.upper() in FORTRAN_INTRINSICS:
+            fort_oper = fortran_operator(node.operator)
+            if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                return "{0}({1})".format(oper.upper(), content)
-            return "{0}{1}".format(oper, content)
+                return "{0}({1})".format(fort_oper, content)
+            return "{0}{1}".format(fort_oper, content)
         except KeyError:
             raise VisitorError("Unexpected unary op '{0}'.".format(
                 node.operator))
