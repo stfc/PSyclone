@@ -285,7 +285,7 @@ This modifies the above Schedule as:
       Extract
           Schedule[]
               0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
-                  upper_bound='ndofs']
+                      upper_bound='ndofs']
                   ...
                   Schedule[]
                       0: BuiltIn setval_c(f2,0.0)
