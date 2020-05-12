@@ -672,10 +672,10 @@ def test_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
-    assert isinstance(fake_parent.symbol_table.lookup("val2").constant_value,
-                      Reference)
+    assert isinstance(
+        fake_parent.symbol_table.lookup("val2").constant_value, Reference)
     assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
-            fake_parent.symbol_table.lookup("val1")
+        fake_parent.symbol_table.lookup("val1")
 
     # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
