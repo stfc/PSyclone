@@ -98,14 +98,14 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2trace)  :: map_w2trace
     integer(kind=i_def), intent(in), dimension(ndf_w2v)      :: map_w2v
     integer(kind=i_def), intent(in), dimension(ndf_wtheta)   :: map_wtheta
-    real(kind=r_def), intent(inout), dimension(undf_aspc1)      :: fld1
-    real(kind=r_def), intent(in),    dimension(undf_w0)         :: fld2
-    real(kind=r_def), intent(in),    dimension(undf_w1)         :: fld3
-    real(kind=r_def), intent(inout), dimension(undf_w2trace)    :: fld4
-    real(kind=r_def), intent(in),    dimension(undf_wtheta)     :: fld5
-    real(kind=r_def), intent(in),    dimension(undf_w2h)        :: fld6
-    real(kind=r_def), intent(in),    dimension(undf_w2v)        :: fld7
-    REAL(KIND=r_def), intent(in),    dimension(undf_w2htrace)   :: fld8
+    real(kind=r_def), intent(inout), dimension(undf_aspc1)    :: fld1
+    real(kind=r_def), intent(in),    dimension(undf_w0)       :: fld2
+    real(kind=r_def), intent(in),    dimension(undf_w1)       :: fld3
+    real(kind=r_def), intent(inout), dimension(undf_w2trace)  :: fld4
+    real(kind=r_def), intent(in),    dimension(undf_wtheta)   :: fld5
+    real(kind=r_def), intent(in),    dimension(undf_w2h)      :: fld6
+    real(kind=r_def), intent(in),    dimension(undf_w2v)      :: fld7
+    REAL(KIND=r_def), intent(in),    dimension(undf_w2htrace) :: fld8
 
   end subroutine testkern_write_any_w2trace_code
 

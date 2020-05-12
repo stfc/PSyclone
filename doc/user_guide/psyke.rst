@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -223,15 +223,15 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
       1: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
           ...
-	  Schedule[]
+          Schedule[]
               0: BuiltIn setval_c(f2,0.0)
       2: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
@@ -247,26 +247,26 @@ to insert the extract region. As shown below, all children of an
       0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
           ...
-	  Schedule[]
+          Schedule[]
               0: BuiltIn setval_c(f5,0.0)
       1: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
-	  ...
-	  Schedule[]
+          ...
+          Schedule[]
               0: BuiltIn setval_c(f2,0.0)
       2: Extract
           Schedule[]
               0: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
-	          ...
-		  Schedule[]
+                  ...
+                  Schedule[]
                       0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
 To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
@@ -285,13 +285,13 @@ This modifies the above Schedule as:
       Extract
           Schedule[]
               0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
-	              upper_bound='ndofs']
-	          ...
-		  Schedule[]
+                      upper_bound='ndofs']
+                  ...
+                  Schedule[]
                       0: BuiltIn setval_c(f2,0.0)
               1: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
-	          ...
-		  Schedule[]
+                  ...
+                  Schedule[]
                       0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
   ...
 
@@ -335,7 +335,7 @@ The generated code is now:
       CALL extract_psy_data%PreEnd
       !
       !$omp parallel do default(shared), private(df), schedule(static)
-      DO df=1,undf_any_space_1_f2
+      DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
       END DO
       !$omp end parallel do

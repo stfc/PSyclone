@@ -280,7 +280,9 @@ def test_operator():
 
 def test_operator_different_spaces(tmpdir):
     ''' Tests that an operator with different to and from spaces is
-    implemented correctly in the PSy layer '''
+    implemented correctly in the PSy layer.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
                            api=TEST_API)
@@ -642,9 +644,11 @@ def test_operator_read_level1_halo():
 
 
 def test_operator_bc_kernel(tmpdir):
-    ''' Tests that a kernel with a particular name is recognised as a
-    kernel that applies boundary conditions to operators and that
-    appropriate code is added to support this. '''
+    ''' Tests that a kernel with a particular name is recognised as
+    a kernel that applies boundary conditions to operators and that
+    appropriate code is added to support this.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
@@ -657,8 +661,8 @@ def test_operator_bc_kernel(tmpdir):
     assert output2 in generated_code
     output3 = (
         "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
-        "op_a_proxy%local_stencil, ndf_any_space_1_op_a, "
-        "ndf_any_space_2_op_a, boundary_dofs_op_a)")
+        "op_a_proxy%local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
+        "boundary_dofs_op_a)")
     assert output3 in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -768,6 +772,7 @@ end module dummy_mod
 
 
 def test_operators():
+
     ''' Test that operators are handled correctly for kernel stubs (except
     for Wchi space as the fields on this space are read-only).
 
@@ -788,14 +793,13 @@ def test_operators():
         "op_11_ncell_3d, op_11, op_12_ncell_3d, op_12, op_13_ncell_3d, "
         "op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, ndf_w2broken, "
         "ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, "
-        "ndf_any_space_1_op_12, ndf_any_discontinuous_space_1_op_13)\n"
+        "ndf_aspc1_op_12, ndf_adspc1_op_13)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0, ndf_w1, ndf_w2, "
         "ndf_w2h, ndf_w2v, ndf_w2broken, ndf_w2trace, ndf_w2htrace, "
-        "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_any_space_1_op_12, "
-        "ndf_any_discontinuous_space_1_op_13\n"
+        "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
@@ -831,12 +835,11 @@ def test_operators():
         "      REAL(KIND=r_def), intent(out), dimension(ndf_wtheta,ndf_wtheta,"
         "op_11_ncell_3d) :: op_11\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_12,"
-        "ndf_any_space_1_op_12,op_12_ncell_3d) :: op_12\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_12,"
+        "ndf_aspc1_op_12,op_12_ncell_3d) :: op_12\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_13_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension"
-        "(ndf_any_discontinuous_space_1_op_13,"
-        "ndf_any_discontinuous_space_1_op_13,op_13_ncell_3d) :: op_13\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_13,"
+        "ndf_adspc1_op_13,op_13_ncell_3d) :: op_13\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -878,7 +881,9 @@ end module dummy_mod
 def test_stub_operator_different_spaces():
     ''' Test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on
-    different spaces '''
+    different spaces.
+
+    '''
     # Check the original code (to- and from- spaces both continuous)
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -896,10 +901,9 @@ def test_stub_operator_different_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
-    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, "
-            "ndf_any_discontinuous_space_2_op_1)") in result
-    assert ("dimension(ndf_w3,ndf_any_discontinuous_space_2_op_1,"
-            "op_1_ncell_3d)") in result
+    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
+            in result)
+    assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     assert "function_space_to[2]='w3'" in result

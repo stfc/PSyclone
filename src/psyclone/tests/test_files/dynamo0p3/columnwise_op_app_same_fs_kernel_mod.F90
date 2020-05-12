@@ -1,10 +1,44 @@
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+!------------------------------------------------------------------------------
+! Modified I. Kavcic, Met Office
 
 !> @brief Kernel which (incrementally) applies a columnwise assembled operator to a field
 
@@ -21,6 +55,8 @@ use argument_mod,            only : arg_type, func_type,                    &
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -39,57 +75,50 @@ contains
 end type columnwise_op_app_same_fs_kernel_type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface columnwise_op_app_kernel_type
-   module procedure columnwise_op_app_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_app_kernel_code
-contains
-  
-  type(columnwise_op_app_kernel_type) function columnwise_op_app_kernel_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_op_app_kernel_constructor
+public columnwise_op_app_same_fs_kernel_code
 
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [inout] lhs Resulting field lhs += A.x
-  !> @param [in] x input field
-  !> @param [in] columnwise_matrix banded matrix to assemble into
-  !> @param [in] ndf1 number of degrees of freedom per cell for the to-space
-  !> @param [in] undf1 unique number of degrees of freedom  for the to-space
-  !> @param [in] map1 dofmap for the to-space
-  !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
-  !> @param [in] undf2 unique number of degrees of freedom for the from-space 
-  !> @param [in] map2 dofmap for the from-space
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] indirection_dofmap_to indirection map for to-space
-  subroutine columnwise_op_app_same_fs_kernel_code(cell,              &
-                                           ncell_2d,          &
-                                           lhs, x,            & 
-                                           columnwise_matrix, &
-                                           ndf1, undf1, map1, &
-                                           ndf2, undf2, map2, &
-                                           nrow,              &
-                                           bandwidth,         &
-                                           alpha,             &
-                                           beta,              &
-                                           gamma_m,           &
-                                           gamma_p,           &
-                                           indirection_dofmap_to)
+contains
+
+  !> @param [in] cell Horizontal cell index
+  !> @param [in] ncell_2d Number of cells in 2d grid
+  !> @param [in,out] lhs Resulting field lhs += A.x
+  !> @param [in] x Input field
+  !> @param [in] columnwise_matrix Banded matrix to assemble into
+  !> @param [in] nrow Number of rows in the banded matrix
+  !> @param [in] bandwidth Bandwidth of the banded matrix
+  !> @param [in] alpha Banded matrix parameter \f$\alpha\f$
+  !> @param [in] beta Banded matrix parameter \f$\beta\f$
+  !> @param [in] gamma_m Banded matrix parameter \f$\gamma_-\f$
+  !> @param [in] gamma_p Banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] ndf_aspc2 Number of degrees of freedom per cell for the
+  !!                       to- and from-space
+  !> @param [in] undf_aspc2 Unique number of degrees of freedom for the
+  !!                        to- and from-space
+  !> @param [in] map_aspc2 Dofmap for the to-and from-space
+  !> @param [in] indirection_dofmap_to Indirection map for to-space
+  subroutine columnwise_op_app_same_fs_kernel_code(cell, ncell_2d,        &
+                                                   lhs, x,                &
+                                                   columnwise_matrix,     &
+                                                   nrow, bandwidth,       &
+                                                   alpha, beta,           &
+                                                   gamma_m, gamma_p,      &
+                                                   ndf_aspc2, undf_aspc2, &
+                                                   map_aspc2, indirection_dofmap_to)
+
     implicit none
+
+    integer(kind=i_def), intent(in) :: cell, ncell_2d
+    integer(kind=i_def), intent(in) :: nrow
+    integer(kind=i_def), intent(in) :: bandwidth, alpha, beta, gamma_m, gamma_p
+    integer(kind=i_def), intent(in) :: undf_aspc2
+    integer(kind=i_def), intent(in) :: ndf_aspc2
+    integer(kind=i_def), intent(in), dimension(ndf_aspc2) :: map_aspc2
+    integer(kind=i_def), intent(in), dimension(nrow) :: indirection_dofmap_to
+    real(kind=r_def), intent(in), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
+    real(kind=r_def), intent(inout), dimension(undf_aspc2) :: lhs
+    real(kind=r_def), intent(in), dimension(undf_aspc2)    :: x
 
   end subroutine columnwise_op_app_same_fs_kernel_code
 

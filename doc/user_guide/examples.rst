@@ -151,6 +151,7 @@ and then executes the original code.
     At this stage the driver program will not compile
     (see issue #644).
 
+.. _examples_lfric:
 
 LFRic
 ------

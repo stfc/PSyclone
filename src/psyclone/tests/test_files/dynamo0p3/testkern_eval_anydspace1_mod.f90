@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -58,29 +58,28 @@ contains
 
   subroutine testkern_eval_anydspace1_code(nlayers,                 &
                                            field1, field2, field3,  &
-                                           ndf_anydspace_1,         &
-                                           undf_anydspace_1,        &
-                                           map_anydspace_1,         &
+                                           ndf_adspc1, undf_adspc1, &
+                                           map_adspc1,              &
                                            ndf_w0, undf_w0, map_w0, &
-                                           basis_w0_on_anydspace_1, &
+                                           basis_w0_on_adspc1,      &
                                            ndf_w1, undf_w1, map_w1, &
-                                           diff_basis_w1_on_anydspace_1)
+                                           diff_basis_w1_on_adspc1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_anydspace_1
+    integer(kind=i_def), intent(in) :: ndf_adspc1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: ndf_w1
-    integer(kind=i_def), intent(in) :: undf_anydspace_1, undf_w0, undf_w1
-    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
-    integer(kind=i_def), intent(in), dimension(ndf_w0)          :: map_w0
-    integer(kind=i_def), intent(in), dimension(ndf_w1)          :: map_w1
-    real(kind=r_def), intent(out), dimension(undf_anydspace_1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_w0)           :: field2
-    real(kind=r_def), intent(in), dimension(undf_w1)           :: field3
-    real(kind=r_def), intent(in), dimension(1,ndf_w0,ndf_anydspace_1) :: basis_w0_on_anydspace_1
-    real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_anydspace_1) :: diff_basis_w1_on_anydspace_1
+    integer(kind=i_def), intent(in) :: undf_adspc1, undf_w0, undf_w1
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
+    integer(kind=i_def), intent(in), dimension(ndf_w0)     :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w1)     :: map_w1
+    real(kind=r_def), intent(out), dimension(undf_adspc1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_w0)      :: field2
+    real(kind=r_def), intent(in), dimension(undf_w1)      :: field3
+    real(kind=r_def), intent(in), dimension(1,ndf_w0,ndf_adspc1) :: basis_w0_on_adspc1
+    real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_adspc1) :: diff_basis_w1_on_adspc1
 
   end subroutine testkern_eval_anydspace1_code
 
