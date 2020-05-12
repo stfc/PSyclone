@@ -133,7 +133,7 @@ def test_validate2():
 def test_validate3():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
-    it has not ancestor that is an assignment.
+    doesn't have an assignment as an ancestor.
 
     '''
     trans = Matmul2CodeTrans()
@@ -264,13 +264,15 @@ def test_validate9():
     trans = Matmul2CodeTrans()
     array_type = ArrayType(REAL_TYPE, [10, 10])
     array = Reference(DataSymbol("x", array_type))
+    vector_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    vector = Reference(DataSymbol("y", vector_type))
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, array)
+        BinaryOperation.Operator.MATMUL, array, vector)
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected 2nd child of a MATMUL "
-            "BinaryOperation to have 1 dimension, but found '2'."
+            "BinaryOperation to have 1 dimension, but found '3'."
             in str(excinfo.value))
 
 

@@ -38,4 +38,3 @@ module. Contains all transformations that act on PSyIR intrinsic
 (operator) functions.
 
 '''
-__all__ = []

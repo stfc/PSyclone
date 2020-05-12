@@ -228,7 +228,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             raise TransformationError(
                 "Expected 2nd child of a MATMUL BinaryOperation to have 1 "
                 "dimension, but found '{0}'."
-                "".format(len(matrix.symbol.shape)))
+                "".format(len(vector.symbol.shape)))
         if len(vector.symbol.shape) == 1 and not vector.children:
             # If the vector only has 1 dimension and all of its data is
             # used in the matrix vector multiply then the reference does
