@@ -129,7 +129,7 @@ Below is an example of a kernel that is consistent with the
   end module matrix_vector_mm_mod
 
 We now translate the algorithm layer code and generate the PSy layer
-code. The algorithm code is assumed to be in a file call
+code. The algorithm code is assumed to be in a file called
 ``solver_mod.x90`` (see Example 3 in :ref:`LFRic examples <examples_lfric>`
 section). In this case we use the top level Python interface. See the
 :ref:`api-label` section for different ways to translate/generate code.
@@ -146,15 +146,14 @@ the code parser) the differences between the original algorithm code
 and the translated algorithm code are:
 
 * The generic calls to ``invoke`` have been replaced by specific
-  ``CALL invoke_<xx>``. The calls within the ``CALL invoke_jacobi_mass_lump``
-  are removed, as are duplicate arguments and any literals leaving the
-  five fields and one operator being passed in;
+  ``CALL invoke_<xx>``. The kernel calls within the original ``invoke``
+  are removed, as are duplicate arguments and any literals, leaving
+  the five fields and one operator as arguments;
 
 * A ``use`` statement is added for the each of the new ``CALL invoke_<xx>``
   which will call the generated PSy layer code.
 
-The existence of calls to Built-ins has made no difference at this point:
-::
+The existence of calls to Built-ins has made no difference at this point::
 
     SUBROUTINE jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
       USE solver_mod_psy, ONLY: invoke_jacobi_iterloop
@@ -183,7 +182,7 @@ The existence of calls to Built-ins has made no difference at this point:
     END SUBROUTINE jacobi_solver_algorithm
 
 A vanilla (with no distributed and shared-memory optimisations) version
-of the generated PSy layer is given below. As expected the kernel code is
+of the generated PSy layer is given below. As expected, the kernel code is
 called from the PSy layer. However, in the case of the Built-ins, the code
 for these has been written directly into the PSy layer:
 
