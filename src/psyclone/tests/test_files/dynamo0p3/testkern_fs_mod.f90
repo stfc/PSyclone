@@ -46,7 +46,7 @@ module testkern_fs_mod
   !              and one discontinuous (wtheta) field writer
   type, public, extends(kernel_type) :: testkern_fs_type
      private
-     type(arg_type), dimension(11) :: meta_args = (/ &
+     type(arg_type), dimension(13) :: meta_args = (/ &
           arg_type(gh_field, gh_inc,   w1),          &
           arg_type(gh_field, gh_read,  w2),          &
           arg_type(gh_field, gh_read,  w0),          &
@@ -56,6 +56,8 @@ module testkern_fs_mod
           arg_type(gh_field, gh_read,  w2v),         &
           arg_type(gh_field, gh_read,  w2broken),    &
           arg_type(gh_field, gh_read,  w2trace),     &
+          arg_type(gh_field, gh_read,  w2htrace),    &
+          arg_type(gh_field, gh_read,  w2vtrace),    &
           arg_type(gh_field, gh_read,  wchi),        &
           arg_type(gh_field, gh_read,  any_w2)       &
            /)
@@ -70,6 +72,7 @@ contains
                               field3, field4, field5,                    &
                               field6, field7, field8,                    &
                               field9, field10, field11,                  &
+                              field12, field13,                          &
                               ndf_w1, undf_w1, map_w1,                   &
                               ndf_w2, undf_w2, map_w2,                   &
                               ndf_w0, undf_w0, map_w0,                   &
@@ -79,6 +82,8 @@ contains
                               ndf_w2v, undf_w2v, map_w2v,                &
                               ndf_w2broken, undf_w2broken, map_w2broken, &
                               ndf_w2trace, undf_w2trace, map_w2trace,    &
+                              ndf_w2htrace, undf_w2htrace, map_w2htrace, &
+                              ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, &
                               ndf_wchi, undf_wchi, map_wchi,             &
                               ndf_any_w2, undf_any_w2, map_any_w2)
 
@@ -94,11 +99,15 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2v
     integer(kind=i_def), intent(in) :: ndf_w2broken
     integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: ndf_w2htrace
+    integer(kind=i_def), intent(in) :: ndf_w2vtrace
     integer(kind=i_def), intent(in) :: ndf_wchi
     integer(kind=i_def), intent(in) :: ndf_any_w2
-    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w0, undf_w3, &
-                                       undf_wtheta, undf_w2h, undf_w2v,    &
-                                       undf_w2broken, undf_w2trace,        &
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w0,    &
+                                       undf_w3, undf_wtheta,         &
+                                       undf_w2h, undf_w2v,           &
+                                       undf_w2broken, undf_w2trace,  &
+                                       undf_w2htrace, undf_w2vtrace, &
                                        undf_wchi, undf_any_w2
     integer(kind=i_def), intent(in), dimension(ndf_w1)       :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2)       :: map_w2
@@ -107,8 +116,10 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_wtheta)   :: map_wtheta
     integer(kind=i_def), intent(in), dimension(ndf_w2h)      :: map_w2h
     integer(kind=i_def), intent(in), dimension(ndf_w2v)      :: map_w2v
-    integer(kind=i_def), intent(in), dimension(ndf_w2trace)  :: map_w2trace
     integer(kind=i_def), intent(in), dimension(ndf_w2broken) :: map_w2broken
+    integer(kind=i_def), intent(in), dimension(ndf_w2trace)  :: map_w2trace
+    integer(kind=i_def), intent(in), dimension(ndf_w2htrace) :: map_w2htrace
+    integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) :: map_w2vtrace
     integer(kind=i_def), intent(in), dimension(ndf_wchi)     :: map_wchi
     integer(kind=i_def), intent(in), dimension(ndf_any_w2)   :: map_any_w2
     real(kind=r_def), intent(inout), dimension(undf_w1)       :: field1
@@ -120,8 +131,10 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_w2v)      :: field7
     real(kind=r_def), intent(in),    dimension(undf_w2broken) :: field8
     real(kind=r_def), intent(in),    dimension(undf_w2trace)  :: field9
-    real(kind=r_def), intent(in),    dimension(undf_wchi)     :: field10
-    real(kind=r_def), intent(in),    dimension(undf_any_w2)   :: field11
+    real(kind=r_def), intent(in),    dimension(undf_w2htrace) :: field10
+    real(kind=r_def), intent(in),    dimension(undf_w2vtrace) :: field11
+    real(kind=r_def), intent(in),    dimension(undf_wchi)     :: field12
+    real(kind=r_def), intent(in),    dimension(undf_any_w2)   :: field13
 
   end subroutine testkern_fs_code
 

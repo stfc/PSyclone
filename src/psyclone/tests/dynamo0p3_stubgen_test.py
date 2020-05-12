@@ -347,14 +347,19 @@ def test_intent():
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =                &
-          (/ arg_type(gh_field, gh_inc,   w0),     &
-             arg_type(gh_field, gh_inc,   w1),     &
-             arg_type(gh_field, gh_inc,   w2),     &
-             arg_type(gh_field, gh_write, w3),     &
-             arg_type(gh_field, gh_write, wtheta), &
-             arg_type(gh_field, gh_inc,   w2h),    &
-             arg_type(gh_field, gh_write, w2v)     &
+     type(arg_type), meta_args(12) =                 &
+          (/ arg_type(gh_field, gh_inc,   w0),       &
+             arg_type(gh_field, gh_inc,   w1),       &
+             arg_type(gh_field, gh_inc,   w2),       &
+             arg_type(gh_field, gh_write, w2broken), &
+             arg_type(gh_field, gh_inc,   w2trace),  &
+             arg_type(gh_field, gh_write, w3),       &
+             arg_type(gh_field, gh_write, wtheta),   &
+             arg_type(gh_field, gh_inc,   w2h),      &
+             arg_type(gh_field, gh_write, w2v),      &
+             arg_type(gh_field, gh_inc,   w2htrace), &
+             arg_type(gh_field, gh_write, w2vtrace), &
+             arg_type(gh_field, gh_read,  wchi)      &
            /)
      integer :: iterates_over = cells
    contains
@@ -368,7 +373,9 @@ end module dummy_mod
 
 
 def test_spaces():
-    ''' test that field spaces are handled correctly for kernel stubs '''
+    ''' Test that field spaces are handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -379,11 +386,16 @@ def test_spaces():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w0, field_2_w1, "
-        "field_3_w2, field_4_w3, field_5_wtheta, field_6_w2h, field_7_w2v, "
-        "ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, "
-        "map_w2, ndf_w3, undf_w3, map_w3, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, "
-        "map_w2v)\n"
+        "field_3_w2, field_4_w2broken, field_5_w2trace, field_6_w3, "
+        "field_7_wtheta, field_8_w2h, field_9_w2v, field_10_w2htrace, "
+        "field_11_w2vtrace, field_12_wchi, "
+        "ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, "
+        "ndf_w2, undf_w2, map_w2, ndf_w2broken, undf_w2broken, map_w2broken, "
+        "ndf_w2trace, undf_w2trace, map_w2trace, ndf_w3, undf_w3, map_w3, "
+        "ndf_wtheta, undf_wtheta, map_wtheta, ndf_w2h, undf_w2h, map_w2h, "
+        "ndf_w2v, undf_w2v, map_w2v, ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
+        "ndf_wchi, undf_wchi, map_wchi)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
@@ -393,33 +405,59 @@ def test_spaces():
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2broken\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2broken) "
+        ":: map_w2broken\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2h\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2h) :: map_w2h\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2h) "
+        ":: map_w2h\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2htrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2htrace) "
+        ":: map_w2htrace\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace) "
+        ":: map_w2trace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2v) :: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        ":: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        ":: map_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        ":: map_wchi\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        ":: map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w1, undf_w2, "
-        "undf_w3, undf_wtheta, undf_w2h, undf_w2v\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
-        "field_4_w3\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) :: "
-        "field_6_w2h\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
+        "undf_w2broken, undf_w2trace, undf_w3, undf_wtheta, undf_w2h, "
+        "undf_w2v, undf_w2htrace, undf_w2vtrace, undf_wchi\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        ":: field_1_w0\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) "
+        ":: field_2_w1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) "
+        ":: field_3_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2broken) "
+        ":: field_4_w2broken\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2trace) "
+        ":: field_5_w2trace\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) "
+        ":: field_6_w3\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        ":: field_7_wtheta\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) "
+        ":: field_8_w2h\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) "
+        ":: field_9_w2v\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
+        ":: field_10_w2htrace\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2vtrace) "
+        ":: field_11_w2vtrace\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        ":: field_12_wchi\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
