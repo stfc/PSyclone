@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,13 @@ program single_invoke
 
   ! Description: one standard built-in and then one built-in reduction
   ! specified in an invoke call.
-  use inf,      only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
+
   type(field_type) :: f1
-  real(r_def) :: asum, bvalue
+  real(r_def)      :: asum, bvalue
 
   call invoke( inc_a_times_X(bvalue, f1), &
                sum_X(asum, f1) )

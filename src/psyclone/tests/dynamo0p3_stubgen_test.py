@@ -445,8 +445,10 @@ end module dummy_mod
 
 
 def test_any_spaces():
-    ''' Test that any_*_space metadata are handled correctly
-    for kernel stubs '''
+    ''' Test that any_space and any_discontinuous_space metadata are handled
+    correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -456,44 +458,31 @@ def test_any_spaces():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, "
-        "field_1_any_discontinuous_space_1_field_1, "
-        "field_2_any_space_7_field_2, "
-        "field_3_any_discontinuous_space_4_field_3, "
-        "ndf_any_discontinuous_space_1_field_1, "
-        "undf_any_discontinuous_space_1_field_1, "
-        "map_any_discontinuous_space_1_field_1, ndf_any_space_7_field_2, "
-        "undf_any_space_7_field_2, map_any_space_7_field_2, "
-        "ndf_any_discontinuous_space_4_field_3, "
-        "undf_any_discontinuous_space_4_field_3, "
-        "map_any_discontinuous_space_4_field_3)\n"
+        "    SUBROUTINE dummy_code(nlayers, field_1_adspc1_field_1, "
+        "field_2_aspc7_field_2, field_3_adspc4_field_3, "
+        "ndf_adspc1_field_1, undf_adspc1_field_1, map_adspc1_field_1, "
+        "ndf_aspc7_field_2, undf_aspc7_field_2, map_aspc7_field_2, "
+        "ndf_adspc4_field_3, undf_adspc4_field_3, map_adspc4_field_3)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "ndf_any_discontinuous_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_field_1) :: "
-        "map_any_discontinuous_space_1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "ndf_any_discontinuous_space_4_field_3\n"
+        "ndf_adspc1_field_1) :: map_adspc1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc4_field_3\n"
         "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_4_field_3) :: "
-        "map_any_discontinuous_space_4_field_3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_7_field_2\n"
+        "ndf_adspc4_field_3) :: map_adspc4_field_3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc7_field_2\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_7_field_2) :: map_any_space_7_field_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "undf_any_discontinuous_space_1_field_1, undf_any_space_7_field_2, "
-        "undf_any_discontinuous_space_4_field_3\n"
+        "dimension(ndf_aspc7_field_2) :: map_aspc7_field_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_adspc1_field_1, "
+        "undf_aspc7_field_2, undf_adspc4_field_3\n"
         "      REAL(KIND=r_def), intent(in), dimension"
-        "(undf_any_discontinuous_space_1_field_1) :: "
-        "field_1_any_discontinuous_space_1_field_1\n"
+        "(undf_adspc1_field_1) :: field_1_adspc1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), dimension"
-        "(undf_any_space_7_field_2) :: field_2_any_space_7_field_2\n"
+        "(undf_aspc7_field_2) :: field_2_aspc7_field_2\n"
         "      REAL(KIND=r_def), intent(inout), dimension"
-        "(undf_any_discontinuous_space_4_field_3) :: "
-        "field_3_any_discontinuous_space_4_field_3\n"
+        "(undf_adspc4_field_3) :: field_3_adspc4_field_3\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -621,7 +610,9 @@ def test_orientation_stubs():
 
 def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
-    is handled correctly for kernel stubs '''
+    is handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -632,21 +623,20 @@ def test_enforce_bc_kernel_stub_gen():
         "  MODULE enforce_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1_field_1, "
-        "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
-        "map_any_space_1_field_1, boundary_dofs_field_1)\n"
+        "    SUBROUTINE enforce_bc_code(nlayers, field_1_aspc1_field_1, "
+        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
+        "boundary_dofs_field_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1) :: map_any_space_1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_1_field_1\n"
+        "dimension(ndf_aspc1_field_1) :: map_aspc1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), "
-        "dimension(undf_any_space_1_field_1)"
-        " :: field_1_any_space_1_field_1\n"
+        "dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1,2) :: boundary_dofs_field_1\n"
+        "dimension(ndf_aspc1_field_1,2) :: boundary_dofs_field_1\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
     assert output in str(generated_code)
@@ -654,7 +644,9 @@ def test_enforce_bc_kernel_stub_gen():
 
 def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
-    modification is handled correctly for kernel stubs '''
+    modification is handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
@@ -667,19 +659,19 @@ def test_enforce_op_bc_kernel_stub_gen():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, "
-        "op_1_ncell_3d, op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, "
+        "op_1_ncell_3d, op_1, ndf_aspc1_op_1, ndf_aspc2_op_1, "
         "boundary_dofs_op_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_op_1, "
-        "ndf_any_space_2_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1, "
+        "ndf_aspc2_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension("
-        "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
+        "ndf_aspc1_op_1,ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_op_1,2) :: boundary_dofs_op_1\n"
+        "dimension(ndf_aspc1_op_1,2) :: boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"
         "  END MODULE enforce_operator_bc_mod")
     assert output in generated_code

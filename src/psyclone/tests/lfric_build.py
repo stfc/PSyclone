@@ -69,6 +69,7 @@ class LFRicBuild(Compile):
                               "mesh_mod",
                               "stencil_dofmap_mod",
                               "function_space_mod",
+                              "scalar_mod",
                               "field_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",
