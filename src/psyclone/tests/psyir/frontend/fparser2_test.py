@@ -602,7 +602,6 @@ def test_generate_schedule_unmatching_arguments(parser):
         in str(error.value)
 
 
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_process_declarations(f2008_parser):
     '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
@@ -667,6 +666,16 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
     assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
                       BinaryOperation)
+
+    # Initialisation with constant expresions with symbols
+    reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
+    assert isinstance(fake_parent.symbol_table.lookup("val2").constant_value,
+                      Reference)
+    assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
+            fake_parent.symbol_table.lookup("val1")
 
     # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
