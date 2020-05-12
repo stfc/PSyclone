@@ -49,7 +49,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType
+    LocalInterface, ScalarType, ArrayType, DeferredType, SymbolTable
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1164,11 +1164,15 @@ class Fparser2Reader(object):
 
                 if initialisation:
                     if has_constant_value:
-                        # If it is a parameter parse its initialization
-                        tmp = Assignment()
+                        # If it is a parameter parse its initialization into
+                        # a dummy Assignment inside a Schedule which temporally
+                        # hijacks the parent's node symbol table
+                        tmp_sch = Schedule(symbol_table=parent.symbol_table)
+                        dummynode = Assignment(parent=tmp_sch)
+                        tmp_sch.addchild(dummynode)
                         expr = initialisation.items[1]
-                        self.process_nodes(parent=tmp, nodes=[expr])
-                        ct_expr = tmp.children[0]
+                        self.process_nodes(parent=dummynode, nodes=[expr])
+                        ct_expr = dummynode.children[0]
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Initialisations on the"

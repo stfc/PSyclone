@@ -67,11 +67,13 @@ class Schedule(Node):
         # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, symbol_table=None):
         super(Schedule, self).__init__(self, children=children, parent=parent)
         # TODO #645 remove this check that we don't already have a symbol
         # table (only currently required because InvokeSchedule creates its
         # own symbol table *before* calling this constructor).
+        if symbol_table:
+            self._symbol_table = symbol_table
         if not (hasattr(self, "_symbol_table") and self._symbol_table):
             self._symbol_table = SymbolTable(self)
 
