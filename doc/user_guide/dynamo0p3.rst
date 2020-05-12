@@ -928,6 +928,10 @@ As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
 continuous while ``ANY_DISCONTINUOUS_SPACE_n`` spaces are treated
 as discontinuous.
 
+.. note:: The name and use of ``ANY_W2`` metadata (e.g. continuity and
+          vector or/and scalar basis of ``W2*`` spaces the metadata
+          can represent) are being reviewed in PSyclone issue #540.
+
 Since the Dynamo0.3 API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that

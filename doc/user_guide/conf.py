@@ -23,8 +23,8 @@ import os
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-# We need version >= 1.3 for the "numref" feature.
-needs_sphinx = '1.3'
+# We need version >= 1.5 for the "numref" feature.
+needs_sphinx = '1.5'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -214,7 +214,16 @@ latex_documents = [
      'Sergi Siso', 'manual'),
 ]
 
-# Set maximum depth for the nested lists
+# Set maximum depth for the nested lists to prevent LaTeX
+# "too deeply nested" build failures when using whitespaces instead
+# of tabs in documentation (there must be an indentation of at least
+# three spaces when nesting a list within another). This is a known
+# Docutils failure, see e.g. here:
+# https://docutils.sourceforge.io/docs/dev/todo.html
+# LaTeX can have up to 6 lists (of any sort) nested, 4 "enumerate"
+# environments among the set of nested lists and 4 "itemize"
+# environments among the set of nested lists, see e.g. here
+# https://texfaq.org/FAQ-toodeep
 latex_elements = {
     'maxlistdepth': '6',
 }
