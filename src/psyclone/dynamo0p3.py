@@ -72,17 +72,20 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 #
 # ---------- Function spaces (FS) ------------------------------------------- #
 # Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2broken"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2vtrace", "w2broken"]
 
 # Continuous FS
 # Note, any_w2 is not a space on its own. any_w2 is used as a common term for
-# any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2trace
-# (a space of scalar functions). As any_w2 stands for all vector "w2*" spaces
+# any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2*trace
+# (spaces of scalar functions). As any_w2 stands for all vector "w2*" spaces
 # it needs to a) be treated as continuous and b) have vector basis and scalar
 # differential basis dimensions.
+# TODO #540: resolve what W2* spaces should be included in ANY_W2 list and
+# whether ANY_W2 should be in the continuous function space list.
 ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
 
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "w2trace", "any_w2"]
+CONTINUOUS_FUNCTION_SPACES = \
+    ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
 
 # Read-only FS
 READ_ONLY_FUNCTION_SPACES = ["wchi"]
@@ -109,13 +112,15 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
 
 # Lists of function spaces that have
 # a) scalar basis functions;
-SCALAR_BASIS_SPACE_NAMES = ["w0", "w2trace", "w3", "wtheta", "wchi"]
+SCALAR_BASIS_SPACE_NAMES = \
+    ["w0", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
 # b) vector basis functions;
 VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
 # c) scalar differential basis functions;
 SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
 # d) vector differential basis functions.
-VECTOR_DIFF_BASIS_SPACE_NAMES = ["w0", "w1", "w2trace", "w3", "wtheta", "wchi"]
+VECTOR_DIFF_BASIS_SPACE_NAMES = \
+    ["w0", "w1", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
 
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis

@@ -47,11 +47,11 @@
 module rtheta_wtheta_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_READ, GH_INC,               &
-                                    W2, Wtheta,                              &
-                                    GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
+use argument_mod,            only : arg_type, func_type,             &
+                                    GH_FIELD, GH_READ, GH_READWRITE, &
+                                    GH_BASIS, GH_DIFF_BASIS,         &
                                     CELLS, GH_QUADRATURE_XYoZ
+use fs_continuity_mod,       only : W2, Wtheta
 use constants_mod,           only : r_def, i_def
 
 implicit none
