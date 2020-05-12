@@ -42,7 +42,6 @@ from __future__ import absolute_import
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.scopes import Scope
-from psyclone.psyir.symbols.datatypes import DeferredType
 
 
 class DataSymbol(Symbol):
@@ -53,7 +52,8 @@ class DataSymbol(Symbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
-    :param bool public: whether or not this symbol is public.
+    :param scope: the scope (visibility) of this symbol.
+    :type scope: :py:class:`psyclone.psyir.symbols.Scope`
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
@@ -69,10 +69,9 @@ class DataSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
 
     '''
-    def __init__(self, name, datatype, public=True, constant_value=None,
-                 interface=None):
-
-        super(DataSymbol, self).__init__(name, public)
+    def __init__(self, name, datatype, scope=Scope.DEFAULT,
+                 constant_value=None, interface=None):
+        super(DataSymbol, self).__init__(name, scope)
 
         self._datatype = None
         self.datatype = datatype
@@ -98,6 +97,7 @@ class DataSymbol(Symbol):
         :raises NotImplementedError: if the deferred symbol is not a Global.
 
         '''
+        from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
             if self.is_global:
                 # Copy all the symbol properties but the interface

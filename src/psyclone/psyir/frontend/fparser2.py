@@ -49,7 +49,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType
+    LocalInterface, ScalarType, ArrayType, DeferredType, Scope
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -937,24 +937,24 @@ class Fparser2Reader(object):
         :param nodes: nodes in the fparser2 parse tree to search.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
-        :returns: whether symbols are public by default, list of public \
+        :returns: whether the default scoping of symbols, list of public \
                   symbol names, list of private symbol names.
-        :rtype: 3-tuple of (bool, list, list)
+        :rtype: 3-tuple of (:py:class:`psyclone.symbols.Scope`, list, list)
 
         :raises GenerationError: if a symbol is explicitly declared as being \
                                  both public and private.
         '''
-        # Symbols are public by default in Fortran
-        default_public = True
+        default_scope = None
         # Sets holding the names of those symbols whose access is specified
         # explicitly via an access-stmt (e.g. "PUBLIC :: my_var")
         explicit_public = set()
         explicit_private = set()
         # R518 an access-stmt shall appear only in the specification-part
-        # of a module.
+        # of a *module*.
         access_stmts = walk(nodes, Fortran2003.Access_Stmt)
 
         for stmt in access_stmts:
+
             if stmt.children[0].lower() == "public":
                 public_stmt = True
             elif stmt.children[0].lower() == "private":
@@ -965,7 +965,30 @@ class Fparser2Reader(object):
                     "attribute of '{1}' but expected either 'public' or "
                     "'private'.".format(str(stmt), stmt.children[0]))
             if not stmt.children[1]:
-                default_public = public_stmt
+                if default_scope:
+                    # We've already seen an access statement without an
+                    # access-id-list. This is therefore invalid Fortran (which
+                    # fparser does not catch).
+                    current_node = stmt.parent
+                    while current_node:
+                        if isinstance(current_node, Fortran2003.Module):
+                            mod_name = str(current_node.children[0].children[1])
+                            raise GenerationError(
+                                "Module '{0}' contains more than one access "
+                                "statement with an omitted access-id-list. "
+                                "This is invalid Fortran.".format(mod_name))
+                        current_node = current_node.parent
+                    # Failed to find an enclosing Module. This is also invalid
+                    # Fortran since an access statement is only permitted within
+                    # a module.
+                    raise GenerationError(
+                        "Found multiple access statements with omitted access-"
+                        "id-lists and no enclosing Module. Both of these "
+                        "things are invalid Fortran.")
+                if public_stmt:
+                    default_scope = Scope.PUBLIC
+                else:
+                    default_scope = Scope.PRIVATE
             else:
                 if public_stmt:
                     explicit_public.update(
@@ -982,7 +1005,11 @@ class Fparser2Reader(object):
                 "and PRIVATE access-ids. This is invalid Fortran.".format(
                     list(invalid_symbols)))
 
-        return default_public, list(explicit_public), list(explicit_private)
+        # Symbols are public by default in Fortran
+        if default_scope is None:
+            default_scope = Scope.PUBLIC
+
+        return default_scope, list(explicit_public), list(explicit_private)
 
     def process_declarations(self, parent, nodes, arg_list):
         '''
@@ -1008,7 +1035,7 @@ class Fparser2Reader(object):
         # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
         # determine the default accessibility of symbols as well as identifying
         # those that are explicitly declared as public or private.
-        default_public, explicit_public_symbols, explicit_private_symbols = \
+        default_scope, explicit_public_symbols, explicit_private_symbols = \
             self._parse_access_statements(nodes)
 
         # Look at any USE statments
@@ -1129,8 +1156,9 @@ class Fparser2Reader(object):
             # 3) Record initialized constant values
             has_constant_value = False
             allocatable = False
-            # This var only set if the declaration has an explicit access-spec
-            decl_is_public = None
+            # This var is only set if the declaration has an explicit
+            # access-spec (e.g. INTEGER, PRIVATE :: xxx)
+            decln_scope = None
             if attr_specs:
                 for attr in attr_specs.items:
                     if isinstance(attr, Fortran2003.Attr_Spec):
@@ -1185,9 +1213,9 @@ class Fparser2Reader(object):
                             self._parse_dimensions(attr, parent.symbol_table)
                     elif isinstance(attr, Fortran2003.Access_Spec):
                         if attr.string.lower() == 'public':
-                            decl_is_public = True
+                            decln_scope = Scope.PUBLIC
                         elif attr.string.lower() == 'private':
-                            decl_is_public = False
+                            decln_scope = Scope.PRIVATE
                         else:
                             raise InternalError(
                                 "Could not process '{0}'. Unexpected Access "
@@ -1260,16 +1288,16 @@ class Fparser2Reader(object):
 
                 sym_name = str(name).lower()
 
-                if decl_is_public is None:
+                if decln_scope is None:
                     # There was no access-spec on the LHS of the decln
                     if sym_name in explicit_private_symbols:
-                        public = False
+                        scope = Scope.PRIVATE
                     elif sym_name in explicit_public_symbols:
-                        public = True
+                        scope = Scope.PUBLIC
                     else:
-                        public = default_public
+                        scope = default_scope
                 else:
-                    public = decl_is_public
+                    scope = decln_scope
 
                 if entity_shape:
                     # array
@@ -1281,7 +1309,7 @@ class Fparser2Reader(object):
 
                 if sym_name not in parent.symbol_table:
                     parent.symbol_table.add(DataSymbol(sym_name, datatype,
-                                                       public=public,
+                                                       scope=scope,
                                                        constant_value=ct_expr,
                                                        interface=interface))
                 else:
@@ -1302,7 +1330,10 @@ class Fparser2Reader(object):
         for name in (list(explicit_public_symbols) +
                      list(explicit_private_symbols)):
             if name not in parent.symbol_table:
-                _is_public = name in explicit_public_symbols
+                if name in explicit_public_symbols:
+                    _scope = Scope.PUBLIC
+                else:
+                    _scope = Scope.PRIVATE
                 # TODO 736 Ideally we would use parent.find_or_create_symbol()
                 # here since that checks that there is a possible source for
                 # this previously-unseen symbol. However, we cannot yet do this
@@ -1313,7 +1344,7 @@ class Fparser2Reader(object):
                 #   contains
                 #     subroutine my_routine()
                 # would cause us to raise an exception.
-                parent.symbol_table.add(Symbol(name, public=_is_public))
+                parent.symbol_table.add(Symbol(name, scope=_scope))
 
         try:
             arg_symbols = []

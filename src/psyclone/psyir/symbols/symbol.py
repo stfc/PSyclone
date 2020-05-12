@@ -72,7 +72,7 @@ class Symbol(object):
     :raises TypeError: if the name is not a str or scope is not a Scope.
 
     '''
-    def __init__(self, name, scope=Scope.PUBLIC):
+    def __init__(self, name, scope=Scope.DEFAULT):
 
         if not isinstance(name, six.string_types):
             raise TypeError(
@@ -81,7 +81,7 @@ class Symbol(object):
         if not isinstance(scope, Scope):
             raise TypeError(
                 "{0} 'scope' attribute should be of type psyir.symbols.Scope "
-                "but '{1}' found.".format(type(self).__name__, type(name)))
+                "but '{1}' found.".format(type(self).__name__, type(scope)))
         self._name = name
         self._scope = scope
 

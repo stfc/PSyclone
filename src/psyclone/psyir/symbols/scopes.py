@@ -34,7 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the scoping definitions.'''
+''' This module contains the scoping definitions used for all symbols.'''
 
 from __future__ import absolute_import
 from enum import Enum
@@ -42,8 +42,10 @@ from enum import Enum
 
 class Scope(Enum):
     ''' Enumeration of the different scoping attributes supported in
-    the PSyIR.
+    the PSyIR. If no scope information is supplied for a Symbol then it
+    is given the DEFAULT value.
 
     '''
     PUBLIC = 1
     PRIVATE = 2
+    DEFAULT = PUBLIC

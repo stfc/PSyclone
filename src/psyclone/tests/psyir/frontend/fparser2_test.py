@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE, Symbol
+    REAL_TYPE, Symbol, Scope
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -641,7 +641,7 @@ def test_process_declarations(f2008_parser):
     b_var = fake_parent.symbol_table.lookup("b")
     assert b_var.name == "b"
     # Symbol should be public by default
-    assert b_var.is_public
+    assert b_var.scope == Scope.PUBLIC
     assert isinstance(b_var.datatype, ScalarType)
     assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
@@ -651,12 +651,12 @@ def test_process_declarations(f2008_parser):
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("p2").is_public
+    assert fake_parent.symbol_table.lookup("p2").scope == Scope.PUBLIC
     reader = FortranStringReader("real, private :: p3, p4")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert not fake_parent.symbol_table.lookup("p3").is_public
-    assert not fake_parent.symbol_table.lookup("p4").is_public
+    assert fake_parent.symbol_table.lookup("p3").scope == Scope.PRIVATE
+    assert fake_parent.symbol_table.lookup("p4").scope == Scope.PRIVATE
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -845,9 +845,9 @@ def test_default_public_container(parser):
     fparser2spec = parser(reader).children[0].children[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "var1" in fake_parent.symbol_table
-    assert not fake_parent.symbol_table.lookup("var1").is_public
-    assert fake_parent.symbol_table.lookup("var2").is_public
-    assert not fake_parent.symbol_table.lookup("var3").is_public
+    assert fake_parent.symbol_table.lookup("var1").scope == Scope.PRIVATE
+    assert fake_parent.symbol_table.lookup("var2").scope == Scope.PUBLIC
+    assert fake_parent.symbol_table.lookup("var3").scope == Scope.PRIVATE
 
 
 def test_default_private_container(parser):
@@ -865,9 +865,9 @@ def test_default_private_container(parser):
     fparser2spec = parser(reader).children[0].children[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "var1" in fake_parent.symbol_table
-    assert fake_parent.symbol_table.lookup("var1").is_public
-    assert not fake_parent.symbol_table.lookup("var2").is_public
-    assert fake_parent.symbol_table.lookup("var3").is_public
+    assert fake_parent.symbol_table.lookup("var1").scope == Scope.PUBLIC
+    assert fake_parent.symbol_table.lookup("var2").scope == Scope.PRIVATE
+    assert fake_parent.symbol_table.lookup("var3").scope == Scope.PUBLIC
 
 
 def test_access_stmt_undeclared_symbol(parser):
@@ -886,11 +886,11 @@ def test_access_stmt_undeclared_symbol(parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     sym_table = fake_parent.symbol_table
     assert "var3" in sym_table
-    assert sym_table.lookup("var3").is_public
+    assert sym_table.lookup("var3").scope == Scope.PUBLIC
     assert "var4" in sym_table
     var4 = sym_table.lookup("var4")
     assert isinstance(var4, Symbol)
-    assert var4.is_public
+    assert var4.scope == Scope.PUBLIC
 
 
 def test_parse_access_statements_invalid(parser):
@@ -968,6 +968,29 @@ def test_public_private_symbol_error(parser):
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
             "and PRIVATE" in str(err.value))
+
+
+def test_multiple_access_stmt_error(parser):
+    ''' Check that we raise the expected error when we encounter multiple
+    access statements. (fparser2 doesn't check for this.) '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "private\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Module 'modulename' contains more than one access statement with"
+            in str(err.value))
+    # Break the parse tree so that we can't find the enclosing module
+    fparser2spec.parent = None
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Found multiple access statements with omitted" in str(err.value)
 
 
 def test_broken_access_spec(parser):

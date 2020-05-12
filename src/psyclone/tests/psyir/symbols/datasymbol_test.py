@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Scope
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
 
@@ -407,7 +407,7 @@ def test_datasymbol_resolve_deferred():
     container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
                                           constant_value=3.14))
     container.symbol_table.add(DataSymbol('f', INTEGER_SINGLE_TYPE,
-                                          public=False))
+                                          scope=Scope.PRIVATE))
     module = ContainerSymbol("dummy_module")
     module._reference = container  # Manually linking the container
 
