@@ -42,6 +42,8 @@ from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.nodes import Schedule, Assignment, Range
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import GenerationError
@@ -51,9 +53,23 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
 
+def test_sched_init():
+    ''' Check the Schedule class is initialised as expected.'''
+
+    # Schedule is always initialised with a symbol table
+    sched = Schedule()
+    assert isinstance(sched, Schedule)
+    assert isinstance(sched.symbol_table, SymbolTable)
+
+    # A custom symbol table can be given to the Schedule as an argument
+    symtab = SymbolTable()
+    sched2 = Schedule(symbol_table=symtab)
+    assert isinstance(sched2, Schedule)
+    assert sched2.symbol_table is symtab
+
+
 def test_sched_node_str():
     ''' Check the node_str method of the Schedule class'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     sched = Schedule()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in \
         sched.node_str()
