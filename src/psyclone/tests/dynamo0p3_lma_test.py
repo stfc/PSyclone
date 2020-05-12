@@ -772,7 +772,6 @@ end module dummy_mod
 
 
 def test_operators():
-
     ''' Test that operators are handled correctly for kernel stubs (except
     for Wchi space as the fields on this space are read-only).
 
