@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -63,44 +63,44 @@ module testkern_write_any_w2trace_mod
 
 contains
 
-  subroutine testkern_write_any_w2trace_code(                                    &
-                                nlayers, fld1, fld2, fld3,                       &
-                                fld4, fld5, fld6, fld7,                          &
-                                ndf_anyspace_1, undf_anyspace_1, map_anyspace_1, &
-                                ndf_w0, undf_w0, map_w0,                         &
-                                ndf_w1, undf_w1, map_w1,                         &
-                                ndf_w2trace, undf_w2trace, map_w2trace,          &
-                                ndf_wtheta, undf_wtheta, map_wtheta,             &
-                                ndf_w2h, undf_w2h, map_w2h,                      &
+  subroutine testkern_write_any_w2trace_code(                           &
+                                nlayers, fld1, fld2, fld3,              &
+                                fld4, fld5, fld6, fld7,                 &
+                                ndf_aspc1, undf_aspc1, map_aspc1,       &
+                                ndf_w0, undf_w0, map_w0,                &
+                                ndf_w1, undf_w1, map_w1,                &
+                                ndf_w2trace, undf_w2trace, map_w2trace, &
+                                ndf_wtheta, undf_wtheta, map_wtheta,    &
+                                ndf_w2h, undf_w2h, map_w2h,             &
                                 ndf_w2v, undf_w2v, map_w2v)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_anyspace_1
+    integer(kind=i_def), intent(in) :: ndf_aspc1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_w2h
     integer(kind=i_def), intent(in) :: ndf_w2trace
     integer(kind=i_def), intent(in) :: ndf_w2v
     integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: undf_anyspace_1, undf_w0, undf_w1,   &
-                                       undf_w2trace, undf_wtheta, undf_w2h, &
-                                       undf_w2v
-    integer(kind=i_def), intent(in), dimension(ndf_anyspace_1) :: map_anyspace_1
-    integer(kind=i_def), intent(in), dimension(ndf_w0)         :: map_w0
-    integer(kind=i_def), intent(in), dimension(ndf_w1)         :: map_w1
-    integer(kind=i_def), intent(in), dimension(ndf_w2h)        :: map_w2h
-    integer(kind=i_def), intent(in), dimension(ndf_w2trace)    :: map_w2trace
-    integer(kind=i_def), intent(in), dimension(ndf_w2v)        :: map_w2v
-    integer(kind=i_def), intent(in), dimension(ndf_wtheta)     :: map_wtheta
-    real(kind=r_def), intent(inout), dimension(undf_anyspace_1) :: fld1
-    real(kind=r_def), intent(in),    dimension(undf_w0)         :: fld2
-    real(kind=r_def), intent(in),    dimension(undf_w1)         :: fld3
-    real(kind=r_def), intent(inout), dimension(undf_w2trace)    :: fld4
-    real(kind=r_def), intent(in),    dimension(undf_wtheta)     :: fld5
-    real(kind=r_def), intent(in),    dimension(undf_w2h)        :: fld6
-    real(kind=r_def), intent(in),    dimension(undf_w2v)        :: fld7
+    integer(kind=i_def), intent(in) :: undf_aspc1, undf_w0, undf_w1, &
+                                       undf_w2trace, undf_wtheta,    &
+                                       undf_w2h, undf_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1)   :: map_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_w0)      :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w1)      :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2h)     :: map_w2h
+    integer(kind=i_def), intent(in), dimension(ndf_w2trace) :: map_w2trace
+    integer(kind=i_def), intent(in), dimension(ndf_w2v)     :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_wtheta)  :: map_wtheta
+    real(kind=r_def), intent(inout), dimension(undf_aspc1)   :: fld1
+    real(kind=r_def), intent(in),    dimension(undf_w0)      :: fld2
+    real(kind=r_def), intent(in),    dimension(undf_w1)      :: fld3
+    real(kind=r_def), intent(inout), dimension(undf_w2trace) :: fld4
+    real(kind=r_def), intent(in),    dimension(undf_wtheta)  :: fld5
+    real(kind=r_def), intent(in),    dimension(undf_w2h)     :: fld6
+    real(kind=r_def), intent(in),    dimension(undf_w2v)     :: fld7
 
   end subroutine testkern_write_any_w2trace_code
 

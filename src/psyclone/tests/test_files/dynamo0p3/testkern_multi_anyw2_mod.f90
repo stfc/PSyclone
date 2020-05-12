@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,47 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
-program single_invoke
+module testkern_multi_anyw2_mod
 
-  ! Description: single point-wise operation (Z = X - bY)
-  ! specified in an invoke call.
-  use constants_mod, only: r_def
-  use field_mod,     only: field_type
+  use argument_mod
+  use kernel_mod
+  use constants_mod
 
   implicit none
 
-  type(field_type) :: f1, f2, f3
-  real(r_def)      :: b
+  ! Test that multiple read and write arguments on any_w2 space
+  ! produce correct code.
+  type, public, extends(kernel_type) :: testkern_multi_anyw2_type
+    private
+    type(arg_type), dimension(3) :: meta_args = (/ &
+         arg_type(gh_field, gh_inc,  any_w2),      &
+         arg_type(gh_field, gh_read, any_w2),      &
+         arg_type(gh_field, gh_read, any_w2)       &
+         /)
+    integer :: iterates_over = cells
+  contains
+    procedure, nopass :: code => testkern_multi_anyw2_code
+  end type testkern_multi_anyw2_type
 
-  b = 0.8
+contains
 
-  call invoke( X_minus_bY(f3, f1, b, f2) )
+  subroutine testkern_multi_anyw2_code(nlayers, field_1_any_w2,        &
+                                       field_2_any_w2, field_3_any_w2, &
+                                       ndf_any_w2, undf_any_w2, map_any_w2)
 
-end program single_invoke
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_any_w2
+    integer(kind=i_def), intent(in) :: undf_any_w2
+    integer(kind=i_def), intent(in), dimension(ndf_any_w2) :: map_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: field_1_any_w2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field_2_any_w2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field_3_any_w2
+
+  end subroutine testkern_multi_anyw2_code
+
+end module testkern_multi_anyw2_mod
