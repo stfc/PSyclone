@@ -43,6 +43,7 @@ from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol
+from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
 
@@ -221,19 +222,35 @@ class SymbolTable(object):
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name):
+    def lookup(self, name, scope=None):
         '''
         Look up a symbol in the symbol table.
 
         :param str name: name of the symbol.
+        :param scope: the scope or list of scopes that the symbol must have.
+        :type scope: [list of] :py:class:`psyclone.symbols.Scope`
 
-        :returns: symbol with the given name.
+        :returns: symbol with the given name and, if specified, scope.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises SymbolError: if the name exists in the Symbol Table but does \
+                             not have the specified scope.
         :raises KeyError: if the given name is not in the Symbol Table.
+
         '''
         try:
-            return self._symbols[self._normalize(name)]
+            symbol = self._symbols[self._normalize(name)]
+            if scope:
+                if not isinstance(scope, list):
+                    scope_list = [scope]
+                else:
+                    scope_list = scope
+                if symbol.scope not in scope_list:
+                    raise SymbolError(
+                        "Symbol '{0}' exists in the Symbol Table but has scope"
+                        " '{1}' which does not match with the requested "
+                        "scope(s): {2}".format(name, symbol.scope, scope_list))
+            return symbol
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))

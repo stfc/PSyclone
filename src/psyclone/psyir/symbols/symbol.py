@@ -39,6 +39,7 @@
 ''' This module contains the generic Symbol and the SymbolError.'''
 
 import six
+from psyclone.psyir.symbols.scopes import Scope
 
 
 class SymbolError(Exception):
@@ -65,23 +66,24 @@ class Symbol(object):
     belongs.
 
     :param str name: name of the symbol.
-    :param bool public: whether the symbol is public or not.
+    :param scope: the scope of the symbol.
+    :type scope: :py:class:`psyclone.psyir.symbols.Scope`
 
-    :raises TypeError: if the name is not a string or public is not a bool.
+    :raises TypeError: if the name is not a str or scope is not a Scope.
 
     '''
-    def __init__(self, name, public=True):
+    def __init__(self, name, scope=Scope.PUBLIC):
 
         if not isinstance(name, six.string_types):
             raise TypeError(
                 "{0} 'name' attribute should be of type 'str'"
                 " but '{1}' found.".format(type(self).__name__, type(name)))
-        if not isinstance(public, bool):
-            raise TypeError("{0} 'public' attribute should be of type 'bool' "
-                            "but '{1}' found.".format(type(self).__name__,
-                                                      type(name)))
+        if not isinstance(scope, Scope):
+            raise TypeError(
+                "{0} 'scope' attribute should be of type psyir.symbols.Scope "
+                "but '{1}' found.".format(type(self).__name__, type(name)))
         self._name = name
-        self._public = public
+        self._scope = scope
 
     @property
     def name(self):
@@ -92,12 +94,12 @@ class Symbol(object):
         return self._name
 
     @property
-    def is_public(self):
+    def scope(self):
         '''
-        :returns: whether or not this Symbol is public.
-        :rtype: bool
+        :returns: the scope of this Symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Scope`
         '''
-        return self._public
+        return self._scope
 
     def __str__(self):
         return self.name

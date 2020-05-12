@@ -41,6 +41,8 @@
 from __future__ import absolute_import
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.scopes import Scope
+from psyclone.psyir.symbols.datatypes import DeferredType
 
 
 class DataSymbol(Symbol):
@@ -93,12 +95,9 @@ class DataSymbol(Symbol):
 
         :raises SymbolError: if the module pointed to by the symbol interface \
                              does not contain the symbol.
-        :raises SymbolError: if the symbol exists in the module pointed to by \
-                             the interface but is not public.
         :raises NotImplementedError: if the deferred symbol is not a Global.
 
         '''
-        from psyclone.psyir.symbols import DeferredType
         if isinstance(self.datatype, DeferredType):
             if self.is_global:
                 # Copy all the symbol properties but the interface
@@ -106,19 +105,13 @@ class DataSymbol(Symbol):
                 module = self.interface.container_symbol
                 try:
                     extern_symbol = module.container.symbol_table.lookup(
-                        self.name)
+                        self.name, scope=Scope.PUBLIC)
                 except KeyError:
                     raise SymbolError(
                         "Error trying to resolve symbol '{0}' properties. The "
                         "interface points to module '{1}' but could not find "
                         "the definition of '{0}' in that module."
                         "".format(self.name, module.name))
-                if not extern_symbol.is_public:
-                    raise SymbolError(
-                        "Error trying to resolve the properties of symbol "
-                        "'{0}'. The interface points to module '{1}' but the "
-                        "symbol it contains is not public.".format(
-                            self.name, module.name))
                 self.copy_properties(extern_symbol)
                 self.interface = tmp
             else:
