@@ -157,11 +157,11 @@
 	kernel stub) for mesh properties that a kernel can request in
 	LFRic (Dynamo0.3) API.
 
-        51) PR #731 for #668. Adds support for ProfileInit and ProfileEnd
+	51) PR #731 for #668. Adds support for ProfileInit and ProfileEnd
 	functions in the PSyData API. Re-structuring of the associated
 	documentation.
 
-        52) PR #756 for #749. Adds the option to generate run-time checks
+	52) PR #756 for #749. Adds the option to generate run-time checks
 	for the LFRic API that fields are on function spaces consistent
 	with those specified in kernel metadata.
 
@@ -169,6 +169,10 @@
 	Statement to the PSyIR and adds checks that ensure that when a
 	child Node is added to a parent Node, the type of the child Node
 	is compatible with the type of Node expected by the parent.
+
+	54) PR #758 for #733. Shortens the variable names that are
+	constructed for LFRic PSy-layer variables related to any-space
+	function spaces.
 
 release 1.8.1 29th November 2019
 

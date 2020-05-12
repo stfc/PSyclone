@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,10 @@ program single_invoke
 
   ! Description: single point-wise operation (multiplication of a field
   ! by another field) specified in an invoke call.
-  use testkern_fs, only: testkern_fs_type
-  use inf,         only: field_type
+  use field_mod, only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2, f3
 
   call invoke( X_times_Y(f3, f1, f2) )

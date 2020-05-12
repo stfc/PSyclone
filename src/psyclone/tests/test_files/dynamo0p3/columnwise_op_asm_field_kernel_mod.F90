@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,8 @@ use constants_mod,           only : r_def, i_def
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
@@ -70,55 +72,40 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_asm_field_kernel_type
-   module procedure columnwise_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_asm_field_kernel_code
-contains
-  
-  type(columnwise_op_asm_field_kernel_type) function columnwise_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_constructor
 
-  SUBROUTINE columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, &
-       field_1_any_space_1_field_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, &
-       cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, &
-       cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_any_space_1_field_1, &
-       undf_any_space_1_field_1, map_any_space_1_field_1, &
-       cbanded_map_any_space_1_field_1, ndf_any_space_2_op_2, &
-       cbanded_map_any_space_2_op_2)
-      USE constants_mod, ONLY: r_def
-      IMPLICIT NONE
-      INTEGER, intent(in) :: cell
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: ncell_2d
-      INTEGER, intent(in) :: ndf_any_space_1_field_1
-      INTEGER, intent(in) :: undf_any_space_1_field_1
-      INTEGER, intent(in) :: ndf_any_space_2_op_2
-      REAL(KIND=r_def), intent(in), &
-           dimension(undf_any_space_1_field_1) :: field_1_any_space_1_field_1
-      INTEGER, intent(in) :: op_2_ncell_3d
-      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_field_1, &
-           ndf_any_space_2_op_2,op_2_ncell_3d) :: op_2
-      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, &
-           cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p
-      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth, &
-           cma_op_3_nrow,ncell_2d) :: cma_op_3
-      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: &
-           map_any_space_1_field_1
-      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,nlayers) :: &
-           cbanded_map_any_space_1_field_1
-      INTEGER, intent(in), dimension(ndf_any_space_2_op_2,nlayers) :: &
-           cbanded_map_any_space_2_op_2
+contains
+
+  subroutine columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d,     &
+                                     field1, ncell_3d, op_2, cma_op_3,        &
+                                     cma_op_3_nrow,   cma_op_3_ncol,          &
+                                     cma_op_3_bandwidth, cma_op_3_alpha,      &
+                                     cma_op_3_beta, cma_op_3_gamma_m,         &
+                                     cma_op_3_gamma_p, ndf_aspc1, undf_aspc1, &
+                                     map_aspc1, cbanded_map_aspc1, ndf_aspc2, &
+                                     cbanded_map_aspc2)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ncell_2d
+    integer(kind=i_def), intent(in) :: ndf_aspc1
+    integer(kind=i_def), intent(in) :: undf_aspc1
+    integer(kind=i_def), intent(in) :: ndf_aspc2
+    integer(kind=i_def), intent(in) :: ncell_3d
+    integer(kind=i_def), intent(in) :: cma_op_3_nrow, cma_op_3_ncol,       &
+                                       cma_op_3_bandwidth, cma_op_3_alpha, &
+                                       cma_op_3_beta, cma_op_3_gamma_m,    &
+                                       cma_op_3_gamma_p
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1,nlayers) :: cbanded_map_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc2,nlayers) :: cbanded_map_aspc2
+    real(kind=r_def), intent(in), dimension(undf_aspc1) :: field1
+    real(kind=r_def), intent(in), dimension(ndf_aspc1, ndf_aspc2,ncell_3d) :: op_2
+    real(kind=r_def), intent(out), dimension(cma_op_3_bandwidth, cma_op_3_nrow,ncell_2d) :: cma_op_3
 
     write (*,*) "Hello CMA World"
 

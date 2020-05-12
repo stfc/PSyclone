@@ -63,7 +63,9 @@ def setup():
 
 def test_field_xyoz(tmpdir):
     ''' Tests that a call, with a set of fields requiring XYoZ
-    quadrature, produces correct code. '''
+    quadrature, produces correct code.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -251,7 +253,9 @@ def test_edge_qr(tmpdir, dist_mem):
 
 def test_face_qr(tmpdir, dist_mem):
     ''' Check that we generate correct code when a kernel specifies
-    that it requires face quadrature. '''
+    that it requires face quadrature.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.6_face_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
