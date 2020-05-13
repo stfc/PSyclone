@@ -39,13 +39,15 @@
 
 from __future__ import absolute_import
 
+from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
-    FortranWriter, gen_datatype
+    FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
+    is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
-    BinaryOperation, Reference
+    UnaryOperation, BinaryOperation, NaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -325,6 +327,84 @@ def test_gen_datatype_exception_2():
 #             "WARNING  Fortran does not support relative precision for the "
 #             "'integer' datatype but 'Precision.DOUBLE' was specified for "
 #             "variable 'dummy'." in caplog.text)
+
+
+def test_reverse_map():
+    '''Check that the internal _reverse_map function returns a map with
+    the expected behaviour
+
+    '''
+    result = _reverse_map(OrderedDict([('+', 'PLUS')]))
+    assert isinstance(result, dict)
+    assert result['PLUS'] == '+'
+
+
+def test_reverse_map_duplicates():
+    '''Check that the internal _reverse_map function returns a map with
+    the expected behaviour when there are duplicates in the items of
+    the input ordered dictionary. It should use the first one found.
+
+    '''
+    result = _reverse_map(OrderedDict([('==', 'EQUAL'), ('.eq.', 'EQUAL')]))
+    assert isinstance(result, dict)
+    assert result['EQUAL'] == '=='
+    assert len(result) == 1
+
+    result = _reverse_map(OrderedDict([('.eq.', 'EQUAL'), ('==', 'EQUAL')]))
+    assert isinstance(result, dict)
+    assert result['EQUAL'] == '.eq.'
+    assert len(result) == 1
+
+
+@pytest.mark.parametrize("operator,result",
+                         [(UnaryOperation.Operator.SIN, "SIN"),
+                          (BinaryOperation.Operator.MIN, "MIN"),
+                          (NaryOperation.Operator.SUM, "SUM")])
+def test_get_fortran_operator(operator, result):
+    '''Check that the get_fortran_operator function returns the expected
+    values when provided with valid unary, binary and nary operators.
+
+    '''
+    assert result == get_fortran_operator(operator)
+
+
+def test_get_fortran_operator_error():
+    '''Check that the get_fortran_operator function raises the expected
+    exception when an unknown operator is provided.
+
+    '''
+    with pytest.raises(KeyError):
+        _ = get_fortran_operator(None)
+
+
+def test_is_fortran_intrinsic():
+    '''Check that the is_fortran_intrinsic function returns true if the
+    supplied operator is a fortran intrinsic and false otherwise.
+
+    '''
+    assert is_fortran_intrinsic("SIN")
+    assert not is_fortran_intrinsic("+")
+    assert not is_fortran_intrinsic(None)
+
+
+def test_precedence():
+    '''Check that the precedence function returns the expected relative
+    precedence values.
+
+    '''
+    assert precedence('.OR.') < precedence('.AND.')
+    assert precedence('*') < precedence('**')
+    assert precedence('.EQ.') == precedence('==')
+    assert precedence('*') == precedence('/')
+
+
+def test_precedence_error():
+    '''Check that the precedence function returns the expected exception
+    if an unknown operator is provided.
+
+    '''
+    with pytest.raises(KeyError):
+        _ = precedence('invalid')
 
 
 def test_fw_gen_use(fort_writer):
