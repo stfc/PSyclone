@@ -174,6 +174,12 @@
 	constructed for LFRic PSy-layer variables related to any-space
 	function spaces.
 
+	55) PR #760 for #751. Adds support for W2htrace and W2vtrace
+	function spaces.
+
+	56) PR #762 for #725. Renames the various builtin-operation-to-
+	code transformations now that they are not NEMO specific.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version

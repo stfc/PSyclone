@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, Array, Range
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
-from psyclone.psyGen import Transformation
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
+    Operator2CodeTrans
 
 
 def _get_array_bound(array, index):
@@ -94,7 +95,7 @@ def _get_array_bound(array, index):
     return (lower_bound, upper_bound, step)
 
 
-class Matmul2CodeTrans(Transformation):
+class Matmul2CodeTrans(Operator2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed. Currently only the matrix vector version of MATMUL is
@@ -117,18 +118,11 @@ class Matmul2CodeTrans(Transformation):
                     R(i) = R(i) + A(i,j) * B(j)
 
     '''
-    def __str__(self):
-        return ("Convert the PSyIR MATMUL intrinsic to equivalent PSyIR "
-                "code.")
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of the transformation as a string.
-        :rtype: str
-
-        '''
-        return "Matmul2CodeTrans"
+    def __init__(self):
+        super(Matmul2CodeTrans, self).__init__()
+        self._operator_name = "MATMUL"
+        self._classes = (BinaryOperation,)
+        self._operators = (BinaryOperation.Operator.MATMUL,)
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
@@ -148,17 +142,12 @@ class Matmul2CodeTrans(Transformation):
 
         '''
         # pylint: disable=too-many-branches
+
         # Import here to avoid circular dependencies.
         from psyclone.psyir.transformations import TransformationError
-        # Check the supplied argument is a matvec node
-        if not isinstance(node, BinaryOperation):
-            raise TransformationError(
-                "The supplied node should be a BinaryOperation but "
-                "found '{0}'.".format(type(node).__name__))
-        if node.operator != BinaryOperation.Operator.MATMUL:
-            raise TransformationError(
-                "The supplied node should be a MATMUL BinaryOperation but "
-                "found '{0}'.".format(node.operator))
+
+        super(Matmul2CodeTrans, self).validate(node, options)
+
         # Check the matmul is the only code on the rhs of an assignment
         # i.e. ... = matmul(a,b)
         if not isinstance(node.parent, Assignment):
@@ -193,6 +182,14 @@ class Matmul2CodeTrans(Transformation):
                 "Expected 1st child of a MATMUL BinaryOperation to be "
                 "a matrix with at least 2 dimensions, but found '{0}'."
                 "".format(len(matrix.symbol.shape)))
+        if len(matrix.symbol.shape) > 2 and not matrix.children:
+            # If the matrix has no children then it is a reference. If
+            # it is a reference then the number of arguments must be
+            # 2.
+            raise TransformationError(
+                "Expected 1st child of a MATMUL BinaryOperation to have 2 "
+                "dimensions, but found '{0}'."
+                "".format(len(matrix.symbol.shape)))
         if len(matrix.symbol.shape) == 2 and not matrix.children:
             # If the matrix only has 2 dimensions and all of its data is
             # used in the matrix vector multiply then the reference does
@@ -224,6 +221,14 @@ class Matmul2CodeTrans(Transformation):
                             "are permitted to be Ranges but found {0} at "
                             "index {1}.".format(type(index).__name__, count+2))
 
+        if len(vector.symbol.shape) > 1 and not vector.children:
+            # If the vector has no children then it is a reference. If
+            # it is a reference then the number of arguments must be
+            # 1.
+            raise TransformationError(
+                "Expected 2nd child of a MATMUL BinaryOperation to have 1 "
+                "dimension, but found '{0}'."
+                "".format(len(vector.symbol.shape)))
         if len(vector.symbol.shape) == 1 and not vector.children:
             # If the vector only has 1 dimension and all of its data is
             # used in the matrix vector multiply then the reference does

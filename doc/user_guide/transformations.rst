@@ -143,6 +143,17 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the ABS Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
+
+####
+
 .. autoclass:: psyclone.transformations.ACCDataTrans
     :noindex:
     :members: apply
@@ -221,34 +232,9 @@ can be found in the API-specific sections).
 
 ####
 
-.. _sec_move_trans:
-
-.. autoclass:: psyclone.transformations.MoveTrans
-    :members: apply
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.NemoAbsTrans
+.. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
       :noindex:
-
-.. note:: This transformation is no-longer NEMO-specific and will be made
-          generic in #725.
-	  
-.. warning:: This transformation assumes that the ABS Operator acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.NemoMinTrans
-      :members: apply
-      :noindex:
-
-.. note:: This transformation is no-longer NEMO-specific and will be made
-          generic in #725.
 
 .. warning:: This transformation assumes that the MIN Operator acts on
              PSyIR Real scalar data and does not check that this is
@@ -257,17 +243,11 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.NemoSignTrans
-      :members: apply
-      :noindex:
+.. _sec_move_trans:
 
-.. note:: This transformation is no-longer NEMO-specific and will be made
-          generic in #725.
-
-.. warning:: This transformation assumes that the SIGN Operator acts
-             on PSyIR Real scalar data and does not check whether or not
-	     this is the case. Once issue #658 is on master then this
-	     limitation can be fixed.
+.. autoclass:: psyclone.transformations.MoveTrans
+    :members: apply
+    :noindex:
 
 ####
 
@@ -310,6 +290,16 @@ can be found in the API-specific sections).
     :members: apply
     :noindex:
 
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the SIGN Operator acts
+             on PSyIR Real scalar data and does not check whether or not
+	     this is the case. Once issue #658 is on master then this
+	     limitation can be fixed.
 
 Kernels
 -------
