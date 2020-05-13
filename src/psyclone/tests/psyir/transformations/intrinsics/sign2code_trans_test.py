@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the abs2code transformation.'''
+'''Module containing tests for the sign2code transformation.'''
 
 from __future__ import absolute_import
 import pytest
