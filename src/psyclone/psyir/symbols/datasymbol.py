@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.scopes import Scope
+from psyclone.psyir.symbols.scopes import Scope, DEFAULT_SCOPE
 
 
 class DataSymbol(Symbol):
@@ -69,7 +69,7 @@ class DataSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
 
     '''
-    def __init__(self, name, datatype, scope=Scope.DEFAULT,
+    def __init__(self, name, datatype, scope=DEFAULT_SCOPE,
                  constant_value=None, interface=None):
         super(DataSymbol, self).__init__(name, scope)
 
@@ -93,14 +93,16 @@ class DataSymbol(Symbol):
         (i.e. an external container) and obtain the properties of the symbol.
 
         :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol.
+                             does not contain the symbol (or the symbol is \
+                             not public).
         :raises NotImplementedError: if the deferred symbol is not a Global.
 
         '''
         from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
             if self.is_global:
-                # Copy all the symbol properties but the interface
+                # Copy all the symbol properties but the interface and scope
+                # (the latter is determined by the current scoping unit)
                 tmp = self.interface
                 module = self.interface.container_symbol
                 try:
@@ -364,8 +366,7 @@ class DataSymbol(Symbol):
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name and scope (public/private) which are
-        immutable.
+        symbol_in, apart from the name (which is immutable) and scope.
 
         :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`

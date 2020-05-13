@@ -39,7 +39,7 @@
 ''' This module contains the generic Symbol and the SymbolError.'''
 
 import six
-from psyclone.psyir.symbols.scopes import Scope
+from psyclone.psyir.symbols.scopes import Scope, DEFAULT_SCOPE
 
 
 class SymbolError(Exception):
@@ -72,7 +72,7 @@ class Symbol(object):
     :raises TypeError: if the name is not a str or scope is not a Scope.
 
     '''
-    def __init__(self, name, scope=Scope.DEFAULT):
+    def __init__(self, name, scope=DEFAULT_SCOPE):
 
         if not isinstance(name, six.string_types):
             raise TypeError(
@@ -81,7 +81,8 @@ class Symbol(object):
         if not isinstance(scope, Scope):
             raise TypeError(
                 "{0} 'scope' attribute should be of type psyir.symbols.Scope "
-                "but '{1}' found.".format(type(self).__name__, type(scope).__name__))
+                "but '{1}' found.".format(type(self).__name__,
+                                          type(scope).__name__))
         self._name = name
         self._scope = scope
 

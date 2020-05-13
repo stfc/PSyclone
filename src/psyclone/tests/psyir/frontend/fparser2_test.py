@@ -851,7 +851,8 @@ def test_default_public_container(parser):
 
 
 def test_default_private_container(parser):
-    ''' Test when all symbols default to private within a module. '''
+    ''' Test that symbols get the correct scopes when the Fortran specifies
+    that the default is private within a module. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(

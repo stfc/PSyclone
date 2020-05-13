@@ -929,16 +929,18 @@ class Fparser2Reader(object):
     @staticmethod
     def _parse_access_statements(nodes):
         '''
-        Search the supplied list of fparser2 nodes for any accessibility
+        Search the supplied list of fparser2 nodes (which must represent a
+        complete Specification Part) for any accessibility
         statements (e.g. "PUBLIC :: my_var") to determine the default
         accessibility of symbols as well as identifying those that are
         explicitly declared as public or private.
 
-        :param nodes: nodes in the fparser2 parse tree to search.
+        :param nodes: nodes in the fparser2 parse tree describing a \
+                      Specification Part that will be searched.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
-        :returns: whether the default scoping of symbols, list of public \
-                  symbol names, list of private symbol names.
+        :returns: default scope of symbols within the current scoping unit, \
+                  list of public symbol names, list of private symbol names.
         :rtype: 3-tuple of (:py:class:`psyclone.symbols.Scope`, list, list)
 
         :raises GenerationError: if a symbol is explicitly declared as being \

@@ -43,9 +43,13 @@ from enum import Enum
 class Scope(Enum):
     ''' Enumeration of the different scoping attributes supported in
     the PSyIR. If no scope information is supplied for a Symbol then it
-    is given the DEFAULT value.
+    is given the DEFAULT_SCOPE value.
 
     '''
     PUBLIC = 1
     PRIVATE = 2
-    DEFAULT = PUBLIC
+
+
+# The scope given to any PSyIR symbols that are created without being
+# given an explicit scope.
+DEFAULT_SCOPE = Scope.PUBLIC

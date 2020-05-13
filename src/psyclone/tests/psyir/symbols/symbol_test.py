@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import Symbol, Scope
+from psyclone.psyir.symbols import Symbol, Scope, DEFAULT_SCOPE
 
 
 def test_symbol_initialisation():
@@ -48,9 +48,9 @@ def test_symbol_initialisation():
     sym = Symbol("sym1")
     assert isinstance(sym, Symbol)
     assert sym.name == "sym1"
-    assert sym.scope == Scope.DEFAULT
+    assert sym.scope == DEFAULT_SCOPE
     # Check that the default scope is public
-    assert sym.scope == Scope.PUBLIC
+    assert DEFAULT_SCOPE == Scope.PUBLIC
 
     sym = Symbol("sym2", Scope.PRIVATE)
     assert sym.scope == Scope.PRIVATE
