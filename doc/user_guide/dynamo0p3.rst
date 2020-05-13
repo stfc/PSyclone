@@ -710,7 +710,7 @@ operator to a field might look like::
 
 In some cases a Kernel may be written so that it works for fields and/or
 operators from any type of a vector ``W2*`` space (all ``W2*`` spaces
-except for the ``W2trace`` space, see Section
+except for the ``W2*trace`` spaces, see Section
 :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
 In this case the metadata should be specified as being ``ANY_W2``.
 
@@ -891,11 +891,20 @@ vector variables are:
   resulting from taking the trace of a ``W2`` space. DoFs are shared between
   faces, hence making this space fully continuous;
 
+* ``W2Htrace`` is the space of scalar functions defined only on cell faces
+  in the horizontal, resulting from taking the trace of a ``W2H`` space.
+  DoFs are shared between horizontal faces, hence making this space
+  continuous in the horizontal and discontinuous in the vertical;
+
+* ``W2Vtrace`` is the space of scalar functions defined only on cell faces
+  in the vertical, resulting from taking the trace of a ``W2V`` space.
+  DoFs are shared between vertical faces, hence making this space
+  discontinuous in the horizontal and continuous in the vertical;
+
 * ``Wchi`` is the space of scalar functions used to store coordinates
   in LFRic. It is fully discontinuous except for the coordinate order
-  ``0`` when it becomes the ``W0`` space (i.e. fully
-  continuous). Please see the next section for more details on this
-  function space.
+  ``0`` when it becomes the ``W0`` space (i.e. fully continuous).
+  Please see the next section for more details on this function space.
 
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
@@ -911,13 +920,17 @@ sections above:
   is known to be discontinuous and/or for when a Kernel has been written
   so that it works with fields on any of the discontinuous spaces;
 
-* ``ANY_W2`` for any type of a vector ``W2*`` function space, i.e.\ ``W2``,
-  ``W2H``, ``W2V`` and ``W2broken`` but not ``W2trace``.
+* ``ANY_W2`` for any type of a vector ``W2*`` function space, i.e. ``W2``,
+  ``W2H``, ``W2V`` and ``W2broken`` but not ``W2*trace`` spaces.
 
 As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
 ``ANY_SPACE_n`` and ``ANY_W2`` function space types are treated as
 continuous while ``ANY_DISCONTINUOUS_SPACE_n`` spaces are treated
 as discontinuous.
+
+.. note:: The name and use of ``ANY_W2`` metadata (e.g. continuity and
+          vector or/and scalar basis of ``W2*`` spaces the metadata
+          can represent) are being reviewed in PSyclone issue #540.
 
 Since the Dynamo0.3 API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
@@ -933,15 +946,15 @@ function spaces are summarised in the table below.
 
 .. tabularcolumns:: |l|l|
 
-+---------------------------+----------------------------------+
-| Function Space Continuity | Function Space Name              |
-+===========================+==================================+
-| Continuous                | W0, W1, W2, W2H, W2trace, ANY_W2 |
-|                           | ANY_SPACE_n                      |
-+---------------------------+----------------------------------+
-| Discontinuous             | W2V, W2broken, W3, Wtheta,       |
-|                           | ANY_DISCONTINUOUS_SPACE_n        |
-+---------------------------+----------------------------------+
++---------------------------+--------------------------------------+
+| Function Space Continuity | Function Space Name                  |
++===========================+======================================+
+| Continuous                | W0, W1, W2, W2H, W2trace, W2Htrace,  |
+|                           | ANY_W2, ANY_SPACE_n                  |
++---------------------------+--------------------------------------+
+| Discontinuous             | W2broken, W2V, W2Vtrace, W3, Wtheta, |
+|                           | ANY_DISCONTINUOUS_SPACE_n            |
++---------------------------+--------------------------------------+
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
@@ -960,7 +973,7 @@ Read-Only Function Spaces
 
 LFRic supports the concept of a **read-only function space**. A field
 on such a function space must not be modified by any kernels contained
-within `invoke` calls (i.e. within any code that PSyclone is
+within ``invoke`` calls (i.e. within any code that PSyclone is
 responsible for). Further, a field on a read-only function space must
 contain clean halos in order to avoid any halo exchanges that would
 occur if the field is read within a kernel where redundant
@@ -1382,21 +1395,22 @@ rules, along with PSyclone's naming conventions, are:
 
       1) If it is a basis or differential basis function then we must pass
          real arrays of kind ``r_def`` with intent ``in``. For each shape
-	 specified in the ``gh_shape`` metadata entry:
+         specified in the ``gh_shape`` metadata entry:
 
-	 1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
-	    and are named ``"basis_"<field_function_space>_<quadrature_arg_name>``
-	    or ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
-	    as appropriate:
+         1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+            and are named
+            ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
+            ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+            as appropriate:
 
             1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
-            (``dimension``, ``number_of_dofs``, ``np_xy``,
-            ``np_z``).
+               (``dimension``, ``number_of_dofs``, ``np_xy``,
+               ``np_z``).
 
-	    2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
-	    then the  arrays have extent
-	    (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
-	    ``nedges``).
+            2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+               then the  arrays have extent
+               (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+               ``nedges``).
 
          2) If shape is ``gh_evaluator`` then we pass one array for
             each target function space (i.e. as specified by
@@ -1408,8 +1422,8 @@ rules, along with PSyclone's naming conventions, are:
             as appropriate.
 
          where ``<quadrature_arg_name>`` is the name of the corresponding
-	 quadrature object being passed to the Invoke.
-	 ``dimension`` is 1 or 3 and depends upon the function space
+         quadrature object being passed to the Invoke.
+         ``dimension`` is 1 or 3 and depends upon the function space
          (see :ref:`dynamo0.3-function-space` above for more information) and
          whether or not it is a basis or a differential basis function (see
          the table below). ``number_of_dofs`` is the number of degrees of
@@ -1418,21 +1432,23 @@ rules, along with PSyclone's naming conventions, are:
          all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
          iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
          vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
-	 faces/edges obtained from the appropriate quadrature object supplied
-	 to the Invoke.
+         faces/edges obtained from the appropriate quadrature object supplied
+         to the Invoke.
 
          .. tabularcolumns:: |l|c|l|
 
          +---------------+-----------+------------------------------------+
          | Function Type | Dimension | Function Space Name                |
          +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W3, Wtheta, Wchi      |
+         | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
+         |               |           | W3, Wtheta, Wchi                   |
          |               +-----------+------------------------------------+
          |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
          +---------------+-----------+------------------------------------+
          | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
          | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W3, Wtheta, Wchi  |
+         |               |    3      | W0, W1, W2trace, W2Htrace,         |
+         |               |           | W2Vtrace, W3, Wtheta, Wchi         |
          +---------------+-----------+------------------------------------+
 
       2) If it is an orientation array, include the associated argument.
@@ -1880,6 +1896,8 @@ As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
 :ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
 scalar that has its data modified by a Built-in is marked in **bold**.
+
+.. _dynamo0.3-built-ins-names:
 
 Naming scheme
 +++++++++++++

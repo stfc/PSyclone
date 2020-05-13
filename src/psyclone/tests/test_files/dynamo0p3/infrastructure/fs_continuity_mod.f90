@@ -33,10 +33,20 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-!
+! Modified R. W. Ford, STFC Daresbury Laboratory
+!          I. Kavcic, Met Office
+
+!> @brief Define enumerator variables that describe the different types of
+!!        function space continuity.
+
 module fs_continuity_mod
+
   use constants_mod, only: i_native
+
+  implicit none
+
   private
+
   integer(i_native), public, parameter :: W0       = 173
   integer(i_native), public, parameter :: W1       = 194
   integer(i_native), public, parameter :: W2       = 889
@@ -44,7 +54,10 @@ module fs_continuity_mod
   integer(i_native), public, parameter :: W2H      = 884
   integer(i_native), public, parameter :: W2broken = 211
   integer(i_native), public, parameter :: W2trace  = 213
+  integer(i_native), public, parameter :: W2Vtrace = 666
+  integer(i_native), public, parameter :: W2Htrace = 777
   integer(i_native), public, parameter :: W3       = 424
   integer(i_native), public, parameter :: Wtheta   = 274
   integer(i_native), public, parameter :: Wchi     = 869
+
 end module fs_continuity_mod

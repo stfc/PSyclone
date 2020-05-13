@@ -33,11 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the nemo MIN transformation.'''
+'''Module containing tests for the Min2Code transformation.'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations import NemoMinTrans, TransformationError
+from psyclone.psyir.transformations import Min2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
@@ -53,7 +53,7 @@ def test_initialise():
     class is created and that the str and name methods work as expected.
 
     '''
-    trans = NemoMinTrans()
+    trans = Min2CodeTrans()
     assert trans._operator_name == "MIN"
     assert trans._classes == (BinaryOperation, NaryOperation)
     assert trans._operators == (BinaryOperation.Operator.MIN,
@@ -63,10 +63,10 @@ def test_initialise():
 def test_str_name():
     '''Check that the str and name methods work as expected.'''
 
-    trans = NemoMinTrans()
+    trans = Min2CodeTrans()
     assert (str(trans) == "Convert the PSyIR MIN intrinsic to equivalent "
             "PSyIR code.")
-    assert trans.name == "NemoMinTrans"
+    assert trans.name == "Min2CodeTrans"
 
 
 def example_psyir_binary(create_expression):
@@ -161,8 +161,8 @@ def test_correct_binary(func, output, tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=MIN({0}, arg_1)\n\n"
         "end subroutine min_example\n".format(output)) in result
-    trans = NemoMinTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
+    trans = Min2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine min_example(arg,arg_1)\n"
@@ -207,8 +207,8 @@ def test_correct_expr(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=1.0 + MIN(arg, arg_1) + 2.0\n\n"
         "end subroutine min_example\n") in result
-    trans = NemoMinTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
+    trans = Min2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine min_example(arg,arg_1)\n"
@@ -254,9 +254,9 @@ def test_correct_2min(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
         "end subroutine min_example\n") in result
-    trans = NemoMinTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
-    _, _ = trans.apply(min_op, operation.root.symbol_table)
+    trans = Min2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
+    trans.apply(min_op, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine min_example(arg,arg_1)\n"
@@ -301,8 +301,8 @@ def test_correct_nary(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=MIN(arg, arg_1, arg_2)\n\n"
         "end subroutine min_example\n") in result
-    trans = NemoMinTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
+    trans = Min2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine min_example(arg,arg_1,arg_2)\n"
@@ -331,13 +331,9 @@ def test_correct_nary(tmpdir):
 def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
-    Config.get().api = "dynamo0.3"
-    operation = example_psyir_binary(lambda arg: arg)
-    trans = NemoMinTrans()
+    trans = Min2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = trans.apply(operation, operation.root.symbol_table)
+        trans.apply(None)
     assert (
-        "Error in NemoMinTrans transformation. This transformation only works "
-        "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
-    # Remove the created config instance
-    Config._instance = None
+        "Error in Min2CodeTrans transformation. The supplied node argument "
+        "is not a MIN operator, found 'NoneType'." in str(excinfo.value))

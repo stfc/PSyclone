@@ -363,7 +363,9 @@ def test_single_node_dynamo0p3():
 
 def test_node_list_dynamo0p3():
     ''' Test that applying Extract Transformation on a list of Nodes
-    produces the correct result in Dynamo0.3 API. '''
+    produces the correct result in the Dynamo0.3 API.
+
+    '''
     etrans = LFRicExtractTrans()
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              DYNAMO_API, idx=0, dist_mem=False)
@@ -384,10 +386,10 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%PreEnd
-      DO df=1,undf_any_space_1_f5
+      DO df=1,undf_aspc1_f5
         f5_proxy%data(df) = 0.0
       END DO
-      DO df=1,undf_any_space_1_f2
+      DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
@@ -423,7 +425,9 @@ def test_node_list_dynamo0p3():
 @pytest.mark.xfail(reason="Builtins not working (#637) and not all "
                           "parameters saved (#646)")
 def test_dynamo0p3_builtin():
-    ''' Tests the handling of builtins'''
+    ''' Tests the handling of builtins.
+
+    '''
     etrans = LFRicExtractTrans()
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              DYNAMO_API, idx=0, dist_mem=False)
@@ -453,10 +457,10 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
-      DO df=1,undf_any_space_1_f5
+      DO df=1,undf_aspc1_f5
         f5_proxy%data(df) = 0.0
       END DO
-      DO df=1,undf_any_space_1_f2
+      DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
@@ -478,7 +482,9 @@ def test_dynamo0p3_builtin():
 
 def test_extract_single_builtin_dynamo0p3():
     ''' Test that extraction of a BuiltIn in an Invoke produces the
-    correct result in Dynamo0.3 API without and with optimisations. '''
+    correct result in Dynamo0.3 API without and with optimisations.
+
+    '''
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     etrans = LFRicExtractTrans()
@@ -498,7 +504,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%PreEnd
-      DO df=1,undf_any_space_1_f2
+      DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
       END DO
       CALL extract_psy_data%PostStart
@@ -526,7 +532,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
-      DO df=1,undf_any_space_1_f1
+      DO df=1,undf_aspc1_f1
         f1_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)
       END DO
       !$omp end parallel do
@@ -552,7 +558,9 @@ def test_extract_single_builtin_dynamo0p3():
 
 def test_extract_kernel_and_builtin_dynamo0p3():
     ''' Test that extraction of a Kernel and a BuiltIny in an Invoke
-    produces the correct result in Dynamo0.3 API. '''
+    produces the correct result in Dynamo0.3 API.
+
+    '''
     etrans = LFRicExtractTrans()
 
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
@@ -573,7 +581,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%PreEnd
-      DO df=1,undf_any_space_1_f2
+      DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,14 +44,17 @@
 !> @brief Applies boundary conditions to a lma operator
 !> @details Wrapper code for applying boundary conditions to a operator
 module enforce_operator_bc_kernel_mod
+
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_OPERATOR, GH_READWRITE,         &
                                     ANY_SPACE_1, ANY_SPACE_2,          &
                                     CELLS
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -68,29 +71,17 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface enforce_operator_bc_kernel_type
-  module procedure enforce_operator_bc_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public enforce_operator_bc_code
-contains
 
-type(enforce_operator_bc_kernel_type) function enforce_operator_bc_kernel_constructor() result(self)
-  return
-end function enforce_operator_bc_kernel_constructor
+contains
 
 !> @brief Applies boundary conditions to an operator
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d Total number of cells
-!! @param[inout] op Operator data array to map from space 1 to space 2
+!! @param[in,out] op Operator data array to map from space 1 to space 2
 !! @param[in] ndf1 Number of degrees of freedom per cell for to space
 !! @param[in] ndf2 Number of degrees of freedom per cell for from space
 !! @param[in] boundary_value Flags (= 0) for dofs that live on the
@@ -103,24 +94,24 @@ subroutine enforce_operator_bc_code(cell, nlayers,                   &
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers, cell, ncell_3d
-  integer, intent(in) :: ndf1, ndf2
-  integer, dimension(ndf1,2), intent(in) :: boundary_value
+  integer(kind=i_def), intent(in) :: nlayers, cell, ncell_3d
+  integer(kind=i_def), intent(in) :: ndf1, ndf2
+  integer(kind=i_def), dimension(ndf1,2), intent(in) :: boundary_value
 
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(inout) :: op
 
   ! Local variables
-  integer :: df, k, ik
+  integer(kind=i_def) :: df, k, ik
 
   k = 1
   ik = (cell-1)*nlayers + k
   do df = 1,ndf1
-    op(df,:,ik) = op(df,:,ik)*real(boundary_value(df,1))
+    op(df,:,ik) = op(df,:,ik)*real(boundary_value(df,1), r_def)
   end do
   k = nlayers  
   ik = (cell-1)*nlayers + k
   do df = 1,ndf1
-    op(df,:,ik) = op(df,:,ik)*real(boundary_value(df,2))
+    op(df,:,ik) = op(df,:,ik)*real(boundary_value(df,2), r_def)
   end do
 
 end subroutine enforce_operator_bc_code
