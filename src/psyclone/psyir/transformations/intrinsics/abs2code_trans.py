@@ -34,28 +34,24 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter, STFC Daresbury Laboratory
 
-'''Module providing a NEMO-api-specific transformation from a PSyIR
-ABS operator to PSyIR code. This could be useful if the ABS operator
-is not supported by the back-end or if the performance in the inline
-code is better than the intrinsic.
-
-This implementation is no longer NEMO-specific and should be modified
-(and renamed) to work for all APIs (#725).
+'''Module providing a transformation from a PSyIR ABS operator to
+PSyIR code. This could be useful if the ABS operator is not supported
+by the back-end or if the performance in the inline code is better
+than the intrinsic.
 
 '''
 from __future__ import absolute_import
-from psyclone.undoredo import Memento
-from psyclone.psyir.transformations.nemo_operator_trans import \
-    NemoOperatorTrans
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
+    Operator2CodeTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
     Reference, Literal, IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
-class NemoAbsTrans(NemoOperatorTrans):
-    '''Provides a NEMO-api-specific transformation from a PSyIR ABS
-    Operator node to equivalent code in a PSyIR tree. Validity checks
-    are also performed.
+class Abs2CodeTrans(Operator2CodeTrans):
+    '''Provides a transformation from a PSyIR ABS Operator node to
+    equivalent code in a PSyIR tree. Validity checks are also
+    performed.
 
     The transformation replaces
 
@@ -74,7 +70,7 @@ class NemoAbsTrans(NemoOperatorTrans):
 
     '''
     def __init__(self):
-        super(NemoAbsTrans, self).__init__()
+        super(Abs2CodeTrans, self).__init__()
         self._operator_name = "ABS"
         self._classes = (UnaryOperation,)
         self._operators = (UnaryOperation.Operator.ABS,)
@@ -112,16 +108,12 @@ class NemoAbsTrans(NemoOperatorTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
+        # pylint: disable=too-many-locals
         self.validate(node)
 
         schedule = node.root
         symbol_table = schedule.symbol_table
-        memento = Memento(schedule, self, [node])
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
@@ -172,5 +164,3 @@ class NemoAbsTrans(NemoOperatorTrans):
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
         if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)
-
-        return schedule, memento

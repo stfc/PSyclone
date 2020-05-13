@@ -41,7 +41,7 @@
 ! Modified I. Kavcic, Met Office
 !          A. R. Porter, STFC Daresbury Laboratory
 
-!> @brief The argument type to hold kernel metadata required by the psy layer.
+!> @brief The argument type to hold kernel metadata required by the PSy layer.
 
 module argument_mod
 
@@ -49,6 +49,10 @@ module argument_mod
   ! fs_continuity_mod rather than the old location argument_mod.f90. The
   ! inclusion of fs_continuity_mod here is a temporary solution until
   ! this issue (#764) is addressed.
+  ! Note: this module should really have a keyword "private" before the explicit
+  ! declaration of "public" parameter. This is currently not possible due to
+  ! the use of fs_continuity_mod, however it will need to be added.
+
   use fs_continuity_mod
 
   implicit none
@@ -69,11 +73,10 @@ module argument_mod
   integer, public, parameter :: GH_MIN       = 16
   integer, public, parameter :: GH_MAX       = 17
 
-  ! Function-space labels
-  integer, public, parameter :: ANY_W2    = 110
-
-  ! Distinct any_space IDs. Separate IDs required as we may have
-  ! groups of fields that must be on the same space within a kernel
+  ! General function space IDs. Distinct IDs required as we may
+  ! have groups of fields that must be on the same space within
+  ! a kernel.
+  ! IDs for any space regardless of continuity.
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
   integer, public, parameter :: ANY_SPACE_3  = 203
@@ -84,9 +87,12 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
-  ! Distinct any_discontinuous_space IDs. Separate IDs required
-  ! as we may have groups of fields that must be on the same space
-  ! within a kernel
+  ! IDs for any vector W2-type space regardless of continuity
+  ! (w2, w2h, w2v, w2broken but not w2*trace spaces of scalar
+  ! functions). Issue #540 will resolve what W2* spaces should
+  ! be included in ANY_W2 list and how they should be treated.
+  integer, public, parameter :: ANY_W2       = 112
+  ! IDs for any discontinuous space
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_2  = 252
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_3  = 253

@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. Porter and R. Ford, STFC Daresbury Lab
+# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
@@ -69,6 +70,7 @@ class LFRicBuild(Compile):
                               "mesh_mod",
                               "stencil_dofmap_mod",
                               "function_space_mod",
+                              "scalar_mod",
                               "field_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",

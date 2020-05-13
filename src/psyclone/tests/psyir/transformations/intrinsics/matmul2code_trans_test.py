@@ -39,7 +39,8 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
-from psyclone.psyir.transformations.matmul2code_trans import _get_array_bound
+from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
+    _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
     Reference, Range
 from psyclone.psyGen import KernelSchedule
@@ -108,8 +109,9 @@ def test_validate1():
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(None)
-    assert ("The supplied node should be a BinaryOperation but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("Error in Matmul2CodeTrans transformation. The supplied node "
+            "argument is not a MATMUL operator, found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_validate2():
@@ -123,24 +125,48 @@ def test_validate2():
         trans.validate(BinaryOperation.create(
             BinaryOperation.Operator.ADD, Literal("1.0", REAL_TYPE),
             Literal("1.0", REAL_TYPE)))
-    assert ("Transformation Error: The supplied node should be a MATMUL "
-            "BinaryOperation but found 'Operator.ADD'." in str(excinfo.value))
+    assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
+            "The supplied node operator is invalid, found 'Operator.ADD'."
+            in str(excinfo.value))
 
 
 def test_validate3():
+    '''Check that the Matmul2Code validate method raises the expected
+    exception when the supplied node is a MATMUL binary operation but
+    doesn't have an assignment as an ancestor.
+
+    '''
+    trans = Matmul2CodeTrans()
+    vector_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector = Reference(DataSymbol("x", vector_type))
+    array = Reference(DataSymbol("y", array_type))
+    matmul = BinaryOperation.create(
+        BinaryOperation.Operator.MATMUL, array, vector)
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(matmul)
+    assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
+            "This transformation requires the operator to be part of an "
+            "assignment statement, but no such assignment was found."
+            in str(excinfo.value))
+
+
+def test_validate4():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     it is not the only operation on the RHS of an assignment.
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10])
-    array = Array.create(DataSymbol("x", array_type),
-                         [Literal("10", INTEGER_TYPE)])
+    vector_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector = Reference(DataSymbol("x", vector_type))
+    array = Reference(DataSymbol("y", array_type))
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, array)
-    _ = BinaryOperation.create(BinaryOperation.Operator.MUL, matmul,
-                               Literal("1.0", REAL_TYPE))
+        BinaryOperation.Operator.MATMUL, array, vector)
+    rhs = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, matmul, vector)
+    _ = Assignment.create(array, rhs)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Matmul2CodeTrans only supports the "
@@ -148,7 +174,7 @@ def test_validate3():
             "operation on the rhs of an assignment." in str(excinfo.value))
 
 
-def test_validate4():
+def test_validate5():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     either or both arguments are not references.
@@ -170,7 +196,7 @@ def test_validate4():
             in str(excinfo.value))
 
 
-def test_validate5():
+def test_validate6():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     either or both of its arguments are references to datasymbols that
@@ -189,10 +215,10 @@ def test_validate5():
             "'DataSymbol', 'DataSymbol'." in str(excinfo.value))
 
 
-def test_validate6():
+def test_validate7():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
-    its first (matrix) argument has less than 2 dimensions.
+    its first (matrix) argument has fewer than 2 dimensions.
 
     '''
     trans = Matmul2CodeTrans()
@@ -208,7 +234,49 @@ def test_validate6():
             "but found '1'." in str(excinfo.value))
 
 
-def test_validate7():
+def test_validate8():
+    '''Check that the Matmul2Code validate method raises the expected
+    exception when the supplied node is a MATMUL binary operation but
+    its first (matrix) argument is a reference to a matrix with
+    greater than 2 dimensions.
+
+    '''
+    trans = Matmul2CodeTrans()
+    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    array = Reference(DataSymbol("x", array_type))
+    matmul = BinaryOperation.create(
+        BinaryOperation.Operator.MATMUL, array, array)
+    _ = Assignment.create(array, matmul)
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(matmul)
+    assert ("Transformation Error: Expected 1st child of a MATMUL "
+            "BinaryOperation to have 2 dimensions, but found '3'."
+            in str(excinfo.value))
+
+
+def test_validate9():
+    '''Check that the Matmul2Code validate method raises the expected
+    exception when the supplied node is a MATMUL binary operation but
+    its second (vector) argument is a reference to a vector with
+    greater than 1 dimension.
+
+    '''
+    trans = Matmul2CodeTrans()
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array = Reference(DataSymbol("x", array_type))
+    vector_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    vector = Reference(DataSymbol("y", vector_type))
+    matmul = BinaryOperation.create(
+        BinaryOperation.Operator.MATMUL, array, vector)
+    _ = Assignment.create(array, matmul)
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(matmul)
+    assert ("Transformation Error: Expected 2nd child of a MATMUL "
+            "BinaryOperation to have 1 dimension, but found '3'."
+            in str(excinfo.value))
+
+
+def test_validate10():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     the first two dimensions of its first (matrix) argument are not
@@ -226,7 +294,7 @@ def test_validate7():
             in str(excinfo.value))
 
 
-def test_validate8():
+def test_validate11():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     the third (or higher) dimension of the first (matrix) argument is
@@ -245,7 +313,7 @@ def test_validate8():
             "found Range at index 2." in str(excinfo.value))
 
 
-def test_validate9():
+def test_validate12():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     the first dimension of its second (vector) argument is not a full
@@ -262,7 +330,7 @@ def test_validate9():
             "argument 'x' must be a full range." in str(excinfo.value))
 
 
-def test_validate10():
+def test_validate13():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
     the second (or higher) dimension of the second (vector) argument is
@@ -281,7 +349,7 @@ def test_validate10():
             "Range at index 1." in str(excinfo.value))
 
 
-def test_validate11():
+def test_validate14():
     '''Check that the Matmul2Code validate method returns without any
     exceptions when the supplied node is a MATMUL binary operation
     that obeys the required rules and constraints.

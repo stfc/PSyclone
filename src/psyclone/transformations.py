@@ -2794,6 +2794,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
     # element for different orders. Formulas kindly provided by Tom Melvin and
     # Thomas Gibson. See the Qr table at http://femtable.org/background.html,
     # for computed values of w0, w1, w2 and w3 up to order 7.
+    # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
+    # As there is currently no dedicated structure for face dofs in kernel
+    # constants, w2*trace dofs are included here. w2*trace ndofs formulas
+    # require the number of reference element faces in the horizontal (4)
+    # for w2htrace space, in the vertical (2) for w2vtrace space and all (6)
+    # for w2trace space.
+
     space_to_dofs = {"w3":       (lambda n: (n+1)**3),
                      "w2":       (lambda n: 3*(n+2)*(n+1)**2),
                      "w1":       (lambda n: 3*(n+2)**2*(n+1)),
@@ -2802,8 +2809,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
                      "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
                      "w2v":      (lambda n: (n+2)*(n+1)**2),
                      "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
+                     "wchi":     (lambda n: (n+1)**3),
                      "w2trace":  (lambda n: 6*(n+1)**2),
-                     "wchi":     (lambda n: (n+1)**3)}
+                     "w2htrace": (lambda n: 4*(n+1)**2),
+                     "w2vtrace": (lambda n: 2*(n+1)**2)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
