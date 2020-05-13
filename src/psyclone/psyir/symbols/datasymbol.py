@@ -108,10 +108,15 @@ class DataSymbol(Symbol):
                         self.name, scope=Scope.PUBLIC)
                 except KeyError:
                     raise SymbolError(
-                        "Error trying to resolve symbol '{0}' properties. The "
-                        "interface points to module '{1}' but could not find "
-                        "the definition of '{0}' in that module."
-                        "".format(self.name, module.name))
+                        "Error trying to resolve the properties of symbol "
+                        "'{0}'. The interface points to module '{1}' but "
+                        "could not find the definition of '{0}' in that "
+                        "module.".format(self.name, module.name))
+                except SymbolError as err:
+                    raise SymbolError(
+                        "Error trying to resolve the properties of symbol "
+                        "'{0}' in module '{1}': {2}".format(
+                            self.name, module.name, str(err.value)))
                 self.copy_properties(extern_symbol)
                 self.interface = tmp
             else:

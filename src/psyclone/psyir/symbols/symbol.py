@@ -81,7 +81,7 @@ class Symbol(object):
         if not isinstance(scope, Scope):
             raise TypeError(
                 "{0} 'scope' attribute should be of type psyir.symbols.Scope "
-                "but '{1}' found.".format(type(self).__name__, type(scope)))
+                "but '{1}' found.".format(type(self).__name__, type(scope).__name__))
         self._name = name
         self._scope = scope
 

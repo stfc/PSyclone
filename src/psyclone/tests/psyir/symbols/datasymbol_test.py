@@ -440,9 +440,9 @@ def test_datasymbol_resolve_deferred():
                         interface=GlobalInterface(module))
     with pytest.raises(SymbolError) as err:
         symbol.resolve_deferred()
-    assert ("Error trying to resolve symbol 'd' properties. The interface "
-            "points to module 'dummy_module' but could not find the definition"
-            " of 'd' in that module." in str(err.value))
+    assert ("Error trying to resolve the properties of symbol 'd'. The "
+            "interface points to module 'dummy_module' but could not find the"
+            " definition of 'd' in that module." in str(err.value))
 
     # Test with a symbol which does not have a Global interface
     symbol = DataSymbol('e', DeferredType(), interface=LocalInterface())
@@ -456,9 +456,11 @@ def test_datasymbol_resolve_deferred():
     symbol = DataSymbol('f', DeferredType(), interface=GlobalInterface(module))
     with pytest.raises(SymbolError) as err:
         symbol.resolve_deferred()
-    assert ("Error trying to resolve the properties of symbol 'f'. The "
-            "interface points to module 'dummy_module' but the symbol it "
-            "contains is not public" in str(err.value))
+    assert ("Error trying to resolve the properties of symbol 'f' in module "
+            "'dummy_module': PSyclone " in str(err.value))
+    assert ("'f' exists in the Symbol Table but has scope 'PRIVATE' "
+            "which does not match with the requested scope(s): ['PUBLIC']"
+            in str(err.value))
 
 
 def test_datasymbol_shape():

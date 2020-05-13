@@ -249,7 +249,8 @@ class SymbolTable(object):
                     raise SymbolError(
                         "Symbol '{0}' exists in the Symbol Table but has scope"
                         " '{1}' which does not match with the requested "
-                        "scope(s): {2}".format(name, symbol.scope, scope_list))
+                        "scope(s): {2}".format(name, symbol.scope.name,
+                                               [sc.name for sc in scope_list]))
             return symbol
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
