@@ -785,21 +785,20 @@ class InvokeSchedule(Schedule):
 
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
+        super(InvokeSchedule, self).__init__()
 
-        # Create the Symbol Table before initialising the super-class to
-        # populate it with the reserved names.
-        symbol_table = SymbolTable(self)
-        if reserved_names:
-            for name in reserved_names:
-                symbol_table.add(Symbol(name))
-        Schedule.__init__(self, parent=None, symbol_table=symbol_table)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
 
-        # we need to separate calls into loops (an iteration space really)
+        # Populate the Schedule Symbol Table with the reserved names.
+        if reserved_names:
+            for name in reserved_names:
+                self.symbol_table.add(Symbol(name))
+
+        # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         if alg_calls is None:
