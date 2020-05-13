@@ -49,7 +49,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType, SymbolTable
+    LocalInterface, ScalarType, ArrayType, DeferredType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -946,6 +946,7 @@ class Fparser2Reader(object):
                     already in the symbol table with a defined interface.
         :raises InternalError: if the provided declaration is an unexpected \
                                or invalid fparser or Fortran expression.
+
         '''
         # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
