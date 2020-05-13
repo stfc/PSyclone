@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -57,31 +57,26 @@ module testkern_anyd_any_space_mod
 
 contains
 
-  subroutine testkern_anyd_any_space_code(nlayers,                &
-                                          field1, field2, field3, &
-                                          ndf_anydspace_1,        &
-                                          undf_anydspace_1,       &
-                                          map_anydspace_1,        &
-                                          ndf_any_space_1,        &
-                                          undf_any_space_1,       &
-                                          map_any_space_1,        &
+  subroutine testkern_anyd_any_space_code(nlayers, field1, field2, field3,     &
+                                          ndf_adspc1, undf_adspc1, map_adspc1, &
+                                          ndf_aspc1, undf_aspc1, map_aspc1,    &
                                           ndf_any_w2, undf_any_w2, map_any_w2)
 
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_anydspace_1
-    integer(kind=i_def), intent(in) :: ndf_any_space_1
+    integer(kind=i_def), intent(in) :: ndf_adspc1
+    integer(kind=i_def), intent(in) :: ndf_aspc1
     integer(kind=i_def), intent(in) :: ndf_any_w2
-    integer(kind=i_def), intent(in) :: undf_anydspace_1, &
-                                       undf_any_space_1, undf_any_w2
-    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
-    integer(kind=i_def), intent(in), dimension(ndf_any_space_1) :: map_any_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_any_space_1) :: map_any_w2
-    real(kind=r_def), intent(inout), dimension(undf_anydspace_1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_any_space_1)    :: field2
-    real(kind=r_def), intent(in), dimension(undf_any_w2)         :: field3
+    integer(kind=i_def), intent(in) :: undf_adspc1, &
+                                       undf_aspc1, undf_any_w2
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1)  :: map_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1)  :: map_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_adspc1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc1)     :: field2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field3
 
   end subroutine testkern_anyd_any_space_code
 

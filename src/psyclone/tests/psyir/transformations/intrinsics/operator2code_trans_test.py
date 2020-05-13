@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,32 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
-'''Module containing tests for the nemo operator abstract class which
+'''Module containing tests for the operator abstract class which
 provides common functionality for the intrinsic operator
 transformations (such as MIN, ABS and SIGN).'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations.nemo_operator_trans import \
-    NemoOperatorTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
+    Operator2CodeTrans
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
-from psyclone.configuration import Config
 
 
 def test_create():
     # pylint: disable=abstract-class-instantiated
-    '''Check that NemoOperatorTrans is abstract.'''
+    '''Check that Operator2CodeTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
-        _ = NemoOperatorTrans()
-    assert ("Can't instantiate abstract class NemoOperatorTrans with "
+        _ = Operator2CodeTrans()
+    assert ("Can't instantiate abstract class Operator2CodeTrans with "
             "abstract methods apply" in str(excinfo.value))
 
 
-class DummyTrans(NemoOperatorTrans):
-    '''Dummy transformation class used to test NemoOperatorTrans
+class DummyTrans(Operator2CodeTrans):
+    '''Dummy transformation class used to test Operator2CodeTrans
     methods.'''
     # pylint: disable=arguments-differ, no-method-argument
     def apply():
@@ -82,13 +83,11 @@ def test_str_name():
     dummy._operator_name = "hello"
     assert (str(dummy) == "Convert the PSyIR HELLO intrinsic to equivalent "
             "PSyIR code.")
-    assert dummy.name == "NemoHelloTrans"
+    assert dummy.name == "Hello2CodeTrans"
 
 
 def test_validate():
     '''Check that the validate method raises exceptions as expected.'''
-
-    Config.get().api = "nemo"
 
     dummy = DummyTrans()
     # operator_name, classes and operators are usually set by the
@@ -98,12 +97,11 @@ def test_validate():
     dummy._classes = (UnaryOperation,)
     dummy._operators = (UnaryOperation.Operator.ABS,)
 
-    symbol_table = SymbolTable()
     var = Literal("0.0", REAL_TYPE)
     operator = UnaryOperation(UnaryOperation.Operator.ABS, var)
 
     with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(operator, symbol_table)
+        dummy.validate(operator)
     assert("This transformation requires the operator to be part of an "
            "assignment statement, but no such assignment was found."
            in str(excinfo.value))
@@ -112,27 +110,13 @@ def test_validate():
     _ = Assignment.create(lhs=reference, rhs=operator)
 
     with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(None, symbol_table)
+        dummy.validate(None)
     assert ("The supplied node argument is not a hello operator, found "
             "'NoneType'." in str(excinfo.value))
 
     with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(UnaryOperation(UnaryOperation.Operator.SIN, var),
-                       symbol_table)
-    assert ("Error in NemoHelloTrans transformation. The supplied node "
+        dummy.validate(UnaryOperation(UnaryOperation.Operator.SIN, var))
+    assert ("Error in Hello2CodeTrans transformation. The supplied node "
             "operator is invalid, found 'Operator.SIN'." in str(excinfo.value))
 
-    with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(operator, None)
-    assert ("The supplied symbol_table argument is not an a SymbolTable, "
-            "found 'NoneType'." in str(excinfo.value))
-
-    dummy.validate(operator, symbol_table)
-
-    Config.get().api = "dynamo0.3"
-    with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(operator, symbol_table)
-    assert ("This transformation only works for the nemo API, but found "
-            "'dynamo0.3'." in str(excinfo.value))
-
-    Config._instance = None
+    dummy.validate(operator)

@@ -47,11 +47,12 @@ module w3_solver_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use constants_mod,           only : r_def, i_def
-use argument_mod,            only : arg_type, func_type,         &
-                                    GH_FIELD, GH_READ, GH_WRITE, &
-                                    W3, Wchi,                    &
-                                    GH_BASIS, GH_DIFF_BASIS,     &
-                                    CELLS
+use fs_continuity_mod,       only : W3, Wchi
+use argument_mod,            only : arg_type, func_type,     &
+                                    GH_FIELD, GH_REAL,       &
+                                    GH_READ, GH_WRITE,       &
+                                    GH_BASIS, GH_DIFF_BASIS, &
+                                    GH_QUADRATURE_XYoZ, CELLS
 
 implicit none
 
@@ -73,7 +74,7 @@ type, public, extends(kernel_type) :: w3_solver_kernel_type
        func_type(W3,   GH_BASIS),            &
        func_type(Wchi, GH_DIFF_BASIS)        &
        /)
-  integer :: gh_shape = gh_quadrature_XYoZ
+  integer :: gh_shape = GH_QUADRATURE_XYoZ
   integer :: iterates_over = CELLS
 contains
   procedure, nopass :: solver_w3_code

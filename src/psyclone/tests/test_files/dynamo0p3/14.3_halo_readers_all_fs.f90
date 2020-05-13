@@ -46,7 +46,7 @@ program halo_reader_fs
   implicit none
 
   type(field_type)    :: f1, f2, f3, f4, f5, f6, f7, f8, &
-                         f9, f10, f11, f12, f13, f14
+                         f9, f10, f11, f12, f13, f14, f15, f16
   integer(kind=i_def) :: extent = 1
 
   call invoke(                                            &
@@ -57,6 +57,7 @@ program halo_reader_fs
                                 f8, extent, f9, extent,   &
                                 f10, extent, f11, extent, &
                                 f12, extent, f13, extent, &
-                                f14, extent) )
+                                f14, extent, f15, extent, &
+                                f16, extent) )
 
 end program halo_reader_fs

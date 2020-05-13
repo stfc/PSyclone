@@ -32,11 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 ''' Module containing the definition of the Range node. '''
 
 from psyclone.psyir.nodes import Node, Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 
 
@@ -85,25 +86,24 @@ class Range(Node):
     notation. Therefore the Fortran frontend is able to convert array
     notation to PSyIR and the Fortran backend is able to convert PSyIR
     back to array notation.
-
-    :param parse_node: the entry in the fparser2 parse tree representing the \
-                       code contained within this directive or None.
-    :type parse_node: :py:class:`fparser.two.Fortran2003.Base` or NoneType
-    :param parent: PSyIR node that is the parent of this Range or None.
-    :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
-    :param annotations: Tags that provide additional information about \
-        the node. The node should still be functionally correct when \
-        ignoring these tags.
-    :type annotations: list of str
-
     '''
-    def __init__(self, parse_node=None, parent=None, annotations=None):
+    # Textual description of the node.
+    _children_valid_format = "DataNode, DataNode, DataNode"
+    _text_name = "Range"
+    _colour_key = "Range"
 
-        super(Range, self).__init__(parse_node, parent=parent,
-                                    annotations=annotations)
-        # Initialise the list of children so that the start/stop/step setters
-        # can be called in any order
-        self._children = [None, None, None]
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position < 3 and isinstance(child, DataNode)
 
     @staticmethod
     def create(start, stop, step=None, parent=None):
@@ -176,12 +176,6 @@ class Range(Node):
                 "Malformed Range: should have three children but "
                 "found {0}: {1}".format(len(self._children), self._children))
 
-        if any(not isinstance(child, Node) for child in self._children):
-            raise InternalError(
-                "Malformed Range: all children must be sub-classes of "
-                "Node but found: {0}".format(
-                    [type(child).__name__ for child in self._children]))
-
     @property
     def start(self):
         '''
@@ -204,7 +198,10 @@ class Range(Node):
 
         '''
         self._check_valid_input(value, "start")
-        self._children[0] = value
+        if not self.children:
+            self.children.append(value)
+        else:
+            self.children[0] = value
 
     @property
     def stop(self):
@@ -226,7 +223,14 @@ class Range(Node):
         :type value: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_valid_input(value, "stop")
-        self._children[1] = value
+        if not self.children:
+            raise IndexError(
+                "The Stop value '{0}' can not be inserted into range '{1}'"
+                " before the Start value is provided.".format(value, self))
+        if len(self.children) == 1:
+            self.children.append(value)
+        else:
+            self._children[1] = value
 
     @property
     def step(self):
@@ -248,20 +252,15 @@ class Range(Node):
         :type value: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_valid_input(value, "step")
-        self._children[2] = value
-
-    def node_str(self, colour=True):
-        ''' Checks that this Range is valid and then returns the name
-        of this node with (optional) control codes to generate
-        coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        self._check_completeness()
-        return super(Range, self).node_str(colour)
+        if len(self.children) < 2:
+            raise IndexError(
+                "The Step value '{0}' can not be inserted into range '{1}'"
+                " before the Start and Stop values are provided."
+                "".format(value, self))
+        if len(self.children) == 2:
+            self.children.append(value)
+        else:
+            self.children[2] = value
 
     def __str__(self):
         return self.node_str(colour=False)

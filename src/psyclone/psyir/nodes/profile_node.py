@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -57,19 +57,29 @@ class ProfileNode(PSyDataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
+    :param str options["prefix"]: The PSyData prefix to use. This string \
+        is a prefix attached to all PSyData-related symbols. Defaults \
+        to "profile".
     :param (str,str) options["region_name"]: an optional name for this \
         profile region provided as a 2-tuple containing a module name \
         followed by a local name. The pair of strings should uniquely \
         identify a region unless aggregate information is required.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None, options=None):
-        super(ProfileNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=options)
+    _text_name = "Profile"
+    _colour_key = "Profile"
 
-        # Name and colour to use for this node
-        self._text_name = "Profile"
-        self._colour_key = "Profile"
+    def __init__(self, ast=None, children=None, parent=None, options=None):
+        if options:
+            my_options = options.copy()
+        else:
+            my_options = {}
+        # If there is no value specified in the constructor, default
+        # to the "profile" prefix.
+        my_options["prefix"] = my_options.get("prefix", "profile")
+
+        super(ProfileNode, self).__init__(ast=ast, children=children,
+                                          parent=parent, options=my_options)
 
     # -------------------------------------------------------------------------
     def __str__(self):

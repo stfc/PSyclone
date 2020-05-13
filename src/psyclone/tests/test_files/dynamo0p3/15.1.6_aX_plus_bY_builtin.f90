@@ -38,11 +38,13 @@ program single_invoke
 
   ! Description: single point-wise operation (Z = aX + bY)
   ! specified in an invoke call.
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2, f3
-  real(r_def) :: a, b
+  real(r_def)      :: a, b
 
   a = 0.5
   b = 0.8

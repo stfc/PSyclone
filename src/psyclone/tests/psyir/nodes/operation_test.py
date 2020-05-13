@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    NaryOperation, Literal, Reference
+    NaryOperation, Literal, Reference, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
     REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
@@ -133,14 +133,40 @@ def test_binaryoperation_create_invalid():
     # lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(add, "invalid", ref2)
-    assert ("lhs argument in create method of BinaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 0 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
     # rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(add, ref1, "invalid")
-    assert ("rhs argument in create method of BinaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
+
+
+def test_binaryoperation_children_validation():
+    '''Test that children added to BinaryOperation are validated.
+    BinaryOperations accept 2 DataNodes as children.
+
+    '''
+    operation = BinaryOperation(BinaryOperation.Operator.ADD)
+    literal1 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("2", INTEGER_SINGLE_TYPE)
+    literal3 = Literal("3", INTEGER_SINGLE_TYPE)
+    statement = Return()
+
+    # Statements are not valid
+    with pytest.raises(GenerationError) as excinfo:
+        operation.addchild(statement)
+    assert ("Item 'Return' can't be child 0 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
+
+    # First DataNodes is valid, but not subsequent ones
+    operation.addchild(literal1)
+    operation.addchild(literal2)
+    with pytest.raises(GenerationError) as excinfo:
+        operation.addchild(literal3)
+    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
 # Test UnaryOperation class
@@ -215,11 +241,29 @@ def test_unaryoperation_create_invalid():
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
-    # child not a Node.
+
+def test_unaryoperation_children_validation():
+    '''Test that children added to unaryOperation are validated.
+    UnaryOperations accept just 1 DataNode as child.
+
+    '''
+    operation = UnaryOperation(UnaryOperation.Operator.SIN)
+    literal1 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("2", INTEGER_SINGLE_TYPE)
+    statement = Return()
+
+    # Statements are not valid
     with pytest.raises(GenerationError) as excinfo:
-        _ = UnaryOperation.create(UnaryOperation.Operator.SIN, "invalid")
-    assert ("child argument in create method of UnaryOperation class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+        operation.addchild(statement)
+    assert ("Item 'Return' can't be child 0 of 'UnaryOperation'. The valid "
+            "format is: 'DataNode'.") in str(excinfo.value)
+
+    # First DataNodes is valid, but not subsequent ones
+    operation.addchild(literal1)
+    with pytest.raises(GenerationError) as excinfo:
+        operation.addchild(literal2)
+    assert ("Item 'Literal' can't be child 1 of 'UnaryOperation'. The valid "
+            "format is: 'DataNode'.") in str(excinfo.value)
 
 
 def test_naryoperation_node_str():
@@ -291,11 +335,25 @@ def test_naryoperation_create_invalid():
     assert ("children argument in create method of NaryOperation class should "
             "be a list but found 'str'." in str(excinfo.value))
 
-    # contents of children list are not Node
+
+def test_naryoperation_children_validation():
+    '''Test that children added to NaryOperation are validated. NaryOperations
+    accepts DataNodes nodes as children.
+
+    '''
+    nary = NaryOperation(NaryOperation.Operator.MAX)
+    literal1 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("2", INTEGER_SINGLE_TYPE)
+    literal3 = Literal("3", INTEGER_SINGLE_TYPE)
+    statement = Return()
+
+    # DataNodes are valid
+    nary.addchild(literal1)
+    nary.addchild(literal2)
+    nary.addchild(literal3)
+
+    # Statements are not valid
     with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(NaryOperation.Operator.SUM,
-                                 [Reference(DataSymbol(
-                                     "tmp1", REAL_SINGLE_TYPE)), "invalid"])
-    assert (
-        "child of children argument in create method of NaryOperation class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+        nary.addchild(statement)
+    assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
+            "format is: '[DataNode]+'.") in str(excinfo.value)

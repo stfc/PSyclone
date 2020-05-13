@@ -31,31 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
-'''Module providing a NEMO-API-specific transformation from a PSyIR
-MIN operator to PSyIR code. This could be useful if the MIN operator
-is not supported by the back-end or if the performance in the inline
-code is better than the intrinsic.
-
-The implementation is NEMO-specific as NEMO code generation does not
-currently create a symbol table, see issue #500. Once this has been
-implemented the transformation can be modified to work for all APIs.
+'''Module providing a transformation from a PSyIR MIN operator to
+PSyIR code. This could be useful if the MIN operator is not supported
+by the back-end or if the performance in the inline code is better
+than the intrinsic.
 
 '''
 from __future__ import absolute_import
-from psyclone.undoredo import Memento
-from psyclone.psyir.transformations.nemo_operator_trans import \
-        NemoOperatorTrans
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
+        Operator2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
-class NemoMinTrans(NemoOperatorTrans):
-    '''Provides a NEMO-API-specific transformation from a PSyIR MIN
-    Operator node to equivalent code in a PSyIR tree. Validity checks
-    are also performed.
+class Min2CodeTrans(Operator2CodeTrans):
+    '''Provides a transformation from a PSyIR MIN Operator node to
+    equivalent code in a PSyIR tree. Validity checks are also
+    performed.
 
     The transformation replaces
 
@@ -76,13 +72,13 @@ class NemoMinTrans(NemoOperatorTrans):
 
     '''
     def __init__(self):
-        super(NemoMinTrans, self).__init__()
+        super(Min2CodeTrans, self).__init__()
         self._operator_name = "MIN"
         self._classes = (BinaryOperation, NaryOperation)
         self._operators = (BinaryOperation.Operator.MIN,
                            NaryOperation.Operator.MIN)
 
-    def apply(self, node, symbol_table, options=None):
+    def apply(self, node, options=None):
         '''Apply the MIN intrinsic conversion transformation to the specified
         node. This node must be an MIN NaryOperation. The MIN
         NaryOperation is converted to equivalent inline code.  This is
@@ -110,12 +106,6 @@ class NemoMinTrans(NemoOperatorTrans):
         expressions and the ``...`` before and after ``MIN(A, B, C
         ...)`` can be arbitrary PSyIR code.
 
-        A symbol table is required as the NEMO API does not currently
-        contain a symbol table and one is required in order to create
-        temporary variables whose names do not clash with existing
-        code. This non-standard argument is also the reason why this
-        transformation is currently limited to the NEMO API.
-
         This transformation requires the operation node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
@@ -128,15 +118,12 @@ class NemoMinTrans(NemoOperatorTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
-        self.validate(node, symbol_table)
+        # pylint: disable=too-many-locals
+        self.validate(node)
 
         schedule = node.root
-        memento = Memento(schedule, self, [node, symbol_table])
+        symbol_table = schedule.symbol_table
 
         oper_parent = node.parent
         assignment = node.ancestor(Assignment)
@@ -146,14 +133,13 @@ class NemoMinTrans(NemoOperatorTrans):
         # might not be what is wanted (e.g. the args might PSyIR
         # integers), or there may be errors (arguments are of
         # different types) but this can't be checked as we don't have
-        # access to a symbol table (see #500) and don't have the
         # appropriate methods to query nodes (see #658).
         res_var = symbol_table.new_symbol_name("res_min")
         res_var_symbol = DataSymbol(res_var, REAL_TYPE)
         symbol_table.add(res_var_symbol)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
-        # comment (associated issues #500 and #658).
+        # comment (associated issue #658).
         tmp_var = symbol_table.new_symbol_name("tmp_min")
         tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
         symbol_table.add(tmp_var_symbol)
@@ -193,5 +179,3 @@ class NemoMinTrans(NemoOperatorTrans):
             if_stmt = IfBlock.create(if_condition, then_body)
             if_stmt.parent = assignment.parent
             assignment.parent.children.insert(assignment.position, if_stmt)
-
-        return schedule, memento

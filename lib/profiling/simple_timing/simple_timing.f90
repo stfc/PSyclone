@@ -34,10 +34,10 @@
 
 !> A very simple stand-alone profiling library for PSyclone's
 !> profiling API.
-module psy_data_mod
+module profile_psy_data_mod
 
   !> The datatype to store information about a region.
-  type :: PSyDataType
+  type :: profile_PSyDataType
      !> Name of the module.
      character(:), allocatable :: module_name
      !> Name of the region.
@@ -58,14 +58,14 @@ module psy_data_mod
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
-  end type PSyDataType
+  end type profile_PSyDataType
 
   ! --------------------------------------------------------
   !> In order to store an array of pointers, Fortran requires
   !> a new type *sigh*
   type PSyDataTypePointer
      !> The actual pointer to the data in the user's program.
-     type(PSyDataType), pointer :: p
+     type(profile_PSyDataType), pointer :: p
   end  type PSyDataTypePointer
   ! --------------------------------------------------------
 
@@ -79,7 +79,7 @@ module psy_data_mod
   !> How many entries in all_data have been used
   integer :: used_entries
 
-  !> Keeps track if ProfileInit has been called.
+  !> Keeps track if profile_PSyDataInit has been called.
   logical :: has_been_initialised = .false.
 
 contains
@@ -89,13 +89,13 @@ contains
   !> any PSyclone created code, so the user has to manually insert a
   !> call to this subroutine. But the simple timing library will
   !> actually call this function itself if it has not been called previously.
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     implicit none
 
     used_entries         = 0
     has_been_initialised = .true.
 
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
@@ -115,13 +115,13 @@ contains
                       num_post_vars)
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
     character*(*)       :: module_name, region_name
     integer             :: count, count_rate
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
-       call ProfileInit()
+       call profile_PSyDataInit()
     endif
 
     ! Note that the actual initialisation of this
@@ -141,7 +141,7 @@ contains
   subroutine PostEnd(this)
     implicit none
 
-    class(PSyDataType), intent(inout), target :: this
+    class(profile_PSyDataType), intent(inout), target :: this
 
     integer :: count, count_rate
     real *4 :: now, duration
@@ -175,11 +175,11 @@ contains
   ! ---------------------------------------------------------------------------
   !> The finalise function prints the results. This subroutine must be called,
   !> otherwise no results will be printed.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     implicit none
     integer                    :: i
     integer                    :: max_len, this_len
-    type(PSyDataType), pointer :: p
+    type(profile_PSyDataType), pointer :: p
     character                  :: tab = char(9)
     character(:), allocatable  :: heading
     character(:), allocatable  :: spaces
@@ -215,6 +215,6 @@ contains
                 p%min, tab, p%sum/p%count, tab, p%max
     end do
     print *,"==========================================="
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
-end module psy_data_mod
+end module profile_psy_data_mod
