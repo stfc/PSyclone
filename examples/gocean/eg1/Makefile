@@ -56,4 +56,4 @@ openacc:
 	${PYTHON} ./runme_openacc.py
 
 clean:
-	${RM} invoke_0_dat invoke_0_dag.py
+	${RM} *~ invoke_0_dag invoke_0_dag.png

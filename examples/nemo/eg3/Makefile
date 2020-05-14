@@ -76,10 +76,9 @@ psy.f90: transform
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
 
-clean:
-	rm -f *.o *.mod *~
-
 # Delete generated Fortran and exe
+clean:
+	rm -f *.o *.mod *~ psy.f90 traadv.exe
+
 allclean: clean
-	rm -f psy.f90 traadv.exe
 	make -C ${DL_TIMER_ROOT} allclean
