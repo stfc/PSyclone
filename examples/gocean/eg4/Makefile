@@ -59,9 +59,6 @@ others:
 compile:
 	@echo "No compilation targets for this example"
 
-clean:
-	${RM} *~
-
 # Remove generated OpenCL kernels
-allclean: clean
-	${RM} kern_use_var_*.cl
+clean:
+	${RM} *~ kern_use_var_*.cl
