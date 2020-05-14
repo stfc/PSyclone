@@ -33,22 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-RM ?= rm -f
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all transform compile clean allclean
+GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl compute_z_*.cl
 
-all: transform
+all: transform compile
 
 transform:
 	${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
 
 compile:
 	echo "No compilation targets for this example"
-
-clean:
-	${RM} *~
-
-# Remove generated OpenCL kernels
-allclean: clean
-	${RM} compute_cu_*.cl compute_cv_*.cl compute_h_*.cl compute_z_*.cl	

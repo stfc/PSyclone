@@ -45,8 +45,9 @@
 # Similarly for DrHook:
 #     export DRHOOK_DIR=../../../../drhook
 
-RM = rm -f
-PSYCLONE ?= psyclone
+include ../../common.mk
+
+GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
 
 F90 ?= gfortran
 F90FLAGS ?=
@@ -55,9 +56,8 @@ DL_DIR ?= ../../../external/dl_esm_inf/finite_difference/src
 KERNELS = init_field_mod.o update_field_mod.o
 NAME=profile_test
 
-.PHONY: all default compile transform template simple_timing drhook dl_timer
+.PHONY: default template simple_timing drhook dl_timer
 
-default: transform
 compile: template
 all: template simple_timing drhook dl_timer
 
@@ -99,9 +99,9 @@ dl_timer: $(NAME).dl_timer
 $(NAME).%: $(KERNELS) psy_%.o alg.o
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) -L $(DL_DIR) -l_fd
 
-transform: alg.f90 psy.f90
+alg.f90 psy.f90: transform
 
-alg.f90 psy.f90: test.x90
+transform: test.x90
 	${PSYCLONE} --profile invokes -l -api "gocean1.0" \
 			 --config ../../../config/psyclone.cfg \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
@@ -113,9 +113,3 @@ psy_%.o: psy.f90 $(KERNELS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(PROFILE_DIR) -c $<
-
-clean:
-	rm -f *.o *.mod profile_test.*
-
-allclean: clean
-	${RM} alg.f90 psy.f90

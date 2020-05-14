@@ -33,10 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-RM ?= rm -f
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all transform compile basic opencl others clean allclean
+GENERATED_FILES += kern_use_var_*.cl
+
+.PHONY: basic opencl others
 
 all: transform
 
@@ -58,7 +59,3 @@ others:
 
 compile:
 	@echo "No compilation targets for this example"
-
-# Remove generated OpenCL kernels
-clean:
-	${RM} *~ kern_use_var_*.cl

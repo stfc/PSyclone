@@ -43,7 +43,7 @@ F90FLAGS ?= -g -O0
 GENERATED_FILES = 
 
 .PHONY: all compile transform clean test
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := transform
 
 clean:
-	rm -f *~ ${GENERATED_FILES}
+	${RM} *~ ${GENERATED_FILES}

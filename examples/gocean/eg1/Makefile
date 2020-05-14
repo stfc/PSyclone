@@ -33,12 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-RM ?= rm -f
-PYTHON ?= python
+include ../../common.mk
 
-.PHONY: all basic openmp loop_fuse dag openacc
+GENERATED_FILES += invoke_0_dag invoke_0_dag.png
 
-all: basic openmp loop_fuse dag openacc
+.PHONY: basic openmp loop_fuse dag openacc
+
+transform: basic openmp loop_fuse dag openacc
+
+compile: transform
 
 basic:
 	${PYTHON} ./runme.py
@@ -54,6 +57,3 @@ dag:
 
 openacc:
 	${PYTHON} ./runme_openacc.py
-
-clean:
-	${RM} *~ invoke_0_dag invoke_0_dag.png

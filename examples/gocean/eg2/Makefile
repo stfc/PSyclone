@@ -49,6 +49,10 @@
 # export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
 # export LDFLAGS="-acc -ta=tesla,cc70"
 
+include ../../common.mk
+
+GENERATED_FILES += *.o *.mod *~ inc_field_*_mod.f90 psy*.f90 alg_gen.f90 \
+  alg_prof.f90 single*.exe
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -65,14 +69,9 @@ PROFILE_LIB = ${PROFILE_DIR}/libnvtx_prof.a
 NVTX_DIR ?= /usr/local/lib64/cuda10.0
 NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
 
-# Default to gfortran if no compiler specified. This then just
-# compiles without OpenACC support.
-F90 ?= gfortran
+.PHONY: kernels profile
 
-.PHONY: all compile kernels profile transform transform clean allclean
-
-# By default this Makefile only triggers the PSyclone code transformations
-all: transform
+all: transform compile profile
 
 compile: single.exe
 
@@ -120,8 +119,3 @@ psy_prof.f90 alg_prof.f90: alg.f90
 kernels:
 	${MAKE} inc_field_mod.o inc_field_0_mod.o
 
-# Delete generated Fortran and exe
-clean:
-	rm -f *.o *.mod *~
-	rm -f inc_field_*_mod.f90
-	rm -f psy*.f90 alg_gen.f90 alg_prof.f90 single*.exe
