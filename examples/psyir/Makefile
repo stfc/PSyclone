@@ -33,13 +33,12 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.PHONY: all transform compile clean
+include ../common.mk
 
-all transform compile clean:
-	${MAKE} -C gocean $@
-	${MAKE} -C nemo $@
-	${MAKE} -C lfric $@
-	${MAKE} -C line_length $@
-	${MAKE} -C psyir $@
-	${MAKE} -C stub_generation $@
-	${MAKE} -C transformations/inline $@
+transform:
+	${PYTHON} create.py
+
+all: transform
+
+compile: all
+
