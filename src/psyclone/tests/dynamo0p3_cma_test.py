@@ -579,6 +579,7 @@ def test_cma_mdata_matrix_2_writes():
 def test_cma_mdata_stencil_invalid():
     ''' Check that we raise the expected error when a matrix-matrix kernel
     specifies a stencil '''
+    from psyclone.dynamo0p3 import GH_VALID_OPERATOR_NAMES
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
@@ -588,8 +589,8 @@ def test_cma_mdata_stencil_invalid():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("the 4th argument of a meta_arg entry must be a valid function "
-            "space") in str(excinfo.value)
+    assert ("the 4th argument of a 'meta_arg' operator entry must be a valid "
+            "function space") in str(excinfo.value)
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2, "
@@ -598,8 +599,9 @@ def test_cma_mdata_stencil_invalid():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("each meta_arg entry must have 4 arguments if its first argument "
-            "is gh_operator or gh_columnwise_operator") in str(excinfo.value)
+    assert ("each 'meta_arg' entry must have 4 arguments if its first "
+            "argument is one of {0}".format(GH_VALID_OPERATOR_NAMES)
+            in str(excinfo.value))
 
 
 def test_cma_mdata_matrix_vector_error():

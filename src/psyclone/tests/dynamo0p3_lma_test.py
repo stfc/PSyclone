@@ -46,6 +46,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
@@ -103,13 +104,16 @@ def test_get_op_wrong_name():
 def test_ad_op_type_too_few_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
+    from psyclone.dynamo0p3 import GH_VALID_OPERATOR_NAMES
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert ("'meta_arg' entry must have 4 arguments if its first "
+            "argument is one of {0}".format(GH_VALID_OPERATOR_NAMES) in
+            str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -121,7 +125,7 @@ def test_ad_op_type_too_many_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert "'meta_arg' entry must have 4 arguments" in str(excinfo.value)
 
 
 def test_ad_op_type_wrong_3rd_arg():
@@ -133,8 +137,8 @@ def test_ad_op_type_wrong_3rd_arg():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
-            "a valid function space name" in str(excinfo.value))
+    assert ("Dynamo0.3 API the 3rd argument of a 'meta_arg' operator entry "
+            "must be a valid function space name" in str(excinfo.value))
 
 
 def test_ad_op_type_1st_arg_not_space():
@@ -146,19 +150,30 @@ def test_ad_op_type_1st_arg_not_space():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must be a valid function space' in \
-        str(excinfo.value)
+    assert ("'meta_arg' operator entry must be a valid function space" in
+            str(excinfo.value))
+
+
+def test_ad_op_type_validate_wrong_type():
+    ''' Test that an error is raised if an something other than an operator
+    is passed to the DynArgDescriptor03._validate_operator method. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(InternalError) as excinfo:
+        metadata = DynKernMetadata(ast, name=name)
+    assert ("In the Dynamo0.3 API operators cannot have a 'gh_inc' access"
+            in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
-    ''' Test that an error is raised if an operator has gh_inc access. '''
+    ''' Test that an error is raised if an operator has 'gh_inc' access. '''
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_inc, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the dynamo0.3 API operators cannot have a 'gh_inc' access"
+    assert ("In the Dynamo0.3 API operators cannot have a 'gh_inc' access"
             in str(excinfo.value))
 
 
