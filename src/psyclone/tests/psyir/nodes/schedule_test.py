@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.nodes import Schedule, Assignment, Range
+from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
 from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
@@ -56,15 +56,22 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def test_sched_init():
     ''' Check the Schedule class is initialised as expected.'''
 
-    # Schedule is always initialised with a symbol table
+    # By default Schedule sets parent to None, children to an empty list and
+    # initialises its own symbol table.
     sched = Schedule()
     assert isinstance(sched, Schedule)
+    assert not sched.parent
+    assert not sched.children
     assert isinstance(sched.symbol_table, SymbolTable)
 
-    # A custom symbol table can be given to the Schedule as an argument
+    # A custom symbol table and parent and children nodes can be given as
+    # arguments of Schedule.
     symtab = SymbolTable()
-    sched2 = Schedule(symbol_table=symtab)
+    sched2 = Schedule(parent=sched, children=[Statement(), Statement()],
+                      symbol_table=symtab)
     assert isinstance(sched2, Schedule)
+    assert sched2.parent is sched
+    assert len(sched2.children) == 2
     assert sched2.symbol_table is symtab
 
 
