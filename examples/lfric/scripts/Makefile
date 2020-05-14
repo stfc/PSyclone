@@ -30,10 +30,16 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-EXAMPLES=$(wildcard eg*) scripts
+include ../../common.mk
 
-all transform compile clean:
-	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) $@; )
+SCRIPTS = $(wildcard *.py)
+
+transform:
+	$(foreach script, $(SCRIPTS), ${PSYCLONE} -s ./${script} ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null; )
+
+compile: transform
+
+
