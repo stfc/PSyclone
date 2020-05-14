@@ -180,6 +180,9 @@
 	56) PR #762 for #725. Renames the various builtin-operation-to-
 	code transformations now that they are not NEMO specific.
 
+	57) PR #776 for #775. Small bug fix for upper loop bound in
+	Matmul2CodeTrans transformation.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
