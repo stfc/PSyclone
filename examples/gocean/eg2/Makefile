@@ -120,10 +120,8 @@ psy_prof.f90 alg_prof.f90: alg.f90
 kernels:
 	${MAKE} inc_field_mod.o inc_field_0_mod.o
 
+# Delete generated Fortran and exe
 clean:
 	rm -f *.o *.mod *~
-
-# Delete generated Fortran and exe
-allclean: clean
 	rm -f inc_field_*_mod.f90
 	rm -f psy*.f90 alg_gen.f90 alg_prof.f90 single*.exe
