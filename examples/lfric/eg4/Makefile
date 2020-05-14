@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean serial dm
+.PHONY: serial dm
 
-all: serial dm
+transform: serial dm
 
 serial:
 	${PSYCLONE} -nodm solver_mod.x90
@@ -45,7 +45,7 @@ serial:
 dm:
 	${PSYCLONE} solver_mod.x90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg4"
 
-clean:
-	rm -f *~
+all: transform compile

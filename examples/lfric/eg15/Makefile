@@ -33,16 +33,14 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean
-
-all:
+transform:
 	${PSYCLONE} -s ./matvec_opt.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null -opsy /dev/null
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg15"
 
-clean:
-	rm -f *~
+all: transform compile

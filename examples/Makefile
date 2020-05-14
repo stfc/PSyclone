@@ -33,6 +33,8 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
+.DEFAULT_GOAL := transform
+
 .PHONY: all transform compile clean
 
 all transform compile clean:

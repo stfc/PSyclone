@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean vanilla openmp
+.PHONY: vanilla openmp
 
-all: vanilla openmp
+transform: vanilla openmp
 
 vanilla:
 	${PSYCLONE} solver_mod.x90
@@ -45,7 +45,7 @@ vanilla:
 openmp:
 	${PSYCLONE} -s ./colouring_and_omp.py -nodm solver_mod.x90
 
-compile: all
+all: transform compile
 
-clean:
-	rm -f *~
+compile:
+	@echo "No compilation supported for lfric/eg3"

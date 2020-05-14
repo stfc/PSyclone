@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean vanilla openmp
+.PHONY: vanilla openmp
 
-all: vanilla openmp
+transform: vanilla openmp
 
 vanilla:
 	${PSYCLONE} advective_inc_alg_mod.x90
@@ -45,7 +45,7 @@ vanilla:
 openmp:
 	${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg9"
 
-clean:
-	rm -f *~
+all: transform compile

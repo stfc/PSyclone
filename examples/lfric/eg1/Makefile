@@ -33,9 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.PHONY: all compile clean vanilla openmp
+include ../../common.mk
 
-all: vanilla openmp
+.PHONY: vanilla openmp
+
+transform: vanilla openmp
 
 vanilla:
 	python ./runme.py
@@ -43,7 +45,8 @@ vanilla:
 openmp:
 	python ./runme_openmp.py
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg1"
 
-clean:
-	rm -f *~
+all: transform compile
+

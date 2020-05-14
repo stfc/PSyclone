@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean kernels parallel_no_dm parallel_dm
+.PHONY: kernels parallel_no_dm parallel_dm
 
-all: kernels parallel_no_dm parallel_dm
+transform: kernels parallel_no_dm parallel_dm
 
 kernels:
 	${PSYCLONE} -s ./acc_kernels.py -nodm \
@@ -56,7 +56,7 @@ parallel_dm:
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg14"
 
-clean:
-	rm -f *~
+all: transform compile

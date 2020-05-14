@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean vanilla redundant
+.PHONY: vanilla redundant
 
-all: vanilla redundant
+transform: vanilla redundant
 
 vanilla:
 	${PSYCLONE} helmholtz_solver_alg_mod.x90
@@ -45,7 +45,7 @@ vanilla:
 redundant:
 	${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg8"
 
-clean:
-	rm -f *~
+all: transform compile

@@ -33,11 +33,13 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean serial dm openmp hybrid reprod
+GENERATED_FILES += dag.png dag.svg dag
 
-all: serial dm openmp hybrid reprod
+.PHONY:  serial dm openmp hybrid reprod
+
+transform: serial dm openmp hybrid reprod
 
 serial:
 	${PSYCLONE} -nodm alg.x90
@@ -54,7 +56,8 @@ hybrid:
 reprod:
 	${PSYCLONE} -s ./omp_reprod_script.py alg.x90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg6"
 
-clean:
-	rm -f *~ dag.png dag.svg dag
+all: transform compile
+

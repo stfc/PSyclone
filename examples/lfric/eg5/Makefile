@@ -33,14 +33,12 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean
-
-all:
+transform:
 	${PSYCLONE} alg.f90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg5"
 
-clean:
-	rm -f *~
+all: transform compile

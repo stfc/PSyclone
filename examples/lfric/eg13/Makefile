@@ -33,16 +33,15 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean
-
-all:
+transform:
 	${PSYCLONE} -s ./kernel_constants.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg alg.f90 -opsy psy.f90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg13"
 
 clean:
 	rm -f *~ alg.f90 psy.f90 dg_matrix_vector_kernel_?_mod.f90 \

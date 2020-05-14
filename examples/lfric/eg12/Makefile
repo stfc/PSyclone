@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean extract extract_transformed find_kernel
+.PHONY: extract extract_transformed find_kernel
 
-all: extract extract_transformed find_kernel
+transform: extract extract_transformed find_kernel
 
 extract:
 	${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
@@ -49,7 +49,7 @@ extract_transformed:
 find_kernel:
 	python find_kernel.py
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg12"
 
-clean:
-	rm -f *~
+all: transform compile

@@ -35,11 +35,5 @@
 
 EXAMPLES=$(wildcard eg*)
 
-all:
-	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg); )
-
-compile:
-	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) compile; )
-
-clean:
-	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) clean; )
+all compile transform clean:
+	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) $@; )

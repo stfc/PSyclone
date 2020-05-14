@@ -34,6 +34,25 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
 EXAMPLES=$(wildcard eg*) scripts
+all_EXAMPLES=$(addprefix all_,$(EXAMPLES))
+compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
+clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 
-all transform compile clean:
-	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) $@; )
+transform: ${EXAMPLES}
+all: ${all_EXAMPLES}
+compile: ${compile_EXAMPLES}
+clean: ${clean_EXAMPLES}
+
+.PHONY: ${EXAMPLES} $(all_EXAMPLES) ${compile_EXAMPLES} ${clean_EXAMPLES}
+
+$(EXAMPLES):
+	${MAKE} -C $@ transform
+
+$(all_EXAMPLES):
+	${MAKE} -C $(patsubst all_%,%,$@) all
+
+$(compile_EXAMPLES):
+	${MAKE} -C $(patsubst compile_%,%,$@) compile
+
+$(clean_EXAMPLES):
+	${MAKE} -C $(patsubst clean_%,%,$@) clean

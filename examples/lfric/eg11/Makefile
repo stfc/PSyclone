@@ -33,14 +33,12 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean
-
-all:
+transform:
 	${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg11"
 
-clean:
-	rm -f *~
+all: transform compile

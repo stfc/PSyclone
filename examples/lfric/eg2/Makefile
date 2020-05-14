@@ -33,9 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.PHONY: all compile clean vanilla openmp loopfuse
+include ../../common.mk
 
-all: vanilla openmp loopfuse
+.PHONY: vanilla openmp loopfuse
+
+transform: vanilla openmp loopfuse
 
 vanilla:
 	python ./runme.py
@@ -46,7 +48,8 @@ openmp:
 loopfuse:
 	python ./runme_loop_fuse.py
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg2"
 
-clean:
-	rm -f *~
+
+all: transform compile

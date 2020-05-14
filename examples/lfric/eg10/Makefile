@@ -33,14 +33,13 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
 
-.PHONY: all compile clean
-
-all:
+transform:
 	${PSYCLONE} intergrid_3levels.x90
 
-compile: all
+compile:
+	@echo "No compilation supported for lfric/eg10"
 
-clean:
-	rm -f *~
+all: transform compile
+
