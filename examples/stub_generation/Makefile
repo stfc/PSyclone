@@ -33,14 +33,9 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
-
-.PHONY: all compile clean
+include ../common.mk
 
 all:
 	genkernelstub testkern_stencil_multi_mod.f90
 
 compile: all
-
-clean:
-	rm -f *~

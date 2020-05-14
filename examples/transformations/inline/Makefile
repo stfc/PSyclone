@@ -33,9 +33,9 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-include ../common.mk
+include ../../common.mk
 
 all:
-	${PSYCLONE} -l -d ../../src/psyclone/tests/test_files/dynamo0p3 longlines.f90
+	${PYTHON} module_inline_example.py
 
 compile: all

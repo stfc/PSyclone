@@ -33,9 +33,17 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-include ../common.mk
+RM = rm -f
+PYTHON ?= python
+PSYCLONE ?= psyclone
 
-all:
-	${PSYCLONE} -l -d ../../src/psyclone/tests/test_files/dynamo0p3 longlines.f90
+F90 ?= gfortran
+F90FLAGS ?= -g -O0
 
-compile: all
+GENERATED_FILES = 
+
+.PHONY: all compile transform clean test
+.DEFAULT_GOAL := all
+
+clean:
+	rm -f *~ ${GENERATED_FILES}
