@@ -47,6 +47,14 @@ class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
 
+    :param children: the PSyIR nodes that are children of this Schedule.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent node of this Schedule in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param symbol_table: initialise the Schedule with a given symbol table.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
+            NoneType
+
     '''
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
@@ -67,12 +75,11 @@ class Schedule(Node):
         # pylint: disable=unused-argument
         return isinstance(child, Statement)
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, symbol_table=None):
         super(Schedule, self).__init__(self, children=children, parent=parent)
-        # TODO #645 remove this check that we don't already have a symbol
-        # table (only currently required because InvokeSchedule creates its
-        # own symbol table *before* calling this constructor).
-        if not (hasattr(self, "_symbol_table") and self._symbol_table):
+        if symbol_table:
+            self._symbol_table = symbol_table
+        else:
             self._symbol_table = SymbolTable(self)
 
     @property
