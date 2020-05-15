@@ -33,6 +33,10 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
+# Provides support for 'all', 'compile', 'clean' and 'transform' (the default)
+# targets for directories listed in EXAMPLES.
+# All an including Makefile needs to do is set EXAMPLES appropriately.
+
 all_EXAMPLES=$(addprefix all_,$(EXAMPLES))
 compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))

@@ -35,6 +35,5 @@
 
 EXAMPLES=$(wildcard eg*)
 
-all transform compile clean:
-	$(foreach eg, $(EXAMPLES), $(MAKE) -C $(eg) $@; )
+include ../top_level.mk
 

@@ -50,10 +50,10 @@ DRIVER_INIT = driver-main-init
 # The name of the stand-alone driver that will call the update function.
 DRIVER_UPDATE = driver-main-update
 
-all: transform
+all: transform compile
 
 compile: transform $(EXEC)
-	# TODO the driver does not yet compile because of #644
+	@echo "TODO the driver does not yet compile because of #644"
 
 test:	$(DRIVER_INIT) $(DRIVER_UPDATE)
 
