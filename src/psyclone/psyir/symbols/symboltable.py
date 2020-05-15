@@ -222,35 +222,37 @@ class SymbolTable(object):
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, scope=None):
+    def lookup(self, name, visibility=None):
         '''
         Look up a symbol in the symbol table.
 
         :param str name: name of the symbol.
-        :param scope: the scope or list of scopes that the symbol must have.
-        :type scope: [list of] :py:class:`psyclone.symbols.Scope`
+        :param visibilty: the visibility or list of visibilities that the \
+                          symbol must have.
+        :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
 
-        :returns: symbol with the given name and, if specified, scope.
+        :returns: symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises SymbolError: if the name exists in the Symbol Table but does \
-                             not have the specified scope.
+                             not have the specified visibility.
         :raises KeyError: if the given name is not in the Symbol Table.
 
         '''
         try:
             symbol = self._symbols[self._normalize(name)]
-            if scope:
-                if not isinstance(scope, list):
-                    scope_list = [scope]
+            if visibility:
+                if not isinstance(visibility, list):
+                    vis_list = [visibility]
                 else:
-                    scope_list = scope
-                if symbol.scope not in scope_list:
+                    vis_list = visibility
+                if symbol.visibility not in vis_list:
                     raise SymbolError(
-                        "Symbol '{0}' exists in the Symbol Table but has scope"
-                        " '{1}' which does not match with the requested "
-                        "scope(s): {2}".format(name, symbol.scope.name,
-                                               [sc.name for sc in scope_list]))
+                        "Symbol '{0}' exists in the Symbol Table but has "
+                        "visibility '{1}' which does not match with the "
+                        "requested visibility: {2}".format(
+                            name, symbol.visibility.name,
+                            [sc.name for sc in vis_list]))
             return symbol
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."

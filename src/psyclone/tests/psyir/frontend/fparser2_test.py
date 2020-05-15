@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE, Symbol, Scope
+    REAL_TYPE, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -641,7 +641,7 @@ def test_process_declarations(f2008_parser):
     b_var = fake_parent.symbol_table.lookup("b")
     assert b_var.name == "b"
     # Symbol should be public by default
-    assert b_var.scope == Scope.PUBLIC
+    assert b_var.visibility == Symbol.Visibility.PUBLIC
     assert isinstance(b_var.datatype, ScalarType)
     assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
@@ -651,12 +651,15 @@ def test_process_declarations(f2008_parser):
     reader = FortranStringReader("real, public :: p2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("p2").scope == Scope.PUBLIC
+    assert (fake_parent.symbol_table.lookup("p2").visibility ==
+            Symbol.Visibility.PUBLIC)
     reader = FortranStringReader("real, private :: p3, p4")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("p3").scope == Scope.PRIVATE
-    assert fake_parent.symbol_table.lookup("p4").scope == Scope.PRIVATE
+    assert (fake_parent.symbol_table.lookup("p3").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (fake_parent.symbol_table.lookup("p4").visibility ==
+            Symbol.Visibility.PRIVATE)
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -845,14 +848,17 @@ def test_default_public_container(parser):
     fparser2spec = parser(reader).children[0].children[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "var1" in fake_parent.symbol_table
-    assert fake_parent.symbol_table.lookup("var1").scope == Scope.PRIVATE
-    assert fake_parent.symbol_table.lookup("var2").scope == Scope.PUBLIC
-    assert fake_parent.symbol_table.lookup("var3").scope == Scope.PRIVATE
+    assert (fake_parent.symbol_table.lookup("var1").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (fake_parent.symbol_table.lookup("var2").visibility ==
+            Symbol.Visibility.PUBLIC)
+    assert (fake_parent.symbol_table.lookup("var3").visibility ==
+            Symbol.Visibility.PRIVATE)
 
 
 def test_default_private_container(parser):
-    ''' Test that symbols get the correct scopes when the Fortran specifies
-    that the default is private within a module. '''
+    ''' Test that symbols get the correct visibilities when the Fortran
+    specifies that the default is private within a module. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -866,9 +872,12 @@ def test_default_private_container(parser):
     fparser2spec = parser(reader).children[0].children[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "var1" in fake_parent.symbol_table
-    assert fake_parent.symbol_table.lookup("var1").scope == Scope.PUBLIC
-    assert fake_parent.symbol_table.lookup("var2").scope == Scope.PRIVATE
-    assert fake_parent.symbol_table.lookup("var3").scope == Scope.PUBLIC
+    assert (fake_parent.symbol_table.lookup("var1").visibility ==
+            Symbol.Visibility.PUBLIC)
+    assert (fake_parent.symbol_table.lookup("var2").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (fake_parent.symbol_table.lookup("var3").visibility ==
+            Symbol.Visibility.PUBLIC)
 
 
 def test_access_stmt_undeclared_symbol(parser):
@@ -887,11 +896,11 @@ def test_access_stmt_undeclared_symbol(parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     sym_table = fake_parent.symbol_table
     assert "var3" in sym_table
-    assert sym_table.lookup("var3").scope == Scope.PUBLIC
+    assert sym_table.lookup("var3").visibility == Symbol.Visibility.PUBLIC
     assert "var4" in sym_table
     var4 = sym_table.lookup("var4")
     assert isinstance(var4, Symbol)
-    assert var4.scope == Scope.PUBLIC
+    assert var4.visibility == Symbol.Visibility.PUBLIC
 
 
 def test_parse_access_statements_invalid(parser):

@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Scope
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
 
@@ -406,8 +406,8 @@ def test_datasymbol_resolve_deferred():
     container.symbol_table.add(DataSymbol('b', REAL_SINGLE_TYPE))
     container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
                                           constant_value=3.14))
-    container.symbol_table.add(DataSymbol('f', INTEGER_SINGLE_TYPE,
-                                          scope=Scope.PRIVATE))
+    container.symbol_table.add(DataSymbol(
+        'f', INTEGER_SINGLE_TYPE, visibility=Symbol.Visibility.PRIVATE))
     module = ContainerSymbol("dummy_module")
     module._reference = container  # Manually linking the container
 
@@ -458,8 +458,8 @@ def test_datasymbol_resolve_deferred():
         symbol.resolve_deferred()
     assert ("Error trying to resolve the properties of symbol 'f' in module "
             "'dummy_module': PSyclone " in str(err.value))
-    assert ("'f' exists in the Symbol Table but has scope 'PRIVATE' "
-            "which does not match with the requested scope(s): ['PUBLIC']"
+    assert ("'f' exists in the Symbol Table but has visibility 'PRIVATE' "
+            "which does not match with the requested visibility: ['PUBLIC']"
             in str(err.value))
 
 

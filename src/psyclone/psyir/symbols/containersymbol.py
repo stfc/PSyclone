@@ -39,7 +39,6 @@
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
 from psyclone.psyir.symbols import Symbol, SymbolError
-from psyclone.psyir.symbols.scopes import DEFAULT_SCOPE
 
 
 class ContainerSymbol(Symbol):
@@ -49,12 +48,12 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-    :param scope: the scope (visibility) of the symbol.
-    :type scope: :py:class:`psyclone.psyir.symbols.Scope`
+    :param visibility: the visibility of the symbol.
+    :type scope: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     '''
-    def __init__(self, name, scope=DEFAULT_SCOPE):
-        super(ContainerSymbol, self).__init__(name, scope)
+    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY):
+        super(ContainerSymbol, self).__init__(name, visibility)
 
         self._reference = None
         # At the moment we just have one ContainerSymbol interface, so we

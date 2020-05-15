@@ -41,7 +41,6 @@
 from __future__ import absolute_import
 from enum import Enum
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.scopes import Scope, DEFAULT_SCOPE
 
 
 class DataSymbol(Symbol):
@@ -52,8 +51,8 @@ class DataSymbol(Symbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
-    :param scope: the scope (visibility) of this symbol.
-    :type scope: :py:class:`psyclone.psyir.symbols.Scope`
+    :param visibility: the visibility of this symbol.
+    :type visibility: :py:class:`psyclone.psyir.symbols.Visibility`
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
@@ -69,9 +68,9 @@ class DataSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
 
     '''
-    def __init__(self, name, datatype, scope=DEFAULT_SCOPE,
+    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
                  constant_value=None, interface=None):
-        super(DataSymbol, self).__init__(name, scope)
+        super(DataSymbol, self).__init__(name, visibility)
 
         self._datatype = None
         self.datatype = datatype
@@ -101,13 +100,14 @@ class DataSymbol(Symbol):
         from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
             if self.is_global:
-                # Copy all the symbol properties but the interface and scope
-                # (the latter is determined by the current scoping unit)
+                # Copy all the symbol properties but the interface and
+                # visibility (the latter is determined by the current
+                # scoping unit)
                 tmp = self.interface
                 module = self.interface.container_symbol
                 try:
                     extern_symbol = module.container.symbol_table.lookup(
-                        self.name, scope=Scope.PUBLIC)
+                        self.name, visibility=Symbol.Visibility.PUBLIC)
                 except KeyError:
                     raise SymbolError(
                         "Error trying to resolve the properties of symbol "
@@ -366,7 +366,7 @@ class DataSymbol(Symbol):
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name (which is immutable) and scope.
+        symbol_in, apart from the name (which is immutable) and visibility.
 
         :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`

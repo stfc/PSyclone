@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import Symbol, Scope, DEFAULT_SCOPE
+from psyclone.psyir.symbols import Symbol
 
 
 def test_symbol_initialisation():
@@ -48,12 +48,12 @@ def test_symbol_initialisation():
     sym = Symbol("sym1")
     assert isinstance(sym, Symbol)
     assert sym.name == "sym1"
-    assert sym.scope == DEFAULT_SCOPE
-    # Check that the default scope is public
-    assert DEFAULT_SCOPE == Scope.PUBLIC
+    assert sym.visibility == Symbol.DEFAULT_VISIBILITY
+    # Check that the default visibility is public
+    assert Symbol.DEFAULT_VISIBILITY == Symbol.Visibility.PUBLIC
 
-    sym = Symbol("sym2", Scope.PRIVATE)
-    assert sym.scope == Scope.PRIVATE
+    sym = Symbol("sym2", Symbol.Visibility.PRIVATE)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
 
     with pytest.raises(TypeError) as error:
         sym = Symbol(None)
@@ -61,9 +61,9 @@ def test_symbol_initialisation():
             in str(error.value))
 
     with pytest.raises(TypeError) as error:
-        Symbol('sym1', scope="hello")
-    assert ("Symbol 'scope' attribute should be of type psyir.symbols.Scope "
-            "but" in str(error.value))
+        Symbol('sym1', visibility="hello")
+    assert ("Symbol 'visibility' attribute should be of type "
+            "psyir.symbols.Symbol.Visibility but" in str(error.value))
 
 
 def test_symbol_str():
