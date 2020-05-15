@@ -65,9 +65,16 @@ class ReadOnlyVerifyNode(PSyDataNode):
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
+        if options:
+            my_options = options.copy()
+        else:
+            my_options = {}
+        # If there is no value specified by in the constructor, default
+        # to the "extract" class.
+        my_options["prefix"] = my_options.get("prefix", "read_only_verify")
         super(ReadOnlyVerifyNode, self).__init__(ast=ast, children=children,
                                                  parent=parent,
-                                                 options=options)
+                                                 options=my_options)
         self._text_name = "ReadOnlyVerify"
         self._colour_key = "ReadOnlyVerify"
 
