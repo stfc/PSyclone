@@ -542,37 +542,40 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, datatype, access=None):
+    def unique_declarations(self, argument_type, access=None):
         ''' Returns a list of all required declarations for the
-        specified datatype. If access is supplied (e.g. "write") then
+        specified argument type. If access is supplied (e.g. "write") then
         only declarations with that access are returned.
-        :param string datatype: The type of the kernel argument for the \
-                                particular API for which the intent is \
-                                required
-        :param access: Optional AccessType that the declaration should have.
-        :returns: List of all declared names.
-        :rtype: A list of strings.
-        :raises: GenerationError if an invalid datatype is given.
-        :raises: InternalError if an invalid access is specified.
+
+        :param string argument_type: the type of the kernel argument for \
+                                     the particular API for which the \
+                                     intent is required.
+        :param access: optional AccessType that the declaration should have.
+        :returns: list of all declared names.
+        :rtype: a list of strings.
+
+        :raises GenerationError: if an invalid argtype is given.
+        :raises InternalError: if an invalid access is specified.
+
         '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
+        if argument_type not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_declarations called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
+                "Invoke.unique_declarations called with an invalid argument "
+                "type. Expected one of {0} but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), argument_type))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "unique_declarations called with an invalid access type. "
-                "Type is {0} instead of AccessType".
-                format(type(access)))
+                "Invoke.unique_declarations called with an invalid access "
+                "type. Type is '{0}' instead of AccessType".
+                format(str(access)))
 
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
-                        if arg.type == datatype:
+                        if arg.type == argument_type:
                             test_name = arg.declaration_name
                             if test_name not in declarations:
                                 declarations.append(test_name)
@@ -589,39 +592,43 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, datatype):
+    def unique_declns_by_intent(self, argument_type):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string datatype: the type of the kernel argument for the \
-                                particular API for which the intent is \
-                                required
+        :param string argument_type: the type of the kernel argument for the \
+                                     particular API for which the intent is \
+                                     required.
         :returns: dictionary containing 'intent' keys holding the kernel \
                   argument intent and declarations of all kernel arguments \
-                  for each type of intent
+                  for each type of intent.
         :rtype: dict
+
         :raises GenerationError: if the kernel argument is not a valid \
-                                 datatype for the particular API.
+                                 argument type for the particular API.
 
         '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
+        if argument_type not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_declns_by_intent called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
+                "Invoke.unique_declns_by_intent called with an invalid "
+                "argument type. Expected one of {0} but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), argument_type))
 
         # Get the lists of all kernel arguments that are accessed as
         # inc (shared update), write, read and readwrite (independent
         # update). A single argument may be accessed in different ways
         # by different kernels.
-        inc_args = self.unique_declarations(datatype, access=AccessType.INC)
-        write_args = self.unique_declarations(datatype,
+        inc_args = self.unique_declarations(argument_type,
+                                            access=AccessType.INC)
+        write_args = self.unique_declarations(argument_type,
                                               access=AccessType.WRITE)
-        read_args = self.unique_declarations(datatype, access=AccessType.READ)
-        readwrite_args = self.unique_declarations(datatype,
+        read_args = self.unique_declarations(argument_type,
+                                             access=AccessType.READ)
+        readwrite_args = self.unique_declarations(argument_type,
                                                   AccessType.READWRITE)
-        sum_args = self.unique_declarations(datatype, access=AccessType.SUM)
+        sum_args = self.unique_declarations(argument_type,
+                                            access=AccessType.SUM)
         # sum_args behave as if they are write_args from
         # the PSy-layer's perspective.
         write_args += sum_args

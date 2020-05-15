@@ -688,6 +688,7 @@ class DynArgDescriptor03(Descriptor):
         self._arg_type = arg_type
         # Initialise properties
         self._type = None
+        self._datatype = None
         self._function_space_to = None
         self._function_space_from = None
         self._function_space = None
@@ -875,6 +876,11 @@ class DynArgDescriptor03(Descriptor):
                 "most 4 arguments if its first argument is 'gh_field', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
+        # Field datatype is "real" for now, but will be determined by
+        # metadata descriptor for datatype as a second argument (TODO: XXX)
+        # That will have to change to GH_REAL, etc... HERE
+        self._datatype = "real"
+
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
@@ -957,6 +963,11 @@ class DynArgDescriptor03(Descriptor):
                 "operator argument but got an argument of type '{0}'. "
                 "Should be impossible.".format(self._type))
 
+        # Operator datatype is "real" for now, but will be determined by
+        # metadata descriptor for datatype as a second argument (TODO: XXX)
+        # That will have to change to GH_REAL, etc... HERE
+        self._datatype = "real"
+
         # We expect 4 arguments with the 3rd and 4th each being a
         # function space
         if len(arg_type.args) != 4:
@@ -1018,6 +1029,12 @@ class DynArgDescriptor03(Descriptor):
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
+        # Scalar datatype is determined by its metadata descriptor for
+        # datatype as a second argument (TODO: HERE and add checks for allowed
+        # datatypes). That will have to change to GH_REAL, etc...
+        dtype = str(arg_type.args[0]).lower()
+        self._datatype = dtype.lstrip("gh_")
+
         # Test allowed accesses for scalars (read_only or reduction)
         if self._access_type not in [AccessType.READ] + \
            AccessType.get_valid_reduction_modes():
@@ -1043,6 +1060,16 @@ class DynArgDescriptor03(Descriptor):
 
         '''
         return self._type
+
+    @property
+    def datatype(self):
+        ''' Returns the datatype of the argument (gh_real, gh_integer, ...).
+
+        :returns: datatype of the argument.
+        :rtype: str
+
+        '''
+        return self._datatype
 
     @property
     def function_space_to(self):
@@ -3406,7 +3433,7 @@ class DynFields(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(datatype="gh_field")
+        fld_args = self._invoke.unique_declarations(argument_type="gh_field")
         if fld_args:
             parent.add(TypeDeclGen(parent, datatype="field_type",
                                    entity_decls=fld_args,
@@ -3890,7 +3917,7 @@ class DynLMAOperators(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for operators
-        op_args = self._invoke.unique_declarations(datatype="gh_operator")
+        op_args = self._invoke.unique_declarations(argument_type="gh_operator")
         if op_args:
             parent.add(TypeDeclGen(parent, datatype="operator_type",
                                    entity_decls=op_args,
@@ -4028,7 +4055,7 @@ class DynCMAOperators(DynCollection):
         # Add the Invoke subroutine argument declarations for column-wise
         # operators
         cma_op_args = self._invoke.unique_declarations(
-            datatype="gh_columnwise_operator")
+            argument_type="gh_columnwise_operator")
         if cma_op_args:
             parent.add(TypeDeclGen(parent,
                                    datatype="columnwise_operator_type",
@@ -5601,37 +5628,40 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
-    def unique_proxy_declarations(self, datatype, access=None):
-        ''' Returns a list of all required proxy declarations for the
-        specified datatype.  If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned.
-        :param str datatype: Datatype that proxy declarations are \
-                             searched for.
-        :param access: optional AccessType for the specified data type.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`.
-        :return: a list of all required proxy declarations for the \
-                 specified datatype.
-        :raises GenerationError: if datatype is invalid.
-        :raises InternalError: if an invalid access is specified, i.e. \
-                not of type AccessType.
+    def unique_proxy_declarations(self, argument_type, access=None):
         '''
-        if datatype not in GH_VALID_ARG_TYPE_NAMES:
+        Returns a list of all required proxy declarations for the specified
+        argument type.  If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned.
+
+        :param str argument_type: argument type that proxy declarations are \
+                                  searched for.
+        :param access: optional AccessType for the specified argument type.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`.
+        :returns: a list of all required proxy declarations for the \
+                  specified argument type.
+
+        :raises GenerationError: if argument type is invalid.
+        :raises InternalError: if an invalid access is specified, i.e. \
+                               not of type AccessType.
+        '''
+        if argument_type not in GH_VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_proxy_declarations called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
+                "DynInvoke.unique_proxy_declarations called with an invalid "
+                "argument type. Expected one of {0} but found '{1}'".
+                format(str(GH_VALID_ARG_TYPE_NAMES), argument_type))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
-                "unique_proxy_declarations called with an invalid access "
-                "type. Expected one of '{0}' but got '{1}'".
+                "DynInvoke.unique_proxy_declarations called with an invalid "
+                "access type. Expected one of {0} but found '{1}'".
                 format(valid_names, access))
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
-                    if arg.text and arg.type == datatype:
+                    if arg.text and arg.type == argument_type:
                         if arg.proxy_declaration_name not in declarations:
                             declarations.append(arg.proxy_declaration_name)
         return declarations

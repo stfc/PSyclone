@@ -158,6 +158,7 @@ def test_arg_descriptor_vector():
 
     # Check DynArgDescriptor03 argument properties
     assert field_descriptor.type == "gh_field"
+    assert field_descriptor.datatype == "real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -1663,21 +1664,22 @@ def test_op_any_discontinuous_space_2(tmpdir):
 
 
 def test_invoke_uniq_declns():
-    ''' tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid type '''
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
-    assert 'unique_declarations called with an invalid datatype' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declarations called with an invalid argument "
+            "type. Expected one of {0} but found 'not_a_type'".
+            format(GH_VALID_ARG_TYPE_NAMES)) in str(excinfo.value)
 
 
 def test_invoke_uniq_declns_invalid_access():
-    ''' tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid access type '''
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid access type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1685,13 +1687,13 @@ def test_invoke_uniq_declns_invalid_access():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
-    assert 'unique_declarations called with an invalid access type' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declarations called with an invalid access "
+            "type. Type is 'invalid_acc'" in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
     ''' Tests that valid access modes (AccessType.READ, AccessType.WRITE)
-    are accepted by Invoke.unique_declarations().'''
+    are accepted by Invoke.unique_declarations(). '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1705,31 +1707,35 @@ def test_invoke_uniq_declns_valid_access():
 
 
 def test_invoke_uniq_proxy_declns():
-    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid type '''
+    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
-    assert 'unique_proxy_declarations called with an invalid datatype' \
-        in str(excinfo.value)
+    assert ("DynInvoke.unique_proxy_declarations called with an invalid "
+            "argument type. Expected one of {0} but found 'not_a_type'".
+            format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
 
 
 def test_uniq_proxy_declns_invalid_access():
-    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid access type '''
+    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid access type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    api_config = Config.get().api_conf("dynamo0.3")
+    valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             "gh_field",
             access="invalid_acc")
-    assert 'unique_proxy_declarations called with an invalid access type' \
-        in str(excinfo.value)
+    assert ("DynInvoke.unique_proxy_declarations called with an invalid "
+            "access type. Expected one of {0} but found 'invalid_acc'".
+            format(valid_access_names) in str(excinfo.value))
 
 
 def test_dyninvoke_first_access():
@@ -1746,21 +1752,22 @@ def test_dyninvoke_first_access():
 
 
 def test_dyninvoke_uniq_declns_inv_type():
-    ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid argument type '''
+    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
+    is called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
-    assert 'unique_declns_by_intent called with an invalid datatype' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declns_by_intent called with an invalid argument "
+            "type. Expected one of {0} but found 'gh_invalid'".
+            format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_fields '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_fields'. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1772,8 +1779,9 @@ def test_dyninvoke_uniq_declns_intent_fields():
 
 
 def test_dyninvoke_uniq_declns_intent_real():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_real '''
+    # TODO HERE FOR SCALARS
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_real'. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1785,8 +1793,9 @@ def test_dyninvoke_uniq_declns_intent_real():
 
 
 def test_dyninvoke_uniq_declns_intent_int():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_integer '''
+    # TODO HERE FOR SCALARS
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_integer'. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1798,8 +1807,8 @@ def test_dyninvoke_uniq_declns_intent_int():
 
 
 def test_dyninvoke_uniq_declns_intent_ops():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for operator arguments '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2416,6 +2425,7 @@ def test_stencil_metadata():
     # Check other DynArgDescriptor03 argument properties for a
     # field stencil argument
     assert stencil_descriptor_1.type == "gh_field"
+    assert stencil_descriptor_1.datatype == "real"
     assert stencil_descriptor_1.function_space == "w2"
     assert stencil_descriptor_1.function_spaces == ['w2']
     assert str(stencil_descriptor_1.access) == "READ"
@@ -2768,12 +2778,14 @@ def test_arg_descriptor_func_method_error():
 
 
 def test_arg_descriptor_fld_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected for a field argument'''
+    ''' Tests that the DynArgDescriptor03 argument representation works
+    as expected for a field argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
+
+    # Assert correct string representation from DynArgDescriptor03
     result = str(field_descriptor)
     expected_output = (
         "DynArgDescriptor03 object\n"
@@ -2781,6 +2793,16 @@ def test_arg_descriptor_fld_str():
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
     assert expected_output in result
+
+    # Check DynArgDescriptor03 argument properties
+    assert field_descriptor.type == "gh_field"
+    assert field_descriptor.datatype == "real"
+    assert field_descriptor.function_space == "w1"
+    assert field_descriptor.function_spaces == ['w1']
+    assert str(field_descriptor.access) == "INC"
+    assert field_descriptor.mesh is None
+    assert field_descriptor.stencil is None
+    assert field_descriptor.vector_size == 1
 
 
 def test_arg_descriptor_real_scalar():
@@ -2801,6 +2823,7 @@ def test_arg_descriptor_real_scalar():
 
     # Check DynArgDescriptor03 argument properties
     assert scalar_descriptor.type == "gh_real"
+    assert scalar_descriptor.datatype == "real"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
@@ -2827,6 +2850,7 @@ def test_arg_descriptor_int_scalar():
 
     # Check DynArgDescriptor03 argument properties
     assert scalar_descriptor.type == "gh_integer"
+    assert scalar_descriptor.datatype == "integer"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
