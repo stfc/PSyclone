@@ -1036,6 +1036,7 @@ class Fparser2Reader(object):
                     already in the symbol table with a defined interface.
         :raises InternalError: if the provided declaration is an unexpected \
                                or invalid fparser or Fortran expression.
+
         '''
         # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
         # determine the default accessibility of symbols as well as identifying
@@ -1274,11 +1275,15 @@ class Fparser2Reader(object):
 
                 if initialisation:
                     if has_constant_value:
-                        # If it is a parameter parse its initialization
-                        tmp = Assignment()
+                        # If it is a parameter parse its initialization into
+                        # a dummy Assignment inside a Schedule which temporally
+                        # hijacks the parent's node symbol table
+                        tmp_sch = Schedule(symbol_table=parent.symbol_table)
+                        dummynode = Assignment(parent=tmp_sch)
+                        tmp_sch.addchild(dummynode)
                         expr = initialisation.items[1]
-                        self.process_nodes(parent=tmp, nodes=[expr])
-                        ct_expr = tmp.children[0]
+                        self.process_nodes(parent=dummynode, nodes=[expr])
+                        ct_expr = dummynode.children[0]
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Initialisations on the"

@@ -602,7 +602,6 @@ def test_generate_schedule_unmatching_arguments(parser):
         in str(error.value)
 
 
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_process_declarations(f2008_parser):
     '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
@@ -676,13 +675,33 @@ def test_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
     assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
 
-    # Initialisation with constant expresions
+    # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
     assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
                       BinaryOperation)
+
+    # Initialisation with a constant expression (1) and with a symbol (val1)
+    reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
+    assert isinstance(
+        fake_parent.symbol_table.lookup("val2").constant_value, Reference)
+    assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
+        fake_parent.symbol_table.lookup("val1")
+
+    # Initialisation with a complex constant expression
+    reader = FortranStringReader(
+        "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    # Val3 has been given a constant expression
+    assert fake_parent.symbol_table.lookup("val3").constant_value
+    # The new symbol (precisionkind) has been added to the parent Symbol Table
+    assert fake_parent.symbol_table.lookup("precisionkind")
 
     # Initial values for variables are not supported
     reader = FortranStringReader("real:: a = 1.1")
