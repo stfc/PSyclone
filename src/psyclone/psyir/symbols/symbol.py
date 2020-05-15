@@ -66,7 +66,7 @@ class Symbol(object):
 
     :param str name: name of the symbol.
     :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbol.Symbol.Visibility`
+    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if the name is not a str or visibility is not an \
                        instance of Visability.
