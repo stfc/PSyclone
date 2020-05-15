@@ -39,8 +39,6 @@
 
 module read_only_verify_psy_data_mod
     use, intrinsic :: iso_fortran_env, only : int64, int32
-        use field_mod, only : field_type
-
     implicit none
 
     !> Maximum string length for module- and region-names
@@ -99,7 +97,7 @@ Contains
     !> This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
     !! names. 
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[inout] this The instance of the PSyDataType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] kernel_name The name of the instrumented region.
@@ -121,7 +119,7 @@ Contains
             print *,"Before: ", num_pre_vars, " after: ", num_post_vars
             stop
         endif
-        print *,"PreStart", module_name, region_name
+
         allocate(this%checksums(num_pre_vars+num_post_vars))
         this%next_var_index = 1
         this%verify_checksums = .false.
@@ -137,7 +135,6 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         this%next_var_index = 1
-        print *,"PreEndDecl"
     end subroutine PreEndDeclaration
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the value of all variables has been
@@ -317,24 +314,25 @@ Contains
     !! @param[in] value The value of the variable.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
-!        use field_mod, only : field_type
+        use field_mod, only : r2d_field
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
-        type(field_type), intent(in) :: value(3)
-        print *,"Declare", name
+        type(r2d_field), intent(in) :: value
     end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
     function ComputeChecksum(field) result(checksum)
         implicit none
         integer(kind=int64) :: checksum
-        double precision, dimension(:) :: field
-        integer :: j
-        print *,"computechecksum", field(1), size(field, 1), shape(field), transfer(field(1), checksum)
+        double precision, dimension(:,:) :: field
+        integer :: i, j
+
         checksum = 0
-        do j=1, size(field, 1)
-            checksum = checksum + transfer(field(j), checksum)
+        do j=1, size(field, 2)
+            do i=1, size(field, 1)
+                checksum = checksum + transfer(field(i,j), checksum)
+            enddo
         enddo
     end function ComputeChecksum
 
@@ -346,18 +344,16 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ChecksumFieldDouble(this, name, value)
-        use field_mod, only : field_type, field_proxy_type
+        use field_mod, only : r2d_field
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
-        type(field_type), intent(in) :: value(3)
-        type(field_proxy_type) :: value_proxy
+        type(r2d_field), intent(in) :: value
         integer(kind=int64):: cksum
+
         this%next_var_index = this%next_var_index + 1
-        value_proxy = value(1)%get_proxy()
-        cksum = ComputeChecksum(value_proxy%data)
-        print *,"Provide", name, value_proxy%data(1), cksum, size(value_proxy%data, 1), shape(value_proxy%data)
-        print *,"LOC", loc(value_proxy%data(1))
+
+        cksum = ComputeChecksum(value%data)
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= cksum) then
                 print *,"--------------------------------------"
@@ -374,16 +370,4 @@ Contains
     end subroutine ChecksumFieldDouble
 
     
-subroutine test(my_field)
-!    use field_mod, only : field_type
-    !use read_only_verify_psy_data_mod
-
-    type(field_type), intent(in) :: my_field(3)
-    type(read_only_verify_PSyDataType) :: psy_data_type
-
-    call psy_data_type%PreDeclareVariable("abc", my_field)
-    call psy_data_type%ProvideVariable("abc", my_field)
-end subroutine test
-
 end module read_only_verify_psy_data_mod
-
