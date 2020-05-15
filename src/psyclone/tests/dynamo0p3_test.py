@@ -55,9 +55,9 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     KernCallArgList, DynACCEnterDataDirective, \
     VALID_STENCIL_TYPES, GH_VALID_ARG_TYPE_NAMES, \
-    GH_VALID_SCALAR_NAMES, GH_VALID_OPERATOR_NAMES, \
-    DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, VALID_FUNCTION_SPACE_NAMES, \
+    GH_VALID_SCALAR_NAMES, DISCONTINUOUS_FUNCTION_SPACES, \
+    CONTINUOUS_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES, \
+    VALID_FUNCTION_SPACE_NAMES, \
     VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
 
 from psyclone.transformations import LoopFuseTrans
@@ -136,21 +136,50 @@ def test_arg_descriptor_wrong_type():
             str(excinfo.value))
 
 
-def test_arg_descriptor_vector_str():
-    ''' Test the str method of an argument descriptor containing a vector '''
+def test_arg_descriptor_vector():
+    ''' Tests that the DynArgDescriptor03 argument representation works
+    as expected when we have a field vector. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
     code = CODE.replace("gh_field, gh_inc, w1", "gh_field*3, gh_inc, w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     dkm = DynKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[1])
+    field_descriptor = dkm.arg_descriptors[1]
+
+    # Assert correct string representation from DynArgDescriptor03
+    field_descriptor_str = str(field_descriptor)
     expected = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
-    assert expected in dkm_str
+    assert expected in field_descriptor_str
+
+    # Check DynArgDescriptor03 argument properties
+    assert field_descriptor.type == "gh_field"
+    assert field_descriptor.function_space == "w1"
+    assert field_descriptor.function_spaces == ['w1']
+    assert str(field_descriptor.access) == "INC"
+    assert field_descriptor.mesh is None
+    assert field_descriptor.stencil is None
+    assert field_descriptor.vector_size == 3
+
+
+def test_ad_scalar_validate_wrong_type():
+    ''' Test that an error is raised if an something other than a scalar
+    is passed to the DynArgDescriptor03._validate_scalar method. '''
+    from psyclone.dynamo0p3 import DynArgDescriptor03
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not an operator
+    wrong_arg = metadata._inits[3]
+    with pytest.raises(InternalError) as excinfo:
+        DynArgDescriptor03(wrong_arg)._validate_scalar(wrong_arg)
+    assert ("DynArgDescriptor03._validate_scalar: expecting a scalar "
+            "argument but got an argument of type 'gh_operator'. Should "
+            "be impossible." in str(excinfo.value))
 
 
 def test_ad_scalar_type_too_few_args():
@@ -195,7 +224,7 @@ def test_ad_scalar_type_no_write():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert ("scalar arguments must be read-only ('gh_read') or a "
-                "reduction (['gh_sum']) but found 'gh_write'" in 
+                "reduction (['gh_sum']) but found 'gh_write'" in
                 str(excinfo.value))
 
 
@@ -227,6 +256,22 @@ def test_ad_int_scalar_type_no_sum():
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
             "argument, but 'gh_integer' was found" in str(excinfo.value))
+
+
+def test_ad_field_validate_wrong_type():
+    ''' Test that an error is raised if an something other than a field
+    is passed to the DynArgDescriptor03._validate_field method. '''
+    from psyclone.dynamo0p3 import DynArgDescriptor03
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not an operator
+    wrong_arg = metadata._inits[0]
+    with pytest.raises(InternalError) as excinfo:
+        DynArgDescriptor03(wrong_arg)._validate_field(wrong_arg)
+    assert ("DynArgDescriptor03._validate_field: expecting a field "
+            "argument but got an argument of type 'gh_real'. Should "
+            "be impossible." in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():
@@ -313,9 +358,9 @@ def test_arg_descriptor_invalid_fs1():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("3rd argument of a 'meta_arg' entry must be a valid function "
-           "space name if its first argument is 'gh_field' (one of {0}), "
-           "but found 'w4'".format(VALID_FUNCTION_SPACE_NAMES) in
-           str(excinfo.value))
+            "space name if its first argument is 'gh_field' (one of {0}), "
+            "but found 'w4'".format(VALID_FUNCTION_SPACE_NAMES) in
+            str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs2():
@@ -328,8 +373,9 @@ def test_arg_descriptor_invalid_fs2():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("4th argument of a 'meta_arg' operator entry must be a valid "
-           "function space name (one of {0}), but found 'w4'".
-           format(VALID_FUNCTION_SPACE_NAMES) in str(excinfo.value))
+            "function space name (one of {0}), but found 'w4'".
+            format(VALID_FUNCTION_SPACE_NAMES) in str(excinfo.value))
+
 
 def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
@@ -1369,25 +1415,11 @@ def test_no_vector_scalar():
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + "*3, gh_read)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
+        vectname = argname + " * 3"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("vector notation is only supported for 'gh_field' "
-                "argument type but found '{0}'".format(argname) in
-                str(excinfo.value))
-
-def test_no_vector_operator():
-    ''' Tests that we raise an error when kernel metadata erroneously
-    specifies a vector operator argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    name = "testkern_qr_type"
-    for argname in GH_VALID_SCALAR_NAMES:
-        code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
-                            "arg_type(" + argname + "*3, gh_read, w2, w2)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
-        with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
-        assert ("vector notation is only supported for 'gh_field' "
-                "argument type but found '{0}'".format(argname) in
+        assert ("vector notation is only supported for a ['gh_field'] "
+                "argument type but found '{0}'".format(vectname) in
                 str(excinfo.value))
 
 
@@ -2370,15 +2402,25 @@ end module stencil_mod
 
 
 def test_stencil_metadata():
-    ''' Check that we can parse Kernels with stencil metadata '''
+    ''' Check that we can parse Kernels with stencil metadata. '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
+
     stencil_descriptor_0 = metadata.arg_descriptors[0]
     assert stencil_descriptor_0.stencil is None
     stencil_descriptor_1 = metadata.arg_descriptors[1]
     assert stencil_descriptor_1.stencil['type'] == 'cross'
     # stencil extent is not provided in the above metadata
     assert stencil_descriptor_1.stencil['extent'] is None
+
+    # Check other DynArgDescriptor03 argument properties for the
+    # field stencil argument
+    assert stencil_descriptor_1.type == "gh_field"
+    assert stencil_descriptor_1.function_space == "w2"
+    assert stencil_descriptor_1.function_spaces == ['w2']
+    assert str(stencil_descriptor_1.access) == "READ"
+    assert stencil_descriptor_1.mesh is None
+    assert stencil_descriptor_1.vector_size == 1
 
 
 def test_field_metadata_too_many_arguments():
@@ -2404,7 +2446,7 @@ def test_invalid_stencil_form_1():
         _ = DynKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
         in str(excinfo.value)
-    assert "Unrecognised meta-data entry" in str(excinfo.value)
+    assert "Unrecognised metadata entry" in str(excinfo.value)
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
@@ -2560,7 +2602,7 @@ def test_arg_descriptor_funcs_method_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_spaces
-    assert ("DynArgDescriptor03:function_spaces(), should not get "
+    assert ("DynArgDescriptor03.function_spaces(), should not get "
             "to here." in str(excinfo.value))
 
 
@@ -2721,7 +2763,7 @@ def test_arg_descriptor_func_method_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space
-    assert ("DynArgDescriptor03:function_space(), should not get "
+    assert ("DynArgDescriptor03.function_space(), should not get "
             "to here." in str(excinfo.value))
 
 
@@ -2741,34 +2783,56 @@ def test_arg_descriptor_fld_str():
     assert expected_output in result
 
 
-def test_arg_descriptor_real_scalar_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected for a real scalar argument'''
+def test_arg_descriptor_real_scalar():
+    ''' Tests that the DynArgDescriptor03 argument representation works
+    as expected for a real scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
+    scalar_descriptor = metadata.arg_descriptors[0]
+
+    # Assert correct string representation from DynArgDescriptor03
+    result = str(scalar_descriptor)
     expected_output = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_real'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
+    # Check DynArgDescriptor03 argument properties
+    assert scalar_descriptor.type == "gh_real"
+    assert scalar_descriptor.function_space is None
+    assert scalar_descriptor.function_spaces == []
+    assert str(scalar_descriptor.access) == "READ"
+    assert scalar_descriptor.mesh is None
+    assert scalar_descriptor.stencil is None
+    assert scalar_descriptor.vector_size == 0
 
-def test_arg_descriptor_int_scalar_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected for an integer scalar argument'''
+
+def test_arg_descriptor_int_scalar():
+    ''' Tests that the DynArgDescriptor03 argument representation works
+    as expected for an integer scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[5]
-    result = str(field_descriptor)
+    scalar_descriptor = metadata.arg_descriptors[5]
+    result = str(scalar_descriptor)
+
+    # Assert correct string representation from DynArgDescriptor03
     expected_output = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_integer'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
+
+    # Check DynArgDescriptor03 argument properties
+    assert scalar_descriptor.type == "gh_integer"
+    assert scalar_descriptor.function_space is None
+    assert scalar_descriptor.function_spaces == []
+    assert str(scalar_descriptor.access) == "READ"
+    assert scalar_descriptor.mesh is None
+    assert scalar_descriptor.stencil is None
+    assert scalar_descriptor.vector_size == 0
 
 
 def test_arg_descriptor_str_error():
@@ -2781,10 +2845,10 @@ def test_arg_descriptor_str_error():
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     field_descriptor._type = "gh_fire_starter"
-    with pytest.raises(ParseError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = str(field_descriptor)
-    assert 'Internal error in DynArgDescriptor03.__str__' \
-        in str(excinfo.value)
+    assert ("DynArgDescriptor03.__str__, should not get to here." in
+            str(excinfo.value))
 
 
 def test_arg_desc_func_space_tofrom_err():
@@ -2797,12 +2861,14 @@ def test_arg_desc_func_space_tofrom_err():
     field_descriptor = metadata.arg_descriptors[0]
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space_to
-    assert ("function_space_to only makes sense for one of ['gh_operator', "
-            "'gh_columnwise_operator']") in str(excinfo.value)
+    assert ("In the Dynamo0.3 API 'function_space_to' only makes sense "
+            "for one of ['gh_operator', 'gh_columnwise_operator'], but "
+            "this is a 'gh_real'") in str(excinfo.value)
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space_from
-    assert ("function_space_from only makes sense for one of ['gh_operator', "
-            "'gh_columnwise_operator']") in str(excinfo.value)
+    assert ("In the Dynamo0.3 API 'function_space_from' only makes sense "
+            "for one of ['gh_operator', 'gh_columnwise_operator'], but "
+            "this is a 'gh_real'") in str(excinfo.value)
 
 
 def test_unrecognised_fspace_error():
@@ -2941,7 +3007,7 @@ def test_arg_descriptor_init_error(monkeypatch):
                         GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
-        _ = DynArgDescriptor03(arg_type)
+        DynArgDescriptor03(arg_type)
     assert ("DynArgDescriptor03.__init__: failed argument validation, "
             "should not get to here" in str(excinfo.value))
 
@@ -3335,7 +3401,7 @@ def test_stencil_read_only():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
-    assert ("A stencil must be read-only so its access must be "
+    assert ("A stencil must be read-only so its access should be "
             "'gh_read'" in str(excinfo.value))
 
 

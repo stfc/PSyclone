@@ -154,15 +154,34 @@ def test_ad_op_type_1st_arg_not_space():
             str(excinfo.value))
 
 
+def test_no_vector_operator():
+    ''' Tests that we raise an error when kernel metadata erroneously
+    specifies a vector operator argument. '''
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator*3, gh_read, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("vector notation is only supported for a ['gh_field'] "
+            "argument type but found 'gh_operator * 3'" in
+            str(excinfo.value))
+
+
 def test_ad_op_type_validate_wrong_type():
     ''' Test that an error is raised if an something other than an operator
     is passed to the DynArgDescriptor03._validate_operator method. '''
+    from psyclone.dynamo0p3 import DynArgDescriptor03
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not an operator
+    wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
-        metadata = DynKernMetadata(ast, name=name)
-    assert ("In the Dynamo0.3 API operators cannot have a 'gh_inc' access"
-            in str(excinfo.value))
+        DynArgDescriptor03(wrong_arg)._validate_operator(wrong_arg)
+    assert ("DynArgDescriptor03._validate_operator: expecting an operator "
+            "argument but got an argument of type 'gh_field'. Should be "
+            "impossible." in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
@@ -175,6 +194,36 @@ def test_ad_op_type_wrong_access():
         _ = DynKernMetadata(ast, name=name)
     assert ("In the Dynamo0.3 API operators cannot have a 'gh_inc' access"
             in str(excinfo.value))
+
+
+def test_arg_descriptor_op():
+    ''' Tests that the DynArgDescriptor03 argument representation works
+    as expected when we have an operator. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    operator_descriptor = metadata.arg_descriptors[3]
+
+    # Assert correct string representation from DynArgDescriptor03
+    result = str(operator_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='w2'\n"
+        "  function_space_from[3]='w2'\n")
+    assert expected_output in result
+
+    # Check DynArgDescriptor03 argument properties
+    assert operator_descriptor.type == "gh_operator"
+    assert operator_descriptor.function_space_to == "w2"
+    assert operator_descriptor.function_space_from == "w2"
+    assert operator_descriptor.function_space == "w2"
+    assert operator_descriptor.function_spaces == ['w2', 'w2']
+    assert str(operator_descriptor.access) == "READ"
+    assert operator_descriptor.mesh is None
+    assert operator_descriptor.stencil is None
+    assert operator_descriptor.vector_size == 1
 
 
 def test_fs_descriptor_wrong_type():
@@ -857,22 +906,6 @@ def test_operators():
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
-
-
-def test_arg_descriptor_op_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have an operator '''
-    ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    expected_output = (
-        "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='w0'\n"
-        "  function_space_from[3]='w0'\n")
-    assert expected_output in result
 
 
 OPERATOR_DIFFERENT_SPACES = '''

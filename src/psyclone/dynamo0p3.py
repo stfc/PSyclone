@@ -146,10 +146,11 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_edge_type",
                            "proxy_type": "quadrature_edge_proxy_type"}}
 
-# ---------- API datatypes (scalars, fields, operators) --------------------- #
+# ---------- API argument types (scalars, fields, operators) ---------------- #
+GH_VALID_FIELD_NAMES = ["gh_field"]
 GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
-GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
+GH_VALID_ARG_TYPE_NAMES = GH_VALID_FIELD_NAMES + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
 # ---------- Fortran datatypes ------------------------- #
@@ -402,7 +403,7 @@ def field_on_space(function_space, arguments):
         for arg in arguments.args:
             # First, test that arg is a field as some argument objects won't
             # have function spaces, e.g. scalars
-            if arg.type == "gh_field" and \
+            if arg.type in GH_VALID_FIELD_NAMES and \
                arg.function_space.orig_name == function_space.orig_name:
                 return arg
     return None
@@ -655,22 +656,44 @@ class DynFuncDescriptor03(object):
 
 
 class DynArgDescriptor03(Descriptor):
-    ''' This class captures the information specified in an argument
-    descriptor.'''
+    '''
+    This class captures the information specified in an argument descriptor.
 
+    :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
+    :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
+                    :py:class:`psyclone.expression.BinaryOperator`
+
+    :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
+    :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
+    :raises ParseError: if an argument type is not one of LFRic (Dynamo0.3) \
+                        API valid argument types (scalar, field, operator).
+    :raises ParseError: if a field vector notation is not in the correct \
+                        format '(field*n)' where 'n' is an integer.
+    :raises ParseError: if the field vector notation is used for the vector \
+                        size of less than 1.
+    :raises ParseError: if the field vector notation uses a wrong separator \
+                        operator.
+    :raises ParseError: if the field vector notation is used for an \
+                        argument that is not a field.
+    :raises InternalError: if the argument type checks fail when an invalid \
+                           argument type is passed in.
+    :raises ParseError: if the second 'meta_arg' entry is not a valid \
+                        access descriptor.
+    :raises ParseError: if the second 'meta_arg' entry is not a valid \
+                        access descriptor.
+    :raises ParseError: if an argument that is not a real scalar has a \
+                        reduction access.
+    :raises InternalError: if none of the checks caught an invalid argument.
+
+    '''
     def __init__(self, arg_type):
-        '''
-        :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
-        '''
-
         self._arg_type = arg_type
         # Initialise properties
         self._type = None
         self._function_space_to = None
-        self._function_space_from  = None
+        self._function_space_from = None
         self._function_space = None
-        self._function_spaces = None
+        self._function_spaces = []
         # Set vector size to 1 (scalars set it to 0 in their validation)
         self._vector_size = 1
         # Initialise other internal arguments
@@ -692,9 +715,9 @@ class DynArgDescriptor03(Descriptor):
                 "In the Dynamo0.3 API each 'meta_arg' entry must have at least"
                 " 2 args, but found '{0}'".format(len(arg_type.args)))
 
-        # Check the first argument descriptor. If it is a binary operator 
+        # Check the first argument descriptor. If it is a binary operator
         # then it has to be a field vector with an "*n" appended. If it is
-        # a variable then it can be other allowed type of argument). 
+        # a variable then it can be other allowed type of argument).
         if isinstance(arg_type.args[0], expr.BinaryOperator):
             # We expect 'field_type * n' to have been specified
             argtype = arg_type.args[0].toks[0].name
@@ -730,13 +753,6 @@ class DynArgDescriptor03(Descriptor):
             # ... and set the vector size if all checks pass
             self._vector_size = vectsize
 
-            # Check than no other arguments than a fields use vector notation
-            if self._type != 'gh_field' and self._vector_size:
-                raise ParseError(
-                    "In the Dynamo0.3 API vector notation is only supported "
-                    "for 'gh_field' argument type but found '{0}'".
-                    format(self._type))
-
             # Check that the separator operator is correct
             if operator != "*":
                 raise ParseError(
@@ -744,6 +760,13 @@ class DynArgDescriptor03(Descriptor):
                     "entry may be a vector but if so must use '*' as the "
                     "separator in the format '(field*n)', but found '{0}' "
                     "in '{1}'".format(operator, arg_type))
+
+            # Check than no other arguments than a fields use vector notation
+            if self._type not in GH_VALID_FIELD_NAMES and self._vector_size:
+                raise ParseError(
+                    "In the Dynamo0.3 API vector notation is only supported "
+                    "for a {0} argument type but found '{1}'".
+                    format(GH_VALID_FIELD_NAMES, arg_type.args[0]))
 
         elif isinstance(arg_type.args[0], expr.FunctionVar):
             # We expect 'arg_type' to have been specified
@@ -785,7 +808,7 @@ class DynArgDescriptor03(Descriptor):
 
         # FIELD, OPERATOR and SCALAR argument types descriptors and checks
         # Fields
-        if self._type == "gh_field":
+        if self._type in GH_VALID_FIELD_NAMES:
             self._validate_field(arg_type)
 
         # Operators
@@ -802,18 +825,21 @@ class DynArgDescriptor03(Descriptor):
                 "DynArgDescriptor03.__init__: failed argument validation, "
                 "should not get to here")
 
-        Descriptor.__init__(self, self._access_type,
-                            self._function_space1, stencil=self._stencil,
-                            mesh=self._mesh)
+        # Initialise the parent class
+        super(DynArgDescriptor03,
+              self).__init__(self._access_type, self._function_space1,
+                             stencil=self._stencil, mesh=self._mesh)
 
     def _validate_field(self, arg_type):
         '''
         Validates argument descriptors for field arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
+        :param arg_type: Dynamo0.3 field argument type
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
+        :raises InternalError: if argument type other than a field is \
+                               passed in.
         :raises ParseError: if there are fewer than 3 metadata arguments.
         :raises ParseError: if there are more than 4 metadata arguments.
         :raises ParseError: if the 3rd argument is not one of valid \
@@ -830,7 +856,13 @@ class DynArgDescriptor03(Descriptor):
         :raises ParseError: if a field stencil argument is not read-only.
 
         '''
-        # TODO: raise internal error if we pass something other than a field
+        # Check whether something other than a field is passed in
+        if self._type not in GH_VALID_FIELD_NAMES:
+            raise InternalError(
+                "DynArgDescriptor03._validate_field: expecting a field "
+                "argument but got an argument of type '{0}'. Should be "
+                "impossible.".format(arg_type.args[0]))
+
         # There must be at least 3 arguments
         if len(arg_type.args) < 3:
             raise ParseError(
@@ -906,7 +938,7 @@ class DynArgDescriptor03(Descriptor):
         Validates argument descriptors for operator arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
+        :param arg_type: Dynamo0.3 operator argument type
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
         :raises InternalError: if argument type other than an operator is \
@@ -919,11 +951,13 @@ class DynArgDescriptor03(Descriptor):
         :raises ParseError: if the operator argument has an invalid access.
 
         '''
-        # Check whether something other than operator is passed in
-        if arg_type.args[0].name not in GH_VALID_OPERATOR_NAMES:
+        # Check whether something other than an operator is passed in
+        if self._type not in GH_VALID_OPERATOR_NAMES:
             raise InternalError(
-                "_validate_operator: expecting operator argument but got "
-                "'{0}'. Should be impossible.".format(arg_type.args[0]))
+                "DynArgDescriptor03._validate_operator: expecting an "
+                "operator argument but got an argument of type '{0}'. "
+                "Should be impossible.".format(self._type))
+
         # We expect 4 arguments with the 3rd and 4th each being a
         # function space
         if len(arg_type.args) != 4:
@@ -962,17 +996,22 @@ class DynArgDescriptor03(Descriptor):
         Validates argument descriptors for scalar arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
+        :param arg_type: Dynamo0.3 scalar argument type
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
+        :raises InternalError: if argument type other than a scalar is \
+                               passed in.
         :raises ParseError: if there are not exactly 2 metadata arguments.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
         '''
-        # Scalars don't have vector size (#TODO: add test if missing)
-        self._vector_size = 0
+        # Check whether something other than a scalar is passed in
+        if self._type not in GH_VALID_SCALAR_NAMES:
+            raise InternalError(
+                "DynArgDescriptor03._validate_scalar: expecting a scalar "
+                "argument but got an argument of type '{0}'. Should be "
+                "impossible.".format(arg_type.args[0]))
 
-        # TODO: raise internal error if we pass something other than a scalar
         # There must be at least 2 arguments to describe a scalar
         if len(arg_type.args) != 2:
             raise ParseError(
@@ -982,7 +1021,7 @@ class DynArgDescriptor03(Descriptor):
 
         # Test allowed accesses for scalars (read_only or reduction)
         if self._access_type not in [AccessType.READ] + \
-          AccessType.get_valid_reduction_modes():
+           AccessType.get_valid_reduction_modes():
             api_config = Config.get().api_conf("dynamo0.3")
             rev_access_mapping = api_config.get_reverse_access_mapping()
             api_specific_name = rev_access_mapping[self._access_type]
@@ -992,6 +1031,9 @@ class DynArgDescriptor03(Descriptor):
                 "read-only ('gh_read') or a reduction ({0}) but found "
                 "'{1}' in '{2}'".format(valid_reductions, api_specific_name,
                                         arg_type))
+
+        # Scalars don't have vector size
+        self._vector_size = 0
 
     @property
     def type(self):
@@ -1018,12 +1060,13 @@ class DynArgDescriptor03(Descriptor):
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space1
         raise RuntimeError(
-            "function_space_to only makes sense for one of {0}, but "
-            "this is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
+            "In the Dynamo0.3 API 'function_space_to' only makes sense "
+            "for one of {0}, but this is a '{1}'".
+            format(GH_VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space_from(self):
-        ''' 
+        '''
         Returns the "from" function space for an operator. This is
         the second function space specified in the metadata.
 
@@ -1036,8 +1079,9 @@ class DynArgDescriptor03(Descriptor):
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
         raise RuntimeError(
-            "function_space_from only makes sense for one of {0}, but this"
-            " is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
+            "In the Dynamo0.3 API 'function_space_from' only makes sense "
+            "for one of {0}, but this is a '{1}'".
+            format(GH_VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space(self):
@@ -1052,13 +1096,13 @@ class DynArgDescriptor03(Descriptor):
         :raises InternalError: if an invalid argument type is passed in.
 
         '''
-        if self._type == "gh_field":
+        if self._type in GH_VALID_FIELD_NAMES:
             return self._function_space1
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
         if self._type in GH_VALID_SCALAR_NAMES:
             return None
-        raise InternalError("DynArgDescriptor03:function_space(), should "
+        raise InternalError("DynArgDescriptor03.function_space(), should "
                             "not get to here.")
 
     @property
@@ -1075,21 +1119,22 @@ class DynArgDescriptor03(Descriptor):
         :raises InternalError: if an invalid argument type is passed in.
 
         '''
-        if self._type == "gh_field":
+        if self._type in GH_VALID_FIELD_NAMES:
             return [self.function_space]
         if self._type in GH_VALID_OPERATOR_NAMES:
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
         if self._type in GH_VALID_SCALAR_NAMES:
             return []
-        raise InternalError("DynArgDescriptor03:function_spaces(), should "
+        raise InternalError("DynArgDescriptor03.function_spaces(), should "
                             "not get to here.")
 
     @property
     def vector_size(self):
         '''
         Returns the vector size of the argument. This will be 1 if *n
-        has not been specified.
+        has not been specified for all arguments except scalars (their
+        vector size is set to 0).
 
         :returns: vector size of the argument.
         :rtype: str
@@ -1098,6 +1143,17 @@ class DynArgDescriptor03(Descriptor):
         return self._vector_size
 
     def __str__(self):
+        '''
+        Creates a string representation of the argument descriptor. This
+        is type and access for scalars with the addition of function
+        space(s) for fields and operators.
+
+        :returns: string representation of the argument descriptor.
+        :rtype: str
+
+        :raises InternalError: if an invalid argument type is passed in.
+
+        '''
         res = "DynArgDescriptor03 object" + os.linesep
         res += "  argument_type[0]='{0}'".format(self._type)
         if self._vector_size > 1:
@@ -1106,7 +1162,7 @@ class DynArgDescriptor03(Descriptor):
         res += "  access_descriptor[1]='{0}'"\
                .format(self._access_type.api_specific_name())\
                + os.linesep
-        if self._type == "gh_field":
+        if self._type in GH_VALID_FIELD_NAMES:
             res += "  function_space[2]='{0}'".format(self._function_space1) \
                    + os.linesep
         elif self._type in GH_VALID_OPERATOR_NAMES:
@@ -1117,7 +1173,8 @@ class DynArgDescriptor03(Descriptor):
         elif self._type in GH_VALID_SCALAR_NAMES:
             pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
-            raise ParseError("Internal error in DynArgDescriptor03.__str__")
+            raise InternalError("DynArgDescriptor03.__str__, should not "
+                                "get to here.")
         return res
 
 
@@ -1416,7 +1473,7 @@ class DynKernMetadata(KernelType):
             if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to a field on a read-only function space
-                if arg.type == "gh_field" and \
+                if arg.type in GH_VALID_FIELD_NAMES and \
                    arg.function_spaces[0] in READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
                         "Found kernel metadata in '{0}' that specifies "
@@ -1505,7 +1562,7 @@ class DynKernMetadata(KernelType):
         non_field_arg_types = set()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
-            if arg.type == "gh_field":
+            if arg.type in GH_VALID_FIELD_NAMES:
                 if arg.mesh:
                     # Argument has a mesh associated with it so this must
                     # be an inter-grid kernel
@@ -1589,14 +1646,14 @@ class DynKernMetadata(KernelType):
             if arg.vector_size > 1:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has a "
-                    "vector argument ({1}). This is forbidden.".
+                    "vector argument ('{1}'). This is forbidden.".
                     format(self.name,
                            arg.type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has an argument "
-                    "with a stencil access ({1}). This is forbidden.".
+                    "with a stencil access ('{1}'). This is forbidden.".
                     format(self.name, arg.stencil['type']))
 
         # Count the number of CMA operators that are written to
@@ -1625,11 +1682,11 @@ class DynKernMetadata(KernelType):
                     format(self.name, len(self._arg_descriptors)))
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
-                                           arg_types=["gh_field"],
+                                           arg_types=GH_VALID_FIELD_NAMES,
                                            arg_accesses=[AccessType.READ])
             write_accesses = AccessType.all_write_accesses()
             farg_write = psyGen.args_filter(self._arg_descriptors,
-                                            arg_types=["gh_field"],
+                                            arg_types=GH_VALID_FIELD_NAMES,
                                             arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
@@ -3368,7 +3425,7 @@ class DynFields(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         fld_args = psyGen.args_filter(self._kernel.args,
-                                      arg_types=["gh_field"])
+                                      arg_types=GH_VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = get_fs_undf_name(fld.function_space)
             intent = fld.intent
@@ -3437,7 +3494,7 @@ class LFRicRunTimeChecks(DynCollection):
         existing_checks = []
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
-                if arg.type != "gh_field":
+                if arg.type not in GH_VALID_FIELD_NAMES:
                     # This check is limited to fields
                     continue
                 fs_name = arg.function_space.orig_name
@@ -3514,7 +3571,7 @@ class LFRicRunTimeChecks(DynCollection):
         modified_fields = []
         for call in self._invoke.schedule.kernels():
             for arg in call.arguments.args:
-                if (arg.text and arg.type == "gh_field" and
+                if (arg.text and arg.type in GH_VALID_FIELD_NAMES and
                         arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
                              entry[0].name == arg.name]):
@@ -9957,7 +10014,7 @@ class DynKernelArgument(KernelArgument):
                     "associated with this argument (fss='{1}')".format(
                         function_space.orig_name,
                         self.function_space_names))
-        if self._type == "gh_field":
+        if self._type in GH_VALID_FIELD_NAMES:
             return "vspace"
         elif self.is_operator:
             if function_space.orig_name == self.descriptor.function_space_from:
