@@ -50,6 +50,7 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.parse.algorithm import BuiltInCall
 
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -784,37 +785,29 @@ class InvokeSchedule(Schedule):
 
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
+        super(InvokeSchedule, self).__init__()
 
-        # Initialise class attributes
-        self._parent = None
-        # TODO #645 once children are not passed to the base-class constructor
-        # we should call that constructor here and have *it* create the symbol
-        # table.
-        self._symbol_table = SymbolTable()
-        if reserved_names:
-            for name in reserved_names:
-                self._symbol_table.add(Symbol(name))
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
 
-        # we need to separate calls into loops (an iteration space really)
+        # Populate the Schedule Symbol Table with the reserved names.
+        if reserved_names:
+            for name in reserved_names:
+                self.symbol_table.add(Symbol(name))
+
+        # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         if alg_calls is None:
             alg_calls = []
-        sequence = []
-        from psyclone.parse.algorithm import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
+                self.addchild(BuiltInFactory.create(call, parent=self))
             else:
-                sequence.append(KernFactory.create(call, parent=self))
-        # TODO #645 move this constructor call to the beginning of this
-        # routine.
-        Schedule.__init__(self, children=sequence, parent=None)
+                self.addchild(KernFactory.create(call, parent=self))
 
     @property
     def symbol_table(self):
