@@ -177,7 +177,7 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
 # ---------- Loops (bounds, types, names) ----------------------------------- #
-# These are loop bound names which identify positions in a fields
+# These are loop bound names which identify positions in a field's
 # halo. It is useful to group these together as we often need to
 # determine whether an access to a field or other object includes
 # access to the halo, or not.
@@ -679,8 +679,6 @@ class DynArgDescriptor03(Descriptor):
                            argument type is passed in.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
-    :raises ParseError: if the second 'meta_arg' entry is not a valid \
-                        access descriptor.
     :raises ParseError: if an argument that is not a real scalar has a \
                         reduction access.
     :raises InternalError: if none of the checks caught an invalid argument.
@@ -717,7 +715,7 @@ class DynArgDescriptor03(Descriptor):
 
         # Check the first argument descriptor. If it is a binary operator
         # then it has to be a field vector with an "*n" appended. If it is
-        # a variable then it can be other allowed type of argument).
+        # a variable then it can be other allowed type of argument.
         if isinstance(arg_type.args[0], expr.BinaryOperator):
             # We expect 'field_type * n' to have been specified
             argtype = arg_type.args[0].toks[0].name
@@ -761,7 +759,7 @@ class DynArgDescriptor03(Descriptor):
                     "separator in the format '(field*n)', but found '{0}' "
                     "in '{1}'".format(operator, arg_type))
 
-            # Check than no other arguments than a fields use vector notation
+            # Check than no other arguments than fields use vector notation
             if self._type not in GH_VALID_FIELD_NAMES and self._vector_size:
                 raise ParseError(
                     "In the Dynamo0.3 API vector notation is only supported "
@@ -783,7 +781,7 @@ class DynArgDescriptor03(Descriptor):
                 "DynArgDescriptor03.__init__: invalid argument type after "
                 "checks, should not get to here")
 
-        # The 2nd arg is an access descriptor
+        # The 2nd arg is an access descriptor (TODO: 3rd in case of scalar)
         # Convert from GH_* names to the generic access type:
         api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
@@ -835,8 +833,9 @@ class DynArgDescriptor03(Descriptor):
         Validates argument descriptors for field arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 field argument type
-        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+        :param arg_type: Dynamo0.3 field (vector) argument type
+        :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
+                        :py:class:`psyclone.expression.BinaryOperator`
 
         :raises InternalError: if argument type other than a field is \
                                passed in.

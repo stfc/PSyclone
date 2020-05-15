@@ -167,13 +167,13 @@ def test_arg_descriptor_vector():
 
 
 def test_ad_scalar_validate_wrong_type():
-    ''' Test that an error is raised if an something other than a scalar
+    ''' Test that an error is raised if something other than a scalar
     is passed to the DynArgDescriptor03._validate_scalar method. '''
     from psyclone.dynamo0p3 import DynArgDescriptor03
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    # Get an argument which is not an operator
+    # Get an argument which is not a scalar
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         DynArgDescriptor03(wrong_arg)._validate_scalar(wrong_arg)
@@ -213,8 +213,8 @@ def test_ad_scalar_type_too_many_args():
 
 
 def test_ad_scalar_type_no_write():
-    ''' Tests that an error is raised when the argument descriptor
-    metadata for a real or an integer scalar specifies GH_WRITE. '''
+    ''' Tests that an error is raised when the argument descriptor metadata
+    for a real or an integer scalar specifies 'GH_WRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
     for argname in GH_VALID_SCALAR_NAMES:
@@ -229,8 +229,8 @@ def test_ad_scalar_type_no_write():
 
 
 def test_ad_scalar_type_no_inc():
-    ''' Tests that an error is raised when the argument descriptor
-    metadata for a real or an integer scalar specifies GH_INC. '''
+    ''' Tests that an error is raised when the argument descriptor metadata
+    for a real or an integer scalar specifies 'GH_INC' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
     for argname in GH_VALID_SCALAR_NAMES:
@@ -245,8 +245,8 @@ def test_ad_scalar_type_no_inc():
 
 
 def test_ad_int_scalar_type_no_sum():
-    ''' Tests that an error is raised when the argument descriptor
-    metadata for an integer scalar specifies GH_SUM (reduction) '''
+    ''' Tests that an error is raised when the argument descriptor metadata
+    for an integer scalar specifies 'GH_SUM' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_integer, gh_read)",
                         "arg_type(gh_integer, gh_sum)", 1)
@@ -259,13 +259,13 @@ def test_ad_int_scalar_type_no_sum():
 
 
 def test_ad_field_validate_wrong_type():
-    ''' Test that an error is raised if an something other than a field
+    ''' Test that an error is raised if something other than a field
     is passed to the DynArgDescriptor03._validate_field method. '''
     from psyclone.dynamo0p3 import DynArgDescriptor03
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    # Get an argument which is not an operator
+    # Get an argument which is not a field
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
         DynArgDescriptor03(wrong_arg)._validate_field(wrong_arg)
@@ -2413,7 +2413,7 @@ def test_stencil_metadata():
     # stencil extent is not provided in the above metadata
     assert stencil_descriptor_1.stencil['extent'] is None
 
-    # Check other DynArgDescriptor03 argument properties for the
+    # Check other DynArgDescriptor03 argument properties for a
     # field stencil argument
     assert stencil_descriptor_1.type == "gh_field"
     assert stencil_descriptor_1.function_space == "w2"
@@ -2425,7 +2425,7 @@ def test_stencil_metadata():
 
 def test_field_metadata_too_many_arguments():
     ''' Check that we raise an exception if more than 4 arguments are
-    provided in the metadata for a gh_field arg_type. '''
+    provided in the metadata for a 'gh_field' argument type. '''
     result = STENCIL_CODE.replace(
         "gh_field, gh_read, w2, stencil(cross)",
         "gh_field, gh_read, w2, stencil(cross), w1", 1)
@@ -2837,9 +2837,9 @@ def test_arg_descriptor_int_scalar():
 
 def test_arg_descriptor_str_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
-    when __str__ is called and the internal type is an
-    unexpected value. It should not be possible to get to here so we
-    need to mess about with internal values to trip this.'''
+    when __str__ is called and the internal type is an unexpected
+    value. It should not be possible to get to here so we need to
+    mess about with internal values to trip this.'''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -2854,7 +2854,7 @@ def test_arg_descriptor_str_error():
 def test_arg_desc_func_space_tofrom_err():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space_to or function_space_from is called and the
-    internal type is not gh_operator.'''
+    internal type is not an operator argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -2990,7 +2990,7 @@ def test_fsdescriptors_get_descriptor():
 
 def test_arg_descriptor_init_error(monkeypatch):
     ''' Tests that an internal error is raised in DynArgDescriptor03
-    when an invalid type is provided. However this error never gets
+    when an invalid type is provided. However, this error never gets
     tripped due to an earlier test so we need to force the error by
     changing the internal state. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3001,7 +3001,7 @@ def test_arg_descriptor_init_error(monkeypatch):
     # DynArgDescriptor03 object
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
-    # that GH_INVALID is actually valid
+    # that 'GH_INVALID' is actually valid
     from psyclone.dynamo0p3 import DynArgDescriptor03
     monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
                         GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
@@ -3394,7 +3394,7 @@ def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
 
 def test_stencil_read_only():
     ''' Test that an error is raised if a field with a stencil is not
-    accessed as gh_read. '''
+    accessed as 'gh_read'. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = STENCIL_CODE.replace("gh_read, w2, stencil(cross)",
                                 "gh_write, w2, stencil(cross)", 1)
@@ -3407,7 +3407,7 @@ def test_stencil_read_only():
 
 def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
-    and gh_inc are provided for the same field in the metadata. '''
+    and 'gh_inc' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field, gh_read, w3)",
@@ -3423,7 +3423,7 @@ def test_fs_discontinuous_and_inc_error():
 
 def test_fs_continuous_and_readwrite_error():
     ''' Test that an error is raised if a continuous function space and
-    gh_readwrite are provided for the same field in the metadata. '''
+    'gh_readwrite' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in CONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field, gh_read, w2)",
@@ -3438,8 +3438,8 @@ def test_fs_continuous_and_readwrite_error():
 
 
 def test_fs_anyspace_and_readwrite_error():
-    ''' Test that an error is raised if any_space and
-    gh_readwrite are provided for the same field in the metadata. '''
+    ''' Test that an error is raised if 'any_space' and
+    'gh_readwrite' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in VALID_ANY_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field, gh_read, w2)",

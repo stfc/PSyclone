@@ -121,7 +121,7 @@ def test_cma_mdata_assembly():
 
 
 def test_cma_mdata_validate_wrong_type():
-    ''' Test that an error is raised if an something other than an operator
+    ''' Test that an error is raised if something other than an operator
     is passed to the DynArgDescriptor03._validate_operator method. '''
     from psyclone.dynamo0p3 import DynArgDescriptor03
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)

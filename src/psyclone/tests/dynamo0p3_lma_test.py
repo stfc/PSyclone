@@ -169,7 +169,7 @@ def test_no_vector_operator():
 
 
 def test_ad_op_type_validate_wrong_type():
-    ''' Test that an error is raised if an something other than an operator
+    ''' Test that an error is raised if something other than an operator
     is passed to the DynArgDescriptor03._validate_operator method. '''
     from psyclone.dynamo0p3 import DynArgDescriptor03
     ast = fpapi.parse(CODE, ignore_comments=False)
