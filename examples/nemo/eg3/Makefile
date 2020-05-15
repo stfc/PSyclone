@@ -45,7 +45,10 @@
 # export F90=pgf90
 # export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
 # export LDFLAGS="-acc -ta=tesla,cc70"
-F90 ?= gfortran
+include ../../common.mk
+
+GENERATED_FILES += psy.f90 traadv.exe
+
 F90FLAGS ?= -fopenmp
 LDFLAGS ?= -fopenmp
 
@@ -54,10 +57,7 @@ DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
 TIMER_INC = ${DL_TIMER_ROOT}/src
 TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
 
-.PHONY: all compile clean allclean dl_timer transform
-
-# By default we only do the PSyclone transformation
-all: transform
+.PHONY: allclean dl_timer
 
 # Compilation requires that dl_timer be installed
 compile: traadv.exe
@@ -66,19 +66,18 @@ traadv.exe: dl_timer psy.o
 	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
 
 dl_timer:
-	make -C ${DL_TIMER_ROOT} sm_lib
+	${MAKE} -C ${DL_TIMER_ROOT} sm_lib
 
 transform:
-	psyclone -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 ../code/tra_adv.F90
+	${PSYCLONE} -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
+   ../code/tra_adv.F90
 
 psy.f90: transform
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
 
-# Delete generated Fortran and exe
-clean:
-	rm -f *.o *.mod *~ psy.f90 traadv.exe
+all: transform compile
 
 allclean: clean
-	make -C ${DL_TIMER_ROOT} allclean
+	${MAKE} -C ${DL_TIMER_ROOT} allclean

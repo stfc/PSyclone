@@ -33,25 +33,28 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-PSYCLONE ?= psyclone
+include ../../common.mk
+
 # We apply the same PSyclone script to every Fortran file *apart* from
 # intrinsic_example.f90 and tra_adv_compute.F90 (because the latter
 # contains features that the SIR backend does not yet support).
 FORTRAN_FILES = $(filter-out ./intrinsic_example.%,$(wildcard ./*f90))
 
-.PHONY: all transform transform-intrinsic compile clean
+.PHONY: vanilla intrinsic
 
-all: transform transform-intrinsic
+transform: vanilla intrinsic
 
-transform:
-	$(foreach file, ${FORTRAN_FILES}, ${PSYCLONE} -s ./sir_trans.py -api nemo $(file) -opsy /dev/null; )
+vanilla:
+	$(foreach file, ${FORTRAN_FILES}, ${PSYCLONE} -s ./sir_trans.py -api nemo \
+  $(file) -opsy /dev/null; )
 
 # intrinsic_example.f90 requires a different transformation script
-transform-intrinsic:
-	${PSYCLONE} -s ./sir_trans_intrinsics.py -api nemo intrinsic_example.f90 -opsy /dev/null
+intrinsic:
+	${PSYCLONE} -s ./sir_trans_intrinsics.py -api nemo intrinsic_example.f90 \
+  -opsy /dev/null
 
 # We don't do any compilation for this example
-compile: all
+compile:
+	@echo "No compilation supported for nemo/eg4"
 
-clean:
-	rm -f *~
+all: transform compile

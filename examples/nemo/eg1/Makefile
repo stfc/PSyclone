@@ -33,10 +33,12 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-all:
+include ../../common.mk
+
+transform:
 	./runme_openmp.py
 
-compile: all
+compile:
+	@echo "No compilation supported for nemo/eg1"
 
-clean:
-	rm -f *~
+all: transform compile

@@ -33,15 +33,17 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-all: basic omp_levels
+include ../../common.mk
+
+transform: basic omp_levels
 
 basic:
 	./runme_openmp.py
 
 omp_levels:
-	psyclone -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
+	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
 
-compile: all
+compile:
+	@echo "No compilation supported for nemo/eg2"
 
-clean:
-	rm -f *~
+all: transform compile
