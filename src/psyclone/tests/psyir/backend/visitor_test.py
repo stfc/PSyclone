@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclond.psyir.backend.visitor module'''
@@ -39,7 +40,8 @@
 from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Reference, Array
+from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 
 
 def test_psyirvisitor_defaults():
@@ -209,17 +211,20 @@ def test_psyirvisitor_visit_skip_nodes(capsys):
             '''
             print("testnode2 called")
 
-    class TestNode1(Node):
-        '''Subclass of Node used to check that the skip_nodes variable in
-        TestVisitor works correctly.
-
-        '''
-
     class TestNode2(Node):
         '''Subclass of Node used to check that the skip_nodes variable in
         TestVisitor works correctly.
 
         '''
+
+    class TestNode1(Node):
+        '''Subclass of Node used to check that the skip_nodes variable in
+        TestVisitor works correctly.
+
+        '''
+        @staticmethod
+        def _validate_child(_, child):
+            return isinstance(child, TestNode2)
 
     # Create a simple Node hierachy with an instance of class
     # TestNode2 being the child of an instance of class TestNode1.
@@ -251,5 +256,25 @@ def test_psyirvisitor_visit_return_node():
     with pytest.raises(VisitorError) as excinfo:
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
-            "attempted were ['return_node', 'node_node']."
+            "attempted were ['return_node', 'statement_node', 'node_node']."
             ""in str(excinfo.value))
+
+
+def test_reference():
+    '''Test that the common reference visitor writes the referenced symbol name
+    or raises an error if the node is not Leaf node reference.
+
+    '''
+    # Generate PSyIR Reference
+    test_visitor = PSyIRVisitor()
+    reference = Reference(DataSymbol('a', REAL_TYPE))
+    result = test_visitor(reference)
+    assert result == "a"
+
+    # Generate PSyIR Array
+    reference2 = Array.create(DataSymbol('b', ArrayType(REAL_TYPE, shape=[1])),
+                              [reference])
+    with pytest.raises(VisitorError) as err:
+        result = test_visitor(reference2)
+    assert "Expecting a Reference with no children but found: " \
+        in str(err.value)

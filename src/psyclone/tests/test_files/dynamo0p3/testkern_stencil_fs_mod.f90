@@ -45,7 +45,7 @@ module testkern_stencil_fs_mod
   ! Example of stencils on all supported function space identifiers
   type, public, extends(kernel_type) :: testkern_stencil_fs_type
      private
-     type(arg_type), dimension(14) :: meta_args = (/                &
+     type(arg_type), dimension(16) :: meta_args = (/                &
           arg_type(gh_field, gh_inc,  w1),                          &
           arg_type(gh_field, gh_read, w0,          stencil(cross)), &
           arg_type(gh_field, gh_read, w1,          stencil(cross)), &
@@ -56,6 +56,8 @@ module testkern_stencil_fs_mod
           arg_type(gh_field, gh_read, w2v,         stencil(cross)), &
           arg_type(gh_field, gh_read, w2broken,    stencil(cross)), &
           arg_type(gh_field, gh_read, w2trace,     stencil(cross)), &
+          arg_type(gh_field, gh_read, w2htrace,    stencil(cross)), &
+          arg_type(gh_field, gh_read, w2vtrace,    stencil(cross)), &
           arg_type(gh_field, gh_read, wchi,        stencil(cross)), &
           arg_type(gh_field, gh_read, any_w2,      stencil(cross)), &
           arg_type(gh_field, gh_read, any_space_9, stencil(cross)), &
@@ -82,6 +84,8 @@ contains
                                       fld12, fld12_stsize, fld12_stdofmap,       &
                                       fld13, fld13_stsize, fld13_stdofmap,       &
                                       fld14, fld14_stsize, fld14_stdofmap,       &
+                                      fld15, fld15_stsize, fld15_stdofmap,       &
+                                      fld16, fld16_stsize, fld16_stdofmap,       &
                                       ndf_w1, undf_w1, map_w1,                   &
                                       ndf_w0, undf_w0, map_w0,                   &
                                       ndf_w2, undf_w2, map_w2,                   &
@@ -91,43 +95,50 @@ contains
                                       ndf_w2v, undf_w2v, map_w2v,                &
                                       ndf_w2broken, undf_w2broken, map_w2broken, &
                                       ndf_w2trace, undf_w2trace, map_w2trace,    &
+                                      ndf_w2htrace, undf_w2htrace, map_w2htrace, &
+                                      ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, &
                                       ndf_wchi, undf_wchi, map_wchi,             &
                                       ndf_anyw2, undf_anyw2, map_anyw2,          &
-                                      ndf_aspace9, undf_aspace9, map_aspace9,    &
-                                      ndf_adspace1, undf_adspace1, map_adspace1)
+                                      ndf_aspc9, undf_aspc9, map_aspc9,          &
+                                      ndf_adspc1, undf_adspc1, map_adspc1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_adspace1
-    integer(kind=i_def), intent(in) :: ndf_aspace9
+    integer(kind=i_def), intent(in) :: ndf_adspc1
+    integer(kind=i_def), intent(in) :: ndf_aspc9
     integer(kind=i_def), intent(in) :: ndf_anyw2
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: ndf_w2broken
     integer(kind=i_def), intent(in) :: ndf_w2h
+    integer(kind=i_def), intent(in) :: ndf_w2htrace
     integer(kind=i_def), intent(in) :: ndf_w2trace
     integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2vtrace
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: ndf_wchi
     integer(kind=i_def), intent(in) :: ndf_wtheta
     integer(kind=i_def), intent(in) :: undf_w1, undf_w0, undf_w2,      &
                                        undf_w3, undf_wtheta, undf_w2h, &
                                        undf_w2v, undf_w2broken,        &
-                                       undf_w2trace, undf_wchi,        &
-                                       undf_anyw2, undf_aspace9,       &
-                                       undf_adspace1
-    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: map_adspace1
-    integer(kind=i_def), intent(in), dimension(ndf_aspace9)  :: map_aspace9
+                                       undf_w2trace, undf_w2htrace,    &
+                                       undf_w2vtrace, undf_wchi,       &
+                                       undf_anyw2, undf_aspc9,         &
+                                       undf_adspc1
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1)   :: map_adspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc9)    :: map_aspc9
     integer(kind=i_def), intent(in), dimension(ndf_anyw2)    :: map_anyw2
     integer(kind=i_def), intent(in), dimension(ndf_w0)       :: map_w0
     integer(kind=i_def), intent(in), dimension(ndf_w1)       :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2)       :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w2broken) :: map_w2broken
     integer(kind=i_def), intent(in), dimension(ndf_w2h)      :: map_w2h
+    integer(kind=i_def), intent(in), dimension(ndf_w2htrace) :: map_w2htrace
     integer(kind=i_def), intent(in), dimension(ndf_w2trace)  :: map_w2trace
     integer(kind=i_def), intent(in), dimension(ndf_w2v)      :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) :: map_w2vtrace
     integer(kind=i_def), intent(in), dimension(ndf_w3)       :: map_w3
     integer(kind=i_def), intent(in), dimension(ndf_wchi)     :: map_wchi
     integer(kind=i_def), intent(in), dimension(ndf_wtheta)   :: map_wtheta
@@ -135,7 +146,7 @@ contains
                                        fld5_stsize, fld6_stsize, fld7_stsize,    &
                                        fld8_stsize, fld9_stsize, fld10_stsize,   &
                                        fld11_stsize, fld12_stsize, fld13_stsize, &
-                                       fld14_stsize
+                                       fld14_stsize, fld15_stsize, fld16_stsize
     integer(kind=i_def), intent(in), dimension(ndf_w0,fld2_stsize)        :: fld2_stdofmap
     integer(kind=i_def), intent(in), dimension(ndf_w1,fld3_stsize)        :: fld3_stdofmap
     integer(kind=i_def), intent(in), dimension(ndf_w2,fld4_stsize)        :: fld4_stdofmap
@@ -145,10 +156,12 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2v,fld8_stsize)       :: fld8_stdofmap
     integer(kind=i_def), intent(in), dimension(ndf_w2broken,fld9_stsize)  :: fld9_stdofmap
     integer(kind=i_def), intent(in), dimension(ndf_w2trace,fld10_stsize)  :: fld10_stdofmap
-    integer(kind=i_def), intent(in), dimension(ndf_wchi,fld11_stsize)     :: fld11_stdofmap
-    integer(kind=i_def), intent(in), dimension(ndf_anyw2,fld12_stsize)    :: fld12_stdofmap
-    integer(kind=i_def), intent(in), dimension(ndf_aspace9,fld13_stsize)  :: fld13_stdofmap
-    integer(kind=i_def), intent(in), dimension(ndf_adspace1,fld14_stsize) :: fld14_stdofmap
+    integer(kind=i_def), intent(in), dimension(ndf_w2htrace,fld11_stsize) :: fld11_stdofmap
+    integer(kind=i_def), intent(in), dimension(ndf_w2vtrace,fld12_stsize) :: fld12_stdofmap
+    integer(kind=i_def), intent(in), dimension(ndf_wchi,fld13_stsize)     :: fld13_stdofmap
+    integer(kind=i_def), intent(in), dimension(ndf_anyw2,fld14_stsize)    :: fld14_stdofmap
+    integer(kind=i_def), intent(in), dimension(ndf_aspc9,fld15_stsize)    :: fld15_stdofmap
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1,fld16_stsize)   :: fld16_stdofmap
     real(kind=r_def), intent(inout), dimension(undf_w1)       :: fld1
     real(kind=r_def), intent(in),    dimension(undf_w0)       :: fld2
     real(kind=r_def), intent(in),    dimension(undf_w1)       :: fld3
@@ -159,10 +172,12 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_w2v)      :: fld8
     real(kind=r_def), intent(in),    dimension(undf_w2broken) :: fld9
     real(kind=r_def), intent(in),    dimension(undf_w2trace)  :: fld10
-    real(kind=r_def), intent(in),    dimension(undf_wchi)     :: fld11
-    real(kind=r_def), intent(in),    dimension(undf_anyw2)    :: fld12
-    real(kind=r_def), intent(in),    dimension(undf_aspace9)  :: fld13
-    real(kind=r_def), intent(in),    dimension(undf_adspace1) :: fld14
+    real(kind=r_def), intent(in),    dimension(undf_w2htrace) :: fld11
+    real(kind=r_def), intent(in),    dimension(undf_w2vtrace) :: fld12
+    real(kind=r_def), intent(in),    dimension(undf_wchi)     :: fld13
+    real(kind=r_def), intent(in),    dimension(undf_anyw2)    :: fld14
+    real(kind=r_def), intent(in),    dimension(undf_aspc9)    :: fld15
+    real(kind=r_def), intent(in),    dimension(undf_adspc1)   :: fld16
 
   end subroutine testkern_stencil_fs_code
 

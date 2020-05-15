@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@ program explicit_do
   implicit none
   integer :: ji, jj, jk
   integer :: jpi, jpj, jpk
+  real, parameter :: r = 1.0
   real, dimension(jpi,jpj,jpk) :: umask
 
   ! Test code with two explicit NEMO-style do loops

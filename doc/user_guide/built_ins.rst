@@ -62,33 +62,45 @@ Example
 
 .. highlight:: fortran
 
-In the following example, the invoke call includes a call to a Built-in
-(``setval_c``) and a user-supplied kernel
-(``matrix_vector_kernel_mm_type``). The
-Built-in sets all values in the field ``Ax`` to
-``0.0``. Notice that, unlike the kernel call, no use association is
-required for the Built-in since it is provided as part of the environment
-(*c.f.* Fortran intrinsics such as ``sin()``).
+In the following example, the invoke call includes a call to two Built-ins
+(``setval_c`` and ``X_divideby_Y``) and a user-supplied kernel
+(``matrix_vector_kernel_mm_type``).
+The ``setval_c`` Built-in sets all values in the field ``Ax`` to ``1.0`` and
+the ``X_divideby_Y`` Built-in divides values in the field ``rhs`` by their
+equivalent (per degree of freedom) values in the field ``lumped_weight``
+(see :ref:`supported Dynamo0.3 API Built-ins <dynamo0.3-built-ins>`). Notice
+that, unlike the kernel call, no ``use`` association is required for the
+Built-ins since they are provided as part of the environment (*c.f.* Fortran
+intrinsics such as ``sin()``).
 ::
 
-  subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
+  module solver_mod
+    ...
     use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
-    integer,             intent(in)    :: n_iter
-    type(field_type),    intent(inout) :: lhs, rhs
-    type(operator_type), intent(inout) :: mm
-    type(mesh_type),     intent(in)    :: mesh
-    type(field_type)                   :: Ax, lumped_weight, res
-
-    real(kind=r_def), parameter :: MU = 0.9_r_def
     ...
 
-    do iter = 1,n_iter
-      call invoke( setval_c(Ax, 0.0) )
-      call invoke( matrix_vector_kernel_mm_type(Ax, lhs, mm) )
-      ...
-    end do
+    subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
 
-  end subroutine jacobi_solver_algorithm
+      integer(kind=i_def), intent(in)    :: n_iter
+      type(field_type),    intent(inout) :: lhs
+      type(field_type),    intent(in)    :: rhs
+      type(operator_type), intent(in)    :: mm
+      type(mesh_type),     intent(in)    :: mesh
+      type(field_type)                   :: Ax, lumped_weight, res
+
+      real(kind=r_def), parameter :: MU = 0.9_r_def
+      ...
+
+      ! Compute mass lump
+      call invoke( name = "Jacobi_mass_lump",                           &
+                   setval_c(Ax, 1.0_r_def),                             &
+                   matrix_vector_kernel_mm_type(lumped_weight, Ax, mm), &
+                   X_divideby_Y(lhs, rhs, lumped_weight) )
+
+    end subroutine jacobi_solver_algorithm
+    ...
+
+  end module solver_mod
 
 Below is an example of a kernel that is consistent with the
 ``matrix_vector_kernel_mm_type kernel`` specified in the example above.
@@ -117,16 +129,15 @@ Below is an example of a kernel that is consistent with the
   end module matrix_vector_mm_mod
 
 We now translate the algorithm layer code and generate the PSy layer
-code. The algorithm code is assumed to be in a file call
-`solver_mod.x90`. In this case we use the top level python
-interface. See the :ref:`api-label` section for different ways to
-translate/generate code.
-::
+code. The algorithm code is assumed to be in a file called
+``solver_mod.x90`` (see Example 3 in :ref:`LFRic examples <examples_lfric>`
+section). In this case we use the top level Python interface. See the
+:ref:`api-label` section for different ways to translate/generate code.
 
-	>>> from psyclone.generator import generate
-	>>> alg, psy = generate("solver_mod.x90")
-	>>> print(alg)
-	>>> print(psy)
+.. code-block:: bash
+
+   > psyclone -nodm -oalg solver_mod.f90 -opsy solver_mod_psy.f90 \
+   > solver_mod.x90
 
 The resultant generated algorithm code is given below.
 
@@ -135,111 +146,117 @@ the code parser) the differences between the original algorithm code
 and the translated algorithm code are:
 
 * The generic calls to ``invoke`` have been replaced by specific
-  ``CALL invoke_xx``. The calls within the invoke are removed, as are
-  duplicate arguments and any literals leaving the three fields being
-  passed in;
-* A use statement is added for the each of the new ``CALL invoke_xx``
+  ``CALL invoke_<xx>``. The kernel calls within the original ``invoke``
+  are removed, as are duplicate arguments and any literals, leaving
+  the five fields and one operator as arguments;
+
+* A ``use`` statement is added for the each of the new ``CALL invoke_<xx>``
   which will call the generated PSy layer code.
 
-The existence of a call to a Built-in has made no difference at this point:
-::
+The existence of calls to Built-ins has made no difference at this point::
 
     SUBROUTINE jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
-      USE solver_mod_psy, ONLY: invoke_5_matrix_vector_kernel_mm_type
-      USE solver_mod_psy, ONLY: invoke_4
-      INTEGER, intent(in) :: n_iter
-      TYPE(field_type), intent(inout) :: lhs, rhs
-      TYPE(operator_type), intent(inout) :: mm
-      TYPE(mesh_type), intent(in) :: mesh
-      TYPE(field_type) ax, lumped_weight, res
+      USE solver_mod_psy, ONLY: invoke_jacobi_iterloop
+      USE solver_mod_psy, ONLY: invoke_21
+      USE solver_mod_psy, ONLY: invoke_jacobi_mass_lump
 
-      REAL(KIND=r_def), parameter :: mu = 0.9_r_def
+      IMPLICIT NONE
 
-      INTEGER iter
-      INTEGER rhs_fs
-      TYPE(function_space_type) fs
+      INTEGER(KIND = i_def), INTENT(IN) :: n_iter
+      TYPE(field_type), INTENT(INOUT) :: lhs
+      TYPE(field_type), INTENT(IN) :: rhs
+      TYPE(operator_type), INTENT(IN) :: mm
+      TYPE(mesh_type), INTENT(IN) :: mesh
+      TYPE(field_type) :: Ax, lumped_weight, res
+
+      REAL(KIND = r_def), PARAMETER :: MU = 0.9_r_def
+
+      INTEGER(KIND = i_def) :: iter
+      INTEGER(KIND = i_def) :: rhs_fs
+      TYPE(function_space_type) :: fs
+
       ...
-      DO iter = 1,n_iter
-        CALL invoke_4(ax)
-        CALL invoke_5_matrix_vector_kernel_mm_type(ax, lhs, mm)
-        ...
-      END DO
+      CALL invoke_jacobi_mass_lump(ax, lumped_weight, mm, lhs, rhs)
+      ...
+
     END SUBROUTINE jacobi_solver_algorithm
 
-A vanilla (not optimised) version of the generated PSy layer is given
-below. As expected the kernel code is called from the PSy
-layer. However, in the case of the `setval_c` Built-in, the
-code for this has been written directly into the PSy layer (the loop
-setting `ax_proxy%data(df) = 0.0`). This example illustrates that
-Built-ins may be implemented in whatever way the generator
-sees fit with no change to the algorithm and kernel layers.
+A vanilla (with no distributed and shared-memory optimisations) version
+of the generated PSy layer is given below. As expected, the kernel code is
+called from the PSy layer. However, in the case of the Built-ins, the code
+for these has been written directly into the PSy layer:
+
+* ``setval_c`` translates to the loop setting
+  ``ax_proxy%data(df) = 1.0_r_def``;
+
+* ``X_divideby_Y`` translates to the loop setting
+  ``lhs_proxy%data(df) = rhs_proxy%data(df) / lumped_weight_proxy%data(df)``.
+
+This example illustrates that Built-ins may be implemented in whatever way
+PSyclone sees fit with no change to the algorithm and kernel layers.
 ::
 
   MODULE solver_mod_psy
     ...
-    SUBROUTINE invoke_4(ax)
-      USE mesh_mod, ONLY: mesh_type
-      TYPE(field_type), intent(inout) :: ax
-      INTEGER df
-      INTEGER undf_any_space_1
-      TYPE(field_proxy_type) ax_proxy
-      !
-      ! Initialise field proxies
-      !
-      ax_proxy = ax%get_proxy()
-      !
-      ! Initialise sizes and allocate any basis arrays for any_space_1
-      !
-      undf_any_space_1 = ax_proxy%vspace%get_undf()
-      !
-      ...
-      ! Call our kernels
-      !
-      DO df=1,undf_any_space_1
-        ax_proxy%data(df) = 0.0
-      END DO
-      !
-      ...
-      !
-    END SUBROUTINE invoke_4
-    SUBROUTINE invoke_5_matrix_vector_kernel_mm_type(ax, lhs, mm)
+
+    SUBROUTINE invoke_jacobi_mass_lump(ax, lumped_weight, mm, lhs, rhs)
       USE matrix_vector_mm_mod, ONLY: matrix_vector_mm_code
-      ...
-      TYPE(field_type), intent(inout) :: ax, lhs
-      TYPE(operator_type), intent(inout) :: mm
+      TYPE(field_type), intent(in) :: ax, lumped_weight, lhs, rhs
+      TYPE(operator_type), intent(in) :: mm
       ...
       !
-      ! Initialise field proxies
+      ! Initialise field and/or operator proxies
       !
       ax_proxy = ax%get_proxy()
-      lhs_proxy = lhs%get_proxy()
+      lumped_weight_proxy = lumped_weight%get_proxy()
       mm_proxy = mm%get_proxy()
+      lhs_proxy = lhs%get_proxy()
+      rhs_proxy = rhs%get_proxy()
       !
       ! Initialise number of layers
       !
       nlayers = ax_proxy%vspace%get_nlayers()
       !
-      ! Initialise sizes and allocate any basis arrays for any_space_1
+      ! Look-up dofmaps for each function space
       !
-      ndf_any_space_1 = ax_proxy%vspace%get_ndf()
-      undf_any_space_1 = ax_proxy%vspace%get_undf()
+      map_aspc1_lumped_weight => lumped_weight_proxy%vspace%get_whole_dofmap()
       !
-      ...
-      DO cell=1,mesh%get_last_halo_cell(1)
+      ! Initialise number of DoFs for aspc1_ax
+      !
+      ndf_aspc1_ax = ax_proxy%vspace%get_ndf()
+      undf_aspc1_ax = ax_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for aspc1_lumped_weight
+      !
+      ndf_aspc1_lumped_weight = lumped_weight_proxy%vspace%get_ndf()
+      undf_aspc1_lumped_weight = lumped_weight_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for aspc1_lhs
+      !
+      ndf_aspc1_lhs = lhs_proxy%vspace%get_ndf()
+      undf_aspc1_lhs = lhs_proxy%vspace%get_undf()
+      !
+      ! Call our kernels
+      !
+      DO df=1,undf_aspc1_ax
+        ax_proxy%data(df) = 1.0_r_def
+      END DO
+      DO cell=1,lumped_weight_proxy%vspace%get_ncell()
         !
-        map_any_space_1 => ax_proxy%vspace%get_cell_dofmap(cell)
-        !
-        CALL matrix_vector_mm_code(cell, nlayers, ax_proxy%data,            &
-                                   lhs_proxy%data, mm_proxy%ncell_3d,       &
-                                   mm_proxy%local_stencil, ndf_any_space_1, &
-                                   undf_any_space_1, map_any_space_1)
-        ...
-        !
+        CALL matrix_vector_mm_code(cell, nlayers,            &
+                                   lumped_weight_proxy%data, &
+                                   ax_proxy%data,            &
+                                   mm_proxy%ncell_3d,        &
+                                   mm_proxy%local_stencil,   &
+                                   ndf_aspc1_lumped_weight,  &
+                                   undf_aspc1_lumped_weight, &
+                                   map_aspc1_lumped_weight(:,cell))
+      END DO
+      DO df=1,undf_aspc1_lhs
+        lhs_proxy%data(df) = rhs_proxy%data(df) / lumped_weight_proxy%data(df)
       END DO
       !
-      ...
-      !
-    END SUBROUTINE invoke_5_matrix_vector_kernel_mm_type
+    END SUBROUTINE invoke_jacobi_mass_lump
     ...
   END MODULE solver_mod_psy
 
@@ -252,32 +269,35 @@ Supported Built-in operations
 The list of supported Built-ins is API-specific and
 therefore is described under the documentation of each API.
 
-Adding new additional Built-in operations
------------------------------------------
+Adding new Built-in operations
+------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
-    dynamo0.3 it is ``src/psyclone/dynamo0p3_builtins.py``.
+    Dynamo0.3 (LFRic) API it is ``src/psyclone/dynamo0p3_builtins.py``.
  2. Edit this source file to create the class for this new call. It must
     inherit from the API-specific parent class for Built-in operations
-    (``DynBuiltInKern`` for dynamo0.3).
+    (``DynBuiltInKern`` for Dynamo0.3).
  3. Implement ``__str__`` and ``gen_code()`` methods for this new class.
  4. Add the name of the new Built-in operation and its corresponding class
     to the ``BUILTIN_MAP`` dictionary in that source file.
  5. Add metadata describing this call to the appropriate file specified in
-    the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
-    this is ``dynamo0p3_builtins_mod.f90``.
+    the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For Dynamo0.3
+    this is ``src/psyclone/parse/dynamo0p3_builtins_mod.f90``.
  6. Add relevant tests to the PSyclone test file for the API to be extended.
-    *e.g.* for dynamo0.3 it is ``src/psyclone/tests/dynamo0p3_builtins_test.py``.
-    The tests rely on ``single_invoke`` Fortran examples in the relevant
+    *e.g.* for Dynamo0.3 it is
+    ``src/psyclone/tests/dynamo0p3_builtins_test.py``. The tests rely on
+    ``single_invoke`` Fortran examples in the relevant
     ``src/psyclone/tests/test_files/`` subfolder.
  7. Add an appropriate Fortran ``single_invoke`` example for the new
-    Built-in in the relevant ``src/psyclone/tests/test_files/`` subfolder. *e.g.*
-    for dynamo0.3 it is ``src/psyclone/tests/test_files/dynamo0p3/``.
+    Built-in in the relevant ``src/psyclone/tests/test_files/`` subfolder.
+    *e.g.* for Dynamo0.3 it is ``src/psyclone/tests/test_files/dynamo0p3/``.
     Names of examples follow the template
-    ``<category.number>.<subcategory.number>_<single_invoke_name>.f90``.
-    *e.g.* for dynamo0.3 ``<category.number>`` is 15.
+    ``<category.number>.<subcategory.number>_<built-in_name>.f90``.
+    *e.g.* for Dynamo0.3 API ``<category.number>`` is 15 and
+    ``<built-in_name>`` follows the :ref:`Dynamo0.3 API Built-in naming
+    scheme <dynamo0.3-built-ins-names>`.
  8. Document the new Built-in in the documentation of the
-    relevant API (*e.g.* ``doc/dynamo0p3.rst``).
+    relevant API (*e.g.* ``doc/dynamo0p3.rst`` for Dynamo0.3 API).
 
 
 If the API being extended does not currently support any Built-ins

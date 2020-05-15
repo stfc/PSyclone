@@ -125,6 +125,8 @@ class DynBuiltIn(BuiltIn):
     def __init__(self):
         # Builtins do not accept quadrature
         self.qr_rules = {}
+        # Builtins cannot request mesh properties
+        self.mesh = None
         super(DynBuiltIn, self).__init__()
 
     def __str__(self):

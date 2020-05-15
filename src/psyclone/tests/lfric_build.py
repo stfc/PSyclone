@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. Porter and R. Ford, STFC Daresbury Lab
+# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
@@ -59,6 +60,7 @@ class LFRicBuild(Compile):
     # order can be important, they will be compiled in the order
     # specified here.
     INFRASTRUCTURE_MODULES = ["constants_mod",
+                              "fs_continuity_mod",
                               "linked_list_data_mod",
                               "argument_mod",
                               "kernel_mod",
@@ -68,6 +70,7 @@ class LFRicBuild(Compile):
                               "mesh_mod",
                               "stencil_dofmap_mod",
                               "function_space_mod",
+                              "scalar_mod",
                               "field_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",
@@ -76,7 +79,8 @@ class LFRicBuild(Compile):
                               "quadrature_edge_mod",
                               "quadrature_face_mod",
                               "operator_mod",
-                              "flux_direction_mod"]
+                              "flux_direction_mod",
+                              "log_mod"]
 
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.

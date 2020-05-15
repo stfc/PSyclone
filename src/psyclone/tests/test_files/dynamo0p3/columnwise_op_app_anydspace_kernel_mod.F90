@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,8 @@ use constants_mod,           only : r_def, i_def
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
@@ -73,69 +75,53 @@ contains
 end type columnwise_op_app_anydspace_kernel_type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_app_anydspace_kernel_type
-   module procedure columnwise_op_app_anydspace_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_app_anydspace_kernel_code
 
 contains
 
-  type(columnwise_op_app_anydspace_kernel_type) function &
-       columnwise_op_app_anydspace_kernel_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_op_app_anydspace_kernel_constructor
-
-  subroutine columnwise_op_app_anydspace_kernel_code(                         &
-                               cell,                                          &
-                               ncell_2d,                                      &
-                               field1,                                        &
-                               field2,                                        &
-                               cma_op, cma_op_nrow,                           &
-                               cma_op_ncol,                                   &
-                               cma_op_bandwidth,                              &
-                               cma_op_alpha,                                  &
-                               cma_op_beta,                                   &
-                               cma_op_gamma_m,                                &
-                               cma_op_gamma_p,                                &
-                               ndf_any_discontinuous_space_1,                 &
-                               undf_any_discontinuous_space_1,                &
-                               map_any_discontinuous_space_1,                 &
-                               cma_indirection_map_any_discontinuous_space_1, &
-                               ndf_any_space_1,                               &
-                               undf_any_space_1,                              &
-                               map_any_space_1,                               &
-                               cma_indirection_map_any_space_1)
+  subroutine columnwise_op_app_anydspace_kernel_code(      &
+                               cell,                       &
+                               ncell_2d,                   &
+                               field1,                     &
+                               field2,                     &
+                               cma_op, cma_op_nrow,        &
+                               cma_op_ncol,                &
+                               cma_op_bandwidth,           &
+                               cma_op_alpha,               &
+                               cma_op_beta,                &
+                               cma_op_gamma_m,             &
+                               cma_op_gamma_p,             &
+                               ndf_adspc1,                 &
+                               undf_adspc1,                &
+                               map_adspc1,                 &
+                               cma_indirection_map_adspc1, &
+                               ndf_aspc1,                  &
+                               undf_aspc1,                 &
+                               map_aspc1,                  &
+                               cma_indirection_map_aspc1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: cell, ncell_2d
-    integer(kind=i_def), intent(in) :: ndf_any_discontinuous_space_1
-    integer(kind=i_def), intent(in) :: ndf_any_space_1
-    integer(kind=i_def), intent(in) :: undf_any_discontinuous_space_1
-    integer(kind=i_def), intent(in) :: undf_any_space_1
+    integer(kind=i_def), intent(in) :: ndf_adspc1
+    integer(kind=i_def), intent(in) :: ndf_aspc1
+    integer(kind=i_def), intent(in) :: undf_adspc1
+    integer(kind=i_def), intent(in) :: undf_aspc1
     integer(kind=i_def), intent(in) :: cma_op_nrow
     integer(kind=i_def), intent(in) :: cma_op_ncol
     integer(kind=i_def), intent(in) :: cma_op_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_alpha, cma_op_beta
     integer(kind=i_def), intent(in) :: cma_op_gamma_m, cma_op_gamma_p
-    integer(kind=i_def), intent(in), dimension(ndf_any_discontinuous_space_1) :: &
-                                     map_any_discontinuous_space_1
-    integer(kind=i_def), intent(in), dimension(ndf_any_space_1)   :: map_any_space_1
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1)  :: map_adspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1)   :: map_aspc1
     integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: &
-                                     cma_indirection_map_any_discontinuous_space_1
+                                     cma_indirection_map_adspc1
     integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: &
-                                     cma_indirection_map_any_space_1
-    real(kind=r_def), intent(out), dimension(undf_any_discontinuous_space_1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_any_space_1)    :: field2
+                                     cma_indirection_map_aspc1
+    real(kind=r_def), intent(out), dimension(undf_adspc1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc1)   :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on &

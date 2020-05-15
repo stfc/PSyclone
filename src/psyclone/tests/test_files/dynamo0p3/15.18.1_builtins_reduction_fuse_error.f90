@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,13 +38,16 @@ program single_invoke
 
   ! Description: one reduction builtin followed by an access to 
   ! the reduction value.
-  use inf,      only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2
-  real(r_def) :: asum
+  real(r_def)      :: asum
 
   call invoke( X_innerproduct_Y(asum, f1, f2), &
-               inc_a_times_X(b, f1),        &
+               inc_a_times_X(b, f1),           &
                inc_a_times_X(asum, f1) )
 
 end program single_invoke

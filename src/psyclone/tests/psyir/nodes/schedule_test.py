@@ -41,18 +41,42 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
+from psyclone.errors import GenerationError
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
 
+def test_sched_init():
+    ''' Check the Schedule class is initialised as expected.'''
+
+    # By default Schedule sets parent to None, children to an empty list and
+    # initialises its own symbol table.
+    sched = Schedule()
+    assert isinstance(sched, Schedule)
+    assert not sched.parent
+    assert not sched.children
+    assert isinstance(sched.symbol_table, SymbolTable)
+
+    # A custom symbol table and parent and children nodes can be given as
+    # arguments of Schedule.
+    symtab = SymbolTable()
+    sched2 = Schedule(parent=sched, children=[Statement(), Statement()],
+                      symbol_table=symtab)
+    assert isinstance(sched2, Schedule)
+    assert sched2.parent is sched
+    assert len(sched2.children) == 2
+    assert sched2.symbol_table is symtab
+
+
 def test_sched_node_str():
     ''' Check the node_str method of the Schedule class'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     sched = Schedule()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in \
         sched.node_str()
@@ -94,3 +118,22 @@ def test_sched_can_be_printed():
     output = str(psy.invokes.invoke_list[0].schedule)
 
     assert "Schedule:\n" in output
+
+
+def test_sched_children_validation():
+    '''Test that children added to Schedule are validated. Schedule accepts
+    Statements as children.
+
+    '''
+    schedule = Schedule()
+    statement = Assignment()
+    nonstatement = Range()
+
+    # Invalid child
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.addchild(nonstatement)
+    assert ("Item 'Range' can't be child 0 of 'Schedule'. The valid"
+            " format is: '[Statement]*'." in str(excinfo.value))
+
+    # Valid children
+    schedule.addchild(statement)

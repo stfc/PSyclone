@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -74,25 +74,26 @@ extraction become children of the ``ExtractNode``.
 
 The ``ExtractNode`` class uses the dependency analysis to detect
 which variables are input-, and which ones are output-parameters.
-The lists of variables are then passed to the ``PSyDataNode``
-which creates the actual code as described in :ref:`psy_data`. Below is some
-example output for LFRic::
+The lists of variables are then passed to the ``PSyDataNode``,
+which is the base class of any ``ExtractNode`` (details of
+the ``PSyDataNode`` can be found in :ref:`dev_guide:psy_data`). This
+node then creates the actual code, as in the following LFRic example::
 
       ! ExtractStart
       !
-      CALL psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
-      CALL psy_data%PreDeclareVariable("a", a)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("m1", m1)
-      CALL psy_data%PreDeclareVariable("m2", m2)
-      CALL psy_data%PreDeclareVariable("cell_post", cell)
-      CALL psy_data%PreDeclareVariable("f1_post", f1)
-      CALL psy_data%PreEndDeclaration
-      CALL psy_data%ProvideVariable("a", a)
-      CALL psy_data%ProvideVariable("f2", f2)
-      CALL psy_data%ProvideVariable("m1", m1)
-      CALL psy_data%ProvideVariable("m2", m2)
-      CALL psy_data%PreEnd
+      CALL extract_psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("m1", m1)
+      CALL extract_psy_data%PreDeclareVariable("m2", m2)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("m1", m1)
+      CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
         CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
@@ -100,12 +101,17 @@ example output for LFRic::
              map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
              undf_w3, map_w3(:,cell))
       END DO 
-      CALL psy_data%PostStart
-      CALL psy_data%ProvideVariable("cell_post", cell)
-      CALL psy_data%ProvideVariable("f1_post", f1)
-      CALL psy_data%PostEnd
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cell_post", cell)
+      CALL extract_psy_data%ProvideVariable("f1_post", f1)
+      CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
+
+.. note::
+    At this stage the LFRic API is not fully supported, as can be seen
+    by missing paramters like ``nlayers``, ``ndf_w1``, ... This is
+    tracked in issue #646.
 
 The PSyData API relies on generic Fortran interfaces to provide the 
 field-type-specific implementations of the ``ProvideVariable`` for different
@@ -217,15 +223,15 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
       1: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
           ...
-	  Schedule[]
+          Schedule[]
               0: BuiltIn setval_c(f2,0.0)
       2: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
@@ -241,26 +247,26 @@ to insert the extract region. As shown below, all children of an
       0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
           ...
-	  Schedule[]
+          Schedule[]
               0: BuiltIn setval_c(f5,0.0)
       1: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
-	  ...
-	  Schedule[]
+          ...
+          Schedule[]
               0: BuiltIn setval_c(f2,0.0)
       2: Extract
           Schedule[]
               0: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
-	          ...
-		  Schedule[]
+                  ...
+                  Schedule[]
                       0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
-	  Schedule[]
+          Schedule[]
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
 To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
@@ -279,13 +285,13 @@ This modifies the above Schedule as:
       Extract
           Schedule[]
               0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
-	              upper_bound='ndofs']
-	          ...
-		  Schedule[]
+                      upper_bound='ndofs']
+                  ...
+                  Schedule[]
                       0: BuiltIn setval_c(f2,0.0)
               1: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
-	          ...
-		  Schedule[]
+                  ...
+                  Schedule[]
                       0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
   ...
 
@@ -319,17 +325,17 @@ The generated code is now:
 .. code-block:: fortran
 
       ! ExtractStart
-      CALL psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL psy_data%PreDeclareVariable("f2", f2)
-      CALL psy_data%PreDeclareVariable("cell_post", cell)
-      CALL psy_data%PreDeclareVariable("df_post", df)
-      CALL psy_data%PreDeclareVariable("f3_post", f3)
-      CALL psy_data%PreEndDeclaration
-      CALL psy_data%ProvideVariable("f2", f2)
-      CALL psy_data%PreEnd
+      CALL extract_psy_data%PreStart("unknown-module", "setval_c", 1, 3)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%PreEnd
       !
       !$omp parallel do default(shared), private(df), schedule(static)
-      DO df=1,undf_any_space_1_f2
+      DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
       END DO
       !$omp end parallel do
@@ -339,18 +345,18 @@ The generated code is now:
         CALL testkern_code_w2_only(nlayers, f3_proxy%data, f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       !$omp end parallel do
-      CALL psy_data%PostStart
-      CALL psy_data%ProvideVariable("cell_post", cell)
-      CALL psy_data%ProvideVariable("df_post", df)
-      CALL psy_data%ProvideVariable("f3_post", f3)
-      CALL psy_data%PostEnd
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cell_post", cell)
+      CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f3_post", f3)
+      CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
 
 .. note::
 
     At this stage builtins are not fully supported, resulting in ``f2``
-    being incorrectly detected as an input parameters, and not as an
+    being incorrectly detected as an input parameter, and not as an
     output parameter. This issue is tracked in #637.
 
 
@@ -379,9 +385,16 @@ stored as NetCDF dimensions: again the variable ``xyz`` will have its
 sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
-The output file only stores the values used in the subroutine,
-e.g. any GOcean grid properties (see :ref:`gocean1.0-grid-props`)
-will not be stored automatically at this stage (see issue #638).
-That means that a driver program
-that reads the input variables, executes the code region and then
-validates the results can be implemented independent of dl_esm_inf.
+The output file contains the values of all variables used in the
+subroutine. The ``GOceanExtractTrans`` can automatically create a
+driver program which will read the netcdf file and then call the
+instrumented region. In order to create this driver program, the
+options parameter ``create_driver`` must be set to true::
+
+    extract = GOceanExtractTrans()
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "init")})
+
+This will create a Fortran file called ``driver-main-init.f90``, which
+can then be compiled and executed.

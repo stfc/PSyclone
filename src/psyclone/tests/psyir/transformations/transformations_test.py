@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 '''
@@ -40,7 +40,8 @@ API-agnostic tests for various transformation classes.
 
 from __future__ import absolute_import, print_function
 import pytest
-from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule
+from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule, \
+    Statement
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
@@ -56,7 +57,7 @@ def test_accloop():
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
 
     pnode = Node()
-    cnode = Node()
+    cnode = Statement()
     tdir = trans._directive(pnode, [cnode])
     assert isinstance(tdir, ACCLoopDirective)
 
@@ -269,7 +270,7 @@ def test_profile_trans_invalid_name(value):
     # We need to have a schedule as parent, otherwise the node
     # (with no parent) will not be allowed.
     sched = Schedule()
-    node = Node(parent=sched)
+    node = Statement(parent=sched)
     sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
         _ = profile_trans.apply(node, options={"region_name": value})

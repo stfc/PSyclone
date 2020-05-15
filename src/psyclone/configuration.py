@@ -57,6 +57,8 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
+# pylint: disable=too-many-lines
+
 
 # pylint: disable=too-many-lines
 class ConfigurationError(Exception):
@@ -113,6 +115,9 @@ class Config(object):
     # The default name to use when creating new names in the
     # PSyIR symbol table.
     _default_psyir_root_name = "psyir_tmp"
+
+    # The list of valid PSyData class prefixes
+    _valid_psy_data_prefixes = []
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -313,6 +318,26 @@ class Config(object):
             self._psyir_root_name = Config._default_psyir_root_name
         else:
             self._psyir_root_name = self._config['DEFAULT']['PSYIR_ROOT_NAME']
+
+        # Read the valid PSyData class prefixes:
+        try:
+            # Convert it to a list of strings:
+            self._valid_psy_data_prefixes = \
+                self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
+        except KeyError:
+            self._valid_psy_data_prefixes = []
+
+        # Verify that the prefixes will result in valid Fortran names:
+        import re
+        valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
+        for prefix in self._valid_psy_data_prefixes:
+            if not valid_var.match(prefix):
+                raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
+                                         "config file. The prefix must be "
+                                         "valid for use as the start of a "
+                                         "Fortran variable name."
+                                         .format(prefix),
+                                         config=self)
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
@@ -632,6 +657,12 @@ class Config(object):
             raise ValueError("include_paths must be a list but got: {0}".
                              format(type(path_list)))
 
+    @property
+    def valid_psy_data_prefixes(self):
+        ''':returns: The list of all valid class prefixes.
+        :rtype: list of str'''
+        return self._valid_psy_data_prefixes
+
     def get_default_keys(self):
         '''Returns all keys from the default section.
         :returns list: List of all keys of the default section as strings.
@@ -760,6 +791,8 @@ class DynConfig(APISpecificConfig):
         self._config = config
         # Initialise redundant computation setting
         self._compute_annexed_dofs = None
+        # Initialise run_time_checks setting
+        self._run_time_checks = None
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._default_kind = {}
         # Set mandatory keys
@@ -772,7 +805,8 @@ class DynConfig(APISpecificConfig):
         if section.name == "dynamo0.3":
             # Define and check mandatory keys
             self._mandatory_keys = ["access_mapping",
-                                    "compute_annexed_dofs", "default_kind"]
+                                    "compute_annexed_dofs", "default_kind",
+                                    "run_time_checks"]
             mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(
@@ -788,6 +822,16 @@ class DynConfig(APISpecificConfig):
             except ValueError as err:
                 raise ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "[dynamo0.3] section of the config file: {0}"
+                    .format(str(err)), config=self._config)
+
+            # Setting for run_time_checks flag
+            try:
+                self._run_time_checks = section.getboolean(
+                    "run_time_checks")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing RUN_TIME_CHECKS in the "
                     "[dynamo0.3] section of the config file: {0}"
                     .format(str(err)), config=self._config)
 
@@ -826,6 +870,17 @@ class DynConfig(APISpecificConfig):
 
         '''
         return self._compute_annexed_dofs
+
+    @property
+    def run_time_checks(self):
+        '''
+        Getter for whether or not we generate run-time checks in the code.
+
+        :returns: true if we are generating run-time checks
+        :rtype: bool
+
+        '''
+        return self._run_time_checks
 
     @property
     def default_kind(self):

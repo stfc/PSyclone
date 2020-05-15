@@ -96,9 +96,150 @@ except ImportError:
         return text
 
 
+class ChildrenList(list):
+    '''
+    Customized list to keep track of the children nodes. It is initialised with
+    a callback function that allows the validation of the inserted children.
+    Since this is a subclass of the standard list, all operations (e.g. append,
+    insert, extend, comparisons, list arithmetic operations) are conserved and
+    making use of the validation.
+
+    :param node: reference to the node where the list belongs.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param validation_function: callback function to the validation method.
+    :type validation_function: \
+            function(int, :py:class:`psyclone.psyir.nodes.Node`)
+    :param str validation_text: textual representation of the valid children.
+
+    '''
+    def __init__(self, node, validation_function, validation_text):
+        super(ChildrenList, self).__init__()
+        self._node_reference = node
+        self._validation_function = validation_function
+        self._validation_text = validation_text
+
+    def _validate_item(self, index, item):
+        '''
+        Validates the provided index and item before continuing inserting the
+        item into the list.
+
+        :param int index: position where the item is inserted into.
+        :param item: object that needs to be validated in the given position.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: if the given index and item are not valid \
+            children for this list.
+        '''
+        if not self._validation_function(index, item):
+            errmsg = "Item '{0}' can't be child {1} of '{2}'.".format(
+                item.__class__.__name__, index,
+                self._node_reference.coloured_name(False))
+            if self._validation_text == "<LeafNode>":
+                errmsg = errmsg + " {0} is a LeafNode and doesn't accept " \
+                    "children.".format(
+                        self._node_reference.coloured_name(False))
+            else:
+                errmsg = errmsg + " The valid format is: '{0}'.".format(
+                    self._validation_text)
+
+            raise GenerationError(errmsg)
+
+    def append(self, item):
+        ''' Extends list append method with children node validation.
+
+        :param item: item to be appened to the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        self._validate_item(len(self), item)
+        super(ChildrenList, self).append(item)
+
+    def __setitem__(self, index, item):
+        ''' Extends list __setitem__ method with children node validation.
+
+        :param int index: position where to insert the item.
+        :param item: item to be inserted to the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        self._validate_item(index, item)
+        super(ChildrenList, self).__setitem__(index, item)
+
+    def insert(self, index, item):
+        ''' Extends list insert method with children node validation.
+
+        :param int index: position where to insert the item.
+        :param item: item to be inserted to the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        positiveindex = index if index >= 0 else len(self) - index
+        self._validate_item(positiveindex, item)
+        # Check that all displaced items will still in valid positions
+        for position in range(positiveindex, len(self)):
+            self._validate_item(position + 1, self[position])
+        super(ChildrenList, self).insert(index, item)
+
+    def extend(self, items):
+        ''' Extends list extend method with children node validation.
+
+        :param items: list of items to be appened to the list.
+        :type items: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        for index, item in enumerate(items):
+            self._validate_item(len(self) + index, item)
+        super(ChildrenList, self).extend(items)
+
+    # Methods below don't insert elements but have the potential to displace
+    # or change the order of the items in-place.
+    def __delitem__(self, index):
+        ''' Extends list __delitem__ method with children node validation.
+
+        :param int index: position where to insert the item.
+
+        '''
+        positiveindex = index if index >= 0 else len(self) - index
+        for position in range(positiveindex + 1, len(self)):
+            self._validate_item(position - 1, self[position])
+        super(ChildrenList, self).__delitem__(index)
+
+    def remove(self, item):
+        ''' Extends list remove method with children node validation.
+
+        :param item: item to be deleted the list.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        for position in range(self.index(item) + 1, len(self)):
+            self._validate_item(position - 1, self[position])
+        super(ChildrenList, self).remove(item)
+
+    def pop(self, index=-1):
+        ''' Extends list pop method with children node validation.
+
+        :param int index: position of the item that is popped out, if not \
+            given, the last element is popped out.
+
+        :returns: the last value or the given index value from the list.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        positiveindex = index if index >= 0 else len(self) - index
+        for position in range(positiveindex, len(self)):
+            self._validate_item(position - 1, self[position])
+        return super(ChildrenList, self).pop(index)
+
+    def reverse(self):
+        ''' Extends list reverse method with children node validation. '''
+        for index, item in enumerate(self):
+            self._validate_item(len(self) - index - 1, item)
+        super(ChildrenList, self).reverse()
+
+
 class Node(object):
     '''
-    Base class for a node in the PSyIR (schedule).
+    Base class for a PSyIR node.
 
     :param ast: reference into the fparser2 AST corresponding to this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
@@ -124,12 +265,19 @@ class Node(object):
     START_POSITION = 0
     # The list of valid annotations for this Node. Populated by sub-class.
     valid_annotations = tuple()
+    # Textual description of the node. (Set up with None since this is
+    # an abstract class, subclasses need to initialize them with strings.)
+    # In python >= 3 this can be better implemented by creating @classmethod
+    # properties for each of them and chain the ABC @abstractmethod annotation.
+    _children_valid_format = None
+    _text_name = None
+    _colour_key = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        if not children:
-            self._children = []
-        else:
-            self._children = children
+        self._children = ChildrenList(self, self._validate_child,
+                                      self._children_valid_format)
+        if children:
+            self._children.extend(children)
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
@@ -148,11 +296,29 @@ class Node(object):
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
-        # Name to use for this Node type. By default we use the name of
-        # the class but this can be overridden by a sub-class.
-        self._text_name = self.__class__.__name__
-        # Which colour to use from the SCHEDULE_COLOUR_MAP
-        self._colour_key = self.__class__.__name__
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         The generic implementation always returns False, this simplifies the
+         specializations as Leaf nodes will have by default the expected
+         behaviour, and non-leaf nodes need to modify this method to its
+         particular constrains anyway. Issue #765 explores if this method
+         can be auto-generated using the _children_valid_format string.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        # Position and child argument names are kept for better documentation,
+        # but the generic method always returns False.
+        return False
 
     def coloured_name(self, colour=True):
         '''
@@ -165,6 +331,11 @@ class Node(object):
         :returns: the name of this node, optionally with colour control codes.
         :rtype: str
         '''
+        if not self._text_name:
+            raise NotImplementedError(
+                "_text_name is an abstract attribute which needs to be "
+                "given a string value in the concrete class '{0}'."
+                "".format(type(self).__name__))
         if colour:
             try:
                 return colored(self._text_name,
@@ -261,7 +432,6 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
-        from psyclone.psyGen import GenerationError
         try:
             import graphviz as gv
         except ImportError:
@@ -584,7 +754,23 @@ class Node(object):
 
     @children.setter
     def children(self, my_children):
-        self._children = my_children
+        ''' Set a new children list.
+
+        :param my_children: new list of children.
+        :type my_children: list or NoneType
+
+        :raises TypeError: if the given children parameter is not a list \
+            nor NoneType.
+        '''
+        if my_children is None:
+            self._children = None
+        elif isinstance(my_children, list):
+            self._children = ChildrenList(self, self._validate_child,
+                                          self._children_valid_format)
+            self._children.extend(my_children)
+        else:
+            raise TypeError("The 'my_children' parameter of the node.children"
+                            " setter must be a list or None.")
 
     @property
     def parent(self):
@@ -892,14 +1078,34 @@ class Node(object):
             sched.ast = ast
         return sched
 
-    def find_symbol(self, name, scope_limit=None):
+    def find_symbol_table(self):
+        '''
+        :returns: the symbol table attached to the nearest ancestor \
+            node (including self).
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises InternalError: if no symbol table is found.
+
+        '''
+        current = self
+        while current and not hasattr(current, "symbol_table"):
+            current = current.parent
+        if current:
+            return current.symbol_table
+        raise InternalError("Symbol table not found in any ancestor nodes.")
+
+    def find_or_create_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
-        associated with this node or one of its ancestors.  Raises an
-        exception if the symbol is not found. The scope_limit variable
-        further limits the symbol table search so that the search
-        through ancestor nodes stops when the scope_limit node is
-        reached i.e. ancestors of the scope_limit node are not
-        searched.
+        associated with this node or one of its ancestors.  If the symbol
+        is not found and there are no ContainerSymbols with wildcard imports
+        then an exception is raised. However, if there are one or more
+        ContainerSymbols with wildcard imports (which could therefore be
+        bringing the symbol into scope) then a new DataSymbol of unknown type
+        and interface is created and inserted in the most local SymbolTable
+        that has such an import.
+        The scope_limit variable further limits the symbol table search so
+        that the search through ancestor nodes stops when the scope_limit node
+        is reached i.e. ancestors of the scope_limit node are not searched.
 
         :param str name: the name of the symbol.
         :param scope_limit: optional Node which limits the symbol \
@@ -914,15 +1120,18 @@ class Node(object):
         :returns: the matching symbol.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises SymbolError: if no matching symbol is found.
+        :raises SymbolError: if no matching symbol is found and there are \
+            no ContainerSymbols from which it might be brought into scope.
 
         '''
+        from psyclone.psyir.symbols import DataSymbol, UnresolvedInterface, \
+            DeferredType
         if scope_limit:
-
+            # Validate the supplied scope_limit
             if not isinstance(scope_limit, Node):
                 raise TypeError(
                     "The scope_limit argument '{0}' provided to the "
-                    "find_symbol method, is not of type `Node`."
+                    "find_or_create_symbol method, is not of type `Node`."
                     "".format(str(scope_limit)))
 
             # Check that the scope_limit Node is an ancestor of this
@@ -938,10 +1147,19 @@ class Node(object):
                 # The scope_limit node is not an ancestor of the
                 # supplied node so raise an exception.
                 raise ValueError(
-                    "The scope_limit node '{0}' provided to the find_symbol "
-                    "method, is not an ancestor of this node '{1}'."
-                    "".format(str(scope_limit), str(self)))
+                    "The scope_limit node '{0}' provided to the "
+                    "find_or_create_symbol method, is not an ancestor of this "
+                    "node '{1}'.".format(str(scope_limit), str(self)))
+
+        # Keep a list of (symbol table, container) tuples for containers that
+        # have wildcard imports into the current scope and therefore may
+        # contain the symbol we're searching for.
+        possible_containers = []
+        # Keep a reference to the most local SymbolTable with a wildcard
+        # import in case we need to create a Symbol.
+        first_symbol_table = None
         test_node = self
+
         # Iterate over ancestor Nodes of this Node.
         while test_node:
             # For simplicity, test every Node for the existence of a
@@ -950,21 +1168,40 @@ class Node(object):
             if hasattr(test_node, 'symbol_table'):
                 # This Node does have a SymbolTable.
                 symbol_table = test_node.symbol_table
+
                 try:
                     # If the reference matches a Symbol in this
                     # SymbolTable then return the Symbol.
                     return symbol_table.lookup(name)
                 except KeyError:
                     # The Reference Node does not match any Symbols in
-                    # this SymbolTable.
-                    pass
+                    # this SymbolTable. Does this SymbolTable have any
+                    # wildcard imports?
+                    for csym in symbol_table.containersymbols:
+                        if csym.wildcard_import:
+                            possible_containers.append((symbol_table, csym))
+                            if not first_symbol_table:
+                                first_symbol_table = symbol_table
+
             if test_node is scope_limit:
-                # The ancestor scope Node has been reached and nothing
-                # has matched so raise an exception.
+                # The ancestor scope/top-level Node has been reached and
+                # nothing has matched.
                 break
+
             # Move on to the next ancestor.
             test_node = test_node.parent
+
+        if possible_containers:
+            # No symbol found but there are one or more Containers from which
+            # it may be being brought into scope. Therefore create a DataSymbol
+            # of unknown type and deferred interface and add it to the most
+            # local SymbolTable.
+            symbol = DataSymbol(name, DeferredType(),
+                                interface=UnresolvedInterface())
+            first_symbol_table.add(symbol)
+            return symbol
+
         # All requested Nodes have been checked but there has been no
-        # match so raise an exception.
+        # match and there are no wildcard imports so raise an exception.
         raise SymbolError(
             "No Symbol found for name '{0}'.".format(name))

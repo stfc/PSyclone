@@ -55,11 +55,15 @@ from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.statement import Statement
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'Node',
+        'DataNode',
+        'Statement',
         'Schedule',
         'Return',
         'Assignment',

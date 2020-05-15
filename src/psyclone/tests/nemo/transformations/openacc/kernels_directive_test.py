@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ from fparser.common.readfortran import FortranStringReader
 API = "nemo"
 
 EXPLICIT_LOOP = ("program do_loop\n"
+                 "integer :: ji, jpj\n"
                  "real(kind=wp) :: sto_tmp(jpj)\n"
                  "do ji = 1,jpj\n"
                  "  sto_tmp(ji) = 1.0d0\n"
@@ -86,6 +87,7 @@ def test_no_kernels_error(parser):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''
     reader = FortranStringReader("program write_out\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "read(*,*) sto_tmp(ji)\n"
@@ -146,6 +148,8 @@ def test_multikern_if(parser):
     ''' Check that we can include an if-block containing multiple
     loops within a kernels region. '''
     reader = FortranStringReader("program implicit_loop\n"
+                                 "logical :: do_this\n"
+                                 "integer :: jk\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "if(do_this)then\n"
                                  "do jk = 1, 3\n"
@@ -176,6 +180,9 @@ def test_multikern_if(parser):
 def test_kernels_within_if(parser):
     ''' Check that we can put a kernels region within an if block. '''
     reader = FortranStringReader("program if_then\n"
+                                 "logical :: do_this\n"
+                                 "integer :: ji, jpi\n"
+                                 "real :: fld(:), fld2d(:,:)\n"
                                  "if(do_this)then\n"
                                  "  do ji=1,jpi\n"
                                  "    fld(ji) = 1.0\n"
@@ -210,6 +217,8 @@ def test_no_code_block_kernels(parser):
     ''' Check that we reject attempts to enclose CodeBlocks within a
     Kernels region. '''
     reader = FortranStringReader("program cb_mix\n"
+                                 "  integer :: ji, jpi\n"
+                                 "  real :: fld(:)\n"
                                  "  do ji=1,jpi\n"
                                  "    fld(ji) = 1.0\n"
                                  "  end do\n"
@@ -243,6 +252,7 @@ def test_kernels_around_where_construct(parser):
     from psyclone.psyGen import Loop, ACCKernelsDirective
     reader = FortranStringReader("program where_test\n"
                                  "  integer :: flag\n"
+                                 "  real :: a(:,:), b(:,:)\n"
                                  "  where (a(:,:) < flag)\n"
                                  "    b(:,:) = 0.0\n"
                                  "  end where\n"
@@ -265,6 +275,7 @@ def test_kernels_around_where_stmt(parser):
     ''' Check that we can put a WHERE statement inside a KERNELS region. '''
     reader = FortranStringReader("program where_test\n"
                                  "  integer :: flag\n"
+                                 "  real :: a(:,:), b(:,:), c(:,:)\n"
                                  "  a(:,:) = 1.0\n"
                                  "  where (a(:,:) < flag) b(:,:) = 0.0\n"
                                  "  c(:,:) = 1.0\n"

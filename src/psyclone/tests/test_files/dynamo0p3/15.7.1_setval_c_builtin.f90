@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,13 @@ program single_invoke
 
   ! Description: single point-wise operation (set field values to a scalar)
   ! specified in an invoke call.
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
+
   type(field_type) :: f1
-  real(r_def) :: c
+  real(r_def)      :: c
 
   c = 1.0
   

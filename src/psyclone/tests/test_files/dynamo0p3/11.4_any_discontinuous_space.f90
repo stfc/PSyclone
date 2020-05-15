@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,11 @@ program any_discontinuous_space_op_example_1
 
   ! Description: single kernel call in an invoke where the arguments are
   ! specified as any_discontinuous_space
+  use constants_mod,                             only : r_def
+  use field_mod,                                 only : field_type
+  use operator_mod,                              only : operator_type
   use testkern_any_discontinuous_space_op_1_mod, only : &
                   testkern_any_discontinuous_space_op_1_type
-  use inf, only : field_type,    &
-                  operator_type
 
   implicit none
 

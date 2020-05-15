@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -67,28 +67,28 @@ contains
                                            field4_direction, field4_stencil_dofmap, &
                                            ndf_w1, undf_w1, map_w1,                 &
                                            ndf_w2, undf_w2, map_w2,                 &
-                                           ndf_anydspace_1, undf_anydspace_1, map_anydspace_1)
+                                           ndf_adspc1, undf_adspc1, map_adspc1)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_w2
-    integer(kind=i_def), intent(in) :: ndf_anydspace_1
-    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_anydspace_1
+    integer(kind=i_def), intent(in) :: ndf_adspc1
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_adspc1
     integer(kind=i_def), intent(in) :: field2_stencil_size, field3_stencil_size, field4_stencil_size
     integer(kind=i_def), intent(in) :: field2_direction, field3_direction, field4_direction
-    integer(kind=i_def), intent(in), dimension(ndf_w1)          :: map_w1
-    integer(kind=i_def), intent(in), dimension(ndf_w2)          :: map_w2
-    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1) :: map_anydspace_1
+    integer(kind=i_def), intent(in), dimension(ndf_w1)     :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2)     :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
     integer(kind=i_def), intent(in), dimension(ndf_w1,field2_stencil_size) :: field2_stencil_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_w2,field3_stencil_size) :: field3_stencil_dofmap
-    integer(kind=i_def), intent(in), dimension(ndf_anydspace_1,field4_stencil_size) :: &
+    integer(kind=i_def), intent(in), dimension(ndf_adspc1,field4_stencil_size) :: &
                                                                               field4_stencil_dofmap
-    real(kind=r_def), intent(inout), dimension(undf_w1)       :: field1
-    real(kind=r_def), intent(in), dimension(undf_w1)          :: field2
-    real(kind=r_def), intent(in), dimension(undf_w2)          :: field3
-    real(kind=r_def), intent(in), dimension(undf_anydspace_1) :: field4
+    real(kind=r_def), intent(inout), dimension(undf_w1)  :: field1
+    real(kind=r_def), intent(in), dimension(undf_w1)     :: field2
+    real(kind=r_def), intent(in), dimension(undf_w2)     :: field3
+    real(kind=r_def), intent(in), dimension(undf_adspc1) :: field4
 
   end subroutine testkern_stencil_multi_2_code
 
