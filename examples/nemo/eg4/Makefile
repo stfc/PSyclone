@@ -38,15 +38,18 @@ include ../../common.mk
 # We apply the same PSyclone script to every Fortran file *apart* from
 # intrinsic_example.f90 and tra_adv_compute.F90 (because the latter
 # contains features that the SIR backend does not yet support).
-FORTRAN_FILES = $(filter-out ./intrinsic_example.%,$(wildcard ./*f90))
+# TODO #714 we should include all Fortran files but copy_stencil.f90 and
+# hori_diff.f90 contain unsupported forms of array-shape declarations.
+# FORTRAN_FILES = $(filter-out ./intrinsic_example.%,$(wildcard ./*f90))
+FORTRAN_FILES = tridiagonal_solve.f90 if_example.f90
 
-.PHONY: vanilla intrinsic
+.PHONY: ${FORTRAN_FILES} intrinsic
 
-transform: vanilla intrinsic
+transform: ${FORTRAN_FILES} intrinsic
+	@echo "nemo/eg4: TODO #714: Skipping copy_stencil.f90 and hori_diff.f90"
 
-vanilla:
-	$(foreach file, ${FORTRAN_FILES}, ${PSYCLONE} -s ./sir_trans.py -api nemo \
-  $(file) -opsy /dev/null; )
+${FORTRAN_FILES}:
+	${PSYCLONE} -s ./sir_trans.py -api nemo $@ -opsy /dev/null
 
 # intrinsic_example.f90 requires a different transformation script
 intrinsic:

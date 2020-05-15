@@ -49,8 +49,8 @@ from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation)
 from psyclone.psyir.symbols import SymbolTable
-from psyclone.psyir.transformations import NemoAbsTrans, NemoSignTrans, \
-    NemoMinTrans
+from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
+    Min2CodeTrans
 
 
 def trans(psy):
@@ -68,9 +68,9 @@ def trans(psy):
 
     '''
 
-    abs_trans = NemoAbsTrans()
-    sign_trans = NemoSignTrans()
-    min_trans = NemoMinTrans()
+    abs_trans = Abs2CodeTrans()
+    sign_trans = Sign2CodeTrans()
+    min_trans = Min2CodeTrans()
 
     sir_writer = SIRWriter()
     # For each Invoke write out the SIR representation of the
