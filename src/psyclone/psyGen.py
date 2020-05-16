@@ -551,10 +551,10 @@ class Invoke(object):
                                      the particular API for which the \
                                      intent is required.
         :param access: optional AccessType that the declaration should have.
-        :returns: list of all declared names.
-        :rtype: a list of strings.
+        :returns: list of all declared argument names with their datatypes.
+        :rtype: a list of tuples(str, str).
 
-        :raises GenerationError: if an invalid argtype is given.
+        :raises GenerationError: if an invalid argument type is given.
         :raises InternalError: if an invalid access is specified.
 
         '''
@@ -577,8 +577,9 @@ class Invoke(object):
                     if arg.text is not None:
                         if arg.type == argument_type:
                             test_name = arg.declaration_name
+                            test_datatype = arg.datatype
                             if test_name not in declarations:
-                                declarations.append(test_name)
+                                declarations.append((test_name, test_datatype))
         return declarations
 
     def first_access(self, arg_name):
@@ -601,9 +602,10 @@ class Invoke(object):
                                      particular API for which the intent is \
                                      required.
         :returns: dictionary containing 'intent' keys holding the kernel \
-                  argument intent and declarations of all kernel arguments \
-                  for each type of intent.
-        :rtype: dict
+                  argument intent and values of tuples holding declarations \
+                  and datatypes of all kernel arguments for each type of \
+                  intent.
+        :rtype: dict.
 
         :raises GenerationError: if the kernel argument is not a valid \
                                  argument type for the particular API.

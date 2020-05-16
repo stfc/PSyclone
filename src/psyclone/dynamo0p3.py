@@ -3434,9 +3434,11 @@ class DynFields(DynCollection):
         '''
         # Add the Invoke subroutine argument declarations for fields
         fld_args = self._invoke.unique_declarations(argument_type="gh_field")
+        # Create a list of field names from (name, datatype) information
+        fld_args_lst = [arg[0] for arg in fld_args]
         if fld_args:
             parent.add(TypeDeclGen(parent, datatype="field_type",
-                                   entity_decls=fld_args,
+                                   entity_decls=fld_args_lst,
                                    intent="in"))
 
     def _stub_declarations(self, parent):
@@ -3455,6 +3457,7 @@ class DynFields(DynCollection):
         for fld in fld_args:
             undf_name = get_fs_undf_name(fld.function_space)
             intent = fld.intent
+            dtype = fld.datatype
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
@@ -3462,14 +3465,14 @@ class DynFields(DynCollection):
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
                     parent.add(
-                        DeclGen(parent, datatype="real",
-                                kind=api_config.default_kind["real"],
+                        DeclGen(parent, datatype=dtype,
+                                kind=api_config.default_kind[dtype],
                                 dimension=undf_name,
                                 intent=intent, entity_decls=[text]))
             else:
                 parent.add(
-                    DeclGen(parent, datatype="real",
-                            kind=api_config.default_kind["real"],
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
@@ -3811,12 +3814,14 @@ class DynScalarArgs(DynCollection):
         super(DynScalarArgs, self).__init__(node)
 
         if self._invoke:
+            # Get a list of tuples (name, datatype) for scalar arguments
             self._real_scalars = self._invoke.unique_declns_by_intent(
                 "gh_real")
             self._int_scalars = self._invoke.unique_declns_by_intent(
                 "gh_integer")
         else:
-            # We have a kernel stub.
+            # We have a kernel stub, so create a list of tuples
+            # (name, datatype) for scalar arguments
             self._real_scalars = {}
             self._int_scalars = {}
             for intent in FORTRAN_INTENT_NAMES:
@@ -3825,9 +3830,11 @@ class DynScalarArgs(DynCollection):
             for arg in self._calls[0].arguments.args:
                 if arg.type in GH_VALID_SCALAR_NAMES:
                     if arg.type == "gh_real":
-                        self._real_scalars[arg.intent].append(arg.name)
+                        self._real_scalars[arg.intent].append((arg.name,
+                                                               arg.datatype))
                     elif arg.type == "gh_integer":
-                        self._int_scalars[arg.intent].append(arg.name)
+                        self._int_scalars[arg.intent].append((arg.name,
+                                                              arg.datatype))
                     else:
                         raise InternalError(
                             "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
@@ -3845,17 +3852,23 @@ class DynScalarArgs(DynCollection):
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   entity_decls=self._real_scalars[intent],
+                arg_dict = dict(self._real_scalars[intent])
+                decl_list = list(arg_dict.keys())
+                dtype = arg_dict[arg_list[0]]
+                parent.add(DeclGen(parent, datatype=type,
+                                   kind=api_config.default_kind[dtype],
+                                   entity_decls=arg_list,
                                    intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
+                arg_dict = dict(self._int_scalars[intent])
+                arg_list = list(arg_dict.keys())
+                dtype = arg_dict[arg_list[0]]
                 parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=self._int_scalars[intent],
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=arg_list,
                             intent=intent))
 
     def _stub_declarations(self, parent):
@@ -3892,13 +3905,16 @@ class DynLMAOperators(DynCollection):
                                intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
+            dtype = arg.datatype
+            # Declare operator size
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
+            # Declare operators
             ndf_name_to = get_fs_ndf_name(arg.function_space_to)
             ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            parent.add(DeclGen(parent, datatype=dtype,
+                               kind=api_config.default_kind[dtype],
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -3918,9 +3934,11 @@ class DynLMAOperators(DynCollection):
         '''
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(argument_type="gh_operator")
+        # Create a list of operator names from (name, datatype) information
+        op_args_lst = [arg[0] for arg in op_args]
         if op_args:
             parent.add(TypeDeclGen(parent, datatype="operator_type",
-                                   entity_decls=op_args,
+                                   entity_decls=op_args_lst,
                                    intent="in"))
 
 
@@ -3979,6 +3997,7 @@ class DynCMAOperators(DynCollection):
                                 "arg": arg,
                                 "params": self.cma_same_fs_params}
                         self._cma_ops[arg.name]["intent"] = arg.intent
+                        self._cma_ops[arg.name]["datatype"] = arg.datatype
                         # Keep a reference to the first CMA argument
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
@@ -4056,10 +4075,12 @@ class DynCMAOperators(DynCollection):
         # operators
         cma_op_args = self._invoke.unique_declarations(
             argument_type="gh_columnwise_operator")
-        if cma_op_args:
+        # Create a list of column-wise names from (name, datatype) information
+        cma_op_args_lst = [arg[0] for arg in cma_op_args]
+        if cma_op_args_lst:
             parent.add(TypeDeclGen(parent,
                                    datatype="columnwise_operator_type",
-                                   entity_decls=cma_op_args,
+                                   entity_decls=cma_op_args_lst,
                                    intent="in"))
 
         for op_name in self._cma_ops:
@@ -9973,6 +9994,8 @@ class DynKernelArgument(KernelArgument):
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
+        # TODO HERE: Use GH_REAL etc and modify property to strip GH
+        self._datatype = arg_meta_data.datatype
         self._stencil = None
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
@@ -10068,6 +10091,16 @@ class DynKernelArgument(KernelArgument):
     def type(self):
         ''' Returns the type of this argument. '''
         return self._type
+
+    @property
+    def datatype(self):
+        ''' Returns the datatype of this argument (real, integer, ...).
+         TODO HERE: Modify method to strip "GH"
+        :returns: datatype of the argument.
+        :rtype: str
+
+        '''
+        return self._datatype
 
     def is_scalar(self):
         ''':return: whether this variable is a scalar variable or not.
