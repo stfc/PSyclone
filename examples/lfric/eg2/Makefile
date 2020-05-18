@@ -40,13 +40,13 @@ include ../../common.mk
 transform: vanilla openmp loopfuse
 
 vanilla:
-	python ./runme.py
+	${PYTHON} ./runme.py
 
 openmp:
-	python ./runme_openmp.py
+	${PYTHON} ./runme_openmp.py
 
 loopfuse:
-	python ./runme_loop_fuse.py
+	${PYTHON} ./runme_loop_fuse.py
 
 compile:
 	@echo "No compilation supported for lfric/eg2"

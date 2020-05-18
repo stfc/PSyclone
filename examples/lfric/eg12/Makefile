@@ -47,7 +47,7 @@ extract_transformed:
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 find_kernel:
-	python find_kernel.py
+	${PYTHON} find_kernel.py
 
 compile:
 	@echo "No compilation supported for lfric/eg12"
