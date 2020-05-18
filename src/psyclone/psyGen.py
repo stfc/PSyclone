@@ -655,11 +655,12 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for name in inc_args:
+        for arg in inc_args:
             # For every arg that is updated ('inc'd' or readwritten)
             # by at least one kernel, identify the type of the first
             # access. If it is 'write' then the arg is only
             # intent(out), otherwise it is intent(inout)
+            name = arg[0]
             first_arg = self.first_access(name)
             if first_arg.access != AccessType.WRITE:
                 if name not in declns["inout"]:
@@ -668,12 +669,13 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
-        for name in write_args:
+        for arg in write_args:
             # For every argument that is written to by at least one kernel,
             # identify the type of the first access - if it is read
             # or inc'd before it is written then it must have intent(inout).
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
+            name = arg[0]
             first_arg = self.first_access(name)
             if first_arg.access == AccessType.READ:
                 if name not in declns["inout"]:
