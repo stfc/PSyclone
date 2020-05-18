@@ -3434,8 +3434,9 @@ class DynFields(DynCollection):
         '''
         # Add the Invoke subroutine argument declarations for fields
         fld_args = self._invoke.unique_declarations(argument_type="gh_field")
-        # Create a list of field names from (name, datatype) information
-        fld_args_lst = [arg[0] for arg in fld_args]
+        # Create a list of field names from (name, datatype) information (use
+        # OrderedDict to remove duplicates and preserve the argument order)
+        fld_args_lst = list(OrderedDict(fld_args).keys())
         if fld_args:
             parent.add(TypeDeclGen(parent, datatype="field_type",
                                    entity_decls=fld_args_lst,
@@ -3850,19 +3851,25 @@ class DynScalarArgs(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
+        # Create a list of real scalar names from (name, datatype)
+        # information (use OrderedDict to remove duplicates and preserve
+        # the argument order)
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                arg_dict = dict(self._real_scalars[intent])
-                decl_list = list(arg_dict.keys())
+                arg_dict = OrderedDict(self._real_scalars[intent])
+                arg_list = list(arg_dict.keys())
                 dtype = arg_dict[arg_list[0]]
-                parent.add(DeclGen(parent, datatype=type,
+                parent.add(DeclGen(parent, datatype=dtype,
                                    kind=api_config.default_kind[dtype],
                                    entity_decls=arg_list,
                                    intent=intent))
 
+        # Create a list of integer scalar names from (name, datatype)
+        # information (use OrderedDict to remove duplicates and preserve
+        # the argument order)
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
-                arg_dict = dict(self._int_scalars[intent])
+                arg_dict = OrderedDict(self._int_scalars[intent])
                 arg_list = list(arg_dict.keys())
                 dtype = arg_dict[arg_list[0]]
                 parent.add(
@@ -3934,8 +3941,10 @@ class DynLMAOperators(DynCollection):
         '''
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(argument_type="gh_operator")
-        # Create a list of operator names from (name, datatype) information
-        op_args_lst = [arg[0] for arg in op_args]
+        # Create a list of operator names from (name, datatype)
+        # information (use OrderedDict to remove duplicates and preserve
+        # the argument order)
+        op_args_lst = list(OrderedDict(op_args).keys())
         if op_args:
             parent.add(TypeDeclGen(parent, datatype="operator_type",
                                    entity_decls=op_args_lst,
@@ -4075,8 +4084,10 @@ class DynCMAOperators(DynCollection):
         # operators
         cma_op_args = self._invoke.unique_declarations(
             argument_type="gh_columnwise_operator")
-        # Create a list of column-wise names from (name, datatype) information
-        cma_op_args_lst = [arg[0] for arg in cma_op_args]
+        # Create a list of column-wise operator names names from
+        # (name, datatype) information (use OrderedDict to remove
+        # duplicates and preserve the argument order)
+        cma_op_args_lst = list(OrderedDict(cma_op_args).keys())
         if cma_op_args_lst:
             parent.add(TypeDeclGen(parent,
                                    datatype="columnwise_operator_type",
