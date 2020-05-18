@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE
+    REAL_TYPE, Symbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -639,10 +639,26 @@ def test_process_declarations(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     b_var = fake_parent.symbol_table.lookup("b")
     assert b_var.name == "b"
+    # Symbol should be public by default
+    assert b_var.visibility == Symbol.Visibility.PUBLIC
     assert isinstance(b_var.datatype, ScalarType)
     assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
     assert b_var.is_local
+
+    # public/private attribute
+    reader = FortranStringReader("real, public :: p2")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert (fake_parent.symbol_table.lookup("p2").visibility ==
+            Symbol.Visibility.PUBLIC)
+    reader = FortranStringReader("real, private :: p3, p4")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert (fake_parent.symbol_table.lookup("p3").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (fake_parent.symbol_table.lookup("p4").visibility ==
+            Symbol.Visibility.PRIVATE)
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -712,14 +728,6 @@ def test_process_declarations(f2008_parser):
     assert "Could not process " in str(error.value)
     assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
             "types are supported.") in str(error.value)
-
-    # Test with unsupported attribute
-    reader = FortranStringReader("real, public :: p2")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Unrecognized attribute type " in str(error.value)
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
@@ -816,7 +824,7 @@ def test_process_not_supported_declarations():
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert ". Unrecognized attribute " in str(error.value)
+    assert ". Unrecognised attribute " in str(error.value)
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
@@ -841,6 +849,199 @@ def test_process_not_supported_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
+
+
+def test_default_public_container(parser):
+    ''' Test when all symbols default to public within a module and some
+    are explicitly listed as being private. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "public\n"
+        "integer, private :: var1\n"
+        "integer :: var2\n"
+        "integer :: var3\n"
+        "private var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "var1" in fake_parent.symbol_table
+    assert (fake_parent.symbol_table.lookup("var1").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (fake_parent.symbol_table.lookup("var2").visibility ==
+            Symbol.Visibility.PUBLIC)
+    assert (fake_parent.symbol_table.lookup("var3").visibility ==
+            Symbol.Visibility.PRIVATE)
+
+
+def test_default_private_container(parser):
+    ''' Test that symbols get the correct visibilities when the Fortran
+    specifies that the default is private within a module. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "integer, public :: var1\n"
+        "integer :: var2\n"
+        "integer :: var3\n"
+        "public var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "var1" in fake_parent.symbol_table
+    assert (fake_parent.symbol_table.lookup("var1").visibility ==
+            Symbol.Visibility.PUBLIC)
+    assert (fake_parent.symbol_table.lookup("var2").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (fake_parent.symbol_table.lookup("var3").visibility ==
+            Symbol.Visibility.PUBLIC)
+
+
+def test_access_stmt_undeclared_symbol(parser):
+    ''' Check that we create a Symbol if a name appears in an access statement
+    but is not explicitly declared. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public var3, var4\n"
+        "private var5\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym_table = fake_parent.symbol_table
+    assert "var3" in sym_table
+    assert sym_table.lookup("var3").visibility == Symbol.Visibility.PUBLIC
+    assert "var4" in sym_table
+    var4 = sym_table.lookup("var4")
+    assert isinstance(var4, Symbol)
+    assert var4.visibility == Symbol.Visibility.PUBLIC
+    var5 = sym_table.lookup("var5")
+    assert isinstance(var5, Symbol)
+    assert var5.visibility == Symbol.Visibility.PRIVATE
+
+
+def test_parse_access_statements_invalid(parser):
+    ''' Tests for the _parse_access_statements() method when an
+    invalid parse tree is encountered. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public var3, var4\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    # Break the parse tree created by fparser2
+    fparser2spec.children[1].items = ('not-private', None)
+    with pytest.raises(InternalError) as err:
+        processor._parse_access_statements([fparser2spec])
+    assert ("Failed to process 'not-private'. Found an accessibility "
+            "attribute of 'not-private' but expected either 'public' or "
+            "'private'" in str(err.value))
+
+
+@pytest.mark.xfail(reason="#736 we cannot yet be sure that the symbol is "
+                   "undeclared as it may be the name of a subroutine")
+def test_access_stmt_no_unqualified_use_error(parser):
+    ''' Check that we raise the expected error if an undeclared symbol is
+    listed in an access statement and there are no unqualified use
+    statements to bring it into scope. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("'var3' is listed in a PUBLIC statement but cannot find an "
+            "associated" in str(err.value))
+
+
+def test_access_stmt_routine_name(parser):
+    ''' Check that we create a Symbol for something named in an access statement
+    that is not a variable. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public my_routine\n"
+        "contains\n"
+        "  subroutine my_routine()\n"
+        "  end subroutine my_routine\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "my_routine" in fake_parent.symbol_table
+
+
+def test_public_private_symbol_error(parser):
+    ''' Check that we raise the expected error when a symbol is listed as
+    being both PUBLIC and PRIVATE. (fparser2 doesn't check for this.) '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "private var4, var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
+            "and PRIVATE" in str(err.value))
+
+
+def test_multiple_access_stmt_error(parser):
+    ''' Check that we raise the expected error when we encounter multiple
+    access statements. (fparser2 doesn't check for this.) '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "private\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Module 'modulename' contains more than one access statement with"
+            in str(err.value))
+    # Break the parse tree so that we can't find the enclosing module
+    fparser2spec.parent = None
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Found multiple access statements with omitted" in str(err.value)
+
+
+def test_broken_access_spec(parser):
+    ''' Check that we raise the expected InternalError if the parse tree for
+    an access-spec on a variable declaration is broken. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "integer, private :: var3\n"
+        "end module modulename\n")
+    fparser2spec = parser(reader).children[0].children[1]
+    # Break the parse tree
+    access_spec = fparser2spec.children[0].children[1].children[0]
+    access_spec.string = "not-private"
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)
 
 
 def test_process_save_attribute_declarations(parser):
@@ -1269,6 +1470,21 @@ def test_use_stmt_error(monkeypatch):
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Expected the parse tree for a USE statement to contain 5 items "
             "but found 3 for 'hello'" in str(err.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unrecognised_attribute():
+    ''' Check that a declaration with an unrecognised attribute raises the
+    expected error. '''
+    fake_parent = KernelSchedule("dummy")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("integer, private :: idx1\n")
+    fparser2spec = Specification_Part(reader)
+    # Replace the Attr_Spec with a str
+    fparser2spec.children[0].children[1].items = ("not-a-spec",)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
+    assert "Unrecognised attribute type 'str'" in str(err.value)
 
 
 @pytest.mark.usefixtures("f2008_parser")
