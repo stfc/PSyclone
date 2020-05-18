@@ -33,13 +33,19 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
+# Make sure we use the configuration file distributed with PSyclone
+# instead of any locally-installed version.
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+PSYCLONE_DIR := $(dir $(patsubst %/,%,$(dir $(mkfile_path))))
+
 RM = rm -f
 PYTHON ?= python
-PSYCLONE ?= psyclone
+PSYCLONE ?= psyclone --config ${PSYCLONE_DIR}config/psyclone.cfg
 
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
 
+# Files that will be deleted by the 'clean' target
 GENERATED_FILES = 
 
 .PHONY: all compile transform clean test

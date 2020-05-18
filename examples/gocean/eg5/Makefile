@@ -103,7 +103,6 @@ alg.f90 psy.f90: transform
 
 transform: test.x90
 	${PSYCLONE} --profile invokes -l -api "gocean1.0" \
-			 --config ../../../config/psyclone.cfg \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Special rule to create psy_LIBNAME.o for each wrapper library (required

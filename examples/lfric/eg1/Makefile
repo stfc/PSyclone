@@ -40,10 +40,10 @@ include ../../common.mk
 transform: vanilla openmp
 
 vanilla:
-	python ./runme.py
+	${PYTHON} ./runme.py
 
 openmp:
-	python ./runme_openmp.py
+	${PYTHON} ./runme_openmp.py
 
 compile:
 	@echo "No compilation supported for lfric/eg1"
