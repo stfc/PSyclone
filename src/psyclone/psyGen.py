@@ -663,11 +663,11 @@ class Invoke(object):
             name = arg[0]
             first_arg = self.first_access(name)
             if first_arg.access != AccessType.WRITE:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
+                if arg not in declns["inout"]:
+                    declns["inout"].append(arg)
             else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
+                if arg not in declns["out"]:
+                    declns["out"].append(arg)
 
         for arg in write_args:
             # For every argument that is written to by at least one kernel,
@@ -678,16 +678,16 @@ class Invoke(object):
             name = arg[0]
             first_arg = self.first_access(name)
             if first_arg.access == AccessType.READ:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
+                if arg not in declns["inout"]:
+                    declns["inout"].append(arg)
             else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
+                if arg not in declns["out"]:
+                    declns["out"].append(arg)
 
-        for name in read_args:
+        for arg in read_args:
             # Anything we have left must be declared as intent(in)
-            if name not in declns["in"]:
-                declns["in"].append(name)
+            if arg not in declns["in"]:
+                declns["in"].append(arg)
 
         return declns
 

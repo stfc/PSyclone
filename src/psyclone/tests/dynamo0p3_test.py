@@ -1700,10 +1700,10 @@ def test_invoke_uniq_declns_valid_access():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_read = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READ)
-    assert fields_read == ["f2", "m1", "m2"]
+    assert fields_read == [("f2", "real"), ("m1", "real"), ("m2", "real")]
     fields_written = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.WRITE)
-    assert fields_written == ["f1"]
+    assert fields_written == [("f1", "real")]
 
 
 def test_invoke_uniq_proxy_declns():
@@ -1774,8 +1774,8 @@ def test_dyninvoke_uniq_declns_intent_fields():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
     assert args['inout'] == []
-    assert args['out'] == ['f1']
-    assert args['in'] == ['f2', 'm1', 'm2']
+    assert args['out'] == [('f1', 'real')]
+    assert args['in'] == [('f2', 'real'), ('m1', 'real'), ('m2', 'real')]
 
 
 def test_dyninvoke_uniq_declns_intent_real():
@@ -1789,7 +1789,7 @@ def test_dyninvoke_uniq_declns_intent_real():
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
     assert args['inout'] == []
     assert args['out'] == []
-    assert args['in'] == ['a']
+    assert args['in'] == [('a', 'real')]
 
 
 def test_dyninvoke_uniq_declns_intent_int():
@@ -1803,7 +1803,7 @@ def test_dyninvoke_uniq_declns_intent_int():
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
     assert args['inout'] == []
     assert args['out'] == []
-    assert args['in'] == ['istep']
+    assert args['in'] == [('istep', 'integer')]
 
 
 def test_dyninvoke_uniq_declns_intent_ops():
@@ -1815,7 +1815,7 @@ def test_dyninvoke_uniq_declns_intent_ops():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
     assert args['inout'] == []
-    assert args['out'] == ['op']
+    assert args['out'] == [('op', 'real')]
     assert args['in'] == []
 
 
