@@ -37,9 +37,14 @@ include ../../common.mk
 
 SCRIPTS = $(wildcard *.py)
 
-transform:
-	$(foreach script, $(SCRIPTS), ${PSYCLONE} -s ./${script} ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null; )
+transform: ${SCRIPTS}
 
-compile: transform
+.PHONY: ${SCRIPTS}
+
+${SCRIPTS}:
+	${PSYCLONE} -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
+
+compile:
+	@echo "No compilation supported for lfric/scripts examples"
 
 
