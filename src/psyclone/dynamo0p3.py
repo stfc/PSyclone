@@ -4097,8 +4097,9 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # Declare the matrix itself
             cma_name = self._symbol_table.name_from_tag(op_name+"_matrix")
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            cma_dtype = self._cma_ops[op_name]["datatype"]
+            parent.add(DeclGen(parent, datatype=cma_dtype,
+                               kind=api_config.default_kind[cma_dtype],
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
@@ -4148,8 +4149,9 @@ class DynCMAOperators(DynCollection):
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            dtype = self._cma_ops[op_name]["datatype"]
+            parent.add(DeclGen(parent, datatype=dtype,
+                               kind=api_config.default_kind[dtype],
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
