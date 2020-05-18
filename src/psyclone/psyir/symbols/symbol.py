@@ -61,7 +61,7 @@ class Symbol(object):
     '''
     Generic Symbol item for the Symbol Table. It always has a fixed name label
     that matches with the key in the SymbolTables that contain the symbol.
-    If the symbol is not public then it is only visibile to those nodes that
+    If the symbol is not public then it is only visible to those nodes that
     are descendents of the Node to which its containing Symbol Table belongs.
 
     :param str name: name of the symbol.
@@ -69,7 +69,7 @@ class Symbol(object):
     :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     :raises TypeError: if the name is not a str or visibility is not an \
-                       instance of Visability.
+                       instance of Visibility.
     '''
 
     class Visibility(Enum):

@@ -1044,7 +1044,7 @@ class Fparser2Reader(object):
         (default_visibility, explicit_public_symbols,
          explicit_private_symbols) = self._parse_access_statements(nodes)
 
-        # Look at any USE statments
+        # Look at any USE statements
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
             # Check that the parse tree is what we expect
@@ -1335,8 +1335,9 @@ class Fparser2Reader(object):
 
         # Check for symbols named in an access statement but not explicitly
         # declared. These must then refer to symbols that have been brought
-        # into scope by an unqualified use statment. As we have no idea whether
-        # they represent data or a routine we use the Symbol base class.
+        # into scope by an unqualified use statement. As we have no idea
+        # whether they represent data or a routine we use the Symbol base
+        # class.
         for name in (list(explicit_public_symbols) +
                      list(explicit_private_symbols)):
             if name not in parent.symbol_table:
