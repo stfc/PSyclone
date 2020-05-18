@@ -47,7 +47,7 @@
 # export LDFLAGS="-acc -ta=tesla,cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.f90 traadv.exe
+GENERATED_FILES += psy.f90 psy.o traadv.exe
 
 F90FLAGS ?= -fopenmp
 LDFLAGS ?= -fopenmp
@@ -66,7 +66,8 @@ traadv.exe: dl_timer psy.o
 	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
 
 dl_timer:
-	${MAKE} -C ${DL_TIMER_ROOT} sm_lib
+	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
+   LDFLAGS="${LDFLAGS}" sm_lib
 
 transform:
 	${PSYCLONE} -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
