@@ -910,6 +910,7 @@ def test_access_stmt_undeclared_symbol(parser):
         "private\n"
         "integer :: var3\n"
         "public var3, var4\n"
+        "private var5\n"
         "end module modulename")
     fparser2spec = parser(reader).children[0].children[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -920,6 +921,9 @@ def test_access_stmt_undeclared_symbol(parser):
     var4 = sym_table.lookup("var4")
     assert isinstance(var4, Symbol)
     assert var4.visibility == Symbol.Visibility.PUBLIC
+    var5 = sym_table.lookup("var5")
+    assert isinstance(var5, Symbol)
+    assert var5.visibility == Symbol.Visibility.PRIVATE
 
 
 def test_parse_access_statements_invalid(parser):

@@ -236,6 +236,7 @@ class SymbolTable(object):
 
         :raises SymbolError: if the name exists in the Symbol Table but does \
                              not have the specified visibility.
+        :raises TypeError: if the visibility argument has the wrong type.
         :raises KeyError: if the given name is not in the Symbol Table.
 
         '''
@@ -247,12 +248,23 @@ class SymbolTable(object):
                 else:
                     vis_list = visibility
                 if symbol.visibility not in vis_list:
+                    vis_names = []
+                    # Take care here in case the 'visibility' argument
+                    # is of the wrong type
+                    for vis in vis_list:
+                        if not isinstance(vis, Symbol.Visibility):
+                            raise TypeError(
+                                "the 'visibility' argument to lookup() must be"
+                                " an instance (or list of instances) of "
+                                "Symbol.Visibility but got '{0}' when "
+                                "searching for symbol '{1}'".format(
+                                    type(vis).__name__, name))
+                        vis_names.append(vis.name)
                     raise SymbolError(
                         "Symbol '{0}' exists in the Symbol Table but has "
                         "visibility '{1}' which does not match with the "
                         "requested visibility: {2}".format(
-                            name, symbol.visibility.name,
-                            [sc.name for sc in vis_list]))
+                            name, symbol.visibility.name, vis_names))
             return symbol
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
