@@ -74,7 +74,7 @@ $(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o main.o \
 	$$(nf-config --flibs)
 
 $(EXEC): $(KERNELS) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
+	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC) \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
 	-L $(DL_DIR) -l_fd                     \
 	$$(nf-config --flibs)
@@ -83,6 +83,8 @@ transform: test.x90 extract_transform.py
 	${PSYCLONE} -nodm -l -api "gocean1.0" -s ./extract_transform.py\
 			 --config ../../../config/psyclone.cfg \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
+
+psy.f90 alg.f90: transform
 
 alg.o:	psy.o 
 
