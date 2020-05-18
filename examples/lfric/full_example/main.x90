@@ -48,7 +48,7 @@ program main
     ! Because it tries to use this constructor call to assign individual components
     extrusion = uniform_extrusion_type(0.0d0, 100.0d0, 5)
     extrusion_ptr => extrusion
-    mesh = mesh_type(global_mesh, partition, extrusion_ptr)
+    mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
     print *,"Have mesh", mesh%get_nlayers()
     ndata_sz = 1
     vector_space = function_space_type( mesh,          &
