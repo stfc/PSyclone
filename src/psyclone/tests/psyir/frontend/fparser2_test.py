@@ -607,8 +607,6 @@ def test_process_declarations(f2008_parser):
     converts the fparser2 declarations to symbols in the provided
     parent Kernel Schedule.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -703,14 +701,6 @@ def test_process_declarations(f2008_parser):
     # The new symbol (precisionkind) has been added to the parent Symbol Table
     assert fake_parent.symbol_table.lookup("precisionkind")
 
-    # Initial values for variables are not supported so we should get a symbol
-    # with unknown type.
-    reader = FortranStringReader("real:: a = 1.1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("a").datatype,
-                      UnknownType)
-
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -719,12 +709,61 @@ def test_process_declarations(f2008_parser):
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
 
-    # Test with unsupported data type
+
+def test_process_unsupported_declarations(f2008_parser):
+    ''' Check that the frontend handles unsupported declarations by
+    creating symbols of UnknownType. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Initial values for variables are not supported so we should get a symbol
+    # with unknown type.
+    reader = FortranStringReader("real:: a = 1.1")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    asym = fake_parent.symbol_table.lookup("a")
+    assert isinstance(asym.datatype, UnknownType)
+    assert asym.datatype.declaration == "REAL :: a = 1.1"
+
+    reader = FortranStringReader("real:: b = 1.1, c = 2.2")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    bsym = fake_parent.symbol_table.lookup("b")
+    assert isinstance(bsym.datatype, UnknownType)
+    assert bsym.datatype.declaration == "REAL :: b = 1.1"
+    csym = fake_parent.symbol_table.lookup("c")
+    assert isinstance(csym.datatype, UnknownType)
+    assert csym.datatype.declaration == "REAL :: c = 2.2"
+
+    # Multiple symbols with a single attribute
+    reader = FortranStringReader("integer, private :: d = 1, e = 2")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    dsym = fake_parent.symbol_table.lookup("d")
+    assert isinstance(dsym.datatype, UnknownType)
+    assert dsym.datatype.declaration == "INTEGER,PRIVATE :: d = 1"
+    esym = fake_parent.symbol_table.lookup("e")
+    assert isinstance(esym.datatype, UnknownType)
+    assert esym.datatype.declaration == "INTEGER,PRIVATE :: e = 2"
+
+    # Multiple attributes
+    reader = FortranStringReader("INTEGER,PRIVATE,DIMENSION(3) :: f = 2, g = 3")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    fsym = fake_parent.symbol_table.lookup("f")
+    assert isinstance(fsym.datatype, UnknownType)
+    assert fsym.datatype.declaration == "INTEGER,PRIVATE,DIMENSION(3) :: f = 2"
+    gsym = fake_parent.symbol_table.lookup("g")
+    assert isinstance(gsym.datatype, UnknownType)
+    assert gsym.datatype.declaration == "INTEGER,PRIVATE,DIMENSION(3) :: g = 3"
+
+    # Test with unsupported intrinsic type
     reader = FortranStringReader("doubleprecision     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert isinstance(fake_parent.symbol_table.lookup("c2").datatype,
-                      UnknownType)
+    c2sym = fake_parent.symbol_table.lookup("c2")
+    assert isinstance(c2sym.datatype, UnknownType)
+    assert c2sym.datatype.declaration == "DOUBLE PRECISION :: c2"
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead

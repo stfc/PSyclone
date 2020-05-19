@@ -1409,12 +1409,20 @@ class Fparser2Reader(object):
                                     explicit_private_symbols)
             except NotImplementedError:
                 # Found an unsupported variable declaration. Create a
-                # DataSymbol with deferred type for each entity being declared.
+                # DataSymbol with UnknownType for each entity being declared.
+                # Construct the LHS of the declaration
+                type_str = str(decl.children[0])
+                if decl.children[1]:
+                    # Add any attributes
+                    type_str = decl.children[1].separator.join(
+                        [type_str] +
+                        [str(child) for child in decl.children[1].children])
+                type_str += " :: "
+                # Now loop over the entities on the RHS
                 for entity in decl.children[2].children:
-                    # TODO need to store original Fortran declaration
                     parent.symbol_table.add(
                         DataSymbol(str(entity.children[0]),
-                                   UnknownType(str(decl.children[0]))))
+                                   UnknownType(type_str + str(entity))))
 
         # Check for symbols named in an access statement but not explicitly
         # declared. These must then refer to symbols that have been brought
