@@ -38,6 +38,7 @@
 
 ''' This module contains the generic Symbol and the SymbolError.'''
 
+from enum import Enum
 import six
 
 
@@ -59,22 +60,48 @@ class SymbolError(Exception):
 class Symbol(object):
     '''
     Generic Symbol item for the Symbol Table. It always has a fixed name label
-    that matches with the key on the SymbolTables that contain the symbol.
+    that matches with the key in the SymbolTables that contain the symbol.
+    If the symbol is not public then it is only visible to those nodes that
+    are descendents of the Node to which its containing Symbol Table belongs.
 
     :param str name: name of the symbol.
+    :param visibility: the visibility of the symbol.
+    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
-    :raises TypeError: if the name is not a string.
-
+    :raises TypeError: if the name is not a str or visibility is not an \
+                       instance of Visibility.
     '''
 
-    def __init__(self, name):
+    class Visibility(Enum):
+        ''' Enumeration of the different visibility attributes supported in
+        the PSyIR. If no visibility information is supplied for a Symbol then
+        it is given the DEFAULT_VISIBILITY value.
+
+        PUBLIC: the symbol is visible in any scoping region that has access to
+                the SymbolTable containing it.
+        PRIVATE: the symbol is only visibile inside the scoping region that
+                 contains the SymbolTable to which it belongs.
+        '''
+        PUBLIC = 1
+        PRIVATE = 2
+
+    # The visibility given to any PSyIR symbols that are created without being
+    # given an explicit visibility.
+    DEFAULT_VISIBILITY = Visibility.PUBLIC
+
+    def __init__(self, name, visibility=DEFAULT_VISIBILITY):
 
         if not isinstance(name, six.string_types):
             raise TypeError(
-                "{0} name attribute should be of type 'str'"
+                "{0} 'name' attribute should be of type 'str'"
                 " but '{1}' found.".format(type(self).__name__, type(name)))
-
+        if not isinstance(visibility, Symbol.Visibility):
+            raise TypeError(
+                "{0} 'visibility' attribute should be of type "
+                "psyir.symbols.Symbol.Visibility but '{1}' found.".format(
+                    type(self).__name__, type(visibility).__name__))
         self._name = name
+        self._visibility = visibility
 
     @property
     def name(self):
@@ -83,6 +110,14 @@ class Symbol(object):
         :rtype: str
         '''
         return self._name
+
+    @property
+    def visibility(self):
+        '''
+        :returns: the visibility of this Symbol.
+        :rtype: :py:class:`psyclone.psyir.symbol.Symbol.Visibility`
+        '''
+        return self._visibility
 
     def __str__(self):
         return self.name

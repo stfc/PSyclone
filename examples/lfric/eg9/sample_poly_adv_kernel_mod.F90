@@ -49,18 +49,18 @@
 !>          This method is only valid for lowest order elements
 module sample_poly_adv_kernel_mod
 
-use argument_mod,  only : arg_type, func_type,                  &
-                          GH_FIELD, GH_WRITE, GH_READ,          &
-                          W2, Wtheta, ANY_SPACE_1,              &
-                          GH_BASIS, GH_DIFF_BASIS, CELLS,       &
-                          GH_EVALUATOR, STENCIL, CROSS
-
+use argument_mod,          only: arg_type, func_type,         &
+                                 GH_FIELD, GH_WRITE, GH_READ, &
+                                 ANY_SPACE_1, STENCIL, CROSS, &
+                                 GH_BASIS, GH_DIFF_BASIS,     &
+                                 CELLS, GH_EVALUATOR
+use fs_continuity_mod,     only: W2, Wtheta
 use constants_mod,         only: r_def, i_def
 use kernel_mod,            only: kernel_type
 use reference_element_mod, only: W, E, N, S
 use transport_config_mod,  only: consistent_metric
 
-use transport_config_mod, only: enforce_monotonicity
+use transport_config_mod,  only: enforce_monotonicity
 use timestepping_config_mod,  only: dt
 
 implicit none

@@ -43,6 +43,7 @@ import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
     REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
+from psyclone.errors import GenerationError
 
 
 def test_literal_init():
@@ -168,3 +169,15 @@ def test_literal_can_be_printed():
     literal = Literal("1", array_type)
     assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
             "shape=[10, 10]>]" in str(literal))
+
+
+def test_literal_children_validation():
+    '''Test that children added to Literals are validated. A Literal node does
+    not accept any children.
+
+    '''
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+    with pytest.raises(GenerationError) as excinfo:
+        literal.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'Literal'. Literal is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)

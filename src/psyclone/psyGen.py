@@ -48,8 +48,9 @@ from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.parse.algorithm import BuiltInCall
 
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -779,40 +780,34 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
+    # Textual description of the node.
+    _text_name = "InvokeSchedule"
+
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
+        super(InvokeSchedule, self).__init__()
 
-        # Initialise class attributes
-        self._parent = None
-        # TODO #645 once children are not passed to the base-class constructor
-        # we should call that constructor here and have *it* create the symbol
-        # table.
-        self._symbol_table = SymbolTable()
-        if reserved_names:
-            for name in reserved_names:
-                self._symbol_table.add(Symbol(name))
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
 
-        # we need to separate calls into loops (an iteration space really)
+        # Populate the Schedule Symbol Table with the reserved names.
+        if reserved_names:
+            for name in reserved_names:
+                self.symbol_table.add(Symbol(name))
+
+        # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         if alg_calls is None:
             alg_calls = []
-        sequence = []
-        from psyclone.parse.algorithm import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
+                self.addchild(BuiltInFactory.create(call, parent=self))
             else:
-                sequence.append(KernFactory.create(call, parent=self))
-        # TODO #645 move this constructor call to the beginning of this
-        # routine.
-        Schedule.__init__(self, children=sequence, parent=None)
-        self._text_name = "InvokeSchedule"
+                self.addchild(KernFactory.create(call, parent=self))
 
     @property
     def symbol_table(self):
@@ -871,10 +866,10 @@ class InvokeSchedule(Schedule):
             self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
-        result = "InvokeSchedule:\n"
+        result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End InvokeSchedule\n"
+        result += "End " + self.coloured_name(False) + "\n"
         return result
 
     def gen_code(self, parent):
@@ -1029,7 +1024,7 @@ class InvokeSchedule(Schedule):
         self._opencl = value
 
 
-class Directive(Node):
+class Directive(Statement):
     '''
     Base class for all Directive statements.
 
@@ -1049,13 +1044,28 @@ class Directive(Node):
     # The prefix to use when constructing this directive in Fortran
     # (e.g. "OMP"). Must be set by sub-class.
     _PREFIX = ""
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "Directive"
+    _colour_key = "Directive"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = self._insert_schedule(children, ast)
         super(Directive, self).__init__(ast, children=[sched], parent=parent)
-        self._text_name = "Directive"
-        self._colour_key = "Directive"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
 
     @property
     def dir_body(self):
@@ -1962,11 +1972,11 @@ class OMPDoDirective(OMPDirective):
         '''
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(start_text="do schedule({0})".format(
             self._omp_schedule), end_text="end do")
@@ -2034,11 +2044,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP PARALLEL DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(
             start_text="parallel do default(shared), private({0}), "
@@ -2047,7 +2057,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             end_text="end parallel do")
 
 
-class GlobalSum(Node):
+class GlobalSum(Statement):
     '''
     Generic Global Sum class which can be added to and manipulated
     in, a schedule.
@@ -2058,6 +2068,11 @@ class GlobalSum(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "GlobalSum"
+    _colour_key = "GlobalSum"
+
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
@@ -2068,8 +2083,6 @@ class GlobalSum(Node):
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
-        self._text_name = "GlobalSum"
-        self._colour_key = "GlobalSum"
 
     @property
     def scalar(self):
@@ -2104,7 +2117,7 @@ class GlobalSum(Node):
         return self.node_str(False)
 
 
-class HaloExchange(Node):
+class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
     manipulated in, a schedule.
@@ -2123,6 +2136,11 @@ class HaloExchange(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "HaloExchange"
+    _colour_key = "HaloExchange"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2138,8 +2156,6 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-        self._text_name = "HaloExchange"
-        self._colour_key = "HaloExchange"
 
     @property
     def vector_index(self):
@@ -2262,7 +2278,7 @@ class HaloExchange(Node):
         return self.node_str(False)
 
 
-class Kern(Node):
+class Kern(Statement):
     '''
     Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
@@ -2281,8 +2297,11 @@ class Kern(Node):
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, parent, call, name, arguments):
-        Node.__init__(self, children=[], parent=parent)
+        super(Kern, self).__init__(self, parent=parent)
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -2298,8 +2317,7 @@ class Kern(Node):
                         "Argument '{0}' is passed into kernel '{1}' code more "
                         "than once from the algorithm layer. This is not "
                         "allowed.".format(arg.text, self._name))
-                else:
-                    arg_names.append(text)
+                arg_names.append(text)
 
         self._arg_descriptors = None
 
@@ -2562,6 +2580,10 @@ class CodedKern(Kern):
                              call does not match that in the meta-data.
 
     '''
+    # Textual description of the node.
+    _text_name = "CodedKern"
+    _colour_key = "CodedKern"
+
     def __init__(self, KernelArguments, call, parent=None, check=True):
         self._parent = parent
         super(CodedKern, self).__init__(parent, call,
@@ -2587,8 +2609,6 @@ class CodedKern(Kern):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
-        self._text_name = "CodedKern"
-        self._colour_key = "CodedKern"
 
     def get_kernel_schedule(self):
         '''
@@ -3083,17 +3103,47 @@ class InlinedKern(Kern):
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "InlinedKern"
+    _colour_key = "InlinedKern"
 
     def __init__(self, psyir_nodes):
-        # pylint: disable=non-parent-init-called,super-init-not-called
+        # pylint: disable=non-parent-init-called, super-init-not-called
+        Node.__init__(self)
         schedule = Schedule(children=psyir_nodes, parent=self)
-        Node.__init__(self, children=[schedule])
+        self.children = [schedule]
         # Update the parent info for each node we've moved
         for node in schedule.children:
             node.parent = schedule
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
+
+    def node_str(self, colour=True):
+        '''
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
+
     def __str__(self):
-        return "inlined kern: " + self._name
+        return self.coloured_name(False)
 
     @abc.abstractmethod
     def local_vars(self):
@@ -3109,6 +3159,10 @@ class BuiltIn(Kern):
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
     '''
+    # Textual description of the node.
+    _text_name = "BuiltIn"
+    _colour_key = "BuiltIn"
+
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
@@ -3117,8 +3171,6 @@ class BuiltIn(Kern):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     @property
     def dag_name(self):
@@ -3129,8 +3181,6 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be

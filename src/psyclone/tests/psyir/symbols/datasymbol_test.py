@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
 
@@ -406,6 +406,8 @@ def test_datasymbol_resolve_deferred():
     container.symbol_table.add(DataSymbol('b', REAL_SINGLE_TYPE))
     container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
                                           constant_value=3.14))
+    container.symbol_table.add(DataSymbol(
+        'f', INTEGER_SINGLE_TYPE, visibility=Symbol.Visibility.PRIVATE))
     module = ContainerSymbol("dummy_module")
     module._reference = container  # Manually linking the container
 
@@ -438,9 +440,9 @@ def test_datasymbol_resolve_deferred():
                         interface=GlobalInterface(module))
     with pytest.raises(SymbolError) as err:
         symbol.resolve_deferred()
-    assert ("Error trying to resolve symbol 'd' properties. The interface "
-            "points to module 'dummy_module' but could not find the definition"
-            " of 'd' in that module." in str(err.value))
+    assert ("Error trying to resolve the properties of symbol 'd'. The "
+            "interface points to module 'dummy_module' but could not find the"
+            " definition of 'd' in that module." in str(err.value))
 
     # Test with a symbol which does not have a Global interface
     symbol = DataSymbol('e', DeferredType(), interface=LocalInterface())
@@ -448,6 +450,16 @@ def test_datasymbol_resolve_deferred():
         symbol.resolve_deferred()
     assert ("Error trying to resolve symbol 'e' properties, the lazy "
             "evaluation of 'Local' interfaces is not supported."
+            in str(err.value))
+
+    # Test with a symbol that is private to the linked container
+    symbol = DataSymbol('f', DeferredType(), interface=GlobalInterface(module))
+    with pytest.raises(SymbolError) as err:
+        symbol.resolve_deferred()
+    assert ("Error trying to resolve the properties of symbol 'f' in module "
+            "'dummy_module': PSyclone " in str(err.value))
+    assert ("'f' exists in the Symbol Table but has visibility 'PRIVATE' "
+            "which does not match with the requested visibility: ['PUBLIC']"
             in str(err.value))
 
 

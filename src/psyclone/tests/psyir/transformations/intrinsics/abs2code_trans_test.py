@@ -33,11 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing tests for the nemo abs transformation.'''
+'''Module containing tests for the abs2code transformation.'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations import NemoAbsTrans, TransformationError
+from psyclone.psyir.transformations import Abs2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, \
@@ -53,13 +53,13 @@ def test_initialise():
     class is created and that the str and name methods work as expected.
 
     '''
-    trans = NemoAbsTrans()
+    trans = Abs2CodeTrans()
     assert trans._operator_name == "ABS"
     assert trans._classes == (UnaryOperation,)
     assert trans._operators == (UnaryOperation.Operator.ABS,)
     assert (str(trans) == "Convert the PSyIR ABS intrinsic to equivalent "
             "PSyIR code.")
-    assert trans.name == "NemoAbsTrans"
+    assert trans.name == "Abs2CodeTrans"
 
 
 def example_psyir(create_expression):
@@ -112,8 +112,8 @@ def test_correct(func, output, tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=ABS({0})\n\n"
         "end subroutine abs_example\n".format(output)) in result
-    trans = NemoAbsTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
+    trans = Abs2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -159,8 +159,8 @@ def test_correct_expr(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
-    trans = NemoAbsTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
+    trans = Abs2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -206,9 +206,9 @@ def test_correct_2abs(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp=ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
-    trans = NemoAbsTrans()
-    _, _ = trans.apply(operation, operation.root.symbol_table)
-    _, _ = trans.apply(abs_op, operation.root.symbol_table)
+    trans = Abs2CodeTrans()
+    trans.apply(operation, operation.root.symbol_table)
+    trans.apply(abs_op, operation.root.symbol_table)
     result = writer(operation.root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -240,13 +240,9 @@ def test_correct_2abs(tmpdir):
 def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
-    Config.get().api = "dynamo0.3"
-    operation = example_psyir(lambda arg: arg)
-    trans = NemoAbsTrans()
+    trans = Abs2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = trans.apply(operation, operation.root.symbol_table)
+        trans.apply(None)
     assert (
-        "Error in NemoAbsTrans transformation. This transformation only works "
-        "for the nemo API, but found 'dynamo0.3'" in str(excinfo.value))
-    # Remove the created config instance
-    Config._instance = None
+        "Error in Abs2CodeTrans transformation. The supplied node argument "
+        "is not a ABS operator, found 'NoneType'." in str(excinfo.value))
