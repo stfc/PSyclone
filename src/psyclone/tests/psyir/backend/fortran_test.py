@@ -859,6 +859,8 @@ def test_fw_binaryoperator_precedence(fort_writer):
         "    a = b * c + d\n"
         "    a = (b * c) + d\n"
         "    a = b * c * d * a\n"
+        "    a = (((b * c) * d) * a)\n"
+        "    a = (b * (c * (d * a)))\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
@@ -868,7 +870,9 @@ def test_fw_binaryoperator_precedence(fort_writer):
         "  a=b * (c + d)\n"
         "  a=b * c + d\n"
         "  a=b * c + d\n"
-        "  a=b * c * d * a\n")
+        "  a=b * c * d * a\n"
+        "  a=b * c * d * a\n"
+        "  a=b * (c * (d * a))\n")
     assert expected in result
 
 
@@ -887,7 +891,7 @@ def test_fw_mixed_operator_precedence(fort_writer):
         "  logical :: e, f, g\n"
         "    a = -a * (-b + c)\n"
         "    a = (-a) * (-b + c)\n"
-        "    a = -a + (-b + c)\n"
+        "    a = -a + (-b + (-c))\n"
         "    e = .not. f .or. .not. g\n"
         "    a = log(b*c)\n"
         "end subroutine tmp\n"
@@ -898,7 +902,7 @@ def test_fw_mixed_operator_precedence(fort_writer):
     expected = (
         "  a=-a * (-b + c)\n"
         "  a=-a * (-b + c)\n"
-        "  a=-a + -b + c\n"
+        "  a=-a + (-b + -c)\n"
         "  e=.NOT.f .OR. .NOT.g\n"
         "  a=LOG(b * c)\n")
     assert expected in result

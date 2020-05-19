@@ -41,6 +41,7 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+from __future__ import absolute_import
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
@@ -239,13 +240,12 @@ def get_fortran_operator(operator):
 
     :param operator: a PSyIR operator.
     :type operator: \
-        :py:class:`psyclone.psyir.nodes.[Unary,Binary,Nary]Operation.Operator`
+        :py:class:`psyclone.psyir.nodes.Operation.Operator`
 
-    :returns: the Fortran operator name.
+    :returns: the Fortran operator.
     :rtype: str
 
-    :raises KeyError: if the supplied operator is not known by the \
-        PSyIR.
+    :raises KeyError: if the supplied operator is not known.
 
     '''
     unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
@@ -627,10 +627,14 @@ class FortranWriter(PSyIRVisitor):
             if is_fortran_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
                 return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
-            if isinstance(node.parent, Operation):
-                parent_fort_oper = get_fortran_operator(node.parent.operator)
+            parent = node.parent
+            if isinstance(parent, Operation):
+                parent_fort_oper = get_fortran_operator(parent.operator)
                 if not is_fortran_intrinsic(parent_fort_oper) and \
-                   precedence(fort_oper) < precedence(parent_fort_oper):
+                   (precedence(fort_oper) < precedence(parent_fort_oper) or
+                    precedence(fort_oper) == precedence(parent_fort_oper) and
+                    isinstance(parent, BinaryOperation) and
+                    parent.children[1] == node):
                     # We need brackets to enforce precedence
                     return "({0} {1} {2})".format(lhs, fort_oper, rhs)
             return "{0} {1} {2}".format(lhs, fort_oper, rhs)
