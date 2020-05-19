@@ -768,6 +768,14 @@ def test_process_unsupported_declarations(f2008_parser):
     assert isinstance(c2sym.datatype, UnknownType)
     assert c2sym.datatype.declaration == "DOUBLE PRECISION :: c2"
 
+    # Derived type
+    reader = FortranStringReader("type(my_type) :: var")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    vsym = fake_parent.symbol_table.lookup("var")
+    assert isinstance(vsym.datatype, UnknownType)
+    assert vsym.datatype.declaration == "TYPE(my_type) :: var"
+
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
     # of parsing a full program, but fparser/169 needs to be fixed first.
