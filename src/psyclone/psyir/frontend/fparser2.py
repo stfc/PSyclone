@@ -1162,6 +1162,8 @@ class Fparser2Reader(object):
                                allocatable attribute.
         :raises NotImplementedError: if an initialisation expression is found \
                                      for a variable declaration.
+        :raises NotImplementedError: if an unsupported initialisation \
+                expression is found for a parameter declaration.
         :raises NotImplementedError: if a character-length specification is \
                                      found.
         :raises SymbolError: if a declaration is found for a symbol that is \
@@ -1355,10 +1357,15 @@ class Fparser2Reader(object):
                 datatype = ScalarType(data_name, precision)
 
             if sym_name not in parent.symbol_table:
-                parent.symbol_table.add(DataSymbol(sym_name, datatype,
-                                                   visibility=visibility,
-                                                   constant_value=ct_expr,
-                                                   interface=interface))
+                try:
+                    sym = DataSymbol(sym_name, datatype,
+                                     visibility=visibility,
+                                     constant_value=ct_expr,
+                                     interface=interface)
+                except ValueError:
+                    # Error setting initial value
+                    raise NotImplementedError()
+                parent.symbol_table.add(sym)
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.
@@ -1415,9 +1422,20 @@ class Fparser2Reader(object):
                     # Modify the fparser2 parse tree so that it only declares
                     # the current entity
                     decl.children[2].items = (child,)
-                    parent.symbol_table.add(
-                        DataSymbol(str(child.children[0]),
-                                   UnknownType(str(decl))))
+                    symbol_name = str(child.children[0])
+                    # If a declaration declares multiple entities, it's
+                    # possible that some may have already been processed
+                    # successfully and thus be in the symbol table.
+                    try:
+                        parent.symbol_table.add(
+                            DataSymbol(symbol_name, UnknownType(str(decl))))
+                    except KeyError:
+                        if len(orig_children) > 1:
+                            continue
+                        raise SymbolError(
+                            "Error while processing unsupported declaration ("
+                            "'{0}'). An entry for symbol '{1}' is already in "
+                            "the symbol table.".format(str(decl), symbol_name))
                 # Restore the fparser2 parse tree
                 decl.children[2].itesm = tuple(orig_children)
 
