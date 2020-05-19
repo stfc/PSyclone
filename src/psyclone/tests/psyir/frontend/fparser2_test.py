@@ -741,21 +741,24 @@ def test_process_unsupported_declarations(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
     assert isinstance(dsym.datatype, UnknownType)
-    assert dsym.datatype.declaration == "INTEGER,PRIVATE :: d = 1"
+    assert dsym.datatype.declaration == "INTEGER, PRIVATE :: d = 1"
     esym = fake_parent.symbol_table.lookup("e")
     assert isinstance(esym.datatype, UnknownType)
-    assert esym.datatype.declaration == "INTEGER,PRIVATE :: e = 2"
+    assert esym.datatype.declaration == "INTEGER, PRIVATE :: e = 2"
 
     # Multiple attributes
-    reader = FortranStringReader("INTEGER,PRIVATE,DIMENSION(3) :: f = 2, g = 3")
+    reader = FortranStringReader(
+        "INTEGER, PRIVATE, DIMENSION(3) :: f = 2, g = 3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
     assert isinstance(fsym.datatype, UnknownType)
-    assert fsym.datatype.declaration == "INTEGER,PRIVATE,DIMENSION(3) :: f = 2"
+    assert (fsym.datatype.declaration ==
+            "INTEGER, PRIVATE, DIMENSION(3) :: f = 2")
     gsym = fake_parent.symbol_table.lookup("g")
     assert isinstance(gsym.datatype, UnknownType)
-    assert gsym.datatype.declaration == "INTEGER,PRIVATE,DIMENSION(3) :: g = 3"
+    assert (gsym.datatype.declaration ==
+            "INTEGER, PRIVATE, DIMENSION(3) :: g = 3")
 
     # Test with unsupported intrinsic type
     reader = FortranStringReader("doubleprecision     ::      c2")

@@ -1410,19 +1410,16 @@ class Fparser2Reader(object):
             except NotImplementedError:
                 # Found an unsupported variable declaration. Create a
                 # DataSymbol with UnknownType for each entity being declared.
-                # Construct the LHS of the declaration
-                type_str = str(decl.children[0])
-                if decl.children[1]:
-                    # Add any attributes
-                    type_str = decl.children[1].separator.join(
-                        [type_str] +
-                        [str(child) for child in decl.children[1].children])
-                type_str += " :: "
-                # Now loop over the entities on the RHS
-                for entity in decl.children[2].children:
+                orig_children = list(decl.children[2].children[:])
+                for child in orig_children:
+                    # Modify the fparser2 parse tree so that it only declares
+                    # the current entity
+                    decl.children[2].items = (child,)
                     parent.symbol_table.add(
-                        DataSymbol(str(entity.children[0]),
-                                   UnknownType(type_str + str(entity))))
+                        DataSymbol(str(child.children[0]),
+                                   UnknownType(str(decl))))
+                # Restore the fparser2 parse tree
+                decl.children[2].itesm = tuple(orig_children)
 
         # Check for symbols named in an access statement but not explicitly
         # declared. These must then refer to symbols that have been brought
