@@ -2010,9 +2010,14 @@ class Fparser2Reader(object):
 
         if default_clause_idx:
             # Finally, add the content of the 'default' clause as a last
-            # 'else' clause.
-            elsebody = Schedule(parent=currentparent)
-            start_idx = default_clause_idx
+            # 'else' clause. If the 'default' clause was the only clause
+            # then 'rootif' will still be None and we don't bother creating
+            # an enclosing IfBlock at all.
+            if rootif:
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                currentparent = elsebody
+            start_idx = default_clause_idx + 1
             # Find the next 'case' clause that occurs after 'case default'
             # (if any)
             end_idx = -1
@@ -2020,12 +2025,12 @@ class Fparser2Reader(object):
                 if idx > default_clause_idx:
                     end_idx = idx
                     break
-            self.process_nodes(parent=elsebody,
-                               nodes=node.content[start_idx + 1:
-                                                  end_idx])
-            currentparent.addchild(elsebody)
-            elsebody.ast = node.content[start_idx + 1]
-            elsebody.ast_end = node.content[end_idx - 1]
+            # Process the statements within the 'default' clause
+            self.process_nodes(parent=currentparent,
+                               nodes=node.content[start_idx:end_idx])
+            if rootif:
+                elsebody.ast = node.content[start_idx]
+                elsebody.ast_end = node.content[end_idx - 1]
         return rootif
 
     def _process_case_value_list(self, selector, nodes, parent):

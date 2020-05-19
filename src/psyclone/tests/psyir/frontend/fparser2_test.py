@@ -2451,16 +2451,25 @@ def test_handling_invalid_case_construct():
 @pytest.mark.usefixtures("f2008_parser")
 def test_case_default_only():
     ''' Check that we handle a select case that contains only a
-    default clause. '''
+    default clause and is thus redundant. The PSyIR should represent
+    only the code that is within the default case.
+
+    '''
     fake_parent = Schedule()
+    fake_parent.symbol_table.add(Symbol("a"))
     processor = Fparser2Reader()
     reader = FortranStringReader(
         '''SELECT CASE ( jprstlib )
            CASE DEFAULT
-             WRITE(numout,*) 'open ice restart NetCDF file: ',TRIM(clpath)//clname
+             WRITE(numout,*) 'open ice restart NetCDF file: '
+             a = 1
            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    processor.process_nodes(fake_parent, [fparser2case_construct])
+    exe_part = Execution_Part.match(reader)
+    processor.process_nodes(fake_parent, exe_part[0])
+    # We should have no IfBlock in the resulting PSyIR
+    assert len(fake_parent.children) == 2
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert isinstance(fake_parent.children[1], Assignment)
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
