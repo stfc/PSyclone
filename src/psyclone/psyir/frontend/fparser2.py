@@ -1609,14 +1609,15 @@ class Fparser2Reader(object):
         lower_name = name.lower()
         try:
             kind_symbol = symbol_table.lookup(lower_name)
-            if not (isinstance(kind_symbol.datatype, DeferredType) or
+            if not (isinstance(kind_symbol.datatype,
+                               (UnknownType, DeferredType)) or
                     (isinstance(kind_symbol.datatype, ScalarType) and
                      kind_symbol.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
                     "SymbolTable already contains an entry for "
                     "variable '{0}' used as a kind parameter but it "
-                    "is not a 'deferred' or 'scalar integer' type.".
+                    "is not a 'deferred', 'unknown' or 'scalar integer' type.".
                     format(lower_name))
             # A KIND parameter must be of type integer so set it here
             # (in case it was previously 'deferred'). We don't know
