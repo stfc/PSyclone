@@ -82,7 +82,7 @@ def test_containersymbol_initialisation():
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
-    assert "ContainerSymbol name attribute should be of type 'str'" \
+    assert "ContainerSymbol 'name' attribute should be of type 'str'" \
         in str(error.value)
 
 

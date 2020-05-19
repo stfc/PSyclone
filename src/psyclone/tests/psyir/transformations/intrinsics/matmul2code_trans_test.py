@@ -60,7 +60,7 @@ def create_matmul():
     two = Literal("2", INTEGER_TYPE)
     index = DataSymbol("idx", INTEGER_TYPE, constant_value=3)
     symbol_table.add(index)
-    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    array_type = ArrayType(REAL_TYPE, [5, 10, 15])
     mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
     lbound1 = BinaryOperation.create(
@@ -75,7 +75,7 @@ def create_matmul():
     my_mat_range2 = Range.create(lbound2, ubound2, one)
     matrix = Array.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                        Reference(index)])
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(REAL_TYPE, [10, 20])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
     lbound = BinaryOperation.create(
@@ -86,7 +86,11 @@ def create_matmul():
     vector = Array.create(vec_symbol, [my_vec_range, Reference(index)])
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, matrix, vector)
-    assign = Assignment.create(vector, matmul)
+    lhs_type = ArrayType(REAL_TYPE, [10])
+    lhs_symbol = DataSymbol("result", lhs_type)
+    symbol_table.add(lhs_symbol)
+    lhs = Reference(lhs_symbol)
+    assign = Assignment.create(lhs, matmul)
     KernelSchedule.create("my_kern", symbol_table, [assign])
     return matmul
 
@@ -375,15 +379,16 @@ def test_apply1(tmpdir):
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
-        "  real, dimension(10,10,10) :: x\n"
-        "  real, dimension(10,10) :: y\n"
+        "  real, dimension(5,10,15) :: x\n"
+        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
-        "  do i = 1, 10, 1\n"
-        "    y(i,idx)=0.0\n"
+        "  do i = 1, 5, 1\n"
+        "    result(i)=0.0\n"
         "    do j = 1, 10, 1\n"
-        "      y(i,idx)=y(i,idx) + x(i,j,idx) * y(j,idx)\n"
+        "      result(i)=result(i) + x(i,j,idx) * y(j,idx)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -408,15 +413,16 @@ def test_apply2(tmpdir):
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
-        "  real, dimension(10,10,10) :: x\n"
-        "  real, dimension(10,10) :: y\n"
+        "  real, dimension(5,10,15) :: x\n"
+        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
-        "  do i = 1, 10, 1\n"
-        "    y(i,2)=0.0\n"
+        "  do i = 1, 5, 1\n"
+        "    result(i)=0.0\n"
         "    do j = 1, 10, 1\n"
-        "      y(i,2)=y(i,2) + x(i,j,1) * y(j,2)\n"
+        "      result(i)=result(i) + x(i,j,1) * y(j,2)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -436,10 +442,10 @@ def test_apply3(tmpdir):
     matrix = matmul.children[0]
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
-    matrix_symbol.datatype._shape = [10, 10]
+    matrix_symbol.datatype._shape = [10, 20]
     rhs_vector = matmul.children[1]
     rhs_vector_symbol = rhs_vector.symbol
-    rhs_vector_symbol.datatype._shape = [10]
+    rhs_vector_symbol.datatype._shape = [20]
     matmul.children[1] = Reference(rhs_vector_symbol)
     lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol
@@ -451,15 +457,16 @@ def test_apply3(tmpdir):
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
-        "  real, dimension(10,10) :: x\n"
-        "  real, dimension(10) :: y\n"
+        "  real, dimension(10,20) :: x\n"
+        "  real, dimension(20) :: y\n"
+        "  real, dimension(10) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
         "  do i = 1, 10, 1\n"
-        "    y(i)=0.0\n"
-        "    do j = 1, 10, 1\n"
-        "      y(i)=y(i) + x(i,j) * y(j)\n"
+        "    result(i)=0.0\n"
+        "    do j = 1, 20, 1\n"
+        "      result(i)=result(i) + x(i,j) * y(j)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
