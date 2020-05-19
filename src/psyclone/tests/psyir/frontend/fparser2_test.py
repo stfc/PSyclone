@@ -2448,6 +2448,21 @@ def test_handling_invalid_case_construct():
     assert "to be a Case_Selector but got" in str(error.value)
 
 
+@pytest.mark.usefixtures("f2008_parser")
+def test_case_default_only():
+    ''' Check that we handle a select case that contains only a
+    default clause. '''
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        '''SELECT CASE ( jprstlib )
+           CASE DEFAULT
+             WRITE(numout,*) 'open ice restart NetCDF file: ',TRIM(clpath)//clname
+           END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fparser2case_construct])
+
+
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
