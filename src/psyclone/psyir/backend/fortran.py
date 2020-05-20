@@ -47,8 +47,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, SymbolTable
-from psyclone.psyir.nodes import BinaryOperation, Reference, Literal, \
-    Operation
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
+    Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -239,8 +239,7 @@ def get_fortran_operator(operator):
     operator names.
 
     :param operator: a PSyIR operator.
-    :type operator: \
-        :py:class:`psyclone.psyir.nodes.Operation.Operator`
+    :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
 
     :returns: the Fortran operator.
     :rtype: str
@@ -272,9 +271,7 @@ def is_fortran_intrinsic(fortran_operator):
         intrinsic and false otherwise.
 
     '''
-    if fortran_operator in FORTRAN_INTRINSICS:
-        return True
-    return False
+    return fortran_operator in FORTRAN_INTRINSICS
 
 
 def precedence(fortran_operator):
@@ -293,7 +290,14 @@ def precedence(fortran_operator):
 
     '''
     # The index of the fortran_precedence list indicates relative
-    # precedence. Strings within sub-lists have the same precendence.
+    # precedence. Strings within sub-lists have the same precendence
+    # apart from the following two caveats. 1) unary + and - have
+    # a higher precedence than binary + and -, e.g. -(a-b) !=
+    # -a-b and 2) floating point operations are not actually
+    # associative due to rounding errors, e.g. potentially (a * b) / c
+    # != a * (b / c). Therefore, if a particular ordering is specified
+    # then it should be respected. These issues are dealt with in the
+    # binaryoperation handler.
     fortran_precedence = [
         ['.EQV.', 'NEQV'],
         ['.OR.'],
@@ -629,14 +633,24 @@ class FortranWriter(PSyIRVisitor):
                 return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
             parent = node.parent
             if isinstance(parent, Operation):
+                # We may need to enforce precedence
                 parent_fort_oper = get_fortran_operator(parent.operator)
-                if not is_fortran_intrinsic(parent_fort_oper) and \
-                   (precedence(fort_oper) < precedence(parent_fort_oper) or
-                    precedence(fort_oper) == precedence(parent_fort_oper) and
-                    isinstance(parent, BinaryOperation) and
-                    parent.children[1] == node):
-                    # We need brackets to enforce precedence
-                    return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+                if not is_fortran_intrinsic(parent_fort_oper):
+                    # We still may need to enforce precedence
+                    if precedence(fort_oper) < precedence(parent_fort_oper):
+                        # We need brackets to enforce precedence
+                        return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+                    if precedence(fort_oper) == precedence(parent_fort_oper):
+                        # We still may need to enforce precedence
+                        if (isinstance(parent, UnaryOperation) or
+                                (isinstance(parent, BinaryOperation) and
+                                 parent.children[1] == node)):
+                            # We need brackets to enforce precedence
+                            # as a) a unary operator is performed
+                            # before a binary operator and b) floating
+                            # point operations are not actually
+                            # associative due to rounding errors.
+                            return "({0} {1} {2})".format(lhs, fort_oper, rhs)
             return "{0} {1} {2}".format(lhs, fort_oper, rhs)
         except KeyError:
             raise VisitorError("Unexpected binary op '{0}'."

@@ -855,12 +855,16 @@ def test_fw_binaryoperator_precedence(fort_writer):
         "contains\n"
         "subroutine tmp()\n"
         "  real :: a, b, c, d\n"
+        "  logical :: e, f, g\n"
         "    a = b * (c + d)\n"
         "    a = b * c + d\n"
         "    a = (b * c) + d\n"
         "    a = b * c * d * a\n"
         "    a = (((b * c) * d) * a)\n"
         "    a = (b * (c * (d * a)))\n"
+        "    a = -(a + b)\n"
+        "    e = .not.(e .and. (f .or. g))\n"
+        "    e = (((.not.e) .and. f) .or. g)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = create_schedule(code, "tmp")
@@ -872,7 +876,10 @@ def test_fw_binaryoperator_precedence(fort_writer):
         "  a=b * c + d\n"
         "  a=b * c * d * a\n"
         "  a=b * c * d * a\n"
-        "  a=b * (c * (d * a))\n")
+        "  a=b * (c * (d * a))\n"
+        "  a=-(a + b)\n"
+        "  e=.NOT.(e .AND. (f .OR. g))\n"
+        "  e=.NOT.e .AND. f .OR. g\n")
     assert expected in result
 
 
