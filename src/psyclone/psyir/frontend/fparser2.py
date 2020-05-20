@@ -1430,14 +1430,14 @@ class Fparser2Reader(object):
                         parent.symbol_table.add(
                             DataSymbol(symbol_name, UnknownType(str(decl))))
                     except KeyError:
-                        if len(orig_children) > 1:
-                            continue
-                        raise SymbolError(
-                            "Error while processing unsupported declaration ("
-                            "'{0}'). An entry for symbol '{1}' is already in "
-                            "the symbol table.".format(str(decl), symbol_name))
+                        if len(orig_children) == 1:
+                            raise SymbolError(
+                                "Error while processing unsupported "
+                                "declaration ('{0}'). An entry for symbol "
+                                "'{1}' is already in the symbol table.".format(
+                                    str(decl), symbol_name))
                 # Restore the fparser2 parse tree
-                decl.children[2].itesm = tuple(orig_children)
+                decl.children[2].items = tuple(orig_children)
 
         # Check for symbols named in an access statement but not explicitly
         # declared. These must then refer to symbols that have been brought

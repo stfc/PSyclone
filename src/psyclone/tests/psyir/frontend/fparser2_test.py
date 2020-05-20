@@ -801,6 +801,9 @@ def test_process_unsupported_declarations(f2008_parser):
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert hsym.constant_value.value == "1"
+    # The fparser2 parse tree should still be intact
+    assert ("INTEGER, PARAMETER :: happy = 1, fbsp = SELECTED_REAL_KIND(6, 37)"
+            in str(fparser2spec))
 
 
 @pytest.mark.usefixtures("f2008_parser")
