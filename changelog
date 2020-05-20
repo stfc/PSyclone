@@ -189,6 +189,9 @@
 	59) PR #735 for #732. Add a Visibility attribute to symbols and
 	fparser2 front-end captures public and private visibilities.
 
+	60) PR #770 for #766. Fix operation precedence issues in the Fortran
+	back-end by inserting parenthesis when needed.
+
 release 1.8.1 29th November 2019
 
         1) #579 for #509. Improves the structuring of the html version
