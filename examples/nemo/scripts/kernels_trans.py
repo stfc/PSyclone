@@ -103,7 +103,8 @@ NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
                       "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
-                      "glob_sum_full"])
+                      "glob_sum_full", "ptr_sj",
+                      "interp1", "interp2", "interp3", "integ_spline"])
 
 
 class ExcludeSettings(object):
@@ -244,6 +245,13 @@ def valid_acc_kernel(node):
         if isinstance(node.parent.parent, IfBlock) and \
            "was_case" in node.parent.parent.annotations:
             log_msg(routine_name, "cannot split children of a SELECT", node)
+            return False
+
+    if (isinstance(node.parent.parent, IfBlock) and
+        "was_where" in node.parent.parent.annotations):
+            # Cannot put KERNELS *within* a loop nest tht originated from
+            # a WHERE construct.
+            log_msg(routine_name, "cannot put KERNELs *inside* a WHERE", node)
             return False
 
     for enode in excluded_nodes:
