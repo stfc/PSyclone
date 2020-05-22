@@ -807,6 +807,20 @@ def test_process_unsupported_declarations(f2008_parser):
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_unsupported_decln_duplicate_symbol():
+    ''' Check that we raise the expected error when an unsupported declaration
+    of only one symbol clashes with an existing entry in the symbol table. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent.symbol_table.add(Symbol("var"))
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type(my_type) :: var")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "An entry for symbol 'var' is already in the" in str(err.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_array_declarations():
     ''' Test that Fparser2Reader.process_declarations() handles various forms
     of array declaration.
