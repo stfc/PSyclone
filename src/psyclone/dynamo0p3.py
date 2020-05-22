@@ -54,6 +54,13 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric.function_space import ANY_W2_FUNCTION_SPACES, \
+    CONTINUOUS_FUNCTION_SPACES, DISCONTINUOUS_FUNCTION_SPACES, FunctionSpace, \
+    READ_ONLY_FUNCTION_SPACES, SCALAR_BASIS_SPACE_NAMES, \
+    SCALAR_DIFF_BASIS_SPACE_NAMES, VALID_ANY_DISCONTINUOUS_SPACE_NAMES, \
+    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES, \
+    VALID_FUNCTION_SPACE_NAMES, VALID_FUNCTION_SPACES, \
+    VECTOR_BASIS_SPACE_NAMES
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
@@ -70,58 +77,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # ========== First section : Parser specialisations and classes ============= #
 # --------------------------------------------------------------------------- #
 #
-# ---------- Function spaces (FS) ------------------------------------------- #
-# Discontinuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2vtrace", "w2broken"]
-
-# Continuous FS
-# Note, any_w2 is not a space on its own. any_w2 is used as a common term for
-# any vector "w2*" function space (w2, w2h, w2v, w2broken) but not w2*trace
-# (spaces of scalar functions). As any_w2 stands for all vector "w2*" spaces
-# it needs to a) be treated as continuous and b) have vector basis and scalar
-# differential basis dimensions.
-# TODO #540: resolve what W2* spaces should be included in ANY_W2 list and
-# whether ANY_W2 should be in the continuous function space list.
-ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
-
-CONTINUOUS_FUNCTION_SPACES = \
-    ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
-
-# Read-only FS
-READ_ONLY_FUNCTION_SPACES = ["wchi"]
-
-# Valid FS names
-VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-    CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
-
-# Valid any_space metadata (general FS, could be continuous or discontinuous)
-VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
-
-# Valid any_discontinuous_space metadata (general FS known to be discontinuous)
-VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
-    ["any_discontinuous_space_{0}".format(x+1) for x in range(10)]
-
-# Valid discontinuous FS names (for optimisation purposes)
-VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES = DISCONTINUOUS_FUNCTION_SPACES + \
-    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
-
-# FS names consist of all valid names
-VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
-                             VALID_ANY_SPACE_NAMES + \
-                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES
-
-# Lists of function spaces that have
-# a) scalar basis functions;
-SCALAR_BASIS_SPACE_NAMES = \
-    ["w0", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
-# b) vector basis functions;
-VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
-# c) scalar differential basis functions;
-SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
-# d) vector differential basis functions.
-VECTOR_DIFF_BASIS_SPACE_NAMES = \
-    ["w0", "w1", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
-
 # ---------- Evaluators ---------------------------------------------------- #
 # Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
@@ -221,11 +176,6 @@ psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #
-
-
-def get_fs_map_name(function_space):
-    ''' Returns a dofmap name for the supplied FunctionSpace. '''
-    return "map_" + function_space.mangled_name
 
 
 def get_cbanded_map_name(function_space):
@@ -422,168 +372,8 @@ def cma_on_space(function_space, arguments):
                 return arg
     return None
 
+
 # ---------- Classes -------------------------------------------------------- #
-
-
-class FunctionSpace(object):
-    '''
-    Manages the name of a function space. If it is an any_space or
-    any_discontinuous_space then its name is mangled such that it is unique
-    within the scope of an Invoke.
-
-    :param str name: original name of function space to create a \
-                     mangled name for.
-    :param kernel_args: object encapsulating all arguments to the kernel call.
-    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
-
-    :raises InternalError: if an unrecognised function space is encountered.
-
-    '''
-
-    def __init__(self, name, kernel_args):
-        self._orig_name = name
-        self._kernel_args = kernel_args
-        self._mangled_name = None
-        self._short_name = None
-
-        # Check whether the function space name is a valid name
-        if self._orig_name not in VALID_FUNCTION_SPACE_NAMES:
-            raise InternalError("Unrecognised function space '{0}'. The "
-                                "supported spaces are {1}."
-                                .format(self._orig_name,
-                                        VALID_FUNCTION_SPACE_NAMES))
-
-        if self._orig_name not in VALID_ANY_SPACE_NAMES + \
-           VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
-            # We only need to name-mangle any_space and
-            # any_discontinuous_space spaces
-            self._short_name = self._orig_name
-            self._mangled_name = self._orig_name
-        else:
-            # Create short names for any_*_spaces used for mangled names
-            self._short_name = self._shorten_fs_name()
-            # We do not construct the name-mangled name at this point
-            # as the full list of kernel arguments may still be under
-            # construction.
-
-    @property
-    def orig_name(self):
-        '''
-        Returns the name of this function space as declared in the
-        kernel meta-data.
-
-        :returns: original name of this function space.
-        :rtype: str
-
-        '''
-        return self._orig_name
-
-    @property
-    def short_name(self):
-        '''
-        Returns the short name of this function space (original name for a
-        valid LFRic function space and condensed name for any_*_spaces).
-
-        :returns: short name of this function space.
-        :rtype: str
-
-        '''
-        return self._short_name
-
-    @property
-    def mangled_name(self):
-        '''
-        Returns the mangled name of this function space such that it is
-        unique within the scope of an invoke. If the mangled name has not
-        been generated then we do that the first time we are called.
-
-        :returns: mangled name of this function space.
-        :rtype: str
-
-        '''
-        if self._mangled_name:
-            return self._mangled_name
-        # Cannot use kernel_args.field_on_space(x) here because that
-        # routine itself requires the mangled name in order to identify
-        # whether the space is present in the kernel call.
-        self._mangled_name = self._mangle_fs_name()
-        return self._mangled_name
-
-    def _mangle_fs_name(self):
-        '''
-        Constructs the mangled version of a function-space name given a list
-        of kernel arguments if the argument's function space is any_*_space
-        (if the argument's function space is one of the valid LFRic function
-        spaces then the mangled name is the original name, set in the class
-        initialisation). The mangled name is the short name of the function
-        space combined with the argument's name.
-
-        :returns: mangled name of this function space.
-        :rtype: str
-
-        :raises InternalError: if a function space to create the mangled \
-                               name for is not one of 'any_space' or \
-                               'any_discontinuous_space' spaces.
-        :raises FieldNotFoundError: if no kernel argument was found on \
-                                    the specified function space.
-
-        '''
-        # First check that the the function space is one of any_*_space
-        # spaces and then proceed with name-mangling.
-        if self._orig_name not in VALID_ANY_SPACE_NAMES + \
-           VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
-            raise InternalError(
-                "_mangle_fs_name: function space '{0}' is not one of "
-                "{1} or {2} spaces.".
-                format(self._orig_name, VALID_ANY_SPACE_NAMES,
-                       VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
-
-        # List kernel arguments
-        args = self._kernel_args.args
-        # Mangle the function space name for any_*_space
-        for arg in args:
-            for fspace in arg.function_spaces:
-                if (fspace and fspace.orig_name.lower() ==
-                        self._orig_name.lower()):
-                    mngl_name = self._short_name + "_" + arg.name
-                    return mngl_name
-        # Raise an error if there are no kernel arguments on this
-        # function space
-        raise FieldNotFoundError("No kernel argument found for function space "
-                                 "'{0}'".format(self._orig_name))
-
-    def _shorten_fs_name(self):
-        '''
-        Creates short names for any_*_spaces to be used for mangled names
-        from the condensed keywords and function space IDs.
-
-        :returns: short name of this function space.
-        :rtype: str
-
-        :raises InternalError: if a function space to create the short \
-                               name for is not one of 'any_space' or \
-                               'any_discontinuous_space' spaces.
-
-        '''
-        # Create a start for the short name and check whether the function
-        # space is one of any_*_space spaces
-        if self._orig_name in VALID_ANY_SPACE_NAMES:
-            start = "a"
-        elif self._orig_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
-            start = "ad"
-        else:
-            raise InternalError(
-                "_shorten_fs_name: function space '{0}' is not one of "
-                "{1} or {2} spaces.".
-                format(self._orig_name, VALID_ANY_SPACE_NAMES,
-                       VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
-
-        # Split name string to find any_*_space ID and create a short name as
-        # "<start>" + "spc" + "ID"
-        fslist = self._orig_name.split("_")
-        self._short_name = start + "spc" + fslist[-1]
-        return self._short_name
-
 
 class DynFuncDescriptor03(object):
     ''' The Dynamo 0.3 API includes a function-space descriptor as
@@ -2807,7 +2597,7 @@ class DynDofmaps(DynCollection):
                     # up the dofmap.
                     fld_arg = field_on_space(unique_fs, call.arguments)
                     if fld_arg:
-                        map_name = get_fs_map_name(unique_fs)
+                        map_name = unique_fs.get_fs_map_name
                         if map_name not in self._unique_fs_maps:
                             self._unique_fs_maps[map_name] = fld_arg
                 if call.cma_operation == "assembly":
@@ -4451,7 +4241,8 @@ class DynBasisFunctions(DynCollection):
         '''
         if function_space.orig_name.lower() in SCALAR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "1"
-        elif function_space.orig_name.lower() in VECTOR_DIFF_BASIS_SPACE_NAMES:
+        elif function_space.orig_name.lower() in \
+                FunctionSpace.VECTOR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first
@@ -8456,7 +8247,7 @@ class KernCallArgList(ArgOrdering):
         field on this function space'''
         undf_name = get_fs_undf_name(function_space)
         self._arglist.append(undf_name)
-        map_name = get_fs_map_name(function_space)
+        map_name = function_space.get_fs_map_name
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
 
     def fs_intergrid(self, function_space):
@@ -8475,7 +8266,7 @@ class KernCallArgList(ArgOrdering):
             self.fs_common(function_space)
             undf_name = get_fs_undf_name(function_space)
             self._arglist.append(undf_name)
-            map_name = get_fs_map_name(function_space)
+            map_name = function_space.get_fs_map_name
             self._arglist.append(map_name)
         else:
             # For the coarse mesh we only need undf and the dofmap for
@@ -8917,7 +8708,7 @@ class KernStubArgList(ArgOrdering):
         function space'''
         undf_name = get_fs_undf_name(function_space)
         self._arglist.append(undf_name)
-        map_name = get_fs_map_name(function_space)
+        map_name = function_space.get_fs_map_name
         self._arglist.append(map_name)
 
     def basis(self, function_space):
@@ -9699,7 +9490,7 @@ class DynKernelArguments(Arguments):
                 '''
                 undf_name = get_fs_undf_name(function_space)
                 self._arglist.append(undf_name)
-                map_name = get_fs_map_name(function_space)
+                map_name = function_space.get_fs_map_name
                 self._arglist.append(map_name)
 
         create_acc_arg_list = KernCallAccArgList(self._parent_call)
