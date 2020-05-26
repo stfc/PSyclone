@@ -1,3 +1,4 @@
+release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
 	self.
@@ -179,6 +180,18 @@
 
 	56) PR #762 for #725. Renames the various builtin-operation-to-
 	code transformations now that they are not NEMO specific.
+
+	57) PR #773 for #772 and #715. Adds support for reading Fortran
+	parameter statements containing symbols into the PSyIR.
+
+	58) PR #776 for #775. Small bug fix for upper loop bound in
+	Matmul2CodeTrans transformation.
+
+	59) PR #735 for #732. Add a Visibility attribute to symbols and
+	fparser2 front-end captures public and private visibilities.
+
+	60) PR #770 for #766. Fix operation precedence issues in the Fortran
+	back-end by inserting parenthesis when needed.
 
 release 1.8.1 29th November 2019
 

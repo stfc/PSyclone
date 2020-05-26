@@ -43,6 +43,7 @@ from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol
+from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
 
@@ -221,19 +222,50 @@ class SymbolTable(object):
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name):
+    def lookup(self, name, visibility=None):
         '''
         Look up a symbol in the symbol table.
 
         :param str name: name of the symbol.
+        :param visibilty: the visibility or list of visibilities that the \
+                          symbol must have.
+        :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
 
-        :returns: symbol with the given name.
+        :returns: symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises SymbolError: if the name exists in the Symbol Table but does \
+                             not have the specified visibility.
+        :raises TypeError: if the visibility argument has the wrong type.
         :raises KeyError: if the given name is not in the Symbol Table.
+
         '''
         try:
-            return self._symbols[self._normalize(name)]
+            symbol = self._symbols[self._normalize(name)]
+            if visibility:
+                if not isinstance(visibility, list):
+                    vis_list = [visibility]
+                else:
+                    vis_list = visibility
+                if symbol.visibility not in vis_list:
+                    vis_names = []
+                    # Take care here in case the 'visibility' argument
+                    # is of the wrong type
+                    for vis in vis_list:
+                        if not isinstance(vis, Symbol.Visibility):
+                            raise TypeError(
+                                "the 'visibility' argument to lookup() must be"
+                                " an instance (or list of instances) of "
+                                "Symbol.Visibility but got '{0}' when "
+                                "searching for symbol '{1}'".format(
+                                    type(vis).__name__, name))
+                        vis_names.append(vis.name)
+                    raise SymbolError(
+                        "Symbol '{0}' exists in the Symbol Table but has "
+                        "visibility '{1}' which does not match with the "
+                        "requested visibility: {2}".format(
+                            name, symbol.visibility.name, vis_names))
+            return symbol
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))

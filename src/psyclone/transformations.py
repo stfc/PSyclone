@@ -43,7 +43,7 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, Kern
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
 from psyclone.configuration import Config
@@ -1727,7 +1727,7 @@ class ParallelRegionTrans(RegionTrans):
 
         # Haloexchange calls existing within a parallel region are not
         # supported.
-        from psyclone.psyGen import HaloExchange, InvokeSchedule
+        from psyclone.psyGen import HaloExchange
         for node in node_list:
             if isinstance(node, HaloExchange):
                 raise TransformationError(
@@ -2631,7 +2631,7 @@ class OCLTrans(Transformation):
         :raises NotImplementedError: if any of the kernels have arguments \
                                      passed by value.
         '''
-        from psyclone.psyGen import InvokeSchedule, args_filter
+        from psyclone.psyGen import args_filter
         from psyclone.gocean1p0 import GOInvokeSchedule
 
         if isinstance(sched, InvokeSchedule):
@@ -3477,8 +3477,8 @@ class ACCKernelsTrans(RegionTrans):
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyir.nodes import Loop
         # Check that the front-end is valid
-        sched = node_list[0].root
-        if not isinstance(sched, (NemoInvokeSchedule, DynInvokeSchedule)):
+        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
