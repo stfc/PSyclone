@@ -187,22 +187,22 @@ SIMPLE = (
     "  MODULE simple_mod\n"
     "    IMPLICIT NONE\n"
     "    CONTAINS\n"
-    "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
-    " map_w1)\n"
+    "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1, "
+    "map_w1)\n"
     "      USE constants_mod, ONLY: r_def, i_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
     "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
-    " field_1_w1\n"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+    "field_1_w1\n"
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
 
 
 def test_stub_generate_working():
-    ''' check that the stub generate produces the expected output '''
+    ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "simple.f90"),
                       api=TEST_API)
     assert SIMPLE in str(result)
@@ -229,7 +229,7 @@ SIMPLE_WITH_SCALARS = (
     "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
     "      INTEGER(KIND=i_def), intent(in) :: iscalar_3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) ::"
     " field_2_w1\n"
     "    END SUBROUTINE simple_with_scalars_code\n"
     "  END MODULE simple_with_scalars_mod")
