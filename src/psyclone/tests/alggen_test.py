@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 ''' Tests for the algorithm generation (re-writing) as implemented
     in alg_gen.py '''
@@ -114,16 +115,16 @@ def test_multi_position_named_invoke():
                      "4.10_multi_position_named_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
+
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_first" in gen
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_middle" in gen
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_last" in gen
-    assert "CALL invoke_name_first(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
-    assert "CALL invoke_name_middle(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
-    assert "CALL invoke_name_last(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
+    assert ("CALL invoke_name_first(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
+    assert ("CALL invoke_name_middle(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
+    assert ("CALL invoke_name_last(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
 
 
 def test_single_function_invoke_qr():

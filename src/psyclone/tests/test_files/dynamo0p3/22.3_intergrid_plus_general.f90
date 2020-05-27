@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke_restrict
 
   ! Description: invoke containing a restriction (map a field
   ! from coarse to fine mesh) and a general-purpose kernel.
   ! This is currently forbidden and so PSyclone should object.
+  use field_mod,           only: field_type
   use restrict_kernel_mod, only: restrict_kernel_type
-  use testkern_w2_only, only: testkern_w2_only_type
+  use testkern_w2_only,    only: testkern_w2_only_type
+
   implicit none
+
   type(field_type) :: field1, field2, write_fld
 
   call invoke( restrict_kernel_type(field1, field2), &
