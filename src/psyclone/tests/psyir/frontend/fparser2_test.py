@@ -1017,8 +1017,8 @@ def test_access_stmt_no_unqualified_use_error(parser):
 
 
 def test_access_stmt_routine_name(parser):
-    ''' Check that we create a Symbol for something named in an access statement
-    that is not a variable. '''
+    ''' Check that we create a Symbol for something named in an access
+    statement that is not a variable. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
