@@ -153,7 +153,6 @@ EXCLUDING = {"default": ExcludeSettings(),
              "zps_hde": ExcludeSettings({"ifs_scalars": False}),
              "ice_alb": ExcludeSettings({"ifs_scalars": False,
                                          "ifs_real_scalars": False}),
-             "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
              "sbc_isf_div": ExcludeSettings(),
              "tab_3d_2d": ExcludeSettings({"force_parallel": True}),
              "tab_2d_3d": ExcludeSettings({"force_parallel": True}),
@@ -162,11 +161,14 @@ EXCLUDING = {"default": ExcludeSettings(),
              "ultimate_x": ExcludeSettings({"force_parallel": True}),
              "ultimate_y": ExcludeSettings({"force_parallel": True}),
              "ice_dyn_rhg_evp": ExcludeSettings({"ifs_scalars": False,
+                                                 "ifs_real_scalars": False,
                                                  "force_parallel": True}),
+             "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
+             "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
+             "itd_shiftice": ExcludeSettings({"ifs_scalars": False}),
              "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
-             "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False,
                                              "inside_kernels": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
@@ -207,12 +209,14 @@ def valid_acc_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoKern, NemoLoop, NemoImplicitLoop
+    from psyclone.nemo import (NemoKern, NemoLoop, NemoImplicitLoop,
+                               NemoInvokeSchedule)
     from fparser.two.utils import walk
     from fparser.two import Fortran2003
 
     # The Fortran routine which our parent Invoke represents
-    routine_name = node.root.name
+    sched = node.ancestor(NemoInvokeSchedule)
+    routine_name = sched.invoke.name
 
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
