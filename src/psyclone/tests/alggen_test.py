@@ -101,7 +101,7 @@ def test_multi_kernel_named_invoke():
     gen = str(alg)
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_some_name" in gen
     assert (
-        "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+        "CALL invoke_some_name(a, b, istp, rdt, d, e, ascalar, f, c, g, qr)"
         in gen)
 
 

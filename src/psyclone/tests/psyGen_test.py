@@ -1807,8 +1807,8 @@ def test_haloexchange_halo_depth_get_set():
 
 
 def test_haloexchange_vector_index_depend():
-    '''check that _find_read_arguments does not return a haloexchange as a
-    read dependence if the source node is a halo exchange and its
+    ''' Check that _find_read_arguments does not return a halo exchange as
+    a read dependence if the source node is a halo exchange and its
     field is a vector and the other halo exchange accesses a different
     element of the vector
 
@@ -1819,8 +1819,8 @@ def test_haloexchange_vector_index_depend():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    first_d_field_halo_exchange = schedule.children[3]
-    field = first_d_field_halo_exchange.field
+    first_e_field_halo_exchange = schedule.children[3]
+    field = first_e_field_halo_exchange.field
     all_nodes = schedule.walk(Node)
     following_nodes = all_nodes[5:]
     result_list = field._find_read_arguments(following_nodes)
@@ -1850,7 +1850,7 @@ def test_find_write_arguments_for_write():
 
 
 def test_find_w_args_hes_no_vec(monkeypatch, annexed):
-    '''when backward_write_dependencies, or forward_read_dependencies, are
+    ''' When backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the field must be a vector field. If the field is not a vector
     then an exception is raised. This test checks that the exception
@@ -1872,17 +1872,17 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_d_v3 = schedule.children[index]
-    field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(field_d_v3, "_vector_size", 1)
+    halo_exchange_e_v3 = schedule.children[index]
+    field_e_v3 = halo_exchange_e_v3.field
+    monkeypatch.setattr(field_e_v3, "_vector_size", 1)
     with pytest.raises(InternalError) as excinfo:
-        _ = field_d_v3.backward_write_dependencies()
-    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+        _ = field_e_v3.backward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
-    '''when backward_write_dependencies, or forward_read_dependencies, are
+    ''' When backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the associated fields must be equal size vectors . If the fields
     are not vectors of equal size then an exception is raised. This
@@ -1905,17 +1905,17 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_d_v3 = schedule.children[index]
-    field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(field_d_v3, "_vector_size", 2)
+    halo_exchange_e_v3 = schedule.children[index]
+    field_e_v3 = halo_exchange_e_v3.field
+    monkeypatch.setattr(field_e_v3, "_vector_size", 2)
     with pytest.raises(InternalError) as excinfo:
-        _ = field_d_v3.backward_write_dependencies()
-    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+        _ = field_e_v3.backward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
-    '''when backward_write_dependencies, or forward_read_dependencies are
+    ''' When backward_write_dependencies, or forward_read_dependencies are
     called, and a dependence is found between two halo exchanges, then
     the vector indices of the two halo exchanges must be different. If
     the vector indices have the same value then an exception is
@@ -1938,19 +1938,19 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_d_v3 = schedule.children[index]
-    field_d_v3 = halo_exchange_d_v3.field
-    halo_exchange_d_v2 = schedule.children[index-1]
-    monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
+    halo_exchange_e_v3 = schedule.children[index]
+    field_e_v3 = halo_exchange_e_v3.field
+    halo_exchange_e_v2 = schedule.children[index-1]
+    monkeypatch.setattr(halo_exchange_e_v2, "_vector_index", 3)
     with pytest.raises(InternalError) as excinfo:
-        _ = field_d_v3.backward_write_dependencies()
+        _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess:update_coverage() The halo exchange vector indices "
-            "for 'd' are the same. This should never happen"
+            "for 'e' are the same. This should never happen"
             in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_no_dep():
-    '''when _find_write_arguments, or _find_read_arguments, are called,
+    ''' When _find_write_arguments, or _find_read_arguments, are called,
     halo exchanges with the same field but a different index should
     not depend on each other. This test checks that this behaviour is
     working correctly
@@ -1963,11 +1963,11 @@ def test_find_w_args_hes_vec_no_dep():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
-    field_d_v3 = halo_exchange_d_v3.field
+    halo_exchange_e_v3 = schedule.children[5]
+    field_e_v3 = halo_exchange_e_v3.field
     # there are two halo exchanges before d_v3 which should not count
     # as dependencies
-    node_list = field_d_v3.backward_write_dependencies()
+    node_list = field_e_v3.backward_write_dependencies()
     assert node_list == []
 
 
@@ -2061,8 +2061,8 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
 
 
 def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
-    '''when _find_write_arguments has looked through all nodes but has not
-    returned it should mean that is has not found any write
+    ''' When _find_write_arguments has looked through all nodes but has
+    not returned it should mean that is has not found any write
     dependencies. This test checks that an error is raised if this is
     not the case. We test with and without computing annexed dofs as
     different numbers of halo exchanges are created.
@@ -2087,9 +2087,9 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     del schedule.children[index]
     loop = schedule.children[index+1]
     kernel = loop.loop_body[0]
-    d_field = kernel.arguments.args[5]
+    e_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
-        d_field.backward_write_dependencies()
+        e_field.backward_write_dependencies()
     assert (
         "no more nodes but there are already dependencies"
         in str(excinfo.value))
@@ -2159,7 +2159,7 @@ def test_kern_ast():
 
 
 def test_dataaccess_vector():
-    '''Test that the DataAccess class works as expected when we have a
+    ''' Test that the DataAccess class works as expected when we have a
     vector field argument that depends on more than one halo exchange
     (due to halo exchanges working separately on components of
     vectors).
@@ -2173,35 +2173,35 @@ def test_dataaccess_vector():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    # d from halo exchange vector 1
-    halo_exchange_d_v1 = schedule.children[3]
-    field_d_v1 = halo_exchange_d_v1.field
-    # d from halo exchange vector 2
-    halo_exchange_d_v2 = schedule.children[4]
-    field_d_v2 = halo_exchange_d_v2.field
-    # d from halo exchange vector 3
-    halo_exchange_d_v3 = schedule.children[5]
-    field_d_v3 = halo_exchange_d_v3.field
-    # d from a kernel argument
+    # e from halo exchange vector 1
+    halo_exchange_e_v1 = schedule.children[3]
+    field_e_v1 = halo_exchange_e_v1.field
+    # e from halo exchange vector 2
+    halo_exchange_e_v2 = schedule.children[4]
+    field_e_v2 = halo_exchange_e_v2.field
+    # e from halo exchange vector 3
+    halo_exchange_e_v3 = schedule.children[5]
+    field_e_v3 = halo_exchange_e_v3.field
+    # e from a kernel argument
     loop = schedule.children[6]
     kernel = loop.loop_body[0]
-    d_arg = kernel.arguments.args[5]
+    e_arg = kernel.arguments.args[5]
 
-    access = DataAccess(d_arg)
+    access = DataAccess(e_arg)
     assert not access.covered
 
-    access.update_coverage(field_d_v3)
+    access.update_coverage(field_e_v3)
     assert not access.covered
-    access.update_coverage(field_d_v2)
+    access.update_coverage(field_e_v2)
     assert not access.covered
 
     with pytest.raises(InternalError) as excinfo:
-        access.update_coverage(field_d_v3)
+        access.update_coverage(field_e_v3)
     assert (
         "Found more than one dependent halo exchange with the same vector "
         "index" in str(excinfo.value))
 
-    access.update_coverage(field_d_v1)
+    access.update_coverage(field_e_v1)
     assert access.covered
 
     access.reset_coverage()
@@ -2210,7 +2210,7 @@ def test_dataaccess_vector():
 
 
 def test_dataaccess_same_vector_indices(monkeypatch):
-    '''If update_coverage() is called from DataAccess and the arguments
+    ''' If update_coverage() is called from DataAccess and the arguments
     are the same vector field, and the field vector indices are the
     same then check that an exception is raised. This particular
     exception is difficult to raise as it is caught by an earlier
@@ -2224,25 +2224,25 @@ def test_dataaccess_same_vector_indices(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # d for this halo exchange is for vector component 2
-    halo_exchange_d_v2 = schedule.children[4]
-    field_d_v2 = halo_exchange_d_v2.field
-    # modify d from vector component 3 to be component 2
-    halo_exchange_d_v3 = schedule.children[5]
-    field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(halo_exchange_d_v3, "_vector_index", 2)
+    # e for this halo exchange is for vector component 2
+    halo_exchange_e_v2 = schedule.children[4]
+    field_e_v2 = halo_exchange_e_v2.field
+    # modify e from vector component 3 to be component 2
+    halo_exchange_e_v3 = schedule.children[5]
+    field_e_v3 = halo_exchange_e_v3.field
+    monkeypatch.setattr(halo_exchange_e_v3, "_vector_index", 2)
 
     # Now raise an exception with our erroneous vector indices (which
     # are the same but should not be), but first make sure that the
     # overlaps() method returns True otherwise an earlier exception
     # will be raised.
-    access = DataAccess(field_d_v2)
+    access = DataAccess(field_e_v2)
     monkeypatch.setattr(access, "overlaps", lambda arg: True)
 
     with pytest.raises(InternalError) as excinfo:
-        access.update_coverage(field_d_v3)
+        access.update_coverage(field_e_v3)
     assert (
-        "The halo exchange vector indices for 'd' are the same. This should "
+        "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
 
 
