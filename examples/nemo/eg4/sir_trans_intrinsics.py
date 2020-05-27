@@ -57,9 +57,7 @@ def trans(psy):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
     transform to the supplied invokes after replacing any ABS, SIGN or
     MIN intrinsics with equivalent code. This is done because the SIR
-    does not support intrinsics. This script is limited to the
-    NEMO API becuase the NEMO API does not yet support symbol tables
-    (so the transformations are written to cope with that).
+    does not support intrinsics.
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
