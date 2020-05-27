@@ -43,10 +43,10 @@
 module columnwise_op_app_w2v_kernel_mod
 
 use kernel_mod,              only : kernel_type
+use fs_continuity_mod,       only : W2V
 use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
-                                    GH_READ, GH_WRITE,                &
-                                    W2V, ANY_SPACE_2,                 &
+                                    GH_READ, GH_WRITE, ANY_SPACE_2,   &
                                     GH_COLUMN_INDIRECTION_DOFMAP,     &
                                     CELLS 
 
