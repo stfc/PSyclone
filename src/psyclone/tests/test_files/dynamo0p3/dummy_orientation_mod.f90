@@ -41,9 +41,7 @@ module dummy_orientation_mod
 
   implicit none
 
-  private
-
-  type, public, extends(kernel_type) :: dummy_orientation_type
+  type, extends(kernel_type) :: dummy_orientation_type
      type(arg_type), meta_args(4) =                       &
           (/ arg_type(gh_field,    gh_inc,       w0),     &
              arg_type(gh_operator, gh_readwrite, w1, w1), &
@@ -58,7 +56,7 @@ module dummy_orientation_mod
            /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => dummy_orientation_code
+     procedure, nopass :: code => dummy_orientation_code
   end type dummy_orientation_type
 contains
 
