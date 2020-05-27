@@ -31,56 +31,33 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
-module matrix_vector_kernel_mod
+module longkern_mod
 
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
 
-use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,               &
-                                    GH_FIELD, GH_OPERATOR,             &
-                                    GH_READ, GH_INC,                   &
-                                    ANY_SPACE_1, CELLS
-use constants_mod,           only : r_def, i_def
+  implicit none
 
-implicit none
-
-private
-
-type, public, extends(kernel_type) :: matrix_vector_kernel_type
-  private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
-       /)
-  integer :: iterates_over = CELLS
-contains
-  procedure, nopass :: matrix_vector_code
-end type
-
-public matrix_vector_code
-
+  type, extends(kernel_type) :: longkern_type
+     type(arg_type), dimension(4) :: meta_args = &
+          (/ arg_type(gh_field, gh_inc,  w1),    &
+             arg_type(gh_field, gh_read, w2),    &
+             arg_type(gh_field, gh_read, w2),    &
+             arg_type(gh_field, gh_read, w3)     &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => longkern_code
+  end type longkern_type
 contains
 
-  subroutine matrix_vector_code(cell, nlayers,  &
-                                field1, field2, &
-                                ncell_3d, op_3, &
-                                ndf1, undf1, map1)
+  ! here is a long line here is a long line here is a long line here is a long line here is a long line here is a long line here is a long line
+  subroutine longkern_code()
+  end subroutine longkern_code
 
-    implicit none
-
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf1
-    integer(kind=i_def), intent(in) :: undf1
-    integer(kind=i_def), intent(in) :: ncell_3d
-    integer(kind=i_def), intent(in), dimension(ndf1) :: map1
-    real(kind=r_def), intent(inout), dimension(undf1) :: field1
-    real(kind=r_def), intent(in), dimension(undf1)    :: field2
-    real(kind=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d) :: op_3
-
-  end subroutine matrix_vector_code
-
-end module matrix_vector_kernel_mod
+end module longkern_mod

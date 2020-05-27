@@ -605,7 +605,7 @@ ORIENTATION_OUTPUT = (
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER(KIND=i_def), intent(in) :: "
     "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
     "field_1_w0\n"
     "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
     "field_3_w2\n"
