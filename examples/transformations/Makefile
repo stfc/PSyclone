@@ -33,15 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.DEFAULT_GOAL := transform
+EXAMPLES=$(wildcard eg*) inline
 
-.PHONY: all transform compile clean
-
-all transform compile clean:
-	${MAKE} -C gocean $@
-	${MAKE} -C nemo $@
-	${MAKE} -C lfric $@
-	${MAKE} -C line_length $@
-	${MAKE} -C psyir $@
-	${MAKE} -C stub_generation $@
-	${MAKE} -C transformations $@
+include ../top_level.mk

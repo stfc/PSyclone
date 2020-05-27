@@ -47,4 +47,6 @@ ${SCRIPTS}:
 compile:
 	@echo "No compilation supported for lfric/scripts examples"
 
+all: transform compile
+
 

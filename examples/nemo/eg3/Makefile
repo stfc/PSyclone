@@ -69,11 +69,17 @@ dl_timer:
 	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
    LDFLAGS="${LDFLAGS}" sm_lib
 
-transform:
+transform: kernels managed_mem
+
+kernels:
 	${PSYCLONE} -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
    ../code/tra_adv.F90
 
-psy.f90: transform
+managed_mem:
+	${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
+
+# Compilation uses the 'kernels' transformed code
+psy.f90: kernels
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<

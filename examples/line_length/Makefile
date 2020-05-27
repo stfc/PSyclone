@@ -35,7 +35,10 @@
 
 include ../common.mk
 
-all:
+transform:
 	${PSYCLONE} -l -d ../../src/psyclone/tests/test_files/dynamo0p3 longlines.f90
 
-compile: all
+compile:
+	@echo "No compilation supported for line-length example"
+
+all: transform compile

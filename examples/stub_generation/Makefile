@@ -35,7 +35,10 @@
 
 include ../common.mk
 
-all:
+transform:
 	genkernelstub testkern_stencil_multi_mod.f90
 
-compile: all
+compile:
+	@echo "No compilation supported for stub-generation example"
+
+all: transform compile

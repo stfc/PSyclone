@@ -81,7 +81,6 @@ $(EXEC): $(KERNELS) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a alg.o psy.o
 
 transform: test.x90 extract_transform.py
 	${PSYCLONE} -nodm -l -api "gocean1.0" -s ./extract_transform.py\
-			 --config ../../../config/psyclone.cfg \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 psy.f90 alg.f90: transform
