@@ -45,7 +45,7 @@ module testkern_any_space_1_mod
    ! 1) more than one any_space declarations,
    ! 2) an existing space as another argument (W0 in this case),
    ! 3) func_type basis functions on any_space.
-  type, extends(kernel_type) ::testkern_any_space_1_type
+  type, extends(kernel_type) :: testkern_any_space_1_type
     type(arg_type) :: meta_args(4) = (/              &
          arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
          arg_type(GH_REAL,    GH_READ),              &
