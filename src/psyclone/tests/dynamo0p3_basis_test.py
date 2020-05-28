@@ -192,7 +192,7 @@ def test_single_kern_eval(tmpdir):
     # First, check the declarations
     expected_decl = (
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
-        "      USE testkern_eval, ONLY: testkern_eval_code\n"
+        "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      TYPE(field_type), intent(in) :: f0, f1\n"
         "      INTEGER(KIND=i_def) cell\n"
@@ -652,7 +652,7 @@ def test_qr_plus_eval(tmpdir):
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
-        "      USE testkern_eval, ONLY: testkern_eval_code\n"
+        "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
