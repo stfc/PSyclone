@@ -1497,7 +1497,7 @@ def test_basis_unsupported_space():
     unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This information will be passed from the
     PSy layer to the kernels (see issue #461). '''
-    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
+    from psyclone.domain.lfric.function_space import FunctionSpace
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1506,8 +1506,8 @@ def test_basis_unsupported_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unsupported space for basis function, expecting one of " +
-            str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
-            in str(excinfo.value))
+            str(FunctionSpace.VALID_FUNCTION_SPACES) + " but found " +
+            "'any_space_1'" in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                            "any_discontinuous_space_5")
@@ -1960,7 +1960,7 @@ def test_diff_basis_unsupp_space():
     and any_discontinuous_space_*) in kernel stub generation.
     This information will be passed from the PSy layer to the
     kernels (see issue #461). '''
-    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
+    from psyclone.domain.lfric.function_space import FunctionSpace
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1969,8 +1969,8 @@ def test_diff_basis_unsupp_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unsupported space for differential basis function, expecting one "
-            "of " + str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
-            in str(excinfo.value))
+            "of " + str(FunctionSpace.VALID_FUNCTION_SPACES) + " but found "
+            "'any_space_1'" in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                                 "any_discontinuous_space_5")

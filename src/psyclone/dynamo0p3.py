@@ -54,13 +54,7 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric.function_space import ANY_W2_FUNCTION_SPACES, \
-    CONTINUOUS_FUNCTION_SPACES, DISCONTINUOUS_FUNCTION_SPACES, FunctionSpace, \
-    READ_ONLY_FUNCTION_SPACES, SCALAR_BASIS_SPACE_NAMES, \
-    SCALAR_DIFF_BASIS_SPACE_NAMES, VALID_ANY_DISCONTINUOUS_SPACE_NAMES, \
-    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES, \
-    VALID_FUNCTION_SPACE_NAMES, VALID_FUNCTION_SPACES, \
-    VECTOR_BASIS_SPACE_NAMES
+from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
@@ -394,12 +388,13 @@ class DynFuncDescriptor03(object):
         self._operator_names = []
         for idx, arg in enumerate(func_type.args):
             if idx == 0:  # first func_type arg
-                if arg.name not in VALID_FUNCTION_SPACE_NAMES:
+                if arg.name not in FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
                     raise ParseError(
                         "In the dynamo0p3 API the 1st argument of a "
                         "meta_func entry should be a valid function space "
                         "name (one of {0}), but found '{1}' in '{2}'".format(
-                            VALID_FUNCTION_SPACE_NAMES, arg.name, func_type))
+                            FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                            arg.name, func_type))
                 self._function_space_name = arg.name
             else:  # subsequent func_type args
                 if arg.name not in VALID_METAFUNC_NAMES:
@@ -561,12 +556,13 @@ class DynArgDescriptor03(Descriptor):
                     "most 4 arguments if its first argument is gh_field, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # The 3rd argument must be a function space name
-            if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
+            if arg_type.args[2].name not in \
+                    FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
                     "entry must be a valid function space name if its first "
                     "argument is gh_field (one of {0}), but found '{1}' in "
-                    "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
+                    "'{2}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                                   arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
 
@@ -592,13 +588,14 @@ class DynArgDescriptor03(Descriptor):
                         format(arg_type, str(err)))
             # Test allowed accesses for fields
             if self._function_space1.lower() in \
-               VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
+               FunctionSpace.VALID_DISCONTINUOUS_NAMES \
                and self._access_type == AccessType.INC:
                 raise ParseError(
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
-            if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
+            if self._function_space1.lower() in \
+               FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
@@ -608,7 +605,8 @@ class DynArgDescriptor03(Descriptor):
             # over cells (issue #138) and update access rules for kernels
             # (built-ins) that loop over DoFs to accesses for discontinuous
             # quantities (issue #471)
-            if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
+            if self._function_space1.lower() in \
+               FunctionSpace.VALID_ANY_SPACE_NAMES \
                and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "In the Dynamo0.3 API a field on any_space cannot "
@@ -628,21 +626,23 @@ class DynArgDescriptor03(Descriptor):
                     "arguments if its first argument is gh_operator or "
                     "gh_columnwise_operator, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
-            if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
+            if arg_type.args[2].name not in \
+                    FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
                     "entry must be a valid function space name (one of {0}), "
                     "but found '{1}' in '{2}".
-                    format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
-                           arg_type))
+                    format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                           arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
-            if arg_type.args[3].name not in VALID_FUNCTION_SPACE_NAMES:
+            if arg_type.args[3].name not in \
+                    FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 4th argument of a meta_arg "
                     "entry must be a valid function space name (one of {0}), "
                     "but found '{1}' in '{2}".
-                    format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
-                           arg_type))
+                    format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                           arg_type.args[2].name, arg_type))
             self._function_space2 = arg_type.args[3].name
             # Test allowed accesses for operators
             if self._access_type == AccessType.INC:
@@ -1067,7 +1067,8 @@ class DynKernMetadata(KernelType):
                 write_count += 1
                 # We must not write to a field on a read-only function space
                 if arg.type == "gh_field" and \
-                   arg.function_spaces[0] in READ_ONLY_FUNCTION_SPACES:
+                   arg.function_spaces[0] in \
+                   FunctionSpace.READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
                         "Found kernel metadata in '{0}' that specifies "
                         "writing to the read-only function space '{1}'."
@@ -3092,7 +3093,7 @@ class LFRicRunTimeChecks(DynCollection):
                     continue
                 fs_name = arg.function_space.orig_name
                 field_name = arg.name_indexed
-                if fs_name in VALID_ANY_SPACE_NAMES:
+                if fs_name in FunctionSpace.VALID_ANY_SPACE_NAMES:
                     # We don't need to check validity of a field's
                     # function space if the metadata specifies
                     # any_space as this means that all spaces are
@@ -3104,14 +3105,17 @@ class LFRicRunTimeChecks(DynCollection):
                     continue
                 existing_checks.append((fs_name, field_name))
 
-                if fs_name in VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+                if fs_name in \
+                        FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
                     # We need to check against all discontinuous
                     # function spaces
-                    function_space_names = DISCONTINUOUS_FUNCTION_SPACES
+                    function_space_names = \
+                        FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES
                 elif fs_name == "any_w2":
                     # We need to check against all any_w2 function
                     # spaces
-                    function_space_names = ANY_W2_FUNCTION_SPACES
+                    function_space_names = \
+                        FunctionSpace.ANY_W2_FUNCTION_SPACES
                 else:
                     # We need to check against a specific function space
                     function_space_names = [fs_name]
@@ -4191,9 +4195,11 @@ class DynBasisFunctions(DynCollection):
         :raises GenerationError: if an unsupported function space is supplied \
                                  (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
-        if function_space.orig_name.lower() in SCALAR_BASIS_SPACE_NAMES:
+        if function_space.orig_name.lower() in \
+                FunctionSpace.SCALAR_BASIS_SPACE_NAMES:
             first_dim = "1"
-        elif function_space.orig_name.lower() in VECTOR_BASIS_SPACE_NAMES:
+        elif function_space.orig_name.lower() in \
+                FunctionSpace.VECTOR_BASIS_SPACE_NAMES:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
@@ -4203,7 +4209,7 @@ class DynBasisFunctions(DynCollection):
             raise GenerationError(
                 "Unsupported space for basis function, "
                 "expecting one of {0} but found "
-                "'{1}'".format(VALID_FUNCTION_SPACES,
+                "'{1}'".format(FunctionSpace.VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         return first_dim
 
@@ -4239,7 +4245,8 @@ class DynBasisFunctions(DynCollection):
                                  ANY_DISCONTINUOUS_SPACE_*)
 
         '''
-        if function_space.orig_name.lower() in SCALAR_DIFF_BASIS_SPACE_NAMES:
+        if function_space.orig_name.lower() in \
+                FunctionSpace.SCALAR_DIFF_BASIS_SPACE_NAMES:
             first_dim = "1"
         elif function_space.orig_name.lower() in \
                 FunctionSpace.VECTOR_DIFF_BASIS_SPACE_NAMES:
@@ -4252,8 +4259,9 @@ class DynBasisFunctions(DynCollection):
             # (see issue #461).
             raise GenerationError(
                 "Unsupported space for differential basis function, expecting "
-                "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
-                                                    function_space.orig_name))
+                "one of {0} but found '{1}'"
+                .format(FunctionSpace.VALID_FUNCTION_SPACES,
+                        function_space.orig_name))
         return first_dim
 
     def _setup_basis_fns_for_call(self, call):
@@ -6586,14 +6594,16 @@ class DynLoop(Loop):
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
-                      VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
+                      FunctionSpace.VALID_DISCONTINUOUS_NAMES):
                     # Iterate to ncells for all discontinuous quantities,
                     # including any_discontinuous_space
                     self.set_upper_bound("ncells")
-                elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
+                elif self.field_space.orig_name in \
+                        FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
-                elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
+                elif self.field_space.orig_name in \
+                        FunctionSpace.VALID_ANY_SPACE_NAMES:
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
@@ -6602,7 +6612,7 @@ class DynLoop(Loop):
                     raise GenerationError(
                         "Unexpected function space found. Expecting one of "
                         "{0} but found '{1}'".format(
-                            str(VALID_FUNCTION_SPACES),
+                            str(FunctionSpace.VALID_FUNCTION_SPACES),
                             self.field_space.orig_name))
             else:  # sequential
                 self.set_upper_bound("ncells")
@@ -9358,9 +9368,9 @@ class DynKernelArguments(Arguments):
                                       arg_types=["gh_field"],
                                       arg_accesses=write_accesses)
         if fld_args:
-            for spaces in [CONTINUOUS_FUNCTION_SPACES,
-                           VALID_ANY_SPACE_NAMES,
-                           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES]:
+            for spaces in [FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
+                           FunctionSpace.VALID_ANY_SPACE_NAMES,
+                           FunctionSpace.VALID_DISCONTINUOUS_NAMES]:
                 for arg in fld_args:
                     if arg.function_space.orig_name in spaces:
                         return arg
@@ -9776,9 +9786,10 @@ class DynKernelArgument(KernelArgument):
         function space including any_discontinuous_space, otherwise
         returns False.'''
         if self.function_space.orig_name in \
-           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
             return True
-        if self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
+        if self.function_space.orig_name in \
+           FunctionSpace.VALID_ANY_SPACE_NAMES:
             # we will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False
