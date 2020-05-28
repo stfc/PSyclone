@@ -4587,9 +4587,9 @@ def test_haloexchange_correct_parent():
         assert child.parent == schedule
 
 
-def test_one_kern_multi_field_same_stencil(dist_mem):
-    '''This test checks for the case where we have the same stencil used
-    by more than one field in a kernel'''
+def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
+    ''' This test checks for the case where we have the same stencil used
+    by more than one field in a kernel. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.17_single_kernel_multi_field_same_stencil.f90"),
@@ -4597,6 +4597,8 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
         "    SUBROUTINE invoke_0_testkern_multi_field_same_stencil_type("
