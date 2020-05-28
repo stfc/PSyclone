@@ -30,13 +30,14 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke
 
   ! Description: single kernel requiring both face and edge quadrature
   ! specified in a single invoke call.
+  use field_mod,        only: field_type
   use testkern_2qr_mod, only: testkern_2qr_type
-  use inf, only: field_type
 
   implicit none
 
