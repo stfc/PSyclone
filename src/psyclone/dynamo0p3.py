@@ -9820,7 +9820,7 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop.children[3])
+        kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
