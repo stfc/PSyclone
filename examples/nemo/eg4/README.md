@@ -43,39 +43,44 @@ through the Dawn back end.
 
 We are also working towards supporting the translation of the NEMO
 Dwarf (being implemented in the ESCAPE2 project) from Fortran to SIR
-(DAWN Python interface code). There are two tests associated with
-this. The first tests the generation of SIR if statements and the
-second tests the translation of Fortran intrinsics into direct code
-(as the SIR does not support intrinsics).
+(DAWN Python interface code). As the NEMO Dwarf is not yet available
+we are currently concentrating on the tracer advection benchmark
+(tra_adv) as the codes are very similar. There are three examples
+associated with this which are described below.
 
 ## PSyclone SIR generation
 
 In order to test the SIR backend, the equivalent Fortran to the
 examples provided in Dawn are available in this directory
-(`copy_stencil.f90`, `hori_diff.f90` and `tridiagonal_solve.f90`). When run
-through PSyclone they should produce the same (or equivalent) SIR as
-is in the examples. This then validates that the translation works
-correctly.
+(`copy_stencil.f90`, `hori_diff.f90` and
+`tridiagonal_solve.f90`). When run through PSyclone they should
+produce the same (or equivalent) SIR as is in the examples. This then
+validates that the translation works correctly.
 
 Two additional examples (`if_example.f90` and `intrinsic_example.f90`)
 both extracted from a tracer advection benchmark (which itself was
 extracted from the NEMO code base and will form the basis of the NEMO
-Dwarf benchmark) tests the ability of PSyclone to a) translate if
+Dwarf benchmark) test the ability of PSyclone to a) translate if
 statements to SIR and b) translate Fortran `min`, `abs` and `sign`
 intrinsics to equivalent PSyIR code before translating to SIR (as SIR
 does not support intrinsics).
 
+A third additional example (`tra_adv_compute.F90`) is the
+computational part of the tracer advection benchmark and this shows
+how much of the code can currently be translated (with the parts that
+can't be translated being modified or commented out).
 
-To test any Fortran example (except the intrinsic example), run:
+To test the `copy_stencil.f90`, `hori_diff.f90`,
+`tridiagonal_solve.f90` and `if_example.f90` examples run:
 
 ```sh
 > psyclone -s ./sir_trans.py -api nemo <filename> -opsy /dev/null
 ```
 
-To test the `intrinsic` example run:
+To test the `intrinsic_example.f90` and `tra_adv_compute.F90` examples run:
 
 ```sh
-> psyclone -s ./sir_trans_intrinsics.py -api nemo intrinsic_example.f90 -opsy /dev/null
+> psyclone -s ./sir_trans_intrinsics.py -api nemo <filename> -opsy /dev/null
 ```
 
 ## Building Dawn
@@ -123,10 +128,8 @@ To build Dawn with Python support:
    offset and loop ordering for the vertical.
 2. There are no checks that the loops conform to the NEMO lat.lon.levs
    convention.
-3. Fortran literals such as `0.0d0` are output directly in the
-   generated cuda code.
-4. The only unary operator currently supported is '-'.
-5. The subject of the unary operator must be a literal.
-6. Loops must be triply nested.
-7. Loops must be perfectly nested (no computation between different
+3. The only unary operator currently supported is '-'.
+4. The subject of the unary operator must be a literal.
+5. Loops must be triply nested.
+6. Loops must be perfectly nested (no computation between different
    loop levels).

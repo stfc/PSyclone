@@ -720,14 +720,15 @@ def test_process_declarations(f2008_parser):
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
 
-    # Test with unsupported data type
-    reader = FortranStringReader("doubleprecision     ::      c2")
+    # Test with unsupported data type. Note the space before complex
+    # below which stops the line being treated as a comment.
+    reader = FortranStringReader(" complex     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
-            "types are supported.") in str(error.value)
+    assert (". Only 'real', 'double precision', 'integer', 'logical' and "
+            "'character' intrinsic types are supported.") in str(error.value)
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
@@ -740,6 +741,54 @@ def test_process_declarations(f2008_parser):
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Character length specifications are not "
             "supported.") in str(error.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])
+@pytest.mark.parametrize("type_name,fort_name",
+                         [(ScalarType.Intrinsic.INTEGER, "integer"),
+                          (ScalarType.Intrinsic.REAL, "real"),
+                          (ScalarType.Intrinsic.BOOLEAN, "logical")])
+def test_process_declarations_precision(precision, type_name, fort_name):
+    '''Test that process_declarations method of Fparser2Reader converts
+    the fparser2 declarations with explicit precision of the form
+    datatype*precision e.g. real*8, to symbols with the expected
+    precision in the provided parent Kernel Schedule.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    reader = FortranStringReader("{0}*{1} :: l1".format(fort_name, precision))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l1_var = fake_parent.symbol_table.lookup("l1")
+    assert l1_var.name == 'l1'
+    assert isinstance(l1_var.datatype, ScalarType)
+    assert l1_var.datatype.intrinsic == type_name
+    assert l1_var.datatype.precision == precision
+    assert l1_var.is_local
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_double_precision():
+    '''Test that process_declarations method of Fparser2Reader converts
+    the fparser2 declarations specified as double precision to symbols
+    with the expected precision.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    reader = FortranStringReader("double precision :: x")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    x_var = fake_parent.symbol_table.lookup("x")
+    assert x_var.name == 'x'
+    assert isinstance(x_var.datatype, ScalarType)
+    assert x_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert x_var.datatype.precision == ScalarType.Precision.DOUBLE
+    assert x_var.is_local
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -968,8 +1017,8 @@ def test_access_stmt_no_unqualified_use_error(parser):
 
 
 def test_access_stmt_routine_name(parser):
-    ''' Check that we create a Symbol for something named in an access statement
-    that is not a variable. '''
+    ''' Check that we create a Symbol for something named in an access
+    statement that is not a variable. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
