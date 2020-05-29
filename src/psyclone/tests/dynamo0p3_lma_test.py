@@ -94,9 +94,8 @@ def setup():
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
-    from psyclone.dynamo0p3 import get_fs_operator_name
     with pytest.raises(GenerationError) as err:
-        get_fs_operator_name("not_an_op", FunctionSpace("w3", None))
+        FunctionSpace("w3", None).get_operator_name("not_an_op")
     assert "Unsupported name 'not_an_op' found" in str(err.value)
 
 

@@ -38,7 +38,7 @@
 '''This module contains the FunctionSpace object and related constants.
 '''
 
-from psyclone.errors import InternalError, FieldNotFoundError
+from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
 
 
 class FunctionSpace(object):
@@ -108,6 +108,12 @@ class FunctionSpace(object):
     # d) vector differential basis functions.
     VECTOR_DIFF_BASIS_SPACE_NAMES = \
         ["w0", "w1", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
+
+    # Evaluators: basis and differential basis
+    VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
+
+    # Meta functions
+    VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
     def __init__(self, name, kernel_args):
         self._orig_name = name
@@ -256,7 +262,157 @@ class FunctionSpace(object):
         return self._short_name
 
     @property
-    def get_fs_map_name(self):
+    def get_map_name(self):
         ''':returns: a dofmap name for the supplied FunctionSpace.
-        :rtype: str'''
+        :rtype: str
+        '''
         return "map_" + self.mangled_name
+
+    def get_cbanded_map_name(self):
+        ''':returns: the name of a column-banded dofmap for this FunctionSpace.
+        :rtype: str
+        '''
+        return "cbanded_map_" + self.mangled_name
+
+    def get_cma_indirection_map_name(self):
+        ''':returns: the name of a CMA indirection dofmap for the supplied \
+            FunctionSpace.
+        :rtype: str
+        '''
+        return "cma_indirection_map_" + self.mangled_name
+
+    def get_ndf_name(self):
+        ''':returns: a ndf name for this FunctionSpace object.
+        :rtype: str
+        '''
+        return "ndf_" + self.mangled_name
+
+    def get_undf_name(self):
+        ''':returns: a undf name for this FunctionSpace object.
+        :rtype: str
+        '''
+        return "undf_" + self.mangled_name
+
+    def get_orientation_name(self):
+        ''':returns: an orientation name for a function space with the \
+        supplied name.
+        :rtype: str
+        '''
+        return "orientation" + "_" + self.mangled_name
+
+    def get_basis_name(self, qr_var=None, on_space=None):
+        '''
+        Returns a name for the basis function on this FunctionSpace. If
+        the name of an associated quadrature object is supplied then this
+        is appended to the returned name. Similarly, if the function space
+        at which the basis is to be evaluated is supplied then this is
+        also appended to the name.
+
+        :param string qr_var: the name of the Quadrature Object for which the \
+                              basis functions are required
+        :param on_space: the function space at which the basis functions \
+                         will be evaluated
+        :type on_space: :py:class:`psyclone.domain.lfric.function_space.\
+            FunctionSpace`
+        :returns: name for the Fortran array holding the basis function
+        :rtype: str
+        '''
+        name = "_".join(["basis", self.mangled_name])
+        if qr_var:
+            name += "_" + qr_var
+        if on_space:
+            name += "_on_" + on_space.mangled_name
+        return name
+
+    def get_diff_basis_name(self, qr_var=None, on_space=None):
+        '''
+        Returns a name for the differential basis function on this
+        FunctionSpace.  If the name of an associated quadrature object is
+        supplied then this is appended to the returned name. Similarly, if the
+        function space at which the basis is to be evaluated is supplied then
+        this is also appended to the name.
+
+        :param str qr_var: the name of the Quadrature Object for which the \
+                           differential basis functions are required.
+        :param on_space: the function space at which the differential basis \
+                         functions will be evaluated
+        :type on_space: :py:class:`psyclone.dynamo0p3.domain.lfric.\
+                        function_space.FunctionSpace`
+        :returns: name for the Fortran array holding the differential basis \
+                  function
+        :rtype: str
+        '''
+        name = "diff_basis_" + self.mangled_name
+        if qr_var:
+            name += "_" + qr_var
+        if on_space:
+            name += "_on_" + on_space.mangled_name
+        return name
+
+    def get_operator_name(self, operator_name, qr_var=None, on_space=None):
+        '''
+        Returns the name of the specified operator (orientation, basis or
+        differential basis) for this FunctionSpace.
+        :param str operator_name: name (type) of the operator.
+        :param str qr_var: the name of the Quadrature Object for which the
+                           operator is required.
+        :param on_space: the function space at which the operator is required.
+        :type on_space: :py:class:`psyclone.domain.lfric.function_space\
+            .FunctionSpace`
+        :returns: name for the Fortran arry holding the named operator
+                  for the specified function space.
+        :rtype: str
+        '''
+        if operator_name == "gh_orientation":
+            return self.get_orientation_name()
+        if operator_name == "gh_basis":
+            return self.get_basis_name(qr_var=qr_var, on_space=on_space)
+        if operator_name == "gh_diff_basis":
+            return self.get_diff_basis_name(qr_var=qr_var, on_space=on_space)
+
+        raise GenerationError(
+            "Unsupported name '{0}' found. Expected one of {1}".
+            format(operator_name, FunctionSpace.VALID_METAFUNC_NAMES))
+
+    def field_on_space(self, arguments):
+        '''Returns the corresponding argument if the supplied list of
+        arguments contains a field that exists on this space. Otherwise this
+        function returns None.
+
+        :param arguments: list of arguments to be tested.
+        :type arguments: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+
+        :returns: the argument from the supplied list of arguments that \
+                  contains a field that exists on this space or None.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+        '''
+        if self.mangled_name in arguments.unique_fs_names:
+            for arg in arguments.args:
+                # First, test that arg is a field as some argument objects
+                # won't have function spaces, e.g. scalars
+                if arg.type == "gh_field" and \
+                   arg.function_space.orig_name == self.orig_name:
+                    return arg
+        return None
+
+    def cma_on_space(self, arguments):
+        '''Returns the corresponding argument if the supplied list of
+        arguments contains a cma operator that maps to/from this FunctionSpace.
+        Otherwise this function returns None.
+
+        :param arguments: list of arguments to be tested.
+        :type arguments: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+
+        :returns: the argument from the supplied list of arguments that \
+                  contains a field that exists on this space or None.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+        '''
+        if self.mangled_name in arguments.unique_fs_names:
+            for arg in arguments.args:
+                # First, test that arg is a CMA op as some argument objects
+                # won't have function spaces, e.g. scalars
+                if arg.type == "gh_columnwise_operator" and \
+                   self.orig_name in [arg.function_space_to.orig_name,
+                                      arg.function_space_from.orig_name]:
+                    return arg
+        return None

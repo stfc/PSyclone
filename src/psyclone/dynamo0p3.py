@@ -72,12 +72,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # --------------------------------------------------------------------------- #
 #
 # ---------- Evaluators ---------------------------------------------------- #
-# Evaluators: basis and differential basis
-VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
-
-# Meta functions
-VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
-
 # Evaluators: quadrature
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz", "gh_quadrature_face",
                            "gh_quadrature_edge"]
@@ -172,87 +166,6 @@ psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 # ---------- Functions ------------------------------------------------------ #
 
 
-def get_cbanded_map_name(function_space):
-    ''' Returns the name of a column-banded dofmap for the supplied
-    FunctionSpace. '''
-    return "cbanded_map_" + function_space.mangled_name
-
-
-def get_cma_indirection_map_name(function_space):
-    ''' Returns the name of a CMA indirection dofmap for the supplied
-    FunctionSpace. '''
-    return "cma_indirection_map_" + function_space.mangled_name
-
-
-def get_fs_ndf_name(function_space):
-    ''' Returns a ndf name for this FunctionSpace object. '''
-    return "ndf_" + function_space.mangled_name
-
-
-def get_fs_undf_name(function_space):
-    ''' Returns a undf name for this FunctionSpace object. '''
-    return "undf_" + function_space.mangled_name
-
-
-def get_fs_orientation_name(function_space):
-    ''' Returns an orientation name for a function space with the
-    supplied name '''
-    return "orientation" + "_" + function_space.mangled_name
-
-
-def get_fs_basis_name(function_space, qr_var=None, on_space=None):
-    '''
-    Returns a name for the basis function on this FunctionSpace. If
-    the name of an associated quadrature object is supplied then this
-    is appended to the returned name. Similarly, if the function space
-    at which the basis is to be evaluated is supplied then this is
-    also appended to the name.
-
-    :param function_space: the function space for which the basis is required
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :param string qr_var: the name of the Quadrature Object for which the
-                          basis functions are required
-    :param on_space: the function space at which the basis functions
-                     will be evaluated
-    :type on_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: Name for the Fortran array holding the basis function
-    :rtype: string
-    '''
-    name = "_".join(["basis", function_space.mangled_name])
-    if qr_var:
-        name += "_" + qr_var
-    if on_space:
-        name += "_on_" + on_space.mangled_name
-    return name
-
-
-def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
-    '''
-    Returns a name for the differential basis function on the
-    supplied FunctionSpace.  If the name of an associated quadrature
-    object is supplied then this is appended to the returned name. Similarly,
-    if the function space at which the basis is to be evaluated is supplied
-    then this is also appended to the name.
-
-    :param function_space: the function space for which the differential basis
-                           is required
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :param string qr_var: the name of the Quadrature Object for which the
-                          differential basis functions are required
-    :param on_space: the function space at which the differential basis
-                     functions will be evaluated
-    :type on_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: Name for the Fortran array holding the differential basis function
-    :rtype: string
-    '''
-    name = "_".join(["diff_basis", function_space.mangled_name])
-    if qr_var:
-        name += "_" + qr_var
-    if on_space:
-        name += "_on_" + on_space.mangled_name
-    return name
-
-
 def qr_basis_alloc_args(first_dim, basis_fn):
     '''
     Generate the list of dimensions required to allocate the
@@ -283,21 +196,21 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
     # if basis_fn["shape"] == "gh_quadrature_xyz":
-    #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+    #     alloc_args = [first_dim, basis_fn["fspace"].get_ndf_name(),
     #          "np_xyz"+"_"+basis_fn["qr_var"]]
     if basis_fn["shape"] == "gh_quadrature_xyoz":
-        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+        alloc_args = [first_dim, basis_fn["fspace"].get_ndf_name(),
                       "np_xy"+qr_var, "np_z"+qr_var]
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
-    #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+    #     alloc_args = [first_dim, basis_fn["fspace"].get_ndf_name(),
     #                   "np_x"+"_"+basis_fn["qr_var"],
     #                   "np_y"+"_"+basis_fn["qr_var"],
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
-        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+        alloc_args = [first_dim, basis_fn["fspace"].get_ndf_name(),
                       "np_xyz"+qr_var, "nfaces"+qr_var]
     elif basis_fn["shape"] == "gh_quadrature_edge":
-        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+        alloc_args = [first_dim, basis_fn["fspace"].get_ndf_name(),
                       "np_xyz"+qr_var, "nedges"+qr_var]
     else:
         raise NotImplementedError(
@@ -306,68 +219,8 @@ def qr_basis_alloc_args(first_dim, basis_fn):
             "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
     return alloc_args
 
-
-def get_fs_operator_name(operator_name, function_space, qr_var=None,
-                         on_space=None):
-    '''
-    Returns the name of the specified operator (orientation, basis or
-    differential basis) for the supplied FunctionSpace.
-    :param string operator_name: Name (type) of the operator
-    :param function_space: the function space for which the operator is
-                           required
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :param string qr_var: the name of the Quadrature Object for which the
-                          operator is required.
-    :param on_space: the function space at which the operator is required
-    :type on_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: Name for the Fortran arry holding the named operator
-             for the specified function space
-    :rtype: string
-    '''
-    if operator_name == "gh_orientation":
-        return get_fs_orientation_name(function_space)
-    elif operator_name == "gh_basis":
-        return get_fs_basis_name(function_space, qr_var=qr_var,
-                                 on_space=on_space)
-    elif operator_name == "gh_diff_basis":
-        return get_fs_diff_basis_name(function_space, qr_var=qr_var,
-                                      on_space=on_space)
-    else:
-        raise GenerationError(
-            "Unsupported name '{0}' found. Expected one of {1}".
-            format(operator_name, VALID_METAFUNC_NAMES))
-
-
-def field_on_space(function_space, arguments):
-    ''' Returns the corresponding argument if the supplied list of arguments
-    contains a field that exists on the specified space. Otherwise
-    returns None.'''
-    if function_space.mangled_name in arguments.unique_fs_names:
-        for arg in arguments.args:
-            # First, test that arg is a field as some argument objects won't
-            # have function spaces, e.g. scalars
-            if arg.type == "gh_field" and \
-               arg.function_space.orig_name == function_space.orig_name:
-                return arg
-    return None
-
-
-def cma_on_space(function_space, arguments):
-    ''' Returns the corresponding argument if the supplied list of arguments
-    contains a cma operator that maps to/from the specified space. Otherwise
-    returns None.'''
-    if function_space.mangled_name in arguments.unique_fs_names:
-        for arg in arguments.args:
-            # First, test that arg is a CMA op as some argument objects won't
-            # have function spaces, e.g. scalars
-            if arg.type == "gh_columnwise_operator" and \
-               function_space.orig_name in [arg.function_space_to.orig_name,
-                                            arg.function_space_from.orig_name]:
-                return arg
-    return None
-
-
 # ---------- Classes -------------------------------------------------------- #
+
 
 class DynFuncDescriptor03(object):
     ''' The Dynamo 0.3 API includes a function-space descriptor as
@@ -397,13 +250,14 @@ class DynFuncDescriptor03(object):
                             arg.name, func_type))
                 self._function_space_name = arg.name
             else:  # subsequent func_type args
-                if arg.name not in VALID_METAFUNC_NAMES:
+                if arg.name not in FunctionSpace.VALID_METAFUNC_NAMES:
                     raise ParseError(
                         "In the dynamo0.3 API, the 2nd argument and all "
                         "subsequent arguments of a meta_func entry should "
                         "be one of {0}, but found "
-                        "'{1}' in '{2}".format(VALID_METAFUNC_NAMES,
-                                               arg.name, func_type))
+                        "'{1}' in '{2}".
+                        format(FunctionSpace.VALID_METAFUNC_NAMES,
+                               arg.name, func_type))
                 if arg.name in self._operator_names:
                     raise ParseError(
                         "In the dynamo0.3 API, it is an error to specify an "
@@ -1000,7 +854,7 @@ class DynKernMetadata(KernelType):
             # Check that a valid shape has been specified if
             # this function space requires a basis or differential basis
             for op_name in descriptor.operator_names:
-                if op_name in VALID_EVALUATOR_NAMES:
+                if op_name in FunctionSpace.VALID_EVALUATOR_NAMES:
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
@@ -1009,7 +863,8 @@ class DynKernMetadata(KernelType):
                             "supply the shape of that evaluator by setting "
                             "'gh_shape' in the kernel meta-data but "
                             "this is missing for kernel '{1}'".
-                            format(VALID_EVALUATOR_NAMES, self.name))
+                            format(FunctionSpace.VALID_EVALUATOR_NAMES,
+                                   self.name))
                     shape_set = set(self._eval_shapes)
                     if not shape_set.issubset(set(VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
@@ -2049,7 +1904,7 @@ class DynStencils(DynCollection):
             parent.add(DeclGen(
                 parent, datatype="integer",
                 kind=api_config.default_kind["integer"], intent="in",
-                dimension=",".join([get_fs_ndf_name(arg.function_space),
+                dimension=",".join([arg.function_space.get_ndf_name(),
                                     self.dofmap_size_name(symtab, arg)]),
                 entity_decls=[self.dofmap_name(symtab, arg)]))
 
@@ -2596,9 +2451,9 @@ class DynDofmaps(DynCollection):
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look
                     # up the dofmap.
-                    fld_arg = field_on_space(unique_fs, call.arguments)
+                    fld_arg = unique_fs.field_on_space(call.arguments)
                     if fld_arg:
-                        map_name = unique_fs.get_fs_map_name
+                        map_name = unique_fs.get_map_name
                         if map_name not in self._unique_fs_maps:
                             self._unique_fs_maps[map_name] = fld_arg
                 if call.cma_operation == "assembly":
@@ -2616,14 +2471,14 @@ class DynDofmaps(DynCollection):
                             "operator argument for a CMA assembly kernel but "
                             "found {0}".format(len(cma_args)))
 
-                    map_name = get_cbanded_map_name(
-                        cma_args[0].function_space_to)
+                    map_name = \
+                        cma_args[0].function_space_to.get_cbanded_map_name()
                     if map_name not in self._unique_cbanded_maps:
                         self._unique_cbanded_maps[map_name] = {
                             "argument": cma_args[0],
                             "direction": "to"}
-                    map_name = get_cbanded_map_name(
-                        cma_args[0].function_space_from)
+                    map_name = \
+                        cma_args[0].function_space_from.get_cbanded_map_name()
                     if map_name not in self._unique_cbanded_maps:
                         self._unique_cbanded_maps[map_name] = {
                             "argument": cma_args[0],
@@ -2643,14 +2498,14 @@ class DynDofmaps(DynCollection):
                             "operator argument for a kernel that applies a "
                             "CMA operator but found {0}".format(len(cma_args)))
 
-                    map_name = get_cma_indirection_map_name(
-                        cma_args[0].function_space_to)
+                    map_name = cma_args[0].function_space_to\
+                        .get_cma_indirection_map_name()
                     if map_name not in self._unique_indirection_maps:
                         self._unique_indirection_maps[map_name] = {
                             "argument": cma_args[0],
                             "direction": "to"}
-                    map_name = get_cma_indirection_map_name(
-                        cma_args[0].function_space_from)
+                    map_name = cma_args[0].function_space_from\
+                        .get_cma_indirection_map_name()
                     if map_name not in self._unique_indirection_maps:
                         self._unique_indirection_maps[map_name] = {
                             "argument": cma_args[0],
@@ -2746,8 +2601,8 @@ class DynDofmaps(DynCollection):
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
-            ndf_name = get_fs_ndf_name(
-                self._unique_fs_maps[dmap].function_space)
+            ndf_name = \
+                self._unique_fs_maps[dmap].function_space.get_ndf_name()
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[ndf_name]))
@@ -2758,9 +2613,9 @@ class DynDofmaps(DynCollection):
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":
-                ndf_name = get_fs_ndf_name(cma["argument"].function_space_to)
+                ndf_name = cma["argument"].function_space_to.get_ndf_name()
             elif cma["direction"] == "from":
-                ndf_name = get_fs_ndf_name(cma["argument"].function_space_from)
+                ndf_name = cma["argument"].function_space_from.get_ndf_name()
             else:
                 raise InternalError(
                     "Invalid direction ('{0}') found for CMA operator when "
@@ -2821,7 +2676,7 @@ class DynOrientations(DynCollection):
                         unique_fs)
                     if fs_descriptor.requires_orientation:
                         field = call.arguments.get_arg_on_space(unique_fs)
-                        oname = get_fs_orientation_name(unique_fs)
+                        oname = unique_fs.get_orientation_name()
                         self._orients.append(
                             self.Orientation(oname, field, unique_fs))
 
@@ -2836,7 +2691,7 @@ class DynOrientations(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         for orient in self._orients:
-            ndf_name = get_fs_ndf_name(orient.function_space)
+            ndf_name = orient.function_space.get_ndf_name()
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", dimension=ndf_name,
@@ -2885,7 +2740,7 @@ class DynFunctionSpaces(DynCollection):
             # CMA kernel performing a matrix-matrix operation.
             if self._invoke and not self._dofs_only or \
                self._kernel and self._kernel.cma_operation != "matrix-matrix":
-                self._var_list.append(get_fs_ndf_name(function_space))
+                self._var_list.append(function_space.get_ndf_name())
 
             # If there is a field on this space then add undf to list
             # to declare later. However, if the invoke contains only
@@ -2894,10 +2749,10 @@ class DynFunctionSpaces(DynCollection):
             # field proxy and undf is not required.
             if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
-                    self._var_list.append(get_fs_undf_name(function_space))
-            elif self._kernel and field_on_space(function_space,
-                                                 self._kernel.arguments):
-                self._var_list.append(get_fs_undf_name(function_space))
+                    self._var_list.append(function_space.get_undf_name())
+            elif self._kernel and \
+                    function_space.field_on_space(self._kernel.arguments):
+                self._var_list.append(function_space.get_undf_name())
 
     def _stub_declarations(self, parent):
         '''
@@ -2962,7 +2817,7 @@ class DynFunctionSpaces(DynCollection):
             name = arg.proxy_name_indexed
             # Initialise ndf for this function space.
             if not self._dofs_only:
-                ndf_name = get_fs_ndf_name(function_space)
+                ndf_name = function_space.get_ndf_name()
                 parent.add(AssignGen(parent, lhs=ndf_name,
                                      rhs=name +
                                      "%" + arg.ref_name(function_space) +
@@ -2974,7 +2829,7 @@ class DynFunctionSpaces(DynCollection):
             # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
                 if self._invoke.field_on_space(function_space):
-                    undf_name = get_fs_undf_name(function_space)
+                    undf_name = function_space.get_undf_name()
                     parent.add(AssignGen(parent, lhs=undf_name,
                                          rhs=name + "%" +
                                          arg.ref_name(function_space) +
@@ -3021,7 +2876,7 @@ class DynFields(DynCollection):
         fld_args = psyGen.args_filter(self._kernel.args,
                                       arg_types=["gh_field"])
         for fld in fld_args:
-            undf_name = get_fs_undf_name(fld.function_space)
+            undf_name = fld.function_space.get_undf_name()
             intent = fld.intent
 
             if fld.vector_size > 1:
@@ -3466,8 +3321,8 @@ class DynLMAOperators(DynCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
-            ndf_name_to = get_fs_ndf_name(arg.function_space_to)
-            ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+            ndf_name_to = arg.function_space_to.get_ndf_name()
+            ndf_name_from = arg.function_space_from.get_ndf_name()
             parent.add(DeclGen(parent, datatype="real",
                                kind=api_config.default_kind["real"],
                                dimension=",".join([ndf_name_to,
@@ -4574,9 +4429,10 @@ class DynBasisFunctions(DynCollection):
             # Get the extent of the first dimension of the basis array and
             # store whether we have a basis or a differential basis function.
             # Currently there are only those two possible types of basis
-            # function and we store which we have in is_diff_basis. Should
-            # further basis-function types be added in the future then the if
-            # blocks that use if_diff_basis further down must be updated.
+            # function and we store the required diff basis name in basis_name.
+            # Should further basis-function types be added in the future then
+            # the if blocks that use if_diff_basis further down must be\
+            # updated.
             if basis_fn['type'] == "basis":
                 if self._invoke:
                     first_dim = self.basis_first_dim_name(basis_fn["fspace"])
@@ -4586,7 +4442,7 @@ class DynBasisFunctions(DynCollection):
                     raise InternalError("Require basis functions but do not "
                                         "have either a Kernel or an "
                                         "Invoke. Should be impossible.")
-                is_diff_basis = False
+                basis_name = "gh_basis"
             elif basis_fn['type'] == "diff-basis":
                 if self._invoke:
                     first_dim = self.diff_basis_first_dim_name(
@@ -4598,7 +4454,7 @@ class DynBasisFunctions(DynCollection):
                     raise InternalError("Require differential basis functions "
                                         "but do not have either a Kernel or "
                                         "an Invoke. Should be impossible.")
-                is_diff_basis = True
+                basis_name = "gh_diff_basis"
             else:
                 raise InternalError(
                     "Unrecognised type of basis function: '{0}'. Should "
@@ -4617,14 +4473,8 @@ class DynBasisFunctions(DynCollection):
                         " associated Quadrature object.".format(
                             basis_fn["shape"]))
 
-                if is_diff_basis:
-                    op_name = get_fs_operator_name("gh_diff_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=qr_var)
-                else:
-                    op_name = get_fs_operator_name("gh_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=qr_var)
+                op_name = basis_fn["fspace"].get_operator_name(basis_name,
+                                                               qr_var=qr_var)
                 if op_name in basis_arrays:
                     # We've already seen a basis with this name so skip
                     continue
@@ -4644,24 +4494,18 @@ class DynBasisFunctions(DynCollection):
                 # This is an evaluator and thus may be required on more than
                 # one function space
                 for target_space in basis_fn["nodal_fspaces"]:
-                    if is_diff_basis:
-                        op_name = get_fs_operator_name(
-                            "gh_diff_basis", basis_fn["fspace"],
-                            qr_var=basis_fn["qr_var"],
-                            on_space=target_space)
-                    else:
-                        op_name = get_fs_operator_name(
-                            "gh_basis", basis_fn["fspace"],
-                            qr_var=basis_fn["qr_var"],
-                            on_space=target_space)
+                    op_name = basis_fn["fspace"].\
+                        get_operator_name(basis_name,
+                                          qr_var=basis_fn["qr_var"],
+                                          on_space=target_space)
                     if op_name in basis_arrays:
                         continue
                     # We haven't seen a basis with this name before so
                     # need to store its dimensions
                     basis_arrays[op_name] = [
                         first_dim,
-                        get_fs_ndf_name(basis_fn["fspace"]),
-                        get_fs_ndf_name(target_space)]
+                        basis_fn["fspace"].get_ndf_name(),
+                        target_space.get_ndf_name()]
             else:
                 raise InternalError(
                     "Unrecognised evaluator shape: '{0}'. Should be one of "
@@ -4836,21 +4680,17 @@ class DynBasisFunctions(DynCollection):
             # (further down) that use is_diff_basis will have to be changed.
             if basis_fn["type"] == "diff-basis":
                 is_diff_basis = True
+                basis_name = "gh_diff_basis"
             elif basis_fn["type"] == "basis":
                 is_diff_basis = False
+                basis_name = "gh_basis"
             else:
                 raise InternalError(
                     "Unrecognised type of basis function: '{0}'. Expected one "
                     "of 'basis' or 'diff-basis'.". format(basis_fn["type"]))
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                if is_diff_basis:
-                    op_name = get_fs_operator_name("gh_diff_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"])
-                else:
-                    op_name = get_fs_operator_name("gh_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"])
+                op_name = basis_fn["fspace"].\
+                    get_operator_name(basis_name, qr_var=basis_fn["qr_var"])
                 if op_name in op_name_list:
                     # Jump over any basis arrays we've seen before
                     continue
@@ -4862,13 +4702,13 @@ class DynBasisFunctions(DynCollection):
                             basis_fn["arg"].proxy_name_indexed + "%" +
                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
                             self.diff_basis_first_dim_name(basis_fn["fspace"]),
-                            get_fs_ndf_name(basis_fn["fspace"]), op_name]
+                            basis_fn["fspace"].get_ndf_name(), op_name]
                 else:
                     args = ["BASIS",
                             basis_fn["arg"].proxy_name_indexed + "%" +
                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
                             self.basis_first_dim_name(basis_fn["fspace"]),
-                            get_fs_ndf_name(basis_fn["fspace"]), op_name]
+                            basis_fn["fspace"].get_ndf_name(), op_name]
                 # insert the basis array call
                 parent.add(
                     CallGen(parent,
@@ -4878,14 +4718,8 @@ class DynBasisFunctions(DynCollection):
                 # We have an evaluator. We may need this on more than one
                 # function space.
                 for space in basis_fn["nodal_fspaces"]:
-                    if is_diff_basis:
-                        op_name = get_fs_operator_name("gh_diff_basis",
-                                                       basis_fn["fspace"],
-                                                       on_space=space)
-                    else:
-                        op_name = get_fs_operator_name("gh_basis",
-                                                       basis_fn["fspace"],
-                                                       on_space=space)
+                    op_name = basis_fn["fspace"].\
+                        get_operator_name(basis_name, on_space=space)
                     if op_name in op_name_list:
                         # Jump over any basis arrays we've seen before
                         continue
@@ -4896,14 +4730,14 @@ class DynBasisFunctions(DynCollection):
 
                     # Loop over dofs of target function space
                     nodal_dof_loop = DoGen(
-                        parent, nodal_loop_var, "1", get_fs_ndf_name(space))
+                        parent, nodal_loop_var, "1", space.get_ndf_name())
                     parent.add(nodal_dof_loop)
 
                     dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
                     loop_var_list.add(dof_loop_var)
 
                     dof_loop = DoGen(nodal_dof_loop, dof_loop_var,
-                                     "1", get_fs_ndf_name(basis_fn["fspace"]))
+                                     "1", basis_fn["fspace"].get_ndf_name())
                     nodal_dof_loop.add(dof_loop)
                     lhs = op_name + "(:," + "df_" + \
                         basis_fn["fspace"].mangled_name + "," + "df_nodal)"
@@ -4954,23 +4788,20 @@ class DynBasisFunctions(DynCollection):
         for basis_fn in self._basis_fns:
             # add the basis array name to the list to use later
             if basis_fn["type"] == "basis":
-                for fspace in basis_fn["nodal_fspaces"]:
-                    op_name = get_fs_operator_name("gh_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"],
-                                                   on_space=fspace)
-                    func_space_var_names.add(op_name)
+                basis_name = "gh_basis"
             elif basis_fn["type"] == "diff-basis":
-                for fspace in basis_fn["nodal_fspaces"]:
-                    op_name = get_fs_operator_name("gh_diff_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"],
-                                                   on_space=fspace)
-                    func_space_var_names.add(op_name)
+                basis_name = "gh_diff_basis"
             else:
                 raise InternalError(
                     "Unrecognised type of basis function: '{0}'. Should be "
                     "one of 'basis' or 'diff-basis'.".format(basis_fn["type"]))
+            for fspace in basis_fn["nodal_fspaces"]:
+                op_name = basis_fn["fspace"].\
+                    get_operator_name(basis_name,
+                                      qr_var=basis_fn["qr_var"],
+                                      on_space=fspace)
+                func_space_var_names.add(op_name)
+
         if func_space_var_names:
             # add the required deallocate call
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
@@ -5055,7 +4886,7 @@ class DynBoundaryConditions(DynCollection):
 
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            ndf_name = get_fs_ndf_name(dofs.function_space)
+            ndf_name = dofs.function_space.get_ndf_name()
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in",
@@ -5289,7 +5120,7 @@ class DynInvoke(Invoke):
         ''' If a field exists on this space for any kernel in this
         invoke then return that field. Otherwise return None. '''
         for kern_call in self.schedule.kernels():
-            field = field_on_space(func_space, kern_call.arguments)
+            field = func_space.field_on_space(kern_call.arguments)
             if field:
                 return field
         return None
@@ -7570,7 +7401,7 @@ class DynKern(CodedKern):
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.requires_orientation:
-                    lvars.append(get_fs_orientation_name(unique_fs))
+                    lvars.append(unique_fs.get_orientation_name())
         return lvars
 
     @property
@@ -7697,7 +7528,7 @@ class DynKern(CodedKern):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.requires_orientation:
                     field = self.arguments.get_arg_on_space(unique_fs)
-                    oname = get_fs_orientation_name(unique_fs)
+                    oname = unique_fs.get_orientation_name()
                     parent.add(
                         AssignGen(parent, pointer=True,
                                   lhs=oname,
@@ -7798,12 +7629,12 @@ class ArgOrdering(object):
                 self.fs_common(unique_fs)
             # Provide additional arguments if there is a
             # field on this space
-            if field_on_space(unique_fs, self._kern.arguments):
+            if unique_fs.field_on_space(self._kern.arguments):
                 if self._kern.is_intergrid:
                     self.fs_intergrid(unique_fs)
                 else:
                     self.fs_compulsory_field(unique_fs)
-            cma_op = cma_on_space(unique_fs, self._kern.arguments)
+            cma_op = unique_fs.cma_on_space(self._kern.arguments)
             if cma_op:
                 if self._kern.cma_operation == "assembly":
                     # CMA-assembly requires banded dofmaps
@@ -8246,7 +8077,7 @@ class KernCallArgList(ArgOrdering):
         '''add function-space related arguments common to LMA operators and
         fields'''
         # There is currently one argument: "ndf"
-        ndf_name = get_fs_ndf_name(function_space)
+        ndf_name = function_space.get_ndf_name()
         self._arglist.append(ndf_name)
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=len(self._arglist),
@@ -8255,9 +8086,9 @@ class KernCallArgList(ArgOrdering):
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
         field on this function space'''
-        undf_name = get_fs_undf_name(function_space)
+        undf_name = function_space.get_undf_name()
         self._arglist.append(undf_name)
-        map_name = function_space.get_fs_map_name
+        map_name = function_space.get_map_name
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
 
     def fs_intergrid(self, function_space):
@@ -8274,9 +8105,9 @@ class KernCallArgList(ArgOrdering):
             # For the fine mesh, we need ndf, undf and the *whole*
             # dofmap
             self.fs_common(function_space)
-            undf_name = get_fs_undf_name(function_space)
+            undf_name = function_space.get_undf_name()
             self._arglist.append(undf_name)
-            map_name = function_space.get_fs_map_name
+            map_name = function_space.get_map_name
             self._arglist.append(map_name)
         else:
             # For the coarse mesh we only need undf and the dofmap for
@@ -8294,8 +8125,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            basis_name = get_fs_basis_name(function_space,
-                                           qr_var=rule.psy_name)
+            basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
             self._arglist.append(basis_name)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -8306,8 +8136,7 @@ class KernCallArgList(ArgOrdering):
                 # the tuple dict entry associated with the name of the target
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
-                basis_name = get_fs_basis_name(function_space,
-                                               on_space=fspace)
+                basis_name = function_space.get_basis_name(on_space=fspace)
                 self._arglist.append(basis_name)
 
     def diff_basis(self, function_space):
@@ -8321,8 +8150,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            diff_basis_name = get_fs_diff_basis_name(
-                function_space, qr_var=rule.psy_name)
+            diff_basis_name = function_space.get_diff_basis_name(
+                qr_var=rule.psy_name)
             self._arglist.append(diff_basis_name)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -8333,14 +8162,14 @@ class KernCallArgList(ArgOrdering):
                 # the tuple dict entry associated with the name of the target
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
-                diff_basis_name = get_fs_diff_basis_name(
-                    function_space, on_space=fspace)
+                diff_basis_name = function_space.get_diff_basis_name(
+                    on_space=fspace)
                 self._arglist.append(diff_basis_name)
 
     def orientation(self, function_space):
         '''add orientation information for this function space to the
         argument list'''
-        orientation_name = get_fs_orientation_name(function_space)
+        orientation_name = function_space.get_orientation_name()
         self._arglist.append(orientation_name)
 
     def field_bcs_kernel(self, function_space):
@@ -8425,11 +8254,11 @@ class KernCallArgList(ArgOrdering):
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        self._arglist.append(get_cbanded_map_name(function_space))
+        self._arglist.append(function_space.get_cbanded_map_name())
 
     def indirection_dofmap(self, function_space, operator=None):
         ''' Add indirection dofmap required when applying a CMA operator '''
-        self._arglist.append(get_cma_indirection_map_name(function_space))
+        self._arglist.append(function_space.get_cma_indirection_map_name())
 
     @property
     def nlayers_positions(self):
@@ -8664,7 +8493,7 @@ class KernStubArgList(ArgOrdering):
     def banded_dofmap(self, function_space):
         ''' Declare the banded dofmap required for a CMA operator
         that maps to/from the specified function space '''
-        dofmap = get_cbanded_map_name(function_space)
+        dofmap = function_space.get_cbanded_map_name()
         self._arglist.append(dofmap)
 
     def indirection_dofmap(self, function_space, operator=None):
@@ -8689,7 +8518,7 @@ class KernStubArgList(ArgOrdering):
             raise GenerationError(
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
                 "be supplied but got {0}".format(operator.type))
-        map_name = get_cma_indirection_map_name(function_space)
+        map_name = function_space.get_cma_indirection_map_name()
         self._arglist.append(map_name)
 
     def scalar(self, arg):
@@ -8710,15 +8539,15 @@ class KernStubArgList(ArgOrdering):
     def fs_common(self, function_space):
         ''' Provide arguments common to LMA operators and
         fields on a space. There is one: "ndf". '''
-        ndf_name = get_fs_ndf_name(function_space)
+        ndf_name = function_space.get_ndf_name()
         self._arglist.append(ndf_name)
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
         function space'''
-        undf_name = get_fs_undf_name(function_space)
+        undf_name = function_space.get_undf_name()
         self._arglist.append(undf_name)
-        map_name = function_space.get_fs_map_name
+        map_name = function_space.get_map_name
         self._arglist.append(map_name)
 
     def basis(self, function_space):
@@ -8739,16 +8568,16 @@ class KernStubArgList(ArgOrdering):
                 # A kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the last
                 # part of the shape name to "qr_".
-                basis_name = get_fs_basis_name(
-                    function_space, qr_var="qr_"+shape.split("_")[-1])
+                basis_name = function_space.get_basis_name(
+                    qr_var="qr_"+shape.split("_")[-1])
                 self._arglist.append(basis_name)
             elif shape in VALID_EVALUATOR_SHAPES:
                 # Need a basis array for each target space upon which the basis
                 # functions have been evaluated. _kern.eval_targets is a dict
                 # where the values are 2-tuples of (FunctionSpace, argument).
                 for _, target in self._kern.eval_targets.items():
-                    basis_name = get_fs_basis_name(function_space,
-                                                   on_space=target[0])
+                    basis_name = \
+                        function_space.get_basis_name(on_space=target[0])
                     self._arglist.append(basis_name)
             else:
                 raise InternalError(
@@ -8773,8 +8602,8 @@ class KernStubArgList(ArgOrdering):
                 # kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the
                 # last part of the shape name to "qr_".
-                diff_basis_name = get_fs_diff_basis_name(
-                    function_space, qr_var="qr_"+shape.split("_")[-1])
+                diff_basis_name = function_space.get_diff_basis_name(
+                    qr_var="qr_"+shape.split("_")[-1])
                 self._arglist.append(diff_basis_name)
 
             elif shape in VALID_EVALUATOR_SHAPES:
@@ -8783,8 +8612,8 @@ class KernStubArgList(ArgOrdering):
                 # a dict where the values are 2-tuples of
                 # (FunctionSpace, argument).
                 for _, target in self._kern.eval_targets.items():
-                    diff_basis_name = get_fs_diff_basis_name(
-                        function_space, on_space=target[0])
+                    diff_basis_name = function_space.get_diff_basis_name(
+                        on_space=target[0])
                     self._arglist.append(diff_basis_name)
             else:
                 raise InternalError("Unrecognised evaluator shape ('{0}'). "
@@ -8800,7 +8629,7 @@ class KernStubArgList(ArgOrdering):
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
 
         '''
-        orientation_name = get_fs_orientation_name(function_space)
+        orientation_name = function_space.get_orientation_name()
         self._arglist.append(orientation_name)
 
     def field_bcs_kernel(self, function_space):
@@ -8904,13 +8733,13 @@ class KernStubArgList(ArgOrdering):
 #        '''get dino to output any arguments common to LMA operators and
 #        fields on a space. '''
 #        # There is currently one: "ndf".
-#        ndf_name = get_fs_ndf_name(function_space)
+#        ndf_name = function_space.get_ndf_name()
 #        self._add_dino_scalar(ndf_name)
 #
 #    def fs_compulsory_field(self, function_space):
 #        '''get dino to output compulsory arguments if there is a field on this
 #        function space'''
-#        undf_name = get_fs_undf_name(function_space)
+#        undf_name = function_space.get_undf_name()
 #        self._add_dino_scalar(undf_name)
 #
 #    def basis(self, function_space):
@@ -9498,9 +9327,9 @@ class DynKernelArguments(Arguments):
                 :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
 
                 '''
-                undf_name = get_fs_undf_name(function_space)
+                undf_name = function_space.get_undf_name()
                 self._arglist.append(undf_name)
-                map_name = function_space.get_fs_map_name
+                map_name = function_space.get_map_name
                 self._arglist.append(map_name)
 
         create_acc_arg_list = KernCallAccArgList(self._parent_call)

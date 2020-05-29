@@ -84,8 +84,7 @@ def setup():
 # tests
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
-    from psyclone.dynamo0p3 import get_fs_operator_name
-    name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
+    name = FunctionSpace("w3", None).get_operator_name("gh_orientation")
     assert name == "orientation_w3"
 
 

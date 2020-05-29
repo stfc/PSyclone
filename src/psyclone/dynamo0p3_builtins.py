@@ -190,8 +190,7 @@ class DynBuiltIn(BuiltIn):
         ''' Dynamically looks up the name of the undf variable for the
         space that this kernel updates '''
         field = self._arguments.iteration_space_arg()
-        from psyclone.dynamo0p3 import get_fs_undf_name
-        return get_fs_undf_name(field.function_space)
+        return field.function_space.get_undf_name()
 
     @property
     def qr_required(self):
