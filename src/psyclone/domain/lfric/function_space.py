@@ -416,3 +416,33 @@ class FunctionSpace(object):
                                       arg.function_space_from.orig_name]:
                     return arg
         return None
+
+    def is_scalar_basis(self):
+        ''':returns: if this functions space has scalar basis functions.
+        :rtype: bool
+        '''
+        return self.orig_name.lower() in \
+            FunctionSpace.SCALAR_BASIS_SPACE_NAMES
+
+    def is_vector_basis(self):
+        ''':returns: if this functions space has vector basis functions.
+        :rtype: bool
+        '''
+        return self.orig_name.lower() in \
+            FunctionSpace.VECTOR_BASIS_SPACE_NAMES
+
+    def is_scalar_diff_basis(self):
+        ''':returns: if this functions space has scalar differential
+            basis functions.
+            :rtype: bool
+        '''
+        return self.orig_name.lower() in \
+            FunctionSpace.SCALAR_DIFF_BASIS_SPACE_NAMES
+
+    def is_vector_diff_basis(self):
+        ''':returns: if this functions space has vector differential
+            basis functions.
+        :rtype: bool
+        '''
+        return self.orig_name.lower() in \
+            FunctionSpace.VECTOR_DIFF_BASIS_SPACE_NAMES

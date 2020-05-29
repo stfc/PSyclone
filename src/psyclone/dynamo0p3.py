@@ -4050,11 +4050,9 @@ class DynBasisFunctions(DynCollection):
         :raises GenerationError: if an unsupported function space is supplied \
                                  (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
-        if function_space.orig_name.lower() in \
-                FunctionSpace.SCALAR_BASIS_SPACE_NAMES:
+        if function_space.is_scalar_basis():
             first_dim = "1"
-        elif function_space.orig_name.lower() in \
-                FunctionSpace.VECTOR_BASIS_SPACE_NAMES:
+        elif function_space.is_vector_basis():
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
@@ -4100,11 +4098,9 @@ class DynBasisFunctions(DynCollection):
                                  ANY_DISCONTINUOUS_SPACE_*)
 
         '''
-        if function_space.orig_name.lower() in \
-                FunctionSpace.SCALAR_DIFF_BASIS_SPACE_NAMES:
+        if function_space.is_scalar_diff_basis():
             first_dim = "1"
-        elif function_space.orig_name.lower() in \
-                FunctionSpace.VECTOR_DIFF_BASIS_SPACE_NAMES:
+        elif function_space.is_vector_diff_basis():
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first
