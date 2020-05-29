@@ -419,11 +419,14 @@ supported in the stub generator.
 ``testkern_invalid_fortran.F90``, ``testkern_no_datatype.F90``,
 ``testkern_short_name.F90`` and ``testkern_qr.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
-appropriate errors. For example:
+appropriate errors. Two examples are below:
 ::
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     Error: 'Parse Error: Code appears to be invalid Fortran'
+
+    > genkernelstub tests/test_files/dynamo0p3/testkern_no_datatype.F90
+    Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`

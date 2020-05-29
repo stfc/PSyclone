@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,18 +33,22 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 !        C.M. Maynard Met Office/University of Reading
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
   ! Description: single function specified in an invoke call
+  use constants_mod,               only: i_def
+  use field_mod,                   only: field_type
   use testkern_one_int_scalar_mod, only: testkern_one_int_scalar_type
-  use inf,      only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2, m1, m2
   integer(i_def)   :: iflag
 
-  call invoke(                              &
-       testkern_one_int_scalar_type(f1,iflag,f2,m1,m2)   &
+  call invoke(                                             &
+       testkern_one_int_scalar_type(f1, iflag, f2, m1, m2) &
           )
 
 end program single_invoke

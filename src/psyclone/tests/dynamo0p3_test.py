@@ -1002,7 +1002,8 @@ def test_int_scalar(tmpdir):
     expected = (
         "    SUBROUTINE invoke_0_testkern_one_int_scalar_type"
         "(f1, iflag, f2, m1, m2)\n"
-        "      USE testkern_one_int_scalar_mod, ONLY: testkern_code\n"
+        "      USE testkern_one_int_scalar_mod, ONLY: "
+        "testkern_one_int_scalar_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER(KIND=i_def), intent(in) :: iflag\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
@@ -1053,6 +1054,10 @@ def test_int_scalar(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
@@ -1067,8 +1072,8 @@ def test_int_scalar(tmpdir):
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "        CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n")
     assert expected in generated_code
@@ -3572,7 +3577,7 @@ def test_operator_gh_sum_invalid():
     assert "but 'gh_operator' was found" in str(excinfo.value)
 
 
-def test_derived_type_arg(dist_mem):
+def test_derived_type_arg(dist_mem, tmpdir):
     ''' Test that we generate a suitable name for a dummy variable
     in the PSy layer when its value in the algorithm layer is
     obtained from the component of a derived type or from a type-bound
@@ -3584,6 +3589,8 @@ def test_derived_type_arg(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Check the four integer variables are named and declared correctly
     expected = (
@@ -3597,31 +3604,31 @@ def test_derived_type_arg(dist_mem):
     # Check that they are still named correctly when passed to the
     # kernels
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))" in gen)
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "my_obj_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))" in gen)
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "my_obj_get_flag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_1, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))" in gen)
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "my_obj_get_flag_1, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_2, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))" in gen)
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "my_obj_get_flag_2, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
 
 
-def test_multiple_derived_type_args(dist_mem):
+def test_multiple_derived_type_args(dist_mem, tmpdir):
     ''' Test that we generate correct code when kernel arguments are
     supplied from the algorithm layer as different components of the
-    same derived type object '''
+    same derived type object. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
@@ -3629,6 +3636,9 @@ def test_multiple_derived_type_args(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     # Check the four integer variables are named and declared correctly
     expected = (
         "    SUBROUTINE invoke_0(f1, obj_a_iflag, f2, m1, m2, "
@@ -3641,24 +3651,24 @@ def test_multiple_derived_type_args(dist_mem):
     # Check that they are still named correctly when passed to the
     # kernels
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_a_iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "obj_a_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_b_iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "obj_b_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_a_obj_b, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "obj_a_obj_b, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_b_obj_a, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
+        "obj_b_obj_a, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
 
 
@@ -5128,9 +5138,9 @@ def test_unsupported_halo_read_access():
 
 
 def test_dynglobalsum_unsupported_scalar():
-    '''Check that an instance of the DynGlobalSum class raises an
+    ''' Check that an instance of the DynGlobalSum class raises an
     exception if an unsupported scalar type is provided when
-    dm=True '''
+    dm=True. '''
     # get an instance of an integer scalar
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -5138,7 +5148,7 @@ def test_dynglobalsum_unsupported_scalar():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
