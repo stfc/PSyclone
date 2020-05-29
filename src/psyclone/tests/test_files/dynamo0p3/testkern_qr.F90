@@ -38,6 +38,8 @@ module testkern_qr
   use fs_continuity_mod
   use kernel_mod
 
+  implicit none
+
   type, extends(kernel_type) :: testkern_qr_type
      type(arg_type), dimension(6) :: meta_args =    &
           (/ arg_type(gh_field,   gh_write, w1),    &
