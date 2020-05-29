@@ -1996,13 +1996,16 @@ def test_multikernel_invoke_1():
     assert "map_w2 => f2_proxy%vspace%get_whole_dofmap()" in generated_code
 
 
-def test_multikernel_invoke_qr():
+def test_multikernel_invoke_qr(tmpdir):
     ''' Test that correct code is produced when there are multiple
     kernels with (the same) QR within an invoke. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.1_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     generated_code = psy.gen
     # simple check that two kernel calls exist
     assert str(generated_code).count("CALL testkern_qr_code") == 2

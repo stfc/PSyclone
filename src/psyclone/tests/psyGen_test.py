@@ -828,7 +828,7 @@ def test_multi_kern_named_invoke(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_named_multi_invokes():
+def test_named_multi_invokes(tmpdir):
     ''' Check that we generate correct code when we have more than one
     named invoke in an Algorithm file '''
     _, invoke_info = parse(
@@ -840,6 +840,7 @@ def test_named_multi_invokes():
 
     assert "SUBROUTINE invoke_my_first(" in gen
     assert "SUBROUTINE invoke_my_second(" in gen
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_named_invoke_name_clash(tmpdir):
