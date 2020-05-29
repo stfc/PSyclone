@@ -44,7 +44,7 @@ program qr_eval_invoke
   type(field_type)           :: f0, f1, f2, m1, m2
   type(quadrature_xyoz_type) :: qrr
   real(r_def)                :: a
-  integer(kind=i_def)        :: istp
+  integer(i_def)             :: istp
 
   call invoke(                                       &
        testkern_eval_type(f0, f1),                   &

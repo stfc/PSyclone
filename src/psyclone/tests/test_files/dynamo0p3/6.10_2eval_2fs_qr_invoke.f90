@@ -46,17 +46,17 @@ program eval_invoke
   type(field_type)           :: f0, f1, f2, m1, m2
   type(operator_type)        :: op1
   type(quadrature_xyoz_type) :: qr
-  real(kind=r_def)           :: a
-  integer(kind=i_def)        :: istp
+  real(r_def)                :: a
+  integer(i_def)             :: istp
 
-  call invoke(                         &
+  call invoke(                          &
        ! Requires diff basis on W1, evaluated at W0 and W1
-       testkern_eval_2fs_type(f0,f1),  &
+       testkern_eval_2fs_type(f0, f1),  &
        ! Requires basis on W2 and diff-basis on W3, both evaluated
        ! on W0 (the to-space of the operator that is written to)
-       testkern_eval_op_type(op1, m2), &
+       testkern_eval_op_type(op1, m2),  &
        ! Requires XYoZ quadrature: basis on W1, diff basis on W2 and
        ! basis+diff basis on W3.
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr%data))
+       testkern_qr_type(f1, f2, m1, a, m2, istp, qr%data))
 
 end program eval_invoke
