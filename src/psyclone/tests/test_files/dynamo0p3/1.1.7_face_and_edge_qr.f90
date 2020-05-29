@@ -36,13 +36,16 @@ program single_invoke
 
   ! Description: single kernel requiring both face and edge quadrature
   ! specified in a single invoke call.
-  use field_mod,        only: field_type
-  use testkern_2qr_mod, only: testkern_2qr_type
+  use field_mod,           only: field_type
+  use quadrature_face_mod, only: quadrature_face_type
+  use quadrature_edge_mod, only: quadrature_edge_type
+  use testkern_2qr_mod,    only: testkern_2qr_type
 
   implicit none
 
   type(field_type) :: f1, f2, m1, m2
-  type(quadrature_rule) :: qr_face, qr_edge
+  type(quadrature_face_type) :: qr_face
+  type(quadrature_edge_type) :: qr_edge
 
   call invoke( testkern_2qr_type(f1, f2, m1, m2, qr_face, qr_edge) )
 
