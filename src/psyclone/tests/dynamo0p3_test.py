@@ -1738,9 +1738,9 @@ def test_dyninvoke_uniq_declns_intent_int():
     assert args['in'] == ['istep']
 
 
-def test_dyninvoke_uniq_declns_intent_ops():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for operator arguments '''
+def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -1749,6 +1749,8 @@ def test_dyninvoke_uniq_declns_intent_ops():
     assert args['inout'] == []
     assert args['out'] == ['op']
     assert args['in'] == []
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_dyninvoke_arg_for_fs():
@@ -3033,7 +3035,7 @@ def test_halo_dirty_4():
 
 
 def test_halo_dirty_5():
-    ''' check no halo_dirty calls for operators '''
+    ''' Check no halo_dirty calls for operators. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
                            api=TEST_API)
@@ -3130,7 +3132,7 @@ def test_halo_exchange_inc(monkeypatch, annexed):
 
 def test_no_halo_exchange_for_operator():
     ''' Test that no halo exchange is generated before a kernel that reads
-    from an operator '''
+    from an operator and updates a discontinuous field. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.7_operator_read.f90"),
                            api=TEST_API)
@@ -6552,7 +6554,7 @@ def test_dynkernelarguments_acc_args_3():
 
 # (4/4) Method acc_args
 def test_dynkernelarguments_acc_args_4():
-    '''Test that the acc_args method in the DynKernelArguments class
+    ''' Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is an operator.
 
     '''
@@ -6565,9 +6567,9 @@ def test_dynkernelarguments_acc_args_4():
     acc_args = kern_args.acc_args
     assert acc_args == [
         'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
-        'mm_w0_proxy%local_stencil', 'chi_proxy(1)', 'chi_proxy(1)%data',
-        'chi_proxy(2)', 'chi_proxy(2)%data', 'chi_proxy(3)',
-        'chi_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
+        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(1)%data',
+        'coord_proxy(2)', 'coord_proxy(2)%data', 'coord_proxy(3)',
+        'coord_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 

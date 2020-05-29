@@ -713,9 +713,9 @@ def test_args_filter():
 
 
 def test_args_filter2():
-    '''the args_filter() method is in both Loop() and Arguments() classes
+    ''' The args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the cases
-    when one or both of the intent and type arguments are not specified.'''
+    when one or both of the intent and type arguments are not specified. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
@@ -724,7 +724,7 @@ def test_args_filter2():
 
     # arg_accesses
     args = loop.args_filter(arg_accesses=[AccessType.READ])
-    expected_output = ["chi", "a"]
+    expected_output = ["coord", "a"]
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
@@ -738,7 +738,7 @@ def test_args_filter2():
 
     # neither
     args = loop.args_filter()
-    expected_output = ["chi", "mm_w0", "a"]
+    expected_output = ["coord", "mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
