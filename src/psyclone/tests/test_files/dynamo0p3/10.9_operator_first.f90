@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-!
+! Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+!           I. Kavcic, Met Office
+
 !>@brief compute the locally assembled SI operators
 module si_operators_alg_mod
 
@@ -146,9 +148,7 @@ subroutine compute_si_operators(ref_state)
   use weighted_proj_3theta_kernel_mod, only: weighted_proj_3theta_kernel_type
   use compound_operator_kernel_mod,    only: compound_operator_kernel_type
   use psykal_lite_mod,                 only: invoke_sample_flux_kernel, &
-                                             invoke_set_field_scalar, &
                                              invoke_compute_tri_precon_kernel, &
-                                             invoke_divide_field_data, &
                                              invoke_weighted_div_bd_kernel_type
   use multiplicity_kernel_mod,         only: multiplicity_kernel_type
   use finite_element_config_mod,       only: element_order, wtheta_on

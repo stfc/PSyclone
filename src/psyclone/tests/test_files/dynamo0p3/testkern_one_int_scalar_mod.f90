@@ -40,7 +40,9 @@ module testkern_one_int_scalar_mod
   use fs_continuity_mod
   use kernel_mod
   use constants_mod
-  
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_one_int_scalar_type
      type(arg_type), dimension(5) :: meta_args = &
           (/ arg_type(gh_field,   gh_inc,  w1),  &
