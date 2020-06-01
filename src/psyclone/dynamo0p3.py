@@ -3062,6 +3062,7 @@ class DynOrientations(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
+        # TODO #783: Remove duplicates from the declaration list
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
             parent.add(DeclGen(parent, datatype="integer",

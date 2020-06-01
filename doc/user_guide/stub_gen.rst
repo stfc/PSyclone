@@ -170,7 +170,7 @@ generation from the ``<PSYCLONEHOME>/src/psyclone`` directory):
     tests/test_files/dynamo0p3/testkern_chi.F90
     tests/test_files/dynamo0p3/testkern_operator_mod.f90
     tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
-    tests/test_files/dynamo0p3/testkern_orientation.F90
+    tests/test_files/dynamo0p3/testkern_orientation_mod.F90
     tests/test_files/dynamo0p3/testkern_operator_orient_mod.f90
     tests/test_files/dynamo0p3/ru_kernel_mod.f90
     tests/test_files/dynamo0p3/simple.f90

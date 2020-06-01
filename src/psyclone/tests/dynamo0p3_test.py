@@ -1411,9 +1411,9 @@ def test_vector_field_deref():
                 generated_code)
 
 
-def test_orientation():
-    ''' tests that orientation information is created correctly in
-    the PSy '''
+def test_orientation(tmpdir):
+    ''' Tests that orientation information is created correctly in
+    the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1422,6 +1422,8 @@ def test_orientation():
             "=> null()") in generated_code
     assert ("orientation_w2 => f2_proxy%vspace%"
             "get_cell_orientation(cell)" in generated_code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_any_space_1(tmpdir):
@@ -2030,6 +2032,8 @@ def test_mkern_invoke_vec_fields():
 def test_multikern_invoke_orient():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with orientation '''
+    # TODO #783: Enable compilation when duplicate orientation declarations
+    # are not generated in PSy layer
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.3_multikernel_invokes.f90"),
                            api=TEST_API)
