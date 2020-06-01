@@ -42,6 +42,7 @@ module testkern_write_any_anyd_mod
 
   use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
