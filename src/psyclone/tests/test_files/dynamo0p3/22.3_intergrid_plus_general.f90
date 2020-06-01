@@ -39,9 +39,9 @@ program single_invoke_restrict
   ! Description: invoke containing a restriction (map a field
   ! from coarse to fine mesh) and a general-purpose kernel.
   ! This is currently forbidden and so PSyclone should object.
-  use field_mod,           only: field_type
-  use restrict_kernel_mod, only: restrict_kernel_type
-  use testkern_w2_only,    only: testkern_w2_only_type
+  use field_mod,            only: field_type
+  use restrict_kernel_mod,  only: restrict_kernel_type
+  use testkern_w2_only_mod, only: testkern_w2_only_type
 
   implicit none
 

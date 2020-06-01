@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,26 +31,41 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
-module testkern_w2_only
+module testkern_w2_only_mod
+
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_w2_only_type
-     type(arg_type), dimension(2) :: meta_args =  (/  &
-             arg_type(gh_field,gh_write,w2), &
-             arg_type(gh_field,gh_read, w2)  &
+     type(arg_type), dimension(2) :: meta_args = &
+          (/ arg_type(gh_field, gh_write, w2),   &
+             arg_type(gh_field, gh_read,  w2)    &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_code_w2_only
+     procedure, nopass :: code => testkern_w2_only_code
   end type testkern_w2_only_type
+
 contains
 
-  subroutine testkern_code_w2_only(nlayers, fld1, fld2, ndf_w2, undf_w2, map_w2)
-    integer :: nlayers
-    real(kind=r_def), dimension(:) :: fld1, fld2
-    integer :: ndf_w2, undf_w2
-    integer, dimension(:) :: map_w2
-  end subroutine testkern_code_w2_only
-end module testkern_w2_only
+  subroutine testkern_w2_only_code(nlayers, fld1, fld2, &
+                                   ndf_w2, undf_w2, map_w2)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    real(kind=r_def), intent(out), dimension(undf_w2) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
+
+  end subroutine testkern_w2_only_code
+
+end module testkern_w2_only_mod
