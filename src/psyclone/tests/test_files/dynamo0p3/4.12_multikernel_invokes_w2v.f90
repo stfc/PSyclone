@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@ program multikernel_invokes_w2v_wtheta
 
   ! Description: two functions in an invoke iterating over w2v and
   ! reading from wtheta (both discontinuous)
+  use field_mod,        only: field_type
   use testkern_w2v_mod, only: testkern_w2v_type
-  use inf,              only: field_type
 
   implicit none
 
