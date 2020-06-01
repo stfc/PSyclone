@@ -3063,9 +3063,9 @@ def test_no_halo_dirty():
     assert "! Set halos dirty/clean" not in generated_code
 
 
-def test_halo_exchange():
-    ''' test that a halo_exchange call is added for a loop with a
-    stencil operation '''
+def test_halo_exchange(tmpdir):
+    ''' Test that a halo_exchange call is added for a loop with a
+    stencil operation. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3078,6 +3078,8 @@ def test_halo_exchange():
     assert output1 in generated_code
     output2 = ("      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output2 in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_halo_exchange_inc(monkeypatch, annexed):
@@ -3372,7 +3374,7 @@ def test_fs_anyspace_and_readwrite_error():
 
 
 def test_halo_exchange_view(capsys):
-    ''' test that the halo exchange view method returns what we expect '''
+    ''' Test that the halo exchange view method returns what we expect. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
@@ -3387,11 +3389,13 @@ def test_halo_exchange_view(capsys):
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
-        "    0: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    0: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    1: " + exch + "[field='f3', type='region', depth=1, "
+        "    1: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
         "check_dirty=True]\n"
-        "    2: " + exch + "[field='f4', type='region', depth=1, "
+        "    2: " + exch + "[field='f3', type='region', depth=1, "
+        "check_dirty=True]\n"
+        "    3: " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n")
     assert expected in result
 
@@ -3685,16 +3689,21 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
         "undf_w3, map_w3(:,cell))" in gen)
 
 
-def test_single_stencil_extent(dist_mem):
-    '''test a single stencil access with an extent value passed from the
+def test_single_stencil_extent(dist_mem, tmpdir):
+    ''' Test a single stencil access with an extent value passed from the
     algorithm layer is treated correctly in the PSy layer. Test both
-    sequential and distributed memory '''
+    sequential and distributed memory.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output1 = (
         "SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
         "f2_extent)")
@@ -3785,15 +3794,17 @@ def test_single_stencil_xory1d(dist_mem):
     assert output6 in result
 
 
-def test_single_stencil_literal(dist_mem):
-    '''test extent value is used correctly from the algorithm layer when
-    it is a literal value so is not passed by argument'''
+def test_single_stencil_literal(dist_mem, tmpdir):
+    ''' Test extent value is used correctly from the algorithm layer when
+    it is a literal value so is not passed by argument. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, "
                "f3, f4)")
@@ -4209,16 +4220,21 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_multi_kerns_stencils_diff_fields(dist_mem):
-    '''Test the case where we have multiple kernels with stencils and
+def test_multi_kerns_stencils_diff_fields(dist_mem, tmpdir):
+    ''' Test the case where we have multiple kernels with stencils and
     different fields for each. We also test extent names by having both
-    shared and individual names.'''
+    shared and individual names.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.20_multiple_kernels_stencils.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output1 = (
         "    SUBROUTINE invoke_0(f1, f2a, f3, f4, f2b, f2c, f2a_extent, "
         "extent)")
@@ -4278,17 +4294,21 @@ def test_multi_kerns_stencils_diff_fields(dist_mem):
     assert output8 in result
 
 
-def test_extent_name_clash(dist_mem):
-    '''Test we can deal with name clashes for stencils. We have a single
+def test_extent_name_clash(dist_mem, tmpdir):
+    ''' Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
     would clash with stencil-name, stencil-dofmap and stencil-size
-    variables.'''
+    variables.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
         "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
@@ -4427,11 +4447,13 @@ def test_two_stencils_same_field(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_stencils_same_field_literal_extent(dist_mem):
-    '''Test three Kernels within an invoke, with the same field having a
+def test_stencils_same_field_literal_extent(dist_mem, tmpdir):
+    ''' Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the extent being passed as a
     literal value. Extent is the same in two kernels and different in
-    the third. '''
+    the third.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.15_stencils_same_field_literal_extent.f90"),
@@ -4439,6 +4461,8 @@ def test_stencils_same_field_literal_extent(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
         "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
@@ -4566,7 +4590,9 @@ def test_stencil_extent_specified():
     ''' The function stencil_unique_str() raises an error if a stencil
     with an extent provided in the metadata is passed in. This is because
     this is not currently supported. This test checks that the appropriate
-    error is raised. '''
+    error is raised.
+
+    '''
     # load an example with an argument that has stencil metadata
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
@@ -4574,7 +4600,7 @@ def test_stencil_extent_specified():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].loop_body[0]
+    kernel = schedule.children[4].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
@@ -4587,10 +4613,12 @@ def test_stencil_extent_specified():
 
 
 def test_haloexchange_unknown_halo_depth():
-    '''If a stencil extent is provided in the kernel metadata then the
+    ''' If a stencil extent is provided in the kernel metadata then the
     value is stored in an instance of the DynHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
-    in metadata are not currently supported in PSyclone).'''
+    in metadata are not currently supported in PSyclone).
+
+    '''
     # load an example with an argument that has stencil metadata
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
@@ -4598,11 +4626,11 @@ def test_haloexchange_unknown_halo_depth():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].loop_body[0]
+    kernel = schedule.children[4].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule.children[1]
     assert halo_exchange._compute_halo_depth() == '11'
 
 
@@ -5072,7 +5100,9 @@ def test_dynloop_load_unexpected_func_space():
     error if an unexpected function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
     this error as it is unreachable. However, we can sabotage an
-    earlier function to make it return an invalid value. '''
+    earlier function to make it return an invalid value.
+
+    '''
     # first create a working instance of the DynLoop class
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
@@ -5081,7 +5111,7 @@ def test_dynloop_load_unexpected_func_space():
     # now get access to the DynLoop class, the associated kernel class
     # and the associated field.
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     kernel = loop.loop_body[0]
     field = kernel.arguments.iteration_space_arg()
     # break the fields function space
@@ -5131,12 +5161,13 @@ def test_dynkernargs_unexpect_stencil_extent():
 
 
 def test_unsupported_halo_read_access():
-    '''This test checks that we raise an error if the halo_read_access
+    ''' This test checks that we raise an error if the halo_read_access
     method finds an upper bound other than halo or ncells. The
     particular issue at the moment is that if inner is specified we do
     not know whether the stencil accesses the halo or not. However,
     this limitation is not going to affect anyone until we add in loop
     iteration space splitting transformations.
+
     '''
     # create a valid loop with a stencil access
     _, invoke_info = parse(
@@ -5145,7 +5176,7 @@ def test_unsupported_halo_read_access():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # get access to the DynLoop object
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     # access to the argument that has a stencil access in the kernel
     kernel = loop.loop_body[0]
     stencil_arg = kernel.arguments.args[1]
