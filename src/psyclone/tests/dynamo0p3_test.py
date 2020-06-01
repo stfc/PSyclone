@@ -3738,16 +3738,20 @@ def test_single_stencil_extent(dist_mem, tmpdir):
     assert output6 in result
 
 
-def test_single_stencil_xory1d(dist_mem):
-    '''test a single stencil access with an extent and direction value
+def test_single_stencil_xory1d(dist_mem, tmpdir):
+    ''' Test a single stencil access with an extent and direction value
     passed from the algorithm layer is treated correctly in the PSy
-    layer. Test both sequential and distributed memory '''
+    layer. Test both sequential and distributed memory.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, "
@@ -3861,15 +3865,19 @@ def test_stencil_region_unsupported(dist_mem):
         str(excinfo.value)
 
 
-def test_single_stencil_xory1d_literal(dist_mem):
-    '''test extent value is used correctly from the algorithm layer when
-    it is a literal value so is not passed by argument'''
+def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
+    ''' Test extent value is used correctly from the algorithm layer when
+    it is a literal value so is not passed by argument.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.5_single_stencil_xory1d_literal.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
                "f1, f2, f3, f4)")
@@ -3916,10 +3924,12 @@ def test_single_stencil_xory1d_literal(dist_mem):
     assert output6 in result
 
 
-def test_single_stencil_xory1d_literal_mixed(dist_mem):
-    '''test extent value is used correctly from the algorithm layer when
+def test_single_stencil_xory1d_literal_mixed(dist_mem, tmpdir):
+    ''' Test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument and the case of the
-    literal is specified in mixed case'''
+    literal is specified in mixed case.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.5.1_single_stencil_xory1d_literal.f90"),
@@ -3927,6 +3937,8 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
                "f1, f2, f3, f4)")
@@ -4513,11 +4525,13 @@ def test_stencils_same_field_literal_extent(dist_mem, tmpdir):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def test_stencils_same_field_literal_direct(dist_mem):
-    '''Test three Kernels within an invoke, with the same field having a
+def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
+    ''' Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the direction being passed as a
     literal value. In two kernels the direction value is the same and
-    in the third it is different. '''
+    in the third it is different.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.16_stencils_same_field_literal_direction.f90"),
@@ -4525,6 +4539,9 @@ def test_stencils_same_field_literal_direct(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output1 = (
         "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
@@ -4859,10 +4876,12 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         assert "DO cell=1,f3_proxy%vspace%get_ncell()" in result
 
 
-def test_stencil_args_unique_1(dist_mem):
-    '''This test checks that stencil extent and direction arguments do not
+def test_stencil_args_unique_1(dist_mem, tmpdir):
+    ''' This test checks that stencil extent and direction arguments do not
     clash with internal names generated in the PSy-layer. f2_stencil_size
-    and nlayers are chosen as the names that would clash.'''
+    and nlayers are chosen as the names that would clash.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.21_stencil_names_clash.f90"),
@@ -4870,6 +4889,8 @@ def test_stencil_args_unique_1(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # we use f2_stencil_size for extent and nlayers for direction
     # as arguments
@@ -4907,7 +4928,7 @@ def test_stencil_args_unique_1(dist_mem):
     assert output7 in result
 
 
-def test_stencil_args_unique_2(dist_mem):
+def test_stencil_args_unique_2(dist_mem, tmpdir):
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are accessed as
     indexed arrays, with the same array name, from the algorithm
@@ -4919,6 +4940,8 @@ def test_stencil_args_unique_2(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = ("    SUBROUTINE invoke_0(f1, f2, f3, f4, f2_info, "
                "f2_info_2, f2_info_1, f2_info_3)")
@@ -4974,10 +4997,12 @@ def test_stencil_args_unique_2(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def test_stencil_args_unique_3(dist_mem):
-    '''This test checks that stencil extent and direction arguments are
+def test_stencil_args_unique_3(dist_mem, tmpdir):
+    ''' This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are dereferenced,
-    with the same type/class name, from the algorithm layer. '''
+    with the same type/class name, from the algorithm layer.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "19.23_stencil_names_deref.f90"),
@@ -4985,6 +5010,9 @@ def test_stencil_args_unique_3(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert (
         "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info, "
         "my_info_f2_info_2\n"
