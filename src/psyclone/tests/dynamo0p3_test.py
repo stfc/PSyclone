@@ -1094,8 +1094,10 @@ def test_two_real_scalars(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
-        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
-        "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
+        "    SUBROUTINE invoke_0_testkern_two_real_scalars_type(a, f1, f2, "
+        "m1, m2, b)\n"
+        "      USE testkern_two_real_scalars_mod, ONLY: "
+        "testkern_two_real_scalars_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a, b\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
@@ -1146,6 +1148,10 @@ def test_two_real_scalars(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
@@ -1160,10 +1166,10 @@ def test_two_real_scalars(tmpdir):
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, b, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
-        "ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "        CALL testkern_two_real_scalars_code(nlayers, a, "
+        "f1_proxy%data, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "b, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -1182,7 +1188,8 @@ def test_two_int_scalars(tmpdir):
 
     expected = (
         "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
-        "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
+        "      USE testkern_two_int_scalars_mod, ONLY: "
+        "testkern_two_int_scalars_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER(KIND=i_def), intent(in) :: iflag, istep\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
@@ -1233,6 +1240,10 @@ def test_two_int_scalars(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
@@ -1247,17 +1258,17 @@ def test_two_int_scalars(tmpdir):
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, iflag, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))\n")
+        "        CALL testkern_two_int_scalars_code(nlayers, iflag, "
+        "f1_proxy%data, f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
-        "        CALL testkern_code(nlayers, 1, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, iflag, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))\n")
+        "        CALL testkern_two_int_scalars_code(nlayers, 1, "
+        "f1_proxy%data, f2_proxy%data, m1_proxy%data, m2_proxy%data, iflag, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -1275,8 +1286,9 @@ def test_two_scalars(tmpdir):
 
     generated_code = str(psy.gen)
     expected = (
-        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
-        "      USE testkern_two_scalars, ONLY: testkern_code\n"
+        "    SUBROUTINE invoke_0_testkern_two_scalars_type(a, f1, f2, m1, "
+        "m2, istep)\n"
+        "      USE testkern_two_scalars_mod, ONLY: testkern_two_scalars_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istep\n"
@@ -1328,6 +1340,10 @@ def test_two_scalars(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
@@ -1342,8 +1358,8 @@ def test_two_scalars(tmpdir):
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
-        " m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, "
+        "        CALL testkern_two_scalars_code(nlayers, a, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n")
     assert expected in generated_code
@@ -1633,8 +1649,8 @@ def test_invoke_uniq_declns_invalid_access():
 
 
 def test_invoke_uniq_declns_valid_access():
-    ''' Tests that valid access modes (AccessType.READ, AccessType.WRITE)
-    are accepted by Invoke.unique_declarations().'''
+    ''' Tests that valid access modes (AccessType.READ, AccessType.INC)
+    are accepted by Invoke.unique_declarations(). '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1643,7 +1659,7 @@ def test_invoke_uniq_declns_valid_access():
         .unique_declarations("gh_field", access=AccessType.READ)
     assert fields_read == ["f2", "m1", "m2"]
     fields_written = psy.invokes.invoke_list[0]\
-        .unique_declarations("gh_field", access=AccessType.WRITE)
+        .unique_declarations("gh_field", access=AccessType.INC)
     assert fields_written == ["f1"]
 
 
@@ -1702,15 +1718,15 @@ def test_dyninvoke_uniq_declns_inv_type():
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_fields '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_fields. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
-    assert args['inout'] == []
-    assert args['out'] == ['f1']
+    assert args['inout'] == ['f1']
+    assert args['out'] == []
     assert args['in'] == ['f2', 'm1', 'm2']
 
 

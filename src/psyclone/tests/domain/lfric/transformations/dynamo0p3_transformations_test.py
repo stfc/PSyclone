@@ -1334,7 +1334,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, scalar1, "
+        "        CALL testkern_two_real_scalars_code(nlayers, scalar1, "
         "afield_proxy%data, bfield_proxy%data, cfield_proxy%data, "
         "dfield_proxy%data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "

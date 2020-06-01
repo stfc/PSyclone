@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,25 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-!        C.M. Maynard Met Office/University of Reading
+! Author R. W. Ford STFC Daresbury Lab
+!        C. M. Maynard Met Office/University of Reading
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
   ! Description: kernel that has two integer, scalar arguments
   ! specified in an invoke call. One called by value.
-  use testkern_two_int_scalars, only: testkern_type
-  use inf,      only: field_type
-  use constants_mod, only: r_def, i_def
+  use constants_mod,                only: i_def
+  use field_mod,                    only: field_type
+  use testkern_two_int_scalars_mod, only: testkern_two_int_scalars_type
+
   implicit none
+
   type(field_type) :: f1, f2, m1, m2
   integer(i_def)   :: iflag, istep
 
-  call invoke(                                  &
-       testkern_type(iflag,f1,f2,m1,m2,istep),  &
-       testkern_type(1,f1,f2,m1,m2,iflag)   )
+  call invoke(                                                      &
+       testkern_two_int_scalars_type(iflag, f1, f2, m1, m2, istep), &
+       testkern_two_int_scalars_type(1, f1, f2, m1, m2, iflag)   )
 
 end program single_invoke
