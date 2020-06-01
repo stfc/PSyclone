@@ -3241,8 +3241,8 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
     assert expected in result
 
 
-def test_halo_exchange_depths():
-    '''test that halo exchange includes the correct halo depth with
+def test_halo_exchange_depths(tmpdir):
+    ''' Test that halo exchange includes the correct halo depth with
     gh_write.
 
     '''
@@ -3266,9 +3266,11 @@ def test_halo_exchange_depths():
                 "      DO cell=1,mesh%get_last_edge_cell()\n")
     assert expected in result
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
-    '''test that halo exchange includes the correct halo depth when we
+
+def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
+    ''' Test that halo exchange includes the correct halo depth when we
     have a gh_inc as this increases the required depth by 1 (as
     redundant computation is performed in the l1 halo). Test when
     annexed = False and True as a different number of halo exchanges
@@ -3306,6 +3308,8 @@ def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
     if not annexed:
         assert expected1 in result
     assert expected2 in result
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_stencil_read_only():
@@ -4351,10 +4355,12 @@ def test_extent_name_clash(dist_mem):
     assert output9 in result
 
 
-def test_two_stencils_same_field(dist_mem):
-    '''Test two Kernels within an invoke, with the same field having a
+def test_two_stencils_same_field(tmpdir, dist_mem):
+    ''' Test two Kernels within an invoke, with the same field having a
     stencil access in each kernel. f2_w2 is the field we care
-    about. '''
+    about.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
         api=TEST_API)
@@ -4413,6 +4419,8 @@ def test_two_stencils_same_field(dist_mem):
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell))")
     assert output7 in result
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_stencils_same_field_literal_extent(dist_mem):
