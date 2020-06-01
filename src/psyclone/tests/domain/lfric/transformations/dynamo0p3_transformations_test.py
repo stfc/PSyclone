@@ -253,8 +253,8 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_trans_stencil(dist_mem):
-    '''test of the colouring transformation of a single loop with a
+def test_colour_trans_stencil(dist_mem, tmpdir):
+    ''' Test of the colouring transformation of a single loop with a
     stencil access. We test when distributed memory is both off and
     on. '''
     psy, invoke = get_invoke("19.1_single_stencil.f90", TEST_API,
@@ -264,7 +264,7 @@ def test_colour_trans_stencil(dist_mem):
     ctrans = Dynamo0p3ColourTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -277,7 +277,6 @@ def test_colour_trans_stencil(dist_mem):
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
-    print(gen)
 
     # Check that we index the stencil dofmap appropriately
     assert (
@@ -287,6 +286,8 @@ def test_colour_trans_stencil(dist_mem):
         "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
         "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
         "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colouring_not_a_loop(dist_mem):
@@ -4895,17 +4896,19 @@ def test_rc_vector_reader_halo_readwrite():
 
 
 def test_stencil_rc_max_depth_1(monkeypatch):
-    '''If a loop contains a kernel with a stencil access and the loop
+    ''' If a loop contains a kernel with a stencil access and the loop
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
     therefore not allowed and exceptions are raised in the
     Dynamo0p3RedundantComputationTrans transformation and in
     _compute_single_halo_info. This test checks these exceptions are
-    raised correctly. '''
+    raised correctly.
+
+    '''
     _, invoke = get_invoke("19.1_single_stencil.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
@@ -4914,7 +4917,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
 
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule.children[1]
     monkeypatch.setattr(loop, "_upper_bound_halo_depth", None)
     with pytest.raises(GenerationError) as excinfo:
         _ = halo_exchange._compute_halo_read_info()
