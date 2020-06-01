@@ -43,7 +43,7 @@ module testkern_two_real_scalars_mod
   use constants_mod
 
   implicit none
-  
+
   type, extends(kernel_type) :: testkern_two_real_scalars_type
      type(arg_type), dimension(6) :: meta_args = &
           (/ arg_type(gh_real,  gh_read    ),    &

@@ -3197,8 +3197,8 @@ def test_halo_exchange_different_spaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_vectors_1(monkeypatch, annexed):
-    '''Test that halo exchange produces correct code for vector fields
+def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
+    ''' Test that halo exchange produces correct code for vector fields
     including a field with a gh_inc access. Test when annexed = False
     and True as halo exchanges are only produced when annexed = False.
 
@@ -3212,6 +3212,9 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if annexed:
         assert result.count("halo_exchange(") == 0
     else:
@@ -5052,7 +5055,7 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
 
 
 def test_stencil_vector(dist_mem, tmpdir):
-    '''Test that the expected declarations and lookups are produced when
+    ''' Test that the expected declarations and lookups are produced when
     we have a stencil access with a vector field. Any stencil could be
     chosen here (other than xory1d) as they all produce the same code
     structure, but STENCIL_CROSS is chosen as it is already used in an

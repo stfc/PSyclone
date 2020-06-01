@@ -2022,8 +2022,8 @@ def test_check_vec_hes_differ_diff_names():
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
-    '''when _find_write_arguments finds a write that causes it to return
+def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
+    ''' When _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
     that an error is raised if this is not the case. We test with
     annexed dofs is True and False as different numbers of halo
@@ -2042,7 +2042,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # create halo exchanges between the two loops via redundant
+    # Create halo exchanges between the two loops via redundant
     # computation
     if annexed:
         index = 1
@@ -2059,6 +2059,8 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     assert (
         "Found a writer dependence but there are already dependencies"
         in str(excinfo.value))
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):

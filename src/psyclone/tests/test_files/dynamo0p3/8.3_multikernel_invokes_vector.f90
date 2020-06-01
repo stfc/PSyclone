@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,13 +31,16 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_vector
 
   ! Description: two functions in an invoke with vector field dependencies
+  use field_mod,             only: field_type
   use testkern_vector_2_mod, only: testkern_vector_2_type
-  use inf,      only: field_type
+
   implicit none
+
   type(field_type) :: f1
 
   call invoke(                           &
