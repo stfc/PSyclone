@@ -165,7 +165,7 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 # indicates either x1d or y1d.
 # Note, the LFRic infrastructure currently does not have 'region' as
 # an option in stencil_dofmap_mod.F90 so it is not included in
-# STENCIL_MAPPING.
+# STENCIL_MAPPING. Related PSyclone issue is #194.
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 

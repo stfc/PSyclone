@@ -5927,12 +5927,14 @@ def test_halo_stencil_redundant_computation():
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
-def test_halo_same_stencils_no_red_comp():
-    '''If a halo has two or more different halo reads associated with it
+def test_halo_same_stencils_no_red_comp(tmpdir):
+    ''' If a halo has two or more different halo reads associated with it
     and the type of stencils are the same and the loops do not
     redundantly compute into the halo then the chosen stencil type for
     the halo exchange is the same as the kernel stencil type. In this
-    case both are cross'''
+    case both are cross.
+
+    '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.8_halo_same_stencils.f90"),
                     api=TEST_API)
@@ -5941,14 +5943,18 @@ def test_halo_same_stencils_no_red_comp():
     stencil_halo_exchange = schedule.children[1]
     assert stencil_halo_exchange._compute_stencil_type() == "cross"
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_halo_different_stencils_no_red_comp():
-    '''If a halo has two or more different halo reads associated with it
+
+def test_halo_different_stencils_no_red_comp(tmpdir):
+    ''' If a halo has two or more different halo reads associated with it
     and the type of stencils are different and the loops do not
     redundantly compute into the halo then the chosen stencil type is
     region. In this case, one is xory and the other is cross, We could
     try to be more clever here in the future as the actual minimum is
-    cross!'''
+    cross!
+
+    '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.9_halo_different_stencils.f90"),
                     api=TEST_API)
@@ -5956,6 +5962,8 @@ def test_halo_different_stencils_no_red_comp():
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[1]
     assert stencil_halo_exchange._compute_stencil_type() == "region"
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_comp_halo_intern_err(monkeypatch):

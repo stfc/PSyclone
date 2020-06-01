@@ -5071,8 +5071,8 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     assert known
 
 
-def test_red_comp_w_to_n_r_clean_gt_cleaned():
-    '''Tests the case where we have multiple (derived) read dependence
+def test_red_comp_w_to_n_r_clean_gt_cleaned(tmpdir):
+    ''' Tests the case where we have multiple (derived) read dependence
     entries and one of them has a literal depth value (and no
     associated variable) and we write redundantly into the halo with a
     literal depth. Depending on the literal values of the halo-reads
@@ -5084,8 +5084,8 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     # The initial test case writes to a field over dofs, then reads
     # the halo to depth 2 with a stencil, then reads the halo to a
     # variable depth with a stencil
-    _, invoke = get_invoke("14.11_halo_required_clean_multi.f90",
-                           TEST_API, idx=0, dist_mem=True)
+    psy, invoke = get_invoke("14.11_halo_required_clean_multi.f90",
+                             TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
     w_loop = schedule.children[0]
@@ -5129,6 +5129,8 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     required, known = w_to_r_halo_exchange.required()
     assert required
     assert known
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_no_directive():

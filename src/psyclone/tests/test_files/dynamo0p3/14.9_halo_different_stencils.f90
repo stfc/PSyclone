@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,6 +31,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program halo_different_stencils
 
@@ -42,23 +43,26 @@ program halo_different_stencils
   ! stencil_cross stays as stencil_cross (which would happen in this
   ! example). However, the halo exchange library does not make use of
   ! this information at the moment in any case.
-  use testkern_stencil_w3_mod, only: testkern_stencil_w3_type
+  use constants_mod,                  only: i_def
+  use field_mod,                      only: field_type
+  use flux_direction_mod,             only: y_direction
+  use testkern_stencil_w3_mod,        only: testkern_stencil_w3_type
   use testkern_stencil_xory1d_w3_mod, only: testkern_stencil_xory1d_w3_type
-  use inf,      only: field_type
-  use flux_direction_mod, only: y_direction
-  implicit none
-  type(field_type) :: f1, f2, f3
-  integer :: f2_extent=2
-  integer :: f2_direction=y_direction
 
-  call invoke(                                                       &
-       setval_c(f2, 0.0),                                            &
+  implicit none
+
+  type(field_type) :: f1, f2, f3
+  integer(i_def)   :: f2_extent = 2
+  integer(i_def)   :: f2_direction = y_direction
+
+  call invoke(                                                          &
+       setval_c(f2, 0.0),                                               &
        ! f1 is w3 and is written to
        ! f2 is w2 and is read with stencil cross
-       testkern_stencil_w3_type(f1,f2,f2_extent),                    &
+       testkern_stencil_w3_type(f1, f2, f2_extent),                     &
        ! f3 is w3 and is written to
        ! f2 is w2 and is read with stencil xory1d
-       testkern_stencil_xory1d_w3_type(f3,f2,f2_extent,f2_direction) &
+       testkern_stencil_xory1d_w3_type(f3, f2, f2_extent, f2_direction) &
           )
 
 end program halo_different_stencils
