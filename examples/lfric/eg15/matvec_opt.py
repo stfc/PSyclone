@@ -71,7 +71,7 @@ $ psyclone -s ./matvec_opt.py \
 from __future__ import print_function
 import sys
 from psyclone.psyir.nodes import BinaryOperation
-from psyclone.psyir.transformations.matmul2code_trans import Matmul2CodeTrans
+from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 
 

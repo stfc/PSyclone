@@ -299,6 +299,8 @@ for file in "tridiagonal_solve.f90" \
     echo "file" ${file} "..."
     ${PSYCLONE} -api "nemo" -s ./sir_trans.py ${file} -opsy /dev/null
 done
+${PSYCLONE} -api "nemo" -s ./sir_trans_intrinsics.py tra_adv_compute.F90 \
+	    -opsy /dev/null
 cd -
 
 # ----------------------------------------------------------------- #

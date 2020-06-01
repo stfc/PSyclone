@@ -334,7 +334,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # Create "result(i) = 0.0"
         assign = Assignment.create(result, Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
-        lower_bound, upper_bound, step = _get_array_bound(matrix, 1)
+        lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
         iloop = Loop.create(
             i_loop_name, lower_bound, upper_bound, step, [assign, jloop])
         # Add the new code to the PSyIR
