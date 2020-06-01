@@ -3962,15 +3962,17 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem):
     assert output6 in result
 
 
-def test_multiple_stencils(dist_mem):
-    '''test for correct output when there is more than one stencil in a
-    kernel'''
+def test_multiple_stencils(dist_mem, tmpdir):
+    ''' Test for correct output when there is more than one stencil in a
+    kernel. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
@@ -4047,15 +4049,17 @@ def test_multiple_stencils(dist_mem):
     assert output7 in result
 
 
-def test_multiple_stencil_same_name(dist_mem):
-    '''test the case when there is more than one stencil in a kernel with
-    the same name for extent'''
+def test_multiple_stencil_same_name(dist_mem, tmpdir):
+    ''' Test the case when there is more than one stencil in a kernel with
+    the same name for extent. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
         "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
