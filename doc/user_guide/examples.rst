@@ -51,11 +51,13 @@ to provide an overview of the various examples so that a user can find
 one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
 
-The ``check_examples`` bash script (in the ``examples`` directory) is
-primarily intended for correctness checking and is run by Travis
-alongside the test suite. For those examples that support it,
-compilation of the generated code may be requested via the ``-c`` or
-``--compile`` flags.
+For the purposes of correctness checking, the whole suite of examples
+may be executed using ``make`` (this functionality is used by Travis
+alongside the test suite). The default target is ``transform`` which
+just performs the PSyclone code transformation steps for each
+example. For those examples that support it, the ``compile`` target
+also requests that the generated code be compiled.
+
 
 GOcean
 ------

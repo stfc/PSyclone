@@ -359,14 +359,14 @@ supplied then the script writes the generated/re-written Fortran to
 the terminal. For details of the other command-line arguments please
 see the :ref:`psyclone_script` Section.
 
-Examples are provided in the examples directory of the PSyclone git
+Examples are provided in the ``examples`` directory of the PSyclone git
 repository - if you have cloned the repository then ``EGS_HOME`` in
 what follows is the root ``PSyclone`` directory. Alternatively, if you
 have installed PSyclone using pip then they may be found in the
 ``share/psyclone`` directory under your Python installation. In this
-case you should copy them to some convenient location (hereafter
-called ``EGS_HOME``) before attempting to carry out the following
-instructions.
+case you should copy the whole ``examples`` directory to some convenient
+location (hereafter called ``EGS_HOME``) before attempting to carry out
+the following instructions.
 
 There are 3 subdirectories (``lfric``, ``gocean`` and ``nemo``)
 corresponding to different APIs that are supported by PSyclone. Note,
