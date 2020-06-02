@@ -53,6 +53,7 @@ module si_operators_alg_mod
                                        solver_preconditioner_tridiagonal, &
                                        normalise
   implicit none
+
   private
 
   ! Variables private to this module that can only be accessed by public
@@ -83,10 +84,12 @@ module si_operators_alg_mod
   public :: get_mt_lumped
   public :: get_tri_precon
   public :: get_helm_diag
+
 contains
 
 !> Subroutine to create the si operators
 subroutine create_si_operators(mesh_id)
+
   use function_space_mod,        only: function_space_type
   use fs_continuity_mod,         only: W0, W2, W3, Wtheta
   use finite_element_config_mod, only: element_order
