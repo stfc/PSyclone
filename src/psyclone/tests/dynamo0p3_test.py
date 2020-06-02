@@ -3008,8 +3008,8 @@ def test_halo_dirty_1():
     assert expected in generated_code
 
 
-def test_halo_dirty_2():
-    ''' check halo_dirty calls only for write and inc (not for read) '''
+def test_halo_dirty_2(tmpdir):
+    ''' Check halo_dirty calls only for write and inc (not for read) '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.1_halo_writers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3027,6 +3027,8 @@ def test_halo_dirty_2():
         "      CALL f8_proxy%set_dirty()\n")
 
     assert expected in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_halo_dirty_3():
