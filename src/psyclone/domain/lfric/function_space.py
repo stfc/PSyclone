@@ -312,8 +312,7 @@ class FunctionSpace(object):
                               basis functions are required
         :param on_space: the function space at which the basis functions \
                          will be evaluated
-        :type on_space: :py:class:`psyclone.domain.lfric.function_space.\
-            FunctionSpace`
+        :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :returns: name for the Fortran array holding the basis function
         :rtype: str
         '''
@@ -337,7 +336,7 @@ class FunctionSpace(object):
         :param on_space: the function space at which the differential basis \
                          functions will be evaluated
         :type on_space: :py:class:`psyclone.dynamo0p3.domain.lfric.\
-                        function_space.FunctionSpace`
+                        FunctionSpace`
         :returns: name for the Fortran array holding the differential basis \
                   function
         :rtype: str
@@ -357,8 +356,7 @@ class FunctionSpace(object):
         :param str qr_var: the name of the Quadrature Object for which the
                            operator is required.
         :param on_space: the function space at which the operator is required.
-        :type on_space: :py:class:`psyclone.domain.lfric.function_space\
-            .FunctionSpace`
+        :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :returns: name for the Fortran arry holding the named operator
                   for the specified function space.
         :rtype: str

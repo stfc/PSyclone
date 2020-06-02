@@ -544,7 +544,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     error when an unexpected fatal error is returned from the generate
     function.'''
     # sabotage the code so one of our constant lists is now an int
-    from psyclone.domain.lfric.function_space import FunctionSpace
+    from psyclone.domain.lfric import FunctionSpace
     monkeypatch.setattr(FunctionSpace, "CONTINUOUS_FUNCTION_SPACES",
                         value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),

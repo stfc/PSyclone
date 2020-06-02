@@ -47,7 +47,7 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric import FunctionSpace
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory

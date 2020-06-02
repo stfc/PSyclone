@@ -625,7 +625,7 @@ def test_extract_colouring_omp_dynamo0p3():
     in Dynamo0.3 API. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
-    from psyclone.domain.lfric.function_space import FunctionSpace
+    from psyclone.domain.lfric import FunctionSpace
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
