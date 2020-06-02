@@ -2334,7 +2334,7 @@ def test_module_name_too_short():
 
 
 def test_module_name_convention():
-    ''' fail if kernel module name does not have _mod at end '''
+    ''' Fail if kernel module name does not have _mod at end. '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_wrong_mod_name.F90"),
                  api=TEST_API)
