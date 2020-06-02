@@ -49,8 +49,7 @@ module testkern_write_any_anyd_mod
 
   ! Description: function spaces with one continuous (any_space_1)
   ! and one discontinuous (any_discontinuous_space_1) field writer
-  type, public, extends(kernel_type) :: testkern_write_any_anyd_type
-     private
+  type, extends(kernel_type) :: testkern_write_any_anyd_type
      type(arg_type), dimension(7) :: meta_args = (/                &
           arg_type(gh_field, gh_inc,   any_space_1),               &
           arg_type(gh_field, gh_read,  w2),                        &
@@ -62,7 +61,7 @@ module testkern_write_any_anyd_mod
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_write_any_anyd_code
+     procedure, nopass :: code => testkern_write_any_anyd_code
   end type testkern_write_any_anyd_type
 
 contains

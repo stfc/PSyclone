@@ -40,13 +40,13 @@
 module testkern_write_w2broken_w1_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 
   implicit none
 
   type, extends(kernel_type) :: testkern_write_w2broken_w1_type
-     private
      type(arg_type), dimension(12) :: meta_args = (/ &
           arg_type(gh_field,   gh_read,  w3),        &
           arg_type(gh_field,   gh_read,  w0),        &
@@ -63,7 +63,7 @@ module testkern_write_w2broken_w1_mod
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_write_w2broken_w1_code
+     procedure, nopass :: code => testkern_write_w2broken_w1_code
   end type testkern_write_w2broken_w1_type
 
 contains

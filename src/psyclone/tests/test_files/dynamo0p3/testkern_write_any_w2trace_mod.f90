@@ -40,13 +40,13 @@
 module testkern_write_any_w2trace_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 
   implicit none
 
   type, extends(kernel_type) :: testkern_write_any_w2trace_type
-     private
      type(arg_type), dimension(8) :: meta_args = (/ &
           arg_type(gh_field, gh_inc,  any_space_1), &
           arg_type(gh_field, gh_read, w0),          &
@@ -59,7 +59,7 @@ module testkern_write_any_w2trace_mod
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_write_any_w2trace_code
+     procedure, nopass :: code => testkern_write_any_w2trace_code
   end type testkern_write_any_w2trace_type
 
 contains
