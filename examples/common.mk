@@ -35,12 +35,22 @@
 
 # Make sure we use the configuration file distributed with PSyclone
 # instead of any locally-installed version.
-mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
-PSYCLONE_DIR := $(dir $(patsubst %/,%,$(dir $(mkfile_path))))
+
+# **Note** that this code to find the correct directory only works if
+#          the examples directory is still within the standard PSyclone
+#          source tree. If it has been moved then the PSYCLONE variable
+#          will have to be set explicitly before running make.
+
+# MAKEFILE_LIST is a Gnu-make variable that contains all of the
+# arguments passed to the first invocation of Make. The last entry
+# in this list is the current file.
+this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
+# PSyclone directory is up two from this file
+PSYCLONE_DIR := $(abspath $(dir $(this_file))..)
 
 RM = rm -f
 PYTHON ?= python
-PSYCLONE ?= psyclone --config ${PSYCLONE_DIR}config/psyclone.cfg
+PSYCLONE ?= psyclone --config ${PSYCLONE_DIR}/config/psyclone.cfg
 
 F90 ?= gfortran
 F90FLAGS ?= -g -O0

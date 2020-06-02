@@ -58,6 +58,11 @@ just performs the PSyclone code transformation steps for each
 example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled.
 
+.. note:: if you have copied the examples directory to some other
+	  location but still wish to use ``make`` then you will also
+	  have to set the ``PSYCLONE`` environment variable to include
+	  the correct path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE=psyclone --config /some/path/psyclone.cfg make``
 
 GOcean
 ------
