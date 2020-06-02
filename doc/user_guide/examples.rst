@@ -52,7 +52,7 @@ one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
 
 For the purposes of correctness checking, the whole suite of examples
-may be executed using ``make`` (this functionality is used by Travis
+may be executed using Gnu ``make`` (this functionality is used by Travis
 alongside the test suite). The default target is ``transform`` which
 just performs the PSyclone code transformation steps for each
 example. For those examples that support it, the ``compile`` target
