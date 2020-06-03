@@ -1380,15 +1380,17 @@ def test_no_vector_scalar():
             str(excinfo.value)
 
 
-def test_vector_field():
-    ''' tests that a vector field is declared correctly in the PSy
-    layer '''
+def test_vector_field(tmpdir):
+    ''' Tests that a vector field is declared correctly in the PSy
+    layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, chi, f2)" in
             generated_code)
     assert "TYPE(field_type), intent(in) :: f1, chi(3), f2" in generated_code
 
@@ -1410,21 +1412,24 @@ def test_vector_field_2(tmpdir):
             generated_code)
 
 
-def test_vector_field_deref():
-    ''' tests that a vector field is declared correctly in the PSy
+def test_vector_field_deref(tmpdir, dist_mem):
+    ''' Tests that a vector field is declared correctly in the PSy
     layer when it is obtained by de-referencing a derived type in the
-    Algorithm layer '''
+    Algorithm layer.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "8.1_vector_field_deref.f90"),
                            api=TEST_API)
-    for dist_mem in [True, False]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, box_chi, f2)" in
-                generated_code)
-        assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
-                generated_code)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, box_chi, f2)" in
+            generated_code)
+    assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
+            generated_code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_orientation(tmpdir):
@@ -3042,7 +3047,7 @@ def test_halo_dirty_3():
 
 
 def test_halo_dirty_4():
-    ''' check halo_dirty calls with field vectors '''
+    ''' Check halo_dirty calls with field vectors. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -6819,7 +6824,7 @@ def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
 
 
 def test_dynruntimechecks_vector(tmpdir, monkeypatch):
-    '''Test that run-time checks work for vector fields'''
+    ''' Test that run-time checks work for vector fields. '''
     # run-time checks are off by default so switch them on
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
@@ -6827,10 +6832,12 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
     generated_code = str(psy.gen)
     expected1 = (
-        "      USE testkern_chi_2, ONLY: testkern_code\n"
+        "      USE testkern_coord_w0_2_mod, ONLY: testkern_coord_w0_2_code\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
@@ -6844,26 +6851,30 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
         "es are compatible\n"
         "      IF (chi(1)%which_function_space() /= W0) THEN\n"
         "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_chi_type', the field 'chi' is passed to kernel 'testkern_code' "
-        "but its function space is not compatible with the function space spe"
-        "cified in the kernel metadata 'w0'.\", LOG_LEVEL_ERROR)\n"
+        "kern_coord_w0_2_type', the field 'chi' is passed to kernel 'testkern"
+        "_coord_w0_2_code' but its function space is not compatible with the "
+        "function space specified in the kernel metadata 'w0'.\", "
+        "LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      IF (f1%which_function_space() /= W0) THEN\n"
         "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_chi_type', the field 'f1' is passed to kernel 'testkern_code' b"
-        "ut its function space is not compatible with the function space spec"
-        "ified in the kernel metadata 'w0'.\", LOG_LEVEL_ERROR)\n"
+        "kern_coord_w0_2_type', the field 'f1' is passed to kernel 'testkern_"
+        "coord_w0_2_code' but its function space is not compatible with the "
+        "function space specified in the kernel metadata 'w0'.\", "
+        "LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      ! Check that read-only fields are not modified\n"
         "      IF (chi_proxy(1)%vspace%is_readonly()) THEN\n"
         "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_chi_type', field 'chi' is on a read-only function space but is "
-        "modified by kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "kern_coord_w0_2_type', field 'chi' is on a read-only function space "
+        "but is modified by kernel 'testkern_coord_w0_2_code'.\", "
+        "LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      IF (f1_proxy%vspace%is_readonly()) THEN\n"
         "        CALL log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_chi_type', field 'f1' is on a read-only function space but is m"
-        "odified by kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        "kern_coord_w0_2_type', field 'f1' is on a read-only function space "
+        "but is modified by kernel 'testkern_coord_w0_2_code'.\", "
+        "LOG_LEVEL_ERROR)\n"
         "      END IF\n"
         "      !\n"
         "      ! Initialise number of layers\n")

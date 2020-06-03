@@ -3700,11 +3700,14 @@ def test_move_str():
     assert name == "Move a node to a different location"
 
 
-def test_move_valid_node():
-    '''Test that MoveTrans raises an exception if an invalid node
+def test_move_valid_node(tmpdir):
+    ''' Test that MoveTrans raises an exception if an invalid node
     argument is passed. '''
-    _, invoke = get_invoke("4.2_multikernel_invokes.f90", TEST_API, idx=0,
-                           dist_mem=True)
+    psy, invoke = get_invoke("4.2_multikernel_invokes.f90", TEST_API, idx=0,
+                             dist_mem=True)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     schedule = invoke.schedule
     move_trans = MoveTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -4465,20 +4468,24 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     assert "CALL f1_proxy%set_clean(" not in result
 
 
-def test_rc_vector_depth():
-    '''Test that the loop bounds for a (continuous) vector are modified
+def test_rc_vector_depth(tmpdir):
+    ''' Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
-    computation transformation with a fixed value for halo depth. '''
+    computation transformation with a fixed value for halo depth.
+
+    '''
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[1]
+    loop = schedule.children[5]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4488,20 +4495,24 @@ def test_rc_vector_depth():
         assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
 
 
-def test_rc_vector_no_depth():
-    '''Test that the loop bounds for a (continuous) vector are modified
+def test_rc_vector_no_depth(tmpdir):
+    ''' Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
-    computation transformation with no halo depth value. '''
+    computation transformation with no halo depth value.
+
+    '''
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[1]
+    loop = schedule.children[5]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
