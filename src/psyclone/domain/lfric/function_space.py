@@ -49,7 +49,8 @@ class FunctionSpace(object):
 
     :param str name: original name of function space to create a \
                      mangled name for.
-    :param kernel_args: object encapsulating all arguments to the kernel call.
+    :param kernel_args: object encapsulating all arguments to the kernel, \
+                        one or more of which are on this function space.
     :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
 
     :raises InternalError: if an unrecognised function space is encountered.
@@ -315,6 +316,7 @@ class FunctionSpace(object):
         :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :returns: name for the Fortran array holding the basis function
         :rtype: str
+
         '''
         name = "_".join(["basis", self.mangled_name])
         if qr_var:
@@ -340,6 +342,7 @@ class FunctionSpace(object):
         :returns: name for the Fortran array holding the differential basis \
                   function
         :rtype: str
+
         '''
         name = "diff_basis_" + self.mangled_name
         if qr_var:
@@ -360,6 +363,7 @@ class FunctionSpace(object):
         :returns: name for the Fortran arry holding the named operator
                   for the specified function space.
         :rtype: str
+
         '''
         if operator_name == "gh_orientation":
             return self.get_orientation_name()
@@ -383,6 +387,7 @@ class FunctionSpace(object):
         :returns: the argument from the supplied list of arguments that \
                   contains a field that exists on this space or None.
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+
         '''
         if self.mangled_name in arguments.unique_fs_names:
             for arg in arguments.args:
@@ -404,6 +409,7 @@ class FunctionSpace(object):
         :returns: the argument from the supplied list of arguments that \
                   contains a field that exists on this space or None.
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+
         '''
         if self.mangled_name in arguments.unique_fs_names:
             for arg in arguments.args:
@@ -415,29 +421,33 @@ class FunctionSpace(object):
                     return arg
         return None
 
-    def is_scalar_basis(self):
-        ''':returns: if this functions space has scalar basis functions.
+    @property
+    def has_scalar_basis(self):
+        ''':returns: True if this functions space has scalar basis functions.
         :rtype: bool
         '''
         return self.orig_name.lower() in \
             FunctionSpace.SCALAR_BASIS_SPACE_NAMES
 
-    def is_vector_basis(self):
-        ''':returns: if this functions space has vector basis functions.
+    @property
+    def has_vector_basis(self):
+        ''':returns: True if this functions space has vector basis functions.
         :rtype: bool
         '''
         return self.orig_name.lower() in \
             FunctionSpace.VECTOR_BASIS_SPACE_NAMES
 
-    def is_scalar_diff_basis(self):
-        ''':returns: if this functions space has scalar differential
+    @property
+    def has_scalar_diff_basis(self):
+        ''':returns: True if this functions space has scalar differential
             basis functions.
-            :rtype: bool
+        :rtype: bool
         '''
         return self.orig_name.lower() in \
             FunctionSpace.SCALAR_DIFF_BASIS_SPACE_NAMES
 
-    def is_vector_diff_basis(self):
+    @property
+    def has_vector_diff_basis(self):
         ''':returns: if this functions space has vector differential
             basis functions.
         :rtype: bool

@@ -4050,9 +4050,9 @@ class DynBasisFunctions(DynCollection):
         :raises GenerationError: if an unsupported function space is supplied \
                                  (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
         '''
-        if function_space.is_scalar_basis():
+        if function_space.has_scalar_basis:
             first_dim = "1"
-        elif function_space.is_vector_basis():
+        elif function_space.has_vector_basis:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first basis
@@ -4098,9 +4098,9 @@ class DynBasisFunctions(DynCollection):
                                  ANY_DISCONTINUOUS_SPACE_*)
 
         '''
-        if function_space.is_scalar_diff_basis():
+        if function_space.has_scalar_diff_basis:
             first_dim = "1"
-        elif function_space.is_vector_diff_basis():
+        elif function_space.has_vector_diff_basis:
             first_dim = "3"
         else:
             # It is not possible to determine explicitly the first
@@ -4426,9 +4426,6 @@ class DynBasisFunctions(DynCollection):
             # store whether we have a basis or a differential basis function.
             # Currently there are only those two possible types of basis
             # function and we store the required diff basis name in basis_name.
-            # Should further basis-function types be added in the future then
-            # the if blocks that use if_diff_basis further down must be\
-            # updated.
             if basis_fn['type'] == "basis":
                 if self._invoke:
                     first_dim = self.basis_first_dim_name(basis_fn["fspace"])
@@ -4658,6 +4655,7 @@ class DynBasisFunctions(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        # pylint: disable=too-many-locals
         api_config = Config.get().api_conf("dynamo0.3")
 
         loop_var_list = set()
@@ -4671,15 +4669,17 @@ class DynBasisFunctions(DynCollection):
         for basis_fn in self._basis_fns:
 
             # Currently there are only two possible types of basis function
-            # and we store which we have in is_diff_basis. If support for
-            # other basis function types is added in future then the if-blocks
-            # (further down) that use is_diff_basis will have to be changed.
+            # and we store the corresponding strings to use in basis_name,
+            # basis_type, and first_dim. If support for other basis function
+            # types is added in future then more tests need to be added here.
             if basis_fn["type"] == "diff-basis":
-                is_diff_basis = True
                 basis_name = "gh_diff_basis"
+                basis_type = "DIFF_BASIS"
+                first_dim = self.diff_basis_first_dim_name(basis_fn["fspace"])
             elif basis_fn["type"] == "basis":
-                is_diff_basis = False
                 basis_name = "gh_basis"
+                basis_type = "BASIS"
+                first_dim = self.basis_first_dim_name(basis_fn["fspace"])
             else:
                 raise InternalError(
                     "Unrecognised type of basis function: '{0}'. Expected one "
@@ -4693,18 +4693,10 @@ class DynBasisFunctions(DynCollection):
                 op_name_list.append(op_name)
 
                 # Create the argument list
-                if is_diff_basis:
-                    args = ["DIFF_BASIS",
-                            basis_fn["arg"].proxy_name_indexed + "%" +
-                            basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                            self.diff_basis_first_dim_name(basis_fn["fspace"]),
-                            basis_fn["fspace"].get_ndf_name(), op_name]
-                else:
-                    args = ["BASIS",
-                            basis_fn["arg"].proxy_name_indexed + "%" +
-                            basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                            self.basis_first_dim_name(basis_fn["fspace"]),
-                            basis_fn["fspace"].get_ndf_name(), op_name]
+                args = [basis_type, basis_fn["arg"].proxy_name_indexed + "%" +
+                        basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                        first_dim, basis_fn["fspace"].get_ndf_name(), op_name]
+
                 # insert the basis array call
                 parent.add(
                     CallGen(parent,
@@ -4737,20 +4729,11 @@ class DynBasisFunctions(DynCollection):
                     nodal_dof_loop.add(dof_loop)
                     lhs = op_name + "(:," + "df_" + \
                         basis_fn["fspace"].mangled_name + "," + "df_nodal)"
-                    if is_diff_basis:
-                        rhs = "%".join(
-                            [basis_fn["arg"].proxy_name_indexed,
-                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                             "call_function(DIFF_BASIS," + dof_loop_var +
-                             ",nodes_" + space.mangled_name +
-                             "(:," + nodal_loop_var + "))"])
-                    else:
-                        rhs = "%".join(
-                            [basis_fn["arg"].proxy_name_indexed,
-                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                             "call_function(BASIS," + dof_loop_var +
-                             ",nodes_" + space.mangled_name +
-                             "(:," + nodal_loop_var + "))"])
+                    rhs = "{0}%{1}%call_function({2},{3},nodes_{4}(:,{5}))"\
+                        .format(basis_fn["arg"].proxy_name_indexed,
+                                basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                                basis_type, dof_loop_var, space.mangled_name,
+                                nodal_loop_var)
                     dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
             else:
                 raise InternalError(

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
@@ -43,6 +44,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
+from psyclone.domain.lfric import FunctionSpace
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -1497,7 +1499,6 @@ def test_basis_unsupported_space():
     unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This information will be passed from the
     PSy layer to the kernels (see issue #461). '''
-    from psyclone.domain.lfric import FunctionSpace
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1960,7 +1961,6 @@ def test_diff_basis_unsupp_space():
     and any_discontinuous_space_*) in kernel stub generation.
     This information will be passed from the PSy layer to the
     kernels (see issue #461). '''
-    from psyclone.domain.lfric import FunctionSpace
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
