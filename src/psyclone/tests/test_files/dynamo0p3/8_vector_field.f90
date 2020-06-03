@@ -42,7 +42,7 @@ program vector_field
 
   type(field_type) :: f1, chi(3), f2
 
-  call invoke(                        &
+  call invoke(                             &
        testkern_coord_w0_type(f1, chi, f2) &
        )
 

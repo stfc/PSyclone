@@ -43,7 +43,7 @@ program single_invoke
 
   implicit none
 
-  type(field_type) :: f1, f2, m1, m2
+  type(field_type)           :: f1, f2, m1, m2
   type(quadrature_face_type) :: qr_face
   type(quadrature_edge_type) :: qr_edge
 

@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 module assemble_weak_derivative_w3_w2_kernel_mod
 

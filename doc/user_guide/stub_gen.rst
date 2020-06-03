@@ -167,7 +167,8 @@ test kernels can be used to generate kernel stub code (running stub
 generation from the ``<PSYCLONEHOME>/src/psyclone`` directory):
 ::
 
-    tests/test_files/dynamo0p3/testkern_chi.F90
+    tests/test_files/dynamo0p3/testkern_chi_read_mod.F90
+    tests/test_files/dynamo0p3/testkern_coord_w0_mod.F90
     tests/test_files/dynamo0p3/testkern_operator_mod.f90
     tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
     tests/test_files/dynamo0p3/testkern_orientation_mod.F90
