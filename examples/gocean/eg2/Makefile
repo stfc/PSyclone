@@ -51,7 +51,7 @@
 
 include ../../common.mk
 
-GENERATED_FILES += *.o *.mod *~ inc_field_*_mod.f90 psy*.f90 alg_gen.f90 \
+GENERATED_FILES += *.o *.mod inc_field_*_mod.f90 psy*.f90 alg_gen.f90 \
   alg_prof.f90 single*.exe
 
 # Location of the infrastucture code (which is a submodule of the

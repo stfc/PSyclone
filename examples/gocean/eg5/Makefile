@@ -68,7 +68,6 @@ template: ../../../lib/profiling/template/libdummy.a $(NAME).template
 
 # Build the template profiling library
 ../../../lib/profiling/template/libdummy.a:
-	${MAKE} -C ../../../lib/profiling/template clean
 	${MAKE} -C ../../../lib/profiling/template
 
 simple_timing: PROFILE_DIR=../../../lib/profiling/simple_timing
@@ -112,3 +111,6 @@ psy_%.o: psy.f90 $(KERNELS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(PROFILE_DIR) -c $<
+
+allclean: clean
+	${MAKE} -C ../../../lib/profiling/template clean
