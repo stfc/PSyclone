@@ -279,15 +279,19 @@ def test_same_name_invalid_array():
             "more than once") in str(excinfo.value)
 
 
-def test_derived_type_deref_naming():
+def test_derived_type_deref_naming(tmpdir):
     ''' Test that we do not get a name clash for dummy arguments in the PSy
     layer when the name generation for the component of a derived type
-    may lead to a name already taken by another argument. '''
+    may lead to a name already taken by another argument.
+
+    '''
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "    SUBROUTINE invoke_0_testkern_type"

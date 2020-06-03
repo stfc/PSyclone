@@ -4335,8 +4335,8 @@ def test_rc_dofs_no_depth():
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
-    '''Test that the loop bounds when iterating over dofs are modified
+def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
+    ''' Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
@@ -4354,6 +4354,9 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:

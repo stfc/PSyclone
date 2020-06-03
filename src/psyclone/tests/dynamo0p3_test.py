@@ -2002,20 +2002,25 @@ def test_bc_op_kernel_wrong_args():
             "but found 2" in str(err.value))
 
 
-def test_multikernel_invoke_1():
+def test_multikernel_invoke_1(tmpdir):
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke. We test the parts of the code that
-    are incorrect at the time of writing '''
+    are incorrect at the time of writing.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    # check that argument names are not replicated
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check that argument names are not replicated
     assert "SUBROUTINE invoke_0(a, f1, f2, m1, m2)" in generated_code
-    # check that only one proxy initialisation is produced
+    # Check that only one proxy initialisation is produced
     assert "f1_proxy = f1%get_proxy()" in generated_code
-    # check that we only initialise dofmaps once
+    # Check that we only initialise dofmaps once
     assert "map_w2 => f2_proxy%vspace%get_whole_dofmap()" in generated_code
 
 
@@ -2275,15 +2280,18 @@ def test_kern_ncolours(monkeypatch):
             "been initialised" in str(err.value))
 
 
-def test_named_psy_routine(dist_mem):
+def test_named_psy_routine(dist_mem, tmpdir):
     ''' Check that we generate a subroutine with the expected name
-    if an invoke is named '''
+    if an invoke is named. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     gen_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     # Name should be all lower-case and with spaces replaced by underscores
     assert "SUBROUTINE invoke_important_invoke" in gen_code
 
@@ -6882,7 +6890,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
 
 
 def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
-    '''Test that run-time checks work when there are multiple kernels and
+    ''' Test that run-time checks work when there are multiple kernels and
     at least one field is specified as being on a given function space
     more than once. In this case we want to avoid checking the same
     thing twice.
