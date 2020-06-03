@@ -524,10 +524,13 @@ class KernelProcedure(object):
         bname = None
         # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
+            print(statement)
             if isinstance(statement, fparser1.statements.SpecificBinding):
                 # We support either:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
+                print(statement.bname)                
+                print(statement.name)
                 if statement.bname:
                     if statement.name.lower() != "code":
                         raise ParseError(
@@ -547,8 +550,9 @@ class KernelProcedure(object):
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
         code = None
         for statement, _ in fpapi.walk(modast, -1):
-            if isinstance(statement, fparser1.block_statements.Subroutine) \
-               and statement.name == bname:
+            print(statement)
+            if ( isinstance(statement, fparser1.block_statements.Subroutine) or isinstance(statement, fparser1.block_statements.Interface) ) and statement.name == bname:
+                print(statement.name)
                 code = statement
                 break
         if not code:
