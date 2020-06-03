@@ -38,8 +38,9 @@
 
 # **Note** that this code to find the correct directory only works if
 #          the examples directory is still within the standard PSyclone
-#          source tree. If it has been moved then the PSYCLONE variable
-#          will have to be set explicitly before running make.
+#          source tree. If it has been moved then the PSYCLONE and
+#          KERNEL_STUB_GEN variables will have to be set explicitly
+#          before running make.
 
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry
@@ -51,7 +52,7 @@ PSYCLONE_DIR := $(abspath $(dir $(this_file))..)
 RM = rm -f
 PYTHON ?= python
 PSYCLONE ?= psyclone --config ${PSYCLONE_DIR}/config/psyclone.cfg
-
+KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
 
@@ -62,4 +63,4 @@ GENERATED_FILES =
 .DEFAULT_GOAL := transform
 
 clean:
-	${RM} *~ ${GENERATED_FILES}
+	${RM} ${GENERATED_FILES}
