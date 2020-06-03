@@ -53,7 +53,6 @@ program multikernel_invokes_7
   type(quadrature_xyoz_type) :: qr
 
   call invoke( ru_kernel_type(a, b, istp, rdt, d, e, qr), &
-
                testkern_type(ascalar, f, b, c, g) )
 
 end program multikernel_invokes_7

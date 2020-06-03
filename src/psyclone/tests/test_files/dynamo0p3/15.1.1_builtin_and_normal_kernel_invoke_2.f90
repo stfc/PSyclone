@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,22 +30,26 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R Ford and A. R. Porter STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
   ! Description: mixed kernel and builtin specified in an invoke call
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
+
   implicit none
+
   type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: ginger
+  real(r_def)      :: ginger
   
   call invoke(                                &
        ! f1 write w1, f2 read w2, m1 read w2, m2 read w3
        testkern_type(ginger, f1, f2, m1, m2), &
        ! f1 inc, f2 read
-       inc_aX_plus_Y(0.5, f1, f2)                  &
+       inc_aX_plus_Y(0.5, f1, f2)             &
           )
 
 end program single_invoke
