@@ -524,7 +524,6 @@ class KernelProcedure(object):
         bname = None
         # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
-            print(statement)
             if isinstance(statement, fparser1.statements.SpecificBinding):
                 # We support either:
                 # PROCEDURE, nopass :: code => <proc_name> or
@@ -542,11 +541,11 @@ class KernelProcedure(object):
                     bname = statement.name
                 break
         if bname is None:
-            # search for an interface ...
+            # If no type-bound procedure found, search for an explicit interface that has module procures.
             bname=get_kernel_interface(modast)
             if bname is None:
                 raise ParseError(
-                    "Kernel type {0} does not bind a specific procedure or provide an interface".
+                    "Kernel type {0} does not bind a specific procedure or provide an explicit interface".
                     format(name))
         if bname == '':
             raise InternalError(
@@ -618,36 +617,27 @@ def get_kernel_metadata(name, ast):
 
 def get_kernel_interface(ast):
     '''Takes the kernel module parse tree and returns the interface part
-    of the parse tree with the name 'name'.
+    of the parse tree.
 
-    :param str name: the interface name. Derived from  \
-    the name referencing the kernel in the algorithm layer. The name \
-    provided and the name of the kernel in the parse tree are case \
-    insensitive in this function.
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    :returns: Parse tree of the interface (name 'name')
-    :rtype: :py:class:`fparser.one.block_statements.Interface`
+    :returns: Name 'name' of the parse tree of the interface 
+    :rtype: :str `fparser.one.block_statements.Interface.name`
 
-    :raises ParseError: if the interface name is not found in \
-    the kernel code parse tree
-
+    :returns 'None' if there is no interface, the interface has no name or has no module procedures
     '''
-    ktype = None
+    iname = None
     for statement, _ in fpapi.walk(ast, -1):
         if isinstance(statement, fparser1.block_statements.Interface):
-#           and statement.name.lower() == name.lower():
-            ktype = statement.name
+#           Check the interfaces assigns module procedures.
+            if statement.a.module_procedures:
+                iname = statement.name
+#      If implicit interface (no name) set to none as there is no procedure name for PSyclone to use.
+            if iname=='':
+                iname=None
             break
-#    if ktype is None:
-#        raise ParseError("Kernel Interface {0} does not exist".format(name))
-    return ktype
-
-#           isinstance(statement, fparser1.block_statements.Interface):
-
-
-
+    return iname
 
 def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     '''Get the required argument metadata information for a kernel.
