@@ -1698,11 +1698,15 @@ def test_invoke_uniq_declns_valid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_read = psy.invokes.invoke_list[0]\
+    fields_read_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READ)
+    fields_read = [(arg.declaration_name, arg.datatype) for arg in
+                   fields_read_args]
     assert fields_read == [("f2", "real"), ("m1", "real"), ("m2", "real")]
-    fields_written = psy.invokes.invoke_list[0]\
+    fields_written_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.WRITE)
+    fields_written = [(arg.declaration_name, arg.datatype) for arg in
+                      fields_written_args]
     assert fields_written == [("f1", "real")]
 
 
@@ -1773,9 +1777,14 @@ def test_dyninvoke_uniq_declns_intent_fields():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
-    assert args['inout'] == []
-    assert args['out'] == [('f1', 'real')]
-    assert args['in'] == [('f2', 'real'), ('m1', 'real'), ('m2', 'real')]
+
+    args_inout = [(arg.declaration_name, arg.datatype) for arg in
+                  args['inout']]
+    assert args_inout == []
+    args_out = [(arg.declaration_name, arg.datatype) for arg in args['out']]
+    assert args_out == [('f1', 'real')]
+    args_in = [(arg.declaration_name, arg.datatype) for arg in args['in']]
+    assert args_in == [('f2', 'real'), ('m1', 'real'), ('m2', 'real')]
 
 
 def test_dyninvoke_uniq_declns_intent_real():
@@ -1787,9 +1796,13 @@ def test_dyninvoke_uniq_declns_intent_real():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
-    assert args['inout'] == []
-    assert args['out'] == []
-    assert args['in'] == [('a', 'real')]
+    args_inout = [(arg.declaration_name, arg.datatype) for arg in
+                  args['inout']]
+    assert args_inout == []
+    args_out = [(arg.declaration_name, arg.datatype) for arg in args['out']]
+    assert args_out == []
+    args_in = [(arg.declaration_name, arg.datatype) for arg in args['in']]
+    assert args_in == [('a', 'real')]
 
 
 def test_dyninvoke_uniq_declns_intent_int():
@@ -1801,9 +1814,13 @@ def test_dyninvoke_uniq_declns_intent_int():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
-    assert args['inout'] == []
-    assert args['out'] == []
-    assert args['in'] == [('istep', 'integer')]
+    args_inout = [(arg.declaration_name, arg.datatype) for arg in
+                  args['inout']]
+    assert args_inout == []
+    args_out = [(arg.declaration_name, arg.datatype) for arg in args['out']]
+    assert args_out == []
+    args_in = [(arg.declaration_name, arg.datatype) for arg in args['in']]
+    assert args_in == [('istep', 'integer')]
 
 
 def test_dyninvoke_uniq_declns_intent_ops():
@@ -1814,9 +1831,13 @@ def test_dyninvoke_uniq_declns_intent_ops():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
-    assert args['inout'] == []
-    assert args['out'] == [('op', 'real')]
-    assert args['in'] == []
+    args_inout = [(arg.declaration_name, arg.datatype) for arg in
+                  args['inout']]
+    assert args_inout == []
+    args_out = [(arg.declaration_name, arg.datatype) for arg in args['out']]
+    assert args_out == [('op', 'real')]
+    args_in = [(arg.declaration_name, arg.datatype) for arg in args['in']]
+    assert args_in == []
 
 
 def test_dyninvoke_arg_for_fs():

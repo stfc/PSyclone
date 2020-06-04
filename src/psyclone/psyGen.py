@@ -40,6 +40,7 @@
     particular API and implementation. '''
 
 from __future__ import print_function, absolute_import
+from collections import OrderedDict
 import abc
 import six
 from fparser.two import Fortran2003
@@ -551,8 +552,8 @@ class Invoke(object):
                                      the particular API for which the \
                                      intent is required.
         :param access: optional AccessType that the declaration should have.
-        :returns: list of all declared argument names with their datatypes.
-        :rtype: a list of tuples(str, str).
+        :returns: a list of all declared kernel arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`.
 
         :raises GenerationError: if an invalid argument type is given.
         :raises InternalError: if an invalid access is specified.
@@ -570,17 +571,18 @@ class Invoke(object):
                 "type. Type is '{0}' instead of AccessType".
                 format(str(access)))
 
-        declarations = []
+        # Initialise dictionary of kernel arguments
+        declarations = OrderedDict()
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
                         if arg.type == argument_type:
                             test_name = arg.declaration_name
-                            test_datatype = arg.datatype
                             if test_name not in declarations:
-                                declarations.append((test_name, test_datatype))
-        return declarations
+                                declarations[test_name] = arg
+
+        return list(declarations.values())
 
     def first_access(self, arg_name):
         ''' Returns the first argument with the specified name passed to
@@ -602,10 +604,8 @@ class Invoke(object):
                                      particular API for which the intent is \
                                      required.
         :returns: dictionary containing 'intent' keys holding the kernel \
-                  argument intent and values of tuples holding declarations \
-                  and datatypes of all kernel arguments for each type of \
-                  intent.
-        :rtype: dict.
+                  arguments as values for each type of intent.
+        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`.
 
         :raises GenerationError: if the kernel argument is not a valid \
                                  argument type for the particular API.
@@ -660,8 +660,7 @@ class Invoke(object):
             # by at least one kernel, identify the type of the first
             # access. If it is 'write' then the arg is only
             # intent(out), otherwise it is intent(inout)
-            name = arg[0]
-            first_arg = self.first_access(name)
+            first_arg = self.first_access(arg.name)
             if first_arg.access != AccessType.WRITE:
                 if arg not in declns["inout"]:
                     declns["inout"].append(arg)
@@ -675,8 +674,7 @@ class Invoke(object):
             # or inc'd before it is written then it must have intent(inout).
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
-            name = arg[0]
-            first_arg = self.first_access(name)
+            first_arg = self.first_access(arg.name)
             if first_arg.access == AccessType.READ:
                 if arg not in declns["inout"]:
                     declns["inout"].append(arg)
