@@ -1626,7 +1626,9 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        return Loop(parent=parent, variable_name=variable_name)
+        data_symbol = parent.find_or_create_symbol(variable_name)
+        variable = Reference(data_symbol)
+        return Loop(parent=parent, variable=variable)
 
     def _process_loopbody(self, loop_body, node):
         ''' Process the loop body. This is done outside _do_construct_handler
@@ -2269,9 +2271,10 @@ class Fparser2Reader(object):
             loop_vars[idx-1] = symbol_table.new_symbol_name(
                 "widx{0}".format(idx))
 
-            symbol_table.add(DataSymbol(loop_vars[idx-1], integer_type))
+            data_symbol = DataSymbol(loop_vars[idx-1], integer_type)
+            symbol_table.add(data_symbol)
 
-            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
+            loop = Loop(parent=new_parent, variable=Reference(data_symbol),
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node

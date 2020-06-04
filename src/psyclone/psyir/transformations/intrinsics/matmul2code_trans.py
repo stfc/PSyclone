@@ -329,14 +329,14 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # Create j loop and add the above code as a child
         # Work out the bounds
         lower_bound, upper_bound, step = _get_array_bound(vector, 0)
-        jloop = Loop.create(j_loop_name, lower_bound, upper_bound, step,
-                            [assign])
+        jloop = Loop.create(Reference(j_loop_symbol), lower_bound, upper_bound,
+                            step, [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result, Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
         lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
-        iloop = Loop.create(
-            i_loop_name, lower_bound, upper_bound, step, [assign, jloop])
+        iloop = Loop.create(Reference(i_loop_symbol), lower_bound, upper_bound,
+                            step, [assign, jloop])
         # Add the new code to the PSyIR
         iloop.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, iloop)

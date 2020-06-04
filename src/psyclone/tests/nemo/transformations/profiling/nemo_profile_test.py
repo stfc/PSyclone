@@ -287,7 +287,7 @@ def test_profiling_case(parser):
     to the fparser2 parse tree. '''
     code = (
         "subroutine my_test()\n"
-        "   integer :: ji, ii, je_2, jpi, jpj, nldj_crs\n"
+        "   integer :: ji, jj, ii, je_2, jpi, jpj, nldj_crs\n"
         "   integer :: nistr, niend, njstr, njend, nn_factx, nn_facty\n"
         "   integer, dimension(:) :: mje_crs, mjs_crs, mis_crs\n"
         "   real, dimension(:,:) :: p_fld_crs, p_e12, p_fld, zsurfmsk\n"

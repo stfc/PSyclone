@@ -233,11 +233,23 @@ class DynLoop(Loop):
 
         # Work out the variable name from  the loop type
         if self._loop_type == "colours":
-            self._variable_name = "colour"
+            tag = "colours_loop_idx"
+            root_name = "colour"
         elif self._loop_type == "colour":
-            self._variable_name = "cell"
+            tag = "colour_loop_idx"
+            root_name = "cell"
         else:
-            self._variable_name = "cell"
+            tag = "cell_loop_idx"
+            root_name = "cell"
+
+        symtab = self.find_symbol_table()
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(root_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = Reference(data_symbol)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

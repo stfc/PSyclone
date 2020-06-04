@@ -52,6 +52,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType
+from psyclone.psyir.nodes import Schedule
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1086,7 +1087,14 @@ def test_gosched_ijstop():
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
-    goloop = GOLoop(loop_type="inner")
+    # First create with a schedule as one is required to declare the
+    # loop variable
+    schedule = Schedule()
+    goloop = GOLoop(loop_type="inner", parent=schedule)
+    schedule.children = [goloop]
+    # Now remove parent and children
+    goloop.parent = None
+    goloop.children = None
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
     with pytest.raises(GenerationError):

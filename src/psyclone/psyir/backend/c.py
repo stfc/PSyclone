@@ -424,7 +424,7 @@ class CWriter(PSyIRVisitor):
         start = self._visit(node.start_expr)
         stop = self._visit(node.stop_expr)
         step = self._visit(node.step_expr)
-        variable_name = node.variable_name
+        variable_name = node.variable.name
 
         self._depth += 1
         body = ""

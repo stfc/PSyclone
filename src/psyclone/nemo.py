@@ -48,7 +48,8 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Loop, Schedule
+from psyclone.psyir.nodes import Loop, Schedule, Reference
+from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -79,7 +80,14 @@ class NemoFparser2Reader(Fparser2Reader):
         :return: a new NemoLoop instance.
         :rtype: :py:class:`psyclone.nemo.NemoLoop`
         '''
-        loop = NemoLoop(parent=parent, variable_name=variable_name)
+        print (variable_name)
+        try:
+            data_symbol = parent.find_or_create_symbol(variable_name)
+        except SymbolError:
+            print ("UNSUPPORTED IMPLICIT VARIABLE NAME")
+            exit(1)
+        variable = Reference(data_symbol)
+        loop = NemoLoop(parent=parent, variable=variable)
 
         loop_type_mapping = Config.get().api_conf("nemo")\
             .get_loop_type_mapping()
@@ -485,10 +493,10 @@ class NemoLoop(Loop):
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
     '''
-    def __init__(self, parent=None, variable_name=''):
+    def __init__(self, parent=None, variable=None):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
-                      variable_name=variable_name,
+                      variable=variable,
                       valid_loop_types=valid_loop_types)
 
     @property

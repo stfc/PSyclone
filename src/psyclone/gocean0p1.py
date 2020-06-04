@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, KernelArgument
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -245,9 +245,20 @@ class GOLoop(Loop):
         self.loop_type = loop_type
 
         if self._loop_type == "inner":
-            self._variable_name = "i"
-        elif self._loop_type == "outer":
-            self._variable_name = "j"
+            tag = "inner_loop_idx"
+            root_name = "i"
+        elif self.loop_type == "outer":
+            tag = "outer_loop_idx"
+            root_name = "j"
+
+        symtab = self.find_symbol_table()
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(root_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = Reference(data_symbol)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -263,7 +274,7 @@ class GOLoop(Loop):
             from psyclone.f2pygen import DeclGen
             from psyclone.psyir.nodes import BinaryOperation, Reference
             dim_var = DeclGen(parent, datatype="INTEGER",
-                              entity_decls=[self._variable_name])
+                              entity_decls=[self.variable.name])
             parent.add(dim_var)
 
             # Update start loop bound

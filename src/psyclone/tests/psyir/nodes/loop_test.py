@@ -42,9 +42,9 @@ from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
-    Reference
+    Reference, Array
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE
+    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -173,7 +173,8 @@ def test_loop_create():
     child_node = Assignment.create(
         Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
         Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
-    loop = Loop.create("i", start, stop, step, [child_node])
+    loop = Loop.create(Reference(DataSymbol("i", INTEGER_SINGLE_TYPE)),
+                       start, stop, step, [child_node])
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
     check_links(loop, [start, stop, step, schedule])
@@ -193,39 +194,58 @@ def test_loop_create_invalid():
         Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
         one)]
 
-    # var_name is not a string.
+    # variable is not a Reference.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(1, zero, one, one, children)
-    assert ("var_name argument in create method of Loop class "
-            "should be a string but found 'int'.") in str(excinfo.value)
+    assert ("variable argument in create method of Loop class "
+            "should be a Reference but found 'int'.") in str(excinfo.value)
+
+    # variable is not a scalar
+    array_type = ArrayType(INTEGER_TYPE, shape=[10,10])
+    variable = Reference(DataSymbol("i", array_type))
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create(variable, zero, one, one, children)
+    assert ("variable argument in create method of Loop class "
+            "should be a ScalarType but found 'ArrayType'."
+            in str(excinfo.value))
+
+    # variable is not a scalar integer
+    variable = Reference(DataSymbol("i", REAL_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop.create(variable, zero, one, one, children)
+    assert ("variable argument in create method of Loop class "
+            "should be a scalar integer but found 'REAL'."
+            in str(excinfo.value))
+
+    variable = Reference(DataSymbol("i", INTEGER_TYPE))
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create("i", "invalid", one, one, children)
+        _ = Loop.create(variable, "invalid", one, one, children)
     assert ("Item 'str' can't be child 0 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create("i", zero, "invalid", one, children)
+        _ = Loop.create(variable, zero, "invalid", one, children)
     assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create("i", zero, one, "invalid", children)
+        _ = Loop.create(variable, zero, one, "invalid", children)
     assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create("i", zero, one, one, "invalid")
+        _ = Loop.create(variable, zero, one, one, "invalid")
     assert ("children argument in create method of Loop class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create("i", zero, one, one, ["invalid"])
+        _ = Loop.create(variable, zero, one, one, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Schedule'. The valid format is: "
             "'[Statement]*'." in str(excinfo.value))
 
