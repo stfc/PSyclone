@@ -541,7 +541,7 @@ class KernelProcedure(object):
                     bname = statement.name
                 break
         if bname is None:
-            # If no type-bound procedure found, search for an explicit interface that has module procures.
+            # If no type-bound procedure found, search for an explicit interface that has module procedures.
             bname=get_kernel_interface(modast)
             if bname is None:
                 raise ParseError(
