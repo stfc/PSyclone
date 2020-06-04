@@ -542,17 +542,18 @@ class KernelProcedure(object):
                     bname = statement.name
                 break
         if bname is None:
-            raise ParseError(
-                "Kernel type {0} does not bind a specific procedure".
-                format(name))
+            # search for an interface ...
+            bname=get_kernel_interface(modast)
+            if bname is None:
+                raise ParseError(
+                    "Kernel type {0} does not bind a specific procedure or provide an interface".
+                    format(name))
         if bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
         code = None
         for statement, _ in fpapi.walk(modast, -1):
-            print(statement)
             if ( isinstance(statement, fparser1.block_statements.Subroutine) or isinstance(statement, fparser1.block_statements.Interface) ) and statement.name == bname:
-                print(statement.name)
                 code = statement
                 break
         if not code:
@@ -614,6 +615,38 @@ def get_kernel_metadata(name, ast):
     if ktype is None:
         raise ParseError("Kernel type {0} does not exist".format(name))
     return ktype
+
+def get_kernel_interface(ast):
+    '''Takes the kernel module parse tree and returns the interface part
+    of the parse tree with the name 'name'.
+
+    :param str name: the interface name. Derived from  \
+    the name referencing the kernel in the algorithm layer. The name \
+    provided and the name of the kernel in the parse tree are case \
+    insensitive in this function.
+    :param ast: parse tree of the kernel module code
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+
+    :returns: Parse tree of the interface (name 'name')
+    :rtype: :py:class:`fparser.one.block_statements.Interface`
+
+    :raises ParseError: if the interface name is not found in \
+    the kernel code parse tree
+
+    '''
+    ktype = None
+    for statement, _ in fpapi.walk(ast, -1):
+        if isinstance(statement, fparser1.block_statements.Interface):
+#           and statement.name.lower() == name.lower():
+            ktype = statement.name
+            break
+#    if ktype is None:
+#        raise ParseError("Kernel Interface {0} does not exist".format(name))
+    return ktype
+
+#           isinstance(statement, fparser1.block_statements.Interface):
+
+
 
 
 def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
