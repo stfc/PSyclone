@@ -137,7 +137,7 @@ def test_arg_descriptor_wrong_type():
 
 
 def test_arg_descriptor_vector():
-    ''' Tests that the DynArgDescriptor03 argument representation works
+    ''' Tests that the LFRicArgDescriptor argument representation works
     as expected when we have a field vector. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
@@ -147,16 +147,16 @@ def test_arg_descriptor_vector():
     dkm = DynKernMetadata(ast, name=name)
     field_descriptor = dkm.arg_descriptors[1]
 
-    # Assert correct string representation from DynArgDescriptor03
+    # Assert correct string representation from LFRicArgDescriptor
     field_descriptor_str = str(field_descriptor)
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
     assert expected in field_descriptor_str
 
-    # Check DynArgDescriptor03 argument properties
+    # Check LFRicArgDescriptor argument properties
     assert field_descriptor.type == "gh_field"
     assert field_descriptor.datatype == "real"
     assert field_descriptor.function_space == "w1"
@@ -169,16 +169,16 @@ def test_arg_descriptor_vector():
 
 def test_ad_scalar_validate_wrong_type():
     ''' Test that an error is raised if something other than a scalar
-    is passed to the DynArgDescriptor03._validate_scalar method. '''
-    from psyclone.dynamo0p3 import DynArgDescriptor03
+    is passed to the LFRicArgDescriptor._validate_scalar method. '''
+    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not a scalar
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
-        DynArgDescriptor03(wrong_arg)._validate_scalar(wrong_arg)
-    assert ("DynArgDescriptor03._validate_scalar: expecting a scalar "
+        LFRicArgDescriptor(wrong_arg)._validate_scalar(wrong_arg)
+    assert ("LFRicArgDescriptor._validate_scalar: expecting a scalar "
             "argument but got an argument of type 'gh_operator'. Should "
             "be impossible." in str(excinfo.value))
 
@@ -261,16 +261,16 @@ def test_ad_int_scalar_type_no_sum():
 
 def test_ad_field_validate_wrong_type():
     ''' Test that an error is raised if something other than a field
-    is passed to the DynArgDescriptor03._validate_field method. '''
-    from psyclone.dynamo0p3 import DynArgDescriptor03
+    is passed to the LFRicArgDescriptor._validate_field method. '''
+    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not a field
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
-        DynArgDescriptor03(wrong_arg)._validate_field(wrong_arg)
-    assert ("DynArgDescriptor03._validate_field: expecting a field "
+        LFRicArgDescriptor(wrong_arg)._validate_field(wrong_arg)
+    assert ("LFRicArgDescriptor._validate_field: expecting a field "
             "argument but got an argument of type 'gh_real'. Should "
             "be impossible." in str(excinfo.value))
 
@@ -2422,7 +2422,7 @@ def test_stencil_metadata():
     # stencil extent is not provided in the above metadata
     assert stencil_descriptor_1.stencil['extent'] is None
 
-    # Check other DynArgDescriptor03 argument properties for a
+    # Check other LFRicArgDescriptor argument properties for a
     # field stencil argument
     assert stencil_descriptor_1.type == "gh_field"
     assert stencil_descriptor_1.datatype == "real"
@@ -2601,7 +2601,7 @@ def test_valid_stencil_types():
 
 
 def test_arg_descriptor_funcs_method_error():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_spaces is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
     need to mess about with internal values to trip this. '''
@@ -2612,7 +2612,7 @@ def test_arg_descriptor_funcs_method_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_spaces
-    assert ("DynArgDescriptor03.function_spaces(), should not get "
+    assert ("LFRicArgDescriptor.function_spaces(), should not get "
             "to here." in str(excinfo.value))
 
 
@@ -2762,7 +2762,7 @@ def test_no_arg_on_space(monkeypatch):
 
 
 def test_arg_descriptor_func_method_error():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_space is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
     need to mess about with internal values to trip this. '''
@@ -2773,28 +2773,28 @@ def test_arg_descriptor_func_method_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space
-    assert ("DynArgDescriptor03.function_space(), should not get "
+    assert ("LFRicArgDescriptor.function_space(), should not get "
             "to here." in str(excinfo.value))
 
 
 def test_arg_descriptor_fld_str():
-    ''' Tests that the DynArgDescriptor03 argument representation works
+    ''' Tests that the LFRicArgDescriptor argument representation works
     as expected for a field argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
 
-    # Assert correct string representation from DynArgDescriptor03
+    # Assert correct string representation from LFRicArgDescriptor
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
     assert expected_output in result
 
-    # Check DynArgDescriptor03 argument properties
+    # Check LFRicArgDescriptor argument properties
     assert field_descriptor.type == "gh_field"
     assert field_descriptor.datatype == "real"
     assert field_descriptor.function_space == "w1"
@@ -2806,22 +2806,22 @@ def test_arg_descriptor_fld_str():
 
 
 def test_arg_descriptor_real_scalar():
-    ''' Tests that the DynArgDescriptor03 argument representation works
+    ''' Tests that the LFRicArgDescriptor argument representation works
     as expected for a real scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
 
-    # Assert correct string representation from DynArgDescriptor03
+    # Assert correct string representation from LFRicArgDescriptor
     result = str(scalar_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_real'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
-    # Check DynArgDescriptor03 argument properties
+    # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.type == "gh_real"
     assert scalar_descriptor.datatype == "real"
     assert scalar_descriptor.function_space is None
@@ -2833,7 +2833,7 @@ def test_arg_descriptor_real_scalar():
 
 
 def test_arg_descriptor_int_scalar():
-    ''' Tests that the DynArgDescriptor03 argument representation works
+    ''' Tests that the LFRicArgDescriptor argument representation works
     as expected for an integer scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -2841,14 +2841,14 @@ def test_arg_descriptor_int_scalar():
     scalar_descriptor = metadata.arg_descriptors[5]
     result = str(scalar_descriptor)
 
-    # Assert correct string representation from DynArgDescriptor03
+    # Assert correct string representation from LFRicArgDescriptor
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_integer'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
-    # Check DynArgDescriptor03 argument properties
+    # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.type == "gh_integer"
     assert scalar_descriptor.datatype == "integer"
     assert scalar_descriptor.function_space is None
@@ -2860,7 +2860,7 @@ def test_arg_descriptor_int_scalar():
 
 
 def test_arg_descriptor_str_error():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when __str__ is called and the internal type is an unexpected
     value. It should not be possible to get to here so we need to
     mess about with internal values to trip this.'''
@@ -2871,12 +2871,12 @@ def test_arg_descriptor_str_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = str(field_descriptor)
-    assert ("DynArgDescriptor03.__str__, should not get to here." in
+    assert ("LFRicArgDescriptor.__str__, should not get to here." in
             str(excinfo.value))
 
 
 def test_arg_desc_func_space_tofrom_err():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_space_to or function_space_from is called and the
     internal type is not an operator argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3013,7 +3013,7 @@ def test_fsdescriptors_get_descriptor():
 
 
 def test_arg_descriptor_init_error(monkeypatch):
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when an invalid type is provided. However, this error never gets
     tripped due to an earlier test so we need to force the error by
     changing the internal state. '''
@@ -3022,17 +3022,17 @@ def test_arg_descriptor_init_error(monkeypatch):
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     # Extract an arg_type object that we can use to create a
-    # DynArgDescriptor03 object
+    # LFRicArgDescriptor object
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that 'GH_INVALID' is actually valid
-    from psyclone.dynamo0p3 import DynArgDescriptor03
+    from psyclone.dynamo0p3 import LFRicArgDescriptor
     monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
                         GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
-        DynArgDescriptor03(arg_type)
-    assert ("DynArgDescriptor03.__init__: failed argument validation, "
+        LFRicArgDescriptor(arg_type)
+    assert ("LFRicArgDescriptor.__init__: failed argument validation, "
             "should not get to here" in str(excinfo.value))
 
 

@@ -655,7 +655,7 @@ class DynFuncDescriptor03(object):
         return res
 
 
-class DynArgDescriptor03(Descriptor):
+class LFRicArgDescriptor(Descriptor):
     '''
     This class captures the information specified in an argument descriptor.
 
@@ -779,7 +779,7 @@ class DynArgDescriptor03(Descriptor):
             self._type = arg_type.args[0].name
         else:
             raise InternalError(
-                "DynArgDescriptor03.__init__: invalid argument type after "
+                "LFRicArgDescriptor.__init__: invalid argument type after "
                 "checks, should not get to here")
 
         # The 2nd arg is an access descriptor (TODO: 3rd in case of scalar)
@@ -821,11 +821,11 @@ class DynArgDescriptor03(Descriptor):
         # We should never get to here (#TODO: check if tested)
         else:
             raise InternalError(
-                "DynArgDescriptor03.__init__: failed argument validation, "
+                "LFRicArgDescriptor.__init__: failed argument validation, "
                 "should not get to here")
 
         # Initialise the parent class
-        super(DynArgDescriptor03,
+        super(LFRicArgDescriptor,
               self).__init__(self._access_type, self._function_space1,
                              stencil=self._stencil, mesh=self._mesh)
 
@@ -859,7 +859,7 @@ class DynArgDescriptor03(Descriptor):
         # Check whether something other than a field is passed in
         if self._type not in GH_VALID_FIELD_NAMES:
             raise InternalError(
-                "DynArgDescriptor03._validate_field: expecting a field "
+                "LFRicArgDescriptor._validate_field: expecting a field "
                 "argument but got an argument of type '{0}'. Should be "
                 "impossible.".format(arg_type.args[0]))
 
@@ -959,7 +959,7 @@ class DynArgDescriptor03(Descriptor):
         # Check whether something other than an operator is passed in
         if self._type not in GH_VALID_OPERATOR_NAMES:
             raise InternalError(
-                "DynArgDescriptor03._validate_operator: expecting an "
+                "LFRicArgDescriptor._validate_operator: expecting an "
                 "operator argument but got an argument of type '{0}'. "
                 "Should be impossible.".format(self._type))
 
@@ -1018,7 +1018,7 @@ class DynArgDescriptor03(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._type not in GH_VALID_SCALAR_NAMES:
             raise InternalError(
-                "DynArgDescriptor03._validate_scalar: expecting a scalar "
+                "LFRicArgDescriptor._validate_scalar: expecting a scalar "
                 "argument but got an argument of type '{0}'. Should be "
                 "impossible.".format(arg_type.args[0]))
 
@@ -1128,7 +1128,7 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space2
         if self._type in GH_VALID_SCALAR_NAMES:
             return None
-        raise InternalError("DynArgDescriptor03.function_space(), should "
+        raise InternalError("LFRicArgDescriptor.function_space(), should "
                             "not get to here.")
 
     @property
@@ -1152,7 +1152,7 @@ class DynArgDescriptor03(Descriptor):
             return [self.function_space_to, self.function_space_from]
         if self._type in GH_VALID_SCALAR_NAMES:
             return []
-        raise InternalError("DynArgDescriptor03.function_spaces(), should "
+        raise InternalError("LFRicArgDescriptor.function_spaces(), should "
                             "not get to here.")
 
     @property
@@ -1180,7 +1180,7 @@ class DynArgDescriptor03(Descriptor):
         :raises InternalError: if an invalid argument type is passed in.
 
         '''
-        res = "DynArgDescriptor03 object" + os.linesep
+        res = "LFRicArgDescriptor object" + os.linesep
         res += "  argument_type[0]='{0}'".format(self._type)
         if self._vector_size > 1:
             res += "*"+str(self._vector_size)
@@ -1199,7 +1199,7 @@ class DynArgDescriptor03(Descriptor):
         elif self._type in GH_VALID_SCALAR_NAMES:
             pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
-            raise InternalError("DynArgDescriptor03.__str__, should not "
+            raise InternalError("LFRicArgDescriptor.__str__, should not "
                                 "get to here.")
         return res
 
@@ -1387,7 +1387,7 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -9993,7 +9993,7 @@ class DynKernelArgument(KernelArgument):
         :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
         :param arg_meta_data: Information obtained from the meta-data for
                               this kernel argument
-        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
+        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
@@ -10334,7 +10334,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'FunctionSpace',
     'DynFuncDescriptor03',
-    'DynArgDescriptor03',
+    'LFRicArgDescriptor',
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',

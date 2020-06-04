@@ -97,10 +97,10 @@ def test_cma_mdata_assembly():
     dkm = DynKernMetadata(ast, name=name)
     cma_op_desc = dkm.arg_descriptors[1]
 
-    # Assert correct string representation from DynArgDescriptor03
+    # Assert correct string representation from LFRicArgDescriptor
     cma_op_desc_str = str(cma_op_desc)
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space_to[2]='any_space_1'\n"
@@ -108,7 +108,7 @@ def test_cma_mdata_assembly():
     assert expected in cma_op_desc_str
     assert dkm._cma_operation == "assembly"
 
-    # Check DynArgDescriptor03 argument properties
+    # Check LFRicArgDescriptor argument properties
     assert cma_op_desc.type == "gh_columnwise_operator"
     assert cma_op_desc.datatype == "real"
     assert cma_op_desc.function_space_to == "any_space_1"
@@ -123,16 +123,16 @@ def test_cma_mdata_assembly():
 
 def test_cma_mdata_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
-    is passed to the DynArgDescriptor03._validate_operator method. '''
-    from psyclone.dynamo0p3 import DynArgDescriptor03
+    is passed to the LFRicArgDescriptor._validate_operator method. '''
+    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
     name = "testkern_cma_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not an operator
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
-        DynArgDescriptor03(wrong_arg)._validate_operator(wrong_arg)
-    assert ("DynArgDescriptor03._validate_operator: expecting an operator "
+        LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._validate_operator: expecting an operator "
             "argument but got an argument of type 'gh_real'. Should be "
             "impossible." in str(excinfo.value))
 
@@ -245,7 +245,7 @@ def test_cma_mdata_assembly_diff_spaces():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[0])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_3'\n"
@@ -323,7 +323,7 @@ def test_cma_mdata_apply():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[1])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space[2]='any_space_2'\n")
@@ -331,7 +331,7 @@ def test_cma_mdata_apply():
     assert expected in dkm_str
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"
@@ -508,7 +508,7 @@ def test_cma_mdata_matrix_prod():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"

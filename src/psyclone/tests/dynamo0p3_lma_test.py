@@ -170,16 +170,16 @@ def test_no_vector_operator():
 
 def test_ad_op_type_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
-    is passed to the DynArgDescriptor03._validate_operator method. '''
-    from psyclone.dynamo0p3 import DynArgDescriptor03
+    is passed to the LFRicArgDescriptor._validate_operator method. '''
+    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not an operator
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
-        DynArgDescriptor03(wrong_arg)._validate_operator(wrong_arg)
-    assert ("DynArgDescriptor03._validate_operator: expecting an operator "
+        LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._validate_operator: expecting an operator "
             "argument but got an argument of type 'gh_field'. Should be "
             "impossible." in str(excinfo.value))
 
@@ -197,24 +197,24 @@ def test_ad_op_type_wrong_access():
 
 
 def test_arg_descriptor_op():
-    ''' Tests that the DynArgDescriptor03 argument representation works
+    ''' Tests that the LFRicArgDescriptor argument representation works
     as expected when we have an operator. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     operator_descriptor = metadata.arg_descriptors[3]
 
-    # Assert correct string representation from DynArgDescriptor03
+    # Assert correct string representation from LFRicArgDescriptor
     result = str(operator_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='w2'\n"
         "  function_space_from[3]='w2'\n")
     assert expected_output in result
 
-    # Check DynArgDescriptor03 argument properties
+    # Check LFRicArgDescriptor argument properties
     assert operator_descriptor.type == "gh_operator"
     assert operator_descriptor.datatype == "real"
     assert operator_descriptor.function_space_to == "w2"
