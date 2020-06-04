@@ -80,12 +80,13 @@ class NemoFparser2Reader(Fparser2Reader):
         :return: a new NemoLoop instance.
         :rtype: :py:class:`psyclone.nemo.NemoLoop`
         '''
-        print (variable_name)
         try:
             data_symbol = parent.find_or_create_symbol(variable_name)
         except SymbolError:
-            print ("UNSUPPORTED IMPLICIT VARIABLE NAME")
-            exit(1)
+            raise InternalError(
+                "Loop-variable name '{0}' is not declared and there are no "
+                "unqualified use statements. This is currently unsupported."
+                "".format(variable_name))
         variable = Reference(data_symbol)
         loop = NemoLoop(parent=parent, variable=variable)
 

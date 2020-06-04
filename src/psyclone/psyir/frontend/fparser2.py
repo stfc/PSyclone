@@ -1626,7 +1626,13 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        data_symbol = parent.find_or_create_symbol(variable_name)
+        try:
+            data_symbol = parent.find_or_create_symbol(variable_name)
+        except SymbolError:
+            raise InternalError(
+                "Loop-variable name '{0}' is not declared and there are no "
+                "unqualified use statements. This is currently unsupported."
+                "".format(variable_name))
         variable = Reference(data_symbol)
         return Loop(parent=parent, variable=variable)
 

@@ -2812,3 +2812,26 @@ def test_get_symbol_table():
     for node in [lhs, rhs, assignment, kernel_schedule]:
         assert _get_symbol_table(node) is symbol_table
     assert _get_symbol_table(container) is symbol_table2
+
+
+def test_loop_var_exception(parser):
+    '''Checks that the expected exception is raised in class
+    Fparser2Reader method generate_schedule if a loop variable is not
+    declared and there is no unqualified use statement.
+
+    '''
+    code = ('''
+      subroutine test()
+        do i=1,10
+        end do
+      end subroutine test
+    ''')
+    reader = FortranStringReader(code)
+    fparser_tree = parser(reader)
+    fparser2psyir = Fparser2Reader()
+    with pytest.raises(InternalError) as excinfo:
+        _ = fparser2psyir.generate_schedule("test", fparser_tree)
+    assert (
+        "Loop-variable name 'i' is not declared and there are no unqualified "
+        "use statements. This is currently unsupported."
+        in str(excinfo.value))
