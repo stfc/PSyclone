@@ -51,6 +51,8 @@ class DataSymbol(Symbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
+    :param visibility: the visibility of this symbol.
+    :type visibility: :py:class:`psyclone.psyir.symbols.Visibility`
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
@@ -66,9 +68,9 @@ class DataSymbol(Symbol):
         :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
 
     '''
-    def __init__(self, name, datatype, constant_value=None, interface=None):
-
-        super(DataSymbol, self).__init__(name)
+    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
+                 constant_value=None, interface=None):
+        super(DataSymbol, self).__init__(name, visibility)
 
         self._datatype = None
         self.datatype = datatype
@@ -89,23 +91,34 @@ class DataSymbol(Symbol):
         ''' If the symbol has a deferred datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
+        :raises SymbolError: if the module pointed to by the symbol interface \
+                             does not contain the symbol (or the symbol is \
+                             not public).
         :raises NotImplementedError: if the deferred symbol is not a Global.
+
         '''
-        from psyclone.psyir.symbols import DeferredType
+        from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
             if self.is_global:
-                # Copy all the symbol properties but the interface
+                # Copy all the symbol properties but the interface and
+                # visibility (the latter is determined by the current
+                # scoping unit)
                 tmp = self.interface
                 module = self.interface.container_symbol
                 try:
                     extern_symbol = module.container.symbol_table.lookup(
-                        self.name)
+                        self.name, visibility=Symbol.Visibility.PUBLIC)
                 except KeyError:
                     raise SymbolError(
-                        "Error trying to resolve symbol '{0}' properties. The "
-                        "interface points to module '{1}' but could not find "
-                        "the definition of '{0}' in that module."
-                        "".format(self.name, module.name))
+                        "Error trying to resolve the properties of symbol "
+                        "'{0}'. The interface points to module '{1}' but "
+                        "could not find the definition of '{0}' in that "
+                        "module.".format(self.name, module.name))
+                except SymbolError as err:
+                    raise SymbolError(
+                        "Error trying to resolve the properties of symbol "
+                        "'{0}' in module '{1}': {2}".format(
+                            self.name, module.name, str(err.value)))
                 self.copy_properties(extern_symbol)
                 self.interface = tmp
             else:
@@ -353,7 +366,7 @@ class DataSymbol(Symbol):
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name which is immutable.
+        symbol_in, apart from the name (which is immutable) and visibility.
 
         :param symbol_in: the symbol from which the properties are copied.
         :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`

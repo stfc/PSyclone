@@ -44,7 +44,8 @@ import pytest
 from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol
+    ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
+    SymbolError
 from psyclone.errors import InternalError
 
 
@@ -370,6 +371,39 @@ def test_lookup():
         sym_table.lookup("notdeclared")
     assert "Could not find 'notdeclared' in the Symbol Table." in \
         str(error.value)
+
+
+def test_lookup_visibility_filter():
+    ''' Test the filtering functionality of the lookup() method. '''
+    sym_table = SymbolTable()
+    sym1 = Symbol("var1")
+    sym_table.add(sym1)
+    sym_table.add(Symbol("var2", visibility=Symbol.Visibility.PRIVATE))
+    sym3 = Symbol("var3", visibility=Symbol.Visibility.PUBLIC)
+    sym_table.add(sym3)
+    # Default visibility is PUBLIC
+    assert (sym_table.lookup("var1", visibility=Symbol.Visibility.PUBLIC)
+            is sym1)
+    assert (sym_table.lookup("var3", visibility=[Symbol.Visibility.PUBLIC])
+            is sym3)
+    # Check method accepts a list of visibilities
+    assert (sym_table.lookup("var1", visibility=[Symbol.Visibility.PUBLIC])
+            is sym1)
+    assert (sym_table.lookup("var1", visibility=[Symbol.Visibility.PRIVATE,
+                                                 Symbol.Visibility.PUBLIC])
+            is sym1)
+    # Check we get the expected error if the symbol exists but doesn't
+    # have the requested visibility
+    with pytest.raises(SymbolError) as err:
+        sym_table.lookup("var2", visibility=Symbol.Visibility.PUBLIC)
+    assert ("'var2' exists in the Symbol Table but has visibility 'PRIVATE' "
+            "which does not" in str(err))
+    # Pass an incorrect type for the visibility argument
+    with pytest.raises(TypeError) as err:
+        sym_table.lookup("var2", visibility="PUBLIC")
+    assert ("the 'visibility' argument to lookup() must be an instance (or "
+            "list of instances) of Symbol.Visibility but got 'str' when "
+            "searching for symbol 'var2'"in str(err))
 
 
 def test_lookup_with_tag():
