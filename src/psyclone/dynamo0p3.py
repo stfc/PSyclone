@@ -7978,15 +7978,7 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        self._arglist.append(self._cell_ref_name)
-        if var_accesses:
-            if self._kern.is_coloured:
-                var_accesses.add_access(self._kern._colourmap,
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access("colour", AccessType.READ,
-                                        self._kern)
-            var_accesses.add_access("cell", AccessType.READ,
-                                    self._kern)
+        self._arglist.append(self._cell_ref_name(var_accesses))
 
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts to the argument list.
@@ -8004,8 +7996,9 @@ class KernCallArgList(ArgOrdering):
         base_name = "cell_map_" + carg.name
         map_name = symtab.name_from_tag(base_name)
         # Add the cell map to our argument list
-        self._arglist.append("{0}(:,{1})".format(map_name,
-                                                 self._cell_ref_name))
+        self._arglist.append("{0}(:,{1})".
+                             format(map_name,
+                                    self._cell_ref_name(var_accesses)))
         if var_accesses:
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
         # No. of fine cells per coarse cell
@@ -8163,7 +8156,7 @@ class KernCallArgList(ArgOrdering):
         '''
         # add in stencil dofmap
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
-        name = var_name + "(:,:," + self._cell_ref_name + ")"
+        name = var_name + "(:,:," + self._cell_ref_name(var_accesses) + ")"
         self._arglist.append(name)
         if var_accesses:
             var_accesses.add_access(var_name, AccessType.READ, self._kern, [1])
@@ -8273,7 +8266,8 @@ class KernCallArgList(ArgOrdering):
         undf_name = function_space.undf_name
         self._arglist.append(undf_name)
         map_name = function_space.map_name
-        self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
+        self._arglist.append(map_name + "(:," +
+                             self._cell_ref_name(var_accesses) + ")")
         if var_accesses:
             var_accesses.add_access(undf_name, AccessType.READ, self._kern)
             # We add the whole map variable,
@@ -8633,17 +8627,32 @@ class KernCallArgList(ArgOrdering):
                 "before the arglist() method")
         return self._arglist
 
-    @property
-    def _cell_ref_name(self):
+    def _cell_ref_name(self, var_accesses=None):
         '''
         Utility routine which determines whether to return the cell value
-        or the colourmap lookup value.
+        or the colourmap lookup value. If supplied it also stores this access
+        in var_accesses.
+
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :returns: the Fortran code needed to access the current cell index.
         :rtype: str
+
         '''
         if self._kern.is_coloured():
+            if var_accesses:
+                var_accesses.add_access("colour", AccessType.READ, self._kern)
+                var_accesses.add_access("cell", AccessType.READ, self._kern)
+                var_accesses.add_access(self._kern.colourmap, AccessType.READ,
+                                        self._kern, ["colour", "cell"])
             return self._kern.colourmap + "(colour, cell)"
+
+        if var_accesses:
+            var_accesses.add_access("cell", AccessType.READ, self._kern)
+
         return "cell"
 
 
