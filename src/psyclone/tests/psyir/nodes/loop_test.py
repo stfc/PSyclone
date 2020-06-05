@@ -294,3 +294,43 @@ def test_loop_children_validation():
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 4 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+
+def test_check_variable():
+    '''Test the _check_variable utility method behaves as expected'''
+
+    assert Loop._check_variable(None) == None
+
+    with pytest.raises(GenerationError) as info:
+        assert Loop._check_variable("hello")
+    assert ("variable argument in create method of Loop class should be a "
+            "Reference but found 'str'." in str(info.value))
+
+    array_type = ArrayType(INTEGER_TYPE, shape=[10,20])
+    array_symbol = DataSymbol("my_array", array_type)
+    array_ref = Reference(array_symbol)
+    with pytest.raises(GenerationError) as info:
+        assert Loop._check_variable(array_ref)
+    assert ("variable argument in create method of Loop class should be a "
+            "ScalarType but found 'ArrayType'." in str(info.value))
+
+    scalar_symbol = DataSymbol("my_array", REAL_TYPE)
+    scalar_ref = Reference(scalar_symbol)
+    with pytest.raises(GenerationError) as info:
+        assert Loop._check_variable(scalar_ref)
+    assert ("variable argument in create method of Loop class should be a "
+            "scalar integer but found 'REAL'." in str(info.value))
+
+    scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)
+    scalar_ref = Reference(scalar_symbol)
+    assert Loop._check_variable(scalar_ref) == None
+
+
+def test_variable_setter():
+    '''Check that we can set the _variable property using the variable
+    setter method.
+
+    '''
+    loop = Loop()
+    assert loop.variable is None
+    loop.variable = Reference(DataSymbol("var", INTEGER_TYPE))
+    assert loop.variable.name == "var"
