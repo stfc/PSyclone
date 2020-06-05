@@ -553,7 +553,7 @@ class Invoke(object):
                                      intent is required.
         :param access: optional AccessType that the declaration should have.
         :returns: a list of all declared kernel arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
 
         :raises GenerationError: if an invalid argument type is given.
         :raises InternalError: if an invalid access is specified.
@@ -571,8 +571,10 @@ class Invoke(object):
                 "type. Type is '{0}' instead of AccessType".
                 format(str(access)))
 
-        # Initialise dictionary of kernel arguments
+        # Initialise dictionary of kernel arguments to get the
+        # argument list from
         declarations = OrderedDict()
+        # Find unique kernel arguments using their declaration name
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
@@ -581,7 +583,6 @@ class Invoke(object):
                             test_name = arg.declaration_name
                             if test_name not in declarations:
                                 declarations[test_name] = arg
-
         return list(declarations.values())
 
     def first_access(self, arg_name):
@@ -605,7 +606,7 @@ class Invoke(object):
                                      required.
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
-        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`.
+        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
 
         :raises GenerationError: if the kernel argument is not a valid \
                                  argument type for the particular API.

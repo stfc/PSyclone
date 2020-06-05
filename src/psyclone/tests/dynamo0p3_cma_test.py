@@ -110,7 +110,7 @@ def test_cma_mdata_assembly():
 
     # Check LFRicArgDescriptor argument properties
     assert cma_op_desc.type == "gh_columnwise_operator"
-    assert cma_op_desc.datatype == "real"
+    assert cma_op_desc.datatype == "gh_real"
     assert cma_op_desc.function_space_to == "any_space_1"
     assert cma_op_desc.function_space_from == "any_space_2"
     assert cma_op_desc.function_space == "any_space_2"

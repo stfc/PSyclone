@@ -216,7 +216,7 @@ def test_arg_descriptor_op():
 
     # Check LFRicArgDescriptor argument properties
     assert operator_descriptor.type == "gh_operator"
-    assert operator_descriptor.datatype == "real"
+    assert operator_descriptor.datatype == "gh_real"
     assert operator_descriptor.function_space_to == "w2"
     assert operator_descriptor.function_space_from == "w2"
     assert operator_descriptor.function_space == "w2"

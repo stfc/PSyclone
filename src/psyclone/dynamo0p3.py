@@ -153,6 +153,9 @@ GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = GH_VALID_FIELD_NAMES + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
+# ---------- API argument datatypes (real, integer, logical) ---------------- #
+GH_VALID_ARG_DATATYPE_NAMES = ["gh_real", "gh_integer", "gh_logical"]
+
 # ---------- Fortran datatypes ------------------------- #
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
@@ -878,8 +881,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Field datatype is "real" for now, but will be determined by
         # metadata descriptor for datatype as a second argument (TODO: XXX)
-        # That will have to change to GH_REAL, etc... HERE
-        self._datatype = "real"
+        self._datatype = "gh_real"
 
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
@@ -965,8 +967,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Operator datatype is "real" for now, but will be determined by
         # metadata descriptor for datatype as a second argument (TODO: XXX)
-        # That will have to change to GH_REAL, etc... HERE
-        self._datatype = "real"
+        self._datatype = "gh_real"
 
         # We expect 4 arguments with the 3rd and 4th each being a
         # function space
@@ -1014,6 +1015,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if there are not exactly 2 metadata arguments.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
+
         '''
         # Check whether something other than a scalar is passed in
         if self._type not in GH_VALID_SCALAR_NAMES:
@@ -1031,9 +1033,8 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalar datatype is determined by its metadata descriptor for
         # datatype as a second argument (TODO: HERE and add checks for allowed
-        # datatypes). That will have to change to GH_REAL, etc...
-        dtype = str(arg_type.args[0]).lower()
-        self._datatype = dtype.lstrip("gh_")
+        # datatypes). Use GH_VALID_ARG_DATATYPE_NAMES....
+        self._datatype = str(arg_type.args[0]).lower()
 
         # Test allowed accesses for scalars (read_only or reduction)
         if self._access_type not in [AccessType.READ] + \
@@ -9971,23 +9972,24 @@ class DynKernelArguments(Arguments):
 
 
 class DynKernelArgument(KernelArgument):
-    ''' Provides information about individual Dynamo kernel call
-    arguments as specified by the kernel argument metadata. '''
+    '''
+    This class provides information about individual LFRic kernel call
+    arguments as specified by the kernel argument metadata.
 
+    :param kernel_args: object encapsulating all arguments to the \
+                            kernel call.
+    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+    :param arg_meta_data: information obtained from the meta-data for \
+                          this kernel argument.
+    :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+    :param arg_info: information on how this argument is specified in \
+                     the Algorithm layer.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param call: the kernel object with which this argument is associated.
+    :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    '''
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
-        '''
-        :param kernel_args: Object encapsulating all arguments to the
-                            kernel call
-        :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
-        :param arg_meta_data: Information obtained from the meta-data for
-                              this kernel argument
-        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
-        :param arg_info: Information on how this argument is specified in the
-                         Algorithm layer
-        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param call: The kernel object with which this argument is associated
-        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
-        '''
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
@@ -9995,8 +9997,7 @@ class DynKernelArgument(KernelArgument):
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
-        # TODO HERE: Use GH_REAL etc and modify property to strip GH
-        self._datatype = arg_meta_data.datatype
+        self._datatype = self._datatype_from_descriptor(arg_meta_data)
         self._stencil = None
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
@@ -10029,22 +10030,26 @@ class DynKernelArgument(KernelArgument):
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
 
-    @property
-    def descriptor(self):
-        ''' return a descriptor object which contains Kernel
-        metadata about this argument '''
-        return self._arg
-
     def ref_name(self, function_space=None):
         '''
         Returns the name used to dereference this type of argument (depends
         on whether it is a field or operator and, if the latter, whether it
         is the to- or from-space that is specified).
 
-        :param function_space: the function space of this argument
+        :param function_space: the function space of this argument.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :return: the name used to dereference this argument
+
+        :returns: the name used to dereference this argument.
         :rtype: str
+
+        :raises GenerationError: if the supplied function space is not one \
+                                 of the function spaces associated with \
+                                 this argument.
+        :raises GenerationError: if the supplied function space is not being \
+                                 returned by either 'function_space_from' or \
+                                 'function_space_to'.
+        :raises GenerationError: if the argument type is not supported.
+
         '''
         if not function_space:
             if self.is_operator:
@@ -10062,7 +10067,7 @@ class DynKernelArgument(KernelArgument):
                     break
             if not found:
                 raise GenerationError(
-                    "DynKernelArgument:ref_name(fs). The supplied function "
+                    "DynKernelArgument.ref_name(fs): The supplied function "
                     "space (fs='{0}') is not one of the function spaces "
                     "associated with this argument (fss='{1}')".format(
                         function_space.orig_name,
@@ -10076,67 +10081,135 @@ class DynKernelArgument(KernelArgument):
                 return "fs_to"
             else:
                 raise GenerationError(
-                    "ref_name: Error, function space '{0}' is one of the "
-                    "gh_operator function spaces '{1}' but is not being "
-                    "returned by either function_space from '{2}' or "
-                    "function_space_to '{3}'".format(
+                    "DynKernelArgument.ref_name: Function space '{0}' is one "
+                    "of the 'gh_operator' function spaces '{1}' but is not "
+                    "being returned by either 'function_space_from', '{2}', "
+                    "or 'function_space_to', '{3}'".format(
                         function_space.orig_name, self.function_spaces,
                         self.descriptor.function_space_from,
                         self.descriptor.function_space_to))
         else:
             raise GenerationError(
-                "ref_name: Error, unsupported arg type '{0}' found".
-                format(self._type))
+                "DynKernelArgument.ref_name: Error, unsupported arg type "
+                "'{0}' found".format(self._type))
+
+    def _datatype_from_descriptor(self, arg_meta_data):
+        '''
+        Determines the Fortran datatype of this argument based on the
+        argument metadata by stripping the "gh_" prefix from the API
+        datatype descriptors. The currently supported datatypes for
+        kernel arguments are "real" and "integer".
+
+        :param arg_meta_data: information obtained from the meta-data for \
+                              this kernel argument.
+        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+
+        :returns: Fortran datatype of this argument.
+        :rtype: str
+
+        :raises InternalError: if the argument type is not supported.
+
+        '''
+        if arg_meta_data.type not in GH_VALID_ARG_TYPE_NAMES:
+            raise InternalError(
+                "DynKernelArgument._datatype_from_descriptor: Provided "
+                "argument type is not supported, should be impossible.")
+
+        # Determine Fortran datatype from datatype descriptor.
+        dtype = arg_meta_data.datatype.lower()
+        return dtype.lstrip("gh_")
+
+    @property
+    def descriptor(self):
+        '''
+        Returns a descriptor object which contains Kernel metadata
+        about this argument.
+
+        :returns: kernel argument descriptor.
+        :rtype: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+
+        '''
+        return self._arg
 
     @property
     def type(self):
-        ''' Returns the type of this argument. '''
+        '''
+        Returns the API type of this argument (one of GH_VALID_ARG_TYPE_NAMES).
+
+        :returns: type of this argument.
+        :rtype: str
+
+        '''
         return self._type
 
     @property
     def datatype(self):
-        ''' Returns the datatype of this argument (real, integer, ...).
-         TODO HERE: Modify method to strip "GH"
-        :returns: datatype of the argument.
+        '''
+        Returns the Fortran datatype of this argument ("real" or "integer").
+
+        :returns: Fortran datatype of this argument.
         :rtype: str
 
         '''
         return self._datatype
 
     def is_scalar(self):
-        ''':return: whether this variable is a scalar variable or not.
-        :rtype: bool'''
+        '''
+        Returns whether this variable is a scalar variable (True) or any
+        other type of kernel argument (False).
+
+        :returns: whether argument is a scalar.
+        :rtype: bool
+
+        '''
         return self.type in GH_VALID_SCALAR_NAMES
 
     @property
     def mesh(self):
         '''
-        Getter for the mesh associated with this argument
-        :return: Mesh associated with argument (GH_FINE or GH_COARSE)
+        Getter for the mesh associated with this argument.
+
+        :returns: mesh associated with this argument (GH_FINE or GH_COARSE).
         :rtype: str
+
         '''
         return self._mesh
 
     @property
     def vector_size(self):
-        ''' Returns the vector size of this argument as specified in
-        the Kernel metadata. '''
+        '''
+        Returns the vector size of this argument as specified in the
+        Kernel metadata.
+
+        :returns: vector size of a field vector argument.
+        :rtype: str
+
+        '''
         return self._vector_size
 
     @property
     def proxy_name(self):
         '''
-        :returns: the proxy name for this argument.
+        Retuns the proxy name of this argument (formed as
+        <argument._name>_proxy).
+
+        :returns: proxy name for this argument.
         :rtype: str
+
         '''
         return self._name+"_proxy"
 
     @property
     def proxy_declaration_name(self):
         '''
-        :returns: the proxy name for this argument with the array \
-                  dimensions added if required.
+        Returns the proxy name of this argument (formed as
+        <argument._declaration_name>_proxy) with the array dimensions
+        added if required. In case of non-vector arguments this is the
+        same as the argument's proxy name.
+
+        :returns: proxy declaration name for this argument.
         :rtype: str
+
         '''
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
@@ -10144,8 +10217,15 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def declaration_name(self):
-        ''' Returns the name for this argument with the array
-        dimensions added if required. '''
+        '''
+        Returns the name for this argument with the array
+        dimensions added if required. In case of non-vector
+        arguments this is the same as the argument's name.
+
+        :returns: declaration name for this argument.
+        :rtype: str
+
+        '''
         if self._vector_size > 1:
             return self._name+"("+str(self._vector_size)+")"
         return self._name
@@ -10153,10 +10233,15 @@ class DynKernelArgument(KernelArgument):
     @property
     def proxy_name_indexed(self):
         '''
-        :returns: the proxy name for this argument with an additional \
-                  index which accesses the first element for a vector \
-                  argument.
+        Returns the proxy name of a kernel argument with the array
+        dimensions added if required. In case of non-vector arguments
+        this is the same as the argument's proxy name. In case of
+        vector arguments only the first element is used to access
+        the proxy data.
+
+        :returns: indexed proxy name for this argument.
         :rtype: str
+
         '''
         if self._vector_size > 1:
             return self._name+"_proxy(1)"
@@ -10165,9 +10250,14 @@ class DynKernelArgument(KernelArgument):
     @property
     def name_indexed(self):
         '''
-        :returns: the name for this argument with an additional index \
-                  which accesses the first element for a vector argument.
+        Returns the indexed name of a kernel argument with the array
+        dimensions added if required. In case of non-vector arguments
+        this is the same as the argument's name. In case of vector
+        arguments only the first element is used to access the data.
+
+        :returns: indexed name for this argument.
         :rtype: str
+
         '''
         if self._vector_size > 1:
             return self._name+"(1)"
@@ -10176,9 +10266,13 @@ class DynKernelArgument(KernelArgument):
     @property
     def function_space(self):
         '''
-        :return: the expected finite element function space for this
-                 argument as specified by the kernel argument metadata.
+        Returns the expected finite element function space for a kernel
+        argument as specified by the kernel argument metadata: a single
+        function space for a field and function_space_from for an operator.
+
+        :returns: function space for this argument.
         :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
         '''
         if self._type == "gh_operator":
             # We return the 'from' space for an operator argument
@@ -10187,27 +10281,64 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def function_space_to(self):
-        ''' Returns the 'to' function space of an operator '''
-        return self._function_spaces[0]
+        '''
+        Returns the "to" finite element function space for a kernel
+        operator argument as specified by the kernel argument metadata.
+
+        :returns: "to" function space for this operator argument.
+        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        :raises InternalError: if the argument is not an operator.
+
+        '''
+        if self._type in GH_VALID_OPERATOR_NAMES:
+            return self._function_spaces[0]
+        raise InternalError(
+            "DynKernelArgument.function_space_to: Provided argument is "
+            "not an operator, should be impossible.")
 
     @property
     def function_space_from(self):
-        ''' Returns the 'from' function space of an operator '''
-        return self._function_spaces[1]
+        '''
+        Returns the "from" finite element function space for a kernel
+        operator argument as specified by the kernel argument metadata.
+
+        :returns: "from" function space for this operator argument.
+        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        :raises InternalError: if the argument is not an operator.
+
+        '''
+        if self._type in GH_VALID_OPERATOR_NAMES:
+            return self._function_spaces[1]
+        raise InternalError(
+            "DynKernelArgument.function_space_from: Provided argument is "
+            "not an operator, should be impossible.")
 
     @property
     def function_spaces(self):
-        ''' Returns the expected finite element function spaces for this
-        argument as a list as specified by the kernel argument
-        metadata. We have more than one function space when dealing
-        with operators. '''
+        '''
+        Returns the expected finite element function spaces for this argument
+        as a list as specified by the kernel argument metadata. We have more
+        than one function space when dealing with operators.
+
+        :returns: list of function spaces for this argument.
+        :rtype: list of :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        '''
         return self._function_spaces
 
     @property
     def function_space_names(self):
-        ''' Returns a list of the names of the function spaces associated
-        with this argument. We have more than one function space when
-        dealing with operators. '''
+        '''
+        Returns a list of the names of the function spaces associated with
+        this argument as specified by the kernel argument metadata. We have
+        more than one function space when dealing with operators.
+
+        :returns: list of function space names for this argument.
+        :rtype: list of str.
+
+        '''
         fs_names = []
         for fspace in self._function_spaces:
             if fspace:
@@ -10217,11 +10348,15 @@ class DynKernelArgument(KernelArgument):
     @property
     def intent(self):
         '''
-        Returns the Fortran intent of this argument.
+        Returns the Fortran intent of this argument as defined by valid
+        access typed for this API.
 
-        :return: the expected Fortran intent for this argument as specified
-                 by the kernel argument metadata
+        :returns: the expected Fortran intent for this argument as \
+                  specified by the kernel argument metadata.
         :rtype: str
+
+        :raises GenerationError: if the argument has an invalid access.
+
         '''
         if self.access == AccessType.READ:
             return "in"
@@ -10241,36 +10376,53 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def discontinuous(self):
-        '''Returns True if this argument is known to be on a discontinuous
+        '''
+        Returns True if this argument is known to be on a discontinuous
         function space including any_discontinuous_space, otherwise
-        returns False.'''
+        returns False.
+
+        :returns: whether argument is discontinuous.
+        :rtype: bool
+
+        '''
         if self.function_space.orig_name in \
            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
             return True
         if self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
-            # we will eventually look this up based on our dependence
+            # We will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False
         return False
 
     @property
     def stencil(self):
-        '''Return stencil information about this kernel argument if it
-        exists. The information is returned as a DynStencil object.'''
+        '''
+        Returns stencil information about this kernel argument if it exists.
+
+        :returns: stencil information for this argument.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynStencil`
+
+         '''
         return self._stencil
 
     @stencil.setter
     def stencil(self, value):
-        '''Set stencil information for this kernel argument. The information
-        should be provided as a DynStencil object. '''
+        '''
+        Sets stencil information for this kernel argument. The information
+        should be provided as a DynStencil object.
+
+        '''
         self._stencil = value
 
     @property
     def is_operator(self):
         '''
-        :return: True if this kernel argument represents an operator,
-                 False otherwise.
+        Returns True if this kernel argument represents an operator and
+        False otherwise.
+
+        :returns: whether argument is an operator.
         :rtype: bool
+
         '''
         return self._type in GH_VALID_OPERATOR_NAMES
 

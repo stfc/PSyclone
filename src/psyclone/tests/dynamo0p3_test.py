@@ -158,7 +158,7 @@ def test_arg_descriptor_vector():
 
     # Check LFRicArgDescriptor argument properties
     assert field_descriptor.type == "gh_field"
-    assert field_descriptor.datatype == "real"
+    assert field_descriptor.datatype == "gh_real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -2446,7 +2446,7 @@ def test_stencil_metadata():
     # Check other LFRicArgDescriptor argument properties for a
     # field stencil argument
     assert stencil_descriptor_1.type == "gh_field"
-    assert stencil_descriptor_1.datatype == "real"
+    assert stencil_descriptor_1.datatype == "gh_real"
     assert stencil_descriptor_1.function_space == "w2"
     assert stencil_descriptor_1.function_spaces == ['w2']
     assert str(stencil_descriptor_1.access) == "READ"
@@ -2817,7 +2817,7 @@ def test_arg_descriptor_fld_str():
 
     # Check LFRicArgDescriptor argument properties
     assert field_descriptor.type == "gh_field"
-    assert field_descriptor.datatype == "real"
+    assert field_descriptor.datatype == "gh_real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -2844,7 +2844,7 @@ def test_arg_descriptor_real_scalar():
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.type == "gh_real"
-    assert scalar_descriptor.datatype == "real"
+    assert scalar_descriptor.datatype == "gh_real"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
@@ -2871,7 +2871,7 @@ def test_arg_descriptor_int_scalar():
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.type == "gh_integer"
-    assert scalar_descriptor.datatype == "integer"
+    assert scalar_descriptor.datatype == "gh_integer"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
