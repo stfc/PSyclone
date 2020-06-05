@@ -1651,7 +1651,7 @@ def test_gosymboltable_conformity_check():
     '''
     from psyclone.gocean1p0 import GOSymbolTable
     from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
-        ArgumentInterface, DataType
+        ArgumentInterface
     symbol_table = GOSymbolTable()
     i_var = DataSymbol("i", INTEGER_TYPE,
                        interface=ArgumentInterface(

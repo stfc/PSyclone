@@ -125,8 +125,8 @@ class Loop(Statement):
         :param variable: the loop iterator.
         :type variable: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :raises GenerationError: if the supplied variable is not a
-        reference to a scalar integer.
+        :raises GenerationError: if the supplied variable is not a \
+            reference to a scalar integer.
 
         '''
         if not variable:

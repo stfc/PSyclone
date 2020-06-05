@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
-    Reference, Array
+    Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE
 from psyclone.psyGen import PSyFactory
@@ -201,7 +201,7 @@ def test_loop_create_invalid():
             "should be a Reference but found 'int'.") in str(excinfo.value)
 
     # variable is not a scalar
-    array_type = ArrayType(INTEGER_TYPE, shape=[10,10])
+    array_type = ArrayType(INTEGER_TYPE, shape=[10, 10])
     variable = Reference(DataSymbol("i", array_type))
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, one, one, children)
@@ -295,17 +295,18 @@ def test_loop_children_validation():
     assert ("Item 'Schedule' can't be child 4 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
 
+
 def test_check_variable():
     '''Test the _check_variable utility method behaves as expected'''
 
-    assert Loop._check_variable(None) == None
+    assert Loop._check_variable(None) is None
 
     with pytest.raises(GenerationError) as info:
         assert Loop._check_variable("hello")
     assert ("variable argument in create method of Loop class should be a "
             "Reference but found 'str'." in str(info.value))
 
-    array_type = ArrayType(INTEGER_TYPE, shape=[10,20])
+    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     array_symbol = DataSymbol("my_array", array_type)
     array_ref = Reference(array_symbol)
     with pytest.raises(GenerationError) as info:
@@ -322,7 +323,7 @@ def test_check_variable():
 
     scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)
     scalar_ref = Reference(scalar_symbol)
-    assert Loop._check_variable(scalar_ref) == None
+    assert Loop._check_variable(scalar_ref) is None
 
 
 def test_variable_setter():

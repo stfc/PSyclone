@@ -41,6 +41,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.nemo import NemoFparser2Reader
 from psyclone.errors import InternalError
 
+
 def test_loop_var_exception(parser):
     '''Checks that the expected exception is raised if a loop variable is
     not declared and there is no unqualified use statement.
