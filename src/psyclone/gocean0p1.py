@@ -251,6 +251,11 @@ class GOLoop(Loop):
             tag = "outer_loop_idx"
             root_name = "j"
 
+        # This will return the symbol table from the closest ancestor
+        # that contains one. However, the original symbol my be in a
+        # different symbol table and if this is the case we will end
+        # up declaring the variable twice. Issue #630 describes this
+        # problem.
         symtab = self.find_symbol_table()
         try:
             data_symbol = symtab.lookup_with_tag(tag)
