@@ -37,22 +37,17 @@
 ''' This module contains the Call node implementation.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import Statement, Literal, Reference
+from psyclone.psyir.nodes import Statement, Literal, Reference, Container
+from psyclone.psyir.symbols import RoutineSymbol
 
 
 class Call(Statement):
     '''Node representing a Call.
 
-    :param str name: the name of the call.
+    :param routine: the routine that this call calls.
+    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
 
     list of Reference arguments
-    list of Reference returns
-
-    :param calls: specifies the container containing the code that \
-        this node calls or None if it has not been linked. If the \
-        container is not available then the container name is stored.
-    :type calls: :py:class:`psyclone.psyir.nodes.Container`, str or \
-        NoneType
 
     Node parent
 
@@ -62,15 +57,13 @@ class Call(Statement):
     _text_name = "Call"
     _colour_key = "Call"
 
-    def __init__(self, name, arguments, returns=[], calls=None, parent=None):
+    def __init__(self, routine, arguments, parent=None):
         super(Call, self).__init__(parent=parent)
 
-        if not isinstance(name, str):
+        if not isinstance(routine, RoutineSymbol):
             raise TypeError(
-                "Call name argument should be a string but found '{0}'."
-                .format(type(name).__name__))
-        if not name:
-            raise TypeError("Call name argument must not be empty.")
+                "Call routine argument should be a RoutineSymbol but found "
+                "'{0}'.".format(type(routine).__name__))
         if not isinstance(arguments, list):
             raise TypeError(
                 "Call arguments argument should be a list but found '{0}'."
@@ -79,41 +72,22 @@ class Call(Statement):
             raise TypeError(
                 "Call arguments argument list entries should all be "
                 "references but at least one is not.")
-        if not isinstance(returns, list):
-            raise TypeError(
-                "Call returns argument should be a list but found '{0}'."
-                "".format(type(returns).__name__))
-        if not all([isinstance(arg, Reference) for arg in returns]):
-            raise TypeError(
-                "Call returns argument list entries should all be "
-                "references but at least one is not.")
-        # TBD calls arg checking
 
-        self._name = name
+        self._routine = routine
         self._arguments = arguments[:]
-        self._returns = returns[:]
-        self._calls = calls
 
-    # TBD properties to access content
     @property
-    def name(self):
-        ''' xxx '''
-        return self._name
+    def routine(self):
+        '''
+        :returns: the routine that this call calls.
+        :rtype: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        '''
+        return self._routine
 
     @property
     def arguments(self):
         ''' xxx '''
         return self._arguments
-
-    @property
-    def returns(self):
-        ''' xxx '''
-        return self._returns
-
-    @property
-    def calls(self):
-        ''' xxx '''
-        return self._calls
 
     def node_str(self, colour=True):
         '''
@@ -125,8 +99,6 @@ class Call(Statement):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return "{0}[name='{1}', args={2}, returns={3}, calls={4}]".format(
-            self.coloured_name(colour), self._name,
-            [argument.name for argument in self.arguments],
-            [returns.name for returns in self._returns],
-            type(self.calls).__name__)
+        return "{0}[name='{1}', args={2}]".format(
+            self.coloured_name(colour), self.routine.name,
+            [argument.name for argument in self.arguments])

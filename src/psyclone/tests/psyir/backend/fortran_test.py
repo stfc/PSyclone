@@ -1472,3 +1472,12 @@ def test_fw_literal_node(fort_writer):
     lit1 = Literal("hello", my_type)
     result = fort_writer(lit1)
     assert result == "1_'hello'"
+
+
+def test_fw_call_node(fort_writer):
+    ''' Test the PSyIR call node is created as expected. '''
+
+    call = Call("my_sub", [], "my_mod")
+    result = fort_writer(call)
+    assert result == "call mysub()"
+

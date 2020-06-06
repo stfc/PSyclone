@@ -39,7 +39,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Call, Reference, Array, Schedule
-from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
+    RoutineSymbol
 
 
 def test_call_init():
@@ -49,55 +50,40 @@ def test_call_init():
     array_type = ArrayType(INTEGER_TYPE, shape=[10,20])
     arg_list = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                 Array(DataSymbol("arg2", array_type))]
-    call = Call("jo", arg_list)
-    assert call._name == "jo"
-    assert call.name is call._name
+    routine = RoutineSymbol("jo")
+    call = Call(routine, arg_list)
+    assert call._routine.name == "jo"
+    assert call.routine.name is call._routine.name
     assert isinstance(call._arguments, list)
     assert len(call._arguments) == 2
     assert call._arguments[0].name == "arg1"
     assert call._arguments[1].name == "arg2"
     assert call.arguments is call._arguments
-    assert isinstance(call._returns, list)
-    assert not call._returns
-    assert call.returns is call._returns
-    assert call._calls is None
-    assert call.calls is None
     assert call.parent is None
 
-    # returns
-    call = Call("ellie", [], arg_list)
-    assert call._name == "ellie"
-    assert isinstance(call._arguments, list)
-    assert not call._arguments
-    assert isinstance(call._returns, list)    
-    assert call._returns[0].name == "arg1"
-    assert call._returns[1].name == "arg2"
-    assert call.returns is call._returns
-
-    # calls
-    call = Call("isaac", [], calls=Schedule())
-    assert call._name == "isaac"
-    assert isinstance(call._calls, Schedule)
-    assert call.calls is call._calls
-
-    # parent
-    call = Call("roo", [], parent=Schedule())
-    assert call._name == "roo"
+    # Change original list and make sure that the list in Call
+    # instance does not change, i.e. make sure it copies the list.
+    arg_list.append(Array(DataSymbol("arg2", array_type)))
+    assert len(arg_list) == 3
+    assert len(call._arguments) == 2
+    
+    # optional parent
+    call = Call(routine, [], parent=Schedule())
+    assert call._routine.name == "jo"
     assert isinstance(call.parent, Schedule)
 
-# TODO Test that lists are separate copies
 
 def test_call_node_str():
     ''' Test that the node_str method behaves as expected '''
-    call = Call("test", [])
-    assert ("Call[name='test', args=[], returns=[], calls=NoneType]"
-            in call.node_str())
+    routine = RoutineSymbol("ellie")
+    call = Call(routine, [])
+    assert "Call[name='ellie', args=[]]" in call.node_str()
     array_type = ArrayType(INTEGER_TYPE, shape=[10,20])
     arg_list = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                 Array(DataSymbol("arg2", array_type))]
-    call = Call("test", arg_list, returns=arg_list, calls=Schedule())
-    assert ("Call[name='test', args=['arg1', 'arg2'], returns=['arg1', "
-            "'arg2'], calls=Schedule]" in call.node_str())
+    call = Call(routine, arg_list)
+    assert ("Call[name='ellie', args=['arg1', 'arg2']]"
+            in call.node_str())
 
 
 def test_call_error1():
@@ -105,57 +91,27 @@ def test_call_error1():
     is not a string'''
     with pytest.raises(TypeError) as info:
         _ = Call(None, [])
-    assert ("Call name argument should be a string but found 'NoneType'."
-            in str(info.value))
+    assert ("Call routine argument should be a RoutineSymbol but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_call_error2():
-    '''Test that the appropriate exception is raised if an empty name is
-    provided '''
-    with pytest.raises(TypeError) as info:    
-        _ = Call("", [])
-    assert "Call name argument must not be empty." in str(info.value)
-
-
-def test_call_error3():
     '''Test that the appropriate exception is raised if the arguments
     argument is not a list'''
+    routine = RoutineSymbol("isaac")
     with pytest.raises(TypeError) as info:
-        _ = Call("roo", None)
+        _ = Call(routine, None)
     assert ("Call arguments argument should be a list but found 'NoneType'."
             in str(info.value))
 
 
-def test_call_error4():
+def test_call_error3():
     '''Test that the appropriate exception is raised if one or more of the
     arguments argument list entries is not a Reference.
 
     '''
+    routine = RoutineSymbol("roo")
     with pytest.raises(TypeError) as info:
-        _ = Call("roo", [Reference(DataSymbol("arg1",INTEGER_TYPE)), None])
+        _ = Call(routine, [Reference(DataSymbol("arg1",INTEGER_TYPE)), None])
     assert ("Call arguments argument list entries should all be references "
             "but at least one is not." in str(info.value))
-
-
-
-def test_call_error5():
-    '''Test that the appropriate exception is raised if the returns
-    argument is not a list'''
-    with pytest.raises(TypeError) as info:
-        _ = Call("roo", [], returns=None)
-    assert ("Call returns argument should be a list but found 'NoneType'."
-            in str(info.value))
-
-
-def test_call_error6():
-    '''Test that the appropriate exception is raised if one or more of the
-    returns argument list entries is not a Reference.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        _ = Call("roo", [],
-                 returns=[Reference(DataSymbol("arg1",INTEGER_TYPE)), None])
-    assert ("Call returns argument list entries should all be references "
-            "but at least one is not." in str(info.value))
-
-# TBD calls argument errors
