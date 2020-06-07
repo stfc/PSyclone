@@ -38,7 +38,8 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-
+from psyclone.psyir.symbols.datasymbol import DataSymbolInterface, \
+    UnresolvedInterface
 
 class RoutineSymbol(Symbol):
     '''
@@ -47,8 +48,17 @@ class RoutineSymbol(Symbol):
     :param str name: name of the symbol.
 
     '''
-    def __init__(self, name):
+    def __init__(self, name, interface=None):
         super(RoutineSymbol, self).__init__(name)
+        if not interface:
+            self._interface = UnresolvedInterface()
+        else:
+            if not isinstance(interface, DataSymbolInterface):
+                raise TypeError(
+                    "RoutineSymbol interface argument should be a"
+                    "DataSymbolInterface but found '{1}'"
+                    "".format(type(interface).__name__))
+            self._interface = interface
 
     def __str__(self):
         return "routine({0})".format(self.name)
