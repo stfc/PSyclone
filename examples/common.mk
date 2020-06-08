@@ -63,4 +63,4 @@ GENERATED_FILES =
 .DEFAULT_GOAL := transform
 
 clean:
-	${RM} ${GENERATED_FILES}
+	${RM} ./*~ ${GENERATED_FILES}
