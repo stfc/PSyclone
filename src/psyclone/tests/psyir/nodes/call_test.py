@@ -41,77 +41,99 @@ import pytest
 from psyclone.psyir.nodes import Call, Reference, Array, Schedule
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol
+from psyclone.errors import GenerationError
 
 
 def test_call_init():
-    '''Test that a Call can be created as expected'''
+    '''Test that a Call can be created as expected. Also test the routine
+    property.
 
-    # name and arguments
-    array_type = ArrayType(INTEGER_TYPE, shape=[10,20])
-    arg_list = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
-                Array(DataSymbol("arg2", array_type))]
+    '''
+    # routine argument
     routine = RoutineSymbol("jo")
-    call = Call(routine, arg_list)
-    assert call._routine.name == "jo"
-    assert call.routine.name is call._routine.name
-    assert isinstance(call._arguments, list)
-    assert len(call._arguments) == 2
-    assert call._arguments[0].name == "arg1"
-    assert call._arguments[1].name == "arg2"
-    assert call.arguments is call._arguments
+    call = Call(routine)
+    assert call._routine is routine
+    assert call.routine is call._routine
     assert call.parent is None
+    assert call.children == []
 
-    # Change original list and make sure that the list in Call
-    # instance does not change, i.e. make sure it copies the list.
-    arg_list.append(Array(DataSymbol("arg2", array_type)))
-    assert len(arg_list) == 3
-    assert len(call._arguments) == 2
-    
-    # optional parent
-    call = Call(routine, [], parent=Schedule())
-    assert call._routine.name == "jo"
-    assert isinstance(call.parent, Schedule)
+    # optional parent argument
+    parent = Schedule()
+    call = Call(routine, parent=parent)
+    assert call.routine is routine
+    assert call.parent is parent
+    assert call.children == []
 
 
-def test_call_node_str():
-    ''' Test that the node_str method behaves as expected '''
-    routine = RoutineSymbol("ellie")
-    call = Call(routine, [])
-    assert "Call[name='ellie', args=[]]" in call.node_str()
-    array_type = ArrayType(INTEGER_TYPE, shape=[10,20])
-    arg_list = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
-                Array(DataSymbol("arg2", array_type))]
-    call = Call(routine, arg_list)
-    assert ("Call[name='ellie', args=['arg1', 'arg2']]"
-            in call.node_str())
+def test_call_init_error():
+    '''Test that the appropriate exception is raised if the routine
+    argument is not a RoutineSymbol.
 
-
-def test_call_error1():
-    '''Test that the appropriate exception is raised if the name argument
-    is not a string'''
+    '''
     with pytest.raises(TypeError) as info:
-        _ = Call(None, [])
+        _ = Call(None)
     assert ("Call routine argument should be a RoutineSymbol but found "
             "'NoneType'." in str(info.value))
 
 
+def test_call_create():
+    '''Test that the create method creates a valid call with arguments'''
+
+    routine = RoutineSymbol("ellie")
+    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
+    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+                 Array(DataSymbol("arg2", array_type))]
+    call = Call.create(routine, arguments)
+    assert call.routine is routine
+    for idx, child, in enumerate(call.children):
+        assert child is arguments[idx]
+        assert child.parent is call
+
+
+def test_call_create_error1():
+    '''Test that the appropriate exception is raised if the routine
+    argument to the create method is not a RoutineSymbol.
+
+    '''
+    with pytest.raises(GenerationError) as info:
+        _ = Call.create(None, [])
+    assert ("Call create routine argument should be a RoutineSymbol but "
+            "found 'NoneType'." in str(info.value))
+
+
 def test_call_error2():
     '''Test that the appropriate exception is raised if the arguments
-    argument is not a list'''
+    argument to the create method is not a list'''
     routine = RoutineSymbol("isaac")
-    with pytest.raises(TypeError) as info:
-        _ = Call(routine, None)
-    assert ("Call arguments argument should be a list but found 'NoneType'."
-            in str(info.value))
+    with pytest.raises(GenerationError) as info:
+        _ = Call.create(routine, None)
+    assert ("Call create arguments argument should be a list but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_call_error3():
     '''Test that the appropriate exception is raised if one or more of the
-    arguments argument list entries is not a Reference.
+    arguments argument list entries to the create method is not a
+    DataNode.
 
     '''
     routine = RoutineSymbol("roo")
-    with pytest.raises(TypeError) as info:
-        _ = Call(routine, [Reference(DataSymbol("arg1",INTEGER_TYPE)), None])
-    assert ("Call arguments argument list entries should all be references "
-            "but at least one is not." in str(info.value))
+    with pytest.raises(GenerationError) as info:
+        _ = Call.create(
+            routine, [Reference(DataSymbol("arg1", INTEGER_TYPE)), None])
+    assert ("Item 'NoneType' can't be child 1 of 'Call'. The valid format "
+            "is: '[DataNode]*'." in str(info.value))
+
+
+def test_call_node_str():
+    ''' Test that the node_str method behaves as expected '''
+    routine = RoutineSymbol("isaac")
+    call = Call(routine)
+    assert call.node_str() == "\x1b[36mCall\x1b[0m[name='isaac']"
+
+
+def test_call_str():
+    ''' Test that the str method behaves as expected '''
+    routine = RoutineSymbol("roo")
+    call = Call(routine)
+    assert str(call) == "Call[name='roo']"

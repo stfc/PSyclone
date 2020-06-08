@@ -37,8 +37,9 @@
 ''' This module contains the Call node implementation.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import Statement, Literal, Reference, Container
+from psyclone.psyir.nodes import Statement, DataNode
 from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.errors import GenerationError
 
 
 class Call(Statement):
@@ -46,35 +47,67 @@ class Call(Statement):
 
     :param routine: the routine that this call calls.
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-
-    list of Reference arguments
-
-    Node parent
+    :param parent: parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
+    _children_valid_format = "[DataNode]*"
     _text_name = "Call"
     _colour_key = "Call"
 
-    def __init__(self, routine, arguments, parent=None):
+    def __init__(self, routine, parent=None):
         super(Call, self).__init__(parent=parent)
 
         if not isinstance(routine, RoutineSymbol):
             raise TypeError(
                 "Call routine argument should be a RoutineSymbol but found "
                 "'{0}'.".format(type(routine).__name__))
-        if not isinstance(arguments, list):
-            raise TypeError(
-                "Call arguments argument should be a list but found '{0}'."
-                "".format(type(arguments).__name__))
-        if not all([isinstance(arg, Reference) for arg in arguments]):
-            raise TypeError(
-                "Call arguments argument list entries should all be "
-                "references but at least one is not.")
 
         self._routine = routine
-        self._arguments = arguments[:]
+
+    @staticmethod
+    def create(routine, arguments):
+        '''Create a Call instance given valid instances of a routine symbol,
+        and a list of child nodes for its arguments.
+
+        :param routine: the routine that this call calls.
+        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param arguments: the arguments to this routine. These are \
+            added as child nodes.
+        :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
+
+        :returns: a Call instance.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+
+        '''
+        if not isinstance(routine, RoutineSymbol):
+            raise GenerationError(
+                "Call create routine argument should be a RoutineSymbol but "
+                "found '{0}'.".format(type(routine).__name__))
+        if not isinstance(arguments, list):
+            raise GenerationError(
+                "Call create arguments argument should be a list but found "
+                "'{0}'.".format(type(arguments).__name__))
+
+        call = Call(routine)
+        call.children = arguments
+        for child in call.children:
+            child.parent = call
+        return call
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, DataNode)
 
     @property
     def routine(self):
@@ -83,11 +116,6 @@ class Call(Statement):
         :rtype: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         '''
         return self._routine
-
-    @property
-    def arguments(self):
-        ''' xxx '''
-        return self._arguments
 
     def node_str(self, colour=True):
         '''
@@ -98,7 +126,10 @@ class Call(Statement):
 
         :returns: description of this PSyIR node.
         :rtype: str
+
         '''
-        return "{0}[name='{1}', args={2}]".format(
-            self.coloured_name(colour), self.routine.name,
-            [argument.name for argument in self.arguments])
+        return "{0}[name='{1}']".format(
+            self.coloured_name(colour), self.routine.name)
+
+    def __str__(self):
+        return self.node_str(False)
