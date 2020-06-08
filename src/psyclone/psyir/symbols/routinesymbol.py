@@ -37,46 +37,11 @@
 ''' This module contains the RoutineSymbol.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol, SymbolError
-from psyclone.psyir.symbols.datasymbol import DataSymbolInterface, \
-    UnresolvedInterface, GlobalInterface
+from psyclone.psyir.symbols.symbol import Symbol
+
 
 class RoutineSymbol(Symbol):
-    '''
-    Symbol identifying a callable routine.
-
-    :param str name: name of the symbol.
-
-    '''
-    def __init__(self, name, interface=None):
-        super(RoutineSymbol, self).__init__(name)
-        if not interface:
-            self._interface = UnresolvedInterface()
-        else:
-            if not isinstance(interface, DataSymbolInterface):
-                raise TypeError(
-                    "RoutineSymbol interface argument should be a"
-                    "DataSymbolInterface but found '{1}'"
-                    "".format(type(interface).__name__))
-            self._interface = interface
+    '''Symbol identifying a callable routine.'''
 
     def __str__(self):
         return "routine({0})".format(self.name)
-
-    @property
-    def is_global(self):
-        '''
-        :returns: whether the DataSymbol has a Global interface.
-        :rtype: bool
-
-        '''
-        return isinstance(self._interface, GlobalInterface)
-
-    @property
-    def interface(self):
-        '''
-        :returns: the an object describing the interface to this DataSymbol.
-        :rtype: Sub-class of \
-            :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbolInterface`
-        '''
-        return self._interface

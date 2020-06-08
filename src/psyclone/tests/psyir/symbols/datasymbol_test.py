@@ -267,7 +267,7 @@ def test_datasymbol_invalid_interface():
     sym = DataSymbol("some_var", REAL_SINGLE_TYPE)
     with pytest.raises(TypeError) as err:
         sym.interface = "invalid interface spec"
-    assert "interface to a DataSymbol must be a DataSymbolInterface but" \
+    assert "interface to a Symbol must be a SymbolInterface but" \
         in str(err.value)
 
 
@@ -288,7 +288,7 @@ def test_datasymbol_interface_setter():
 
     with pytest.raises(TypeError) as err:
         symbol.interface = "not valid"
-    assert ("interface to a DataSymbol must be a DataSymbolInterface but "
+    assert ("interface to a Symbol must be a SymbolInterface but "
             "got 'str'" in str(err.value))
 
 
