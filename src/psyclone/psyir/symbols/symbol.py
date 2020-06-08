@@ -214,7 +214,8 @@ class Symbol(object):
         if not isinstance(name, six.string_types):
             raise TypeError(
                 "{0} 'name' attribute should be of type 'str'"
-                " but '{1}' found.".format(type(self).__name__, type(name)))
+                " but '{1}' found.".format(
+                    type(self).__name__, type(name).__name__))
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(
                 "{0} 'visibility' attribute should be of type "

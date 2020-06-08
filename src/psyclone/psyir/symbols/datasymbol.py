@@ -73,10 +73,8 @@ class DataSymbol(Symbol):
 
         self._datatype = None
         self.datatype = datatype
-
         # The following attribute has a setter method (with error checking)
         self._constant_value = None
-
         self.constant_value = constant_value
 
     def resolve_deferred(self):

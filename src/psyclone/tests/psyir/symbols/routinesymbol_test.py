@@ -34,14 +34,37 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the RoutineSymbol.'''
+''' Perform py.test tests on the psygen.psyir.symbols.routinesymbol file '''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol
+import pytest
+from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnresolvedInterface
 
 
-class RoutineSymbol(Symbol):
-    '''Symbol identifying a callable routine.'''
+def test_routinesymbol_init():
+    '''Test that a RoutineSymbol instance can be created.'''
 
-    def __str__(self):
-        return "routine(name='{0}')".format(self.name)
+    assert isinstance(RoutineSymbol('jo'), RoutineSymbol)
+    assert isinstance(
+        RoutineSymbol('ellie', visibility=Symbol.Visibility.PRIVATE),
+        RoutineSymbol)
+    assert isinstance(
+        RoutineSymbol('isaac', interface=UnresolvedInterface()),
+        RoutineSymbol)
+
+
+def test_routinesymbol_init_error():
+    '''Test that the RoutineSymbol raises an error (via the Symbol parent
+    class) if there is an invalid argument.
+
+    '''
+    with pytest.raises(TypeError) as error:
+        _ = RoutineSymbol(None)
+    assert ("RoutineSymbol 'name' attribute should be of type 'str' but "
+            "'NoneType' found." in str(error.value))
+
+
+def test_routinesymbol_str():
+    '''Test that the __str__ method in routinesymbol behaves as expected.'''
+    routine_symbol = RoutineSymbol("roo")
+    assert routine_symbol.__str__() == "routine(name='roo')"

@@ -85,32 +85,30 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE,
-                                 interface=ArgumentInterface()), DataSymbol)
-    assert isinstance(
-        DataSymbol('a', REAL_SINGLE_TYPE,
-                   interface=ArgumentInterface(
-                       ArgumentInterface.Access.READWRITE)), DataSymbol)
-    assert isinstance(
-        DataSymbol('a', REAL_SINGLE_TYPE,
-                   interface=ArgumentInterface(
-                       ArgumentInterface.Access.READ)), DataSymbol)
-    my_mod = ContainerSymbol("my_mod")
-    assert isinstance(
-        DataSymbol('a', DeferredType(), interface=GlobalInterface(my_mod)),
-        DataSymbol)
     dim = DataSymbol('dim', INTEGER_SINGLE_TYPE)
     array_type = ArrayType(REAL_SINGLE_TYPE, [dim])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE,
                            [3, dim, ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
+    assert isinstance(
+        DataSymbol('a', REAL_SINGLE_TYPE,
+                   interface=ArgumentInterface(
+                       ArgumentInterface.Access.READWRITE)), DataSymbol)
+    assert isinstance(
+        DataSymbol('a', REAL_SINGLE_TYPE,
+                   visibility=Symbol.Visibility.PRIVATE), DataSymbol)
 
 
 def test_datasymbol_init_errors():
     ''' Test that the Symbol constructor raises appropriate errors if supplied
     with invalid arguments. '''
-    # Test with invalid arguments
+
+    with pytest.raises(TypeError) as error:
+        DataSymbol(None, None)
+    assert ("DataSymbol 'name' attribute should be of type 'str' but "
+            "'NoneType' found." in str(error.value))
+
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'invalidtype')
     assert ("datatype of a DataSymbol must be specified using a DataType "
@@ -261,73 +259,6 @@ def test_datasymbol_scalar_array():
     assert sym2.is_array
 
 
-def test_datasymbol_invalid_interface():
-    ''' Check that the DataSymbol.interface setter rejects the supplied value
-    if it is not a DataSymbolInterface. '''
-    sym = DataSymbol("some_var", REAL_SINGLE_TYPE)
-    with pytest.raises(TypeError) as err:
-        sym.interface = "invalid interface spec"
-    assert "interface to a Symbol must be a SymbolInterface but" \
-        in str(err.value)
-
-
-def test_datasymbol_interface():
-    ''' Check the interface getter on a DataSymbol. '''
-    my_mod = ContainerSymbol("my_mod")
-    symbol = DataSymbol("some_var", REAL_SINGLE_TYPE,
-                        interface=GlobalInterface(my_mod))
-    assert symbol.interface.container_symbol.name == "my_mod"
-
-
-def test_datasymbol_interface_setter():
-    ''' Check the interface setter on a DataSymbol. '''
-    my_mod = ContainerSymbol("my_mod")
-    symbol = DataSymbol("some_var", REAL_SINGLE_TYPE,
-                        interface=GlobalInterface(my_mod))
-    assert symbol.interface.container_symbol.name == "my_mod"
-
-    with pytest.raises(TypeError) as err:
-        symbol.interface = "not valid"
-    assert ("interface to a Symbol must be a SymbolInterface but "
-            "got 'str'" in str(err.value))
-
-
-def test_datasymbol_interface_access():
-    ''' Tests for the DataSymbolInterface.access setter. '''
-    symbol = DataSymbol("some_var", REAL_SINGLE_TYPE,
-                        interface=ArgumentInterface())
-    symbol.interface.access = ArgumentInterface.Access.READ
-    assert symbol.interface.access == ArgumentInterface.Access.READ
-    # Force the error by supplying a string instead of a SymbolAccess type.
-    with pytest.raises(TypeError) as err:
-        symbol.interface.access = "read"
-    assert "must be a 'ArgumentInterface.Access' but got " in str(err.value)
-
-
-def test_datasymbol_argument_str():
-    ''' Check the __str__ method of the ArgumentInterface class. '''
-    # An ArgumentInterface represents a routine argument by default.
-    interface = ArgumentInterface()
-    assert str(interface) == "Argument(pass-by-value=False)"
-
-
-def test_fortranglobal_str():
-    ''' Test the __str__ method of GlobalInterface. '''
-    # If it's not an argument then we have nothing else to say about it (since
-    # other options are language specific and are implemented in sub-classes).
-    my_mod = ContainerSymbol("my_mod")
-    interface = GlobalInterface(my_mod)
-    assert str(interface) == "Global(container='my_mod')"
-
-
-def test_global_modname():
-    ''' Test the GlobalInterface.module_name setter error conditions. '''
-    with pytest.raises(TypeError) as err:
-        _ = GlobalInterface(None)
-    assert ("Global container_symbol parameter must be of type"
-            " ContainerSymbol, but found ") in str(err.value)
-
-
 def test_datasymbol_copy():
     '''Test that the DataSymbol copy method produces a faithful separate copy
     of the original symbol.
@@ -469,9 +400,9 @@ def test_datasymbol_shape():
     assert data_symbol.shape == []
 
 
-def test_datasymbol_unresolved_interface():
-    '''Test that unresolved_interface returns the expected value.'''
-    data_symbol = DataSymbol("a", REAL4_TYPE)
-    assert not data_symbol.unresolved_interface
-    data_symbol = DataSymbol("a", REAL4_TYPE, interface=UnresolvedInterface())
-    assert data_symbol.unresolved_interface
+def test_datasymbol_str():
+    '''Test that the DataSymbol __str__ method returns the expected string'''
+    data_symbol = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
+    assert (data_symbol.__str__() ==
+            "a: <Scalar<INTEGER, 4>, Local, constant_value=Literal[value:'3', "
+            "Scalar<INTEGER, 4>]>")
