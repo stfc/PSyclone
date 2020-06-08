@@ -47,11 +47,11 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
-    UnaryOperation, BinaryOperation, NaryOperation, Reference
+    UnaryOperation, BinaryOperation, NaryOperation, Reference, Call
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType
+    DeferredType, RoutineSymbol
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile
@@ -419,19 +419,21 @@ def test_fw_gen_use(fort_writer):
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol)
+    symbol = RoutineSymbol("my_sub", interface=GlobalInterface(container_symbol))
+    symbol_table.add(symbol)
     result = fort_writer.gen_use(container_symbol, symbol_table)
-    assert result == "use my_module, only : dummy1\n"
+    assert result == "use my_module, only : dummy1, my_sub\n"
 
     container_symbol.wildcard_import = True
     result = fort_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1\n"
+    assert result == ("use my_module, only : dummy1, my_sub\n"
                       "use my_module\n")
 
     symbol2 = DataSymbol("dummy2", DeferredType(),
                          interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol2)
     result = fort_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, dummy2\n"
+    assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
                       "use my_module\n")
 
     # container2 has no symbols associated with it and has not been marked
@@ -1477,7 +1479,13 @@ def test_fw_literal_node(fort_writer):
 def test_fw_call_node(fort_writer):
     ''' Test the PSyIR call node is created as expected. '''
 
-    call = Call("my_sub", [], "my_mod")
+    routine_symbol = RoutineSymbol("mysub")
+    call = Call(routine_symbol, [])
     result = fort_writer(call)
-    assert result == "call mysub()"
+    assert result == "  call mysub()"
 
+    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
+            Reference(DataSymbol("arg2", REAL_TYPE))]
+    call = Call(routine_symbol, args)
+    result = fort_writer(call)
+    assert result == "  call mysub(arg1,arg2)"

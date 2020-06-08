@@ -42,7 +42,7 @@ from __future__ import print_function, absolute_import
 from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol
+    ContainerSymbol, RoutineSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -501,7 +501,7 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self._symbols.values() if
-                isinstance(sym, DataSymbol)]
+                isinstance(sym, (DataSymbol, RoutineSymbol))]
 
     @property
     def local_datasymbols(self):

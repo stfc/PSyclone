@@ -1019,3 +1019,8 @@ class FortranWriter(PSyIRVisitor):
         self._depth -= 1
         result_list.append("!${0}\n".format(node.end_string()))
         return "".join(result_list)
+
+    def call_node(self, node):
+        ''' xxx '''
+        args = ",".join([arg.name for arg in node.arguments])
+        return "{0}call {1}({2})".format(self._indent, node.routine.name, args)
