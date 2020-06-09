@@ -263,38 +263,43 @@ class FunctionSpace(object):
         return self._short_name
 
     @property
-    def get_map_name(self):
+    def map_name(self):
         ''':returns: a dofmap name for the supplied FunctionSpace.
         :rtype: str
         '''
         return "map_" + self.mangled_name
 
-    def get_cbanded_map_name(self):
+    @property
+    def cbanded_map_name(self):
         ''':returns: the name of a column-banded dofmap for this FunctionSpace.
         :rtype: str
         '''
         return "cbanded_map_" + self.mangled_name
 
-    def get_cma_indirection_map_name(self):
+    @property
+    def cma_indirection_map_name(self):
         ''':returns: the name of a CMA indirection dofmap for the supplied \
             FunctionSpace.
         :rtype: str
         '''
         return "cma_indirection_map_" + self.mangled_name
 
-    def get_ndf_name(self):
+    @property
+    def ndf_name(self):
         ''':returns: a ndf name for this FunctionSpace object.
         :rtype: str
         '''
         return "ndf_" + self.mangled_name
 
-    def get_undf_name(self):
+    @property
+    def undf_name(self):
         ''':returns: a undf name for this FunctionSpace object.
         :rtype: str
         '''
         return "undf_" + self.mangled_name
 
-    def get_orientation_name(self):
+    @property
+    def orientation_name(self):
         ''':returns: an orientation name for a function space with the \
         supplied name.
         :rtype: str
@@ -366,7 +371,7 @@ class FunctionSpace(object):
 
         '''
         if operator_name == "gh_orientation":
-            return self.get_orientation_name()
+            return self.orientation_name
         if operator_name == "gh_basis":
             return self.get_basis_name(qr_var=qr_var, on_space=on_space)
         if operator_name == "gh_diff_basis":
