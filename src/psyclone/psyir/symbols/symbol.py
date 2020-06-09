@@ -77,10 +77,9 @@ class UnresolvedInterface(SymbolInterface):
 
 
 class GlobalInterface(SymbolInterface):
-    '''
-    Describes the interface to a Symbol representing ***** data that
-    is supplied as some sort of global variable, and therefore it is
-    defined in an external PSyIR container.
+    '''Describes the interface to a Symbol that is supplied externally to
+    this container, and therefore it is defined in an external PSyIR
+    container.
 
     :param container_symbol: symbol representing the external container \
         from which the symbol is imported.
@@ -88,6 +87,7 @@ class GlobalInterface(SymbolInterface):
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
     :raise TypeError: if the container_symbol is not a ContainerSymbol.
+
     '''
     def __init__(self, container_symbol):
         from psyclone.psyir.symbols import ContainerSymbol

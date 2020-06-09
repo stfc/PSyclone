@@ -119,7 +119,9 @@ def test_symbol_str():
     assert str(sym) == "my_symbol"
 
 
-# *** SYMBOLERROR TEST
+# SymbolError is declared but not used in symbol.py. There are many
+# other files that use SymbolError and have associated tests so it is
+# not tested here.
 
 
 def test_symbolinterface():

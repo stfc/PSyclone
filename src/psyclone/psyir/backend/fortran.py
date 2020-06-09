@@ -1021,6 +1021,11 @@ class FortranWriter(PSyIRVisitor):
         return "".join(result_list)
 
     def call_node(self, node):
-        ''' xxx '''
-        args = ",".join([arg.name for arg in node.arguments])
-        return "{0}call {1}({2})".format(self._indent, node.routine.name, args)
+        '''Translate the PSyIR call node to Fortran.'''
+
+        result_list=[]
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ",".join(result_list)
+        return "{0}call {1}({2})\n".format(self._nindent, node.routine.name,
+                                           args)

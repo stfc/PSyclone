@@ -1477,15 +1477,32 @@ def test_fw_literal_node(fort_writer):
 
 
 def test_fw_call_node(fort_writer):
-    ''' Test the PSyIR call node is created as expected. '''
+    '''Test the PSyIR call node is translated to the required Fortran
+    code.
 
+    '''
+    # no args
     routine_symbol = RoutineSymbol("mysub")
     call = Call(routine_symbol, [])
     result = fort_writer(call)
-    assert result == "  call mysub()"
+    assert result == "call mysub()\n"
 
+    # simple args
     args = [Reference(DataSymbol("arg1", REAL_TYPE)),
             Reference(DataSymbol("arg2", REAL_TYPE))]
-    call = Call(routine_symbol, args)
+    call = Call.create(routine_symbol, args)
     result = fort_writer(call)
-    assert result == "  call mysub(arg1,arg2)"
+    assert result == "call mysub(arg1,arg2)\n"
+
+    # expressions
+    code = (
+        "subroutine tmp()\n"
+        "  use my_mod, only : my_sub\n"
+        "  real :: a, b, c, d\n"
+        "  call my_sub(a*b, max(c,d))\n"
+        "end subroutine tmp")
+    schedule = create_schedule(code, "tmp")
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    expected = "  CALL my_sub(a * b, MAX(c, d))\n"
+    assert expected in result
