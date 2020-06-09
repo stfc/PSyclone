@@ -7926,6 +7926,7 @@ class ArgOrdering(object):
     def __init__(self, kern):
         self._kern = kern
         self._generate_called = False
+        self._arglist = []
 
     def generate(self, var_accesses=None):
         '''
@@ -8343,7 +8344,6 @@ class KernCallArgList(ArgOrdering):
 
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
-        self._arglist = []
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
@@ -9062,7 +9062,6 @@ class KernStubArgList(ArgOrdering):
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an
         # argument_list that may be able to replace the _arglist below.
-        self._arglist = []
         self._stub_symtab = SymbolTable()
 
     def cell_position(self, var_accesses=None):
