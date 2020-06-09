@@ -37,7 +37,7 @@ module testkern_mod
   use constants_mod
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
+          (/ arg_type(gh_scalar, gh_real, gh_read),         &
              arg_type(gh_field,gh_write,w1),     &
              arg_type(gh_field,gh_read, w2),     &
              arg_type(gh_field,gh_read, w2),     &

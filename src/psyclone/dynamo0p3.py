@@ -146,17 +146,17 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_edge_type",
                            "proxy_type": "quadrature_edge_proxy_type"}}
 
-# ---------- API argument types (scalars, fields, operators) ---------------- #
+# ---------- Supported API argument types (scalars, fields, operators) ------ #
 GH_VALID_FIELD_NAMES = ["gh_field"]
-GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
+GH_VALID_SCALAR_NAMES = ["gh_scalar"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = GH_VALID_FIELD_NAMES + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
-# ---------- API argument datatypes (real, integer, logical) ---------------- #
-GH_VALID_ARG_DATATYPE_NAMES = ["gh_real", "gh_integer", "gh_logical"]
+# ---------- Supported API argument datatypes (real and integer) ------------ #
+GH_VALID_ARG_DATATYPE_NAMES = ["gh_real", "gh_integer"]
 
-# ---------- Fortran datatypes ------------------------- #
+# ---------- Supported Fortran datatypes ------------------------------------ #
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Stencils ------------------------------------------------------- #
@@ -221,7 +221,7 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
-psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
+psyGen.MAPPING_SCALARS = {"iscalar": "gh_scalar", "rscalar": "gh_scalar"}
 psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #
@@ -681,8 +681,11 @@ class LFRicArgDescriptor(Descriptor):
     :raises InternalError: if the argument type checks fail when an invalid \
                            argument type is passed in.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
-                        access descriptor.
-    :raises ParseError: if an argument that is not a real scalar has a \
+                        datatype descriptor (only scalar arguments for now).
+    :raises ParseError: if the third 'meta_arg' entry for scalar arguments \
+                        and the third for other types is not a valid \
+                        access descriptor (will be third for all eventually).
+    :raises ParseError: if an argument that is not a scalar has a \
                         reduction access.
     :raises InternalError: if none of the checks caught an invalid argument.
 
@@ -785,26 +788,58 @@ class LFRicArgDescriptor(Descriptor):
                 "LFRicArgDescriptor.__init__: invalid argument type after "
                 "checks, should not get to here")
 
-        # The 2nd arg is an access descriptor (TODO: 3rd in case of scalar)
-        # Convert from GH_* names to the generic access type:
+        # Check for validity of datatype descriptor. This should be the 2nd
+        # argument metadata descriptor for all argument types but for now this
+        # is only so for scalars.
+        # TODO #XXX: Remove this "if" check when fields and operators have
+        # datatype metadata as their second descriptor and modify the parse
+        # error accordingly.
+        if self._type in GH_VALID_SCALAR_NAMES:
+            if arg_type.args[1].name not in GH_VALID_ARG_DATATYPE_NAMES:
+                raise ParseError(
+                    "In the Dynamo0.3 API the 2nd argument of a 'gh_scalar' "
+                    "'meta_arg' entry should be a valid argument datatype "
+                    "(one of {0}), but found '{1}' in '{2}'".
+                    format(GH_VALID_ARG_DATATYPE_NAMES, arg_type.args[1].name,
+                           arg_type))
+            # Assign datatype from the second descriptor. Further specific
+            # checks will be validate functions for different argument
+            # types (TODO #XXX).
+            self._datatype = arg_type.args[1].name
+
+        # Check for validity of access descriptor by converting from GH_*
+        # names to the generic access type. This should be the 3rd argument
+        # metadata descriptor for all argument types but for now this is
+        # only so for scalars.
+        # TODO #XXX: Remove this "if" check when fields and operators have
+        # access metadata as the third descriptor and modify the parse
+        # error accordingly.
+        if self._type in GH_VALID_SCALAR_NAMES:
+            acc_pos = 2
+            acc_str = "3rd"
+        else:
+            acc_pos = 1
+            acc_str = "2nd"
+        # First of all, check that the provided access descriptor is valid
         api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
         try:
-            self._access_type = access_mapping[arg_type.args[1].name]
+            self._access_type = access_mapping[arg_type.args[acc_pos].name]
         except KeyError:
             valid_names = api_config.get_valid_accesses_api()
             raise ParseError(
-                "In the Dynamo0.3 API the 2nd argument of a 'meta_arg' entry "
-                "must be a valid access descriptor (one of {0}), but found "
-                "'{1}' in '{2}'".format(valid_names,
-                                        arg_type.args[1].name, arg_type))
+                "In the Dynamo0.3 API the {0} argument of a '{1}' 'meta_arg' "
+                "entry must be a valid access descriptor (one of {2}), but "
+                "found '{3}' in '{4}'".
+                format(acc_str, self._type, valid_names,
+                       arg_type.args[acc_pos].name, arg_type))
 
-        # Reduction access descriptors are only valid for real scalar arguments
-        if self._type != "gh_real" and self._access_type in \
+        # Reduction access descriptors are only valid for scalar arguments
+        if self._type not in GH_VALID_SCALAR_NAMES and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the Dynamo0.3 API a reduction access '{0}' is only valid "
-                "with a real scalar argument, but '{1}' was found".
+                "with a scalar argument, but '{1}' was found".
                 format(self._access_type.api_specific_name(),
                        self._type))
 
@@ -879,8 +914,10 @@ class LFRicArgDescriptor(Descriptor):
                 "most 4 arguments if its first argument is 'gh_field', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
-        # Field datatype is "real" for now, but will be determined by
-        # metadata descriptor for datatype as a second argument (TODO: XXX)
+        # TODO #XXX: Field datatype is explicitly set to "gh_real" for now,
+        # but will be determined by metadata descriptor for datatype as a
+        # second argument and checked against allowed datatypes for a
+        # field (["gh_real", "gh_integer"]).
         self._datatype = "gh_real"
 
         # The 3rd argument must be a valid function space name
@@ -965,8 +1002,10 @@ class LFRicArgDescriptor(Descriptor):
                 "operator argument but got an argument of type '{0}'. "
                 "Should be impossible.".format(self._type))
 
-        # Operator datatype is "real" for now, but will be determined by
-        # metadata descriptor for datatype as a second argument (TODO: XXX)
+        # TODO #XXX: Operator datatype is explicitly set to "gh_real" for now,
+        # but will be determined by metadata descriptor for datatype as a
+        # second argument and checked against allowed datatypes for an
+        # operator (["gh_real"]).
         self._datatype = "gh_real"
 
         # We expect 4 arguments with the 3rd and 4th each being a
@@ -1012,9 +1051,11 @@ class LFRicArgDescriptor(Descriptor):
 
         :raises InternalError: if argument type other than a scalar is \
                                passed in.
-        :raises ParseError: if there are not exactly 2 metadata arguments.
+        :raises ParseError: if there are not exactly 3 metadata arguments.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
+        :raises ParseError: for a reduction into an integer scalar (not \
+                            currently supported).
 
         '''
         # Check whether something other than a scalar is passed in
@@ -1024,17 +1065,12 @@ class LFRicArgDescriptor(Descriptor):
                 "argument but got an argument of type '{0}'. Should be "
                 "impossible.".format(arg_type.args[0]))
 
-        # There must be at least 2 arguments to describe a scalar
-        if len(arg_type.args) != 2:
+        # There must be 3 arguments to describe a scalar
+        if len(arg_type.args) != 3:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have 2 "
+                "In the Dynamo0.3 API each 'meta_arg' entry must have 3 "
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
-
-        # Scalar datatype is determined by its metadata descriptor for
-        # datatype as a second argument (TODO: HERE and add checks for allowed
-        # datatypes). Use GH_VALID_ARG_DATATYPE_NAMES....
-        self._datatype = str(arg_type.args[0]).lower()
 
         # Test allowed accesses for scalars (read_only or reduction)
         if self._access_type not in [AccessType.READ] + \
@@ -1048,13 +1084,19 @@ class LFRicArgDescriptor(Descriptor):
                 "read-only ('gh_read') or a reduction ({0}) but found "
                 "'{1}' in '{2}'".format(valid_reductions, api_specific_name,
                                         arg_type))
+        # Test for an integer reduction (not currently supported)
+        if self._datatype == "gh_integer" and self._access_type in \
+           AccessType.get_valid_reduction_modes():
+            raise ParseError("In the Dynamo0.3 API reductions into an "
+                             " integer scalar are not currently supported.")
 
         # Scalars don't have vector size
         self._vector_size = 0
 
     @property
     def type(self):
-        ''' Returns the type of the argument (gh_field, gh_operator, ...).
+        '''
+        Returns the API type of the argument (gh_field, gh_operator, ...).
 
         :returns: type of the argument.
         :rtype: str
@@ -1064,7 +1106,9 @@ class LFRicArgDescriptor(Descriptor):
 
     @property
     def datatype(self):
-        ''' Returns the datatype of the argument (gh_real, gh_integer, ...).
+        '''
+        Returns the API datatype descriptor of the argument (gh_real,
+        gh_integer).
 
         :returns: datatype of the argument.
         :rtype: str
@@ -3814,29 +3858,21 @@ class DynScalarArgs(DynCollection):
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
 
+        self._scalars = {}
         if self._invoke:
             # Get a list of Invoke scalar arguments
-            self._real_scalars = self._invoke.unique_declns_by_intent(
-                "gh_real")
-            self._int_scalars = self._invoke.unique_declns_by_intent(
-                "gh_integer")
+            self._scalars = self._invoke.unique_declns_by_intent("gh_scalar")
         else:
             # We have a Kernel stub, so create a list of scalar arguments
-            self._real_scalars = {}
-            self._int_scalars = {}
             for intent in FORTRAN_INTENT_NAMES:
-                self._real_scalars[intent] = []
-                self._int_scalars[intent] = []
+                self._scalars[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.type in GH_VALID_SCALAR_NAMES:
-                    if arg.type == "gh_real":
-                        self._real_scalars[arg.intent].append(arg)
-                    elif arg.type == "gh_integer":
-                        self._int_scalars[arg.intent].append(arg)
-                    else:
-                        raise InternalError(
-                            "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
-                            " not handled in DynScalarArgs".format(arg.type))
+                    self._scalars[arg.intent].append(arg)
+                else:
+                    raise InternalError(
+                        "DynScalarArgs: Argument type '{0}' is not one of "
+                        "{1}.".format(arg.type, GH_VALID_SCALAR_NAMES))
 
     def _invoke_declarations(self, parent):
         '''
@@ -3849,22 +3885,22 @@ class DynScalarArgs(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create a list of real scalar names
+        dtype = "real"
         for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalars[intent]:
+            if self._scalars[intent]:
                 arg_list = [arg.declaration_name for arg in
-                            self._real_scalars[intent]]
-                dtype = self._real_scalars[intent][0].datatype
+                            self._scalars[intent] if arg.datatype == dtype]
                 parent.add(DeclGen(parent, datatype=dtype,
                                    kind=api_config.default_kind[dtype],
                                    entity_decls=arg_list,
                                    intent=intent))
 
         # Create a list of integer scalar names
+        dtype = "integer"
         for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalars[intent]:
+            if self._scalars[intent]:
                 arg_list = [arg.declaration_name for arg in
-                            self._int_scalars[intent]]
-                dtype = self._int_scalars[intent][0].datatype
+                            self._scalars[intent] if arg.datatype == dtype]
                 parent.add(
                     DeclGen(parent, datatype=dtype,
                             kind=api_config.default_kind[dtype],
@@ -5863,20 +5899,27 @@ class DynGlobalSum(GlobalSum):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises GenerationError: if distributed memory is not enabled.
-    :raises GenerationError: if the scalar is not of type gh_real.
+    :raises GenerationError: if the supplied argument is not a scalar.
+    :raises GenerationError: if the supplied scalar is not of datatype "gh_real".
     '''
     def __init__(self, scalar, parent=None):
         if not Config.get().distributed_memory:
             raise GenerationError("It makes no sense to create a DynGlobalSum "
                                   "object when dm=False")
-        # a list of scalar types that this class supports
-        self._supported_scalars = ["gh_real"]
-        if scalar.type not in self._supported_scalars:
+        # A list of scalar types and datatypes that this class supports
+        if scalar.type in GH_VALID_SCALAR_NAMES:
+            if scalar.datatype != "real":
+                raise GenerationError(
+                    "DynGlobalSum currently only supports real scalar "
+                    "arguments, but found '{0}' scalar. Error found in "
+                    "Kernel '{1}', argument '{2}'".
+                    format(scalar.type, scalar.call.name, scalar.name))
+        else:
             raise GenerationError(
-                "DynGlobalSum currently only supports '{0}', but found '{1}'. "
-                "Error found in Kernel '{2}', argument '{3}'".
-                format(self._supported_scalars, scalar.type,
-                       scalar.call.name, scalar.name))
+                "DynGlobalSum does not support non-scalar arguments: '{0}'. "
+                "Error found in Kernel '{1}', argument '{2}'".
+                format(scalar.type, scalar.call.name, scalar.name))
+        # Initialise parent class
         super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
@@ -7718,10 +7761,11 @@ class DynKern(CodedKern):
                 pre = "cma_op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.type.lower() == "gh_real":
-                pre = "rscalar_"
-            elif descriptor.type.lower() == "gh_integer":
-                pre = "iscalar_"
+            elif descriptor.type.lower() == "gh_scalar":
+                if descriptor.type.lower() == "gh_real":
+                    pre = "rscalar_"
+                if descriptor.type.lower() == "gh_integer":
+                    pre = "iscalar_"
             else:
                 raise GenerationError(
                     "load_meta expected one of '{0}' but "

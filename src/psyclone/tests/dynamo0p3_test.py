@@ -971,7 +971,7 @@ def test_real_scalar(tmpdir):
                                         "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
+    generated_code = str(psy.gen); print(generated_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

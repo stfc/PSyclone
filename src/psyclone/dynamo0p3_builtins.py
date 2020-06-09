@@ -52,7 +52,7 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
 # The types of argument that are valid for built-in kernels in the
 # Dynamo 0.3 API
-VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real", "gh_integer"]
+VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_scalar"]
 
 
 # Function to return the built-in operations that we support for this API.

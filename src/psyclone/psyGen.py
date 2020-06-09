@@ -2422,7 +2422,7 @@ class Kern(Statement):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str position: where to position the new code in the AST.
         :raises GenerationError: if the variable to zero is not of type \
-                                 gh_real or gh_integer.
+                                 "gh_scalar" (real or integer).
         :raises GenerationError: if the reprod_pad_size (read from the \
                                  configuration file) is less than 1.
 
@@ -2433,13 +2433,14 @@ class Kern(Statement):
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         var_type = self._reduction_arg.type
-        if var_type == "gh_real":
+        var_datatype = self._reduction_arg.datatype
+        if var_type == "gh_scalar" and var_datatype == "gh_real":
             data_type = "real"
             data_value = "0.0"
             kind_type = \
                 Config.get().api_conf("dynamo0.3").default_kind[data_type]
             zero = "_".join([data_value, kind_type])
-        elif var_type == "gh_integer":
+        elif var_type == "gh_scalar" and var_datatype == "gh_integer":
             data_type = "integer"
             data_value = "0"
             kind_type = \
@@ -2447,8 +2448,9 @@ class Kern(Statement):
             zero = "_".join([data_value, kind_type])
         else:
             raise GenerationError(
-                "zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer'] but found '{0}'".format(var_type))
+                "zero_reduction variable should be of a 'gh_scalar' "
+                "type (['gh_real', 'gh_integer'] datatype) but found "
+                "'{0}'".format(var_type))
 
         parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
                    position=position)
