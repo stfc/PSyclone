@@ -60,9 +60,9 @@ also requests that the generated code be compiled.
 
 .. note:: if you have copied the examples directory to some other
 	  location but still wish to use ``make`` then you will also
-	  have to set the ``PSYCLONE`` environment variable to include
-	  the correct path to the PSyclone configuration file, e.g.
-	  ``$ PSYCLONE=psyclone --config /some/path/psyclone.cfg make``
+	  have to set the ``PSYCLONE_CONFIG`` environment variable to
+	  the full path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
 GOcean
 ------

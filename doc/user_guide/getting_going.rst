@@ -366,7 +366,9 @@ have installed PSyclone using pip then they may be found in the
 ``share/psyclone`` directory under your Python installation. In this
 case you should copy the whole ``examples`` directory to some convenient
 location (hereafter called ``EGS_HOME``) before attempting to carry out
-the following instructions.
+the following instructions. Depending on your precise setup, you may
+also need to set ``PSYCLONE_CONFIG`` to the full-path to the PSyclone
+configuration file (see :ref:`getting-going-configuration`).
 
 There are 3 subdirectories (``lfric``, ``gocean`` and ``nemo``)
 corresponding to different APIs that are supported by PSyclone. Note,
