@@ -52,6 +52,7 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol
+from psyclone.psyGen import KernelSchedule
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.tests.utilities import Compile
@@ -419,7 +420,8 @@ def test_fw_gen_use(fort_writer):
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol)
-    symbol = RoutineSymbol("my_sub", interface=GlobalInterface(container_symbol))
+    symbol = RoutineSymbol(
+        "my_sub", interface=GlobalInterface(container_symbol))
     symbol_table.add(symbol)
     result = fort_writer.gen_use(container_symbol, symbol_table)
     assert result == "use my_module, only : dummy1, my_sub\n"
@@ -598,6 +600,20 @@ def test_gen_decls(fort_writer):
     assert ("The following symbols are not explicitly declared or imported "
             "from a module (in the local scope) and are not KIND parameters: "
             "'unknown'" in str(excinfo.value))
+
+
+def test_gen_decls_routine(fort_writer):
+    '''Test that the gen_decls method raises an exception if the interface
+    of a routine symbol is not a GlobalInterface.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(RoutineSymbol("arg_sub", interface=ArgumentInterface()))
+    with pytest.raises(VisitorError) as info:
+        _ = fort_writer.gen_decls(symbol_table)
+    assert (
+        "Routine symbols without a global interface are unsupported by the "
+        "Fortran back-end." in str(info.value))
 
 
 def test_fw_exception(fort_writer):
@@ -1494,15 +1510,24 @@ def test_fw_call_node(fort_writer):
     result = fort_writer(call)
     assert result == "call mysub(arg1,arg2)\n"
 
-    # expressions
-    code = (
-        "subroutine tmp()\n"
-        "  use my_mod, only : my_sub\n"
-        "  real :: a, b, c, d\n"
-        "  call my_sub(a*b, max(c,d))\n"
-        "end subroutine tmp")
-    schedule = create_schedule(code, "tmp")
+    symbol_table = SymbolTable()
+    symbol_a = DataSymbol("a", REAL_TYPE)
+    symbol_table.add(symbol_a)
+    ref_a = Reference(symbol_a)
+    symbol_b = DataSymbol("b", REAL_TYPE)
+    symbol_table.add(symbol_b)
+    ref_b = Reference(symbol_b)
+    symbol_use = ContainerSymbol("my_mod")
+    symbol_table.add(symbol_use)
+    symbol_call = RoutineSymbol(
+        "my_sub", interface=GlobalInterface(symbol_use))
+    symbol_table.add(symbol_call)
+    mult_ab = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, ref_a, ref_b)
+    max_ab = NaryOperation.create(NaryOperation.Operator.MAX, [ref_a, ref_b])
+    call = Call.create(symbol_call, [mult_ab, max_ab])
+    schedule = KernelSchedule.create("work", symbol_table, [call])
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    expected = "  CALL my_sub(a * b, MAX(c, d))\n"
+    expected = "  call my_sub(a * b,MAX(a, b))\n"
     assert expected in result
