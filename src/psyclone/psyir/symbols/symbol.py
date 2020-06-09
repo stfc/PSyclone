@@ -38,6 +38,7 @@
 
 ''' This module contains the generic Symbol and the SymbolError.'''
 
+from __future__ import absolute_import
 from enum import Enum
 import six
 
@@ -96,8 +97,8 @@ class GlobalInterface(SymbolInterface):
         if not isinstance(container_symbol, ContainerSymbol):
             raise TypeError(
                 "Global container_symbol parameter must be of type"
-                " ContainerSymbol, but found {0}."
-                "".format(type(container_symbol)))
+                " ContainerSymbol, but found '{0}'."
+                "".format(type(container_symbol).__name__))
 
         self._container_symbol = container_symbol
 
@@ -169,8 +170,8 @@ class ArgumentInterface(SymbolInterface):
         '''
         if not isinstance(value, ArgumentInterface.Access):
             raise TypeError(
-                "SymbolInterface.access must be a 'ArgumentInterface.Access' "
-                "but got '{0}'.".format(type(value)))
+                "SymbolInterface.access must be an 'ArgumentInterface.Access' "
+                "but got '{0}'.".format(type(value).__name__))
         self._access = value
 
     def __str__(self):
@@ -187,6 +188,8 @@ class Symbol(object):
     :param str name: name of the symbol.
     :param visibility: the visibility of the symbol.
     :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param interface: the interface of the symbol.
+    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     :raises TypeError: if the name is not a str or visibility is not an \
                        instance of Visibility.
@@ -221,12 +224,17 @@ class Symbol(object):
                 "{0} 'visibility' attribute should be of type "
                 "psyir.symbols.Symbol.Visibility but '{1}' found.".format(
                     type(self).__name__, type(visibility).__name__))
+        if interface and not isinstance(interface, SymbolInterface):
+            raise TypeError(
+                "{0} 'interface' attribute should be of type "
+                "psyir.symbols.symbol.SymbolInterface but '{1}' found."
+                "".format(type(self).__name__, type(interface).__name__))
+
         self._name = name
         self._visibility = visibility
 
         # The following attributes has a setter method (with error checking)
         self._interface = None
-
         # If an interface is not provided, use LocalInterface by default
         if not interface:
             self._interface = LocalInterface()
