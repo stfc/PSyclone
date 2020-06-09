@@ -39,6 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Call, Reference, Array, Schedule
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol
 from psyclone.errors import GenerationError
@@ -129,7 +130,8 @@ def test_call_node_str():
     ''' Test that the node_str method behaves as expected '''
     routine = RoutineSymbol("isaac")
     call = Call(routine)
-    assert call.node_str() == "\x1b[36mCall\x1b[0m[name='isaac']"
+    colouredtext = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+    assert call.node_str() == colouredtext+"[name='isaac']"
 
 
 def test_call_str():
