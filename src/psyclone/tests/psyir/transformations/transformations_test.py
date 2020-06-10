@@ -131,8 +131,8 @@ def test_fusetrans_error_incomplete():
     from psyclone.psyir.nodes import Return
     from psyclone.transformations import LoopFuseTrans
     sch = Schedule()
-    loop1 = Loop(variable=Reference(DataSymbol("i", INTEGER_TYPE)), parent=sch)
-    loop2 = Loop(variable=Reference(DataSymbol("j", INTEGER_TYPE)), parent=sch)
+    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch)
+    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch)
     sch.addchild(loop1)
     sch.addchild(loop2)
 
@@ -173,10 +173,8 @@ def test_fusetrans_error_not_same_parent():
 
     sch1 = Schedule()
     sch2 = Schedule()
-    loop1 = Loop(variable=Reference(DataSymbol("i", INTEGER_TYPE)),
-                 parent=sch1)
-    loop2 = Loop(variable=Reference(DataSymbol("j", INTEGER_TYPE)),
-                 parent=sch2)
+    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch1)
+    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch2)
     sch1.addchild(loop1)
     sch2.addchild(loop2)
 

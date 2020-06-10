@@ -173,7 +173,7 @@ def test_loop_create():
     child_node = Assignment.create(
         Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
         Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
-    loop = Loop.create(Reference(DataSymbol("i", INTEGER_SINGLE_TYPE)),
+    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
                        start, stop, step, [child_node])
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
@@ -198,11 +198,11 @@ def test_loop_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(1, zero, one, one, children)
     assert ("variable argument in create method of Loop class "
-            "should be a Reference but found 'int'.") in str(excinfo.value)
+            "should be a DataSymbol but found 'int'.") in str(excinfo.value)
 
     # variable is not a scalar
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 10])
-    variable = Reference(DataSymbol("i", array_type))
+    variable = DataSymbol("i", array_type)
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, one, one, children)
     assert ("variable argument in create method of Loop class "
@@ -210,14 +210,14 @@ def test_loop_create_invalid():
             in str(excinfo.value))
 
     # variable is not a scalar integer
-    variable = Reference(DataSymbol("i", REAL_TYPE))
+    variable = DataSymbol("i", REAL_TYPE)
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, one, one, children)
     assert ("variable argument in create method of Loop class "
             "should be a scalar integer but found 'REAL'."
             in str(excinfo.value))
 
-    variable = Reference(DataSymbol("i", INTEGER_TYPE))
+    variable = DataSymbol("i", INTEGER_TYPE)
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -304,26 +304,23 @@ def test_check_variable():
     with pytest.raises(GenerationError) as info:
         assert Loop._check_variable("hello")
     assert ("variable argument in create method of Loop class should be a "
-            "Reference but found 'str'." in str(info.value))
+            "DataSymbol but found 'str'." in str(info.value))
 
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     array_symbol = DataSymbol("my_array", array_type)
-    array_ref = Reference(array_symbol)
     with pytest.raises(GenerationError) as info:
-        assert Loop._check_variable(array_ref)
+        assert Loop._check_variable(array_symbol)
     assert ("variable argument in create method of Loop class should be a "
             "ScalarType but found 'ArrayType'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", REAL_TYPE)
-    scalar_ref = Reference(scalar_symbol)
     with pytest.raises(GenerationError) as info:
-        assert Loop._check_variable(scalar_ref)
+        assert Loop._check_variable(scalar_symbol)
     assert ("variable argument in create method of Loop class should be a "
             "scalar integer but found 'REAL'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)
-    scalar_ref = Reference(scalar_symbol)
-    assert Loop._check_variable(scalar_ref) is None
+    assert Loop._check_variable(scalar_symbol) is None
 
 
 def test_variable_setter():
@@ -333,5 +330,5 @@ def test_variable_setter():
     '''
     loop = Loop()
     assert loop.variable is None
-    loop.variable = Reference(DataSymbol("var", INTEGER_TYPE))
+    loop.variable = DataSymbol("var", INTEGER_TYPE)
     assert loop.variable.name == "var"

@@ -431,10 +431,10 @@ class GOLoop(Loop):
         # PRIVATE (which is done *before* code generation is performed)
         if self.loop_type == "inner":
             tag = "inner_loop_idx"
-            root_name = "i"
+            suggested_name = "i"
         elif self.loop_type == "outer":
             tag = "outer_loop_idx"
-            root_name = "j"
+            suggested_name = "j"
         else:
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
@@ -449,7 +449,7 @@ class GOLoop(Loop):
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:
-            name = symtab.new_symbol_name(root_name)
+            name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
         self.variable = Reference(data_symbol)

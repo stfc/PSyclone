@@ -246,10 +246,10 @@ class GOLoop(Loop):
 
         if self._loop_type == "inner":
             tag = "inner_loop_idx"
-            root_name = "i"
+            suggested_name = "i"
         elif self.loop_type == "outer":
             tag = "outer_loop_idx"
-            root_name = "j"
+            suggested_name = "j"
 
         # This will return the symbol table from the closest ancestor
         # that contains one. However, the original symbol my be in a
@@ -260,7 +260,7 @@ class GOLoop(Loop):
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:
-            name = symtab.new_symbol_name(root_name)
+            name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
         self.variable = Reference(data_symbol)

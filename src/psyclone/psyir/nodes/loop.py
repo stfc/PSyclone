@@ -40,8 +40,8 @@
 
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes import Schedule, Literal, Reference
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core.access_info import AccessType
 from psyclone.errors import InternalError, GenerationError
 
@@ -61,7 +61,7 @@ class Loop(Statement):
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param variable: optional reference to the loop iterator \
         variable. Defaults to None.
-    :type variable: :py:class:`psyclone.psyir.nodes.Reference` or \
+    :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
         `NoneType`
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
@@ -119,35 +119,35 @@ class Loop(Statement):
 
     @staticmethod
     def _check_variable(variable):
-        '''The loop interator should be a scalar integer. Check that this is
+        '''The loop variable should be a scalar integer. Check that this is
         the case and raise an exception if not.
 
         :param variable: the loop iterator.
-        :type variable: :py:class:`psyclone.psyir.nodes.Reference`
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises GenerationError: if the supplied variable is not a \
-            reference to a scalar integer.
+            scalar integer.
 
         '''
         if not variable:
             # No variable has been supplied so there is nothing to
             # check
             return
-        if not isinstance(variable, Reference):
+        if not isinstance(variable, DataSymbol):
             raise GenerationError(
-                "variable argument in create method of Loop class "
-                "should be a Reference but found '{0}'."
+                "variable argument in create method of Loop class should "
+                "be a DataSymbol but found '{0}'."
                 "".format(type(variable).__name__))
-        if not isinstance(variable.symbol.datatype, ScalarType):
+        if not isinstance(variable.datatype, ScalarType):
             raise GenerationError(
                 "variable argument in create method of Loop class "
                 "should be a ScalarType but found '{0}'."
-                "".format(type(variable.symbol.datatype).__name__))
-        if variable.symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
+                "".format(type(variable.datatype).__name__))
+        if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
             raise GenerationError(
                 "variable argument in create method of Loop class "
                 "should be a scalar integer but found '{0}'."
-                "".format(variable.symbol.datatype.intrinsic.name))
+                "".format(variable.datatype.intrinsic.name))
 
     @staticmethod
     def _validate_child(position, child):
@@ -171,7 +171,7 @@ class Loop(Statement):
 
         :param variable: the PSyIR node containing the variable \
             of the loop iterator.
-        :type variable: :py:class:`psyclone.psyir.nodes.Reference`
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param start: the PSyIR node determining the value for the \
             start of the loop.
         :type start: :py:class:`psyclone.psyir.nodes.Node`
@@ -398,7 +398,7 @@ class Loop(Statement):
     def variable(self):
         '''
         :returns: a reference to the control variable for this loop.
-        :rtype: :py:class:`psyclone.psyir.node.Reference`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._variable
 
@@ -408,7 +408,7 @@ class Loop(Statement):
         Setter for the variable associated with this loop.
 
         :param var: the control variable reference.
-        :type var: :py:class:`psyclone.psyir.node.Reference`
+        :type var: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         self._variable = var

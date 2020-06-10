@@ -757,7 +757,7 @@ def test_children_validation():
     step = Literal("2", INTEGER_TYPE)
     child_node = Assignment.create(Reference(DataSymbol("tmp", REAL_TYPE)),
                                    Reference(DataSymbol("i", REAL_TYPE)))
-    loop_variable = Reference(DataSymbol("idx", INTEGER_TYPE))
+    loop_variable = DataSymbol("idx", INTEGER_TYPE)
     loop = Loop.create(loop_variable, start, stop, step, [child_node])
     with pytest.raises(GenerationError):
         loop.children.insert(1, Literal("0", INTEGER_TYPE))

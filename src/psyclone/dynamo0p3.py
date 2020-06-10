@@ -6705,16 +6705,16 @@ class DynLoop(Loop):
         # by other classes before code generation
         if self.loop_type == "colours":
             tag = "colours_loop_idx"
-            root_name = "colour"
+            suggested_name = "colour"
         elif self.loop_type == "colour":
             tag = "colour_loop_idx"
-            root_name = "cell"
+            suggested_name = "cell"
         elif self.loop_type == "dofs":
             tag = "dof_loop_idx"
-            root_name = "df"
+            suggested_name = "df"
         else:
             tag = "cell_loop_idx"
-            root_name = "cell"
+            suggested_name = "cell"
 
         # This will return the symbol table from the closest ancestor
         # that contains one. However, the original symbol my be in a
@@ -6725,7 +6725,7 @@ class DynLoop(Loop):
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:
-            name = symtab.new_symbol_name(root_name)
+            name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
         self.variable = Reference(data_symbol)
