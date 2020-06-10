@@ -87,4 +87,7 @@ psy.f90: kernels
 all: transform compile
 
 allclean: clean
-	${MAKE} -C ${DL_TIMER_ROOT} allclean
+	# Only clean DL_TIMER if it actually exists
+	if [ -d ${DL_TIMER_ROOT}  ]; then \
+		${MAKE} -C ${DL_TIMER_ROOT} allclean; \
+	fi
