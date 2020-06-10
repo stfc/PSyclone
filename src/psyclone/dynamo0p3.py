@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
@@ -54,7 +55,7 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace
+from psyclone.domain.lfric import ArgOrdering, FunctionSpace, KernCallArgList
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \

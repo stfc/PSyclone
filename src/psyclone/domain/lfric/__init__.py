@@ -36,10 +36,12 @@
 '''Module for the LFRic domain.
 '''
 
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.lfric import FunctionSpace
 
-__all__ = ['FunctionSpace']
+__all__ = ['ArgOrdering', 'FunctionSpace', 'KernCallArgList']
