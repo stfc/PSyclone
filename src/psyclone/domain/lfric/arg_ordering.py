@@ -433,8 +433,10 @@ class ArgOrdering(object):
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self._arglist.extend(refelem_args)
-            for var_name in refelem_args:
-                var_accesses.add_access(var_name, AccessType.READ, self._kern)
+            if var_accesses:
+                for var_name in refelem_args:
+                    var_accesses.add_access(var_name, AccessType.READ,
+                                            self._kern)
 
     @abc.abstractmethod
     def mesh_properties(self, var_accesses=None):
