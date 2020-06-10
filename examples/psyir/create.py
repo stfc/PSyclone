@@ -126,8 +126,7 @@ IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
 IFBLOCK = IfBlock.create(IF_CONDITION, [ASSIGN3, ASSIGN4])
 
 # Loop
-VARIABLE = Reference(INDEX_SYMBOL)
-LOOP = Loop.create(VARIABLE, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
+LOOP = Loop.create(INDEX_SYMBOL, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE,
