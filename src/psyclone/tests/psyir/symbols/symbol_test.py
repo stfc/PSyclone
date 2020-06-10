@@ -82,9 +82,10 @@ def test_symbol_initialisation():
 
 
 def test_symbol_interface_setter():
-    '''Test that the Symbol interface setter behaves as expected. Also use
-    this to test the is_local, is_global and is_argument and
-    unresolved_interface properties
+    '''Test that the Symbol interface setter behaves as expected,
+    including raising an exception if the input is of the wrong
+    type. Also use this to test the is_local, is_global and
+    is_argument and unresolved_interface properties.
 
     '''
     symbol = Symbol('sym1')
@@ -110,6 +111,11 @@ def test_symbol_interface_setter():
     assert not symbol.is_global
     assert not symbol.is_argument
     assert symbol.unresolved_interface
+
+    with pytest.raises(TypeError) as info:
+        symbol.interface = "hello"
+    assert ("The interface to a Symbol must be a SymbolInterface but got "
+            "'str'" in str(info.value))
 
 
 def test_symbol_str():
