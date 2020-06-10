@@ -33,20 +33,23 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-# Provides support for 'all', 'compile', 'clean' and 'transform' (the default)
-# targets for directories listed in EXAMPLES.
+# Provides support for 'all', 'compile', 'clean', 'allclean' and
+# 'transform' (the default) targets for directories listed in EXAMPLES.
 # All an including Makefile needs to do is set EXAMPLES appropriately.
 
 all_EXAMPLES=$(addprefix all_,$(EXAMPLES))
 compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
+allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
 transform: ${EXAMPLES}
 all: ${all_EXAMPLES}
 compile: ${compile_EXAMPLES}
 clean: ${clean_EXAMPLES}
+allclean: ${allclean_EXAMPLES}
 
-.PHONY: ${EXAMPLES} $(all_EXAMPLES) ${compile_EXAMPLES} ${clean_EXAMPLES}
+.PHONY: ${EXAMPLES} $(all_EXAMPLES) ${compile_EXAMPLES} ${clean_EXAMPLES} \
+        ${allclean_EXAMPLES}
 
 $(EXAMPLES):
 	${MAKE} -C $@ transform
@@ -59,3 +62,6 @@ $(compile_EXAMPLES):
 
 $(clean_EXAMPLES):
 	${MAKE} -C $(patsubst clean_%,%,$@) clean
+
+$(allclean_EXAMPLES):
+	${MAKE} -C $(patsubst allclean_%,%,$@) allclean

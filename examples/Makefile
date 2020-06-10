@@ -35,9 +35,9 @@
 
 .DEFAULT_GOAL := transform
 
-.PHONY: all transform compile clean
+.PHONY: all transform compile clean allclean
 
-all transform compile clean:
+all transform compile clean allclean:
 	${MAKE} -C gocean $@
 	${MAKE} -C nemo $@
 	${MAKE} -C lfric $@

@@ -68,8 +68,12 @@ F90FLAGS ?= -g -O0
 # in the Makefile that includes this file.
 GENERATED_FILES = 
 
-.PHONY: all compile transform clean test
+.PHONY: all compile transform clean test allclean
 .DEFAULT_GOAL := transform
 
 clean:
 	${RM} ./*~ ${GENERATED_FILES}
+
+# By default, allclean just does a 'clean'. This can be overridden in
+# the including Makefile.
+allclean: clean
