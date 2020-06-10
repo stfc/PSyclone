@@ -1983,12 +1983,12 @@ class LFRicMeshProperties(DynCollection):
                     arg_list.append(name)
                     if var_accesses:
                         var_accesses.add_access(name, AccessType.READ,
-                                                self._kern)
+                                                self._kernel)
 
                 adj_face = self._symbol_table.name_from_tag("adjacent_face")
                 if var_accesses:
                     var_accesses.add_access(adj_face, AccessType.READ,
-                                            self._kern, [1])
+                                            self._kernel, [1])
                 if not stub:
                     # This is a kernel call from within an invoke
                     adj_face += "(:,cell)"
