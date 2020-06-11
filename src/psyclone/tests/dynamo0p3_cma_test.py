@@ -89,7 +89,7 @@ def setup():
 
 def test_cma_mdata_assembly():
     ''' Check that we can parse meta-data entries relating to Column-Matrix
-    Assembly '''
+    Assembly. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_ASSEMBLE
     ast = fpapi.parse(code, ignore_comments=False)
@@ -97,7 +97,7 @@ def test_cma_mdata_assembly():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[1])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space_to[2]='any_space_1'\n"
@@ -204,7 +204,9 @@ def test_cma_mdata_writes_lma_op():
 def test_cma_mdata_assembly_diff_spaces():
     ''' Check that we successfully parse the supplied meta-data if it
     is assembling a gh_columnwise_operator but the to/from spaces don't
-    match those of the supplied gh_operator '''
+    match those of the supplied 'gh_operator'.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the to space of the LMA operator
     code = CMA_ASSEMBLE.replace(
@@ -215,7 +217,7 @@ def test_cma_mdata_assembly_diff_spaces():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[0])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_3'\n"
@@ -287,7 +289,7 @@ end module testkern_cma_apply
 
 def test_cma_mdata_apply():
     ''' Check that we can parse meta-data entries relating to the
-    application of Column-Matrix operators '''
+    application of Column-Matrix operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_APPLY
     ast = fpapi.parse(code, ignore_comments=False)
@@ -295,7 +297,7 @@ def test_cma_mdata_apply():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[1])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space[2]='any_space_2'\n")
@@ -303,7 +305,7 @@ def test_cma_mdata_apply():
     assert expected in dkm_str
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"
@@ -472,7 +474,7 @@ end module testkern_cma_matrix_matrix
 
 def test_cma_mdata_matrix_prod():
     ''' Check that we can parse meta-data entries relating to a kernel
-    that performs a product of two CMA operators '''
+    that performs a product of two CMA operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX
     ast = fpapi.parse(code, ignore_comments=False)
@@ -480,7 +482,7 @@ def test_cma_mdata_matrix_prod():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"

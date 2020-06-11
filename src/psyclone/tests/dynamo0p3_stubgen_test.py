@@ -575,15 +575,15 @@ def test_vectors():
 
 
 def test_arg_descriptor_vec_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have a vector quantity '''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected when we have a vector quantity. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(VECTORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w0'")

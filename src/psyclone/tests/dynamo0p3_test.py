@@ -136,7 +136,7 @@ def test_arg_descriptor_wrong_type():
 
 
 def test_arg_descriptor_vector_str():
-    ''' Test the str method of an argument descriptor containing a vector '''
+    ''' Test the str method of an argument descriptor containing a vector. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
     code = CODE.replace("gh_field, gh_inc, w1", "gh_field*3, gh_inc, w1", 1)
@@ -145,7 +145,7 @@ def test_arg_descriptor_vector_str():
     dkm = DynKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[1])
     expected = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
@@ -2517,10 +2517,12 @@ def test_valid_stencil_types():
 
 
 def test_arg_descriptor_funcs_method_error():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_spaces is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
-    need to mess about with internal values to trip this.'''
+    need to mess about with internal values to trip this.
+    
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -2528,7 +2530,7 @@ def test_arg_descriptor_funcs_method_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_spaces
-    assert 'Internal error, DynArgDescriptor03:function_spaces(), should ' \
+    assert 'Internal error, LFRicArgDescriptor:function_spaces(), should ' \
         'not get to here' in str(excinfo.value)
 
 
@@ -2678,10 +2680,12 @@ def test_no_arg_on_space(monkeypatch):
 
 
 def test_arg_descriptor_func_method_error():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_space is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
-    need to mess about with internal values to trip this.'''
+    need to mess about with internal values to trip this.
+    
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -2689,20 +2693,20 @@ def test_arg_descriptor_func_method_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space
-    assert 'Internal error, DynArgDescriptor03:function_space(), should ' \
+    assert 'Internal error, LFRicArgDescriptor:function_space(), should ' \
         'not get to here' in str(excinfo.value)
 
 
 def test_arg_descriptor_fld_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected for a field argument'''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected for a field argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w1'")
@@ -2710,40 +2714,42 @@ def test_arg_descriptor_fld_str():
 
 
 def test_arg_descriptor_real_scalar_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected for a real scalar argument'''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected for a real scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_real'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
 
 def test_arg_descriptor_int_scalar_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected for an integer scalar argument'''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected for an integer scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[5]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_integer'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
 
 def test_arg_descriptor_str_error():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when __str__ is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
-    need to mess about with internal values to trip this.'''
+    need to mess about with internal values to trip this.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -2751,14 +2757,16 @@ def test_arg_descriptor_str_error():
     field_descriptor._type = "gh_fire_starter"
     with pytest.raises(ParseError) as excinfo:
         _ = str(field_descriptor)
-    assert 'Internal error in DynArgDescriptor03.__str__' \
+    assert 'Internal error in LFRicArgDescriptor.__str__' \
         in str(excinfo.value)
 
 
 def test_arg_desc_func_space_tofrom_err():
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when function_space_to or function_space_from is called and the
-    internal type is not gh_operator.'''
+    internal type is not gh_operator.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
@@ -2891,26 +2899,28 @@ def test_fsdescriptors_get_descriptor():
 
 
 def test_arg_descriptor_init_error(monkeypatch):
-    ''' Tests that an internal error is raised in DynArgDescriptor03
+    ''' Tests that an internal error is raised in LFRicArgDescriptor
     when an invalid type is provided. However this error never gets
     tripped due to an earlier test so we need to force the error by
-    changing the internal state.'''
+    changing the internal state.
+
+'''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     # extract an arg_type object that we can use to create a
-    # DynArgDescriptor03 object
+    # LFRicArgDescriptor object
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that GH_INVALID is actually valid
-    from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, LFRicArgDescriptor
     monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
                         GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynArgDescriptor03(arg_type)
-    assert 'Internal error in DynArgDescriptor03.__init__' \
+        _ = LFRicArgDescriptor(arg_type)
+    assert 'Internal error in LFRicArgDescriptor.__init__' \
         in str(excinfo.value)
 
 

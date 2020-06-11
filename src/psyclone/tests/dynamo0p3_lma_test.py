@@ -845,14 +845,14 @@ def test_operators():
 
 
 def test_arg_descriptor_op_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have an operator '''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected when we have an operator. '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space_to[2]='w0'\n"

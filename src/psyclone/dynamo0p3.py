@@ -684,7 +684,6 @@ class LFRicArgDescriptor(Descriptor):
         self._arg_type = arg_type
         # Initialise properties
         self._type = None
-        self._datatype = None
         self._function_space_to = None
         self._function_space_from = None
         self._function_space = None
@@ -869,11 +868,6 @@ class LFRicArgDescriptor(Descriptor):
                 "most 4 arguments if its first argument is 'gh_field', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
-        # Field datatype is "real" for now, but will be determined by
-        # metadata descriptor for datatype as a second argument (TODO: XXX)
-        # That will have to change to GH_REAL, etc... HERE
-        self._datatype = "real"
-
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
@@ -953,11 +947,6 @@ class LFRicArgDescriptor(Descriptor):
                 "operator argument but got an argument of type '{0}'. "
                 "Should be impossible.".format(self._type))
 
-        # Operator datatype is "real" for now, but will be determined by
-        # metadata descriptor for datatype as a second argument (TODO: XXX)
-        # That will have to change to GH_REAL, etc... HERE
-        self._datatype = "real"
-
         # We expect 4 arguments with the 3rd and 4th each being a
         # function space
         if len(arg_type.args) != 4:
@@ -1017,12 +1006,6 @@ class LFRicArgDescriptor(Descriptor):
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
-        # Scalar datatype is determined by its metadata descriptor for
-        # datatype as a second argument (TODO: HERE and add checks for allowed
-        # datatypes). That will have to change to GH_REAL, etc...
-        dtype = str(arg_type.args[0]).lower()
-        self._datatype = dtype.lstrip("gh_")
-
         # Test allowed accesses for scalars (read_only or reduction)
         if self._access_type not in [AccessType.READ] + \
            AccessType.get_valid_reduction_modes():
@@ -1046,14 +1029,6 @@ class LFRicArgDescriptor(Descriptor):
         :rtype: str
         '''
         return self._type
-
-    @property
-    def datatype(self):
-        ''' Returns the datatype of the argument (gh_real, gh_integer, ...).
-        :returns: datatype of the argument.
-        :rtype: str
-        '''
-        return self._datatype
 
     @property
     def function_space_to(self):
@@ -1354,7 +1329,7 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -9923,7 +9898,7 @@ class DynKernelArgument(KernelArgument):
         :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
         :param arg_meta_data: Information obtained from the meta-data for
                               this kernel argument
-        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
+        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
@@ -10252,7 +10227,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'FunctionSpace',
     'DynFuncDescriptor03',
-    'DynArgDescriptor03',
+    'LFRicArgDescriptor',
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
