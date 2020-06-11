@@ -2528,10 +2528,10 @@ def test_arg_descriptor_funcs_method_error():
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     field_descriptor._type = "gh_fire_starter"
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_spaces
-    assert 'Internal error, LFRicArgDescriptor:function_spaces(), should ' \
-        'not get to here' in str(excinfo.value)
+    assert ("LFRicArgDescriptor.function_spaces(), should not get to "
+            "here" in str(excinfo.value))
 
 
 def test_dynkernmetadata_read_fs_error():

@@ -148,8 +148,9 @@ QUADRATURE_TYPE_MAP = {
 
 # ---------- API datatypes (scalars, fields, operators) --------------------- #
 GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
+GH_VALID_FIELD_NAMES = ["gh_field"]
 GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
-GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
+GH_VALID_ARG_TYPE_NAMES = GH_VALID_FIELD_NAMES + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
 # ---------- Fortran datatypes ------------------------- #
@@ -402,7 +403,7 @@ def field_on_space(function_space, arguments):
         for arg in arguments.args:
             # First, test that arg is a field as some argument objects won't
             # have function spaces, e.g. scalars
-            if arg.type == "gh_field" and \
+            if arg.type in GH_VALID_FIELD_NAMES and \
                arg.function_space.orig_name == function_space.orig_name:
                 return arg
     return None
@@ -657,9 +658,11 @@ class DynFuncDescriptor03(object):
 class LFRicArgDescriptor(Descriptor):
     '''
     This class captures the information specified in an argument descriptor.
+
     :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
+
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
     :raises ParseError: if an argument type is not one of LFRic (Dynamo0.3) \
@@ -679,6 +682,7 @@ class LFRicArgDescriptor(Descriptor):
     :raises ParseError: if an argument that is not a real scalar has a \
                         reduction access.
     :raises InternalError: if none of the checks caught an invalid argument.
+
     '''
     def __init__(self, arg_type):
         self._arg_type = arg_type
@@ -828,9 +832,11 @@ class LFRicArgDescriptor(Descriptor):
         '''
         Validates argument descriptors for field arguments and
         populates argument properties accordingly.
+
         :param arg_type: Dynamo0.3 field (vector) argument type
         :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                         :py:class:`psyclone.expression.BinaryOperator`
+
         :raises InternalError: if argument type other than a field is \
                                passed in.
         :raises ParseError: if there are fewer than 3 metadata arguments.
@@ -847,6 +853,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if a field on 'any_space' function space has \
                             'gh_readwrite' access.
         :raises ParseError: if a field stencil argument is not read-only.
+
         '''
         # Check whether something other than a field is passed in
         if self._type not in GH_VALID_FIELD_NAMES:
@@ -859,22 +866,24 @@ class LFRicArgDescriptor(Descriptor):
         if len(arg_type.args) < 3:
             raise ParseError(
                 "In the Dynamo0.3 API each 'meta_arg' entry must have at "
-                "least 3 arguments if its first argument is 'gh_field', but "
-                "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+                "least 3 arguments if its first argument is of a {0} type, "
+                "but found {1} in '{2}'".format(GH_VALID_FIELD_NAMES,
+                                                len(arg_type.args), arg_type))
         # There must be at most 4 arguments
         if len(arg_type.args) > 4:
             raise ParseError(
                 "In the Dynamo0.3 API each 'meta_arg' entry must have at "
-                "most 4 arguments if its first argument is 'gh_field', but "
-                "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+                "most 4 arguments if its first argument is of a {0} type, "
+                "but found {1} in '{2}'".format(GH_VALID_FIELD_NAMES,
+                                                len(arg_type.args), arg_type))
 
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the Dynamo0.3 API the 3rd argument of a 'meta_arg' "
-                "entry must be a valid function space name if its first "
-                "argument is 'gh_field' (one of {0}), but found '{1}' in "
-                "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
+                "entry must be a valid function space name (one of {0}) if "
+                "its first argument is of a {1} type, but found '{2}' in "
+                "'{3}".format(VALID_FUNCTION_SPACE_NAMES, GH_VALID_FIELD_NAMES,
                               arg_type.args[2].name, arg_type))
         self._function_space1 = arg_type.args[2].name
 
@@ -929,8 +938,10 @@ class LFRicArgDescriptor(Descriptor):
         '''
         Validates argument descriptors for operator arguments and
         populates argument properties accordingly.
+
         :param arg_type: Dynamo0.3 operator argument type
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+
         :raises InternalError: if argument type other than an operator is \
                                passed in.
         :raises ParseError: if there are not exactly 4 metadata arguments.
@@ -939,6 +950,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the function space from- is not one of the \
                             valid function spaces.
         :raises ParseError: if the operator argument has an invalid access.
+
         '''
         # Check whether something other than an operator is passed in
         if self._type not in GH_VALID_OPERATOR_NAMES:
@@ -984,13 +996,16 @@ class LFRicArgDescriptor(Descriptor):
         '''
         Validates argument descriptors for scalar arguments and
         populates argument properties accordingly.
+
         :param arg_type: Dynamo0.3 scalar argument type
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+
         :raises InternalError: if argument type other than a scalar is \
                                passed in.
         :raises ParseError: if there are not exactly 2 metadata arguments.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
+
         '''
         # Check whether something other than a scalar is passed in
         if self._type not in GH_VALID_SCALAR_NAMES:
@@ -1025,8 +1040,10 @@ class LFRicArgDescriptor(Descriptor):
     @property
     def type(self):
         ''' Returns the type of the argument (gh_field, gh_operator, ...).
+
         :returns: type of the argument.
         :rtype: str
+
         '''
         return self._type
 
@@ -1035,9 +1052,12 @@ class LFRicArgDescriptor(Descriptor):
         '''
         Returns the "to" function space for an operator. This is
         the first function space specified in the metadata.
+
         :returns: "to" function space for an operator.
         :rtype: str
+
         :raises RuntimeError: if this is not an operator.
+
         '''
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space1
@@ -1051,9 +1071,12 @@ class LFRicArgDescriptor(Descriptor):
         '''
         Returns the "from" function space for an operator. This is
         the second function space specified in the metadata.
+
         :returns: "from" function space for an operator.
         :rtype: str
+
         :raises RuntimeError: if this is not an operator.
+
         '''
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
@@ -1068,9 +1091,12 @@ class LFRicArgDescriptor(Descriptor):
         Returns the function space name that this instance operates on
         depending on the argument type: a single function space for a field,
         function_space_from for an operator and nothing for a scalar.
+
         :returns: function space than an argument instance operates on.
         :rtype: str
+
         :raises InternalError: if an invalid argument type is passed in.
+
         '''
         if self._type in GH_VALID_FIELD_NAMES:
             return self._function_space1
@@ -1088,9 +1114,12 @@ class LFRicArgDescriptor(Descriptor):
         a list depending on the argument type: one function space for a
         field, both function spaces for an operator and an empty list for
         a scalar.
+
         :returns: function spaces than an argument instance operates on.
         :rtype: list of str
+
         :raises InternalError: if an invalid argument type is passed in.
+
         '''
         if self._type in GH_VALID_FIELD_NAMES:
             return [self.function_space]
@@ -1108,8 +1137,10 @@ class LFRicArgDescriptor(Descriptor):
         Returns the vector size of the argument. This will be 1 if *n
         has not been specified for all arguments except scalars (their
         vector size is set to 0).
+
         :returns: vector size of the argument.
         :rtype: str
+
         '''
         return self._vector_size
 
@@ -1118,9 +1149,12 @@ class LFRicArgDescriptor(Descriptor):
         Creates a string representation of the argument descriptor. This
         is type and access for scalars with the addition of function
         space(s) for fields and operators.
+
         :returns: string representation of the argument descriptor.
         :rtype: str
+
         :raises InternalError: if an invalid argument type is passed in.
+
         '''
         res = "LFRicArgDescriptor object" + os.linesep
         res += "  argument_type[0]='{0}'".format(self._type)
@@ -1441,7 +1475,7 @@ class DynKernMetadata(KernelType):
             if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to a field on a read-only function space
-                if arg.type == "gh_field" and \
+                if arg.type in GH_VALID_FIELD_NAMES and \
                    arg.function_spaces[0] in READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
                         "Found kernel metadata in '{0}' that specifies "
@@ -1530,7 +1564,7 @@ class DynKernMetadata(KernelType):
         non_field_arg_types = set()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
-            if arg.type == "gh_field":
+            if arg.type in GH_VALID_FIELD_NAMES:
                 if arg.mesh:
                     # Argument has a mesh associated with it so this must
                     # be an inter-grid kernel
@@ -1650,11 +1684,11 @@ class DynKernMetadata(KernelType):
                     format(self.name, len(self._arg_descriptors)))
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
-                                           arg_types=["gh_field"],
+                                           arg_types=GH_VALID_FIELD_NAMES,
                                            arg_accesses=[AccessType.READ])
             write_accesses = AccessType.all_write_accesses()
             farg_write = psyGen.args_filter(self._arg_descriptors,
-                                            arg_types=["gh_field"],
+                                            arg_types=GH_VALID_FIELD_NAMES,
                                             arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
@@ -3375,7 +3409,7 @@ class DynFields(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(datatype="gh_field")
+        fld_args = self._invoke.unique_declarations(datatype=GH_VALID_FIELD_NAMES)
         if fld_args:
             parent.add(TypeDeclGen(parent, datatype="field_type",
                                    entity_decls=fld_args,
@@ -3393,7 +3427,7 @@ class DynFields(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         fld_args = psyGen.args_filter(self._kernel.args,
-                                      arg_types=["gh_field"])
+                                      arg_types=GH_VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = get_fs_undf_name(fld.function_space)
             intent = fld.intent
@@ -3462,7 +3496,7 @@ class LFRicRunTimeChecks(DynCollection):
         existing_checks = []
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
-                if arg.type != "gh_field":
+                if arg.type not in GH_VALID_FIELD_NAMES:
                     # This check is limited to fields
                     continue
                 fs_name = arg.function_space.orig_name
@@ -3539,7 +3573,7 @@ class LFRicRunTimeChecks(DynCollection):
         modified_fields = []
         for call in self._invoke.schedule.kernels():
             for arg in call.arguments.args:
-                if (arg.text and arg.type == "gh_field" and
+                if (arg.text and arg.type in GH_VALID_FIELD_NAMES and
                         arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
                              entry[0].name == arg.name]):
@@ -8123,7 +8157,7 @@ class ArgOrdering(object):
         # has a stencil access then also call appropriate stencil
         # methods.
         for arg in self._kern.arguments.args:
-            if arg.type == "gh_field":
+            if arg.type in GH_VALID_FIELD_NAMES:
                 if arg.vector_size > 1:
                     self.field_vector(arg)
                 else:
@@ -8720,11 +8754,11 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        if farg.type != "gh_field":
+        if farg.type not in GH_VALID_FIELD_NAMES:
             raise GenerationError(
-                "Expected a gh_field from which to look-up boundary dofs "
-                "for kernel {0} but got {1}".format(self._kern.name,
-                                                    farg.type))
+                "Expected an argument of {0} type from which to look-up "
+                "boundary dofs for kernel '{1}' but got '{2}'".
+                format(GH_VALID_FIELD_NAMES, self._kern.name, farg.type))
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
@@ -9714,7 +9748,7 @@ class DynKernelArguments(Arguments):
         # or restricting.
         if self._parent_call.is_intergrid:
             fld_args = psyGen.args_filter(self._args,
-                                          arg_types=["gh_field"],
+                                          arg_types=GH_VALID_FIELD_NAMES,
                                           arg_meshes=["gh_coarse"])
             return fld_args[0]
 
@@ -9729,7 +9763,7 @@ class DynKernelArguments(Arguments):
         # larger (include L1-halo cells)
         write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(self._args,
-                                      arg_types=["gh_field"],
+                                      arg_types=GH_VALID_FIELD_NAMES,
                                       arg_accesses=write_accesses)
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
@@ -9740,7 +9774,7 @@ class DynKernelArguments(Arguments):
                         return arg
 
         # No modified fields or operators. Check for unmodified fields...
-        fld_args = psyGen.args_filter(self._args, arg_types=["gh_field"])
+        fld_args = psyGen.args_filter(self._args, arg_types=GH_VALID_FIELD_NAMES)
         if fld_args:
             return fld_args[0]
 
@@ -9982,7 +10016,7 @@ class DynKernelArgument(KernelArgument):
                     "associated with this argument (fss='{1}')".format(
                         function_space.orig_name,
                         self.function_space_names))
-        if self._type == "gh_field":
+        if self._type in GH_VALID_FIELD_NAMES:
             return "vspace"
         elif self.is_operator:
             if function_space.orig_name == self.descriptor.function_space_from:
