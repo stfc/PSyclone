@@ -617,3 +617,14 @@ def test_lfric_stencil_xory_vector():
                                 "dynamo0.3", idx=0)
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_direction: READ" in var_info
+
+
+def test_lfric_operator_bc_kernel():
+    '''Tests that a kernel that applies boundary conditions to operators
+    detects the right implicit paramaters.
+
+    '''
+    _, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "boundary_dofs_op_a: READ" in var_info
