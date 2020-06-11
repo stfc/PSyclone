@@ -563,3 +563,57 @@ def test_lfric_cma():
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
     assert "op1_proxy%local_stencil: READ" in var_info
     assert "op1_proxy%ncell_3d: READ" in var_info
+
+
+def test_lfric_cma2():
+    '''Test that parameters related to CMA operators are handled
+    correctly in the variable usage analysis.
+
+    '''
+    _, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "cma_indirection_map_aspc1_field_a: READ" in var_info
+    assert "cma_indirection_map_aspc2_field_b: READ" in var_info
+
+
+def test_lfric_stencils():
+    '''Test that stencil parameters are correctly detected.
+
+    '''
+    _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f2_stencil_size: READ" in var_info
+    assert "f2_stencil_dofmap: READ" in var_info
+
+
+def test_lfric_operator_different_spaces():
+    ''' Tests that implicit parameters for an operator with different to
+    and from spaces are created correctly.
+
+    '''
+    _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "orientation_w2: READ" in var_info
+
+
+def test_lfric_field_bc_kernel():
+    '''Tests that implicit parameters in case of a boundary_dofs
+    array fix are created correctly.
+
+    '''
+    _, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "boundary_dofs_a: READ" in var_info
+
+
+def test_lfric_stencil_xory_vector():
+    '''Test that the implicit parameters for a stencil access of type x
+    or y with a vector field are created.
+
+    '''
+    _, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f2_direction: READ" in var_info
