@@ -63,16 +63,25 @@ RM = rm -f
 PYTHON ?= python
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
+# How we run Jupyter notebooks
+JUPYTER = jupyter nbconvert --to notebook --execute
 
 # Files that will be deleted by the 'clean' target. This can be added to
 # in the Makefile that includes this file.
 GENERATED_FILES = 
 
-.PHONY: all compile transform clean test allclean
+NOTEBOOK_FILES = $(wildcard ./*ipynb)
+
+.PHONY: all compile transform notebook clean test allclean ${NOTEBOOK_FILES}
 .DEFAULT_GOAL := transform
 
+# Rule that attempts to execute all Jupyter notebooks in the current dir
+${NOTEBOOK_FILES}:
+	${JUPYTER} $@
+
+# By default we clean-up emacs backup files and generated Jupyter notebooks
 clean:
-	${RM} ./*~ ${GENERATED_FILES}
+	${RM} ./*~ ./*.nbconvert.ipynb ${GENERATED_FILES}
 
 # By default, allclean just does a 'clean'. This can be overridden in
 # the including Makefile.
