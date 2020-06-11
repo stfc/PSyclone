@@ -428,7 +428,7 @@ class FunctionSpace(object):
 
     @property
     def has_scalar_basis(self):
-        ''':returns: True if this functions space has scalar basis functions.
+        ''':returns: True if this function space has scalar basis functions.
         :rtype: bool
         '''
         return self.orig_name.lower() in \
@@ -436,7 +436,7 @@ class FunctionSpace(object):
 
     @property
     def has_vector_basis(self):
-        ''':returns: True if this functions space has vector basis functions.
+        ''':returns: True if this function space has vector basis functions.
         :rtype: bool
         '''
         return self.orig_name.lower() in \
@@ -444,7 +444,7 @@ class FunctionSpace(object):
 
     @property
     def has_scalar_diff_basis(self):
-        ''':returns: True if this functions space has scalar differential
+        ''':returns: True if this function space has scalar differential
             basis functions.
         :rtype: bool
         '''
@@ -453,7 +453,7 @@ class FunctionSpace(object):
 
     @property
     def has_vector_diff_basis(self):
-        ''':returns: if this functions space has vector differential
+        ''':returns: True if this function space has vector differential
             basis functions.
         :rtype: bool
         '''
