@@ -37,7 +37,6 @@ program multiple_stencils
   ! Description: multiple kernels with the same field having a stencil
   ! access (f2) with a literal value for extent and the same value in
   ! one case and a different value in another.
-  use constants_mod,        only: i_def
   use field_mod,            only: field_type
   use testkern_stencil_mod, only: testkern_stencil_type
 
@@ -45,10 +44,10 @@ program multiple_stencils
 
   type(field_type) :: f1, f2, f3, f4
 
-  call invoke(                                         &
-       testkern_stencil_type(f1, f2, 1_i_def, f3, f4), &
-       testkern_stencil_type(f1, f2, 1_i_def, f3, f4), &
-       testkern_stencil_type(f1, f2, 2_i_def, f3, f4)  &
+  call invoke(                                   &
+       testkern_stencil_type(f1, f2, 1, f3, f4), &
+       testkern_stencil_type(f1, f2, 1, f3, f4), &
+       testkern_stencil_type(f1, f2, 2, f3, f4)  &
        )
 
 end program multiple_stencils
