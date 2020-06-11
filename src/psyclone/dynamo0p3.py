@@ -3210,10 +3210,12 @@ class DynFields(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(datatype="gh_field")
-        if fld_args:
+        fld_args = self._invoke.unique_declarations(argument_type="gh_field")
+        # Create a list of field names
+        fld_arg_list = [arg.declaration_name for arg in fld_args]
+        if fld_arg_list:
             parent.add(TypeDeclGen(parent, datatype="field_type",
-                                   entity_decls=fld_args,
+                                   entity_decls=fld_arg_list,
                                    intent="in"))
 
     def _stub_declarations(self, parent):
@@ -3583,17 +3585,19 @@ class DynScalarArgs(DynCollection):
 
     :raises InternalError: if an unrecognised type of scalar argument is \
                            encountered.
+
     '''
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
 
         if self._invoke:
+            # Get a list of Invoke scalar arguments
             self._real_scalars = self._invoke.unique_declns_by_intent(
                 "gh_real")
             self._int_scalars = self._invoke.unique_declns_by_intent(
                 "gh_integer")
         else:
-            # We have a kernel stub.
+            # We have a Kernel stub, so create a list of scalar arguments.
             self._real_scalars = {}
             self._int_scalars = {}
             for intent in FORTRAN_INTENT_NAMES:
@@ -3602,9 +3606,9 @@ class DynScalarArgs(DynCollection):
             for arg in self._calls[0].arguments.args:
                 if arg.type in GH_VALID_SCALAR_NAMES:
                     if arg.type == "gh_real":
-                        self._real_scalars[arg.intent].append(arg.name)
+                        self._real_scalars[arg.intent].append(arg)
                     elif arg.type == "gh_integer":
-                        self._int_scalars[arg.intent].append(arg.name)
+                        self._int_scalars[arg.intent].append(arg)
                     else:
                         raise InternalError(
                             "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
@@ -3622,17 +3626,23 @@ class DynScalarArgs(DynCollection):
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   entity_decls=self._real_scalars[intent],
+                arg_list = [arg.declaration_name for arg in
+                            self._real_scalars[intent]]
+                dtype = "real"
+                parent.add(DeclGen(parent, datatype=dtype,
+                                   kind=api_config.default_kind[dtype],
+                                   entity_decls=arg_list,
                                    intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalars[intent]:
+                arg_list = [arg.declaration_name for arg in
+                            self._int_scalars[intent]]
+                dtype = "integer"
                 parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=self._int_scalars[intent],
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=arg_list,
                             intent=intent))
 
     def _stub_declarations(self, parent):
@@ -3694,10 +3704,12 @@ class DynLMAOperators(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for operators
-        op_args = self._invoke.unique_declarations(datatype="gh_operator")
-        if op_args:
+        op_args = self._invoke.unique_declarations(argument_type="gh_operator")
+        # Create a list of operator names
+        op_arg_list = [arg.declaration_name for arg in op_args]
+        if op_arg_list:
             parent.add(TypeDeclGen(parent, datatype="operator_type",
-                                   entity_decls=op_args,
+                                   entity_decls=op_arg_list,
                                    intent="in"))
 
 
@@ -3832,11 +3844,13 @@ class DynCMAOperators(DynCollection):
         # Add the Invoke subroutine argument declarations for column-wise
         # operators
         cma_op_args = self._invoke.unique_declarations(
-            datatype="gh_columnwise_operator")
-        if cma_op_args:
+            argument_type="gh_columnwise_operator")
+        # Create a list of column-wise operator names
+        cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
+        if cma_op_arg_list:
             parent.add(TypeDeclGen(parent,
                                    datatype="columnwise_operator_type",
-                                   entity_decls=cma_op_args,
+                                   entity_decls=cma_op_arg_list,
                                    intent="in"))
 
         for op_name in self._cma_ops:
