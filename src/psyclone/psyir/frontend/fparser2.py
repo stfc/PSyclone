@@ -1025,7 +1025,7 @@ class Fparser2Reader(object):
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
-        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :param nodes: fparser2 AST nodes to search for use statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
         :raises GenerationError: if the parse tree for a use statement has an \
@@ -1034,6 +1034,7 @@ class Fparser2Reader(object):
                              already present in the symbol table.
         :raises NotImplementedError: if the form of use statement is not \
                                      supported.
+
         '''
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
@@ -1168,6 +1169,7 @@ class Fparser2Reader(object):
                                      found.
         :raises SymbolError: if a declaration is found for a symbol that is \
                 already present in the symbol table with a defined interface.
+
         '''
         (type_spec, attr_specs, entities) = decl.items
 
@@ -1187,8 +1189,7 @@ class Fparser2Reader(object):
             precision = self._process_kind_selector(
                 type_spec, parent)
         else:
-            # Not an intrinsic type so not yet supported. Will result in
-            # one or more Symbols of UnknownType.
+            # Not an intrinsic type so not yet supported.
             raise NotImplementedError()
 
         # Parse declaration attributes:
@@ -1200,8 +1201,9 @@ class Fparser2Reader(object):
         interface = LocalInterface()
         # 3) Record initialized constant values
         has_constant_value = False
+        # 4) Whether the declaration has the allocatable attribute
         allocatable = False
-        # 4) Access-specification - this var is only set if the declaration
+        # 5) Access-specification - this var is only set if the declaration
         # has an explicit access-spec (e.g. INTEGER, PRIVATE :: xxx)
         decln_access_spec = None
         if attr_specs:
@@ -1417,10 +1419,13 @@ class Fparser2Reader(object):
             except NotImplementedError:
                 # Found an unsupported variable declaration. Create a
                 # DataSymbol with UnknownType for each entity being declared.
+                # Currently this means that any symbols that come after an
+                # unsupported declaration will also have UnknownType.
                 orig_children = list(decl.children[2].children[:])
                 for child in orig_children:
                     # Modify the fparser2 parse tree so that it only declares
-                    # the current entity
+                    # the current entity. `items` is a tuple and thus immutable
+                    # so we create a new one.
                     decl.children[2].items = (child,)
                     symbol_name = str(child.children[0])
                     # If a declaration declares multiple entities, it's
