@@ -45,7 +45,7 @@ FORTRAN_FILES = tridiagonal_solve.f90 if_example.f90
 
 .PHONY: ${FORTRAN_FILES} intrinsic
 
-transform: ${FORTRAN_FILES} intrinsic
+transform: ${FORTRAN_FILES} intrinsic ${NOTEBOOK_FILES}
 	@echo "nemo/eg4: TODO #714: Skipping copy_stencil.f90 and hori_diff.f90"
 
 ${FORTRAN_FILES}:
