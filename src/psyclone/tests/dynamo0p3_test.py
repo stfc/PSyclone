@@ -1689,68 +1689,98 @@ def test_dyninvoke_first_access():
 
 
 def test_dyninvoke_uniq_declns_inv_type():
-    ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid argument type '''
+    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
+    is called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
-    assert 'unique_declns_by_intent called with an invalid datatype' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declns_by_intent called with an invalid argument "
+            "type. Expected one of {0} but found 'gh_invalid'".
+            format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_fields '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_field' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
-    assert args['inout'] == []
-    assert args['out'] == ['f1']
-    assert args['in'] == ['f2', 'm1', 'm2']
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == []
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == ['f1']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['f2', 'm1', 'm2']
 
 
 def test_dyninvoke_uniq_declns_intent_real():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_real '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_real' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
-    assert args['inout'] == []
-    assert args['out'] == []
-    assert args['in'] == ['a']
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == []
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == []
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['a']
 
 
 def test_dyninvoke_uniq_declns_intent_int():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_integer '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_integer' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
-    assert args['inout'] == []
-    assert args['out'] == []
-    assert args['in'] == ['istep']
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == []
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == []
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['istep']
 
 
 def test_dyninvoke_uniq_declns_intent_ops():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for operator arguments '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
-    assert args['inout'] == []
-    assert args['out'] == ['op']
-    assert args['in'] == []
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == []
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == ['op']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == []
+
+
+def test_dyninvoke_uniq_declns_intent_cma_ops():
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for columnwise operator arguments. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.5_multi_cma_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    args = psy.invokes.invoke_list[0]\
+        .unique_declns_by_intent("gh_columnwise_operator")
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == ['cma_opc']
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == ['cma_op1']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['cma_op1', 'cma_opb']
 
 
 def test_dyninvoke_arg_for_fs():
@@ -2911,7 +2941,7 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that GH_INVALID is actually valid
-    from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    from psyclone.dynamo0p3 import DynArgDescriptor03
     monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
                         GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
