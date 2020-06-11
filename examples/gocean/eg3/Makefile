@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/parse/dynamo0p3_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
+# Author: A. R. Porter, STFC Daresbury Laboratory
+
+include ../../common.mk
+
+GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl compute_z_*.cl
+
+all: transform compile
+
+transform:
+	${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
+
+compile:
+	echo "No compilation targets for this example"

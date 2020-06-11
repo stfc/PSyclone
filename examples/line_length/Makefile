@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,63 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-# Makefile for the 3rd NEMO example. Uses PSyclone (which must
-# be installed) to generate Fortran with OpenACC directives for
-# the tracer-advection benchmark. The 'compile' target requires
-# the dl_timer library (bitbucket.org/apeg/dl_timer) which must
-# be installed and the location specified in DL_TIMER_ROOT below.
-#
-# The compiler to use must be specified via the F90 environment
-# variable. e.g. to use PGI and OpenACC:
-#
-# export F90=pgf90
-# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
-# export LDFLAGS="-acc -ta=tesla,cc70"
-include ../../common.mk
+include ../common.mk
 
-GENERATED_FILES += psy.f90 psy.o traadv.exe
+transform:
+	${PSYCLONE} -l longlines.f90
 
-F90FLAGS ?= -fopenmp
-LDFLAGS ?= -fopenmp
-
-# Location of the dl_timer library
-DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
-TIMER_INC = ${DL_TIMER_ROOT}/src
-TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
-
-.PHONY: allclean dl_timer
-
-# Compilation requires that dl_timer be installed
-compile: traadv.exe
-
-traadv.exe: dl_timer psy.o
-	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
-
-dl_timer:
-	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
-   LDFLAGS="${LDFLAGS}" sm_lib
-
-transform: kernels managed_mem
-
-kernels:
-	${PSYCLONE} -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
-   ../code/tra_adv.F90
-
-managed_mem:
-	${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
-
-# Compilation uses the 'kernels' transformed code
-psy.f90: kernels
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
+compile:
+	@echo "No compilation supported for line-length example"
 
 all: transform compile
-
-allclean: clean
-	# Only clean DL_TIMER if it actually exists
-	if [ -d ${DL_TIMER_ROOT}  ]; then \
-		${MAKE} -C ${DL_TIMER_ROOT} allclean; \
-	fi

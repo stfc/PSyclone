@@ -46,20 +46,18 @@ the original code is translated.
 from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.nemo import NemoKern
-from psyclone.psyGen import UnaryOperation, BinaryOperation, NaryOperation, \
-    Operation
+from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+                                  NaryOperation, Operation)
 from psyclone.psyir.symbols import SymbolTable
-from psyclone.psyir.transformations import NemoAbsTrans, NemoSignTrans, \
-    NemoMinTrans
+from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
+    Min2CodeTrans
 
 
 def trans(psy):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
     transform to the supplied invokes after replacing any ABS, SIGN or
     MIN intrinsics with equivalent code. This is done because the SIR
-    does not support intrinsics. This script is limited to the
-    NEMO API becuase the NEMO API does not yet support symbol tables
-    (so the transformations are written to cope with that).
+    does not support intrinsics.
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -68,9 +66,9 @@ def trans(psy):
 
     '''
 
-    abs_trans = NemoAbsTrans()
-    sign_trans = NemoSignTrans()
-    min_trans = NemoMinTrans()
+    abs_trans = Abs2CodeTrans()
+    sign_trans = Sign2CodeTrans()
+    min_trans = Min2CodeTrans()
 
     sir_writer = SIRWriter()
     # For each Invoke write out the SIR representation of the

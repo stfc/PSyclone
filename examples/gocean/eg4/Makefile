@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/parse/dynamo0p3_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
+# Author: A. R. Porter, STFC Daresbury Laboratory
+
+include ../../common.mk
+
+GENERATED_FILES += kern_use_var_*.cl
+
+.PHONY: basic opencl others
+
+all: transform
+
+transform: basic opencl others
+
+basic:
+	${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
+
+opencl:
+	${PSYCLONE} -api "gocean1.0" -s ./ocl_transform.py alg_kern_use_var.f90
+
+others:
+	# The following currently fail as work is in progress to support
+	# transforming kernels that access data or routines from modules.
+	# TODO #490 and #342 and #663"
+	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
+	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
+	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
+
+compile:
+	@echo "No compilation targets for this example"

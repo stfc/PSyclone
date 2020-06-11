@@ -1,3 +1,5 @@
+	1) #778 for #713. Use 'make' to execute all examples.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
@@ -192,6 +194,9 @@ release 1.9.0 20th May 2020
 
 	60) PR #770 for #766. Fix operation precedence issues in the Fortran
 	back-end by inserting parenthesis when needed.
+
+	61) PR #769 for #588. Adds frontend support for *N and double
+	precision type declarations.
 
 release 1.8.1 29th November 2019
 
