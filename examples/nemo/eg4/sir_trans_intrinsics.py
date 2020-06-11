@@ -46,8 +46,8 @@ the original code is translated.
 from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.nemo import NemoKern
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    NaryOperation, Operation
+from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+                                  NaryOperation, Operation)
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans
