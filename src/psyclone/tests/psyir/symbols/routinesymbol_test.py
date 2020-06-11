@@ -67,4 +67,4 @@ def test_routinesymbol_init_error():
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")
-    assert routine_symbol.__str__() == "routine(name='roo')"
+    assert routine_symbol.__str__() == "roo : RoutineSymbol"

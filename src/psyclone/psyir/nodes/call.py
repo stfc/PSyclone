@@ -112,7 +112,7 @@ class Call(Statement):
     @property
     def routine(self):
         '''
-        :returns: the routine that this call calls.
+        :returns: the routine symbol that this call calls.
         :rtype: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         '''
         return self._routine

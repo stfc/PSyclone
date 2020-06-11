@@ -76,41 +76,40 @@ def test_symbol_initialisation():
 
     with pytest.raises(TypeError) as error:
         Symbol('sym1', interface="hello")
-    assert ("Symbol 'interface' attribute should be of type "
-            "psyir.symbols.symbol.SymbolInterface but 'str' found."
-            in str(error.value))
+    assert ("The interface to a Symbol must be a SymbolInterface but got "
+            "'str'" in str(error.value))
 
 
 def test_symbol_interface_setter():
     '''Test that the Symbol interface setter behaves as expected,
     including raising an exception if the input is of the wrong
     type. Also use this to test the is_local, is_global and
-    is_argument and unresolved_interface properties.
+    is_argument and is_unresolved properties.
 
     '''
     symbol = Symbol('sym1')
     assert symbol.is_local
     assert not symbol.is_global
     assert not symbol.is_argument
-    assert not symbol.unresolved_interface
+    assert not symbol.is_unresolved
 
     symbol.interface = GlobalInterface(ContainerSymbol("my_mod"))
     assert not symbol.is_local
     assert symbol.is_global
     assert not symbol.is_argument
-    assert not symbol.unresolved_interface
+    assert not symbol.is_unresolved
 
     symbol.interface = ArgumentInterface()
     assert not symbol.is_local
     assert not symbol.is_global
     assert symbol.is_argument
-    assert not symbol.unresolved_interface
+    assert not symbol.is_unresolved
 
     symbol.interface = UnresolvedInterface()
     assert not symbol.is_local
     assert not symbol.is_global
     assert not symbol.is_argument
-    assert symbol.unresolved_interface
+    assert symbol.is_unresolved
 
     with pytest.raises(TypeError) as info:
         symbol.interface = "hello"

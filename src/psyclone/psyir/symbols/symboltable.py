@@ -42,7 +42,7 @@ from __future__ import print_function, absolute_import
 from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol, RoutineSymbol
+    ContainerSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -478,7 +478,7 @@ class SymbolTable(object):
 
         '''
         unresolved_symbols = [sym for sym in self.datasymbols
-                              if sym.unresolved_interface]
+                              if sym.is_unresolved]
         if ignore_precision:
             unresolved_datasymbols = list(set(unresolved_symbols) -
                                           set(self.precision_datasymbols))

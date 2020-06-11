@@ -1332,7 +1332,7 @@ class Fparser2Reader(object):
                     # The symbol table already contains an entry with this name
                     # so update its interface information.
                     sym = parent.symbol_table.lookup(sym_name)
-                    if not sym.unresolved_interface:
+                    if not sym.is_unresolved:
                         raise SymbolError(
                             "Symbol '{0}' already present in SymbolTable with "
                             "a defined interface ({1}).".format(

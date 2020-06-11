@@ -64,16 +64,16 @@ class DataSymbol(Symbol):
         whether it is passed as a routine argument or accessed in some other \
         way).
     :type interface: \
-        :py:class:`psyclone.psyir.symbols.datasymbols.DataSymbolInterface`
+        :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     '''
     def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
                  constant_value=None, interface=None):
         super(DataSymbol, self).__init__(name, visibility, interface)
 
+        # The following attributes have setter methods (with error checking)
         self._datatype = None
         self.datatype = datatype
-        # The following attribute has a setter method (with error checking)
         self._constant_value = None
         self.constant_value = constant_value
 

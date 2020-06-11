@@ -44,4 +44,4 @@ class RoutineSymbol(Symbol):
     '''Symbol identifying a callable routine.'''
 
     def __str__(self):
-        return "routine(name='{0}')".format(self.name)
+        return "{0} : {1}".format(self.name, type(self).__name__)

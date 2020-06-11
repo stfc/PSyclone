@@ -1032,7 +1032,15 @@ class FortranWriter(PSyIRVisitor):
         return "".join(result_list)
 
     def call_node(self, node):
-        '''Translate the PSyIR call node to Fortran.'''
+        '''Translate the PSyIR call node to Fortran.
+
+        :param node: a Call PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Directive`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
 
         result_list = []
         for child in node.children:

@@ -179,20 +179,24 @@ class ArgumentInterface(SymbolInterface):
 
 
 class Symbol(object):
-    '''
-    Generic Symbol item for the Symbol Table. It always has a fixed name label
-    that matches with the key in the SymbolTables that contain the symbol.
-    If the symbol is not public then it is only visible to those nodes that
-    are descendents of the Node to which its containing Symbol Table belongs.
+    '''Generic Symbol item for the Symbol Table. It always has a fixed
+    name label that matches with the key in the SymbolTables that
+    contain the symbol.  If the symbol is not public then it is only
+    visible to those nodes that are descendents of the Node to which
+    its containing Symbol Table belongs.
 
     :param str name: name of the symbol.
     :param visibility: the visibility of the symbol.
     :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: the interface of the symbol.
+    :param interface: optional object describing the interface to this \
+        symbol (i.e. whether it is passed as a routine argument or \
+        accessed in some other way). Defaults to \
+        :py:class:`psyclone.psyir.symbols.LocalInterface`
     :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
 
     :raises TypeError: if the name is not a str or visibility is not an \
                        instance of Visibility.
+
     '''
 
     class Visibility(Enum):
@@ -224,11 +228,6 @@ class Symbol(object):
                 "{0} 'visibility' attribute should be of type "
                 "psyir.symbols.Symbol.Visibility but '{1}' found.".format(
                     type(self).__name__, type(visibility).__name__))
-        if interface and not isinstance(interface, SymbolInterface):
-            raise TypeError(
-                "{0} 'interface' attribute should be of type "
-                "psyir.symbols.symbol.SymbolInterface but '{1}' found."
-                "".format(type(self).__name__, type(interface).__name__))
 
         self._name = name
         self._visibility = visibility
@@ -239,7 +238,8 @@ class Symbol(object):
         if not interface:
             self._interface = LocalInterface()
         else:
-            self._interface = interface
+            # Use the setter as it checks the variables validity
+            self.interface = interface
 
     @property
     def name(self):
@@ -312,7 +312,7 @@ class Symbol(object):
         return isinstance(self._interface, ArgumentInterface)
 
     @property
-    def unresolved_interface(self):
+    def is_unresolved(self):
         '''
         :returns: whether the Symbol has an unresolved interface.
         :rtype: bool
