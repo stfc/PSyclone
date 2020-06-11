@@ -265,7 +265,8 @@ psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mo
 ```
 
 3. Adding OpenACC enter data, parallel and loop directives in the
-presence of halo exchanges.
+presence of halo exchanges. This does not currently produce compilable code because
+calls to set_clean()/dirty() end up within parallel regions - TODO #450.
 ```sh
 cd eg14/
 psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
