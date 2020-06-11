@@ -50,6 +50,8 @@ before_install:
   # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh
   - pip install codecov
+  # Some of the examples include Jupyter notebooks
+  - pip install jupyter
 install:
   - "pip install ."
 script:
