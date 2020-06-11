@@ -40,6 +40,7 @@ program halo_dofs_write_to_inc
   ! field, the first loop iterates over dofs and the second iterates
   ! over cells.
 
+  use constants_mod,   only: r_def
   use field_mod,       only: field_type
   use testkern_w0_mod, only: testkern_w0_type
 
@@ -48,7 +49,7 @@ program halo_dofs_write_to_inc
   type(field_type) :: f1, f2
 
   call invoke(                    &
-       setval_c(f1, 0),           &
+       setval_c(f1, 0.0_r_def),   &
        testkern_w0_type(f1, f2)   &
           )
 

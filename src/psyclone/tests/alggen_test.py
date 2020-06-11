@@ -283,7 +283,8 @@ def test_op_and_scalar_and_qr_derived_type_args():
 
     assert (
         "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox % my_mapping, box % b(1), qr)" in gen)
+        "opbox % my_mapping, box % b(1), qr % init_quadrature_symmetrical"
+        "(3_i_def, qrl_gauss))" in gen)
 
 
 def test_vector_field_arg_deref():

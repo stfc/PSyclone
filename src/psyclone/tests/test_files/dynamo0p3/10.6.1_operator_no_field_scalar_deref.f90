@@ -34,18 +34,24 @@
 
 program operator_example
 
-  use field_mod,                            only : field_type
-  use operator_mod,                         only : operator_type
+  use constants_mod,                        only : i_def
   use quadrature_xyoz_mod,                  only : quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,         only : quadrature_rule_gaussian_type
   use testkern_operator_nofield_scalar_mod, only : testkern_operator_nofield_scalar_type
 
   ! Pretend we have some derived types that we must dereference in order
-  ! to get the scalar and operator arguments of the kernel
+  ! to get the scalar and operator arguments of the kernel. Note,
+  ! "init_quadrature_symmetrical" is an actual constructor method for
+  ! this quadrature type in the LFRic code but it is not public. Here we
+  ! pretend the method is public so we can mimic the "qr" argument being
+  ! obtained by de-referencing.
   type(some_scalar_type)              :: box
   type(some_operator_type)            :: opbox
-  type(quadrature_xyoz_type), pointer :: qr => null
+  type(quadrature_xyoz_type)          :: qr
+  type(quadrature_rule_gaussian_type) :: qrl_gauss
 
-  call invoke(testkern_operator_nofield_scalar_type(opbox%my_mapping, &
-                                                    box%b(1), qr))
+  call invoke(testkern_operator_nofield_scalar_type( &
+                       opbox%my_mapping, box%b(1),   &
+                       qr%init_quadrature_symmetrical(3_i_def, qrl_gauss)))
 
 end program operator_example

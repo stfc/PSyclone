@@ -40,7 +40,7 @@ program halo_same_stencils
   ! distributed memory is used. The stencils are of the same type
   ! ('cross' in this case) so 'cross' is returned which will ensure
   ! that both stencil accesses are covered.
-  use constants_mod,           only: i_def
+  use constants_mod,           only: i_def, r_def
   use field_mod,               only: field_type
   use testkern_stencil_w3_mod, only: testkern_stencil_w3_type
 
@@ -50,7 +50,7 @@ program halo_same_stencils
   integer(i_def)   :: f2_extent = 2
 
   call invoke(                                      &
-       setval_c(f2, 0.0),                           &
+       setval_c(f2, 0.0_r_def),                     &
        ! f1 is w3 and is written to
        ! f2 is w2 and is read with stencil cross
        ! f3 is w3 and is written to

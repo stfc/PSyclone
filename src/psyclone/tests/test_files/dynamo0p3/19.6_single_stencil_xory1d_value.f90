@@ -46,8 +46,8 @@ program single_stencil
   type(field_type) :: f1, f2, f3, f4
   integer(i_def)   :: f2_extent = 2
 
-  call invoke(                                                    &
-       testkern_stencil_xory1d_type(f1, f2, f2_extent, 2, f3, f4) &
+  call invoke(                                                          &
+       testkern_stencil_xory1d_type(f1, f2, f2_extent, 2_i_def, f3, f4) &
        )
 
 end program single_stencil

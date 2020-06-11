@@ -505,8 +505,9 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
         assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert ("qr%compute_function(BASIS, opbox_my_mapping_proxy%fs_from, "
-            "dim_w2, ndf_w2, basis_w2_qr)" in gen)
+    assert ("qr_init_quadrature_symmetrical%compute_function(BASIS, "
+            "opbox_my_mapping_proxy%fs_from, dim_w2, ndf_w2, "
+            "basis_w2_qr_init_quadrature_symmetrical)" in gen)
     if dist_mem:
         assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     else:
@@ -515,7 +516,11 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
     assert (
         "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
         "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
-        "basis_w2_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)" in gen)
+        "basis_w2_qr_init_quadrature_symmetrical, "
+        "np_xy_qr_init_quadrature_symmetrical, "
+        "np_z_qr_init_quadrature_symmetrical, "
+        "weights_xy_qr_init_quadrature_symmetrical, "
+        "weights_z_qr_init_quadrature_symmetrical)" in gen)
 
 
 def test_operator_orientation(tmpdir):

@@ -43,7 +43,7 @@ program halo_different_stencils
   ! stencil_cross stays as stencil_cross (which would happen in this
   ! example). However, the halo exchange library does not make use of
   ! this information at the moment in any case.
-  use constants_mod,                  only: i_def
+  use constants_mod,                  only: i_def, r_def
   use field_mod,                      only: field_type
   use flux_direction_mod,             only: y_direction
   use testkern_stencil_w3_mod,        only: testkern_stencil_w3_type
@@ -56,7 +56,7 @@ program halo_different_stencils
   integer(i_def)   :: f2_direction = y_direction
 
   call invoke(                                                          &
-       setval_c(f2, 0.0),                                               &
+       setval_c(f2, 0.0_r_def),                                         &
        ! f1 is w3 and is written to
        ! f2 is w2 and is read with stencil cross
        testkern_stencil_w3_type(f1, f2, f2_extent),                     &

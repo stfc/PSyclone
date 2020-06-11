@@ -34,7 +34,8 @@
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
+  ! Description: a single kernel that requires XYoZ quadrature specified
+  ! in an invoke call.
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type

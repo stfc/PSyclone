@@ -36,7 +36,8 @@
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
+  ! Description: single function specified in an invoke call where a field
+  ! object is passed by dereferencing an "estate_type" object.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use estate_mod,    only: estate_type

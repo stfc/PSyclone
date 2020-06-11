@@ -1654,8 +1654,11 @@ def test_invoke_uniq_declns_invalid_access():
 
 
 def test_invoke_uniq_declns_valid_access():
-    ''' Tests that valid access modes (AccessType.READ, AccessType.INC)
+    ''' Tests all valid access modes for user-defined field arguments
+    (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
     are accepted by Invoke.unique_declarations(). '''
+
+    # Test READ and INC
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1663,9 +1666,27 @@ def test_invoke_uniq_declns_valid_access():
     fields_read = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READ)
     assert fields_read == ["f2", "m1", "m2"]
-    fields_written = psy.invokes.invoke_list[0]\
+    fields_incremented = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.INC)
-    assert fields_written == ["f1"]
+    assert fields_incremented == ["f1"]
+
+    # Test WRITE
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke_w3_only_vector.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    fields_written = psy.invokes.invoke_list[0]\
+        .unique_declarations("gh_field", access=AccessType.WRITE)
+    assert fields_written == ["f1(3)"]
+
+    # Test READWRITE
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke_w2v.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    fields_readwritten = psy.invokes.invoke_list[0]\
+        .unique_declarations("gh_field", access=AccessType.READWRITE)
+    assert fields_readwritten == ["f1"]
 
 
 def test_invoke_uniq_proxy_declns():

@@ -49,7 +49,7 @@ program single_stencil
 
   call invoke(                                                       &
        testkern_stencil_multi_type(f1, f2, f2_extent, f3, f3_extent, &
-                                   f3_direction, f4, 1)              &
+                                   f3_direction, f4, 1_i_def)        &
        )
 
 end program single_stencil

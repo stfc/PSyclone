@@ -4482,7 +4482,7 @@ def test_rc_vector_depth(tmpdir):
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[5]
+    loop = schedule[5]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
@@ -4509,7 +4509,7 @@ def test_rc_vector_no_depth(tmpdir):
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[5]
+    loop = schedule[5]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
@@ -4922,7 +4922,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
     _, invoke = get_invoke("19.1_single_stencil.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[4]
+    loop = schedule[4]
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
@@ -4931,7 +4931,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
 
-    halo_exchange = schedule.children[1]
+    halo_exchange = schedule[1]
     monkeypatch.setattr(loop, "_upper_bound_halo_depth", None)
     with pytest.raises(GenerationError) as excinfo:
         _ = halo_exchange._compute_halo_read_info()

@@ -285,7 +285,7 @@ that there are four fields passed by the algorithm layer, the fourth
 of which is a vector field of size three. All three of the spaces
 require a basis function and the ``W0`` and ``W2`` function spaces
 additionally require a differential basis function. The content of the
-Kernel, except the subroutine body, is given below.
+Kernel, excluding the subroutine body, is given below.
 ::
 
   module ru_kernel_mod
