@@ -39,7 +39,7 @@ GENERATED_FILES += invoke_0_dag invoke_0_dag.png
 
 .PHONY: basic openmp loop_fuse dag openacc
 
-transform: basic openmp loop_fuse dag openacc ${NOTEBOOK_FILES}
+transform: basic openmp loop_fuse dag openacc
 
 compile: transform
 

@@ -62,6 +62,8 @@ script:
   # Execute all of the examples. Since there is
   # a lot of output to stdout this is redirected to /dev/null.
   - ( make -C examples transform > /dev/null )
+  # Execute all example Jupyter notebooks
+  - ( make -C examples notebook )
 after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new
