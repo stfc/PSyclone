@@ -5419,37 +5419,43 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
-    def unique_proxy_declarations(self, datatype, access=None):
-        ''' Returns a list of all required proxy declarations for the
-        specified datatype.  If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned.
-        :param str datatype: Datatype that proxy declarations are \
-                             searched for.
-        :param access: optional AccessType for the specified data type.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`.
-        :return: a list of all required proxy declarations for the \
-                 specified datatype.
-        :raises GenerationError: if datatype is invalid.
-        :raises InternalError: if an invalid access is specified, i.e. \
-                not of type AccessType.
+    def unique_proxy_declarations(self, argument_type, access=None):
         '''
-        if datatype not in GH_VALID_ARG_TYPE_NAMES:
+        Returns a list of all required proxy declarations for the specified
+        argument type. If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned.
+
+        :param str argument_type: argument type that proxy declarations are \
+                                  searched for.
+        :param access: optional AccessType for the specified argument type.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`.
+
+        :returns: a list of all required proxy declarations for the \
+                  specified argument type.
+        :rtype: list of str
+
+        :raises GenerationError: if the supplied argument type is invalid.
+        :raises InternalError: if an invalid access is specified, i.e. \
+                               not of type AccessType.
+
+        '''
+        if argument_type not in GH_VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_proxy_declarations called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
+                "DynInvoke.unique_proxy_declarations called with an invalid "
+                "argument type. Expected one of {0} but found '{1}'".
+                format(str(GH_VALID_ARG_TYPE_NAMES), argument_type))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
-                "unique_proxy_declarations called with an invalid access "
-                "type. Expected one of '{0}' but got '{1}'".
+                "DynInvoke.unique_proxy_declarations called with an invalid "
+                "access type. Expected one of {0} but found '{1}'".
                 format(valid_names, access))
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
-                    if arg.text and arg.type == datatype:
+                    if arg.text and arg.type == argument_type:
                         if arg.proxy_declaration_name not in declarations:
                             declarations.append(arg.proxy_declaration_name)
         return declarations
