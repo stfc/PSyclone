@@ -54,7 +54,7 @@ import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
+from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Arguments, KernelArgument, HaloExchange, GlobalSum, \
@@ -6728,7 +6728,7 @@ class DynLoop(Loop):
             name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
-        self.variable = Reference(data_symbol)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

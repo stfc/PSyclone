@@ -51,7 +51,7 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, Reference
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     KernelSchedule, AccessType, ACCEnterDataDirective
@@ -452,7 +452,7 @@ class GOLoop(Loop):
             name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
-        self.variable = Reference(data_symbol)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

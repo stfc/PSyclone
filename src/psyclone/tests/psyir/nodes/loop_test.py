@@ -52,6 +52,52 @@ from psyclone.tests.utilities import get_invoke, check_links
 from psyclone.parse.algorithm import parse
 
 
+def test_loop_init():
+    '''Test that a loop instance is created as expected and that it raises
+    the expected exceptions where appropriate.
+
+    '''
+    loop = Loop()
+    assert loop.parent is None
+    assert loop.variable is None
+    assert loop._valid_loop_types == []
+    assert loop.annotations == []
+    assert loop._loop_type is None
+    assert loop._field is None
+    assert loop._field_name is None
+    assert loop._field_space is None
+    assert loop._iteration_space is None
+    assert loop._kern is None
+    assert loop._iterates_over == "unknown"
+    assert loop._variable is None
+    assert loop._id == ""
+
+    # valid variable
+    loop = Loop(variable=DataSymbol("var", INTEGER_TYPE))
+    assert loop.variable.name == "var"
+
+    # invalid variable (test_check_variable tests check all ways a
+    # variable could be invalid. Here we just check that the
+    # _check_variable() method is called correctly)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Loop(variable="hello")
+    assert ("variable property in Loop class should be a DataSymbol but "
+            "found 'str'.") in str(excinfo.value)
+
+    # valid_loop_types. Note, there is no error checking for this
+    # variable in the Loop class.
+    loop = Loop(valid_loop_types=["a"])
+    assert loop._valid_loop_types == ["a"]
+
+    parent = Schedule()
+    loop = Loop(parent=parent)
+    assert loop.parent is parent
+
+    annotations = ["was_where"]
+    loop = Loop(annotations=annotations)
+    assert loop.annotations == annotations
+
+
 def test_loop_navigation_properties():
     # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
@@ -194,28 +240,13 @@ def test_loop_create_invalid():
         Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
         one)]
 
-    # variable is not a Reference.
+    # invalid variable (test_check_variable tests check all ways a
+    # variable could be invalid. Here we just check that the
+    # _check_variable() method is called correctly)
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(1, zero, one, one, children)
-    assert ("variable argument in create method of Loop class "
-            "should be a DataSymbol but found 'int'.") in str(excinfo.value)
-
-    # variable is not a scalar
-    array_type = ArrayType(INTEGER_TYPE, shape=[10, 10])
-    variable = DataSymbol("i", array_type)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, zero, one, one, children)
-    assert ("variable argument in create method of Loop class "
-            "should be a ScalarType but found 'ArrayType'."
-            in str(excinfo.value))
-
-    # variable is not a scalar integer
-    variable = DataSymbol("i", REAL_TYPE)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, zero, one, one, children)
-    assert ("variable argument in create method of Loop class "
-            "should be a scalar integer but found 'REAL'."
-            in str(excinfo.value))
+    assert ("variable property in Loop class should be a DataSymbol but "
+            "found 'int'.") in str(excinfo.value)
 
     variable = DataSymbol("i", INTEGER_TYPE)
 
@@ -299,25 +330,28 @@ def test_loop_children_validation():
 def test_check_variable():
     '''Test the _check_variable utility method behaves as expected'''
 
-    assert Loop._check_variable(None) is None
+    with pytest.raises(GenerationError) as info:
+        Loop._check_variable(None)
+    assert ("variable property in Loop class should be a DataSymbol but "
+            "found 'NoneType'." in str(info.value))
 
     with pytest.raises(GenerationError) as info:
-        assert Loop._check_variable("hello")
-    assert ("variable argument in create method of Loop class should be a "
-            "DataSymbol but found 'str'." in str(info.value))
+        Loop._check_variable("hello")
+    assert ("variable property in Loop class should be a DataSymbol but "
+            "found 'str'." in str(info.value))
 
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     array_symbol = DataSymbol("my_array", array_type)
     with pytest.raises(GenerationError) as info:
-        assert Loop._check_variable(array_symbol)
-    assert ("variable argument in create method of Loop class should be a "
-            "ScalarType but found 'ArrayType'." in str(info.value))
+        Loop._check_variable(array_symbol)
+    assert ("variable property in Loop class should be a ScalarType but "
+            "found 'ArrayType'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", REAL_TYPE)
     with pytest.raises(GenerationError) as info:
-        assert Loop._check_variable(scalar_symbol)
-    assert ("variable argument in create method of Loop class should be a "
-            "scalar integer but found 'REAL'." in str(info.value))
+        Loop._check_variable(scalar_symbol)
+    assert ("variable property in Loop class should be a scalar integer but "
+            "found 'REAL'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)
     assert Loop._check_variable(scalar_symbol) is None
@@ -325,10 +359,21 @@ def test_check_variable():
 
 def test_variable_setter():
     '''Check that we can set the _variable property using the variable
-    setter method.
+    setter method and that it raises an exception if an invalid value
+    is provided.
 
     '''
     loop = Loop()
     assert loop.variable is None
+
+    # valid variable
     loop.variable = DataSymbol("var", INTEGER_TYPE)
     assert loop.variable.name == "var"
+
+    # invalid variable (test_check_variable tests check all ways a
+    # variable could be invalid. Here we just check that the
+    # _check_variable() method is called correctly)
+    with pytest.raises(GenerationError) as excinfo:
+        loop.variable = None
+    assert ("variable property in Loop class should be a DataSymbol but "
+            "found 'NoneType'.") in str(excinfo.value)

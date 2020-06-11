@@ -263,7 +263,7 @@ class GOLoop(Loop):
             name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
-        self.variable = Reference(data_symbol)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -277,7 +277,7 @@ class GOLoop(Loop):
 
         if self.field_space == "every":
             from psyclone.f2pygen import DeclGen
-            from psyclone.psyir.nodes import BinaryOperation, Reference
+            from psyclone.psyir.nodes import BinaryOperation
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self.variable.name])
             parent.add(dim_var)

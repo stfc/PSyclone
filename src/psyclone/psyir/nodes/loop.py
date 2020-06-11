@@ -113,7 +113,10 @@ class Loop(Statement):
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
-        self._check_variable(variable)
+        if variable:
+            # The variable might not be provided when the loop is
+            # first created so only check if it is.
+            self._check_variable(variable)
         self._variable = variable
         self._id = ""
 
@@ -129,25 +132,18 @@ class Loop(Statement):
             scalar integer.
 
         '''
-        if not variable:
-            # No variable has been supplied so there is nothing to
-            # check
-            return
         if not isinstance(variable, DataSymbol):
             raise GenerationError(
-                "variable argument in create method of Loop class should "
-                "be a DataSymbol but found '{0}'."
-                "".format(type(variable).__name__))
+                "variable property in Loop class should be a DataSymbol but "
+                "found '{0}'.".format(type(variable).__name__))
         if not isinstance(variable.datatype, ScalarType):
             raise GenerationError(
-                "variable argument in create method of Loop class "
-                "should be a ScalarType but found '{0}'."
-                "".format(type(variable.datatype).__name__))
+                "variable property in Loop class should be a ScalarType but "
+                "found '{0}'.".format(type(variable.datatype).__name__))
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
             raise GenerationError(
-                "variable argument in create method of Loop class "
-                "should be a scalar integer but found '{0}'."
-                "".format(variable.datatype.intrinsic.name))
+                "variable property in Loop class should be a scalar integer "
+                "but found '{0}'.".format(variable.datatype.intrinsic.name))
 
     @staticmethod
     def _validate_child(position, child):
@@ -411,6 +407,7 @@ class Loop(Statement):
         :type var: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        self._check_variable(var)
         self._variable = var
 
     def __str__(self):

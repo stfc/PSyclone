@@ -254,7 +254,7 @@ class DynLoop(Loop):
             name = symtab.new_symbol_name(suggested_name)
             data_symbol = DataSymbol(name, INTEGER_TYPE)
             symtab.add(data_symbol, tag=tag)
-        self.variable = Reference(data_symbol)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

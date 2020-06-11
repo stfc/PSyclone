@@ -48,8 +48,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Loop, Schedule, Reference
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.nodes import Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
