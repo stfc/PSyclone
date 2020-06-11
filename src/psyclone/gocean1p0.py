@@ -51,7 +51,7 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     KernelSchedule, AccessType, ACCEnterDataDirective
@@ -331,6 +331,8 @@ class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
+    # Textual description of the node.
+    _text_name = "GOInvokeSchedule"
 
     def __init__(self, alg_calls, reserved_names=None):
         InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
@@ -341,7 +343,6 @@ class GOInvokeSchedule(InvokeSchedule):
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
-        self._text_name = "GOInvokeSchedule"
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -935,12 +936,14 @@ class GOKern(CodedKern):
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
-        # pylint: disable=super-init-not-called
+        # pylint: disable=super-init-not-called, non-parent-init-called
+        # Can't use super() as the parent class has mandatory arguments that
+        # in GOKern are initialized with the load() method.
+        Node.__init__(self)
         if False:  # pylint: disable=using-constant-test
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
         # Create those member variables required for testing and to keep
         # pylint happy
-        self._children = []
         self._name = ""
         self._index_offset = ""
 

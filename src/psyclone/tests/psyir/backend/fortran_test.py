@@ -32,20 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
 
 from __future__ import absolute_import
 
+from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
-    FortranWriter, gen_datatype
+    FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
+    is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
-    BinaryOperation, Reference
+    UnaryOperation, BinaryOperation, NaryOperation, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -327,6 +329,84 @@ def test_gen_datatype_exception_2():
 #             "variable 'dummy'." in caplog.text)
 
 
+def test_reverse_map():
+    '''Check that the internal _reverse_map function returns a map with
+    the expected behaviour
+
+    '''
+    result = _reverse_map(OrderedDict([('+', 'PLUS')]))
+    assert isinstance(result, dict)
+    assert result['PLUS'] == '+'
+
+
+def test_reverse_map_duplicates():
+    '''Check that the internal _reverse_map function returns a map with
+    the expected behaviour when there are duplicates in the items of
+    the input ordered dictionary. It should use the first one found.
+
+    '''
+    result = _reverse_map(OrderedDict([('==', 'EQUAL'), ('.eq.', 'EQUAL')]))
+    assert isinstance(result, dict)
+    assert result['EQUAL'] == '=='
+    assert len(result) == 1
+
+    result = _reverse_map(OrderedDict([('.eq.', 'EQUAL'), ('==', 'EQUAL')]))
+    assert isinstance(result, dict)
+    assert result['EQUAL'] == '.eq.'
+    assert len(result) == 1
+
+
+@pytest.mark.parametrize("operator,result",
+                         [(UnaryOperation.Operator.SIN, "SIN"),
+                          (BinaryOperation.Operator.MIN, "MIN"),
+                          (NaryOperation.Operator.SUM, "SUM")])
+def test_get_fortran_operator(operator, result):
+    '''Check that the get_fortran_operator function returns the expected
+    values when provided with valid unary, binary and nary operators.
+
+    '''
+    assert result == get_fortran_operator(operator)
+
+
+def test_get_fortran_operator_error():
+    '''Check that the get_fortran_operator function raises the expected
+    exception when an unknown operator is provided.
+
+    '''
+    with pytest.raises(KeyError):
+        _ = get_fortran_operator(None)
+
+
+def test_is_fortran_intrinsic():
+    '''Check that the is_fortran_intrinsic function returns true if the
+    supplied operator is a fortran intrinsic and false otherwise.
+
+    '''
+    assert is_fortran_intrinsic("SIN")
+    assert not is_fortran_intrinsic("+")
+    assert not is_fortran_intrinsic(None)
+
+
+def test_precedence():
+    '''Check that the precedence function returns the expected relative
+    precedence values.
+
+    '''
+    assert precedence('.OR.') < precedence('.AND.')
+    assert precedence('*') < precedence('**')
+    assert precedence('.EQ.') == precedence('==')
+    assert precedence('*') == precedence('/')
+
+
+def test_precedence_error():
+    '''Check that the precedence function returns the expected exception
+    if an unknown operator is provided.
+
+    '''
+    with pytest.raises(KeyError):
+        _ = precedence('invalid')
+
+
 def test_fw_gen_use(fort_writer):
     '''Check the FortranWriter class gen_use method produces the expected
     declaration. Also check that an exception is raised if the symbol
@@ -523,35 +603,14 @@ def test_fw_exception(fort_writer):
     unsupported PSyIR node is found.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp()\n"
-        "  integer :: a,b,c\n"
-        "  a = b/c\n"
-        "end subroutine tmp\n"
-        "end module test")
-    schedule = create_schedule(code, "tmp")
+    # 'unsupported' should be a node that neither its generic classes nor
+    # itself have a visitor implemented.
+    unsupported = Node()
 
-    # pylint: disable=abstract-method
-    # modify the reference to b to be something unsupported
-    class Unsupported(Node):
-        '''A PSyIR node that will not be supported by the Fortran visitor.'''
-    # pylint: enable=abstract-method
-
-    unsupported = Unsupported()
-    assignment = schedule[0]
-    binary_operation = assignment.rhs
-    # The assignment.rhs method has no setter so access the reference
-    # directly instead via children.
-    assignment.children[1] = unsupported
-    unsupported.children = binary_operation.children
-
-    # Generate Fortran from the PSyIR schedule
+    # Generate Fortran from the given PSyIR
     with pytest.raises(VisitorError) as excinfo:
-        _ = fort_writer(schedule)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
+        _ = fort_writer(unsupported)
+    assert "Unsupported node 'Node' found" in str(excinfo.value)
 
 
 def test_fw_container_1(fort_writer, monkeypatch):
@@ -784,6 +843,78 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
+def test_fw_binaryoperator_precedence(fort_writer):
+    '''Check the FortranWriter class binary_operation method complies with
+    the operator precedence rules. This is achieved by placing the
+    operation in brackets.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  real :: a, b, c, d\n"
+        "  logical :: e, f, g\n"
+        "    a = b * (c + d)\n"
+        "    a = b * c + d\n"
+        "    a = (b * c) + d\n"
+        "    a = b * c * d * a\n"
+        "    a = (((b * c) * d) * a)\n"
+        "    a = (b * (c * (d * a)))\n"
+        "    a = -(a + b)\n"
+        "    e = .not.(e .and. (f .or. g))\n"
+        "    e = (((.not.e) .and. f) .or. g)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    expected = (
+        "  a=b * (c + d)\n"
+        "  a=b * c + d\n"
+        "  a=b * c + d\n"
+        "  a=b * c * d * a\n"
+        "  a=b * c * d * a\n"
+        "  a=b * (c * (d * a))\n"
+        "  a=-(a + b)\n"
+        "  e=.NOT.(e .AND. (f .OR. g))\n"
+        "  e=.NOT.e .AND. f .OR. g\n")
+    assert expected in result
+
+
+def test_fw_mixed_operator_precedence(fort_writer):
+    '''Check the FortranWriter class unary_operation and binary_operation
+    methods complies with the operator precedence rules. This is
+    achieved by placing the binary operation in brackets.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp()\n"
+        "  real :: a, b, c, d\n"
+        "  logical :: e, f, g\n"
+        "    a = -a * (-b + c)\n"
+        "    a = (-a) * (-b + c)\n"
+        "    a = -a + (-b + (-c))\n"
+        "    e = .not. f .or. .not. g\n"
+        "    a = log(b*c)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = create_schedule(code, "tmp")
+    # Generate Fortran from the PSyIR schedule
+    result = fort_writer(schedule)
+    expected = (
+        "  a=-a * (-b + c)\n"
+        "  a=-a * (-b + c)\n"
+        "  a=-a + (-b + -c)\n"
+        "  e=.NOT.f .OR. .NOT.g\n"
+        "  a=LOG(b * c)\n")
+    assert expected in result
+
+
 def test_fw_naryoperator(fort_writer, tmpdir):
     ''' Check that the FortranWriter class nary_operation method correctly
     prints out the Fortran representation of an intrinsic.
@@ -834,8 +965,6 @@ def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
 def test_fw_reference(fort_writer):
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
-    Also check the method raises an exception if it has children as
-    this is not expected.
 
     '''
     # Generate fparser2 parse tree from Fortran code. The line of
@@ -867,16 +996,6 @@ def test_fw_reference(fort_writer):
         "  a(n)=0.0\n"
         "\n"
         "end subroutine tmp\n") in result
-
-    # Now add a child to the reference node
-    reference = schedule[1].lhs.children[0]
-    reference.children = ["hello"]
-
-    # Generate Fortran from the PSyIR schedule
-    with pytest.raises(VisitorError) as excinfo:
-        result = fort_writer(schedule)
-    assert ("Expecting a Reference with no children but found"
-            in str(excinfo.value))
 
 
 def test_fw_array(fort_writer):
@@ -1225,6 +1344,7 @@ def test_fw_nemoinvokeschedule(fort_writer, parser):
     from psyclone.nemo import NemoInvokeSchedule
     code = (
         "program test\n"
+        "  integer :: a\n"
         "  a=1\n"
         "end program test\n")
     schedule = get_nemo_schedule(parser, code)
@@ -1245,7 +1365,8 @@ def test_fw_nemokern(fort_writer, parser):
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "program test\n"
-        "  integer :: a,b,c\n"
+        "  integer :: i, j, k, n\n"
+        "  real :: a(n,n,n)\n"
         "  do k=1,n\n"
         "    do j=1,n\n"
         "      do i=1,n\n"

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,8 @@ use constants_mod,           only : r_def, i_def
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
@@ -73,25 +75,11 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_asm_kernel_type
-   module procedure columnwise_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_asm_kernel_code
 
 contains
-
-  type(columnwise_op_asm_kernel_type) function columnwise_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_constructor
 
   !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
@@ -99,23 +87,23 @@ contains
   !> horizontally discontinuous spaces, assemble the columnwise matrix
   !> representation of the operator.
   !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] nlayers number of vertical layers
-  !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [in] ncell_3d total number of cells
-  !> @param [in] local_stencil locally assembled matrix
-  !> @param [out] columnwise_matrix banded matrix to assemble into
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] ndf_to number of degrees of freedom per cell for the to-space
-  !> @param [in] column_banded_dofmap_to list of offsets for to-space
-  !> @param [in] ndf_from number of degrees of freedom per cell for the from-sp
-  !> @param [in] column_banded_dofmap_from list of offsets for from-space
+  !> @param [in] cell Horizontal cell index
+  !> @param [in] nlayers Number of vertical layers
+  !> @param [in] ncell_2d Number of cells in 2d grid
+  !> @param [in] ncell_3d Total number of cells
+  !> @param [in] local_stencil Locally assembled matrix
+  !> @param [out] columnwise_matrix Banded matrix to assemble into
+  !> @param [in] nrow Number of rows in the banded matrix
+  !> @param [in] ncol Number of columns in the banded matrix
+  !> @param [in] bandwidth Bandwidth of the banded matrix
+  !> @param [in] alpha Banded matrix parameter \f$\alpha\f$
+  !> @param [in] beta Banded matrix parameter \f$\beta\f$
+  !> @param [in] gamma_m Banded matrix parameter \f$\gamma_-\f$
+  !> @param [in] gamma_p Banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] ndf_to Number of degrees of freedom per cell for the to-space
+  !> @param [in] column_banded_dofmap_to List of offsets for to-space
+  !> @param [in] ndf_from Number of degrees of freedom per cell for the from-sp
+  !> @param [in] column_banded_dofmap_from List of offsets for from-space
   subroutine columnwise_op_asm_kernel_code(cell,                    &
                                            nlayers,                 &
                                            ncell_2d,                &

@@ -66,6 +66,11 @@ class GOceanExtractNode(ExtractNode):
         in the current working directory with the name \
         "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
         corresponding values for this region. Defaults to False.
+    :param str options["prefix"]: a prefix to use for the PSyData module name \
+        (``prefix_psy_data_mod``) and the PSyDataType \
+        (``prefix_PSyDataType``) - a "_" will be added automatically. \
+        It defaults to "extract", which is set in the base class if \
+        not overwritten in the options dictionary.
 
     '''
     def __init__(self, ast=None, children=None, parent=None,
@@ -161,8 +166,9 @@ class GOceanExtractNode(ExtractNode):
         prog = SubroutineGen(parent=module, name=module_name+"_code",
                              implicitnone=True)
         module.add(prog)
-        use = UseGen(prog, "psy_data_mod", only=True,
-                     funcnames=["PSyDataType"])
+        use = UseGen(prog, self.add_psydata_class_prefix("psy_data_mod"),
+                     only=True,
+                     funcnames=[self.add_psydata_class_prefix("PSyDataType")])
         prog.add(use)
 
         # Use a symbol table to make sure all variable names are unique
@@ -170,9 +176,11 @@ class GOceanExtractNode(ExtractNode):
         sym = Symbol("PSyDataType")
         sym_table.add(sym)
 
-        psy_data = sym_table.new_symbol_name("psy_data")
+        psy_data = sym_table.new_symbol_name(self.add_psydata_class_prefix
+                                             ("psy_data"))
         sym_table.add(Symbol(psy_data))
-        var_decl = TypeDeclGen(prog, datatype="PSyDataType",
+        var_decl = TypeDeclGen(prog, datatype=self.add_psydata_class_prefix
+                               ("PSyDataType"),
                                entity_decls=[psy_data])
         prog.add(var_decl)
 

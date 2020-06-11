@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,15 @@ module testkern_any_space_4_mod
 
   use argument_mod
   use kernel_mod
-  use constants_mod
+  use constants_mod, only : r_def, i_def
+
+  implicit none
 
   ! Test for any_space producing correct code with different
   ! permutations of whether ANY_SPACE is used by another operator/field
   ! or not and whether it has a basis function or not
   type, public, extends(kernel_type) :: testkern_any_space_4_type
+    private
     type(arg_type) :: meta_args(6) = (/                                 &
          arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_5),              &
          arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2), &
@@ -62,27 +65,38 @@ module testkern_any_space_4_mod
 
 contains
   
-  subroutine testkern_any_space_4_code(cell, nlayers, adata,                &
-       ncell_3d_b, b_stencil, ncell_3d_c, c_stencil, ncell_3d_d, d_stencil, &
-       ncell_3d_e, e_stencil, fdata, ndf_any_space_5_a, undf_any_space_5_a, &
-       map_any_space_5_a, ndf_any_space_1_b, basis_any_space_1_b_qr,        &
-       ndf_any_space_2_b, ndf_any_space_3_c, ndf_any_space_4_d,             &
-       undf_any_space_4_d, map_any_space_4_d,                               &
-       basis_any_space_4_d_qr, diff_basis_any_space_4_d_qr,                 &
-       np_xy, np_z, weights_xy, weights_z)
+  subroutine testkern_any_space_4_code(cell, nlayers, adata,                    &
+                                       ncell_3d_b, b_stencil,                   &
+                                       ncell_3d_c, c_stencil,                   &
+                                       ncell_3d_d, d_stencil,                   &
+                                       ncell_3d_e, e_stencil, fdata,            &
+                                       ndf_aspc5_a, undf_aspc5_a, map_aspc5_a,  &
+                                       ndf_aspc1_b, basis_aspc1_b_qr,           &
+                                       ndf_aspc2_b, ndf_aspc3_c,                &
+                                       ndf_aspc4_d, undf_aspc4_d, map_aspc4_d,  &
+                                       basis_aspc4_d_qr, diff_basis_aspc4_d_qr, &
+                                       np_xy, np_z, weights_xy, weights_z)
 
     implicit none
 
-    integer :: cell, nlayers, ncell_3d_b, ncell_3d_c, ncell_3d_d, ncell_3d_e
-    integer :: ndf_any_space_5_a, undf_any_space_5_a, ndf_any_space_1_b, &
-         ndf_any_space_2_b, ndf_any_space_3_c, ndf_any_space_4_d,        &
-         undf_any_space_4_d, np_xy, np_z
-    integer, dimension(:) :: map_any_space_5_a, map_any_space_4_d
-    real(kind=r_def), dimension(:) :: adata, fdata, weights_xy, weights_z
-    real(kind=r_def), dimension(:,:,:,:) :: basis_any_space_1_b_qr, &
-         basis_any_space_4_d_qr, diff_basis_any_space_4_d_qr
-    real(kind=r_def), dimension(:,:,:) :: b_stencil, c_stencil, d_stencil, &
-         e_stencil
+    integer(kind=i_def) :: cell, nlayers
+    integer(kind=i_def) :: ncell_3d_b, ncell_3d_c, ncell_3d_d, ncell_3d_e
+    integer(kind=i_def) :: ndf_aspc5_a, undf_aspc5_a, &
+                           ndf_aspc1_b, ndf_aspc2_b,  &
+                           ndf_aspc3_c, ndf_aspc4_d, undf_aspc4_d
+    integer(kind=i_def) :: np_xy, np_z
+    integer(kind=i_def), dimension(ndf_aspc5_a) :: map_aspc5_a
+    integer(kind=i_def), dimension(ndf_aspc4_d) :: map_aspc4_d
+    real(kind=r_def), dimension(undf_aspc5_a) :: adata
+    real(kind=r_def), dimension(undf_aspc4_d) :: fdata
+    real(kind=r_def), dimension(ndf_aspc1_b,ndf_aspc2_b,ncell_3d_b) :: b_stencil
+    real(kind=r_def), dimension(ndf_aspc3_c,ndf_aspc2_b,ncell_3d_c) :: c_stencil
+    real(kind=r_def), dimension(ndf_aspc4_d,ndf_aspc4_d,ncell_3d_d) :: d_stencil
+    real(kind=r_def), dimension(ndf_aspc3_c,ndf_aspc5_a,ncell_3d_e) :: e_stencil
+    real(kind=r_def), dimension(:,:,:,:) :: basis_aspc1_b_qr, &
+                                            basis_aspc4_d_qr, &
+                                            diff_basis_aspc4_d_qr
+    real(kind=r_def), dimension(:) :: weights_xy, weights_z
 
   end subroutine testkern_any_space_4_code
 

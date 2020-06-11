@@ -44,12 +44,26 @@ import re
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
+from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
 
 # The transformation that most of these tests use
 PTRANS = ProfileTrans()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use the nemo API, and that we clean
+    up the config file at the end of the tests.'''
+
+    Config.get().api = "nemo"
+    yield()
+    # At the end of all tests make sure that we wipe the Config object
+    # so we get a fresh/default one for any further test (and not a
+    # left-over one from a test here).
+    Config._instance = None
 
 
 def get_nemo_schedule(parser, code):
@@ -69,6 +83,7 @@ def get_nemo_schedule(parser, code):
     code = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
+
     return psy, schedule
 
 
@@ -78,6 +93,7 @@ def test_profile_single_loop(parser):
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "use kind_mod, only: wp\n"
+                                      "integer :: ji, jpj\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -86,17 +102,18 @@ def test_profile_single_loop(parser):
     schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
-        "  USE psy_data_mod, ONLY: PSyDataType\n"
+        "  USE profile_psy_data_mod, ONLY: profile_PSyDataType\n"
         "  USE kind_mod, ONLY: wp\n" in code)
     assert (
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data0\n" in code)
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0\n"
+        in code)
     assert (
-        "  CALL psy_data0 % PreStart('do_loop', 'r0', 0, 0)\n"
+        "  CALL profile_psy_data0 % PreStart('do_loop', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL psy_data0 % PostEnd\n" in code)
+        "  CALL profile_psy_data0 % PostEnd\n" in code)
 
 
 def test_profile_single_loop_named(parser):
@@ -107,7 +124,7 @@ def test_profile_single_loop_named(parser):
     '''
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "use kind_mod, only: wp\n"
+                                      "integer :: ji, jpj\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -116,8 +133,8 @@ def test_profile_single_loop_named(parser):
     options = {"region_name": ("my_routine", "my_region")}
     schedule, _ = PTRANS.apply(schedule.children[0], options=options)
     code = str(psy.gen)
-    assert ("CALL psy_data0 % PreStart('my_routine', 'my_region', 0, 0)"
-            in code)
+    assert ("CALL profile_psy_data0 % PreStart('my_routine', 'my_region', "
+            "0, 0)" in code)
 
 
 def test_profile_two_loops(parser):
@@ -126,6 +143,7 @@ def test_profile_two_loops(parser):
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "use kind_mod, only: wp\n"
+                                      "integer :: ji, jpj\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -135,29 +153,30 @@ def test_profile_two_loops(parser):
                                       "end do\n"
                                       "end program do_loop\n")
     # Create two separate profiling regions
-    schedule, _ = PTRANS.apply(schedule.children[1])
-    schedule, _ = PTRANS.apply(schedule.children[0])
+    PTRANS.apply(schedule[1])
+    PTRANS.apply(schedule[0])
     code = str(psy.gen)
     assert (
-        "  USE psy_data_mod, ONLY: PSyDataType\n"
+        "  USE profile_psy_data_mod, ONLY: profile_PSyDataType\n"
         "  USE kind_mod, ONLY: wp\n" in code)
-    assert code.count("USE psy_data_mod") == 1
+    assert code.count("USE profile_psy_data_mod") == 1
     assert (
         "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data0\n"
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data1\n" in code)
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0\n"
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1\n"
+        in code)
     assert (
-        "  CALL psy_data0 % PreStart('do_loop', 'r0', 0, 0)\n"
+        "  CALL profile_psy_data0 % PreStart('do_loop', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL psy_data0 % PostEnd\n" in code)
+        "  CALL profile_psy_data0 % PostEnd\n" in code)
     assert (
-        "  CALL psy_data1 % PreStart('do_loop', 'r1', 0, 0)\n"
+        "  CALL profile_psy_data1 % PreStart('do_loop', 'r1', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    sto_tmp2(ji) = 1.0D0\n"
         "  END DO\n"
-        "  CALL psy_data1 % PostEnd\n" in code)
+        "  CALL profile_psy_data1 % PostEnd\n" in code)
 
 
 def test_profile_codeblock(parser):
@@ -166,6 +185,7 @@ def test_profile_codeblock(parser):
     psy, schedule = get_nemo_schedule(parser,
                                       "subroutine cb_test()\n"
                                       "use kind_mod, only: wp\n"
+                                      "integer :: ji, jpj\n"
                                       "real :: sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  write(*,*) sto_tmp2(ji)\n"
@@ -174,84 +194,90 @@ def test_profile_codeblock(parser):
     schedule, _ = PTRANS.apply(schedule.children[0])
     code = str(psy.gen)
     assert (
-        "  CALL psy_data0 % PreStart('cb_test', 'r0', 0, 0)\n"
+        "  CALL profile_psy_data0 % PreStart('cb_test', 'r0', 0, 0)\n"
         "  DO ji = 1, jpj\n"
         "    WRITE(*, FMT = *) sto_tmp2(ji)\n"
         "  END DO\n"
-        "  CALL psy_data0 % PostEnd\n" in code)
+        "  CALL profile_psy_data0 % PostEnd\n" in code)
 
 
 def test_profile_inside_if1(parser):
     ''' Check that we can put a profiling region inside an If block when
     we pass the transformation the first (and only) child of the Schedule
     of the If. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "subroutine inside_if_test()\n"
-                                      "use kind_mod, only: wp\n"
-                                      "real :: sto_tmp2(jpj)\n"
-                                      "logical :: do_this = .true.\n"
-                                      "if(do_this)then\n"
-                                      "  do ji = 1,jpj\n"
-                                      "    write(*,*) sto_tmp2(ji)\n"
-                                      "  end do\n"
-                                      "endif\n"
-                                      "end subroutine inside_if_test\n")
+    psy, schedule = get_nemo_schedule(
+        parser,
+        "subroutine inside_if_test()\n"
+        "use kind_mod, only: wp\n"
+        "integer :: ji, jpj\n"
+        "real :: sto_tmp2(jpj)\n"
+        "logical, parameter :: do_this = .true.\n"
+        "if(do_this)then\n"
+        "  do ji = 1,jpj\n"
+        "    write(*,*) sto_tmp2(ji)\n"
+        "  end do\n"
+        "endif\n"
+        "end subroutine inside_if_test\n")
     schedule, _ = PTRANS.apply(schedule.children[0].if_body[0])
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
-            "    CALL psy_data0 % PreStart(" in gen_code)
-    assert ("    CALL psy_data0 % PostEnd\n"
+            "    CALL profile_psy_data0 % PreStart(" in gen_code)
+    assert ("    CALL profile_psy_data0 % PostEnd\n"
             "  END IF\n" in gen_code)
 
 
 def test_profile_inside_if2(parser):
     ''' Check that we can put a profiling region inside an If block
     when we pass the transformation the Schedule rather than its child. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "subroutine inside_if_test()\n"
-                                      "use kind_mod, only: wp\n"
-                                      "real :: sto_tmp2(jpj)\n"
-                                      "logical :: do_this = .true.\n"
-                                      "if(do_this)then\n"
-                                      "  do ji = 1,jpj\n"
-                                      "    write(*,*) sto_tmp2(ji)\n"
-                                      "  end do\n"
-                                      "endif\n"
-                                      "end subroutine inside_if_test\n")
+    psy, schedule = get_nemo_schedule(
+        parser,
+        "subroutine inside_if_test()\n"
+        "use kind_mod, only: wp\n"
+        "integer :: ji, jpj\n"
+        "real :: sto_tmp2(jpj)\n"
+        "logical, parameter :: do_this = .true.\n"
+        "if(do_this)then\n"
+        "  do ji = 1,jpj\n"
+        "    write(*,*) sto_tmp2(ji)\n"
+        "  end do\n"
+        "endif\n"
+        "end subroutine inside_if_test\n")
     schedule, _ = PTRANS.apply(schedule.children[0].if_body)
     gen_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
-            "    CALL psy_data0 % PreStart(" in gen_code)
-    assert ("    CALL psy_data0 % PostEnd\n"
+            "    CALL profile_psy_data0 % PreStart(" in gen_code)
+    assert ("    CALL profile_psy_data0 % PostEnd\n"
             "  END IF\n" in gen_code)
 
 
 def test_profile_single_line_if(parser):
     ''' Test that we can put a single-line if statement inside a
     profiling region. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "subroutine one_line_if_test()\n"
-                                      "use kind_mod, only: wp\n"
-                                      "real :: sto_tmp2(jpj)\n"
-                                      "logical :: do_this = .true.\n"
-                                      "if(do_this) write(*,*) sto_tmp2(ji)\n"
-                                      "end subroutine one_line_if_test\n")
+    psy, schedule = get_nemo_schedule(
+        parser,
+        "subroutine one_line_if_test()\n"
+        "use kind_mod, only: wp\n"
+        "integer :: ji, jpj\n"
+        "real :: sto_tmp2(jpj)\n"
+        "logical, parameter :: do_this = .true.\n"
+        "if(do_this) write(*,*) sto_tmp2(ji)\n"
+        "end subroutine one_line_if_test\n")
     # Check that we refuse to attempt to split the body of the If from
     # its parent (as it is a one-line statement). This limitation will
     # be removed once we use the PSyIR Fortran backend in the NEMO API
     # (as opposed to manipulating the fparser2 parse tree).
     # TODO #435
     with pytest.raises(TransformationError) as err:
-        schedule, _ = PTRANS.apply(schedule[0].if_body)
+        PTRANS.apply(schedule[0].if_body)
     assert "single-line if statement" in str(err.value)
     # But we should be able to put the whole If statement in a profiling
     # region...
-    schedule, _ = PTRANS.apply(schedule[0])
+    PTRANS.apply(schedule[0])
     gen_code = str(psy.gen)
     assert (
-        "  CALL psy_data0 % PreStart('one_line_if_test', 'r0', 0, 0)\n"
+        "  CALL profile_psy_data0 % PreStart('one_line_if_test', 'r0', 0, 0)\n"
         "  IF (do_this) WRITE(*, FMT = *) sto_tmp2(ji)\n"
-        "  CALL psy_data0 % PostEnd\n" in gen_code)
+        "  CALL profile_psy_data0 % PostEnd\n" in gen_code)
 
 
 def test_profiling_case(parser):
@@ -261,7 +287,13 @@ def test_profiling_case(parser):
     to the fparser2 parse tree. '''
     code = (
         "subroutine my_test()\n"
-        "   integer :: ji, ii, je_2\n"
+        "   integer :: ji, ii, je_2, jpi, jpj, nldj_crs\n"
+        "   integer :: nistr, niend, njstr, njend, nn_factx, nn_facty\n"
+        "   integer, dimension(:) :: mje_crs, mjs_crs, mis_crs\n"
+        "   real, dimension(:,:) :: p_fld_crs, p_e12, p_fld, zsurfmsk\n"
+        "   real, dimension(:,:,:) :: p_mask, p_e3\n"
+        "   real :: zflcrs, rfactx_r\n"
+        "   character(len=3) :: cd_op\n"
         "   p_fld_crs(:,:) = 0._wp\n"
         "   SELECT CASE ( cd_op )\n"
         "     CASE ( 'VOL' )\n"
@@ -305,27 +337,30 @@ def test_profiling_case(parser):
     PTRANS.apply(sched.children)
     code = str(psy.gen)
     assert (
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data2\n"
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data1\n"
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data3\n"
-        "  TYPE(PSyDataType), TARGET, SAVE :: psy_data0\n"
-        "  CALL psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2\n"
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1\n"
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3\n"
+        "  TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0\n"
+        "  CALL profile_psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
         "  p_fld_crs(:, :) = 0._wp\n" in code)
     assert ("      IF (mje_crs(2) - mjs_crs(2) == 1) THEN\n"
-            "        CALL psy_data2 % PreStart('my_test', 'r2', 0, 0)\n"
+            "        CALL profile_psy_data2 % PreStart('my_test', 'r2', 0, "
+            "0)\n"
             in code)
     assert ("        END DO\n"
-            "        CALL psy_data2 % PostEnd\n"
+            "        CALL profile_psy_data2 % PostEnd\n"
             "      END IF\n" in code)
     assert ("  CASE ('VOL')\n"
-            "    CALL psy_data1 % PreStart('my_test', 'r1', 0, 0)\n" in code)
-    assert ("    CALL psy_data1 % PostEnd\n"
+            "    CALL profile_psy_data1 % PreStart('my_test', 'r1', 0, 0)\n"
+            in code)
+    assert ("    CALL profile_psy_data1 % PostEnd\n"
             "  CASE ('SUM')\n" in code)
     assert ("  CASE ('SUM')\n"
-            "    CALL psy_data3 % PreStart('my_test', 'r3', 0, 0)\n" in code)
-    assert ("    CALL psy_data3 % PostEnd\n"
+            "    CALL profile_psy_data3 % PreStart('my_test', 'r3', 0, 0)\n"
+            in code)
+    assert ("    CALL profile_psy_data3 % PostEnd\n"
             "  END SELECT\n"
-            "  CALL psy_data0 % PostEnd\n"
+            "  CALL profile_psy_data0 % PostEnd\n"
             "END SUBROUTINE my_test" in code)
 
 
@@ -333,7 +368,9 @@ def test_profiling_case_loop(parser):
     ''' Check that we can put profiling around a CASE and a subsequent
     loop. '''
     code = ("subroutine my_test()\n"
-            "  integer :: igrd\n"
+            "  integer :: igrd, ib, ii\n"
+            "  real, dimension(:,:,:) :: pmask, tmask\n"
+            "  real, dimension(:,:) :: bdypmask, bdytmask\n"
             "  select case(igrd)\n"
             "     case(1)\n"
             "        pmask => tmask(:,:,:)\n"
@@ -347,9 +384,9 @@ def test_profiling_case_loop(parser):
     psy, sched = get_nemo_schedule(parser, code)
     PTRANS.apply(sched.children)
     code = str(psy.gen)
-    assert ("  CALL psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
+    assert ("  CALL profile_psy_data0 % PreStart('my_test', 'r0', 0, 0)\n"
             "  SELECT CASE (igrd)\n" in code)
-    assert ("CALL psy_data0 % PostEnd\n"
+    assert ("CALL profile_psy_data0 % PostEnd\n"
             "END SUBROUTINE" in code)
 
 
@@ -384,6 +421,7 @@ def test_profiling_missing_end(parser):
     from psyclone.psyGen import Loop
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
+                                      "integer :: jpj, ji\n"
                                       "real :: sto_tmp(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -405,7 +443,8 @@ def test_profiling_mod_use_clash(parser):
     clashes with the one we would 'use' for the profiling API. '''
     psy, schedule = get_nemo_schedule(parser,
                                       "program the_clash\n"
-                                      "  use psy_data_mod, only: some_var\n"
+                                      "  use profile_psy_data_mod, only: "
+                                      "some_var\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program the_clash\n")
     PTRANS.apply(schedule.children[0])
@@ -413,7 +452,7 @@ def test_profiling_mod_use_clash(parser):
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen
     assert ("Cannot add PSyData calls to 'the_clash' because it already "
-            "'uses' a module named 'psy_data_mod'" in str(err.value))
+            "'uses' a module named 'profile_psy_data_mod'" in str(err.value))
 
 
 def test_profiling_mod_name_clash(parser):
@@ -459,9 +498,9 @@ def test_profiling_var_clash(parser):
         parser,
         "program my_test\n"
         "  real :: my_array(3,3)\n"
-        "  integer :: {0}\n"
+        "  integer :: profile_psy_data\n"
         "  my_array(:,:) = 0.0\n"
-        "end program my_test\n".format(PSyDataNode.psy_data_var))
+        "end program my_test\n")
     PTRANS.apply(schedule.children[0])
     with pytest.raises(NotImplementedError) as err:
         _ = psy.gen

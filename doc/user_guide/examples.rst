@@ -56,11 +56,18 @@ that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
 This is most easily done by following the links from the top-level
 `README <https://https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
-The ``check_examples`` bash script (in the ``examples`` directory) is
-primarily intended for correctness checking and is run by Travis
-alongside the test suite. For those examples that support it,
-compilation of the generated code may be requested via the ``-c`` or
-``--compile`` flags.
+For the purposes of correctness checking, the whole suite of examples
+may be executed using Gnu ``make`` (this functionality is used by Travis
+alongside the test suite). The default target is ``transform`` which
+just performs the PSyclone code transformation steps for each
+example. For those examples that support it, the ``compile`` target
+also requests that the generated code be compiled.
+
+.. note:: if you have copied the examples directory to some other
+	  location but still wish to use ``make`` then you will also
+	  have to set the ``PSYCLONE_CONFIG`` environment variable to
+	  the full path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
 GOcean
 ------
@@ -156,6 +163,7 @@ and then executes the original code.
     At this stage the driver program will not compile
     (see issue #644).
 
+.. _examples_lfric:
 
 LFRic
 ------

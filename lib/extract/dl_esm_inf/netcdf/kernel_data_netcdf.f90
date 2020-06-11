@@ -42,7 +42,7 @@
 !! field.
 !! 
 
-module psy_data_mod
+module extract_psy_data_mod
 
     implicit none
 
@@ -51,7 +51,7 @@ module psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, public:: PSyDataType
+    type, public:: extract_PsyDataType
         !> The NetCDF id used for this file.
         integer, private                   :: ncid
         !> Each variable id. This is required to associate data
@@ -99,7 +99,7 @@ module psy_data_mod
                                            ReadScalarReal,   &
                                            ReadScalarDouble, &
                                            ReadFieldDouble 
-    end type PSyDataType
+    end type extract_PSyDataType
 
 Contains
 
@@ -124,9 +124,21 @@ Contains
     end function CheckError
 
     ! -------------------------------------------------------------------------
+    !> This is a one-time init function. It is not required for the kernel
+    !! extraction and is therefore empty.
+    subroutine extract_PSyDataInit()
+    end subroutine extract_PSyDataInit
+
+    ! -------------------------------------------------------------------------
+    !> This is a one-time shutdown function. It is not required for the kernel
+    !! extraction and is therefore empty.
+    subroutine extract_PSyDataShutdown()
+    end subroutine extract_PSyDataShutdown
+
+    ! -------------------------------------------------------------------------
     !> This subroutine is the first function called when data is written out
     !! before an instrumented region of code.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] kernel_name The name of the instrumented region.
@@ -139,7 +151,7 @@ Contains
                         num_post_vars)
         use netcdf, only : nf90_create, NF90_CLOBBER
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
         integer :: retval
@@ -161,14 +173,14 @@ Contains
     !! filename is based on the module and kernel name. This is used by a
     !! driver program that will read a NetCDF file previously created by the
     !! PSyData API.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] kernel_name The name of the instrumented region.
     subroutine OpenRead(this, module_name, kernel_name)
         use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer :: retval
 
@@ -181,11 +193,11 @@ Contains
     !! written after the instrumented region). It is used to switch the NetCDF
     !! file from declaration to writing state, and reset the next_var_index
     !! back to 1.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     subroutine PreEndDeclaration(this)
         use netcdf, only : nf90_enddef
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         integer :: retval
         retval = CheckError(nf90_enddef(this%ncid))
         this%next_var_index = 1
@@ -195,30 +207,30 @@ Contains
     !! provided (and declared). After this call the instrumented region will
     !! be executed. For this NetCDF interface this function is not required,
     !! so it is empty.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     subroutine PreEnd(this)
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
     end subroutine PreEnd
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
     !! region will be provided. For this NetCDF interface this function is
     !! not required, so it is empty.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     subroutine PostStart(this)
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
     end subroutine PostStart
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. This will close the NetCDF file.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     subroutine PostEnd(this)
         use netcdf, only : nf90_close
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         integer :: retval
         retval = CheckError(nf90_close(this%ncid))
     end subroutine PostEnd
@@ -227,13 +239,13 @@ Contains
     !> This subroutine declares a scalar integer value. A corresponding
     !! variable definition is added to the NetCDF file, and the variable
     !! id is stored in the var_id field.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalarInt(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(in) :: value
         integer :: retval
@@ -246,13 +258,13 @@ Contains
     !> This subroutine writes the value of a scalar integer variable to the
     !! NetCDF file. It takes the variable id from the corresponding
     !! declaration.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalarInt(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(in) :: value
         integer :: retval
@@ -264,14 +276,14 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine reads the value of a scalar integer variable from
     !! the NetCDF file and returns it to the user.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
     subroutine ReadScalarInt(this, name, value)
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         integer, intent(out) :: value
         integer :: retval, varid
@@ -283,13 +295,13 @@ Contains
     !> This subroutine declares a scalar single precision value. A
     !! corresponding variable definition is added to the NetCDF file, and the
     !! variable id is stored in the var_id field.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalarReal(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(in) :: value
         integer :: retval
@@ -302,13 +314,13 @@ Contains
     !> This subroutine writes the value of a scalar single precision variable
     !! to the NetCDF file. It takes the variable id from the corresponding
     !! declaration.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalarReal(this, name, value)
         use netcdf, only: nf90_put_var
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(in) :: value
         integer :: retval
@@ -320,14 +332,14 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine reads the value of a scalar single precision variable
     !! from the NetCDF file and returns it to the user
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
     subroutine ReadScalarReal(this, name, value)
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         real, intent(out) :: value
         integer :: retval, varid
@@ -339,13 +351,13 @@ Contains
     !> This subroutine declares a scalar single precision value. A
     !! corresponding variable definition is added to the NetCDF file, and the
     !! variable id is stored in the var_id field.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalarDouble(this, name, value)
         use netcdf
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(in) :: value
         integer :: retval
@@ -357,13 +369,13 @@ Contains
     !> This subroutine writes the value of a scalar double precision variable
     !! to the NetCDF file. It takes the variable id from the corresponding
     !! declaration.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalarDouble(this, name, value)
         use netcdf, only: nf90_put_var
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(in) :: value
         integer :: retval
@@ -375,14 +387,14 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine reads the value of a scalar double precision variable
     !! from the NetCDF file and returns it to the user
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
     subroutine ReadScalarDouble(this, name, value)
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, intent(out) :: value
         integer :: retval, varid
@@ -394,15 +406,14 @@ Contains
     !> This subroutine declares a double precision field as defined in
     !! dl_esm_info (r2d_field). A corresponding variable definition is added
     !! to the NetCDF file, and the variable id is stored in the var_id field.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
         use netcdf
         use field_mod, only : r2d_field
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: x_dimid, y_dimid, retval
@@ -423,14 +434,14 @@ Contains
     !> This subroutine writes the value of a dl_esm_field (r2d_field)
     !! to the NetCDF file. It takes the variable id from the corresponding
     !! declaration.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldDouble(this, name, value)
         use netcdf
         use field_mod, only : r2d_field
         implicit none
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: retval
@@ -444,7 +455,7 @@ Contains
     !! It allocates a 2d-double precision array to store the read values
     !! which is then returned to the caller. If the memory for the array can
     !! not be allocated, the application will be stopped.
-    !! @param[inout] this The instance of the PSyDataType.
+    !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value An allocatable, unallocated 2d-double precision array
     !!             which is allocated here and stores the values read.
@@ -452,7 +463,7 @@ Contains
         use netcdf
         implicit none
 
-        class(PSyDataType), intent(inout), target :: this
+        class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         double precision, dimension(:,:), allocatable, intent(out) :: value
         integer :: retval, varid
@@ -483,5 +494,4 @@ Contains
     end subroutine ReadFieldDouble
     ! -------------------------------------------------------------------------
 
-end module psy_data_mod
-
+end module extract_psy_data_mod

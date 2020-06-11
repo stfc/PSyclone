@@ -41,9 +41,19 @@
 ! Modified I. Kavcic, Met Office
 !          A. R. Porter, STFC Daresbury Laboratory
 
-!> @brief The argument type to hold kernel metadata required by the psy layer.
+!> @brief The argument type to hold kernel metadata required by the PSy layer.
 
 module argument_mod
+
+  ! Test files need to be updated to reference function spaces from
+  ! fs_continuity_mod rather than the old location argument_mod.f90. The
+  ! inclusion of fs_continuity_mod here is a temporary solution until
+  ! this issue (#764) is addressed.
+  ! Note: this module should really have a keyword "private" before the explicit
+  ! declaration of "public" parameter. This is currently not possible due to
+  ! the use of fs_continuity_mod, however it will need to be added.
+
+  use fs_continuity_mod
 
   implicit none
 
@@ -63,21 +73,10 @@ module argument_mod
   integer, public, parameter :: GH_MIN       = 16
   integer, public, parameter :: GH_MAX       = 17
 
-  ! Function-space labels
-  integer, public, parameter :: W0        = 100
-  integer, public, parameter :: W1        = 101
-  integer, public, parameter :: W2        = 102
-  integer, public, parameter :: W2V       = 103
-  integer, public, parameter :: W2H       = 104
-  integer, public, parameter :: W2broken  = 105
-  integer, public, parameter :: W2trace   = 106
-  integer, public, parameter :: W3        = 107
-  integer, public, parameter :: Wtheta    = 108
-  integer, public, parameter :: Wchi      = 109
-  integer, public, parameter :: ANY_W2    = 110
-
-  ! Distinct any_space IDs. Separate IDs required as we may have
-  ! groups of fields that must be on the same space within a kernel
+  ! General function space IDs. Distinct IDs required as we may
+  ! have groups of fields that must be on the same space within
+  ! a kernel.
+  ! IDs for any space regardless of continuity.
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
   integer, public, parameter :: ANY_SPACE_3  = 203
@@ -88,9 +87,12 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
-  ! Distinct any_discontinuous_space IDs. Separate IDs required
-  ! as we may have groups of fields that must be on the same space
-  ! within a kernel
+  ! IDs for any vector W2-type space regardless of continuity
+  ! (w2, w2h, w2v, w2broken but not w2*trace spaces of scalar
+  ! functions). Issue #540 will resolve what W2* spaces should
+  ! be included in ANY_W2 list and how they should be treated.
+  integer, public, parameter :: ANY_W2       = 112
+  ! IDs for any discontinuous space
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_2  = 252
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_3  = 253
@@ -138,6 +140,9 @@ module argument_mod
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
 
+  ! Mesh properties
+  integer, public, parameter :: adjacent_face = 533
+
   ! Reference-element properties
   integer, public, parameter :: normals_to_horizontal_faces = 171
   integer, public, parameter :: outward_normals_to_horizontal_faces = 007
@@ -161,10 +166,14 @@ module argument_mod
      integer :: wproperties3 = -1 ! { " } optional and must be a distinct property
   end type func_type
 
+  type, public :: mesh_data_type
+    integer :: mesh_data_item ! {adjacent_face}
+  end type mesh_data_type
+
   type, public :: reference_element_data_type
     ! {normals_to_<horizontal/vertical/all>_faces, &
     !  outward_normals_to_<horizontal/vertical/all>_faces}
     integer :: reference_element_data_item
   end type reference_element_data_type
-
+  
 end module argument_mod

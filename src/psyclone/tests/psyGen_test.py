@@ -53,7 +53,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
     Literal, Node, Schedule
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, KernelSchedule, \
+    OMPParallelDoDirective, KernelSchedule, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern
@@ -427,6 +427,36 @@ def test_kern_abstract_methods():
             in str(err.value))
 
 
+def test_kern_children_validation():
+    '''Test that children added to Kern are validated. A Kern node does not
+    accept any children.
+
+    '''
+    # We use a subclass (CodedKern->DynKern) to test this functionality.
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kern = DynKern()
+    kern.load_meta(metadata)
+
+    with pytest.raises(GenerationError) as excinfo:
+        kern.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
+            "is a LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_inlinedkern_children_validation():
+    '''Test that children added to Kern are validated. A Kern node does not
+    accept any children.
+
+    '''
+    ikern = InlinedKern(None)
+
+    with pytest.raises(GenerationError) as excinfo:
+        ikern.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
+            "format is: 'Schedule'.") in str(excinfo.value)
+
+
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
@@ -519,12 +549,12 @@ def test_ompdo_constructor():
     # Check the dir_body property
     assert isinstance(ompdo.dir_body, Schedule)
     # Break the directive
-    ompdo.children[0] = "not-a-schedule"
+    del ompdo.children[0]
     with pytest.raises(InternalError) as err:
         # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
-            "child but found: ['str']" in str(err.value))
+            "child but found: []" in str(err.value))
     ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
     assert len(ompdo.dir_body.children) == 1
 
@@ -633,6 +663,27 @@ def test_globalsum_node_str():
                                SCHEDULE_COLOUR_MAP["GlobalSum"]) +
                        "[scalar='asum']")
     assert expected_output in output
+
+
+def test_globalsum_children_validation():
+    '''Test that children added to GlobalSum are validated. A GlobalSum node
+    does not accept any children.
+
+    '''
+    from psyclone import dynamo0p3
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    gsum = None
+    for child in psy.invokes.invoke_list[0].schedule.children:
+        if isinstance(child, dynamo0p3.DynGlobalSum):
+            gsum = child
+            break
+    with pytest.raises(GenerationError) as excinfo:
+        gsum.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
 def test_args_filter():
@@ -1204,6 +1255,18 @@ def test_haloexchange_node_str():
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
 
 
+def test_haloexchange_children_validation():
+    '''Test that children added to HaloExchange are validated. A HaloExchange
+    node does not accept any children.
+
+    '''
+    haloex = HaloExchange(None)
+    with pytest.raises(GenerationError) as excinfo:
+        haloex.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'HaloExchange'. HaloExchange "
+            "is a LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
 def test_haloexchange_args():
     '''Test that the haloexchange class args method returns the appropriate
     argument '''
@@ -1413,6 +1476,28 @@ def test_directive_get_private(monkeypatch):
         _ = directive._get_private_list()
     assert ("call 'testkern_code' has a local variable but its name is "
             "not set" in str(err.value))
+
+
+def test_directive_children_validation():
+    '''Test that children added to Directive are validated. Directive accepts
+    1 Schedule as child.
+
+    '''
+    directive = Directive()
+    datanode = Literal("1", INTEGER_TYPE)
+    schedule = Schedule()
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        directive.children[0] = datanode
+    assert ("Item 'Literal' can't be child 0 of 'Directive'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        directive.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))
 
 
 def test_openmp_pdo_dag_name():

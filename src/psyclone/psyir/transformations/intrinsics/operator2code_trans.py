@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module providing an abstract class which provides some generic
 functionality required by transformations of PSyIR intrinsic operators
@@ -45,20 +46,19 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
-from psyclone.psyir.symbols import SymbolTable
 
 
 @six.add_metaclass(abc.ABCMeta)
-class NemoOperatorTrans(Transformation):
-    '''Provides NEMO-API-specific support for transformations from PSyIR
-    intrinsic Operator nodes to equivalent PSyIR code in a PSyIR
-    tree. Such transformations can be useful when the intrinsic is not
-    supported by a particular backend or if it is more efficient to
-    have explicit code.
+class Operator2CodeTrans(Transformation):
+    '''Provides support for transformations from PSyIR intrinsic Operator
+    nodes to equivalent PSyIR code in a PSyIR tree. Such
+    transformations can be useful when the intrinsic is not supported
+    by a particular backend or if it is more efficient to have
+    explicit code.
 
     '''
     def __init__(self):
-        super(NemoOperatorTrans, self).__init__()
+        super(Operator2CodeTrans, self).__init__()
         self._operator_name = None
         self._classes = None
         self._operators = None
@@ -74,16 +74,14 @@ class NemoOperatorTrans(Transformation):
         :rtype:str
 
         '''
-        return "Nemo{0}Trans".format(self._operator_name.title())
+        return "{0}2CodeTrans".format(self._operator_name.title())
 
-    def validate(self, node, symbol_table, options=None):
+    def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply
         an intrinsic transformation to the supplied Node.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyGen.Operation`
-        :param symbol_table: the symbol table that is being checked.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -108,19 +106,6 @@ class NemoOperatorTrans(Transformation):
                 "Error in {0} transformation. The supplied node operator is "
                 "invalid, found '{1}'."
                 "".format(self.name, str(node.operator)))
-        # Check that symbol_table is a PSyIR symbol table
-        if not isinstance(symbol_table, SymbolTable):
-            raise TransformationError(
-                "Error in {0} transformation. The supplied symbol_table "
-                "argument is not an a SymbolTable, found '{1}'."
-                "".format(self.name, type(symbol_table).__name__))
-        # Check that this is the nemo API.
-        from psyclone.configuration import Config
-        if not Config.get().api == "nemo":
-            raise TransformationError(
-                "Error in {0} transformation. This transformation only "
-                "works for the nemo API, but found '{1}'."
-                "".format(self.name, Config.get().api))
         # Check that there is an Assignment node that is an ancestor
         # of this Operation.
         if not node.ancestor(Assignment):
@@ -133,6 +118,3 @@ class NemoOperatorTrans(Transformation):
     def apply(self, node, options=None):
         '''Abstract method, see psyclone.psyGen.Transformations apply() for
         more details.'''
-        schedule = None
-        memento = None
-        return schedule, memento

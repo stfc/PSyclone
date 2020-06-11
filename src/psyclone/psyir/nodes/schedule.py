@@ -39,22 +39,48 @@
 ''' This module contains the Schedule node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.symbols import SymbolTable
 
 
 class Schedule(Node):
     ''' Stores schedule information for a sequence of statements (supplied
     as a list of children).
 
-    :param children: the sequence of PSyIR nodes that make up the Schedule.
+    :param children: the PSyIR nodes that are children of this Schedule.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: that parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent node of this Schedule in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param symbol_table: initialise the Schedule with a given symbol table.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
+            NoneType
 
     '''
-    def __init__(self, children=None, parent=None):
-        Node.__init__(self, children=children, parent=parent)
-        self._text_name = "Schedule"
-        self._colour_key = "Schedule"
+    # Textual description of the node.
+    _children_valid_format = "[Statement]*"
+    _text_name = "Schedule"
+    _colour_key = "Schedule"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return isinstance(child, Statement)
+
+    def __init__(self, children=None, parent=None, symbol_table=None):
+        super(Schedule, self).__init__(self, children=children, parent=parent)
+        if symbol_table:
+            self._symbol_table = symbol_table
+        else:
+            self._symbol_table = SymbolTable(self)
 
     @property
     def dag_name(self):
@@ -63,6 +89,14 @@ class Schedule(Node):
         :rtype: str
         '''
         return "schedule_" + str(self.abs_position)
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: table containing symbol information for the Schedule.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
+        return self._symbol_table
 
     def __getitem__(self, index):
         '''
@@ -76,10 +110,10 @@ class Schedule(Node):
         return self._children[index]
 
     def __str__(self):
-        result = "Schedule:\n"
+        result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End Schedule"
+        result += "End " + self.coloured_name(False)
         return result
 
     def gen_code(self, parent):

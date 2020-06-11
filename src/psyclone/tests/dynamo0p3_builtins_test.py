@@ -362,10 +362,10 @@ def test_dynbuiltfactory_str():
 
 
 def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXPlusYKern returns the expected
+    ''' Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
-    where X and Y are fields. Also check that we generate correct
-    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True
+    where X and Y are fields. Also check that we generate correct bounds
+    when Config.api_conf(API)._compute_annexed_dofs is False and True.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -381,6 +381,9 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Add fields"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         # The value of _compute_annexed_dofs should make no difference
         output = (
@@ -388,13 +391,13 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -419,13 +422,11 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-
-def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in X
-    = X + Y where X and Y are fields. Test with and without annexed
+def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    X = X + Y where X and Y are fields. Test with and without annexed
     dofs being computed as this affects the generated code.
 
     '''
@@ -442,13 +443,16 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
     assert str(kern) == "Built-in: Increment field"
     # Test code generation
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n")
@@ -471,12 +475,12 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynAXPlusYKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynAXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -493,6 +497,8 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
@@ -500,7 +506,7 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -508,13 +514,13 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -541,8 +547,8 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncAXPlusYKern returns the
+def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + Y where 'a' is a scalar and X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -562,6 +568,8 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a, f1, f2)\n"
@@ -569,20 +577,20 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -609,8 +617,8 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPlusBYKern returns the
+def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X + b*Y where 'b' is a scalar and X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -630,6 +638,8 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f1, b, f2)\n"
@@ -637,20 +647,20 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -677,8 +687,8 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynAXPlusBYKern returns the
+def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + b*Y where 'a' and 'b' are scalars and Z, X and
     Y are fields. Test with and without annexed dofs being computed as
@@ -698,6 +708,8 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
@@ -705,7 +717,7 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -713,13 +725,13 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -746,8 +758,8 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncAXPlusBYKern returns the
+def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + b*Y where 'a' and 'b' are scalars and X and Y
     are fields. Test with and without annexed dofs being computed as
@@ -768,6 +780,8 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a, f1, b, f2)\n"
@@ -775,20 +789,20 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -818,12 +832,11 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
 # ------------- Subtracting (scaled) fields --------------------------------- #
 
 
-def test_X_minus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXMinusYKern returns the expected
+def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXMinusYKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Z = X - Y where Z, X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated
-    code.
+    Z = X - Y where Z, X and Y are fields. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -839,19 +852,21 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      f3_proxy = f3%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -876,12 +891,11 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXMinusYKern returns the
+def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are fields. Test with and
-    without annexed dofs being computed as this affects the generated
-    code.
+    operation X = X - Y where X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -897,18 +911,20 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n")
@@ -931,8 +947,8 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynAXMinusYKern returns the
+def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -952,6 +968,8 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
@@ -959,7 +977,7 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -967,13 +985,13 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1000,8 +1018,8 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_X_minus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXMinusBYKern returns the
+def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -1021,6 +1039,8 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, b, f2)\n"
@@ -1028,7 +1048,7 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1036,13 +1056,13 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1069,12 +1089,12 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXMinusBYKern returns the
+def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - b*Y where 'b' is a scalar and X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation X = X - b*Y where 'b' is a scalar and X and Y are fields.
+    Test with and without annexed dofs being computed as this affects
+    the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1090,6 +1110,8 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f1, b, f2)\n"
@@ -1097,20 +1119,20 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "b*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1140,11 +1162,11 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
 # ------------- Multiplying (scaled) fields --------------------------------- #
 
 
-def test_X_times_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXTimesYKern returns the expected
+def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXTimesYKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Z = X*Y where Z, X and Y are fields. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    Z = X*Y where Z, X and Y are fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1160,13 +1182,15 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -1174,13 +1198,13 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n")
@@ -1203,12 +1227,11 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXTimesYKern returns the
+def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X*Y where X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated
-    code.
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1225,18 +1248,20 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -1261,8 +1286,8 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncAXTimesYKern returns the
+def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X*Y where 'a' is a scalar and X and Y are
     fields. Test with and without annexed dofs being computed as this
@@ -1282,6 +1307,8 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a, f1, f2)\n"
@@ -1289,20 +1316,20 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -1332,12 +1359,11 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
 # ------------- Scaling fields (multiplying by a scalar --------------------- #
 
 
-def test_a_times_X(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynATimesXKern returns the expected
+def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynATimesXKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Y = a*X where 'a' is a scalar and X and Y are fields. Test with
-    and without annexed dofs being computed as this affects the
-    generated code.
+    Y = a*X where 'a' is a scalar and X and Y are fields. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1354,18 +1380,20 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      f2_proxy = f2%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f2\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
-            "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -1388,8 +1416,8 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncATimesXKern returns the
+def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X where 'a' is a scalar and X is a field. Test
     with and without annexed dofs being computed as this affects the
@@ -1410,14 +1438,16 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a, f1, b, f2, f3)\n"
             "      REAL(KIND=r_def), intent(in) :: a, b\n"
             "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
             "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) ndf_any_space_1_f1, "
-            "undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) ndf_aspc1_f1, "
+            "undf_aspc1_f1\n"
             "      INTEGER(KIND=i_def) nlayers\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
             "      !\n"
@@ -1431,14 +1461,14 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      nlayers = f1_proxy%vspace%get_nlayers()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -1462,12 +1492,11 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
 # ------------- Dividing (scaled) fields ------------------------------------ #
 
 
-def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynXDividebyYKern returns the
+def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X/Y where Z, X and Y are fields. Test with and
-    without annexed dofs being computed as this affects the generated
-    code.
+    operation Z = X/Y where Z, X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1483,19 +1512,21 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      f3_proxy = f3%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) / "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -1520,8 +1551,8 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXDividebyYKern returns the
+def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X/Y where X and Y are fields. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -1540,18 +1571,20 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) / "
             "f2_proxy%data(df)\n"
             "      END DO")
@@ -1579,8 +1612,8 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
 # ------------- Raising field to a scalar ----------------------------------- #
 
 
-def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPowrealAKern returns the
+def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
     field. Test with and without annexed dofs being computed as this
@@ -1601,14 +1634,16 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
             "      END DO\n"
             "      !\n")
@@ -1630,7 +1665,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynIncXPowintNKern returns the
+    ''' Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
     field. Also test with and without annexed dofs being computed as
@@ -1655,12 +1690,12 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
             "      END DO\n"
             "      !\n")
@@ -1684,12 +1719,11 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Setting field elements to a value --------------------------- #
 
 
-def test_setval_c(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynSetvalCKern returns the expected
+def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynSetvalCKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    X = c where 'c' is a constant scalar value and X is a field. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+    X = c where 'c' is a constant scalar value and X is a field. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1705,6 +1739,8 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f1, c)\n"
@@ -1712,19 +1748,19 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = c\n"
             "      END DO")
         assert output in code
@@ -1747,8 +1783,8 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_setval_X(monkeypatch, annexed, dist_mem):
-    '''Test that 1) the str method of DynSetvalXKern returns the expected
+def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of DynSetvalXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = X where X and Y are fields. Also test with and without annexed
     dofs being computed as this affects the generated code.
@@ -1767,26 +1803,28 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f2, f1)\n"
             "      TYPE(field_type), intent(in) :: f2, f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f2\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f2\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
-            "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -1812,11 +1850,13 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
 # ------------- Inner product of fields ------------------------------------- #
 
 
-def test_X_innerproduct_Y(dist_mem):
+def test_X_innerproduct_Y(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of fields X and Y as
-    innprod = innprod + X(:)*Y(:) '''
+    innprod = innprod + X(:)*Y(:).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.1_X_innerproduct_Y_builtin.f90"),
@@ -1830,6 +1870,8 @@ def test_X_innerproduct_Y(dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output = (
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1840,9 +1882,9 @@ def test_X_innerproduct_Y(dist_mem):
     assert output in code
     if not dist_mem:
         output_seq = (
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -1851,7 +1893,7 @@ def test_X_innerproduct_Y(dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -1878,11 +1920,13 @@ def test_X_innerproduct_Y(dist_mem):
         assert "      TYPE(scalar_type) global_sum\n" in code
 
 
-def test_X_innerproduct_X(dist_mem):
+def test_X_innerproduct_X(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of a field X by itself as
-    innprod = innprod + X(:)*X(:) '''
+    innprod = innprod + X(:)*X(:).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.2_X_innerproduct_X_builtin.f90"),
@@ -1896,6 +1940,8 @@ def test_X_innerproduct_X(dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output = (
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1905,9 +1951,9 @@ def test_X_innerproduct_X(dist_mem):
     assert output in code
     if not dist_mem:
         output_seq = (
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -1916,7 +1962,7 @@ def test_X_innerproduct_X(dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -1946,10 +1992,12 @@ def test_X_innerproduct_X(dist_mem):
 # ------------- Sum field elements ------------------------------------------ #
 
 
-def test_sum_X(dist_mem):
-    ''' Test that 1) the str method of DynSumXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation which sums elements of a field X as sumfld = sum(X(:)) '''
+def test_sum_X(tmpdir, dist_mem):
+    ''' Test that 1) the str method of DynSumXKern returns the expected
+    string and 2) we generate correct code for the built-in operation which
+    sums elements of a field X as sumfld = sum(X(:)).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.8.1_sum_X_builtin.f90"), api=API)
@@ -1962,6 +2010,8 @@ def test_sum_X(dist_mem):
     # Test code generation
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     output = (
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -1971,7 +2021,7 @@ def test_sum_X(dist_mem):
     assert output in code
     if not dist_mem:
         output = (
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -1980,7 +2030,7 @@ def test_sum_X(dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -2047,9 +2097,9 @@ def test_X_times_Y_deduce_space(dist_mem):
 
 
 def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code for a serial builtin setval_c
-    operation with a scalar passed by value. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    ''' Tests that we generate correct code for a serial builtin setval_c
+    operation with a scalar passed by value. Test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -2069,19 +2119,19 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = 0.0\n"
             "      END DO\n"
             "      !\n"
@@ -2107,9 +2157,9 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code for the builtin operation Z =
-    a*X + Y when a scalar is passed by value. Also test with and
+def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code for the builtin operation
+    Z = a*X + Y when a scalar is passed by value. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
 
@@ -2123,13 +2173,15 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2137,13 +2189,13 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -2170,10 +2222,10 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code for the builtin operation Z =
-    a*X + b*Y when scalars 'a' and 'b' are passed by value. Test with
-    and without annexed dofs being computed as this affects the
+def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code for the builtin operation
+    Z = a*X + b*Y when scalars 'a' and 'b' are passed by value. Test
+    with and without annexed dofs being computed as this affects the
     generated code.
 
     '''
@@ -2186,13 +2238,15 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2200,13 +2254,13 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
             "0.8*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -2236,8 +2290,8 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
 # ------------- Builtins with multiple calls or mixed with kernels ---------- #
 
 
-def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code when we have an invoke
+def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations. Test with and without annexed
     dofs being computed as this affects the generated code.
 
@@ -2251,6 +2305,8 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
         API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
@@ -2258,8 +2314,8 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1, "
-            "undf_any_space_1_f2, undf_any_space_1_f3\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f1, "
+            "undf_aspc1_f2, undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -2267,27 +2323,27 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      f2_proxy = f2%get_proxy()\n"
             "      f3_proxy = f3%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f2\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
-            "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f3\n"
+            "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
-            "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = 3.0\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n")
         assert output in code
@@ -2327,8 +2383,8 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code for a builtin set operation
+def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Tests that we generate correct code for a builtin set operation
     when the invoke also contains a normal kernel. Test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2343,6 +2399,8 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
 
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     dofmap_output = (
         "      !\n"
@@ -2361,10 +2419,10 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
             "      undf_w3 = m2_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
@@ -2376,7 +2434,7 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = 0.0\n"
             "      END DO")
         assert output in code
@@ -2427,8 +2485,8 @@ def test_builtin_set_plus_normal(monkeypatch, annexed, dist_mem):
 # ------------- Builtins with reductions ------------------------------------ #
 
 
-def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
-    '''Test that multiple builtins, including one with reductions, produce
+def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that multiple builtins, including one with reductions, produce
     correct code. Also test with and without annexed dofs being
     computed as this affects the generated code.
 
@@ -2441,6 +2499,8 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert(
@@ -2492,25 +2552,25 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_any_space_1_f1\n") in code
+            "      INTEGER(KIND=i_def) undf_aspc1_f1\n") in code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      !\n"
-            "      ! Initialise number of DoFs for any_space_1_f1\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
-            "      undf_any_space_1_f1 = "
+            "      undf_aspc1_f1 = "
             "f1_proxy%vspace%get_undf()\n") in code
         assert (
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
             "      END DO\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
             "      END DO\n") in code
 

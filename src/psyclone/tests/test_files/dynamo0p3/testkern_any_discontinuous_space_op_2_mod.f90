@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -69,32 +69,30 @@ module testkern_any_discontinuous_space_op_2_mod
 
 contains
 
-  subroutine testkern_any_discontinuous_space_op_2_code(                   &
-                                        cell, nlayers,                     &
-                                        field1,                            &
-                                        ncell_3d_op1, op1,                 &
-                                        ncell_3d_op2, op2,                 &
-                                        ndf_anyd4, undf_anyd4, map_anyd4,  &
-                                        basis_anyd4, diff_basis_anyd4,     &
-                                        ndf_anyd1, basis_anyd1, ndf_anyd2, &
+  subroutine testkern_any_discontinuous_space_op_2_code(                      &
+                                        cell, nlayers, field1,                &
+                                        ncell_3d_op1, op1, ncell_3d_op2, op2, &
+                                        ndf_adspc4, undf_adspc4, map_adspc4,  &
+                                        basis_adspc4, diff_basis_adspc4,      &
+                                        ndf_adspc1, basis_adspc1, ndf_adspc2, &
                                         np_xy, np_z, weights_xy, weights_z)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_anyd4
-    integer(kind=i_def), intent(in) :: undf_anyd4, ndf_anyd1, ndf_anyd2
+    integer(kind=i_def), intent(in) :: ndf_adspc4
+    integer(kind=i_def), intent(in) :: undf_adspc4, ndf_adspc1, ndf_adspc2
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d_op1
     integer(kind=i_def), intent(in) :: ncell_3d_op2
     integer(kind=i_def), intent(in) :: np_xy, np_z
-    integer(kind=i_def), intent(in), dimension(ndf_anyd4) :: map_anyd4
-    real(kind=r_def), intent(in), dimension(undf_anyd4) :: field1
-    real(kind=r_def), intent(in), dimension(ndf_anyd1,ndf_anyd2,ncell_3d_op1)    :: op1
-    real(kind=r_def), intent(inout), dimension(ndf_anyd4,ndf_anyd1,ncell_3d_op2) :: op2
-    real(kind=r_def), intent(in), dimension(1,ndf_anyd1,np_xy,np_z) :: basis_anyd1
-    real(kind=r_def), intent(in), dimension(1,ndf_anyd4,np_xy,np_z) :: basis_anyd4
-    real(kind=r_def), intent(in), dimension(3,ndf_anyd4,np_xy,np_z) :: diff_basis_anyd4
+    integer(kind=i_def), intent(in), dimension(ndf_adspc4) :: map_adspc4
+    real(kind=r_def), intent(in), dimension(undf_adspc4) :: field1
+    real(kind=r_def), intent(in), dimension(ndf_adspc1,ndf_adspc2,ncell_3d_op1)    :: op1
+    real(kind=r_def), intent(inout), dimension(ndf_adspc4,ndf_adspc1,ncell_3d_op2) :: op2
+    real(kind=r_def), intent(in), dimension(1,ndf_adspc1,np_xy,np_z) :: basis_adspc1
+    real(kind=r_def), intent(in), dimension(1,ndf_adspc4,np_xy,np_z) :: basis_adspc4
+    real(kind=r_def), intent(in), dimension(3,ndf_adspc4,np_xy,np_z) :: diff_basis_adspc4
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z
 

@@ -55,10 +55,31 @@ class Container(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "[Container | KernelSchedule | InvokeSchedule]*"
+    _text_name = "Container"
+    _colour_key = "Container"
+
     def __init__(self, name, parent=None):
         super(Container, self).__init__(parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        # Import KernelSchedule here to avoid circular dependency
+        from psyclone.psyGen import KernelSchedule, InvokeSchedule
+        return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
 
     @staticmethod
     def create(name, symbol_table, children):
@@ -81,7 +102,6 @@ class Container(Node):
             are not of the expected type.
 
         '''
-        from psyclone.psyGen import KernelSchedule
         if not isinstance(name, str):
             raise GenerationError(
                 "name argument in create method of Container class "
@@ -97,19 +117,13 @@ class Container(Node):
                 "children argument in create method of Container class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, (KernelSchedule, Container)):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "Container class should be a PSyIR KernelSchedule or "
-                    "Container but found '{0}'.".format(type(child).__name__))
 
         container = Container(name)
         container._symbol_table = symbol_table
         symbol_table._schedule = container
+        container.children = children
         for child in children:
             child.parent = container
-        container.children = children
         return container
 
     @property

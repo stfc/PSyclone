@@ -43,7 +43,7 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, Kern
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
 from psyclone.configuration import Config
@@ -138,8 +138,8 @@ class KernelTrans(Transformation):
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
             try:
-                _ = var.find_symbol(var.name,
-                                    scope_limit=var.ancestor(KernelSchedule))
+                _ = var.find_or_create_symbol(
+                    var.name, scope_limit=var.ancestor(KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -1727,7 +1727,7 @@ class ParallelRegionTrans(RegionTrans):
 
         # Haloexchange calls existing within a parallel region are not
         # supported.
-        from psyclone.psyGen import HaloExchange, InvokeSchedule
+        from psyclone.psyGen import HaloExchange
         for node in node_list:
             if isinstance(node, HaloExchange):
                 raise TransformationError(
@@ -2631,7 +2631,7 @@ class OCLTrans(Transformation):
         :raises NotImplementedError: if any of the kernels have arguments \
                                      passed by value.
         '''
-        from psyclone.psyGen import InvokeSchedule, args_filter
+        from psyclone.psyGen import args_filter
         from psyclone.gocean1p0 import GOInvokeSchedule
 
         if isinstance(sched, InvokeSchedule):
@@ -2794,6 +2794,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
     # element for different orders. Formulas kindly provided by Tom Melvin and
     # Thomas Gibson. See the Qr table at http://femtable.org/background.html,
     # for computed values of w0, w1, w2 and w3 up to order 7.
+    # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
+    # As there is currently no dedicated structure for face dofs in kernel
+    # constants, w2*trace dofs are included here. w2*trace ndofs formulas
+    # require the number of reference element faces in the horizontal (4)
+    # for w2htrace space, in the vertical (2) for w2vtrace space and all (6)
+    # for w2trace space.
+
     space_to_dofs = {"w3":       (lambda n: (n+1)**3),
                      "w2":       (lambda n: 3*(n+2)*(n+1)**2),
                      "w1":       (lambda n: 3*(n+2)**2*(n+1)),
@@ -2802,8 +2809,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
                      "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
                      "w2v":      (lambda n: (n+2)*(n+1)**2),
                      "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
+                     "wchi":     (lambda n: (n+1)**3),
                      "w2trace":  (lambda n: 6*(n+1)**2),
-                     "wchi":     (lambda n: (n+1)**3)}
+                     "w2htrace": (lambda n: 4*(n+1)**2),
+                     "w2vtrace": (lambda n: 2*(n+1)**2)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
@@ -3468,8 +3477,8 @@ class ACCKernelsTrans(RegionTrans):
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyir.nodes import Loop
         # Check that the front-end is valid
-        sched = node_list[0].root
-        if not isinstance(sched, (NemoInvokeSchedule, DynInvokeSchedule)):
+        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
@@ -3707,44 +3716,49 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # Get a reference to the Invoke to which this loop belongs
-        invoke = loop.root.invoke
+        # Get a reference to the highest-level symbol table
+        symbol_table = loop.root.symbol_table
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = invoke.schedule.symbol_table.name_from_tag(base_name)
+        loop_var = symbol_table.new_symbol_name(base_name)
+        symbol_table.add(DataSymbol(loop_var, INTEGER_TYPE))
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
-        name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #500 When the Nemo API has the SymbolTable implemented,
-        # we should remove the _loop_vars attribute and add the symbols
-        # into the symboltable instead.
-        if loop._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(loop_var)
-            prog_unit = loop.ast.get_root()
-            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
-            if not spec_list:
-                # Routine has no specification part so create one and add it
-                # in to the parse tree
-                from psyclone.psyGen import object_index
-                exe_part = walk(prog_unit.content,
-                                Fortran2003.Execution_Part)[0]
-                idx = object_index(exe_part.parent.content, exe_part)
 
-                spec = Fortran2003.Specification_Part(
-                    FortranStringReader("integer :: {0}".format(loop_var)))
-                spec.parent = exe_part.parent
-                exe_part.parent.content.insert(idx, spec)
-            else:
-                spec = spec_list[0]
+        # TODO remove this as part of #435 (since we will no longer have to
+        # insert declarations into the fparser2 parse tree).
+        prog_unit = loop.ast.get_root()
+        spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
+        if not spec_list:
+            # Routine has no specification part so create one and add it
+            # in to the parse tree
+            from psyclone.psyGen import object_index
+            exe_part = walk(prog_unit.content,
+                            Fortran2003.Execution_Part)[0]
+            idx = object_index(exe_part.parent.content, exe_part)
+
+            spec = Fortran2003.Specification_Part(
+                FortranStringReader("integer :: {0}".format(loop_var)))
+            spec.parent = exe_part.parent
+            exe_part.parent.content.insert(idx, spec)
+        else:
+            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+            reader = Fparser2Reader()
+            fake_parent = Schedule()
+            spec = spec_list[0]
+            reader.process_declarations(fake_parent, [spec], [])
+            if loop_var not in fake_parent.symbol_table:
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader("integer :: {0}".format(loop_var)))
                 decln.parent = spec
                 spec.content.append(decln)
+
+        name = Fortran2003.Name(FortranStringReader(loop_var))
 
         # Modify the line containing the implicit do by replacing every
         # occurrence of the outermost ':' with the new loop variable name.
@@ -3798,7 +3812,6 @@ class NemoExplicitLoopTrans(Transformation):
         astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
-        loop = None
         # Return the new NemoLoop object that we have created
         return psyir_parent.children[0], keep
 
