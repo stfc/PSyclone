@@ -3409,7 +3409,7 @@ class DynFields(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(datatype=GH_VALID_FIELD_NAMES)
+        fld_args = self._invoke.unique_declarations(datatype="gh_field")
         if fld_args:
             parent.add(TypeDeclGen(parent, datatype="field_type",
                                    entity_decls=fld_args,
