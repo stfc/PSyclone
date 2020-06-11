@@ -35,7 +35,7 @@
 
 include ../../common.mk
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png
+GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
 
 .PHONY: basic openmp loop_fuse dag openacc
 
@@ -57,3 +57,7 @@ dag:
 
 openacc:
 	${PYTHON} ./runme_openacc.py
+
+opencl:
+	# ${PYTHON} ./runme_openacc.py
+	${PSYCLONE} -api "gocean1.0" -s ./runme_opencl.py shallow_alg.f90
