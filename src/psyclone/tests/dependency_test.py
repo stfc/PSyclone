@@ -323,7 +323,6 @@ def test_dynamo():
         "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
 
 
-
 def test_location(parser):
     '''Test if the location assignment is working, esp. if each new statement
     gets a new location, but accesses in the same statement have the same
@@ -490,8 +489,9 @@ def test_math_equal(parser):
 @pytest.mark.xfail(reason="Limitation when using commutative law - #533")
 def test_math_equal_limitations(parser):
     '''Shows that the current math_equal implementation can not
-    detect that i+j+k and i+k+j are the same'''
+    detect that i+j+k and i+k+j are the same.
 
+    '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     reader = FortranStringReader('''program test_prog
@@ -508,3 +508,58 @@ def test_math_equal_limitations(parser):
     exp0 = schedule[0].rhs
     exp1 = schedule[1].rhs
     assert exp0.math_equal(exp1)
+
+
+def test_lfric_ref_element():
+    '''Test handling of variables if an LFRic's RefElement is used.
+
+    '''
+    _, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "normals_to_faces: READ" in var_info
+    assert "out_normals_to_faces: READ" in var_info
+    assert "nfaces_re: READ" in var_info
+
+
+def test_lfric_operator():
+    '''Check if implicit basis and differential basis variables are
+    handled correctly.
+
+    '''
+    _, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "basis_w0_on_w0: READ" in var_info
+    assert "diff_basis_w1_on_w0: READ" in var_info
+
+# def test_lfric_single_kern_eval_op(tmpdir):
+#     ''' Check that we generate correct code for a single kernel which
+#     writes to an operator and requires both basis and differential basis
+#     functions for an evaluator '''
+#     _, invoke_info = get_invoke("6.1.1_eval_op_invoke.f90", "dynamo0.3",
+#                                 idx=0)
+#     var_info = str(VariablesAccessInfo(invoke_info.schedule))
+#     assert "op1_proxy%local_stencil: READ" in var_info
+#     assert "op1_proxy%ncell_3d: READ" in var_info
+
+
+def test_lfric_cma():
+    '''Test that parameters related to CMA operators are handled
+    correctly in the variable usage analysis.
+
+    '''
+    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "ncell_2d: READ" in var_info
+    assert "cma_op1_alpha: READ" in var_info
+    assert "cma_op1_bandwidth: READ" in var_info
+    assert "cma_op1_beta: READ" in var_info
+    assert "cma_op1_gamma_m: READ" in var_info
+    assert "cma_op1_gamma_p: READ" in var_info
+    assert "cma_op1_matrix: READ" in var_info
+    assert "cma_op1_ncol: READ" in var_info
+    assert "cma_op1_nrow: READ," in var_info
+    assert "cbanded_map_adspc1_lma_op1: READ" in var_info
+    assert "cbanded_map_adspc2_lma_op1: READ" in var_info
+    assert "op1_proxy%local_stencil: READ" in var_info
+    assert "op1_proxy%ncell_3d: READ" in var_info
