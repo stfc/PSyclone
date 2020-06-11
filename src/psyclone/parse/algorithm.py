@@ -41,13 +41,14 @@ PSyclone-conformant Algorithm code.
 from __future__ import absolute_import
 
 from fparser.two import pattern_tools
-from fparser.two.utils import walk
+from fparser.two.utils import walk, get_child
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
     Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
     Section_Subscript_List, Name, Real_Literal_Constant, Int_Literal_Constant,\
-    Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
+    Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis, Type_Declaration_Stmt, \
+    Type_Declaration_StmtBase, Type_Guard_Stmt, Type_Name, Type_Param_Name, Declaration_Type_Spec, Entity_Decl
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -206,7 +207,14 @@ class Parser(object):
         invoke_calls = []
 
         for statement in walk(alg_parse_tree.content):
-
+            if isinstance(statement, Type_Declaration_Stmt):
+                #Here we find the field declarations
+                for child in walk(statement):
+                    if isinstance(child,Type_Name):
+                        print(child)
+                    if isinstance(child,Entity_Decl):
+                        print(child)
+                
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
                 self.update_arg_to_module_map(statement)
@@ -244,7 +252,6 @@ class Parser(object):
         kernel_calls = []
 
         for argument in argument_list:
-
             if isinstance(argument, Actual_Arg_Spec):
                 # This should be the invoke label.
                 if invoke_label:
@@ -286,6 +293,9 @@ class Parser(object):
 
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename)
+        # This is where the kernel call is created, so what fields are used?
+        for miarg in args:
+            print(miarg.varname)
 
         if kernel_name.lower() in self._builtin_name_map.keys():
             # This is a builtin kernel
@@ -360,7 +370,6 @@ class Parser(object):
                 format(kernel_name,
                        list(self._arg_name_to_module_name.values()),
                        list(self._builtin_name_map.keys())))
-
         from psyclone.parse.kernel import get_kernel_ast
         modast = get_kernel_ast(module_name, self._alg_filename,
                                 self._kernel_path, self._line_length)
