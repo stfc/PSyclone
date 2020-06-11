@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,63 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-# Makefile for the 3rd NEMO example. Uses PSyclone (which must
-# be installed) to generate Fortran with OpenACC directives for
-# the tracer-advection benchmark. The 'compile' target requires
-# the dl_timer library (bitbucket.org/apeg/dl_timer) which must
-# be installed and the location specified in DL_TIMER_ROOT below.
-#
-# The compiler to use must be specified via the F90 environment
-# variable. e.g. to use PGI and OpenACC:
-#
-# export F90=pgf90
-# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
-# export LDFLAGS="-acc -ta=tesla,cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.f90 psy.o traadv.exe
+# We apply the same PSyclone script to every Fortran file *apart* from
+# intrinsic_example.f90 and tra_adv_compute.F90 (because the latter
+# contains features that the SIR backend does not yet support).
+# TODO #714 we should include all Fortran files but copy_stencil.f90 and
+# hori_diff.f90 contain unsupported forms of array-shape declarations.
+# FORTRAN_FILES = $(filter-out ./intrinsic_example.%,$(wildcard ./*f90))
+FORTRAN_FILES = tridiagonal_solve.f90 if_example.f90
 
-F90FLAGS ?= -fopenmp
-LDFLAGS ?= -fopenmp
+.PHONY: ${FORTRAN_FILES} intrinsic
 
-# Location of the dl_timer library
-DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
-TIMER_INC = ${DL_TIMER_ROOT}/src
-TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
+transform: ${FORTRAN_FILES} intrinsic
+	@echo "nemo/eg4: TODO #714: Skipping copy_stencil.f90 and hori_diff.f90"
 
-.PHONY: allclean dl_timer
+${FORTRAN_FILES}:
+	${PSYCLONE} -s ./sir_trans.py -api nemo $@ -opsy /dev/null
 
-# Compilation requires that dl_timer be installed
-compile: traadv.exe
+# intrinsic_example.f90 requires a different transformation script
+intrinsic:
+	${PSYCLONE} -s ./sir_trans_intrinsics.py -api nemo intrinsic_example.f90 \
+  -opsy /dev/null
 
-traadv.exe: dl_timer psy.o
-	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
-
-dl_timer:
-	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
-   LDFLAGS="${LDFLAGS}" sm_lib
-
-transform: kernels managed_mem
-
-kernels:
-	${PSYCLONE} -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
-   ../code/tra_adv.F90
-
-managed_mem:
-	${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
-
-# Compilation uses the 'kernels' transformed code
-psy.f90: kernels
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
+# We don't do any compilation for this example
+compile:
+	@echo "No compilation supported for nemo/eg4"
 
 all: transform compile
-
-allclean: clean
-	# Only clean DL_TIMER if it actually exists
-	if [ -d ${DL_TIMER_ROOT}  ]; then \
-		${MAKE} -C ${DL_TIMER_ROOT} allclean; \
-	fi
