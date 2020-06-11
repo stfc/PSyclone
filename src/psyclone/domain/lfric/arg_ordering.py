@@ -127,7 +127,7 @@ class ArgOrdering(object):
                         self.stencil_unknown_direction(arg,
                                                        var_accesses)
                     # stencil information that is always passed
-                    self.stencil(arg)
+                    self.stencil(arg, var_accesses=var_accesses)
             elif arg.type == "gh_operator":
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.type == "gh_columnwise_operator":
@@ -179,7 +179,7 @@ class ArgOrdering(object):
                 if descriptor.requires_diff_basis:
                     self.diff_basis(unique_fs, var_accesses=var_accesses)
                 if descriptor.requires_orientation:
-                    self.orientation(unique_fs)
+                    self.orientation(unique_fs, var_accesses=var_accesses)
             # Fix for boundary_dofs array to the boundary condition
             # kernel (enforce_bc_kernel) arguments
             if self._kern.name.lower() == "enforce_bc_code" and \
