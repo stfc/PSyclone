@@ -296,7 +296,8 @@ class DynFuncDescriptor03(object):
 
 class LFRicArgDescriptor(Descriptor):
     '''
-    This class captures the information specified in an argument descriptor.
+    This class captures the information specified in one of LFRic API argument
+    descriptors (scalars, fields and operators).
 
     :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
@@ -349,8 +350,8 @@ class LFRicArgDescriptor(Descriptor):
         # We require at least 2 args
         if len(arg_type.args) < 2:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have at least"
-                " 2 args, but found '{0}'".format(len(arg_type.args)))
+                "In the Dynamo0.3 API each 'meta_arg' entry must have at "
+                "least 2 args, but found '{0}'".format(len(arg_type.args)))
 
         # Check the first argument descriptor. If it is a binary operator
         # then it has to be a field vector with an "*n" appended. If it is
@@ -417,7 +418,7 @@ class LFRicArgDescriptor(Descriptor):
             self._type = arg_type.args[0].name
         else:
             raise InternalError(
-                "LFRicArgDescriptor.__init__: invalid argument type after "
+                "LFRicArgDescriptor.__init__(): invalid argument type after "
                 "checks, should not get to here")
 
         # The 2nd arg is an access descriptor (TODO: 3rd in case of scalar)
@@ -459,7 +460,7 @@ class LFRicArgDescriptor(Descriptor):
         # We should never get to here (#TODO: check if tested)
         else:
             raise InternalError(
-                "LFRicArgDescriptor.__init__: failed argument validation, "
+                "LFRicArgDescriptor.__init__(): failed argument validation, "
                 "should not get to here")
 
         # Initialise the parent class
@@ -497,7 +498,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a field is passed in
         if self._type not in GH_VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._validate_field: expecting a field "
+                "LFRicArgDescriptor._validate_field(): expecting a field "
                 "argument but got an argument of type '{0}'. Should be "
                 "impossible.".format(arg_type.args[0]))
 
@@ -517,12 +518,14 @@ class LFRicArgDescriptor(Descriptor):
                                                 len(arg_type.args), arg_type))
 
         # The 3rd argument must be a valid function space name
-        if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
+        if arg_type.args[2].name not in \
+           FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the Dynamo0.3 API the 3rd argument of a 'meta_arg' "
                 "entry must be a valid function space name (one of {0}) if "
                 "its first argument is of a {1} type, but found '{2}' in "
-                "'{3}".format(VALID_FUNCTION_SPACE_NAMES, GH_VALID_FIELD_NAMES,
+                "'{3}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                              GH_VALID_FIELD_NAMES,
                               arg_type.args[2].name, arg_type))
         self._function_space1 = arg_type.args[2].name
 
@@ -548,13 +551,14 @@ class LFRicArgDescriptor(Descriptor):
 
         # Test allowed accesses for fields
         if self._function_space1.lower() in \
-           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
+           FunctionSpace.VALID_DISCONTINUOUS_NAMES \
            and self._access_type == AccessType.INC:
             raise ParseError(
                 "It does not make sense for a field on a discontinuous "
                 "space ('{0}') to have a 'gh_inc' access".
                 format(self._function_space1.lower()))
-        if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
+        if self._function_space1.lower() in \
+           FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
            and self._access_type == AccessType.READWRITE:
             raise ParseError(
                 "It does not make sense for a field on a continuous "
@@ -564,7 +568,8 @@ class LFRicArgDescriptor(Descriptor):
         # over cells (issue #138) and update access rules for kernels
         # (built-ins) that loop over DoFs to accesses for discontinuous
         # quantities (issue #471)
-        if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
+        if self._function_space1.lower() in \
+           FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type == AccessType.READWRITE:
             raise ParseError(
                 "In the Dynamo0.3 API a field on 'any_space' cannot have "
@@ -594,7 +599,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than an operator is passed in
         if self._type not in GH_VALID_OPERATOR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._validate_operator: expecting an "
+                "LFRicArgDescriptor._validate_operator(): expecting an "
                 "operator argument but got an argument of type '{0}'. "
                 "Should be impossible.".format(self._type))
 
@@ -608,21 +613,23 @@ class LFRicArgDescriptor(Descriptor):
                 format(GH_VALID_OPERATOR_NAMES, len(arg_type.args), arg_type))
 
         # Operator arguments need to have valid to- and from- function spaces
-        if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
+        if arg_type.args[2].name not in \
+           FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the Dynamo0.3 API the 3rd argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one of "
                 "{0}), but found '{1}' in '{2}".
-                format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
-                       arg_type))
+                format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                       arg_type.args[2].name, arg_type))
         self._function_space1 = arg_type.args[2].name
-        if arg_type.args[3].name not in VALID_FUNCTION_SPACE_NAMES:
+        if arg_type.args[3].name not in \
+           FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the Dynamo0.3 API the 4th argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one of "
                 "{0}), but found '{1}' in '{2}".
-                format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[3].name,
-                       arg_type))
+                format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                       arg_type.args[3].name, arg_type))
         self._function_space2 = arg_type.args[3].name
 
         # Test allowed accesses for operators
@@ -649,7 +656,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._type not in GH_VALID_SCALAR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._validate_scalar: expecting a scalar "
+                "LFRicArgDescriptor._validate_scalar(): expecting a scalar "
                 "argument but got an argument of type '{0}'. Should be "
                 "impossible.".format(arg_type.args[0]))
 
@@ -678,7 +685,8 @@ class LFRicArgDescriptor(Descriptor):
 
     @property
     def type(self):
-        ''' Returns the type of the argument (gh_field, gh_operator, ...).
+        '''
+        Returns the type of the argument (gh_field, gh_operator, ...).
 
         :returns: type of the argument.
         :rtype: str
@@ -814,7 +822,7 @@ class LFRicArgDescriptor(Descriptor):
         elif self._type in GH_VALID_SCALAR_NAMES:
             pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
-            raise InternalError("LFRicArgDescriptor.__str__, should not "
+            raise InternalError("LFRicArgDescriptor.__str__(), should not "
                                 "get to here.")
         return res
 
@@ -3011,7 +3019,7 @@ class DynFunctionSpaces(DynCollection):
             name = arg.proxy_name_indexed
             # Initialise ndf for this function space.
             if not self._dofs_only:
-                ndf_name = get_fs_ndf_name(function_space)
+                ndf_name = function_space.ndf_name
                 parent.add(AssignGen(parent, lhs=ndf_name,
                                      rhs=name +
                                      "%" + arg.ref_name(function_space) +

@@ -48,7 +48,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -103,13 +103,16 @@ def test_get_op_wrong_name():
 def test_ad_op_type_too_few_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
+    from psyclone.dynamo0p3 import GH_VALID_OPERATOR_NAMES
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert ("'meta_arg' entry must have 4 arguments if its first "
+            "argument is one of {0}".format(GH_VALID_OPERATOR_NAMES) in
+            str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -121,7 +124,7 @@ def test_ad_op_type_too_many_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert "'meta_arg' entry must have 4 arguments" in str(excinfo.value)
 
 
 def test_ad_op_type_wrong_3rd_arg():
@@ -133,8 +136,8 @@ def test_ad_op_type_wrong_3rd_arg():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
-            "a valid function space name" in str(excinfo.value))
+    assert ("Dynamo0.3 API the 3rd argument of a 'meta_arg' operator entry "
+            "must be a valid function space name" in str(excinfo.value))
 
 
 def test_ad_op_type_1st_arg_not_space():
@@ -146,20 +149,80 @@ def test_ad_op_type_1st_arg_not_space():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must be a valid function space' in \
-        str(excinfo.value)
+    assert ("'meta_arg' operator entry must be a valid function space" in
+            str(excinfo.value))
+
+
+def test_no_vector_operator():
+    ''' Tests that we raise an error when kernel metadata erroneously
+    specifies a vector operator argument. '''
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator*3, gh_read, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("vector notation is only supported for a ['gh_field'] "
+            "argument type but found 'gh_operator * 3'" in
+            str(excinfo.value))
+
+
+def test_ad_op_type_validate_wrong_type():
+    ''' Test that an error is raised if something other than an operator
+    is passed to the LFRicArgDescriptor._validate_operator() method. '''
+    from psyclone.dynamo0p3 import LFRicArgDescriptor
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not an operator
+    wrong_arg = metadata._inits[1]
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._validate_operator(): expecting an "
+            "operator argument but got an argument of type 'gh_field'. "
+            "Should be impossible." in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
-    ''' Test that an error is raised if an operator has gh_inc access. '''
+    ''' Test that an error is raised if an operator has 'gh_inc' access. '''
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_inc, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the dynamo0.3 API operators cannot have a 'gh_inc' access"
+    assert ("In the Dynamo0.3 API operators cannot have a 'gh_inc' access"
             in str(excinfo.value))
+
+
+def test_arg_descriptor_op():
+    ''' Tests that the LFRicArgDescriptor argument representation works
+    as expected when we have an operator. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    operator_descriptor = metadata.arg_descriptors[3]
+
+    # Assert correct string representation from LFRicArgDescriptor
+    result = str(operator_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='w2'\n"
+        "  function_space_from[3]='w2'\n")
+    assert expected_output in result
+
+    # Check LFRicArgDescriptor argument properties
+    assert operator_descriptor.type == "gh_operator"
+    assert operator_descriptor.function_space_to == "w2"
+    assert operator_descriptor.function_space_from == "w2"
+    assert operator_descriptor.function_space == "w2"
+    assert operator_descriptor.function_spaces == ['w2', 'w2']
+    assert str(operator_descriptor.access) == "READ"
+    assert operator_descriptor.mesh is None
+    assert operator_descriptor.stencil is None
+    assert operator_descriptor.vector_size == 1
 
 
 def test_fs_descriptor_wrong_type():
@@ -842,22 +905,6 @@ def test_operators():
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
-
-
-def test_arg_descriptor_op_str():
-    ''' Tests that the string method for LFRicArgDescriptor works as
-    expected when we have an operator. '''
-    ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='w0'\n"
-        "  function_space_from[3]='w0'\n")
-    assert expected_output in result
 
 
 OPERATOR_DIFFERENT_SPACES = '''

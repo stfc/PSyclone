@@ -123,7 +123,7 @@ def test_cma_mdata_assembly():
 
 def test_cma_mdata_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
-    is passed to the LFRicArgDescriptor._validate_operator method. '''
+    is passed to the LFRicArgDescriptor._validate_operator() method. '''
     from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
     name = "testkern_cma_type"
@@ -132,7 +132,7 @@ def test_cma_mdata_validate_wrong_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_operator: expecting an operator "
+    assert ("LFRicArgDescriptor._validate_operator(): expecting an operator "
             "argument but got an argument of type 'gh_real'. Should be "
             "impossible." in str(excinfo.value))
 
