@@ -391,15 +391,18 @@ def test_where_stmt():
     assert isinstance(fake_parent[0], Loop)
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
-def test_where_ordering():
+def test_where_ordering(parser):
     ''' Check that the generated schedule has the correct ordering when
     a WHERE construct is processed.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
-    fake_parent, _ = process_where(
+    reader = FortranStringReader(
+        "    subroutine test(zdiv, pbef, paft, zmsk, tmask)\n"
+        "      integer, parameter :: wp=1\n"
+        "      real :: zsml\n"
+        "      integer :: ji, jj, jpjm1, jpim1\n"
+        "      real :: zdiv(:,:), pbef(:,:), paft(:,:), zmsk(:,:), "
+        "tmask(:,:)\n"
         "      zsml = 1.e-15_wp\n"
         "      DO jj = 2, jpjm1\n"
         "         DO ji = 2, jpim1\n"
@@ -410,8 +413,12 @@ def test_where_ordering():
         "      WHERE( pbef(:,:) == 0._wp .AND. paft(:,:) == 0._wp .AND. "
         "zdiv(:,:) == 0._wp )   ;   zmsk(:,:) = 0._wp\n"
         "      ELSEWHERE;   zmsk(:,:) = 1._wp * tmask(:,:,1)\n"
-        "      END WHERE\n", Fortran2003.Execution_Part)
-    assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[1], Loop)
-    assert isinstance(fake_parent[2], CodeBlock)
-    assert isinstance(fake_parent[3], Loop)
+        "      END WHERE\n"
+        "    end subroutine test\n")
+    fparser2_tree = parser(reader)
+    processor = Fparser2Reader()
+    result = processor.generate_schedule("test", fparser2_tree)
+    assert isinstance(result[0], Assignment)
+    assert isinstance(result[1], Loop)
+    assert isinstance(result[2], CodeBlock)
+    assert isinstance(result[3], Loop)
