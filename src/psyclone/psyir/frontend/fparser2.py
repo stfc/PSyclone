@@ -1425,7 +1425,8 @@ class Fparser2Reader(object):
                 # Found an unsupported variable declaration. Create a
                 # DataSymbol with UnknownType for each entity being declared.
                 # Currently this means that any symbols that come after an
-                # unsupported declaration will also have UnknownType.
+                # unsupported declaration will also have UnknownType. This is
+                # the subject of Issue #791.
                 orig_children = list(decl.children[2].children[:])
                 for child in orig_children:
                     # Modify the fparser2 parse tree so that it only declares
