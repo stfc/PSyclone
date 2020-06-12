@@ -585,7 +585,7 @@ def test_scope():
 
     node = Node()
     with pytest.raises(InternalError) as excinfo:
-        node.scope
+        _ = node.scope
     assert ("PSyclone internal error: None of this node's ancestors are "
             "Container or Schedule nodes." in str(excinfo.value))
 
