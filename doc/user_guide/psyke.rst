@@ -389,7 +389,9 @@ The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` can automatically create a
 driver program which will read the netcdf file and then call the
 instrumented region. In order to create this driver program, the
-options parameter ``create_driver`` must be set to true::
+options parameter ``create_driver`` must be set to true:
+
+.. code-block:: python
 
     extract = GOceanExtractTrans()
     extract.apply(schedule.children,
