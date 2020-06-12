@@ -736,13 +736,13 @@ class ParsedCall(object):
     kernel.
 
     :param ktype: information about a kernel or builtin. Provides \
-    access to the PSyclone description metadata and the code if it \
-    exists.
-    :type ktype: APi-specific specialisation of \
-    :py:class:`psyclone.dynamo0p3.KernelType`
+        access to the PSyclone description metadata and the code if it \
+        exists.
+    :type ktype: API-specific specialisation of \
+        :py:class:`psyclone.parse.kernel.KernelType`
     :param args: a list of Arg instances which capture the relevant \
-    information about the arguments associated with the call to the \
-    kernel or builtin
+        information about the arguments associated with the call to the \
+        kernel or builtin.
     :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
     '''
@@ -766,10 +766,10 @@ class ParsedCall(object):
     def ktype(self):
         '''
         :returns: information about a kernel or builtin. Provides \
-        access to the PSyclone description metadata and the code if it \
-        exists.
-        :rtype: APi-specific specialisation of \
-        :py:class:`psyclone.dynamo0p3.KernelType`
+            access to the PSyclone description metadata and the code if it \
+            exists.
+        :rtype: API-specific specialisation of \
+            :py:class:`psyclone.parse.kernel.KernelType`
 
         '''
         return self._ktype

@@ -47,17 +47,15 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import FunctionSpace
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
-    DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
+    DynLoop, DynGlobalSum, HaloReadAccess, \
     KernCallArgList, DynACCEnterDataDirective, \
-    VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
-    DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES, VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES, \
-    VALID_FUNCTION_SPACE_NAMES
+    VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -86,8 +84,7 @@ def setup():
 # tests
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
-    from psyclone.dynamo0p3 import get_fs_operator_name
-    name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
+    name = FunctionSpace("w3", None).get_operator_name("gh_orientation")
     assert name == "orientation_w3"
 
 
@@ -2787,7 +2784,8 @@ def test_unrecognised_fspace_error():
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace("not_a_space", first_kernel.arguments)
     assert ("Unrecognised function space 'not_a_space'. The supported spaces "
-            "are {0}".format(VALID_FUNCTION_SPACE_NAMES) in str(excinfo.value))
+            "are {0}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES) in
+            str(excinfo.value))
 
 
 def test_mangle_no_space_error():
@@ -2845,7 +2843,6 @@ def test_no_mangle_specified_function_space():
     create a short name for such a space will fail.
 
     '''
-    from psyclone.dynamo0p3 import VALID_ANY_DISCONTINUOUS_SPACE_NAMES
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
@@ -2862,15 +2859,15 @@ def test_no_mangle_specified_function_space():
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
     assert ("_mangle_fs_name: function space '{0}' is not one of {1} or {2} "
-            "spaces.".format(fs_name, VALID_ANY_SPACE_NAMES,
-                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
+            "spaces.".format(fs_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
+                             FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
     # Try to create a short name for this function space (not allowed)
     with pytest.raises(InternalError) as excinfo:
         _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
     assert ("_shorten_fs_name: function space '{0}' is not one of {1} or {2} "
-            "spaces.".format(fs_name, VALID_ANY_SPACE_NAMES,
-                             VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
+            "spaces.".format(fs_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
+                             FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES)
             in str(excinfo.value))
 
 
@@ -2952,7 +2949,8 @@ def test_dynkern_arg_for_fs():
     with pytest.raises(InternalError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
     assert ("Unrecognised function space 'waah'. The supported spaces are "
-            "{0}".format(VALID_FUNCTION_SPACE_NAMES) in str(err.value))
+            "{0}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES) in
+            str(err.value))
 
 
 def test_dist_memory_true():
@@ -3310,7 +3308,7 @@ def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+    for fspace in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
         code = CODE.replace("arg_type(gh_field, gh_read, w3)",
                             "arg_type(gh_field, gh_inc, " +
                             fspace + ")", 1)
@@ -3326,7 +3324,7 @@ def test_fs_continuous_and_readwrite_error():
     ''' Test that an error is raised if a continuous function space and
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in CONTINUOUS_FUNCTION_SPACES:
+    for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field, gh_read, w2)",
                             "arg_type(gh_field, gh_readwrite, " +
                             fspace + ")", 1)
@@ -3342,7 +3340,7 @@ def test_fs_anyspace_and_readwrite_error():
     ''' Test that an error is raised if any_space and
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    for fspace in VALID_ANY_SPACE_NAMES:
+    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field, gh_read, w2)",
                             "arg_type(gh_field, gh_readwrite, " +
                             fspace + ")", 1)
@@ -5061,14 +5059,13 @@ def test_dynloop_load_unexpected_func_space():
     # Replace the iteration_space_arg method with our broke
     # function. This is required as iteration_space_arg currently
     # never returns a field with an invalid function space.
-    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     kernel.arguments.iteration_space_arg = broken_func
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of " + str(VALID_FUNCTION_SPACES) + " but found 'broken'"
-            in str(err.value))
+            "one of " + str(FunctionSpace.VALID_FUNCTION_SPACES) +
+            " but found 'broken'" in str(err.value))
 
 
 def test_dynkernargs_unexpect_stencil_extent():
@@ -5787,7 +5784,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
         # continuous spaces)
         idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
-    fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES[0:3],
+    fs_dict = dict(zip(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES[0:3],
                        zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"
