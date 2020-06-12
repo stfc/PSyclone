@@ -2198,7 +2198,7 @@ def test_loopfuse():
     assert len(kern_idxs) == 2
     # both kernel calls are within the loop
     for kern_id in kern_idxs:
-        assert kern_id > do_idx and kern_id < enddo_idx
+        assert enddo_idx > kern_id > do_idx
 
 
 def test_kern_colourmap(monkeypatch):
@@ -5419,7 +5419,7 @@ def test_argordering_exceptions():
             index = 0
         loop = schedule.children[index]
         kernel = loop.loop_body[0]
-        from psyclone.dynamo0p3 import ArgOrdering
+        from psyclone.domain.lfric import ArgOrdering
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_map,
                        create_arg_list.cell_position,
