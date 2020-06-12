@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic Met Office,
-#          C. M. Maynard, Met Office/University of Reading.
+#          C. M. Maynard, Met Office/University of Reading,
+#          J. Henrichs, Bureau of Meteorology.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 

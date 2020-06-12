@@ -84,7 +84,7 @@ class LFRicArgDescriptor(Descriptor):
 
     # ---------- LFRicArgDescriptor class constants  ------------------------ #
     # Supported LFRic API datatypes (scalars, fields, operators)
-    VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
+    VALID_SCALAR_NAMES = ["gh_integer", "gh_real"]
     VALID_FIELD_NAMES = ["gh_field"]
     VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \

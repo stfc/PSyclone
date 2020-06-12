@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
@@ -134,7 +135,10 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
-psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
+# psyGen ["iscalar", "rscalar"] translate to LFRic ["gh_integer", "gh_real"]
+psyGen.MAPPING_SCALARS = dict(zip(psyGen.MAPPING_SCALARS_LIST,
+                                  LFRicArgDescriptor.VALID_SCALAR_NAMES))
+# psyGen argument types translate to LFRic argument types
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #

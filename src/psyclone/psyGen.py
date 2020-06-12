@@ -63,9 +63,9 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
-# Names of types of scalar variable
-MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-
+# Names of types of scalar variables
+MAPPING_SCALARS_LIST = ["iscalar", "rscalar"]
+MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
 
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
