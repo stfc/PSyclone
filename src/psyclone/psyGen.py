@@ -563,13 +563,13 @@ class Invoke(object):
         '''
         if argument_type not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "Invoke.unique_declarations called with an invalid argument "
+                "Invoke.unique_declarations() called with an invalid argument "
                 "type. Expected one of {0} but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), argument_type))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "Invoke.unique_declarations called with an invalid access "
+                "Invoke.unique_declarations() called with an invalid access "
                 "type. Type is '{0}' instead of AccessType".
                 format(str(access)))
 
@@ -617,7 +617,7 @@ class Invoke(object):
         '''
         if argument_type not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "Invoke.unique_declns_by_intent called with an invalid "
+                "Invoke.unique_declns_by_intent() called with an invalid "
                 "argument type. Expected one of {0} but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), argument_type))
 

@@ -5050,14 +5050,14 @@ class DynInvoke(Invoke):
         '''
         if argument_type not in GH_VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "DynInvoke.unique_proxy_declarations called with an invalid "
+                "DynInvoke.unique_proxy_declarations() called with an invalid "
                 "argument type. Expected one of {0} but found '{1}'".
                 format(str(GH_VALID_ARG_TYPE_NAMES), argument_type))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
-                "DynInvoke.unique_proxy_declarations called with an invalid "
+                "DynInvoke.unique_proxy_declarations() called with an invalid "
                 "access type. Expected one of {0} but found '{1}'".
                 format(valid_names, access))
         declarations = []

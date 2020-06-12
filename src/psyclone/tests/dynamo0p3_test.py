@@ -1605,7 +1605,7 @@ def test_invoke_uniq_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
-    assert ("Invoke.unique_declarations called with an invalid argument "
+    assert ("Invoke.unique_declarations() called with an invalid argument "
             "type. Expected one of {0} but found 'not_a_type'".
             format(GH_VALID_ARG_TYPE_NAMES)) in str(excinfo.value)
 
@@ -1620,7 +1620,7 @@ def test_invoke_uniq_declns_invalid_access():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
-    assert ("Invoke.unique_declarations called with an invalid access "
+    assert ("Invoke.unique_declarations() called with an invalid access "
             "type. Type is 'invalid_acc'" in str(excinfo.value))
 
 
@@ -1650,7 +1650,7 @@ def test_invoke_uniq_proxy_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
-    assert ("DynInvoke.unique_proxy_declarations called with an invalid "
+    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
             "argument type. Expected one of {0} but found 'not_a_type'".
             format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
 
@@ -1668,7 +1668,7 @@ def test_uniq_proxy_declns_invalid_access():
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             "gh_field",
             access="invalid_acc")
-    assert ("DynInvoke.unique_proxy_declarations called with an invalid "
+    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
             "access type. Expected one of {0} but found 'invalid_acc'".
             format(valid_access_names) in str(excinfo.value))
 
@@ -1695,8 +1695,8 @@ def test_dyninvoke_uniq_declns_inv_type():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
-    assert ("Invoke.unique_declns_by_intent called with an invalid argument "
-            "type. Expected one of {0} but found 'gh_invalid'".
+    assert ("Invoke.unique_declns_by_intent() called with an invalid "
+            "argument type. Expected one of {0} but found 'gh_invalid'".
             format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
 
 
