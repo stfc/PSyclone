@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,14 +30,38 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/parse/dynamo0p3_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory
+
+# Provides support for 'all', 'compile', 'clean', 'allclean' and
+# 'transform' (the default) targets for directories listed in EXAMPLES.
+# All an including Makefile needs to do is set EXAMPLES appropriately.
+
+all_EXAMPLES=$(addprefix all_,$(EXAMPLES))
+compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
+clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
+allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
+
+transform: ${EXAMPLES}
+all: ${all_EXAMPLES}
+compile: ${compile_EXAMPLES}
+clean: ${clean_EXAMPLES}
+allclean: ${allclean_EXAMPLES}
+
+.PHONY: ${EXAMPLES} $(all_EXAMPLES) ${compile_EXAMPLES} ${clean_EXAMPLES} \
+        ${allclean_EXAMPLES}
+
+$(EXAMPLES):
+	${MAKE} -C $@ transform
+
+$(all_EXAMPLES):
+	${MAKE} -C $(patsubst all_%,%,$@) all
+
+$(compile_EXAMPLES):
+	${MAKE} -C $(patsubst compile_%,%,$@) compile
+
+$(clean_EXAMPLES):
+	${MAKE} -C $(patsubst clean_%,%,$@) clean
+
+$(allclean_EXAMPLES):
+	${MAKE} -C $(patsubst allclean_%,%,$@) allclean

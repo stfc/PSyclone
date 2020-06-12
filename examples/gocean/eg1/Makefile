@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,29 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/parse/dynamo0p3_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
+# Author: A. R. Porter, STFC Daresbury Laboratory
+
+include ../../common.mk
+
+GENERATED_FILES += invoke_0_dag invoke_0_dag.png
+
+.PHONY: basic openmp loop_fuse dag openacc
+
+transform: basic openmp loop_fuse dag openacc
+
+compile: transform
+
+basic:
+	${PYTHON} ./runme.py
+
+openmp:
+	${PYTHON} ./runme_openmp.py
+
+loop_fuse:
+	${PYTHON} ./runme_loop_fuse.py
+
+dag:
+	${PYTHON} ./runme_dag.py
+
+openacc:
+	${PYTHON} ./runme_openacc.py

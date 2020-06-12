@@ -12,7 +12,7 @@ generator. This particular example defines a Kernel with four fields,
 To run this example type:
 
 ```sh
-python ../../src/psyclone/gen_kernel_stub.py testkern_stencil_multi_mod.f90
+genkernelstub testkern_stencil_multi_mod.f90
 ```
 
 More Kernel examples can be found in the following directory, most of
@@ -23,5 +23,5 @@ which start wth the name `testkern`:
 For example:
 
 ```sh
-python ../../src/psyclone/gen_kernel_stub.py ../../src/psyclone/tests/test_files/dynamo0p3/testkern_qr.F90
+genkernelstub ../../src/psyclone/tests/test_files/dynamo0p3/testkern_qr.F90
 ```
