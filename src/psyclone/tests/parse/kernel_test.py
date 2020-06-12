@@ -49,7 +49,7 @@ from psyclone.errors import InternalError
 # pylint: disable=invalid-name
 
 
-CODE = (
+CODE2 = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
     "    type(arg_type), dimension(1) :: meta_args =    &\n"
@@ -64,6 +64,24 @@ CODE = (
     "end module test_mod\n"
 
     )
+
+CODE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field,gh_write,w1) /)\n"
+    "     integer :: iterates_over = cells\n"
+    "   contains\n"
+    "  end type test_type\n"
+    "  interface test_code\n"
+    "    module procedure sub_code\n"
+    "  end interface test_code\n"
+    "contains\n"
+    "  subroutine sub_code()\n"
+    "  end subroutine sub_code\n"
+    "end module test_mod\n"
+
+    )    
 
 # function get_kernel_filepath
 
@@ -239,7 +257,8 @@ def test_kernelprocedure_notfound():
 
     '''
     with pytest.raises(ParseError) as excinfo:
-        my_code = CODE.replace("=> test_code", "=> non_existant_code")
+#        my_code = CODE.replace("=> test_code", "=> non_existant_code")
+        my_code = CODE.replace("module procedure sub_code", "module procedure non_existant_code")
         _ = create_kernelprocedure(my_code)
     assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)
