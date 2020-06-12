@@ -544,7 +544,6 @@ class KernelProcedure(object):
             if bname is None:
                 raise ParseError(
                     "Kernel type {0} does not bind a specific procedure or provide an explicit interface".
-                    
                     format(name))
         if bname == '':
             raise InternalError(
