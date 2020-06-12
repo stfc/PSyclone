@@ -528,8 +528,6 @@ class KernelProcedure(object):
                 # We support either:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
-                print(statement.bname)                
-                print(statement.name)
                 if statement.bname:
                     if statement.name.lower() != "code":
                         raise ParseError(
@@ -546,6 +544,7 @@ class KernelProcedure(object):
             if bname is None:
                 raise ParseError(
                     "Kernel type {0} does not bind a specific procedure or provide an explicit interface".
+                    
                     format(name))
         if bname == '':
             raise InternalError(
