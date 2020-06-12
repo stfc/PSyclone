@@ -49,6 +49,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -103,7 +104,6 @@ def test_get_op_wrong_name():
 def test_ad_op_type_too_few_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
-    from psyclone.dynamo0p3 import GH_VALID_OPERATOR_NAMES
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -111,7 +111,8 @@ def test_ad_op_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("'meta_arg' entry must have 4 arguments if its first "
-            "argument is one of {0}".format(GH_VALID_OPERATOR_NAMES) in
+            "argument is one of {0}".
+            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
             str(excinfo.value))
 
 
@@ -170,7 +171,6 @@ def test_no_vector_operator():
 def test_ad_op_type_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
     is passed to the LFRicArgDescriptor._validate_operator() method. '''
-    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)

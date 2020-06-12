@@ -52,11 +52,10 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective, \
-    VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
-    GH_VALID_ARG_TYPE_NAMES
+    KernCallArgList, DynACCEnterDataDirective
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -166,7 +165,6 @@ def test_arg_descriptor_vector():
 def test_ad_scalar_validate_wrong_type():
     ''' Test that an error is raised if something other than a scalar
     is passed to the LFRicArgDescriptor._validate_scalar() method. '''
-    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -184,7 +182,7 @@ def test_ad_scalar_type_too_few_args():
     metadata for a real or an integer scalar has fewer than 2 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in GH_VALID_SCALAR_NAMES:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -199,7 +197,7 @@ def test_ad_scalar_type_too_many_args():
     metadata for a real or an integer scalar has more than 2 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in GH_VALID_SCALAR_NAMES:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_read, w1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -214,7 +212,7 @@ def test_ad_scalar_type_no_write():
     for a real or an integer scalar specifies 'GH_WRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in GH_VALID_SCALAR_NAMES:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_write)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -230,7 +228,7 @@ def test_ad_scalar_type_no_inc():
     for a real or an integer scalar specifies 'GH_INC' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in GH_VALID_SCALAR_NAMES:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_inc)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -258,7 +256,6 @@ def test_ad_int_scalar_type_no_sum():
 def test_ad_field_validate_wrong_type():
     ''' Test that an error is raised if something other than a field
     is passed to the LFRicArgDescriptor._validate_field() method. '''
-    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -311,7 +308,8 @@ def test_ad_fld_type_1st_arg():
         _ = DynKernMetadata(ast, name=name)
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_hedge'".
-            format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_ad_invalid_type():
@@ -326,7 +324,8 @@ def test_ad_invalid_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_operato'".
-            format(GH_VALID_ARG_TYPE_NAMES) in str(excinfo.value))
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_ad_invalid_access_type():
@@ -1410,7 +1409,7 @@ def test_no_vector_scalar():
     specifies a vector real or integer scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in GH_VALID_SCALAR_NAMES:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         vectname = argname + " * 3"
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + "*3, gh_read)", 1)
@@ -2581,8 +2580,8 @@ def test_unsupported_second_argument():
 
 
 def test_valid_stencil_types():
-    ''' Check that we successfully parse all valid stencil types '''
-    for stencil_type in VALID_STENCIL_TYPES:
+    ''' Check that we successfully parse all valid stencil types. '''
+    for stencil_type in LFRicArgDescriptor.VALID_STENCIL_TYPES:
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil("+stencil_type+")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
@@ -3022,9 +3021,9 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that 'GH_INVALID' is actually valid
-    from psyclone.dynamo0p3 import LFRicArgDescriptor
-    monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
-                        GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_ARG_TYPE_NAMES",
+        value=LFRicArgDescriptor.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type)
@@ -5500,9 +5499,11 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
 
 
 def test_unexpected_type_error():
-    '''Check that we raise an exception if an unexpected datatype is found
+    ''' Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
-    the KernCallArgList sub class'''
+    the KernCallArgList sub class.
+
+    '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -5517,15 +5518,17 @@ def test_unexpected_type_error():
             index = 0
         loop = schedule.children[index]
         kernel = loop.loop_body[0]
-        # sabotage one of the arguments to make it have an invalid type.
+        # Sabotage one of the arguments to make it have an invalid type.
         kernel.arguments.args[0]._type = "invalid"
         # Now call KernCallArgList to raise an exception
         create_arg_list = KernCallArgList(kernel)
-        with pytest.raises(GenerationError) as excinfo:
+        with pytest.raises(InternalError) as excinfo:
             create_arg_list.generate()
         assert (
-            "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
-            "generate()") in str(excinfo.value)
+            "ArgOrdering.generate(): Unexpected argument type found "
+            "in dynamo0p3.py. Expected one of {0} but found 'invalid'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_argordering_exceptions():
@@ -5576,17 +5579,17 @@ def test_argordering_exceptions():
 
 def test_kernel_args_has_op():
     ''' Check that we raise an exception if the arg. type supplied to
-    DynKernelArguments.has_operator() is not a valid operator '''
+    DynKernelArguments.has_operator() is not a valid operator. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
-    # find the parsed code's call class
+    # Find the parsed code's Call class
     call = invoke_info.calls[0].kcalls[0]
     from psyclone.dynamo0p3 import DynKernelArguments
     dka = DynKernelArguments(call, None)
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
-    assert "op_type must be a valid operator type" in str(excinfo.value)
+    assert "'op_type' must be a valid operator type" in str(excinfo.value)
 
 
 def test_kerncallarglist_args_error(dist_mem):

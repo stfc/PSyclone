@@ -43,6 +43,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
@@ -85,7 +86,6 @@ def test_dynscalars_err(monkeypatch):
     ''' Check that the DynScalarArgs constructor raises the expected error
     if it encounters an unrecognised type of scalar. '''
     from psyclone.dynamo0p3 import DynScalarArgs
-    from psyclone import dynamo0p3
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
@@ -96,12 +96,14 @@ def test_dynscalars_err(monkeypatch):
     arg = kernel.arguments.args[1]
     arg._type = "invalid-scalar-type"
     # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(dynamo0p3, "GH_VALID_SCALAR_NAMES",
-                        ["gh_real", "gh_integer", "invalid-scalar-type"])
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_SCALAR_NAMES",
+        value=["gh_real", "gh_integer", "invalid-scalar-type"])
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
-            "but not handled" in str(err.value))
+    assert ("Scalar type 'invalid-scalar-type' is in LFRicArgDescriptor."
+            "VALID_SCALAR_NAMES but is not handled in DynScalarArgs"
+            in str(err.value))
 
 
 def test_kernel_stub_ind_dofmap_errors():

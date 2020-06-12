@@ -92,26 +92,6 @@ QUADRATURE_TYPE_MAP = {
 # ---------- Fortran datatypes ---------------------------------------------- #
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
-# ---------- Stencils ------------------------------------------------------- #
-VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
-# Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
-# file as it causes failures with py.test 2.8.7. Therefore some parts
-# of the code do not use the VALID_STENCIL_DIRECTIONS variable.
-VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
-# Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
-# indicates either x1d or y1d.
-# Note, the LFRic infrastructure currently does not have 'region' as
-# an option in stencil_dofmap_mod.F90 so it is not included in
-# STENCIL_MAPPING.
-STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
-                   "cross": "STENCIL_CROSS"}
-
-# ---------- Mesh types ----------------------------------------------------- #
-# These are the valid mesh types that may be specified for a field
-# using the mesh_arg=... meta-data element (for inter-grid kernels that
-# perform prolongation/restriction).
-VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
-
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's
 # halo. It is useful to group these together as we often need to
@@ -696,22 +676,23 @@ class DynKernMetadata(KernelType):
             # this is not an inter-grid kernel
             return
 
-        if len(VALID_MESH_TYPES) != 2:
+        if len(LFRicArgDescriptor.VALID_MESH_TYPES) != 2:
             # Sanity check that nobody has messed with the number of
             # grid types that we recognise. This is here because the
             # implementation assumes that there are just two grids
             # (coarse and fine).
-            raise ParseError(
+            raise InternalError(
                 "The implementation of inter-grid support in the Dynamo "
                 "0.3 API assumes there are exactly two mesh types but "
-                "dynamo0p3.VALID_MESH_TYPES contains {0}: {1}".
-                format(len(VALID_MESH_TYPES), VALID_MESH_TYPES))
-        if len(mesh_list) != len(VALID_MESH_TYPES):
+                "LFRicArgDescriptor.VALID_MESH_TYPES contains {0}: {1}".
+                format(len(LFRicArgDescriptor.VALID_MESH_TYPES),
+                       LFRicArgDescriptor.VALID_MESH_TYPES))
+        if len(mesh_list) != len(LFRicArgDescriptor.VALID_MESH_TYPES):
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    VALID_MESH_TYPES, self.name,
+                    LFRicArgDescriptor.VALID_MESH_TYPES, self.name,
                     [str(name) for name in mesh_list]))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
@@ -1462,13 +1443,14 @@ class DynStencils(DynCollection):
                         parent.add(if_then)
                 else:
                     try:
-                        stencil_name = STENCIL_MAPPING[stencil_type]
+                        stencil_name = \
+                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
                     except KeyError:
                         raise GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
-                                   str(STENCIL_MAPPING)))
+                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +
@@ -1537,13 +1519,14 @@ class DynStencils(DynCollection):
                                                         "STENCIL_1DY"]))
             else:
                 try:
-                    stencil_name = STENCIL_MAPPING[stencil_type]
+                    stencil_name = \
+                        LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
                 except KeyError:
                     raise GenerationError(
                         "Unsupported stencil type '{0}' supplied. "
                         "Supported mappings are {1}".
                         format(arg.descriptor.stencil['type'],
-                               str(STENCIL_MAPPING)))
+                               str(LFRicArgDescriptor.STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=[stencil_name]))
                 parent.add(
@@ -4580,8 +4563,8 @@ class DynInvoke(Invoke):
             return
         self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
-        reserved_names_list.extend(STENCIL_MAPPING.values())
-        reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
+        reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
@@ -7271,7 +7254,7 @@ class ArgOrdering(object):
             else:
                 raise InternalError(
                     "ArgOrdering.generate(): Unexpected argument type found "
-                    "in dynamo0p3.py. Expected one of '{0}' but found '{1}'".
+                    "in dynamo0p3.py. Expected one of {0} but found '{1}'".
                     format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES, arg.type))
         # For each function space (in the order they appear in the
         # metadata arguments)
@@ -8700,7 +8683,7 @@ class DynKernelArguments(Arguments):
                 # a direction argument has been added
                 if arg.stencil.direction_arg.varname and \
                    arg.stencil.direction_arg.varname not in \
-                   VALID_STENCIL_DIRECTIONS:
+                   LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS:
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text

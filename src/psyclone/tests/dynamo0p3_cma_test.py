@@ -46,6 +46,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
@@ -124,7 +125,6 @@ def test_cma_mdata_assembly():
 def test_cma_mdata_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
     is passed to the LFRicArgDescriptor._validate_operator() method. '''
-    from psyclone.dynamo0p3 import LFRicArgDescriptor
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
     name = "testkern_cma_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -617,7 +617,6 @@ def test_cma_mdata_matrix_2_writes():
 def test_cma_mdata_stencil_invalid():
     ''' Check that we raise the expected error when a matrix-matrix kernel
     specifies a stencil. '''
-    from psyclone.dynamo0p3 import GH_VALID_OPERATOR_NAMES
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
@@ -638,7 +637,8 @@ def test_cma_mdata_stencil_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have 4 arguments if its first "
-            "argument is one of {0}".format(GH_VALID_OPERATOR_NAMES)
+            "argument is one of {0}".
+            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES)
             in str(excinfo.value))
 
 

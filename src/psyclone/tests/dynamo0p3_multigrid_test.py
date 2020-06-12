@@ -47,6 +47,8 @@ import pytest
 import fparser
 
 from fparser import api as fpapi
+from psyclone.errors import InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -228,17 +230,21 @@ def test_field_vector():
 
 def test_two_grid_types(monkeypatch):
     ''' Check that PSyclone raises an error if the number of grid types
-    supported for inter-grid kernels is not two '''
-    from psyclone import dynamo0p3
-    # Change VALID_MESH_TYPES so that it contains three values
-    monkeypatch.setattr(dynamo0p3, "VALID_MESH_TYPES",
-                        value=["gh_coarse", "gh_fine", "gh_medium"])
+    supported for inter-grid kernels is not two. '''
+    # Change LFRicArgDescriptor.VALID_MESH_TYPES so that it contains
+    # three values
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_MESH_TYPES",
+        value=["gh_coarse", "gh_fine", "gh_medium"])
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
     name = "restrict_kernel_type"
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(InternalError) as err:
         _ = DynKernMetadata(ast, name=name)
-    assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err.value)
+    assert ("The implementation of inter-grid support in the Dynamo "
+            "0.3 API assumes there are exactly two mesh types but "
+            "LFRicArgDescriptor.VALID_MESH_TYPES contains 3: "
+            "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
 
 
 def test_field_prolong(tmpdir):

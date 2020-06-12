@@ -82,13 +82,33 @@ class LFRicArgDescriptor(Descriptor):
 
     '''
 
-    # Class constants:
-    # - Valid LFRic API datatypes (scalars, fields, operators)
+    # ---------- LFRicArgDescriptor class constants  ------------------------ #
+    # Supported LFRic API datatypes (scalars, fields, operators)
     VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
     VALID_FIELD_NAMES = ["gh_field"]
     VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \
         VALID_SCALAR_NAMES
+
+    # Supported LFRic API stencil types and directions
+    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+    # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
+    # file as it causes failures with py.test 2.8.7. Therefore some parts
+    # of the code do not use the VALID_STENCIL_DIRECTIONS variable.
+    VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
+    # Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
+    # indicates either x1d or y1d.
+    # Note, the LFRic infrastructure currently does not have 'region' as
+    # an option in stencil_dofmap_mod.F90 so it is not included in
+    # STENCIL_MAPPING.
+    STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
+                       "cross": "STENCIL_CROSS"}
+
+    # Supported LFRic API mesh types that may be specified for a field
+    # using the mesh_arg=... meta-data element (for inter-grid kernels that
+    # perform prolongation/restriction).
+    VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
+    # ----------------------------------------------------------------------- #
 
     def __init__(self, arg_type):
         self._arg_type = arg_type
@@ -307,10 +327,12 @@ class LFRicArgDescriptor(Descriptor):
             try:
                 from psyclone.parse.kernel import get_stencil, get_mesh
                 if "stencil" in str(arg_type.args[3]):
-                    self._stencil = get_stencil(arg_type.args[3],
-                                                VALID_STENCIL_TYPES)
+                    self._stencil = get_stencil(
+                        arg_type.args[3],
+                        LFRicArgDescriptor.VALID_STENCIL_TYPES)
                 elif "mesh" in str(arg_type.args[3]):
-                    self._mesh = get_mesh(arg_type.args[3], VALID_MESH_TYPES)
+                    self._mesh = get_mesh(arg_type.args[3],
+                                          LFRicArgDescriptor.VALID_MESH_TYPES)
                 else:
                     raise ParseError("Unrecognised metadata entry")
             except ParseError as err:
