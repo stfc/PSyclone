@@ -1685,6 +1685,8 @@ class Fparser2Reader(object):
                 "Loop-variable name '{0}' is not declared and there are no "
                 "unqualified use statements. This is currently unsupported."
                 "".format(variable_name))
+        # The loop node is created with the _create_loop factory method as some
+        # APIs require a specialised loop node type.
         loop = self._create_loop(parent, data_symbol)
         loop._ast = node
 

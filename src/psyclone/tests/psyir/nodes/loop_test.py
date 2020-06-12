@@ -59,7 +59,6 @@ def test_loop_init():
     '''
     loop = Loop()
     assert loop.parent is None
-    assert loop.variable is None
     assert loop._valid_loop_types == []
     assert loop.annotations == []
     assert loop._loop_type is None
@@ -364,7 +363,7 @@ def test_variable_setter():
 
     '''
     loop = Loop()
-    assert loop.variable is None
+    assert loop._variable is None
 
     # valid variable
     loop.variable = DataSymbol("var", INTEGER_TYPE)
@@ -375,5 +374,22 @@ def test_variable_setter():
     # _check_variable() method is called correctly)
     with pytest.raises(GenerationError) as excinfo:
         loop.variable = None
+    assert ("variable property in Loop class should be a DataSymbol but "
+            "found 'NoneType'.") in str(excinfo.value)
+
+
+def test_variable_getter():
+    '''Check that the variable property raises an exception if it is
+    accessed and its value has not been set (is still None).
+
+    '''
+    loop = Loop()
+    # invalid variable (test_check_variable tests check all ways a
+    # variable could be invalid. Here we just check that the
+    # _check_variable() method is called correctly). The particular
+    # case we want to catch in the code is when the variable has not
+    # been set, so is None.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = loop.variable
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'NoneType'.") in str(excinfo.value)

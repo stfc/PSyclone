@@ -396,6 +396,7 @@ class Loop(Statement):
         :returns: a reference to the control variable for this loop.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
+        self._check_variable(self._variable)
         return self._variable
 
     @variable.setter
