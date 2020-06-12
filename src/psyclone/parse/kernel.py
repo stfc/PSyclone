@@ -528,8 +528,6 @@ class KernelProcedure(object):
                 # We support either:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
-                print(statement.bname)                
-                print(statement.name)
                 if statement.bname:
                     if statement.name.lower() != "code":
                         raise ParseError(

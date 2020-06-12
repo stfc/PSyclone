@@ -211,9 +211,11 @@ class Parser(object):
                 #Here we find the field declarations
                 for child in walk(statement):
                     if isinstance(child,Type_Name):
-                        print(child)
+                        #print(child)
+                        tname=child
                     if isinstance(child,Entity_Decl):
-                        print(child)
+                        #print(child)
+                        edecl=child
                 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -233,7 +235,6 @@ class Parser(object):
         '''Takes the part of a parse tree containing an invoke call and
         returns an InvokeCall object which captures the required
         information about the invoke.
-
         :param statement: Parse tree of the invoke call.
         :type statement: :py:class:`fparser.two.Fortran2003.Call_Stmt`
         :returns: An InvokeCall object which contains relevant \
@@ -294,8 +295,8 @@ class Parser(object):
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename)
         # This is where the kernel call is created, so what fields are used?
-        for miarg in args:
-            print(miarg.varname)
+#        for miarg in args:
+#            print(miarg.varname)
 
         if kernel_name.lower() in self._builtin_name_map.keys():
             # This is a builtin kernel
