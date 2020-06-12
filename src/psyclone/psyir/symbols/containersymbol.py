@@ -40,6 +40,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols import Symbol, SymbolError
+from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
 class ContainerSymbol(Symbol):
@@ -58,7 +59,7 @@ class ContainerSymbol(Symbol):
         # always assign this interface to all ContainerSymbols. We will
         # pass the interface as a parameter when we have more than one.
         super(ContainerSymbol, self).__init__(
-            name, visibility=visibility, interface=FortranModuleInterface)
+            name, visibility=visibility, interface=FortranModuleInterface())
 
         self._reference = None
         # Whether or not there is a wildcard import of all public symbols
@@ -112,9 +113,7 @@ class ContainerSymbol(Symbol):
         self._has_wildcard_import = value
 
 
-# Classes below are not exposed in the psyclone.psyir.symbols
-
-class ContainerSymbolInterface(object):
+class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod
