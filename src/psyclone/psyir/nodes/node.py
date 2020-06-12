@@ -1090,6 +1090,7 @@ class Node(object):
             ancestor.
 
         '''
+        from psyclone.psyir.nodes import Schedule, Container
         current = self
         while current and not isinstance(current, (Container, Schedule)):
             current = current.parent
@@ -1097,20 +1098,6 @@ class Node(object):
             return current
         raise InternalError(
             "None of this node's ancestors are Container or Schedule nodes.")
-
-    @property
-    def symbol_table(self):
-        '''Schedule and Container nodes allow symbols to be scoped via an
-        attached symbol table. This property returns the symbol table
-        of the closest ancestor Schedule or Container node including
-        self.
-
-        :returns: the symbol table from the closest ancestor Schedule \
-            or Container node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        return self.scope.symbol_table
 
     #def find_symbol_table(self):
     #    '''
