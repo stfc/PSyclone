@@ -86,7 +86,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         self._arglist.append("cell")
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access("cell", AccessType.READ, self._kern)
 
     def mesh_height(self, var_accesses=None):
@@ -100,7 +100,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         self._arglist.append("nlayers")
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access("nlayers", AccessType.READ, self._kern)
 
     def mesh_ncell2d(self, var_accesses=None):
@@ -114,7 +114,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         self._arglist.append("ncell_2d")
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access("ncell_2d", AccessType.READ, self._kern)
 
     def field_vector(self, argvect, var_accesses=None):
@@ -140,7 +140,7 @@ class KernStubArgList(ArgOrdering):
             if self._first_arg:
                 self._first_arg = False
             self._arglist.append(text)
-            if var_accesses:
+            if var_accesses is not None:
                 # Each argument is array, so mark the array access:
                 var_accesses.add_access(text, AccessType.READ, self._kern, [1])
 
@@ -158,7 +158,7 @@ class KernStubArgList(ArgOrdering):
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
         self._arglist.append(text)
-        if var_accesses:
+        if var_accesses is not None:
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
             # indicate an array access).
@@ -181,7 +181,7 @@ class KernStubArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern, [1])
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -201,7 +201,7 @@ class KernStubArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.direction_name(self._stub_symtab, arg)
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern)
 
     def stencil(self, arg, var_accesses=None):
@@ -220,7 +220,7 @@ class KernStubArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_name(self._stub_symtab, arg)
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
             # indicate an array access).
@@ -247,7 +247,7 @@ class KernStubArgList(ArgOrdering):
             self._first_arg = False
         text = arg.name
         self._arglist.append(text)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(size, AccessType.READ, self._kern)
             var_accesses.add_access(text, AccessType.READ, self._kern)
 
@@ -283,7 +283,7 @@ class KernStubArgList(ArgOrdering):
         gamma_p = arg.name + "_gamma_p"
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
         self._arglist += _local_args
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(arg.name, AccessType.READ, self._kern)
             for var_name in _local_args:
                 var_accesses.add_access(var_name, AccessType.READ, self._kern)
@@ -307,7 +307,7 @@ class KernStubArgList(ArgOrdering):
          '''
         dofmap = function_space.cbanded_map_name
         self._arglist.append(dofmap)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(dofmap, AccessType.READ, self._kern)
 
     def indirection_dofmap(self, function_space, operator=None,
@@ -338,7 +338,7 @@ class KernStubArgList(ArgOrdering):
                 "be supplied but got {0}".format(operator.type))
         map_name = function_space.cma_indirection_map_name
         self._arglist.append(map_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     def scalar(self, scalar_arg, var_accesses=None):
@@ -362,7 +362,7 @@ class KernStubArgList(ArgOrdering):
                 "Expected argument type to be one of '{0}' but got '{1}'".
                 format(GH_VALID_SCALAR_NAMES, scalar_arg.type))
         self._arglist.append(scalar_arg.name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(scalar_arg.name, AccessType.READ,
                                     self._kern)
 
@@ -382,7 +382,7 @@ class KernStubArgList(ArgOrdering):
         '''
         ndf_name = function_space.ndf_name
         self._arglist.append(ndf_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -403,7 +403,7 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append(undf_name)
         map_name = function_space.map_name
         self._arglist.append(map_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(undf_name, AccessType.READ, self._kern)
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
@@ -435,7 +435,7 @@ class KernStubArgList(ArgOrdering):
                 basis_name = function_space.get_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
                 self._arglist.append(basis_name)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(basis_name, AccessType.READ,
                                             self._kern)
 
@@ -447,7 +447,7 @@ class KernStubArgList(ArgOrdering):
                     basis_name = \
                         function_space.get_basis_name(on_space=target[0])
                     self._arglist.append(basis_name)
-                    if var_accesses:
+                    if var_accesses is not None:
                         var_accesses.add_access(basis_name, AccessType.READ,
                                                 self._kern)
             else:
@@ -483,7 +483,7 @@ class KernStubArgList(ArgOrdering):
                 diff_basis_name = function_space.get_diff_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
                 self._arglist.append(diff_basis_name)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(diff_basis_name, AccessType.READ,
                                             self._kern)
 
@@ -496,7 +496,7 @@ class KernStubArgList(ArgOrdering):
                     diff_basis_name = function_space.get_diff_basis_name(
                         on_space=target[0])
                     self._arglist.append(diff_basis_name)
-                    if var_accesses:
+                    if var_accesses is not None:
                         var_accesses.add_access(diff_basis_name,
                                                 AccessType.READ, self._kern)
             else:
@@ -520,7 +520,7 @@ class KernStubArgList(ArgOrdering):
         '''
         orientation_name = function_space.orientation_name
         self._arglist.append(orientation_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(orientation_name, AccessType.READ,
                                     self._kern)
 
@@ -540,7 +540,7 @@ class KernStubArgList(ArgOrdering):
         arg = self._kern.arguments.get_arg_on_space(function_space)
         name = "boundary_dofs_"+arg.name
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -587,7 +587,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            if var_accesses:
+            if var_accesses is not None:
                 for var_name in rule.kernel_args:
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern)

@@ -433,7 +433,7 @@ class ArgOrdering(object):
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self._arglist.extend(refelem_args)
-            if var_accesses:
+            if var_accesses is not None:
                 for var_name in refelem_args:
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern)

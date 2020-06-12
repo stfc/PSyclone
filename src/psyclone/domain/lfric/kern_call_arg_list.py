@@ -99,19 +99,19 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append("{0}(:,{1})".
                              format(map_name,
                                     self._cell_ref_name(var_accesses)))
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = symtab.name_from_tag(base_name)
         self._arglist.append(ncellpercell)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(ncellpercell, AccessType.READ, self._kern)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
         ncell_fine = symtab.name_from_tag(base_name)
         self._arglist.append(ncell_fine)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(ncell_fine, AccessType.READ, self._kern)
 
     def mesh_height(self, var_accesses=None):
@@ -126,7 +126,7 @@ class KernCallArgList(ArgOrdering):
         nlayers_name = \
             self._kern.root.symbol_table.name_from_tag("nlayers")
         self._arglist.append(nlayers_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(nlayers_name, AccessType.READ, self._kern)
         self._nlayers_positions.append(len(self._arglist))
 
@@ -152,7 +152,7 @@ class KernCallArgList(ArgOrdering):
         ncell2d_name = \
             self._kern.root.symbol_table.name_from_tag("ncell_2d")
         self._arglist.append(ncell2d_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(ncell2d_name, AccessType.READ, self._kern)
 
     def field_vector(self, argvect, var_accesses=None):
@@ -173,7 +173,7 @@ class KernCallArgList(ArgOrdering):
         for idx in range(1, argvect.vector_size+1):
             text = argvect.proxy_name + "(" + str(idx) + ")%data"
             self._arglist.append(text)
-        if var_accesses:
+        if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
             # Add an arbitrary index to mark this field as array.
             var_accesses.add_access(argvect.proxy_name, argvect.access,
@@ -192,7 +192,7 @@ class KernCallArgList(ArgOrdering):
         '''
         text = arg.proxy_name + "%data"
         self._arglist.append(text)
-        if var_accesses:
+        if var_accesses is not None:
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
             # indicate an array access).
@@ -216,7 +216,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -237,7 +237,7 @@ class KernCallArgList(ArgOrdering):
         # the direction of the stencil is not known so pass the value in
         name = arg.stencil.direction_arg.varname
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern)
 
     def stencil(self, arg, var_accesses=None):
@@ -260,7 +260,7 @@ class KernCallArgList(ArgOrdering):
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = var_name + "(:,:," + self._cell_ref_name(var_accesses) + ")"
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(var_name, AccessType.READ, self._kern, [1])
 
     def operator(self, arg, var_accesses=None):
@@ -279,7 +279,7 @@ class KernCallArgList(ArgOrdering):
         # list but this adds it for every operator
         self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
         self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(arg.proxy_name_indexed+"%ncell_3d",
                                     AccessType.READ, self._kern)
             var_accesses.add_access(arg.proxy_name_indexed+"%local_stencil",
@@ -309,7 +309,7 @@ class KernCallArgList(ArgOrdering):
             name = self._kern.root.symbol_table.\
                 name_from_tag(arg.name + "_" + component)
             self._arglist.append(name)
-            if var_accesses:
+            if var_accesses is not None:
                 # All cma parameters are scalar
                 var_accesses.add_access(name, AccessType.READ, self._kern)
 
@@ -325,7 +325,7 @@ class KernCallArgList(ArgOrdering):
         '''
 
         self._arglist.append(scalar_arg.name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(scalar_arg.name, AccessType.READ,
                                     self._kern)
 
@@ -345,7 +345,7 @@ class KernCallArgList(ArgOrdering):
         # There is currently one argument: "ndf"
         ndf_name = function_space.ndf_name
         self._arglist.append(ndf_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
 
         self._ndf_positions.append(
@@ -371,7 +371,7 @@ class KernCallArgList(ArgOrdering):
         map_name = function_space.map_name
         self._arglist.append(map_name + "(:," +
                              self._cell_ref_name(var_accesses) + ")")
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(undf_name, AccessType.READ, self._kern)
             # We add the whole map variable,
             # not just the dimension that is used in the call
@@ -399,7 +399,7 @@ class KernCallArgList(ArgOrdering):
             self._arglist.append(undf_name)
             map_name = function_space.map_name
             self._arglist.append(map_name)
-            if var_accesses:
+            if var_accesses is not None:
                 var_accesses.add_access(undf_name, AccessType.READ,
                                         self._kern)
                 var_accesses.add_access(map_name, AccessType.READ,
@@ -427,7 +427,7 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
             self._arglist.append(basis_name)
-            if var_accesses:
+            if var_accesses is not None:
                 var_accesses.add_access(basis_name, AccessType.READ,
                                         self._kern, [1])
 
@@ -441,7 +441,7 @@ class KernCallArgList(ArgOrdering):
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
                 self._arglist.append(basis_name)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(basis_name, AccessType.READ,
                                             self._kern, [1])
 
@@ -464,7 +464,7 @@ class KernCallArgList(ArgOrdering):
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
             self._arglist.append(diff_basis_name)
-            if var_accesses:
+            if var_accesses is not None:
                 var_accesses.add_access(diff_basis_name, AccessType.READ,
                                         self._kern, [1])
 
@@ -479,7 +479,7 @@ class KernCallArgList(ArgOrdering):
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
                 self._arglist.append(diff_basis_name)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(diff_basis_name, AccessType.READ,
                                             self._kern, [1])
 
@@ -499,7 +499,7 @@ class KernCallArgList(ArgOrdering):
         '''
         orientation_name = function_space.orientation_name
         self._arglist.append(orientation_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(orientation_name, AccessType.READ,
                                     self._kern, [1])
 
@@ -530,7 +530,7 @@ class KernCallArgList(ArgOrdering):
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern, [1])
 
     def operator_bcs_kernel(self, _, var_accesses=None):
@@ -551,7 +551,7 @@ class KernCallArgList(ArgOrdering):
         base_name = "boundary_dofs_"+op_arg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern, [1])
 
     def mesh_properties(self, var_accesses=None):
@@ -586,7 +586,7 @@ class KernCallArgList(ArgOrdering):
 
         for shape, rule in self._kern.qr_rules.items():
 
-            if var_accesses:
+            if var_accesses is not None:
                 for var_name in rule.kernel_args:
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern)
@@ -630,7 +630,7 @@ class KernCallArgList(ArgOrdering):
         # space that appears in the meta-data.
         map_name = function_space.cbanded_map_name
         self._arglist.append(map_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     def indirection_dofmap(self, function_space, operator=None,
@@ -651,7 +651,7 @@ class KernCallArgList(ArgOrdering):
         '''
         map_name = function_space.cma_indirection_map_name
         self._arglist.append(map_name)
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     @property
@@ -747,14 +747,14 @@ class KernCallArgList(ArgOrdering):
 
         '''
         if self._kern.is_coloured():
-            if var_accesses:
+            if var_accesses is not None:
                 var_accesses.add_access("colour", AccessType.READ, self._kern)
                 var_accesses.add_access("cell", AccessType.READ, self._kern)
                 var_accesses.add_access(self._kern.colourmap, AccessType.READ,
                                         self._kern, ["colour", "cell"])
             return self._kern.colourmap + "(colour, cell)"
 
-        if var_accesses:
+        if var_accesses is not None:
             var_accesses.add_access("cell", AccessType.READ, self._kern)
 
         return "cell"

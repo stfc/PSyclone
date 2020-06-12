@@ -1983,12 +1983,12 @@ class LFRicMeshProperties(DynCollection):
                 if not has_nfaces:
                     name = self._symbol_table.name_from_tag("nfaces_re_h")
                     arg_list.append(name)
-                    if var_accesses:
+                    if var_accesses is not None:
                         var_accesses.add_access(name, AccessType.READ,
                                                 self._kernel)
 
                 adj_face = self._symbol_table.name_from_tag("adjacent_face")
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(adj_face, AccessType.READ,
                                             self._kernel, [1])
                 if not stub:
@@ -8151,7 +8151,7 @@ class DynKernelArguments(Arguments):
                     self._arglist.append(text1)
                     text2 = text1 + "%data"
                     self._arglist.append(text2)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(argvect.proxy_name,
                                             AccessType.READ, self._kern)
 
@@ -8174,7 +8174,7 @@ class DynKernelArguments(Arguments):
                 self._arglist.append(text1)
                 text2 = text1 + "%data"
                 self._arglist.append(text2)
-                if var_accesses:
+                if var_accesses is not None:
                     # It's an array, so add an arbitrary index value for the
                     # stored indices (which is at this stage the only way to
                     # indicate an array access).
@@ -8200,7 +8200,7 @@ class DynKernelArguments(Arguments):
                 var_name = \
                     DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
                 self._arglist.append(var_name)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern, [1])
 
@@ -8225,7 +8225,7 @@ class DynKernelArguments(Arguments):
                     self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
                     self._arglist.append(arg.proxy_name_indexed +
                                          "%local_stencil")
-                    if var_accesses:
+                    if var_accesses is not None:
                         var_accesses.add_access(arg.proxy_name_indexed +
                                                 "%ncell_3d",
                                                 AccessType.READ, self._kern)
@@ -8253,7 +8253,7 @@ class DynKernelArguments(Arguments):
                 self._arglist.append(undf_name)
                 map_name = function_space.map_name
                 self._arglist.append(map_name)
-                if var_accesses:
+                if var_accesses is not None:
                     var_accesses.add_access(undf_name, AccessType.READ,
                                             self._kern)
                     var_accesses.add_access(map_name, AccessType.READ,
