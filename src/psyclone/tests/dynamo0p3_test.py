@@ -62,7 +62,7 @@ from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
-
+from psyclone.psyir.nodes import Schedule
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -3454,7 +3454,9 @@ def test_mesh_mod(tmpdir):
 def test_set_lower_bound_functions():
     '''test that we raise appropriate exceptions when the lower bound of
     a loop is set to invalid values '''
-    my_loop = DynLoop()
+    schedule = Schedule()
+    my_loop = DynLoop(parent=schedule)
+    schedule.children = [my_loop]
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_lower_bound("invalid_loop_bounds_name")
     assert "lower bound loop name is invalid" in str(excinfo.value)
@@ -3467,7 +3469,9 @@ def test_set_lower_bound_functions():
 def test_set_upper_bound_functions():
     '''test that we raise appropriate exceptions when the upper bound of
     a loop is set to invalid values '''
-    my_loop = DynLoop()
+    schedule = Schedule()
+    my_loop = DynLoop(parent=schedule)
+    schedule.children = [my_loop]
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_upper_bound("invalid_loop_bounds_name")
     assert "upper loop bound name is invalid" in str(excinfo.value)
