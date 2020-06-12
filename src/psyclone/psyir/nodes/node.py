@@ -1077,21 +1077,56 @@ class Node(object):
             sched.ast = ast
         return sched
 
-    def find_symbol_table(self):
-        '''
-        :returns: the symbol table attached to the nearest ancestor \
-            node (including self).
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    @property
+    def scope(self):
+        '''Schedule and Container nodes allow symbols to be scoped via an
+        attached symbol table. This property returns the closest
+        ancestor Schedule or Container node including self.
 
-        :raises InternalError: if no symbol table is found.
+        :returns: the closest ancestor Schedule or Container node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        :raises InternalError: if there is no Schedule or Container \
+            ancestor.
 
         '''
         current = self
-        while current and not hasattr(current, "symbol_table"):
+        while current and not isinstance(current, (Container, Schedule)):
             current = current.parent
         if current:
-            return current.symbol_table
-        raise InternalError("Symbol table not found in any ancestor nodes.")
+            return current
+        raise InternalError(
+            "None of this node's ancestors are Container or Schedule nodes.")
+
+    @property
+    def symbol_table(self):
+        '''Schedule and Container nodes allow symbols to be scoped via an
+        attached symbol table. This property returns the symbol table
+        of the closest ancestor Schedule or Container node including
+        self.
+
+        :returns: the symbol table from the closest ancestor Schedule \
+            or Container node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        return self.scope.symbol_table
+
+    #def find_symbol_table(self):
+    #    '''
+    #    :returns: the symbol table attached to the nearest ancestor \
+    #        node (including self).
+    #    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    #
+    #    :raises InternalError: if no symbol table is found.
+    #
+    #    '''
+    #    current = self
+    #    while current and not hasattr(current, "symbol_table"):
+    #        current = current.parent
+    #    if current:
+    #        return current.symbol_table
+    #    raise InternalError("Symbol table not found in any ancestor nodes.")
 
     def find_or_create_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
