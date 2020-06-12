@@ -1648,14 +1648,14 @@ class DynKernMetadata(KernelType):
             if arg.vector_size > 1:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has a "
-                    "vector argument ({1}). This is forbidden.".
+                    "vector argument ('{1}'). This is forbidden.".
                     format(self.name,
                            arg.type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has an argument "
-                    "with a stencil access ({1}). This is forbidden.".
+                    "with a stencil access ('{1}'). This is forbidden.".
                     format(self.name, arg.stencil['type']))
 
         # Count the number of CMA operators that are written to
@@ -9774,7 +9774,8 @@ class DynKernelArguments(Arguments):
                         return arg
 
         # No modified fields or operators. Check for unmodified fields...
-        fld_args = psyGen.args_filter(self._args, arg_types=GH_VALID_FIELD_NAMES)
+        fld_args = psyGen.args_filter(self._args,
+                                      arg_types=GH_VALID_FIELD_NAMES)
         if fld_args:
             return fld_args[0]
 
