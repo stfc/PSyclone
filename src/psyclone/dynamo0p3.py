@@ -6750,7 +6750,7 @@ class DynKern(CodedKern):
                 pre = "iscalar_"
             else:
                 raise GenerationError(
-                    "load_meta expected one of '{0}' but found '{1}'".
+                    "DynKern.load_meta() expected one of {0} but found '{1}'".
                     format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
                            descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))

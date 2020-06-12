@@ -134,7 +134,7 @@ def test_arg_descriptor_wrong_type():
 
 
 def test_arg_descriptor_vector():
-    ''' Tests that the LFRicArgDescriptor argument representation works
+    ''' Test that the LFRicArgDescriptor argument representation works
     as expected when we have a field vector. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
@@ -1986,8 +1986,9 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
                         lambda function_space=None: "vspace")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Expected an argument of ['gh_field'] type from which to look-up "
-            "boundary dofs for kernel enforce_bc_code but got 'gh_operator'"
+    assert ("Expected an argument of {0} type from which to look-up "
+            "boundary dofs for kernel enforce_bc_code but got "
+            "'gh_operator'".format(LFRicArgDescriptor.VALID_FIELD_NAMES)
             in str(excinfo.value))
 
 
@@ -2771,7 +2772,7 @@ def test_arg_descriptor_func_method_error():
 
 
 def test_arg_descriptor_fld():
-    ''' Tests that the LFRicArgDescriptor argument representation works
+    ''' Test that the LFRicArgDescriptor argument representation works
     as expected for a field argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -2798,7 +2799,7 @@ def test_arg_descriptor_fld():
 
 
 def test_arg_descriptor_real_scalar():
-    ''' Tests that the LFRicArgDescriptor argument representation works
+    ''' Test that the LFRicArgDescriptor argument representation works
     as expected for a real scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -2824,7 +2825,7 @@ def test_arg_descriptor_real_scalar():
 
 
 def test_arg_descriptor_int_scalar():
-    ''' Tests that the LFRicArgDescriptor argument representation works
+    ''' Test that the LFRicArgDescriptor argument representation works
     as expected for an integer scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -2851,7 +2852,7 @@ def test_arg_descriptor_int_scalar():
 
 def test_arg_descriptor_str_error():
     ''' Tests that an internal error is raised in LFRicArgDescriptor
-    when __str__ is called and the internal type is an unexpected
+    when __str__() is called and the internal type is an unexpected
     value. It should not be possible to get to here so we need to
     mess about with internal values to trip this.
 
@@ -3008,8 +3009,8 @@ def test_fsdescriptors_get_descriptor():
 
 def test_arg_descriptor_init_error(monkeypatch):
     ''' Tests that an internal error is raised in LFRicArgDescriptor
-    when an invalid type is provided. However, this error never gets
-    tripped due to an earlier test so we need to force the error by
+    when an invalid argument type is provided. However, this error never
+    gets tripped due to an earlier test so we need to force the error by
     changing the internal state.
 
     '''
@@ -5499,37 +5500,36 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         assert output in generated_code
 
 
-def test_unexpected_type_error():
-    ''' Check that we raise an exception if an unexpected datatype is found
-    when running the ArgOrdering generate method. As it is abstract we use
-    the KernCallArgList sub class.
+def test_unexpected_type_error(dist_mem):
+    ''' Check that we raise an exception if an unexpected argument type is
+    found when running the ArgOrdering generate method. As it is abstract we
+    use the KernCallArgList sub class.
 
     '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "1.0.1_single_named_invoke.f90"),
-            api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.loop_body[0]
-        # Sabotage one of the arguments to make it have an invalid type.
-        kernel.arguments.args[0]._type = "invalid"
-        # Now call KernCallArgList to raise an exception
-        create_arg_list = KernCallArgList(kernel)
-        with pytest.raises(InternalError) as excinfo:
-            create_arg_list.generate()
-        assert (
-            "ArgOrdering.generate(): Unexpected argument type found "
-            "in dynamo0p3.py. Expected one of {0} but found 'invalid'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
-            in str(excinfo.value))
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.0.1_single_named_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
+    loop = schedule.children[index]
+    kernel = loop.loop_body[0]
+    # Sabotage one of the arguments to make it have an invalid type.
+    kernel.arguments.args[0]._type = "invalid"
+    # Now call KernCallArgList to raise an exception
+    create_arg_list = KernCallArgList(kernel)
+    with pytest.raises(InternalError) as excinfo:
+        create_arg_list.generate()
+    assert (
+        "ArgOrdering.generate(): Unexpected argument type found "
+        "in dynamo0p3.py. Expected one of {0} but found 'invalid'".
+        format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+        in str(excinfo.value))
 
 
 def test_argordering_exceptions():

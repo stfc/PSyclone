@@ -125,7 +125,7 @@ def test_invalid_mesh_specifier():
 
 def test_all_args_same_mesh_error():
     ''' Check that we reject a kernel if all arguments are specified
-    as being on the same mesh (coarse or fine) '''
+    as being on the same mesh (coarse or fine). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Both on fine mesh
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_FINE", 1)
@@ -134,18 +134,18 @@ def test_all_args_same_mesh_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types (['gh_coarse', "
-            "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_fine']" in str(excinfo.value))
+            "one field argument on each of the mesh types ({0}). However, "
+            "kernel restrict_kernel_type has arguments only on ['gh_fine']".
+            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types (['gh_coarse', "
-            "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_coarse']" in str(excinfo.value))
+            "one field argument on each of the mesh types ({0}). However, "
+            "kernel restrict_kernel_type has arguments only on ['gh_coarse']".
+            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():

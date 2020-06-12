@@ -155,7 +155,7 @@ def test_ad_op_type_1st_arg_not_space():
 
 
 def test_no_vector_operator():
-    ''' Tests that we raise an error when kernel metadata erroneously
+    ''' Test that we raise an error when kernel metadata erroneously
     specifies a vector operator argument. '''
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator*3, gh_read, w2, w2)", 1)
@@ -196,7 +196,7 @@ def test_ad_op_type_wrong_access():
 
 
 def test_arg_descriptor_op():
-    ''' Tests that the LFRicArgDescriptor argument representation works
+    ''' Test that the LFRicArgDescriptor argument representation works
     as expected when we have an operator. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"

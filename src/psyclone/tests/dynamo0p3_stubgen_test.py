@@ -310,7 +310,9 @@ def test_load_meta_wrong_type():
     metadata.arg_descriptors[0]._type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
-    assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
+    assert ("DynKern.load_meta() expected one of {0} but found "
+            "'gh_hedge'".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_intent():
