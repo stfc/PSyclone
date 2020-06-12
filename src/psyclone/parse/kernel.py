@@ -550,7 +550,14 @@ class KernelProcedure(object):
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
         code = None
         for statement, _ in fpapi.walk(modast, -1):
-            if ( isinstance(statement, fparser1.block_statements.Subroutine) or isinstance(statement, fparser1.block_statements.Interface) ) and statement.name == bname:
+            if isinstance(statement, fparser1.block_statements.Interface) and statement.name == bname:
+                     subnames=statement.a.module_procedures
+                     for subname in subnames:
+                         for newstatement, _ in fpapi.walk(modast, -1):
+                            if isinstance(newstatement, fparser1.block_statements.Subroutine) and newstatement.name == subname:
+                                code = statement
+                                break
+            elif isinstance(statement, fparser1.block_statements.Subroutine) and statement.name == bname:
                 code = statement
                 break
         if not code:
