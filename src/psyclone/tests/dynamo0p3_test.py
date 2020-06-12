@@ -49,11 +49,11 @@ from fparser import api as fpapi
 
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import FunctionSpace
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
     KernCallArgList, DynACCEnterDataDirective

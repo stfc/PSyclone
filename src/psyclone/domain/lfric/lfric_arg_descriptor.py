@@ -56,14 +56,15 @@ class LFRicArgDescriptor(Descriptor):
     This class captures the information specified in one of LFRic API argument
     descriptors (scalars, fields and operators).
 
-    :param arg_type: Dynamo0.3 argument type (scalar, field or operator)
+    :param arg_type: LFRic (Dynamo0.3) API valid argument type (scalar, \
+                     field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
     :raises ParseError: if an argument type is not one of LFRic (Dynamo0.3) \
-                        API valid argument types (scalar, field, operator).
+                        API valid argument types.
     :raises ParseError: if a field vector notation is not in the correct \
                         format '(field*n)' where 'n' is an integer.
     :raises ParseError: if the field vector notation is used for the vector \
@@ -78,12 +79,13 @@ class LFRicArgDescriptor(Descriptor):
                         access descriptor.
     :raises ParseError: if an argument that is not a real scalar has a \
                         reduction access.
-    :raises InternalError: if none of the checks caught an invalid argument.
+    :raises InternalError: if all the above checks fail to catch an invalid \
+                           argument type.
 
     '''
 
     # ---------- LFRicArgDescriptor class constants  ------------------------ #
-    # Supported LFRic API datatypes (scalars, fields, operators)
+    # Supported LFRic API argument types (scalars, fields, operators)
     VALID_SCALAR_NAMES = ["gh_integer", "gh_real"]
     VALID_FIELD_NAMES = ["gh_field"]
     VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
@@ -100,7 +102,7 @@ class LFRicArgDescriptor(Descriptor):
     # indicates either x1d or y1d.
     # Note, the LFRic infrastructure currently does not have 'region' as
     # an option in stencil_dofmap_mod.F90 so it is not included in
-    # STENCIL_MAPPING.
+    # STENCIL_MAPPING (TODO #194: Add support for region stencils).
     STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                        "cross": "STENCIL_CROSS"}
 
@@ -211,8 +213,8 @@ class LFRicArgDescriptor(Descriptor):
                 "LFRicArgDescriptor.__init__(): invalid argument type after "
                 "checks, should not get to here")
 
-        # The 2nd arg is an access descriptor (TODO: 3rd in case of scalar)
-        # Convert from GH_* names to the generic access type:
+        # The 2nd arg is an access descriptor
+        # Convert from GH_* names to the generic access type
         api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
         try:
@@ -263,7 +265,7 @@ class LFRicArgDescriptor(Descriptor):
         Validates argument descriptors for field arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 field (vector) argument type
+        :param arg_type: LFRic (Dynamo0.3) API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                         :py:class:`psyclone.expression.BinaryOperator`
 
@@ -377,7 +379,7 @@ class LFRicArgDescriptor(Descriptor):
         Validates argument descriptors for operator arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 operator argument type
+        :param arg_type: LFRic (Dynamo0.3) API operator argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
         :raises InternalError: if argument type other than an operator is \
@@ -438,7 +440,7 @@ class LFRicArgDescriptor(Descriptor):
         Validates argument descriptors for scalar arguments and
         populates argument properties accordingly.
 
-        :param arg_type: Dynamo0.3 scalar argument type
+        :param arg_type: LFRic (Dynamo0.3) API scalar argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
         :raises InternalError: if argument type other than a scalar is \

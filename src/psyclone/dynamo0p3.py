@@ -8172,10 +8172,11 @@ class KernStubArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :raises InternalError: if the argument is not a recognised scalar type.
+
         '''
         if arg.type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             raise InternalError(
-                "Expected argument type to be one of '{0}' but got '{1}'".
+                "Expected argument type to be one of {0} but got '{1}'".
                 format(LFRicArgDescriptor.VALID_SCALAR_NAMES, arg.type))
         self._arglist.append(arg.name)
 

@@ -77,9 +77,9 @@ def test_kernel_stub_invalid_scalar_argument():
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
-    assert (
-        "Expected argument type to be one of '['gh_real', "
-        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+    assert ("Expected argument type to be one of {0} but got "
+            "'invalid'".format(LFRicArgDescriptor.VALID_SCALAR_NAMES)
+            in str(excinfo.value))
 
 
 def test_dynscalars_err(monkeypatch):
