@@ -137,7 +137,7 @@ def test_refelem_stub_arglist_err():
     ''' Check that the KernStubArgList.ref_element_properties method raises
     the expected error if it encounters an unsupported property. '''
     from psyclone.psyGen import InternalError
-    from psyclone.dynamo0p3 import KernStubArgList
+    from psyclone.domain.lfric import KernStubArgList
     # Create the Kernel object
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_ref_elem_all_faces_mod.F90"),

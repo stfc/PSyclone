@@ -2945,7 +2945,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [kernel])
 
-        from psyclone.dynamo0p3 import KernCallArgList
+        from psyclone.domain.lfric import KernCallArgList
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
