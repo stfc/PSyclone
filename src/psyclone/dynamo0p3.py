@@ -8369,7 +8369,7 @@ class KernCallArgList(ArgOrdering):
         if farg.type not in GH_VALID_FIELD_NAMES:
             raise GenerationError(
                 "Expected an argument of {0} type from which to look-up "
-                "boundary dofs for kernel '{1}' but got '{2}'".
+                "boundary dofs for kernel {1} but got '{2}'".
                 format(GH_VALID_FIELD_NAMES, self._kern.name, farg.type))
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
