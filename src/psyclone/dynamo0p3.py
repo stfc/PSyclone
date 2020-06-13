@@ -6325,24 +6325,34 @@ class DynLoop(Loop):
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # set our variable name at initialisation as it might be
-        # required by other classes before code generation
-        if self._loop_type == "colours":
-            self._variable_name = "colour"
-        elif self._loop_type == "colour":
-            self._variable_name = "cell"
-        elif self._loop_type == "dofs":
-            symtab = self.root.symbol_table
-            try:
-                self._variable_name = \
-                    symtab.lookup_with_tag("dof_loop_idx").name
-            except KeyError:
-                self._variable_name = symtab.new_symbol_name("df")
-                symtab.add(
-                    DataSymbol(self._variable_name, INTEGER_TYPE),
-                    tag="dof_loop_idx")
+        # set our variable at initialisation as it might be required
+        # by other classes before code generation
+        if self.loop_type == "colours":
+            tag = "colours_loop_idx"
+            suggested_name = "colour"
+        elif self.loop_type == "colour":
+            tag = "colour_loop_idx"
+            suggested_name = "cell"
+        elif self.loop_type == "dofs":
+            tag = "dof_loop_idx"
+            suggested_name = "df"
         else:
-            self._variable_name = "cell"
+            tag = "cell_loop_idx"
+            suggested_name = "cell"
+
+        # This will return the symbol table from the closest ancestor
+        # that contains one. However, the original symbol my be in a
+        # different symbol table and if this is the case we will end
+        # up declaring the variable twice. Issue #630 describes this
+        # problem.
+        symtab = self.find_symbol_table()
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(suggested_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
