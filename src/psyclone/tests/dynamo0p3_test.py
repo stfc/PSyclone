@@ -318,6 +318,8 @@ def test_ad_invalid_type():
     name is provided as the first argument (parsing arguments other than
     field vectors). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
+
+    # Check a FunctionVar expression but with a wrong argument type name
     code = CODE.replace("gh_operator", "gh_operato", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -325,6 +327,17 @@ def test_ad_invalid_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("the 1st argument of a 'meta_arg' entry should be a valid "
             "argument type (one of {0}), but found 'gh_operato'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
+
+    # Check other type of expression (here array Slicing)
+    code = CODE.replace("gh_operator", ":", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("the 1st argument of a 'meta_arg' entry should be a valid "
+            "argument type (one of {0}), but found ':'".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
@@ -376,7 +389,7 @@ def test_arg_descriptor_invalid_fs2():
             in str(excinfo.value))
 
 
-def test_invalid_vector_operator():
+def test_invalid_vector_separator():
     ''' Tests that an error is raised when a vector does not use "*"
     as its separator operator. '''
     fparser.logging.disable(fparser.logging.CRITICAL)

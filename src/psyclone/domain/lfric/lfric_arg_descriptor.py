@@ -65,16 +65,6 @@ class LFRicArgDescriptor(Descriptor):
     :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
     :raises ParseError: if an argument type is not one of LFRic (Dynamo0.3) \
                         API valid argument types.
-    :raises ParseError: if a field vector notation is not in the correct \
-                        format '(field*n)' where 'n' is an integer.
-    :raises ParseError: if the field vector notation is used for the vector \
-                        size of less than 1.
-    :raises ParseError: if the field vector notation uses a wrong separator \
-                        operator.
-    :raises ParseError: if the field vector notation is used for an \
-                        argument that is not a field.
-    :raises InternalError: if the argument type checks fail when an invalid \
-                           argument type is passed in.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
     :raises ParseError: if an argument that is not a real scalar has a \
@@ -142,76 +132,34 @@ class LFRicArgDescriptor(Descriptor):
                 "least 2 args, but found '{0}'".format(len(arg_type.args)))
 
         # Check the first argument descriptor. If it is a binary operator
-        # then it has to be a field vector with an "*n" appended. If it is
+        # then it has to be a field vector with an "*n" appended where "*"
+        # is a separator operator and "n > 1" is a vector size. If it is
         # a variable then it can be other allowed type of argument.
+        argtype = None
+        separator = None
         if isinstance(arg_type.args[0], expr.BinaryOperator):
-            # We expect 'field_type * n' to have been specified
-            argtype = arg_type.args[0].toks[0].name
-            operator = arg_type.args[0].toks[1]
-            # First check for a valid argument type...
-            if argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
-                raise ParseError(
-                    "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
-                    "entry should be a valid argument type (one of {0}), but "
-                    "found '{1}' in '{2}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
-                           self._type, arg_type))
-            # ... and set it if the check passes
-            self._type = argtype
-
-            # Now try to find the vector size for a field vector and return
-            # an error if it is not an integer number...
-            try:
-                vectsize = int(arg_type.args[0].toks[2])
-            except TypeError:
-                raise ParseError(
-                    "In the Dynamo0.3 API field vector notation expects the "
-                    "format '(field*n)' where 'n' is an integer, but the "
-                    "following '{0}' was found in '{1}'.".
-                    format(str(arg_type.args[0].toks[2]), arg_type))
-            # ... or it is less than 2 (1 is the default for all fields)...
-            if vectsize < 2:
-                raise ParseError(
-                    "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
-                    "entry may be a vector but if so must contain a valid "
-                    "integer vector size in the format '(field*n, "
-                    "where n > 1)', but found n = {0} in '{1}'".
-                    format(vectsize, arg_type))
-            # ... and set the vector size if all checks pass
-            self._vector_size = vectsize
-
-            # Check that the separator operator is correct
-            if operator != "*":
-                raise ParseError(
-                    "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
-                    "entry may be a vector but if so must use '*' as the "
-                    "separator in the format '(field*n)', but found '{0}' "
-                    "in '{1}'".format(operator, arg_type))
-
-            # Check than no other arguments than fields use vector notation
-            if self._type not in \
-               LFRicArgDescriptor.VALID_FIELD_NAMES and self._vector_size:
-                raise ParseError(
-                    "In the Dynamo0.3 API vector notation is only supported "
-                    "for a {0} argument type but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_FIELD_NAMES,
-                           arg_type.args[0]))
-
-        elif isinstance(arg_type.args[0], expr.FunctionVar):
-            # We expect 'arg_type' to have been specified
-            if arg_type.args[0].name not in \
-               LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
-                raise ParseError(
-                    "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
-                    "entry should be a valid argument type (one of {0}), "
-                    "but found '{1}' in '{2}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
-                           arg_type.args[0].name, arg_type))
-            self._type = arg_type.args[0].name
+            argtype = arg_type.args[0].toks[0]
+            separator = arg_type.args[0].toks[1]
         else:
-            raise InternalError(
-                "LFRicArgDescriptor.__init__(): invalid argument type after "
-                "checks, should not get to here")
+            argtype = arg_type.args[0]
+
+        # First check for a valid argument type. It has to be a variable
+        # (FunctionVar expression) and have a valid LFRic API argument name.
+        if isinstance(argtype, expr.FunctionVar) and argtype.name in \
+           LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
+            self._type = argtype.name
+        else:
+            raise ParseError(
+                "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
+                "entry should be a valid argument type (one of {0}), but "
+                "found '{1}' in '{2}'".
+                format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                       argtype, arg_type))
+
+        # Check for a valid vector size in case of a binary
+        # operator expression
+        if separator:
+            self._validate_vector_size(separator, arg_type)
 
         # The 2nd arg is an access descriptor
         # Convert from GH_* names to the generic access type
@@ -249,7 +197,7 @@ class LFRicArgDescriptor(Descriptor):
         elif self._type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             self._validate_scalar(arg_type)
 
-        # We should never get to here (#TODO: check if tested)
+        # We should never get to here if the checks are tight enough
         else:
             raise InternalError(
                 "LFRicArgDescriptor.__init__(): failed argument validation, "
@@ -259,6 +207,65 @@ class LFRicArgDescriptor(Descriptor):
         super(LFRicArgDescriptor,
               self).__init__(self._access_type, self._function_space1,
                              stencil=self._stencil, mesh=self._mesh)
+
+    def _validate_vector_size(self, separator, arg_type):
+        '''
+        Validates argument descriptors for field arguments and
+        populates argument properties accordingly.
+
+        :param str separator: separator operator in a binary expression.
+        :param arg_type: LFRic (Dynamo0.3) API field (vector) argument type.
+        :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
+                        :py:class:`psyclone.expression.BinaryOperator`
+
+        :raises ParseError: if the field vector notation uses a wrong \
+                            separator operator.
+        :raises ParseError: if a field vector notation is not in the \
+                            correct format '(field*n)' where 'n' is \
+                            an integer.
+        :raises ParseError: if the field vector notation is used for the \
+                            vector size of less than 2.
+        :raises ParseError: if the field vector notation is used for an \
+                            argument that is not a field.
+
+        '''
+        # Check that the separator operator is correct
+        if separator != "*":
+            raise ParseError(
+                "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
+                "entry may be a field vector but if so must use '*' as "
+                "the separator in the format '(field*n)', but found "
+                "'{0}' in '{1}'".format(separator, arg_type))
+
+        # Now try to find the vector size for a field vector and return
+        # an error if it is not an integer number...
+        try:
+            vectsize = int(arg_type.args[0].toks[2])
+        except TypeError:
+            raise ParseError(
+                "In the Dynamo0.3 API field vector notation expects the "
+                "format '(field*n)' where 'n' is an integer, but the "
+                "following '{0}' was found in '{1}'.".
+                format(str(arg_type.args[0].toks[2]), arg_type))
+        # ... or it is less than 2 (1 is the default for all fields)...
+        if vectsize < 2:
+            raise ParseError(
+                "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
+                "entry may be a field vector but if so must contain a "
+                "valid integer vector size in the format '(field*n, "
+                "where n > 1)', but found n = {0} in '{1}'".
+                format(vectsize, arg_type))
+        # ... and set the vector size if all checks pass
+        self._vector_size = vectsize
+
+        # Check than no other arguments than fields use vector notation
+        if self._type not in \
+           LFRicArgDescriptor.VALID_FIELD_NAMES and self._vector_size:
+            raise ParseError(
+                "In the Dynamo0.3 API vector notation is only supported "
+                "for a {0} argument type but found '{1}'".
+                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                       arg_type.args[0]))
 
     def _validate_field(self, arg_type):
         '''
