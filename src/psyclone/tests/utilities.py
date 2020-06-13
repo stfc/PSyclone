@@ -40,6 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from fparser import api as fpapi
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -422,6 +423,38 @@ class Compile(object):
 
 
 # =============================================================================
+def get_base_path(api):
+    '''Get the absolute base path for the specified API relateive to the
+    'tests/test_files' directory, i.e. the directory in which all
+    Fortran test files are stored.
+
+    :param str api: name of the API.
+
+    :returns: the base path for the API.
+    :rtype: str
+
+    :raises RuntimeError: if the supplied API name is invalid.
+
+    '''
+    # Define the mapping of supported APIs to Fortran directories
+    # Note that the nemo files are outside of the default tests/test_files
+    # directory, they are in tests/nemo/test_files
+    api_2_path = {"dynamo0.1": "dynamo0p1",
+                  "dynamo0.3": "dynamo0p3",
+                  "nemo": "../nemo/test_files",
+                  "gocean1.0": "gocean1p0",
+                  "gocean0.1": "gocean0p1"}
+    try:
+        dir_name = api_2_path[api]
+    except KeyError:
+        raise RuntimeError("The API '{0}' is not supported. "
+                           "Supported types are {1}.".
+                           format(api, api_2_path.keys()))
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "test_files", dir_name)
+
+
+# =============================================================================
 def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
     '''
     Utility method to get the idx'th or named invoke from the algorithm
@@ -451,25 +484,7 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
-    # Set up a mapping of supported APIs and corresponding directories
-    # Note that the nemo files are outside of the default tests/test_files
-    # directory, they are in tests/nemo/test_files
-    api_2_path = {"dynamo0.1": "dynamo0p1",
-                  "dynamo0.3": "dynamo0p3",
-                  "nemo": "../nemo/test_files",
-                  "gocean1.0": "gocean1p0",
-                  "gocean0.1": "gocean0p1"}
-    try:
-        dir_name = api_2_path[api]
-    except KeyError:
-        raise RuntimeError("The API '{0}' is not supported by get_invoke. "
-                           "Supported types are {1}.".
-                           format(api, api_2_path.keys()))
-
-    _, info = parse(os.path.
-                    join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", dir_name, algfile),
-                    api=api)
+    _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
         invoke = psy.invokes.get(name)
@@ -504,6 +519,24 @@ def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
     schedule = processor.generate_schedule(routine_name, parse_tree)
 
     return schedule
+
+
+# =============================================================================
+def get_ast(api, filename):
+    '''Returns the AST for a filename that is stored in the test files
+    for the specified API.
+
+    :param str api: the API to use, which determines the directory \
+        where files are stored.
+    :param str filename: the file name to parse.
+
+    :returns: the AST for the specified Fortran source file.
+    :rtype: :py:class:`fparser.api.BeginSource`
+
+    '''
+    ast = fpapi.parse(os.path.join(get_base_path(api), filename),
+                      ignore_comments=False)
+    return ast
 
 
 # =============================================================================
