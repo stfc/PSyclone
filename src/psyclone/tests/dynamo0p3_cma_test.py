@@ -279,7 +279,7 @@ def test_cma_mdata_asm_vector_error():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the Dynamo0.3 API vector notation is only supported "
+    assert ("In the LFRic API vector notation is only supported "
             "for a ['gh_field'] argument type but found "
             "'gh_columnwise_operator * 2'" in str(excinfo.value))
 
@@ -466,7 +466,7 @@ def test_cma_mdata_apply_vector_error():
     # Reject a CMA operator vector argument
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the Dynamo0.3 API vector notation is only supported "
+    assert ("In the LFRic API vector notation is only supported "
             "for a ['gh_field'] argument type but found "
             "'gh_columnwise_operator * 4'" in str(excinfo.value))
 
@@ -654,7 +654,7 @@ def test_cma_mdata_matrix_vector_error():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the Dynamo0.3 API vector notation is only supported "
+    assert ("In the LFRic API vector notation is only supported "
             "for a ['gh_field'] argument type but found "
             "'gh_columnwise_operator * 3'" in str(excinfo.value))
 

@@ -2893,12 +2893,12 @@ def test_arg_desc_func_space_tofrom_err():
     field_descriptor = metadata.arg_descriptors[0]
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space_to
-    assert ("In the Dynamo0.3 API 'function_space_to' only makes sense "
+    assert ("In the LFRic API 'function_space_to' only makes sense "
             "for one of ['gh_operator', 'gh_columnwise_operator'], but "
             "this is a 'gh_real'") in str(excinfo.value)
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space_from
-    assert ("In the Dynamo0.3 API 'function_space_from' only makes sense "
+    assert ("In the LFRic API 'function_space_from' only makes sense "
             "for one of ['gh_operator', 'gh_columnwise_operator'], but "
             "this is a 'gh_real'") in str(excinfo.value)
 

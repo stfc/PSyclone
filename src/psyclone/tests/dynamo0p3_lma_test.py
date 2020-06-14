@@ -137,7 +137,7 @@ def test_ad_op_type_wrong_3rd_arg():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Dynamo0.3 API the 3rd argument of a 'meta_arg' operator entry "
+    assert ("LFRic API the 3rd argument of a 'meta_arg' operator entry "
             "must be a valid function space name" in str(excinfo.value))
 
 
@@ -191,7 +191,7 @@ def test_ad_op_type_wrong_access():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the Dynamo0.3 API operators cannot have a 'gh_inc' access"
+    assert ("In the LFRic API operators cannot have a 'gh_inc' access"
             in str(excinfo.value))
 
 

@@ -50,27 +50,30 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import FunctionSpace
 from psyclone.errors import InternalError
 
+# API configuration
+API = "dynamo0.3"
+
 
 class LFRicArgDescriptor(Descriptor):
     '''
     This class captures the information specified in one of LFRic API argument
     descriptors (scalars, fields and operators).
 
-    :param arg_type: LFRic (Dynamo0.3) API valid argument type (scalar, \
+    :param arg_type: LFRic API valid argument type (scalar, \
                      field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
-    :raises ParseError: if an argument type is not one of LFRic (Dynamo0.3) \
-                        API valid argument types.
+    :raises ParseError: if an argument type is not one of LFRic API \
+                        valid argument types.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
     :raises ParseError: if an argument that is not a real scalar has a \
                         reduction access.
-    :raises InternalError: if all the above checks fail to catch an invalid \
-                           argument type.
+    :raises InternalError: if all the metadata checks fail to catch an \
+                           invalid argument type.
 
     '''
 
@@ -122,13 +125,13 @@ class LFRicArgDescriptor(Descriptor):
         # Check for correct type descriptor
         if arg_type.name != 'arg_type':
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must be of type "
+                "In the LFRic API each 'meta_arg' entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
 
         # We require at least 2 args
         if len(arg_type.args) < 2:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have at "
+                "In the LFRic API each 'meta_arg' entry must have at "
                 "least 2 args, but found '{0}'".format(len(arg_type.args)))
 
         # Check the first argument descriptor. If it is a binary operator
@@ -150,7 +153,7 @@ class LFRicArgDescriptor(Descriptor):
             self._type = argtype.name
         else:
             raise ParseError(
-                "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
+                "In the LFRic API the 1st argument of a 'meta_arg' "
                 "entry should be a valid argument type (one of {0}), but "
                 "found '{1}' in '{2}'".
                 format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
@@ -163,14 +166,14 @@ class LFRicArgDescriptor(Descriptor):
 
         # The 2nd arg is an access descriptor
         # Convert from GH_* names to the generic access type
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf(API)
         access_mapping = api_config.get_access_mapping()
         try:
             self._access_type = access_mapping[arg_type.args[1].name]
         except KeyError:
             valid_names = api_config.get_valid_accesses_api()
             raise ParseError(
-                "In the Dynamo0.3 API the 2nd argument of a 'meta_arg' entry "
+                "In the LFRic API the 2nd argument of a 'meta_arg' entry "
                 "must be a valid access descriptor (one of {0}), but found "
                 "'{1}' in '{2}'".format(valid_names,
                                         arg_type.args[1].name, arg_type))
@@ -179,7 +182,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._type != "gh_real" and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
-                "In the Dynamo0.3 API a reduction access '{0}' is only valid "
+                "In the LFRic API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
                 format(self._access_type.api_specific_name(),
                        self._type))
@@ -210,11 +213,11 @@ class LFRicArgDescriptor(Descriptor):
 
     def _validate_vector_size(self, separator, arg_type):
         '''
-        Validates argument descriptors for field arguments and
-        populates argument properties accordingly.
+        Validates descriptors for field vector arguments and populates
+        vector properties accordingly.
 
         :param str separator: separator operator in a binary expression.
-        :param arg_type: LFRic (Dynamo0.3) API field (vector) argument type.
+        :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                         :py:class:`psyclone.expression.BinaryOperator`
 
@@ -232,7 +235,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check that the separator operator is correct
         if separator != "*":
             raise ParseError(
-                "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
+                "In the LFRic API the 1st argument of a 'meta_arg' "
                 "entry may be a field vector but if so must use '*' as "
                 "the separator in the format '(field*n)', but found "
                 "'{0}' in '{1}'".format(separator, arg_type))
@@ -243,14 +246,14 @@ class LFRicArgDescriptor(Descriptor):
             vectsize = int(arg_type.args[0].toks[2])
         except TypeError:
             raise ParseError(
-                "In the Dynamo0.3 API field vector notation expects the "
+                "In the LFRic API field vector notation expects the "
                 "format '(field*n)' where 'n' is an integer, but the "
                 "following '{0}' was found in '{1}'.".
                 format(str(arg_type.args[0].toks[2]), arg_type))
         # ... or it is less than 2 (1 is the default for all fields)...
         if vectsize < 2:
             raise ParseError(
-                "In the Dynamo0.3 API the 1st argument of a 'meta_arg' "
+                "In the LFRic API the 1st argument of a 'meta_arg' "
                 "entry may be a field vector but if so must contain a "
                 "valid integer vector size in the format '(field*n, "
                 "where n > 1)', but found n = {0} in '{1}'".
@@ -262,7 +265,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._type not in \
            LFRicArgDescriptor.VALID_FIELD_NAMES and self._vector_size:
             raise ParseError(
-                "In the Dynamo0.3 API vector notation is only supported "
+                "In the LFRic API vector notation is only supported "
                 "for a {0} argument type but found '{1}'".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[0]))
@@ -272,7 +275,7 @@ class LFRicArgDescriptor(Descriptor):
         Validates argument descriptors for field arguments and
         populates argument properties accordingly.
 
-        :param arg_type: LFRic (Dynamo0.3) API field (vector) argument type.
+        :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                         :py:class:`psyclone.expression.BinaryOperator`
 
@@ -304,7 +307,7 @@ class LFRicArgDescriptor(Descriptor):
         # There must be at least 3 arguments
         if len(arg_type.args) < 3:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have at "
+                "In the LFRic API each 'meta_arg' entry must have at "
                 "least 3 arguments if its first argument is of a {0} type, "
                 "but found {1} in '{2}'".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
@@ -312,7 +315,7 @@ class LFRicArgDescriptor(Descriptor):
         # There must be at most 4 arguments
         if len(arg_type.args) > 4:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have at "
+                "In the LFRic API each 'meta_arg' entry must have at "
                 "most 4 arguments if its first argument is of a {0} type, "
                 "but found {1} in '{2}'".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
@@ -322,7 +325,7 @@ class LFRicArgDescriptor(Descriptor):
         if arg_type.args[2].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
-                "In the Dynamo0.3 API the 3rd argument of a 'meta_arg' "
+                "In the LFRic API the 3rd argument of a 'meta_arg' "
                 "entry must be a valid function space name (one of {0}) if "
                 "its first argument is of a {1} type, but found '{2}' in "
                 "'{3}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
@@ -346,7 +349,7 @@ class LFRicArgDescriptor(Descriptor):
                     raise ParseError("Unrecognised metadata entry")
             except ParseError as err:
                 raise ParseError(
-                    "In the Dynamo0.3 API the 4th argument of a 'meta_arg' "
+                    "In the LFRic API the 4th argument of a 'meta_arg' "
                     "field entry must be either a valid stencil specification"
                     "or a mesh identifier (for inter-grid kernels). However, "
                     "entry '{0}' raised the following error: {1}".
@@ -375,7 +378,7 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type == AccessType.READWRITE:
             raise ParseError(
-                "In the Dynamo0.3 API a field on 'any_space' cannot have "
+                "In the LFRic API a field on 'any_space' cannot have "
                 "'gh_readwrite' access because it is treated as continuous")
         if self._stencil and self._access_type != AccessType.READ:
             raise ParseError("A stencil must be read-only so its access "
@@ -386,7 +389,7 @@ class LFRicArgDescriptor(Descriptor):
         Validates argument descriptors for operator arguments and
         populates argument properties accordingly.
 
-        :param arg_type: LFRic (Dynamo0.3) API operator argument type.
+        :param arg_type: LFRic API operator argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
         :raises InternalError: if argument type other than an operator is \
@@ -410,7 +413,7 @@ class LFRicArgDescriptor(Descriptor):
         # function space
         if len(arg_type.args) != 4:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have 4 "
+                "In the LFRic API each 'meta_arg' entry must have 4 "
                 "arguments if its first argument is one of {0}, but found "
                 "{1} in '{2}'".
                 format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
@@ -420,7 +423,7 @@ class LFRicArgDescriptor(Descriptor):
         if arg_type.args[2].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
-                "In the Dynamo0.3 API the 3rd argument of a 'meta_arg' "
+                "In the LFRic API the 3rd argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one of "
                 "{0}), but found '{1}' in '{2}".
                 format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
@@ -429,7 +432,7 @@ class LFRicArgDescriptor(Descriptor):
         if arg_type.args[3].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
-                "In the Dynamo0.3 API the 4th argument of a 'meta_arg' "
+                "In the LFRic API the 4th argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one of "
                 "{0}), but found '{1}' in '{2}".
                 format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
@@ -439,7 +442,7 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for operators
         if self._access_type == AccessType.INC:
             raise ParseError(
-                "In the Dynamo0.3 API operators cannot have a 'gh_inc' "
+                "In the LFRic API operators cannot have a 'gh_inc' "
                 "access because they behave as discontinuous quantities")
 
     def _validate_scalar(self, arg_type):
@@ -447,7 +450,7 @@ class LFRicArgDescriptor(Descriptor):
         Validates argument descriptors for scalar arguments and
         populates argument properties accordingly.
 
-        :param arg_type: LFRic (Dynamo0.3) API scalar argument type.
+        :param arg_type: LFRic API scalar argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
         :raises InternalError: if argument type other than a scalar is \
@@ -467,19 +470,19 @@ class LFRicArgDescriptor(Descriptor):
         # There must be at least 2 arguments to describe a scalar
         if len(arg_type.args) != 2:
             raise ParseError(
-                "In the Dynamo0.3 API each 'meta_arg' entry must have 2 "
+                "In the LFRic API each 'meta_arg' entry must have 2 "
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
         # Test allowed accesses for scalars (read_only or reduction)
         if self._access_type not in [AccessType.READ] + \
            AccessType.get_valid_reduction_modes():
-            api_config = Config.get().api_conf("dynamo0.3")
+            api_config = Config.get().api_conf(API)
             rev_access_mapping = api_config.get_reverse_access_mapping()
             api_specific_name = rev_access_mapping[self._access_type]
             valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
-                "In the Dynamo0.3 API scalar arguments must be "
+                "In the LFRic API scalar arguments must be "
                 "read-only ('gh_read') or a reduction ({0}) but found "
                 "'{1}' in '{2}'".format(valid_reductions, api_specific_name,
                                         arg_type))
@@ -513,7 +516,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             return self._function_space1
         raise RuntimeError(
-            "In the Dynamo0.3 API 'function_space_to' only makes sense "
+            "In the LFRic API 'function_space_to' only makes sense "
             "for one of {0}, but this is a '{1}'".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES, self._type))
 
@@ -532,7 +535,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             return self._function_space2
         raise RuntimeError(
-            "In the Dynamo0.3 API 'function_space_from' only makes sense "
+            "In the LFRic API 'function_space_from' only makes sense "
             "for one of {0}, but this is a '{1}'".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES, self._type))
 
