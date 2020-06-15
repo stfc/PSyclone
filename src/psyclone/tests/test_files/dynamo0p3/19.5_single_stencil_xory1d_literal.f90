@@ -36,6 +36,9 @@
 program single_stencil
   ! Description: single xory1d stencil with the direction value passed
   ! as a literal.
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use field_mod,                   only: field_type
   use flux_direction_mod,          only: x_direction
   use testkern_stencil_xory1d_mod, only: testkern_stencil_xory1d_type

@@ -43,6 +43,9 @@ program halo_different_stencils
   ! stencil_cross stays as stencil_cross (which would happen in this
   ! example). However, the halo exchange library does make use of this
   ! information at the moment in any case.
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use constants_mod,                  only: i_def, r_def
   use field_mod,                      only: field_type
   use flux_direction_mod,             only: y_direction

@@ -36,8 +36,8 @@
 
 program multi_invoke_qr
 
-  ! Description: single function specified in an invoke call containing three
-  ! kernels, two of which require XYoZ quadrature.
+  ! Description: three kernels specified in an invoke call, two of which
+  ! require XYoZ quadrature.
 
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type

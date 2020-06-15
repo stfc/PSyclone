@@ -36,6 +36,9 @@
 program multiple_stencils
   ! Description: multiple stencils specified with the same direction
   ! provided in two cases and a different direction in the third.
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use field_mod,                   only: field_type
   use flux_direction_mod,          only: x_direction, y_direction
   use testkern_stencil_xory1d_mod, only: testkern_stencil_xory1d_type

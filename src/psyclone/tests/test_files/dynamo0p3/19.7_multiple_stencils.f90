@@ -36,6 +36,9 @@
 program single_stencil
   ! Description: single stencil with multiple extents having different
   ! values
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use constants_mod,              only: i_def
   use field_mod,                  only: field_type
   use flux_direction_mod,         only: y_direction

@@ -36,6 +36,9 @@
 program single_stencil
   ! Description: single stencil specified incorrectly in an invoke call
   ! as direction can not be a literal scalar
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use constants_mod,               only: i_def
   use field_mod,                   only: field_type
   use flux_direction_mod,          only: x_direction
@@ -46,8 +49,8 @@ program single_stencil
   type(field_type) :: f1, f2, f3, f4
   integer(i_def)   :: f2_extent = 2
 
-  call invoke(                                                          &
-       testkern_stencil_xory1d_type(f1, f2, f2_extent, 2_i_def, f3, f4) &
+  call invoke(                                                    &
+       testkern_stencil_xory1d_type(f1, f2, f2_extent, 2, f3, f4) &
        )
 
 end program single_stencil

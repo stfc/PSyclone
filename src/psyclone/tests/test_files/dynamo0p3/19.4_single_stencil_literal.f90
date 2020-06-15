@@ -36,6 +36,9 @@
 program single_stencil
   ! Description: single stencil specified in an invoke call with a
   ! literal value passed for the extent value
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use field_mod,            only: field_type
   use testkern_stencil_mod, only: testkern_stencil_type
 

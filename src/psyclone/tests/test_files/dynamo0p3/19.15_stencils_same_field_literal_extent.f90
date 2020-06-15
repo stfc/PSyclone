@@ -37,6 +37,9 @@ program multiple_stencils
   ! Description: multiple kernels with the same field having a stencil
   ! access (f2) with a literal value for extent and the same value in
   ! one case and a different value in another.
+  ! Note: it is currently not possible to specify kind for an integer
+  ! literal stencil depth in a kernel call. This will be enabled when
+  ! addressing issue #753.
   use field_mod,            only: field_type
   use testkern_stencil_mod, only: testkern_stencil_type
 
