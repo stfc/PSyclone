@@ -333,7 +333,7 @@ class DependencyTools(object):
                             "instance of class Loop but got '{0}'".
                             format(type(loop).__name__))
         if not loop_variable:
-            loop_variable = loop.variable_name
+            loop_variable = loop.variable.name
 
         # Check if the loop type should be parallelised, e.g. to avoid
         # parallelising inner loops which might not have enough work. This
@@ -350,7 +350,7 @@ class DependencyTools(object):
             variables_to_ignore = []
 
         # Collect all variables used as loop variable:
-        loop_vars = [l.variable_name for l in loop.walk(Loop)]
+        loop_vars = [l.variable.name for l in loop.walk(Loop)]
 
         result = True
         # Now check all variables used in the loop

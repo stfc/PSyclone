@@ -68,7 +68,8 @@ TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
 TMP_SYMBOL = DataSymbol(TMP_NAME2, REAL_DOUBLE_TYPE)
 SYMBOL_TABLE.add(TMP_SYMBOL)
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, INTEGER4_TYPE))
+INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
+SYMBOL_TABLE.add(INDEX_SYMBOL)
 SYMBOL_TABLE.specify_argument_list([ARG1])
 REAL_KIND_NAME = SYMBOL_TABLE.new_symbol_name(root_name="RKIND")
 REAL_KIND = DataSymbol(REAL_KIND_NAME, INTEGER_TYPE, constant_value=8)
@@ -129,7 +130,7 @@ IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
 IFBLOCK = IfBlock.create(IF_CONDITION, [ASSIGN3, ASSIGN4])
 
 # Loop
-LOOP = Loop.create(INDEX_NAME, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
+LOOP = Loop.create(INDEX_SYMBOL, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create(

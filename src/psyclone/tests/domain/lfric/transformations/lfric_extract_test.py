@@ -625,7 +625,7 @@ def test_extract_colouring_omp_dynamo0p3():
     in Dynamo0.3 API. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
-    from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
+    from psyclone.domain.lfric import FunctionSpace
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -640,7 +640,7 @@ def test_extract_colouring_omp_dynamo0p3():
     cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
-           not in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
+           not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
            and child.iteration_space == "cells":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
