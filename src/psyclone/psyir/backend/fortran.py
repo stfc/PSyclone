@@ -1035,7 +1035,7 @@ class FortranWriter(PSyIRVisitor):
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Directive`
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -1045,6 +1045,6 @@ class FortranWriter(PSyIRVisitor):
         result_list = []
         for child in node.children:
             result_list.append(self._visit(child))
-        args = ",".join(result_list)
+        args = ", ".join(result_list)
         return "{0}call {1}({2})\n".format(self._nindent, node.routine.name,
                                            args)

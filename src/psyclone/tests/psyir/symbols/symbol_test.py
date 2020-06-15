@@ -35,7 +35,14 @@
 # Modified by R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.symbol module '''
+'''Perform py.test tests on the psygen.psyir.symbols.symbol module.
+
+Note that SymbolError is declared but not used in symbol.py. There are
+many other files that use SymbolError and have associated tests so it
+is not tested here.
+
+'''
+
 
 from __future__ import absolute_import
 import pytest
@@ -122,11 +129,6 @@ def test_symbol_str():
 
     sym = Symbol("my_symbol")
     assert str(sym) == "my_symbol"
-
-
-# SymbolError is declared but not used in symbol.py. There are many
-# other files that use SymbolError and have associated tests so it is
-# not tested here.
 
 
 def test_symbolinterface():

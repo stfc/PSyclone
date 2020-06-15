@@ -1508,7 +1508,7 @@ def test_fw_call_node(fort_writer):
             Reference(DataSymbol("arg2", REAL_TYPE))]
     call = Call.create(routine_symbol, args)
     result = fort_writer(call)
-    assert result == "call mysub(arg1,arg2)\n"
+    assert result == "call mysub(arg1, arg2)\n"
 
     symbol_table = SymbolTable()
     symbol_a = DataSymbol("a", REAL_TYPE)
@@ -1529,5 +1529,5 @@ def test_fw_call_node(fort_writer):
     schedule = KernelSchedule.create("work", symbol_table, [call])
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    expected = "  call my_sub(a * b,MAX(a, b))\n"
+    expected = "  call my_sub(a * b, MAX(a, b))\n"
     assert expected in result

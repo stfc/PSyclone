@@ -36,7 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the generic Symbol and the SymbolError.'''
+'''This module contains the SymbolError class, the SymbolInterface
+class and its subclasses and the generic Symbol class.
+
+'''
 
 from __future__ import absolute_import
 from enum import Enum
