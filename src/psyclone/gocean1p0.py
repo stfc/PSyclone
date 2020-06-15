@@ -445,7 +445,7 @@ class GOLoop(Loop):
         # different symbol table and if this is the case we will end
         # up declaring the variable twice. Issue #630 describes this
         # problem.
-        symtab = self.find_symbol_table()
+        symtab = self.scope.symbol_table
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:
