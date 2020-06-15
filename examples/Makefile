@@ -37,7 +37,7 @@
 
 .PHONY: all transform compile notebook clean allclean
 
-all transform compile clean allclean notebook:
+all transform compile notebook clean allclean:
 	${MAKE} -C gocean $@
 	${MAKE} -C nemo $@
 	${MAKE} -C lfric $@

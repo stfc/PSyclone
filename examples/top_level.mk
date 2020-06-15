@@ -33,8 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-# Provides support for 'all', 'compile', 'clean', 'allclean', 'notebooks' and
-# 'transform' (the default) targets for directories listed in EXAMPLES.
+# Include file for 'top-level' Makefiles found in the directories immediately
+# below the one containing this file.
+#
+# Provides support for 'all', 'compile', 'transform' (the default), 'notebook',
+# 'clean' and 'allclean' targets for directories listed in EXAMPLES.
 # All an including Makefile needs to do is set EXAMPLES appropriately.
 
 all_EXAMPLES=$(addprefix all_,$(EXAMPLES))

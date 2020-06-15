@@ -31,5 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Debian packages required for Binder environment
+# Author: A. R. Porter, STFC Daresbury Laboratory.
+
+# Debian packages required for Binder environment. See README.md for details
+# of how to launch examples on Binder.
 graphviz
