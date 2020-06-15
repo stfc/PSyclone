@@ -38,12 +38,15 @@
 
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.function_space import FunctionSpace
+# The order here is not alphabetical, but important because
+# KernCallAccArgList imports KernCallArgList
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.lfric import FunctionSpace
 
-__all__ = ['ArgOrdering', 'FunctionSpace', 'KernCallArgList',
-           'KernStubArgList']
+__all__ = ['ArgOrdering', 'FunctionSpace', 'KernCallAccArgList',
+           'KernCallArgList', 'KernStubArgList']
