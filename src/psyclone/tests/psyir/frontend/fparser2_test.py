@@ -51,6 +51,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
     REAL_TYPE, UnknownType, Symbol
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -2686,20 +2687,20 @@ def test_handling_return_stmt():
     assert not new_node.children
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_end_do_stmt():
-    ''' Test that fparser2 End_Do_Stmt are ignored.'''
+def test_handling_end_do_stmt(parser):
+    ''' Test that the fparser2 End_Do_Stmt is ignored.'''
     reader = FortranStringReader('''
+      subroutine test()
+        integer :: i, a
         do i=1,10
             a=a+1
         end do
+      end subroutine test
         ''')
-    fparser2enddo = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
+    fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2enddo])
-    assert len(fake_parent.children) == 1  # Just the loop (no end statement)
+    result = processor.generate_schedule("test", fparser2_tree)
+    assert len(result.children) == 1  # Just the loop (no end statement)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2718,28 +2719,26 @@ def test_handling_end_subroutine_stmt():
     assert not fake_parent.children  # No new children created
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_do_construct():
+def test_do_construct(parser):
     ''' Check that do loop constructs are converted to the expected
     PSyIR node.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
-    from psyclone.psyGen import Loop
     reader = FortranStringReader('''
-        do i = 1, 10 , 2\n
-            sum = sum + i\n
-        end do\n
-        ''')
-    fparser2do = Execution_Part.match(reader)[0][0]
+      subroutine test()
+        integer :: i, sum
+        do i = 1, 10 , 2
+            sum = sum + i
+        end do
+      end subroutine test
+      ''')
+    fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fparser2do])
-    assert fake_parent.children[0]
-    new_loop = fake_parent.children[0]
+    result = processor.generate_schedule("test", fparser2_tree)
+    assert result.children[0]
+    new_loop = result.children[0]
     assert isinstance(new_loop, Loop)
-    assert new_loop.variable_name == "i"
+    assert new_loop.variable.name == "i"
     assert new_loop.start_expr.value == "1"
     assert new_loop.stop_expr.value == "10"
     assert new_loop.step_expr.value == "2"
@@ -2903,3 +2902,26 @@ def test_get_symbol_table():
     for node in [lhs, rhs, assignment, kernel_schedule]:
         assert _get_symbol_table(node) is symbol_table
     assert _get_symbol_table(container) is symbol_table2
+
+
+def test_loop_var_exception(parser):
+    '''Checks that the expected exception is raised in class
+    Fparser2Reader method generate_schedule if a loop variable is not
+    declared and there is no unqualified use statement.
+
+    '''
+    code = ('''
+      subroutine test()
+        do i=1,10
+        end do
+      end subroutine test
+    ''')
+    reader = FortranStringReader(code)
+    fparser_tree = parser(reader)
+    fparser2psyir = Fparser2Reader()
+    with pytest.raises(InternalError) as excinfo:
+        _ = fparser2psyir.generate_schedule("test", fparser_tree)
+    assert (
+        "Loop-variable name 'i' is not declared and there are no unqualified "
+        "use statements. This is currently unsupported."
+        in str(excinfo.value))

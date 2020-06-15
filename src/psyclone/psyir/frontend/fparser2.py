@@ -1725,20 +1725,21 @@ class Fparser2Reader(object):
         '''
         return None
 
-    def _create_loop(self, parent, variable_name):
+    def _create_loop(self, parent, variable):
         '''
         Create a Loop instance. This is done outside _do_construct_handler
         because some APIs may want to instantiate a specialised Loop.
 
         :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param str variable_name: name of the iteration variable.
+        :param variable: the loop variable.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :return: a new Loop instance.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        return Loop(parent=parent, variable_name=variable_name)
+        return Loop(parent=parent, variable=variable)
 
     def _process_loopbody(self, loop_body, node):
         ''' Process the loop body. This is done outside _do_construct_handler
@@ -1789,7 +1790,16 @@ class Fparser2Reader(object):
         # Loop variable will be an instance of Fortran2003.Name
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
-        loop = self._create_loop(parent, variable_name)
+        try:
+            data_symbol = parent.find_or_create_symbol(variable_name)
+        except SymbolError:
+            raise InternalError(
+                "Loop-variable name '{0}' is not declared and there are no "
+                "unqualified use statements. This is currently unsupported."
+                "".format(variable_name))
+        # The loop node is created with the _create_loop factory method as some
+        # APIs require a specialised loop node type.
+        loop = self._create_loop(parent, data_symbol)
         loop._ast = node
 
         # Get the loop limits. These are given in a list which is the second
@@ -2386,9 +2396,10 @@ class Fparser2Reader(object):
             loop_vars[idx-1] = symbol_table.new_symbol_name(
                 "widx{0}".format(idx))
 
-            symbol_table.add(DataSymbol(loop_vars[idx-1], integer_type))
+            data_symbol = DataSymbol(loop_vars[idx-1], integer_type)
+            symbol_table.add(data_symbol)
 
-            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
+            loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
