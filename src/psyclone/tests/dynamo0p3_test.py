@@ -5512,8 +5512,9 @@ def test_kerncallarglist_args_error(dist_mem):
     with pytest.raises(InternalError) as excinfo:
         _ = create_arg_list.arglist
     assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the arglist() method") in str(excinfo.value)
+        "Internal error. The argument list in KernStubArgList:"
+        "arglist() is empty. Has the generate() method been called?"
+        ) in str(excinfo.value)
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
