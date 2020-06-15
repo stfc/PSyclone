@@ -1014,7 +1014,7 @@ class GOceanConfig(APISpecificConfig):
         if intrinsic_type not in ['integer', 'real']:
             from psyclone.errors import InternalError
             raise InternalError("Intrinsic type must be 'integer' or 'real' "
-                                "but is '{0}'.".format(type_name))
+                                "but is '{0}'.".format(intrinsic_type))
 
         Property = namedtuple("Property", "fortran type intrinsic_type")
         return Property(dereference_format, type_name, intrinsic_type)
@@ -1023,8 +1023,8 @@ class GOceanConfig(APISpecificConfig):
     @property
     def grid_properties(self):
         ''':returns: the dict containing the grid properties.
-        :rtype: a dict with values of namedtuple("Property","fortran type") \
-            instances.
+        :rtype: a dict with values of \
+            namedtuple("Property","fortran type intrinsic_type") instances.
         '''
         return self._grid_properties
 

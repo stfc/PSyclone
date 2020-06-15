@@ -1171,7 +1171,6 @@ class GOKern(CodedKern):
         # Scalar grid properties are all integers
         args = [x for x in grid_prop_args if x.is_scalar()]
         if args:
-            import pdb; pdb.set_trace()
             sub.add(DeclGen(sub, datatype="integer", intent="in",
                             target=True,
                             entity_decls=[arg.name for arg in args]))
