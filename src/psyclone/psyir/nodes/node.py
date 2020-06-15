@@ -1092,12 +1092,13 @@ class Node(object):
         '''
         from psyclone.psyir.nodes import Schedule, Container
         current = self
-        while current and not isinstance(current, (Container, Schedule)):
+        while current:
+            if isinstance(current, (Container, Schedule)):
+                return current
             current = current.parent
-        if current:
-            return current
         raise InternalError(
-            "None of this node's ancestors are Container or Schedule nodes.")
+            "Unable to find the scope of node '{0}' as none of its ancestors "
+            "are Container or Schedule nodes.".format(self))
 
     def find_or_create_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table

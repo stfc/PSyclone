@@ -583,11 +583,13 @@ def test_scope():
     assert kernel_schedule.scope is kernel_schedule
     assert container.scope is container
 
-    node = Node()
+    node = Literal("x", INTEGER_TYPE)
     with pytest.raises(InternalError) as excinfo:
         _ = node.scope
-    assert ("PSyclone internal error: None of this node's ancestors are "
-            "Container or Schedule nodes." in str(excinfo.value))
+    assert ("PSyclone internal error: Unable to find the scope of node "
+            "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
+            "none of its ancestors are Container or Schedule nodes."
+            in str(excinfo.value))
 
 
 def test_find_or_create_symbol():
