@@ -258,7 +258,7 @@ def test_kernelprocedure_notfound():
     '''
     with pytest.raises(ParseError) as excinfo:
 #        my_code = CODE.replace("=> test_code", "=> non_existant_code")
-        my_code = CODE.replace("module procedure sub_code", "module procedure non_existant_code")
+        my_code = CODE.replace("module procedure sub_code", "module procedure sub_code, non_existant_code")
         _ = create_kernelprocedure(my_code)
     assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)

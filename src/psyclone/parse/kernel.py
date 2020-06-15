@@ -553,10 +553,14 @@ class KernelProcedure(object):
             if isinstance(statement, fparser1.block_statements.Interface) and statement.name == bname:
                      subnames=statement.a.module_procedures
                      for subname in subnames:
+                         code = None
                          for newstatement, _ in fpapi.walk(modast, -1):
                             if isinstance(newstatement, fparser1.block_statements.Subroutine) and newstatement.name == subname:
                                 code = statement
-                                break
+                         if not code:
+                             raise ParseError(
+                    "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
+                    "'{0}' not found.".format(subname))
             elif isinstance(statement, fparser1.block_statements.Subroutine) and statement.name == bname:
                 code = statement
                 break
