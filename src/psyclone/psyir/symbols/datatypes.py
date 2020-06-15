@@ -68,6 +68,40 @@ class DeferredType(DataType):
         return "DeferredType"
 
 
+class UnknownType(DataType):
+    '''
+    Indicates that the type declaration is not supported by the PSyIR.
+
+    :param str declaration_txt: string containing the original variable \
+                                declaration.
+
+    :raises TypeError: if the supplied declaration_txt is not a str.
+
+    '''
+    def __init__(self, declaration_txt):
+        if not isinstance(declaration_txt, str):
+            raise TypeError(
+                "UnknownType constructor expects the original variable "
+                "declaration as a string but got an argument of type '{0}'".
+                format(type(declaration_txt).__name__))
+        self._declaration = declaration_txt
+
+    def __str__(self):
+        '''
+        :returns: a description of this unknown type.
+        :rtype: str
+        '''
+        return "UnknownType('{0}')".format(self._declaration)
+
+    @property
+    def declaration(self):
+        '''
+        :returns: the original declaration of the symbol.
+        :rtype: str
+        '''
+        return self._declaration
+
+
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
 
