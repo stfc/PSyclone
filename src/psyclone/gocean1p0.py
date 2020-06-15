@@ -1184,10 +1184,19 @@ class GOKern(CodedKern):
                             intent="in", target=True,
                             entity_decls=[arg.name for arg in args]))
 
-        # Scalar grid properties are all integers
-        args = [x for x in grid_prop_args if x.is_scalar()]
+        # Scalar integer grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar() and x.intrinsic_type == "integer"]
         if args:
             sub.add(DeclGen(sub, datatype="integer", intent="in",
+                            target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar real grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar() and x.intrinsic_type == "real"]
+        if args:
+            sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
                             target=True,
                             entity_decls=[arg.name for arg in args]))
 
@@ -1252,11 +1261,11 @@ class GOKern(CodedKern):
                         .fortran.format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
-                    # they are just arrays) so we check whether the device
+                    # they are just pointers) so we check whether the device
                     # pointer is NULL.
                     device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
                                                                arg.name)
-                    condition = device_buff + " == 0"
+                    condition = device_buff + " == c_null_ptr"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
                 nbytes = symtab.lookup_with_tag("opencl_bytes").name
@@ -1626,6 +1635,16 @@ class GOKernelGridArgument(Argument):
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''
         return self._type
+
+    @property
+    def intrinsic_type(self):
+        '''
+        :returns: the intrinsic_type of this argument.
+        :rtype: str
+
+        '''
+        api_config = Config.get().api_conf("gocean1.0")
+        return api_config.grid_properties[self._property_name].intrinsic_type
 
     def is_scalar(self):
         ''':return: If this variable is a scalar variable or not.
