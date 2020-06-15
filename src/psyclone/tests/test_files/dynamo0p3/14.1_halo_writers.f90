@@ -36,7 +36,9 @@
 
 program halo_writers
 
-  ! Description: single function specified in an invoke call
+  ! Description: single function specified in an invoke call checking that
+  ! "halo_dirty" calls are generated only for "write" fields (write,
+  ! readwrite and inc access) but not for "read" fields.
   use field_mod,            only: field_type
   use testkern_writers_mod, only: testkern_writers_type
 

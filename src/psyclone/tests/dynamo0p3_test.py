@@ -3043,7 +3043,8 @@ def test_halo_dirty_1():
 
 
 def test_halo_dirty_2(tmpdir):
-    ''' Check halo_dirty calls only for write and inc (not for read) '''
+    ''' Check halo_dirty calls only for field "writers", that is fields with
+    write, readwrite and inc access (not for read). '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.1_halo_writers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)

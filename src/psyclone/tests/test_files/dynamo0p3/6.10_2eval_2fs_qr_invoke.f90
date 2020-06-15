@@ -57,6 +57,6 @@ program eval_invoke
        testkern_eval_op_type(op1, m2),  &
        ! Requires XYoZ quadrature: basis on W1, diff basis on W2 and
        ! basis+diff basis on W3.
-       testkern_qr_type(f1, f2, m1, a, m2, istp, qr%data))
+       testkern_qr_type(f1, f2, m1, a, m2, istp, qr))
 
 end program eval_invoke

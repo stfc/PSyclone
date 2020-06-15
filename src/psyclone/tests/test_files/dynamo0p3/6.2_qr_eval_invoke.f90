@@ -42,7 +42,7 @@ program qr_eval_invoke
   implicit none
 
   type(field_type)           :: f0, f1, f2, m1, m2
-  type(quadrature_xyoz_type) :: qrr
+  type(quadrature_xyoz_type) :: qr
   real(r_def)                :: a
   integer(i_def)             :: istp
 

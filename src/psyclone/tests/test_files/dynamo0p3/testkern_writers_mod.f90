@@ -43,17 +43,18 @@ module testkern_writers_mod
 
   implicit none
 
-  ! Test halo_dirty calls only for write and inc fields (not for read)
+  ! Test halo_dirty calls only for field "writers", that is write, readwrite
+  ! and inc fields (not for read)
   type, extends(kernel_type) :: testkern_writers_type
-     type(arg_type) :: meta_args(8) = (/    &
-          arg_type(GH_FIELD, GH_WRITE, W3), &
-          arg_type(GH_FIELD, GH_READ,  W1), &
-          arg_type(GH_FIELD, GH_INC,   W1), &
-          arg_type(GH_FIELD, GH_READ,  W1), &
-          arg_type(GH_FIELD, GH_WRITE, W3), &
-          arg_type(GH_FIELD, GH_WRITE, W3), &
-          arg_type(GH_FIELD, GH_INC,   W1), &
-          arg_type(GH_FIELD, GH_INC,   W1)  &
+     type(arg_type) :: meta_args(8) = (/        &
+          arg_type(GH_FIELD, GH_WRITE,     W3), &
+          arg_type(GH_FIELD, GH_READ,      W1), &
+          arg_type(GH_FIELD, GH_INC,       W1), &
+          arg_type(GH_FIELD, GH_READ,      W1), &
+          arg_type(GH_FIELD, GH_READWRITE, W3), &
+          arg_type(GH_FIELD, GH_WRITE,     W3), &
+          arg_type(GH_FIELD, GH_INC,       W1), &
+          arg_type(GH_FIELD, GH_INC,       W1)  &
           /)
      integer :: iterates_over = CELLS
    contains
@@ -80,7 +81,7 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_w1) :: fld2
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld3
     real(kind=r_def), intent(in),    dimension(undf_w1) :: fld4
-    real(kind=r_def), intent(out),   dimension(undf_w3) :: fld5
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld5
     real(kind=r_def), intent(out),   dimension(undf_w3) :: fld6
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld7
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld8
