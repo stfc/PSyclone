@@ -245,7 +245,7 @@ def test_no_explicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an explicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj\n"
+                                 "integer :: ji, jpj, idx\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "  do idx = 1, 5\n"
