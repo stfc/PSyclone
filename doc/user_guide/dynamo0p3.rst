@@ -1331,6 +1331,9 @@ layouts:
 |                 | separately identfied) and the second running over|
 |                 | vertical levels.                                 |
 +-----------------+--------------------------------------------------+
+| LAYOUT_XYZ      | Rank-1 array laid out such that horizontal       |
+|                 | locations are contiguous in memory.              |
++-----------------+--------------------------------------------------+
 | LAYOUT_X_Y_Z    | Contiguous in longitude. Rank-3 array.           |
 +-----------------+--------------------------------------------------+
 
@@ -1371,7 +1374,12 @@ therefore requires the following metadata entries::
 Since this is obviously a common use case, these are the default
 values and are set in the PSyclone configuration file (see the
 :ref:`configuration` section). Kernel metadata therefore need only
-explicitly set these quantities if they differ from the defaults.
+explicitly set these quantities if they differ from the defaults.  For
+instance, a 'physics' kernel expecting rank-1 arrays ordered first by
+horizontal location and then vertical level would have::
+
+  data_layout = LAYOUT_XYZ
+  data_addressing(2) = (/ DIRECT_XY, DIRECT_Z /)
 
 Procedure
 #########

@@ -208,7 +208,7 @@ Entry             		Description
 =======================	=======================================================
 compute_annexed_dofs    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
-                        exchanges. See :ref:`lfric-annexed_dofs` in the
+                        exchanges. See :ref:`annexed_dofs` in the
 			Developer guide.
 
 kernel_data_layout      Single name specifying the default data layout that
@@ -225,7 +225,7 @@ default_kind            Captures the default kinds (precisions) for the
                         supported datatypes in LFRic (`real`, `integer` and
                         `logical`).
 
-RUN_TIME_CHECKS         Specifies whether to generate run-time validation
+run_time_checks         Specifies whether to generate run-time validation
                         checks, see :ref:`lfric-run-time-checks`.
 ======================= =======================================================
 

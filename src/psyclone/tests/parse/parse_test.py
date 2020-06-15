@@ -276,25 +276,6 @@ end module testkern_eval_mod
 '''
 
 
-def test_get_int():
-    ''' Tests for the KernelType.get_integer(). method '''
-    ast = fpapi.parse(MDATA, ignore_comments=False)
-    ktype = KernelType(ast)
-    iter_val = ktype.get_integer_variable("iterates_over")
-    assert iter_val == "cells"
-
-
-def test_get_int_err():
-    ''' Tests that we raise the expected error if the meta-data contains
-    an integer literal instead of a name. '''
-    mdata = MDATA.replace("= cells", "= 1")
-    ast = fpapi.parse(mdata, ignore_comments=False)
-    with pytest.raises(ParseError) as err:
-        _ = KernelType(ast)
-    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
-            str(err.value))
-
-
 def test_kernel_binding_not_code():
     ''' Check that we raise the expected error when Kernel meta-data uses
     a specific binding but does not have 'code' as the generic name. '''

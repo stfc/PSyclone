@@ -352,69 +352,6 @@ def test_kerneltype_repr():
     assert repr(tmp) == "KernelType(test_type, cells)"
 
 
-def test_kerneltype_get_int_array():
-    ''' Check the basic functionality of the get_integer_array() method. '''
-    parse_tree = parse(CODE)
-    tmp = KernelType(parse_tree)
-    values = tmp.get_integer_array("data_addressing")
-    assert len(values) == 2
-    assert "direct_x" in values
-    assert "direct_y" in values
-    # We should get an empty list if the named array is not found
-    assert tmp.get_integer_array("data_missing") == []
-
-
-def test_kerneltype_get_int_array_errors(monkeypatch):
-    ''' Check that the get_integer_array() method raises the expected errors
-    when encountering invalid data. Most of these are not valid Fortran but
-    fparser is not yet sufficiently mature to identify this. '''
-    # Not a valid array constructor
-    new_code = CODE.replace("data_addressing(2) = (/direct_x, direct_y/)",
-                            "data_addressing(2) = 1")
-    parse_tree = parse(new_code)
-    tmp = KernelType(parse_tree)
-    with pytest.raises(ParseError) as err:
-        _ = tmp.get_integer_array("data_addressing")
-    assert "RHS of assignment is not an array constructor" in str(err.value)
-    # Not a 1D array
-    new_code = CODE.replace("data_addressing(2)", "data_addressing(2,2)")
-    parse_tree = parse(new_code)
-    tmp = KernelType(parse_tree)
-    with pytest.raises(ParseError) as err:
-        _ = tmp.get_integer_array("data_addressing")
-    assert "only 1D arrays are supported" in str(err.value)
-    # Wrong number of elements specified
-    new_code = CODE.replace("data_addressing(2)", "data_addressing(1)")
-    parse_tree = parse(new_code)
-    tmp = KernelType(parse_tree)
-    with pytest.raises(ParseError) as err:
-        _ = tmp.get_integer_array("data_addressing")
-    assert ("the number of items in the constructor (2) does not match the "
-            "array extent (1): " in str(err.value))
-    # Array extent not specified with integer literal
-    new_code = CODE.replace("data_addressing(2)", "data_addressing(num)")
-    parse_tree = parse(new_code)
-    tmp = KernelType(parse_tree)
-    with pytest.raises(ParseError) as err:
-        _ = tmp.get_integer_array("data_addressing")
-    assert ("only integer literals are supported for specifying the extent "
-            in str(err.value))
-    # Values are not names
-    new_code = CODE.replace("data_addressing(2) = (/direct_x, direct_y/)",
-                            "data_addressing(2) = (/1, 1/)")
-    parse_tree = parse(new_code)
-    tmp = KernelType(parse_tree)
-    with pytest.raises(ParseError) as err:
-        _ = tmp.get_integer_array("data_addressing")
-    assert "the array constructor does not contain any Names" in str(err.value)
-    # Unexpected parse tree. No easy way to fake this so monkeypatch the
-    # fparser.two.utils.walk() utility to return an empty list.
-    monkeypatch.setattr(utils, "walk", lambda w, x, y, z: [])
-    with pytest.raises(InternalError) as err:
-        _ = tmp.get_integer_array("data_addressing")
-    assert "Unsupported assignment statement: " in str(err.value)
-
-
 # Meta-data specifying quadrature
 DIFF_BASIS = '''
 module dummy_mod
