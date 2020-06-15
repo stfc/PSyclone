@@ -563,10 +563,11 @@ def test_node_dag(tmpdir, have_graphviz):
     assert "unsupported graphviz file format" in str(excinfo.value)
 
 
-def test_find_symbol_table():
-    '''Test that the find_symbol_table method in a Node instance returns
-    the nearest symbol table if there is one and raises an exception if
-    not.
+def test_scope():
+    '''Test that the scope method in a Node instance returns the closest
+    ancestor Schedule or Container Node (including itself) or raises
+    an exception if one does not exist.
+
     '''
     kernel_symbol_table = SymbolTable()
     symbol = DataSymbol("tmp", REAL_TYPE)
@@ -575,19 +576,20 @@ def test_find_symbol_table():
     assign = Assignment.create(ref, Literal("0.0", REAL_TYPE))
     kernel_schedule = KernelSchedule.create("my_kernel", kernel_symbol_table,
                                             [assign])
-    container_symbol_table = SymbolTable()
-    container = Container.create("my_container", container_symbol_table,
+    container = Container.create("my_container", SymbolTable(),
                                  [kernel_schedule])
-    assert ref.find_symbol_table() is kernel_symbol_table
-    assert assign.find_symbol_table() is kernel_symbol_table
-    assert kernel_schedule.find_symbol_table() is kernel_symbol_table
-    assert container.find_symbol_table() is container_symbol_table
+    assert ref.scope is kernel_schedule
+    assert assign.scope is kernel_schedule
+    assert kernel_schedule.scope is kernel_schedule
+    assert container.scope is container
 
-    node = Node()
+    node = Literal("x", INTEGER_TYPE)
     with pytest.raises(InternalError) as excinfo:
-        node.find_symbol_table()
-    assert ("PSyclone internal error: Symbol table not found in any "
-            "ancestor nodes." in str(excinfo.value))
+        _ = node.scope
+    assert ("PSyclone internal error: Unable to find the scope of node "
+            "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
+            "none of its ancestors are Container or Schedule nodes."
+            in str(excinfo.value))
 
 
 def test_find_or_create_symbol():
