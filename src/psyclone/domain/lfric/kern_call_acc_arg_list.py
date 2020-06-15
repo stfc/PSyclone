@@ -72,9 +72,9 @@ class KernCallAccArgList(KernCallArgList):
         for idx in range(1, argvect.vector_size+1):
             text1 = argvect.proxy_name + "(" + str(idx) + ")"
 
-            self._arglist.append(text1)
+            self.append(text1)
             text2 = text1 + "%data"
-            self._arglist.append(text2)
+            self.append(text2)
         if var_accesses is not None:
             var_accesses.add_access(argvect.proxy_name,
                                     AccessType.READ, self._kern)
@@ -95,9 +95,9 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
         text1 = arg.proxy_name
-        self._arglist.append(text1)
+        self.append(text1)
         text2 = text1 + "%data"
-        self._arglist.append(text2)
+        self.append(text2)
         if var_accesses is not None:
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
@@ -124,7 +124,7 @@ class KernCallAccArgList(KernCallArgList):
         from psyclone.dynamo0p3 import DynStencils
         var_name = \
             DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
-        self._arglist.append(var_name)
+        self.append(var_name)
         if var_accesses is not None:
             var_accesses.add_access(var_name, AccessType.READ,
                                     self._kern, [1])
@@ -145,11 +145,10 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        if arg.proxy_name_indexed not in self._arglist:
-            self._arglist.append(arg.proxy_name_indexed)
-            self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
-            self._arglist.append(arg.proxy_name_indexed +
-                                 "%local_stencil")
+        if arg.proxy_name_indexed not in self.arglist:
+            self.append(arg.proxy_name_indexed)
+            self.append(arg.proxy_name_indexed + "%ncell_3d")
+            self.append(arg.proxy_name_indexed + "%local_stencil")
             if var_accesses is not None:
                 var_accesses.add_access(arg.proxy_name_indexed +
                                         "%ncell_3d",
@@ -175,9 +174,9 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
         undf_name = function_space.undf_name
-        self._arglist.append(undf_name)
+        self.append(undf_name)
         map_name = function_space.map_name
-        self._arglist.append(map_name)
+        self.append(map_name)
         if var_accesses is not None:
             var_accesses.add_access(undf_name, AccessType.READ,
                                     self._kern)
