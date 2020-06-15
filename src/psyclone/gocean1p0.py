@@ -1265,7 +1265,7 @@ class GOKern(CodedKern):
                     # pointer is NULL.
                     device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
                                                                arg.name)
-                    condition = device_buff + " == c_null_ptr"
+                    condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
                 nbytes = symtab.lookup_with_tag("opencl_bytes").name
