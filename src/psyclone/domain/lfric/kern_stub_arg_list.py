@@ -72,7 +72,7 @@ class KernStubArgList(ArgOrdering):
         ArgOrdering.__init__(self, kern)
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an
-        # argument_list that may be able to replace the _arglist below.
+        # argument_list that may be able to replace the argument list below.
         self._stub_symtab = SymbolTable()
 
     def cell_position(self, var_accesses=None):
@@ -85,7 +85,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self._arglist.append("cell")
+        self.append("cell")
         if var_accesses is not None:
             var_accesses.add_access("cell", AccessType.READ, self._kern)
 
@@ -99,7 +99,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self._arglist.append("nlayers")
+        self.append("nlayers")
         if var_accesses is not None:
             var_accesses.add_access("nlayers", AccessType.READ, self._kern)
 
@@ -113,7 +113,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self._arglist.append("ncell_2d")
+        self.append("ncell_2d")
         if var_accesses is not None:
             var_accesses.add_access("ncell_2d", AccessType.READ, self._kern)
 
@@ -139,7 +139,7 @@ class KernStubArgList(ArgOrdering):
                     "_v" + str(idx))
             if self._first_arg:
                 self._first_arg = False
-            self._arglist.append(text)
+            self.append(text)
             if var_accesses is not None:
                 # Each argument is array, so mark the array access:
                 var_accesses.add_access(text, AccessType.READ, self._kern, [1])
@@ -157,7 +157,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
-        self._arglist.append(text)
+        self.append(text)
         if var_accesses is not None:
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
@@ -180,7 +180,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
-        self._arglist.append(name)
+        self.append(name)
         if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern, [1])
 
@@ -200,7 +200,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.direction_name(self._stub_symtab, arg)
-        self._arglist.append(name)
+        self.append(name)
         if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern)
 
@@ -219,7 +219,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_name(self._stub_symtab, arg)
-        self._arglist.append(name)
+        self.append(name)
         if var_accesses is not None:
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
@@ -239,14 +239,14 @@ class KernStubArgList(ArgOrdering):
 
         '''
         size = arg.name + "_ncell_3d"
-        self._arglist.append(size)
+        self.append(size)
         # If this is the first argument in the kernel then keep a
         # note so that we can put subsequent declarations in the
         # correct location
         if self._first_arg:
             self._first_arg = False
         text = arg.name
-        self._arglist.append(text)
+        self.append(text)
         if var_accesses is not None:
             var_accesses.add_access(size, AccessType.READ, self._kern)
             var_accesses.add_access(text, AccessType.READ, self._kern)
@@ -265,7 +265,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         # The CMA operator itself
-        self._arglist.append(arg.name)
+        self.append(arg.name)
         # Associated scalar parameters
         nrow = arg.name + "_nrow"
         _local_args = [nrow]
@@ -282,7 +282,7 @@ class KernStubArgList(ArgOrdering):
         gamma_m = arg.name + "_gamma_m"
         gamma_p = arg.name + "_gamma_p"
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
-        self._arglist += _local_args
+        self.extend(_local_args)
         if var_accesses is not None:
             var_accesses.add_access(arg.name, AccessType.READ, self._kern)
             for var_name in _local_args:
@@ -306,7 +306,7 @@ class KernStubArgList(ArgOrdering):
 
          '''
         dofmap = function_space.cbanded_map_name
-        self._arglist.append(dofmap)
+        self.append(dofmap)
         if var_accesses is not None:
             var_accesses.add_access(dofmap, AccessType.READ, self._kern)
 
@@ -337,7 +337,7 @@ class KernStubArgList(ArgOrdering):
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
                 "be supplied but got {0}".format(operator.type))
         map_name = function_space.cma_indirection_map_name
-        self._arglist.append(map_name)
+        self.append(map_name)
         if var_accesses is not None:
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
@@ -361,7 +361,7 @@ class KernStubArgList(ArgOrdering):
             raise InternalError(
                 "Expected argument type to be one of '{0}' but got '{1}'".
                 format(GH_VALID_SCALAR_NAMES, scalar_arg.type))
-        self._arglist.append(scalar_arg.name)
+        self.append(scalar_arg.name)
         if var_accesses is not None:
             var_accesses.add_access(scalar_arg.name, AccessType.READ,
                                     self._kern)
@@ -381,7 +381,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         ndf_name = function_space.ndf_name
-        self._arglist.append(ndf_name)
+        self.append(ndf_name)
         if var_accesses is not None:
             var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
 
@@ -400,9 +400,9 @@ class KernStubArgList(ArgOrdering):
 
         '''
         undf_name = function_space.undf_name
-        self._arglist.append(undf_name)
+        self.append(undf_name)
         map_name = function_space.map_name
-        self._arglist.append(map_name)
+        self.append(map_name)
         if var_accesses is not None:
             var_accesses.add_access(undf_name, AccessType.READ, self._kern)
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
@@ -434,7 +434,7 @@ class KernStubArgList(ArgOrdering):
                 # part of the shape name to "qr_".
                 basis_name = function_space.get_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self._arglist.append(basis_name)
+                self.append(basis_name)
                 if var_accesses is not None:
                     var_accesses.add_access(basis_name, AccessType.READ,
                                             self._kern)
@@ -446,7 +446,7 @@ class KernStubArgList(ArgOrdering):
                 for _, target in self._kern.eval_targets.items():
                     basis_name = \
                         function_space.get_basis_name(on_space=target[0])
-                    self._arglist.append(basis_name)
+                    self.append(basis_name)
                     if var_accesses is not None:
                         var_accesses.add_access(basis_name, AccessType.READ,
                                                 self._kern)
@@ -482,7 +482,7 @@ class KernStubArgList(ArgOrdering):
                 # last part of the shape name to "qr_".
                 diff_basis_name = function_space.get_diff_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self._arglist.append(diff_basis_name)
+                self.append(diff_basis_name)
                 if var_accesses is not None:
                     var_accesses.add_access(diff_basis_name, AccessType.READ,
                                             self._kern)
@@ -495,7 +495,7 @@ class KernStubArgList(ArgOrdering):
                 for _, target in self._kern.eval_targets.items():
                     diff_basis_name = function_space.get_diff_basis_name(
                         on_space=target[0])
-                    self._arglist.append(diff_basis_name)
+                    self.append(diff_basis_name)
                     if var_accesses is not None:
                         var_accesses.add_access(diff_basis_name,
                                                 AccessType.READ, self._kern)
@@ -519,7 +519,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         orientation_name = function_space.orientation_name
-        self._arglist.append(orientation_name)
+        self.append(orientation_name)
         if var_accesses is not None:
             var_accesses.add_access(orientation_name, AccessType.READ,
                                     self._kern)
@@ -539,7 +539,7 @@ class KernStubArgList(ArgOrdering):
         '''
         arg = self._kern.arguments.get_arg_on_space(function_space)
         name = "boundary_dofs_"+arg.name
-        self._arglist.append(name)
+        self.append(name)
         if var_accesses is not None:
             var_accesses.add_access(name, AccessType.READ, self._kern)
 
@@ -572,9 +572,8 @@ class KernStubArgList(ArgOrdering):
         '''
         if self._kern.mesh.properties:
             from psyclone.dynamo0p3 import LFRicMeshProperties
-            self._arglist.extend(
-                LFRicMeshProperties(self._kern).
-                kern_args(stub=True, var_accesses=var_accesses))
+            self.extend(LFRicMeshProperties(self._kern).
+                        kern_args(stub=True, var_accesses=var_accesses))
 
     def quad_rule(self, var_accesses=None):
         '''Provide quadrature information for this kernel stub (necessary
@@ -591,14 +590,4 @@ class KernStubArgList(ArgOrdering):
                 for var_name in rule.kernel_args:
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern)
-            self._arglist.extend(rule.kernel_args)
-
-    @property
-    def arglist(self):
-        '''return the kernel argument list. The generate function must be
-        called first'''
-        if not self._arglist:
-            raise GenerationError(
-                "Internal error. The argument list in KernStubArgList:"
-                "arglist() is empty. Has the generate() method been called?")
-        return self._arglist
+            self.extend(rule.kernel_args)

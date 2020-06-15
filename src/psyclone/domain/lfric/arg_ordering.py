@@ -42,7 +42,7 @@ kernel calls.
 from __future__ import print_function, absolute_import
 import abc
 
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.core.access_type import AccessType
 
 
@@ -54,6 +54,39 @@ class ArgOrdering(object):
         self._kern = kern
         self._generate_called = False
         self._arglist = []
+
+    def append(self, var_name):
+        '''Appends the specified variable name to the list of all arguments.
+        :param str var_name: the name of the variable.
+
+        '''
+        self._arglist.append(var_name)
+
+    def extend(self, list_var_name):
+        '''Appends all variable names in the argument list to the list of
+        all arguments.
+
+        :param list_var_name: the list with name of the variables to append.
+        :type list_var_name: list of str.
+        '''
+        self._arglist.extend(list_var_name)
+
+    @property
+    def arglist(self):
+        '''
+        :return: the kernel argument list. The generate method must be \
+        called first.
+        :rtype: list of str.
+
+        :raises InternalError: if the generate() method has not been \
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the arglist() method")
+        return self._arglist
 
     def generate(self, var_accesses=None):
         # pylint: disable=too-many-statements, too-many-branches
