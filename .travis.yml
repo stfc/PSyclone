@@ -48,7 +48,7 @@ before_install:
   # Specify "fparser_submodule" (without quotes) as an argument to
   # install_optional.sh in order to run the tests with the version of
   # fparser pointed to by the git submodule.
-  - ./bin/install_optional.sh fparser_submodule
+  - ./bin/install_optional.sh
   - pip install codecov
 install:
   - "pip install ."
@@ -57,19 +57,18 @@ script:
   # suite (pulled in with the fparser submodule)
   - coverage run --source=psyclone -m py.test src/psyclone
   - coverage report -m
-  # Invoke the directory change and check_examples script as a single command
-  # so that Travis is returned the error code from the script. Since there is
+  # Execute all of the examples. Since there is
   # a lot of output to stdout this is redirected to /dev/null.
-  - ( cd examples && ./check_examples > /dev/null )
+  - ( make -C examples transform > /dev/null )
 after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new
 # version is tagged on master
 deploy:
   provider: pypi
-  user: "trackstand"
+  user: "__token__"
   password:
-    secure: "A9BpeNY9Yvwqs7Z51dLS8OAd4iKvnsIF7t5xO/V5tS3t63xM9I6mC1mYm3TbT8eLAEje78JPXPIIAzLbOiGyaL59h01Qh3jA7AtK7tqTV3zQt5nQf6vKs0Uv1Bep65eTD8eIO7J3IM0nswk8aSeKWBkHO7rwuOOeAAI/aU3XFU0hXkMjpXz8om/crj1tfKvHdJ8X+Bzlslau4X1Q1oW33QJy0c+verHW4Ux/eAV365C6KkhRKCmaU0VHutwtVcplSulq4nvVTYCIoC1NL7wf7eR9LAkzaXAuo1aPcr3Gcw+TfQgxw28+w+jtq+OwEh9HSiw64FyaVl8utotm4hbRLR6xru4qpH2Sm7HzB1VSHS9Oi4REap2c1kxjfV6C7OEVxfrIEHBZVs59VIyg5+qlvSaKJLnNIngEXJu6jdNJFwYAUpViglWR43SaqcErDPbliAD9cdIpibWv2zT6O5gISv/aiPfL4qKINcEEPM6uONb5BWSgvMmLQuQXIsihvvRYtQWqJytqfX7HGm0rjWBWruPMl2WYEuYZ0IldIRREhSNBgryaKp1ikzUgAndMBJstb+CYvy30rMcxJESyVs5vJkwqYkw/vIbvjEsZZ5i2Y8Lh92Jb4XVuaJGUEldnN9e/cJaexuZT8eVbwhon3rBNWTMldGm+eng7u1FQmLEMFJo="
+    secure: "0mB+R7bBgi+uHyKqclPYVQA9aZkLlQqm5QOo+9bmP/MEqE9TwR98J7EYKM969u9uD9i54JZWQ6t2zOzONIKI9XOVJypkGNn5r+mksaMtt8HxKfeJNjYjLPPaELSHB7BL2nCR5GC6Ni7ZVxAaCQd5pnZ54KuLgvmYcqqYactbZ4Dm6sd7Qm+xY2s+9S9UH9Z9a1Ro15duwaFCQUxEJ5qZ6+mYEyMIs9kPSk/s9ro1y6diYnRMnkJwTU3KEKiz7gpUSXY8M+Amk5FxQNw5yRM9arI3p6+IQq+cPVEAmKx6uOBbtKjn+MlIxRl1EkL5b3uIM6k+IWTrGfrHNH+WPq8SE6/vYchRj1vJfUuIB65+1AWYrfVaTxwFGYQugMDge8J+OFThubpzM/zYoMGkF3wftVDo28C40sssuekebne6WDIO7y4v8WuHBBW5hH3k9idho7eMQztHHSVN19iuNbBhbEiA5xdbddrwsBBvPbJq4Se8mumAsmrl7tz8OTK3wHAKbQPfq4RG5I4QoDy9yAC0+angIpaaMpRy6bi5FIFBOWr6tX2kGi6tSZCAyO32P2jf5A4qgy9pjgidKvde0/9W81uzxyCGib/0dULeT8D5qwL35v5I2RQ8WF1WFH3L6YXs28fam8VVA/Sm0+T6/taeEP8YOuGR9yJe98G1Rpo4BBI="
   on:
     tags: true
 

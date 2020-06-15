@@ -42,12 +42,12 @@ sub-classes.'''
 import abc
 from enum import Enum
 import six
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.errors import GenerationError
 
 
 @six.add_metaclass(abc.ABCMeta)
-class Operation(Node):
+class Operation(DataNode):
     '''
     Abstract base class for PSyIR nodes representing operators.
 
@@ -65,6 +65,9 @@ class Operation(Node):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = None
+    # Textual description of the node.
+    _text_name = "Operation"
+    _colour_key = "Operation"
 
     def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
@@ -75,8 +78,6 @@ class Operation(Node):
                 "{0}.Operator but found {1}.".format(type(self).__name__,
                                                      type(operator).__name__))
         self._operator = operator
-        self._text_name = "Operation"
-        self._colour_key = "Operation"
 
     @property
     def operator(self):
@@ -119,13 +120,11 @@ class UnaryOperation(Operation):
     '''
     Node representing a UnaryOperation expression. As such it has one operand
     as child 0, and an attribute with the operator type.
-
-    :param operator: Enumerated type capturing the unary operator.
-    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
-    :param parent: the parent node of this UnaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
+    # Textual description of the node.
+    _children_valid_format = "DataNode"
+    _text_name = "UnaryOperation"
+
     Operator = Enum('Operator', [
         # Arithmetic Operators
         'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
@@ -139,9 +138,18 @@ class UnaryOperation(Operation):
         'REAL', 'INT'
         ])
 
-    def __init__(self, operation, parent=None):
-        super(UnaryOperation, self).__init__(operation, parent)
-        self._text_name = "UnaryOperation"
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, DataNode)
 
     @staticmethod
     def create(oper, child):
@@ -164,15 +172,10 @@ class UnaryOperation(Operation):
                 "oper argument in create method of UnaryOperation class "
                 "should be a PSyIR UnaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
-        if not isinstance(child, Node):
-            raise GenerationError(
-                "child argument in create method of UnaryOperation class "
-                "should be a PSyIR Node but found '{0}'."
-                "".format(type(child).__name__))
 
         unary_op = UnaryOperation(oper)
-        child.parent = unary_op
         unary_op.children = [child]
+        child.parent = unary_op
         return unary_op
 
 
@@ -180,12 +183,6 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
-
-    :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
-    :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
@@ -244,13 +241,25 @@ class BinaryOperation(Operation):
 
     .. note:: The type of data in `array1` and `array2` must be the
         same and the resultant data will also have the same
-        type. Currently only `DataType.REAL` is supported.
+        type. Currently only REAL data is supported.
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "DataNode, DataNode"
+    _text_name = "BinaryOperation"
 
-    def __init__(self, operator, parent=None):
-        super(BinaryOperation, self).__init__(operator, parent)
-        self._text_name = "BinaryOperation"
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position in (0, 1) and isinstance(child, DataNode)
 
     def math_equal(self, other):
         ''':param other: the node to compare self with.
@@ -303,17 +312,11 @@ class BinaryOperation(Operation):
                 "oper argument in create method of BinaryOperation class "
                 "should be a PSyIR BinaryOperation Operator but found '{0}'."
                 "".format(type(oper).__name__))
-        for name, instance in [("lhs", lhs), ("rhs", rhs)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of BinaryOperation class "
-                    "should be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
 
         binary_op = BinaryOperation(oper)
+        binary_op.children = [lhs, rhs]
         lhs.parent = binary_op
         rhs.parent = binary_op
-        binary_op.children = [lhs, rhs]
         return binary_op
 
 
@@ -322,22 +325,29 @@ class NaryOperation(Operation):
     Node representing a n-ary operation expression. The n operands are the
     stored as the 0 - n-1th children of this node and the type of the operator
     is held in an attribute.
-
-
-    :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
-    :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
+    # Textual description of the node.
+    _children_valid_format = "[DataNode]+"
+    _text_name = "NaryOperation"
+
     Operator = Enum('Operator', [
         # Arithmetic Operators
         'MAX', 'MIN', 'SUM'
         ])
 
-    def __init__(self, operator, parent=None):
-        super(NaryOperation, self).__init__(operator, parent)
-        self._text_name = "NaryOperation"
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return isinstance(child, DataNode)
 
     @staticmethod
     def create(oper, children):
@@ -367,15 +377,9 @@ class NaryOperation(Operation):
                 "children argument in create method of NaryOperation class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "NaryOperation class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
 
         nary_op = NaryOperation(oper)
+        nary_op.children = children
         for child in children:
             child.parent = nary_op
-        nary_op.children = children
         return nary_op

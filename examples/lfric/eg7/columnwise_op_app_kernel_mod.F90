@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -48,11 +48,13 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     GH_READ, GH_INC,                        &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     GH_COLUMN_INDIRECTION_DOFMAP,           &
-                                    CELLS 
+                                    CELLS
 
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -61,7 +63,7 @@ implicit none
 type, public, extends(kernel_type) :: columnwise_op_app_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &  
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
@@ -71,31 +73,18 @@ contains
 end type columnwise_op_app_kernel_type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_app_kernel_type
-   module procedure columnwise_op_app_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_app_kernel_code
+
 contains
-  
-  type(columnwise_op_app_kernel_type) function columnwise_op_app_kernel_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_op_app_kernel_constructor
 
   !> @brief The subroutine which is called directly from the PSY layer and
   !> applies the operator as lhs += A.x
   !>
   !> @param [in] cell the horizontal cell index
   !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [inout] lhs Resulting field lhs += A.x
+  !> @param [in,out] lhs Resulting field lhs += A.x
   !> @param [in] x input field
   !> @param [in] columnwise_matrix banded matrix to assemble into
   !> @param [in] nrow number of rows in the banded matrix
@@ -110,12 +99,12 @@ contains
   !> @param [in] map1 dofmap for the to-space
   !> @param [in] indirection_dofmap_to indirection map for to-space
   !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
-  !> @param [in] undf2 unique number of degrees of freedom for the from-space 
+  !> @param [in] undf2 unique number of degrees of freedom for the from-space
   !> @param [in] map2 dofmap for the from-space
   !> @param [in] indirection_dofmap_from indirection map for from-space
   subroutine columnwise_op_app_kernel_code(cell,                  &
                                            ncell_2d,              &
-                                           lhs, x,                & 
+                                           lhs, x,                &
                                            columnwise_matrix,     &
                                            nrow,                  &
                                            ncol,                  &
@@ -130,7 +119,7 @@ contains
                                            indirection_dofmap_from)
 
     implicit none
-    
+
     ! Arguments
     integer(kind=i_def), intent(in) :: cell,  ncell_2d
     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
@@ -151,6 +140,7 @@ contains
     integer(kind=i_def) :: i,j, mu_i,mu_j
     ! Smallest/largest index in a particular row
     integer(kind=i_def) :: j_minus, j_plus
+
     do i=1, nrow
        ! Assumes that the first entry in the dofmaps is the smallest
        mu_i = map1(1) + indirection_dofmap_to(i) - 1

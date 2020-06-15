@@ -1,3 +1,40 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by: J. Henrichs, Bureau of Meteorology,
+..              I. Kavcic, Met Office
+
 .. _configuration:
 
 Configuration
@@ -52,33 +89,34 @@ section e.g.:
 ::
 
     [DEFAULT]
-    API = dynamo0.3
+    DEFAULTAPI = dynamo0.3
     DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
+    PSYIR_ROOT_NAME = psyir_tmp
+    VALID_PSY_DATA_PREFIXES = profile extract
 
-and an optional API specific section, for example for
-``dynamo0.3`` section:
-::
+and an optional API specific section, for example for the
+``dynamo0.3`` section::
 
    [dynamo0.3]
-   access_mapping = gh_read:read, gh_write:write, gh_rw:readwrite,
-                    gh_inc:inc, gh_sum:sum
+   access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                    gh_inc: inc, gh_sum: sum
+   COMPUTE_ANNEXED_DOFS = false
+   default_kind = real: r_def, integer: i_def, logical: l_def
+   KERNEL_DATA_LAYOUT = layout_zxy
+   KERNEL_DATA_ADDRESSING = direct_z, indirect_xy
+   RUN_TIME_CHECKS = false
 
-   compute_annexed_dofs = false
-
-   kernel_data_layout = layout_zxy
-   kernel_data_addressing = direct_z, indirect_xy
-
-or for ``gocean1.0``:
-::
+or for ``gocean1.0``::
 
    [gocean1.0]
    access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
-
-   iteration-spaces = offset_sw:ct:internal_we_halo:1:2:3:4
-                      offset_sw:ct:internal_ns_halo:1:{stop}:1:{stop}+1
+   grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
+                  go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
+                  go_grid_data: {0}%%data: array,
+                  ...
 
 The meaning of the various entries is described in the following sub-sections.
 
@@ -98,7 +136,7 @@ supported by PSyclone.
 ======================= =======================================================
 Entry                   Description
 ======================= =======================================================
-API                     The API that PSyclone assumes an Algorithm/Kernl
+DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
                         conforms to if no API is specified. Must be one of the
                         APIs supported by PSyclone (dynamo0.1, dynamo0.3,
                         gocean0.1, gocean1.0 and nemo). If there is no
@@ -121,6 +159,12 @@ REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
                         between elements of the array in which each thread
                         accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
+PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not
+                        supplied when creating a symbol. Defaults to
+                        "psyir_tmp".
+VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any
+                        PSyData-related transformations. See :ref:`psy_data`
+                        for details.
 ======================= =======================================================
 
 Common Sections
@@ -139,13 +183,13 @@ access_mapping          This field defines the strings that are used by a
                         value is a comma separated list of access-string:access
                         pairs, e.g.:
 
-                        ``gh_read:read, gh_write:write, gh_rw:readwrite,
-                        gh_inc:inc, gh_sum:sum``
+                        ``gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                        gh_inc: inc, gh_sum: sum``
 
                         At this stage these 5 types are defined for read, write,
                         read+write, increment and summation access by PSyclone.
                         Sum is a form of reduction.
-                        The gocean APIs do not support increment or sum, so
+                        The GOcean APIs do not support increment or sum, so
                         they only define three mappings for read, write, and 
                         readwrite.
 ======================= =======================================================
@@ -164,8 +208,8 @@ Entry             		Description
 =======================	=======================================================
 compute_annexed_dofs    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
-                        exchanges. See :ref:`annexed_dofs` in the Developers'
-                        guide.
+                        exchanges. See :ref:`lfric-annexed_dofs` in the
+			Developer guide.
 
 kernel_data_layout      Single name specifying the default data layout that
                         fields passed to kernels are expected to have. See
@@ -176,6 +220,13 @@ kernel_data_addressing  A comma-delimited list of one or more names specifying
                         how each dimension of a field is addressed. See
                         :ref:`lfric_kernel_data_layout` for the supported
                         values.
+
+default_kind            Captures the default kinds (precisions) for the
+                        supported datatypes in LFRic (`real`, `integer` and
+                        `logical`).
+
+RUN_TIME_CHECKS         Specifies whether to generate run-time validation
+                        checks, see :ref:`lfric-run-time-checks`.
 ======================= =======================================================
 
 ``gocean1.0`` Section

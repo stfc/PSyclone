@@ -2,7 +2,7 @@
 !
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -58,26 +58,25 @@ module restrict_test_kernel_mod
 
 contains
 
-  subroutine restrict_test_kernel_code(nlayers,                &
-                                       cell_map,               &
-                                       ncell_f_per_c,          &
-                                       ncell_f,                &
-                                       coarse, fine,           &
-                                       undf_any1, dofmap_any1, &
-                                       ndf_any2, undf_any2, dofmap_any2)
+  subroutine restrict_test_kernel_code(nlayers,                  &
+                                       cell_map,                 &
+                                       ncell_f_per_c, ncell_f,   &
+                                       coarse, fine,             &
+                                       undf_aspc1, dofmap_aspc1, &
+                                       ndf_aspc2, undf_aspc2, dofmap_aspc2)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ncell_f_per_c
-    integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map
     integer(kind=i_def), intent(in) :: ncell_f
-    integer(kind=i_def), intent(in) :: ndf_any2
-    integer(kind=i_def), dimension(ndf_any2, ncell_f), intent(in) :: dofmap_any2
-    integer(kind=i_def), dimension(ndf_any2), intent(in) :: dofmap_any1
-    integer(kind=i_def), intent(in) :: undf_any2, undf_any1
-    real(kind=r_def), dimension(undf_any1), intent(inout) :: coarse
-    real(kind=r_def), dimension(undf_any2), intent(in) :: fine
+    integer(kind=i_def), intent(in) :: ndf_aspc2
+    integer(kind=i_def), intent(in) :: undf_aspc2, undf_aspc1
+    integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map
+    integer(kind=i_def), dimension(ndf_aspc2, ncell_f), intent(in) :: dofmap_aspc2
+    integer(kind=i_def), dimension(ndf_aspc2), intent(in)          :: dofmap_aspc1
+    real(kind=r_def), dimension(undf_aspc1), intent(inout) :: coarse
+    real(kind=r_def), dimension(undf_aspc2), intent(in)    :: fine
 
   end subroutine restrict_test_kernel_code
 

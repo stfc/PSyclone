@@ -40,10 +40,10 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, KernelArgument
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -226,9 +226,10 @@ class GOInvokeSchedule(InvokeSchedule):
     supply our API-specific factories to the base InvokeSchedule class
     constructor. '''
 
-    def __init__(self, alg_calls):
+    def __init__(self, alg_calls, reserved_names=None):
         InvokeSchedule.__init__(self, GOKernCallFactory,
-                                GOBuiltInCallFactory, alg_calls)
+                                GOBuiltInCallFactory, alg_calls,
+                                reserved_names)
 
 
 class GOLoop(Loop):
@@ -244,29 +245,45 @@ class GOLoop(Loop):
         self.loop_type = loop_type
 
         if self._loop_type == "inner":
-            self._variable_name = "i"
-        elif self._loop_type == "outer":
-            self._variable_name = "j"
+            tag = "inner_loop_idx"
+            suggested_name = "i"
+        elif self.loop_type == "outer":
+            tag = "outer_loop_idx"
+            suggested_name = "j"
+
+        # This will return the symbol table from the closest ancestor
+        # that contains one. However, the original symbol my be in a
+        # different symbol table and if this is the case we will end
+        # up declaring the variable twice. Issue #630 describes this
+        # problem.
+        symtab = self.scope.symbol_table
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(suggested_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", DataType.INTEGER,
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
                               parent=self))  # stop
-        self.addchild(Literal("1", DataType.INTEGER, parent=self))  # step
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def gen_code(self, parent):
 
         if self.field_space == "every":
             from psyclone.f2pygen import DeclGen
-            from psyclone.psyir.nodes import BinaryOperation, Reference
+            from psyclone.psyir.nodes import BinaryOperation
             dim_var = DeclGen(parent, datatype="INTEGER",
-                              entity_decls=[self._variable_name])
+                              entity_decls=[self.variable.name])
             parent.add(dim_var)
 
             # Update start loop bound
-            self.start_expr = Literal("1", DataType.INTEGER, parent=self)
+            self.start_expr = Literal("1", INTEGER_TYPE, parent=self)
 
             # Update stop loop bound
             if self._loop_type == "inner":
@@ -276,9 +293,9 @@ class GOLoop(Loop):
             self.stop_expr = BinaryOperation(BinaryOperation.Operator.SIZE,
                                              parent=self)
             self.stop_expr.addchild(
-                Reference(DataSymbol(self.field_name, DataType.INTEGER),
+                Reference(DataSymbol(self.field_name, INTEGER_TYPE),
                           parent=self.stop_expr))
-            self.stop_expr.addchild(Literal(index, DataType.INTEGER,
+            self.stop_expr.addchild(Literal(index, INTEGER_TYPE,
                                             parent=self.stop_expr))
 
         else:  # one of our spaces so use values provided by the infrastructure

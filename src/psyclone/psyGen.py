@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,11 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable
-from psyclone.psyir.nodes import Node, Schedule, Loop
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
+    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.parse.algorithm import BuiltInCall
 
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -285,7 +287,7 @@ class PSy(object):
 
 
 class Invokes(object):
-    '''Manage the invoke calls
+    '''Manage the invoke calls.
 
     :param alg_calls: a list of invoke metadata extracted by the \
         parser.
@@ -342,7 +344,6 @@ class Invokes(object):
         opencl_num_queues = 1
         generate_ocl_init = False
         for invoke in self.invoke_list:
-            invoke.gen_code(parent)
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
             # calls. We do it here as this enables us to prevent
@@ -358,6 +359,7 @@ class Invokes(object):
                             kern.opencl_options['queue_number'])
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
+            invoke.gen_code(parent)
         if generate_ocl_init:
             self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
 
@@ -418,108 +420,6 @@ class Invokes(object):
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
-class NameSpaceFactory(object):
-    # storage for the instance reference
-    _instance = None
-
-    def __init__(self, reset=False):
-        """ Create singleton instance """
-        # Check whether we already have an instance
-        if NameSpaceFactory._instance is None or reset:
-            # Create and remember instance
-            NameSpaceFactory._instance = NameSpace()
-
-    def create(self):
-        return NameSpaceFactory._instance
-
-
-class NameSpace(object):
-    '''keeps a record of reserved names and used names for clashes and
-        provides a new name if there is a clash. '''
-
-    def __init__(self, case_sensitive=False):
-        self._reserved_names = []
-        self._added_names = []
-        self._context = {}
-        self._case_sensitive = case_sensitive
-
-    def create_name(self, root_name=None, context=None, label=None):
-        '''Returns a unique name. If root_name is supplied, the name returned
-            is based on this name, otherwise one is made up.  If
-            context and label are supplied and a previous create_name
-            has been called with the same context and label then the
-            name provided by the previous create_name is returned.
-        '''
-        # make up a base name if one has not been supplied
-        if root_name is None:
-            root_name = "anon"
-        # if not case sensitive then make the name lower case
-        if not self._case_sensitive:
-            lname = root_name.lower()
-        else:
-            lname = root_name
-        # check context and label validity
-        if context is None and label is not None or \
-                context is not None and label is None:
-            raise RuntimeError(
-                "NameSpace:create_name() requires both context and label to "
-                "be set")
-
-        # if the same context and label have already been supplied
-        # then return the previous name
-        if context is not None and label is not None:
-            # labels may have spurious white space
-            label = label.strip()
-            if not self._case_sensitive:
-                label = label.lower()
-                context = context.lower()
-            if context in self._context:
-                if label in self._context[context]:
-                    # context and label have already been supplied
-                    return self._context[context][label]
-            else:
-                # initialise the context so we can add the label value later
-                self._context[context] = {}
-
-        # create our name
-        if lname not in self._reserved_names and \
-                lname not in self._added_names:
-            proposed_name = lname
-        else:
-            count = 1
-            proposed_name = lname + "_" + str(count)
-            while proposed_name in self._reserved_names or \
-                    proposed_name in self._added_names:
-                count += 1
-                proposed_name = lname+"_"+str(count)
-
-        # store our name
-        self._added_names.append(proposed_name)
-        if context is not None and label is not None:
-            self._context[context][label] = proposed_name
-
-        return proposed_name
-
-    def add_reserved_name(self, name):
-        ''' adds a reserved name. create_name() will not return this name '''
-        if not self._case_sensitive:
-            lname = name.lower()
-        else:
-            lname = name
-        # silently ignore if this is already a reserved name
-        if lname not in self._reserved_names:
-            if lname in self._added_names:
-                raise RuntimeError(
-                    "attempted to add a reserved name to a namespace that"
-                    " has already used that name")
-            self._reserved_names.append(lname)
-
-    def add_reserved_names(self, names):
-        ''' adds a list of reserved names '''
-        for name in names:
-            self.add_reserved_name(name)
-
-
 class Invoke(object):
     '''Manage an individual invoke call.
 
@@ -564,21 +464,12 @@ class Invoke(object):
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
 
-        # create our namespace manager - must be done before creating the
-        # schedule
-        self._name_space_manager = NameSpaceFactory(reset=True).create()
-
-        # Add the name for the call to the list of reserved names. This
-        # ensures we don't get a name clash with any variables we subsequently
-        # generate.
-        if reserved_names:
-            reserved_names.append(self._name)
-        else:
-            reserved_names = [self._name]
-        self._name_space_manager.add_reserved_names(reserved_names)
+        if not reserved_names:
+            reserved_names = []
+        reserved_names.append(self._name)
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls)
+        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -889,30 +780,34 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
-        # we need to separate calls into loops (an iteration space really)
+    # Textual description of the node.
+    _text_name = "InvokeSchedule"
+
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+                 reserved_names=None):
+        super(InvokeSchedule, self).__init__()
+
+        self._invoke = None
+        self._opencl = False  # Whether or not to generate OpenCL
+
+        # InvokeSchedule opencl_options default values
+        self._opencl_options = {"end_barrier": True}
+
+        # Populate the Schedule Symbol Table with the reserved names.
+        if reserved_names:
+            for name in reserved_names:
+                self.symbol_table.add(Symbol(name))
+
+        # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         if alg_calls is None:
             alg_calls = []
-        sequence = []
-        from psyclone.parse.algorithm import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
+                self.addchild(BuiltInFactory.create(call, parent=self))
             else:
-                sequence.append(KernFactory.create(call, parent=self))
-        Schedule.__init__(self, children=sequence, parent=None)
-        self._invoke = None
-        self._opencl = False  # Whether or not to generate OpenCL
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
-        # TODO: #312 Currently NameSpaceManager and SymbolTable coexist, but
-        # it would be better to merge them. The SymbolTable is only used
-        # for global variables extracted from the Kernels.
-        self._name_space_manager = NameSpaceFactory().create()
-        self._symbol_table = SymbolTable()
-        self._text_name = "InvokeSchedule"
+                self.addchild(KernFactory.create(call, parent=self))
 
     @property
     def symbol_table(self):
@@ -971,10 +866,10 @@ class InvokeSchedule(Schedule):
             self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
-        result = "InvokeSchedule:\n"
+        result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End InvokeSchedule\n"
+        result += "End " + self.coloured_name(False) + "\n"
         return result
 
     def gen_code(self, parent):
@@ -988,8 +883,19 @@ class InvokeSchedule(Schedule):
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, CallGen
 
+        # The gen_code methods may generate new Symbol names, however, we want
+        # subsequent calls to invoke.gen_code() to produce the exact same code,
+        # including symbol names, and therefore new symbols should not be kept
+        # permanently outside the hierarchic gen_code call-chain.
+        # To make this possible we create here a duplicate of the symbol table.
+        # This duplicate will be used by all recursive gen_code() methods
+        # called below this one and thus maintaining a consistent Symbol Table
+        # during the whole gen_code() chain, but at the end of this method the
+        # original symbol table is restored.
+        symbol_table_before_gen = self.symbol_table
+        self._symbol_table = self.symbol_table.shallow_copy()
+
         # Global symbols promoted from Kernel Globals are in the SymbolTable
-        # instead of the name_space_manager.
         # First aggregate all globals variables from the same module in a map
         module_map = {}
         for globalvar in self.symbol_table.global_datasymbols:
@@ -1004,25 +910,6 @@ class InvokeSchedule(Schedule):
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
 
-        # Add the SymbolTable symbols used into the NameSpaceManager to prevent
-        # clashes. Note that the global variables names are going to be used as
-        # arguments and are declared with 'AlgArgs' context.
-        # TODO: After #312 this will not be necessary.
-        for module_name, var_list in module_map.items():
-            self._name_space_manager.add_reserved_name(module_name)
-            for var_name in var_list:
-                newname = self._name_space_manager.create_name(
-                    root_name=var_name,
-                    context="AlgArgs",
-                    label=var_name)
-                # There is a name clash with this variable name and we can not
-                # accept indexed names for global variables.
-                # TODO: #642 Improve global variables name clashes handling.
-                if var_name != newname:
-                    raise KeyError(
-                        "The imported variable '{0}' is already defined in the"
-                        " NameSpaceManager of the Invoke.".format(var_name))
-
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
             parent.add(UseGen(parent, name="clfortran"))
@@ -1030,16 +917,31 @@ class InvokeSchedule(Schedule):
                               funcnames=["get_num_cmd_queues",
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
-            # Command queues
-            nqueues = self._name_space_manager.create_name(
-                root_name="num_cmd_queues", context="PSyVars",
-                label="num_cmd_queues")
-            qlist = self._name_space_manager.create_name(
-                root_name="cmd_queues", context="PSyVars", label="cmd_queues")
-            first = self._name_space_manager.create_name(
-                root_name="first_time", context="PSyVars", label="first_time")
-            flag = self._name_space_manager.create_name(
-                root_name="ierr", context="PSyVars", label="ierr")
+
+            # Declare variables needed on a OpenCL PSy-layer invoke
+            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
+            self.symbol_table.add(DataSymbol(nqueues, INTEGER_TYPE),
+                                  tag="opencl_num_cmd_queues")
+            qlist = self.symbol_table.new_symbol_name("cmd_queues")
+            self.symbol_table.add(
+                DataSymbol(qlist,
+                           ArrayType(INTEGER_TYPE,
+                                     [ArrayType.Extent.ATTRIBUTE])),
+                tag="opencl_cmd_queues")
+            first = self.symbol_table.new_symbol_name("first_time")
+            self.symbol_table.add(
+                DataSymbol(first, BOOLEAN_TYPE), tag="first_time")
+            flag = self.symbol_table.new_symbol_name("ierr")
+            self.symbol_table.add(
+                DataSymbol(flag, INTEGER_TYPE), tag="opencl_error")
+            nbytes = self.root.symbol_table.new_symbol_name(
+                "size_in_bytes")
+            self.symbol_table.add(
+                DataSymbol(nbytes, INTEGER_TYPE), tag="opencl_bytes")
+            wevent = self.root.symbol_table.new_symbol_name("write_event")
+            self.symbol_table.add(
+                DataSymbol(wevent, INTEGER_TYPE), tag="opencl_wevent")
+
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
             parent.add(DeclGen(parent, datatype="integer", save=True,
@@ -1065,8 +967,8 @@ class InvokeSchedule(Schedule):
             kernels = self.walk(Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
-                kernel = self._name_space_manager.create_name(
-                    root_name=base, context="PSyVars", label=base)
+                kernel = self.root.symbol_table.new_symbol_name(base)
+                self.symbol_table.add(Symbol(kernel), tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))
@@ -1095,6 +997,9 @@ class InvokeSchedule(Schedule):
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
 
+        # Restore symbol table
+        self._symbol_table = symbol_table_before_gen
+
     @property
     def opencl(self):
         '''
@@ -1119,7 +1024,7 @@ class InvokeSchedule(Schedule):
         self._opencl = value
 
 
-class Directive(Node):
+class Directive(Statement):
     '''
     Base class for all Directive statements.
 
@@ -1139,13 +1044,28 @@ class Directive(Node):
     # The prefix to use when constructing this directive in Fortran
     # (e.g. "OMP"). Must be set by sub-class.
     _PREFIX = ""
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "Directive"
+    _colour_key = "Directive"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = self._insert_schedule(children, ast)
         super(Directive, self).__init__(ast, children=[sched], parent=parent)
-        self._text_name = "Directive"
-        self._colour_key = "Directive"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
 
     @property
     def dir_body(self):
@@ -1712,9 +1632,8 @@ class OMPParallelDirective(OMPDirective):
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
             # we will use a private thread index variable
-            name_space_manager = NameSpaceFactory().create()
-            thread_idx = name_space_manager.create_name(
-                root_name="th_idx", context="PSyVars", label="thread_index")
+            thread_idx = \
+                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
             private_list.append(thread_idx)
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
@@ -2053,11 +1972,11 @@ class OMPDoDirective(OMPDirective):
         '''
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(start_text="do schedule({0})".format(
             self._omp_schedule), end_text="end do")
@@ -2125,11 +2044,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP PARALLEL DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(
             start_text="parallel do default(shared), private({0}), "
@@ -2138,7 +2057,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             end_text="end parallel do")
 
 
-class GlobalSum(Node):
+class GlobalSum(Statement):
     '''
     Generic Global Sum class which can be added to and manipulated
     in, a schedule.
@@ -2149,6 +2068,11 @@ class GlobalSum(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "GlobalSum"
+    _colour_key = "GlobalSum"
+
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
@@ -2159,8 +2083,6 @@ class GlobalSum(Node):
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
-        self._text_name = "GlobalSum"
-        self._colour_key = "GlobalSum"
 
     @property
     def scalar(self):
@@ -2195,7 +2117,7 @@ class GlobalSum(Node):
         return self.node_str(False)
 
 
-class HaloExchange(Node):
+class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
     manipulated in, a schedule.
@@ -2214,6 +2136,11 @@ class HaloExchange(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "HaloExchange"
+    _colour_key = "HaloExchange"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2229,8 +2156,6 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-        self._text_name = "HaloExchange"
-        self._colour_key = "HaloExchange"
 
     @property
     def vector_index(self):
@@ -2353,7 +2278,7 @@ class HaloExchange(Node):
         return self.node_str(False)
 
 
-class Kern(Node):
+class Kern(Statement):
     '''
     Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
@@ -2372,8 +2297,11 @@ class Kern(Node):
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, parent, call, name, arguments):
-        Node.__init__(self, children=[], parent=parent)
+        super(Kern, self).__init__(self, parent=parent)
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -2389,8 +2317,7 @@ class Kern(Node):
                         "Argument '{0}' is passed into kernel '{1}' code more "
                         "than once from the algorithm layer. This is not "
                         "allowed.".format(arg.text, self._name))
-                else:
-                    arg_names.append(text)
+                arg_names.append(text)
 
         self._arg_descriptors = None
 
@@ -2470,11 +2397,10 @@ class Kern(Node):
         '''Generate a local variable name that is unique for the current
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
-        var_name = self._reduction_arg.name
-        return self._name_space_manager.\
-            create_name(root_name="l_"+var_name,
-                        context="PSyVars",
-                        label=var_name)
+        tag = self._reduction_arg.name
+        # TODO #720: Deprecate name_from_tag method
+        name = self.root.symbol_table.name_from_tag(tag, "l_" + tag)
+        return name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -2498,13 +2424,17 @@ class Kern(Node):
         local_var_name = self.local_reduction_name
         var_type = self._reduction_arg.type
         if var_type == "gh_real":
-            zero = "0.0_r_def"
-            kind_type = "r_def"
             data_type = "real"
+            data_value = "0.0"
+            kind_type = \
+                Config.get().api_conf("dynamo0.3").default_kind[data_type]
+            zero = "_".join([data_value, kind_type])
         elif var_type == "gh_integer":
-            zero = "0"
-            kind_type = None
             data_type = "integer"
+            data_value = "0"
+            kind_type = \
+                Config.get().api_conf("dynamo0.3").default_kind[data_type]
+            zero = "_".join([data_value, kind_type])
         else:
             raise GenerationError(
                 "zero_reduction variable should be one of ['gh_real', "
@@ -2517,8 +2447,8 @@ class Kern(Node):
                                entity_decls=[local_var_name],
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
-            nthreads = self._name_space_manager.create_name(
-                root_name="nthreads", context="PSyVars", label="nthreads")
+            nthreads = \
+                self.root.symbol_table.lookup_with_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
@@ -2534,13 +2464,6 @@ class Kern(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
-        # TODO we should initialise self._name_space_manager in the
-        # constructor!
-        self._name_space_manager = NameSpaceFactory().create()
-        thread_idx = self._name_space_manager.create_name(
-            root_name="th_idx", context="PSyVars", label="thread_index")
-        nthreads = self._name_space_manager.create_name(
-            root_name="nthreads", context="PSyVars", label="nthreads")
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         local_var_ref = self._reduction_ref(var_name)
@@ -2554,6 +2477,9 @@ class Kern(Node):
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
                 format(reduction_access.api_specific_name(), api_strings))
+        symtab = self.root.symbol_table
+        thread_idx = symtab.lookup_with_tag("omp_thread_index").name
+        nthreads = symtab.lookup_with_tag("omp_num_threads").name
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -2567,17 +2493,13 @@ class Kern(Node):
         to store values into a (padded) array separately for each
         thread.'''
         if self.reprod_reduction:
-            idx_name = self._name_space_manager.create_name(
-                root_name="th_idx",
-                context="PSyVars",
-                label="thread_index")
-            local_name = self._name_space_manager.create_name(
-                root_name="l_"+name,
-                context="PSyVars",
-                label=name)
+            idx_name = \
+                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
+            # TODO #720: Deprecate name_from_tag method
+            local_name = \
+                self.root.symbol_table.name_from_tag(name, "l_" + name)
             return local_name + "(1," + idx_name + ")"
-        else:
-            return name
+        return name
 
     @property
     def arg_descriptors(self):
@@ -2616,6 +2538,14 @@ class Kern(Node):
         '''
         return self.parent.parent.loop_type == "colour"
 
+    def clear_cached_data(self):
+        '''This function is called to remove all cached data (which
+        then forces all functions to recompute their results). At this
+        stage it supports gen_code by enforcing all arguments to
+        be recomputed.
+        '''
+        self.arguments.clear_cached_data()
+
     @property
     def iterates_over(self):
         return self._iterates_over
@@ -2650,7 +2580,12 @@ class CodedKern(Kern):
                              call does not match that in the meta-data.
 
     '''
+    # Textual description of the node.
+    _text_name = "CodedKern"
+    _colour_key = "CodedKern"
+
     def __init__(self, KernelArguments, call, parent=None, check=True):
+        self._parent = parent
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
                                         KernelArguments(call, self))
@@ -2674,8 +2609,6 @@ class CodedKern(Kern):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
-        self._text_name = "CodedKern"
-        self._colour_key = "CodedKern"
 
     def get_kernel_schedule(self):
         '''
@@ -3170,17 +3103,47 @@ class InlinedKern(Kern):
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "InlinedKern"
+    _colour_key = "InlinedKern"
 
     def __init__(self, psyir_nodes):
-        # pylint: disable=non-parent-init-called,super-init-not-called
+        # pylint: disable=non-parent-init-called, super-init-not-called
+        Node.__init__(self)
         schedule = Schedule(children=psyir_nodes, parent=self)
-        Node.__init__(self, children=[schedule])
+        self.children = [schedule]
         # Update the parent info for each node we've moved
         for node in schedule.children:
             node.parent = schedule
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
+
+    def node_str(self, colour=True):
+        '''
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
+
     def __str__(self):
-        return "inlined kern: " + self._name
+        return self.coloured_name(False)
 
     @abc.abstractmethod
     def local_vars(self):
@@ -3196,6 +3159,10 @@ class BuiltIn(Kern):
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
     '''
+    # Textual description of the node.
+    _text_name = "BuiltIn"
+    _colour_key = "BuiltIn"
+
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
@@ -3204,8 +3171,6 @@ class BuiltIn(Kern):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     @property
     def dag_name(self):
@@ -3216,8 +3181,6 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
@@ -3252,6 +3215,11 @@ class Arguments(object):
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
                                   "implemented in sub-class")
+
+    def clear_cached_data(self):
+        '''This function is called to clear all cached data, which
+        enforces that raw_arg_list is recomputed.'''
+        self._raw_arg_list = []
 
     @property
     def names(self):
@@ -3497,7 +3465,6 @@ class Argument(object):
             self._form = ""
             self._is_literal = False
         self._access = access
-        self._name_space_manager = NameSpaceFactory().create()
 
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
@@ -3506,11 +3473,14 @@ class Argument(object):
             self._name = arg_info.text
             self._text = None
         else:
-            # Use our namespace manager to create a unique name unless
-            # the context and label match in which case return the
-            # previous name.
-            self._name = self._name_space_manager.create_name(
-                root_name=self._orig_name, context="AlgArgs", label=self._text)
+            # There are unit-tests where we create Arguments without an
+            # associated call.
+            if self._call:
+                tag = "AlgArgs_" + self._text
+                # TODO #720: Deprecate name_from_tag method
+                self._name = self._call.root.symbol_table.name_from_tag(
+                    tag, self._orig_name)
+
         self._vector_size = 1
 
     def __str__(self):
@@ -3566,31 +3536,6 @@ class Argument(object):
     def call(self, value):
         ''' set the node that this argument is associated with '''
         self._call = value
-
-    def set_kernel_arg(self, parent, index, kname):
-        '''
-        Generate the code to set this argument for an OpenCL kernel.
-
-        :param parent: the node in the Schedule to which to add the code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        :param int index: the (zero-based) index of this argument in the \
-                          list of kernel arguments.
-        :param str kname: the name of the OpenCL kernel.
-        '''
-        from psyclone.f2pygen import AssignGen, CallGen
-        # Look up variable names from name-space manager
-        err_name = self._name_space_manager.create_name(
-            root_name="ierr", context="PSyVars", label="ierr")
-        kobj = self._name_space_manager.create_name(
-            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
-        parent.add(AssignGen(
-            parent, lhs=err_name,
-            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format(kobj, index, self.name)))
-        parent.add(CallGen(
-            parent, "check_status",
-            ["'clSetKernelArg: arg {0} of {1}'".format(index, kname),
-             err_name]))
 
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
@@ -4121,8 +4066,7 @@ class ACCDataDirective(ACCDirective):
 
 class KernelSchedule(Schedule):
     '''
-    A KernelSchedule inherits the functionality from Schedule and adds a symbol
-    table to keep a record of the declared variables and their attributes.
+    A kernelSchedule is the parent node of the PSyIR for Kernel source code.
 
     :param str name: Kernel subroutine name.
     :param parent: Parent of the KernelSchedule, defaults to None.
@@ -4132,7 +4076,6 @@ class KernelSchedule(Schedule):
     def __init__(self, name, parent=None):
         super(KernelSchedule, self).__init__(children=None, parent=parent)
         self._name = name
-        self._symbol_table = SymbolTable(self)
 
     @staticmethod
     def create(name, symbol_table, children):
@@ -4200,14 +4143,6 @@ class KernelSchedule(Schedule):
         :param str new_name: New name for the kernel.
         '''
         self._name = new_name
-
-    @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the kernel.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._symbol_table
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes

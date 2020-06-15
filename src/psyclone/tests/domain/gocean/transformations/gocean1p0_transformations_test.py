@@ -42,13 +42,13 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
     GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
-from psyclone.generator import GenerationError
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
@@ -1504,14 +1504,18 @@ def test_acc_parallel_not_a_loop():
     ''' Test that we raise an appropriate error if we attempt
     to apply the OpenACC Parallel transformation to something that
     is not a loop '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
-    schedule = invoke.schedule
 
     acct = ACCParallelTrans()
-    # Attempt to (erroneously) apply the OpenACC Parallel transformation
-    # to the schedule rather than a loop
-    with pytest.raises(TransformationError):
-        _, _ = acct.apply(schedule)
+    # Provide an invalid node type (just the integer 1) to the OpenACC
+    # Parallel transformation
+    with pytest.raises(TransformationError) as error:
+        _, _ = acct.apply(1)
+
+    assert "Argument must be a single Node in a Schedule, a Schedule or a " \
+           "list of Nodes in a Schedule but have been passed an object " \
+           "of type:" in str(error.value)
+    # Python2/3 differences in type string
+    assert "'int'>" in str(error.value)
 
 
 def test_acc_parallel_trans(tmpdir):

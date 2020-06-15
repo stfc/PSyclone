@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,14 +39,17 @@
 ! Modified by I. Kavcic, Met Office
 !
 module matrix_vector_kernel_mod
+
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    CELLS 
-use constants_mod,           only : r_def
+                                    CELLS
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -55,33 +58,21 @@ implicit none
 type, public, extends(kernel_type) :: matrix_vector_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::matrix_vector_code
+  procedure, nopass :: matrix_vector_code
 end type
-
-!-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface matrix_vector_kernel_type
-   module procedure matrix_vector_kernel_constructor
-end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public matrix_vector_code
-contains
 
-  type(matrix_vector_kernel_type) function matrix_vector_kernel_constructor() result(self)
-  return
-end function matrix_vector_kernel_constructor
+contains
 
 !> @brief Computes lhs = matrix*x
 !> @param[in] cell Horizontal cell index
@@ -92,46 +83,46 @@ end function matrix_vector_kernel_constructor
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
 !! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
-!! @param[in] undf2 Unique number of degrees of freedom for the input field 
+!! @param[in] undf2 Unique number of degrees of freedom for the input field
 !! @param[in] x Input data
-!> @param[inout] lhs Output lhs (A*x)
-!! @param[in] matrix Local matrix assembly form of the operator A 
+!> @param[in,out] lhs Output lhs (A*x)
+!! @param[in] matrix Local matrix assembly form of the operator A
 subroutine matrix_vector_code(cell,        &
                               nlayers,     &
-                              lhs, x,      & 
+                              lhs, x,      &
                               ncell_3d,    &
                               matrix,      &
                               ndf1, undf1, map1, &
                               ndf2, undf2, map2)
 
   implicit none
- 
+
   ! Arguments
-  integer,                   intent(in)    :: cell, nlayers, ncell_3d
-  integer,                   intent(in)    :: undf1, ndf1
-  integer,                   intent(in)    :: undf2, ndf2
-  integer, dimension(ndf1),  intent(in)    :: map1
-  integer, dimension(ndf2),  intent(in)    :: map2
+  integer(kind=i_def),                   intent(in)    :: cell, nlayers, ncell_3d
+  integer(kind=i_def),                   intent(in)    :: undf1, ndf1
+  integer(kind=i_def),                   intent(in)    :: undf2, ndf2
+  integer(kind=i_def), dimension(ndf1),  intent(in)    :: map1
+  integer(kind=i_def), dimension(ndf2),  intent(in)    :: map2
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
 
   ! Internal variables
-  integer                           :: df, k, ik 
+  integer(kind=i_def)               :: df, k, ik
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
- 
+
   do k = 0, nlayers-1
-    do df = 1, ndf2  
+    do df = 1, ndf2
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
     lhs_e = matmul(matrix(:,:,ik),x_e)
     do df = 1,ndf1
-       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df) 
+       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
     end do
   end do
- 
+
 end subroutine matrix_vector_code
 
 end module matrix_vector_kernel_mod

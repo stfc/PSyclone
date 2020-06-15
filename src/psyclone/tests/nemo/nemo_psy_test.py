@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -123,9 +123,9 @@ def test_do_while():
     sched = invoke_info.schedule
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
-    assert isinstance(sched.children[0], CodeBlock)
-    assert isinstance(sched.children[1], nemo.NemoLoop)
-    assert isinstance(sched.children[3], CodeBlock)
+    assert isinstance(sched[1], CodeBlock)
+    assert isinstance(sched[2], nemo.NemoLoop)
+    assert isinstance(sched[4], CodeBlock)
 
 
 def test_multi_kern():
@@ -136,7 +136,7 @@ def test_multi_kern():
     loops = sched.walk(nemo.NemoLoop)
     kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
-    loops[0].children.append(kerns[1])
+    loops[0].loop_body.children.append(kerns[1])
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
     assert ("getter method does not yet support a loop containing more than "
@@ -188,6 +188,7 @@ def test_fn_call_no_kernel(parser):
     function call. '''
     from psyclone.psyir.nodes import Assignment
     reader = FortranStringReader("program fn_call\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = my_func()\n"
@@ -207,6 +208,7 @@ def test_codeblock_no_kernel(parser, monkeypatch):
     CodeBlock. '''
     from psyclone.psyir.nodes import CodeBlock
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = 1.0\n"
@@ -243,6 +245,7 @@ def test_no_explicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an explicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj, idx\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "  do idx = 1, 5\n"
@@ -264,6 +267,7 @@ def test_no_implicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an implicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(:,:) = 1.0\n"
@@ -294,7 +298,7 @@ def test_schedule_view(capsys):
     # Have to allow for colouring of output text
     loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     kern_str = colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
-    isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched_str = colored("NemoInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -304,21 +308,27 @@ def test_schedule_view(capsys):
         isched_str + "[invoke='io_in_loop']\n" +
         indent + "0: " + loop_str + "[type='levels', field_space='None', "
         "it_space='None']\n" +
-        2*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        2*indent + lit_str + "[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n" +
         2*indent + ref_str + "[name:'jpk']\n" +
-        2*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        2*indent + lit_str + "[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n" +
         2*indent + sched_str + "[]\n" +
         3*indent + "0: " + loop_str + "[type='lat', field_space='None', "
         "it_space='None']\n" +
-        4*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        4*indent + lit_str + "[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n" +
         4*indent + ref_str + "[name:'jpj']\n" +
-        4*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        4*indent + lit_str + "[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n" +
         4*indent + sched_str + "[]\n" +
         5*indent + "0: " + loop_str + "[type='lon', "
         "field_space='None', it_space='None']\n" +
-        6*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        6*indent + lit_str + "[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n" +
         6*indent + ref_str + "[name:'jpi']\n" +
-        6*indent + lit_str + "[value:'1', DataType.INTEGER]\n" +
+        6*indent + lit_str + "[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n" +
         6*indent + sched_str + "[]\n" +
         7*indent + "0: " + kern_str + "[]\n")
     assert expected_sched in output
@@ -342,6 +352,7 @@ def test_kern_sched_parents(parser):
     ''' Check that the children of a Kernel schedule have that schedule
     as their parent. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jj, jpi, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpi\n"
                                  "  do jj = 1,jpj\n"
@@ -381,7 +392,8 @@ def test_empty_routine():
     contain any executable statements. '''
     psy, _ = get_invoke("empty_routine.f90", api=API, idx=0)
     assert len(psy.invokes.invoke_list) == 1
-    assert psy.invokes.invoke_list[0].schedule is None
+    # We should just have an empty schedule
+    assert not psy.invokes.invoke_list[0].schedule.children
     # Calling update() on this Invoke should do nothing
     psy.invokes.invoke_list[0].update()
 

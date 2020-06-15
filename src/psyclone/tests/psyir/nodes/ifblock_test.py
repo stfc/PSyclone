@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
     Return, Assignment
-from psyclone.psyir.symbols import DataType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -79,7 +79,7 @@ def test_ifblock_view_indices(capsys):
     colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
     colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
     colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
-    condition = Reference(DataSymbol('condition1', DataType.REAL))
+    condition = Reference(DataSymbol('condition1', REAL_SINGLE_TYPE))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
     ifblock.view()
@@ -93,7 +93,7 @@ def test_ifblock_view_indices(capsys):
 def test_ifblock_can_be_printed():
     '''Test that an IfBlock instance can always be printed (i.e. is
     initialised fully)'''
-    condition = Reference(DataSymbol('condition1', DataType.BOOLEAN))
+    condition = Reference(DataSymbol('condition1', BOOLEAN_TYPE))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
 
@@ -112,7 +112,7 @@ def test_ifblock_properties():
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 0." in str(err.value))
 
-    ref1 = Reference(DataSymbol('condition1', DataType.BOOLEAN),
+    ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
                      parent=ifblock)
     ifblock.addchild(ref1)
 
@@ -147,11 +147,13 @@ def test_ifblock_create():
 
     '''
     # Without an else clause.
-    if_condition = Literal('true', DataType.BOOLEAN)
-    if_body = [Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
-                                 Literal("0.0", DataType.REAL)),
-               Assignment.create(Reference(DataSymbol("tmp2", DataType.REAL)),
-                                 Literal("1.0", DataType.REAL))]
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
     ifblock = IfBlock.create(if_condition, if_body)
     if_schedule = ifblock.children[1]
     assert isinstance(if_schedule, Schedule)
@@ -165,11 +167,11 @@ def test_ifblock_create():
 
     # With an else clause.
     else_body = [Assignment.create(Reference(DataSymbol("tmp",
-                                                        DataType.REAL)),
-                                   Literal("1.0", DataType.REAL)),
+                                                        REAL_SINGLE_TYPE)),
+                                   Literal("1.0", REAL_SINGLE_TYPE)),
                  Assignment.create(Reference(DataSymbol("tmp2",
-                                                        DataType.REAL)),
-                                   Literal("0.0", DataType.REAL))]
+                                                        REAL_SINGLE_TYPE)),
+                                   Literal("0.0", REAL_SINGLE_TYPE))]
     ifblock = IfBlock.create(if_condition, if_body, else_body)
     if_schedule = ifblock.children[1]
     assert isinstance(if_schedule, Schedule)
@@ -193,50 +195,86 @@ def test_ifblock_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    if_condition = Literal('true', DataType.BOOLEAN)
-    if_body = [Assignment.create(Reference(DataSymbol("tmp", DataType.REAL)),
-                                 Literal("0.0", DataType.REAL)),
-               Assignment.create(Reference(DataSymbol("tmp2", DataType.REAL)),
-                                 Literal("1.0", DataType.REAL))]
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
 
     # if_condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = IfBlock.create("True", "invalid")
-    assert ("if_condition argument in create method of IfBlock class should "
-            "be a PSyIR Node but found 'str'.") in str(excinfo.value)
+        _ = IfBlock.create("True", if_body)
+    assert ("Item 'str' can't be child 0 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'.") in str(excinfo.value)
 
     # One or more if body not a Node.
     if_body_err = [Assignment.create(Reference(DataSymbol("tmp",
-                                                          DataType.REAL)),
-                                     Literal("0.0", DataType.REAL)),
+                                                          REAL_SINGLE_TYPE)),
+                                     Literal("0.0", REAL_SINGLE_TYPE)),
                    "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body_err)
-    assert ("if_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
+            "'[Statement]*'.") in str(excinfo.value)
 
     # If body not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, "invalid")
     assert ("if_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+            "list.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
     else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
-                                                            DataType.REAL)),
-                                       Literal("1.0", DataType.REAL)),
+                                                            REAL_SINGLE_TYPE)),
+                                       Literal("1.0", REAL_SINGLE_TYPE)),
                      "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, else_body_err)
-    assert ("else_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
+            "'[Statement]*'.") in str(excinfo.value)
 
     # Else body not a list.
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, "invalid")
     assert ("else_body argument in create method of IfBlock class should be a "
-            "list of PSyIR Nodes but it is either not a list or one of the "
-            "list's children is not a Node.") in str(excinfo.value)
+            "list.") in str(excinfo.value)
+
+
+def test_ifblock_children_validation():
+    '''Test that children added to IfBlock are validated. IfBlock accepts
+    DataNodes for the children 0 to 2 and a Shcedule for child 3.
+
+    '''
+    ifblock = IfBlock()
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = Schedule()
+    else_body = Schedule()
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(if_body)
+    assert ("Item 'Schedule' can't be child 0 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+    ifblock.addchild(if_condition)
+
+    # Second child
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(if_condition)
+    assert ("Item 'Literal' can't be child 1 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+    ifblock.addchild(if_body)
+
+    # Third child
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(if_condition)
+    assert ("Item 'Literal' can't be child 2 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+    ifblock.addchild(else_body)
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        ifblock.addchild(else_body)
+    assert ("Item 'Schedule' can't be child 3 of 'If'. The valid format is: "
+            "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))

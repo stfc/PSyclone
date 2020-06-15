@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by: S. Siso, STFC Daresbury Laboratory
+#              A. R. Porter, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -160,13 +162,6 @@ class VariableAccessInfo(object):
         '''
         return self._var_name
 
-    def is_array(self):
-        ''':returns: True if all accesses to this variable involve indices.
-        :rtype: bool'''
-        # TODO #500: Till we have access to a SymbolTable, we use this
-        # function to detect which variables are arrays.
-        return all(access.indices for access in self._accesses)
-
     def is_written(self):
         ''':returns: True if this variable is written (at least once).
         :rtype: bool
@@ -262,14 +257,41 @@ class VariablesAccessInfo(dict):
     which is an integer number that is increased for each new statement. It
     can be used to easily determine if one access is before another.
 
+    :param nodes: optional, a single PSyIR node or list of nodes from \
+                  which to initialise this object.
+    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or a list of \
+                 :py:class:`psyclone.psyir.nodes.Node`.
+
     '''
-    def __init__(self):
+    def __init__(self, nodes=None):
         # This dictionary stores the mapping of variable names to the
         # corresponding VariableAccessInfo instance.
         dict.__init__(self)
 
         # Stores the current location information
         self._location = 0
+        if nodes:
+            # Import here to avoid circular dependency
+            from psyclone.psyir.nodes import Node
+            if isinstance(nodes, list):
+                for node in nodes:
+                    if not isinstance(node, Node):
+                        raise InternalError("Error in VariablesAccessInfo. "
+                                            "One element in the node list is "
+                                            "not a Node, but of type {0}"
+                                            .format(type(node)))
+
+                    node.reference_accesses(self)
+            elif isinstance(nodes, Node):
+                nodes.reference_accesses(self)
+            else:
+                arg_type = str(type(nodes))
+                raise InternalError("Error in VariablesAccessInfo. "
+                                    "Argument must be a single Node in a "
+                                    "schedule or a list of Nodes in a "
+                                    "schedule but have been passed an "
+                                    "object of type: {0}".
+                                    format(arg_type))
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables

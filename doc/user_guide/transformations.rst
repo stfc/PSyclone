@@ -97,6 +97,8 @@ example::
     my_transform.validate(node, {"node-type-check": False})
 
 
+.. _transformations_application:
+
 Application
 +++++++++++
 Each transformation provides a function ``apply`` which will
@@ -138,6 +140,17 @@ can be found in the API-specific sections).
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
           locations, while others have not been moved yet.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the ABS Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 ####
 
@@ -210,63 +223,31 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Matmul2CodeTrans
+    :members: apply
+    :noindex:
+
+.. note:: This transformation is currently limited to translating the
+          matrix vector form of MATMUL to equivalent PSyIR code.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the MIN Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
+
+####
+
 .. _sec_move_trans:
 
 .. autoclass:: psyclone.transformations.MoveTrans
     :members: apply
     :noindex:
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.NemoAbsTrans
-      :members: apply
-      :noindex:
-
-.. note:: As PSyIR created for the NEMO API does not currently include
-          a symbol table (issue #500), this transformation is
-          currently specialised for the NEMO API (by passing in a
-          symbol table as an additional argument). Once the symbol
-          table limitation is removed this transformation will be made
-          generic.
-	  
-.. warning:: This transformation assumes that the ABS Operator acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issues #500 and #658 are on master
-             then this limitation can be fixed.
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.NemoMinTrans
-      :members: apply
-      :noindex:
-
-.. note:: As PSyIR created for the NEMO API does not currently include
-          a symbol table, this transformation is currently specialised
-          for the NEMO API (by passing in a symbol table as an
-          additional argument). Once the symbol table limitation is
-          removed this transformation will be made generic.
-
-.. warning:: This transformation assumes that the MIN Operator acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issues #500 and #658 are on master
-             then this limitation can be fixed.
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.NemoSignTrans
-      :members: apply
-      :noindex:
-
-.. note:: As PSyIR created for the NEMO API does not currently include
-          a symbol table, this transformation is currently specialised
-          for the NEMO API (by passing in a symbol table as an
-          additional argument). Once the symbol table limitation is
-          removed this transformation will be made generic.
-
-.. warning:: This transformation assumes that the SIGN Operator acts
-             on PSyIR Real scalar data and does not check that this is
-             not the case. Once issues #500 and #658 are on master
-             then this limitation can be fixed.
 
 ####
 
@@ -309,6 +290,16 @@ can be found in the API-specific sections).
     :members: apply
     :noindex:
 
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the SIGN Operator acts
+             on PSyIR Real scalar data and does not check whether or not
+	     this is the case. Once issue #658 is on master then this
+	     limitation can be fixed.
 
 Kernels
 -------

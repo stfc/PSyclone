@@ -34,17 +34,17 @@
 
 !> A very simple stand-alone profiling library for PSyclone's
 !> profiling API.
-module profile_mod
+module profile_psy_data_mod
 
   !> The datatype to store information about a region.
-  type :: ProfileData
+  type :: profile_PSyDataType
      !> Name of the module.
      character(:), allocatable :: module_name
      !> Name of the region.
      character(:), allocatable :: region_name
      !> Counts how often this region was executed.
      integer                   :: count
-     !> Time at whith ProfileStart was called.
+     !> Time at whith PreStart was called.
      real*4                    :: start
      !> Overall time spent in this subroutine, i.e. sum
      !> of each individual call..
@@ -55,15 +55,18 @@ module profile_mod
      real*4                    ::  max
      !> Inidicates if this structure has been initialised.
      logical                   :: initialised = .false.
-  end type ProfileData
+  contains
+      ! The profiling API uses only the two following calls:
+      procedure :: PreStart, PostEnd
+  end type profile_PSyDataType
 
   ! --------------------------------------------------------
   !> In order to store an array of pointers, Fortran requires
   !> a new type *sigh*
-  type ProfileDataPointer
+  type PSyDataTypePointer
      !> The actual pointer to the data in the user's program.
-     type(ProfileData), pointer :: p
-  end  type ProfileDataPointer
+     type(profile_PSyDataType), pointer :: p
+  end  type PSyDataTypePointer
   ! --------------------------------------------------------
 
   !> Maximum number of regions supported. Additional regions
@@ -71,12 +74,12 @@ module profile_mod
   integer, parameter :: MAX_DATA = 100
 
   !> This keeps track of all user data areas.
-  type(ProfileDataPointer), dimension(MAX_DATA) :: all_data
+  type(PSyDataTypePointer), dimension(MAX_DATA) :: all_data
 
   !> How many entries in all_data have been used
   integer :: used_entries
 
-  !> Keeps track if ProfileInit has been called.
+  !> Keeps track if profile_PSyDataInit has been called.
   logical :: has_been_initialised = .false.
 
 contains
@@ -86,89 +89,97 @@ contains
   !> any PSyclone created code, so the user has to manually insert a
   !> call to this subroutine. But the simple timing library will
   !> actually call this function itself if it has not been called previously.
-  subroutine ProfileInit()
+  subroutine profile_PSyDataInit()
     implicit none
 
     used_entries         = 0
     has_been_initialised = .true.
 
-  end subroutine ProfileInit
+  end subroutine profile_PSyDataInit
 
   ! ---------------------------------------------------------------------------
   !> Starts a profiling area. The module and region name can be used to create
   !> a unique name for each region.
-  !> Parameters: 
-  !> module_name:  Name of the module in which the region is
-  !> region_name:  Name of the region (could be name of an invoke, or
-  !>               subroutine name).
-  !> profile_data: Persistent data used by the profiling library.
-  subroutine ProfileStart(module_name, region_name, profile_data)
+  !! Parameters:
+  !! @param[inout] this This PSyData instance.
+  !! @param[in] module_name Name of the module in which the region is
+  !! @param[in] region_name Name of the region (could be name of an invoke, or
+  !!            subroutine name).
+  !! @param[in] num_pre_vars The number of variables that are declared and
+  !!            written before the instrumented region.
+  !! @param[in] num_post_vars The number of variables that are also declared
+  !!            before an instrumented region of code, but are written after
+  !!            this region.
+
+  subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                      num_post_vars)
     implicit none
 
-    character*(*)      :: module_name, region_name
-    type(ProfileData), target :: profile_data
-    integer            :: count, count_rate
+    class(profile_PSyDataType), intent(inout), target :: this
+    character*(*)       :: module_name, region_name
+    integer             :: count, count_rate
+    integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
-       call ProfileInit()
+       call profile_PSyDataInit()
     endif
 
-    ! Note that the actual initialisation of profile_data
-    ! happens in ProfileEnd, which is when min, sum and
+    ! Note that the actual initialisation of this
+    ! happens in PostEnd, which is when min, sum and
     ! max are properly initialised
-    profile_data%module_name = module_name
-    profile_data%region_name = region_name
+    this%module_name = module_name
+    this%region_name = region_name
     call system_clock(count, count_rate)
-    profile_data%start  = real(count) / count_rate
+    this%start  = real(count) / count_rate
 
-  end subroutine ProfileStart
+  end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
-  !> Ends a profiling area. It takes a ProfileData type that corresponds to
-  !> to the ProfileStart call.
-  !> profile_data: Persistent data used by the profiling library.
-  subroutine ProfileEnd(profile_data)
+  !> Ends a profiling area. It takes a PSyDataType type that corresponds to
+  !> to the PreStart call.
+  !> @param[inout] this: This PSyData instance.
+  subroutine PostEnd(this)
     implicit none
 
-    type(ProfileData), target :: profile_data
+    class(profile_PSyDataType), intent(inout), target :: this
 
     integer :: count, count_rate
     real *4 :: now, duration
     
     call system_clock(count, count_rate)
     now = real(count) / count_rate
-    duration = now - profile_data%start
+    duration = now - this%start
 
     ! Now initialise the data
-    if (.not. profile_data%initialised) then
-       profile_data%sum         = duration
-       profile_data%min         = profile_data%sum
-       profile_data%max         = profile_data%sum
-       profile_data%count       = 1
-       profile_data%initialised = .true.
+    if (.not. this%initialised) then
+       this%sum         = duration
+       this%min         = this%sum
+       this%max         = this%sum
+       this%count       = 1
+       this%initialised = .true.
 
        if (used_entries < MAX_DATA) then
           ! Save a pointer to the profiling data
           used_entries = used_entries + 1
-          all_data(used_entries)%p => profile_data
+          all_data(used_entries)%p => this
        endif
     else
-       profile_data%sum = profile_data%sum + duration
-       if (duration < profile_data%min ) profile_data%min = duration
-       if (duration > profile_data%max ) profile_data%max = duration
-       profile_data%count = profile_data%count + 1
+       this%sum = this%sum + duration
+       if (duration < this%min ) this%min = duration
+       if (duration > this%max ) this%max = duration
+       this%count = this%count + 1
     endif
 
-  end subroutine ProfileEnd
+  end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
   !> The finalise function prints the results. This subroutine must be called,
   !> otherwise no results will be printed.
-  subroutine ProfileFinalise()
+  subroutine profile_PSyDataShutdown()
     implicit none
     integer                    :: i
     integer                    :: max_len, this_len
-    type(ProfileData), pointer :: p
+    type(profile_PSyDataType), pointer :: p
     character                  :: tab = char(9)
     character(:), allocatable  :: heading
     character(:), allocatable  :: spaces
@@ -191,7 +202,7 @@ contains
        spaces(i:i) = " "
     enddo
 
-    print *,
+    print *
     print *,"==========================================="
     print *, heading, spaces(1:max_len - len(heading)),                       &
              tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab,   &
@@ -204,6 +215,6 @@ contains
                 p%min, tab, p%sum/p%count, tab, p%max
     end do
     print *,"==========================================="
-  end subroutine ProfileFinalise
+  end subroutine profile_PSyDataShutdown
 
-end module profile_mod
+end module profile_psy_data_mod

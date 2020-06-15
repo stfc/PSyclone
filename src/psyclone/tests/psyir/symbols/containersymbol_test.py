@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError
-from psyclone.psyir.symbols.containersymbol import ContainerSymbolInterface, \
-    FortranModuleInterface
+from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
+    ContainerSymbolInterface, FortranModuleInterface
 from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
 
@@ -74,14 +74,15 @@ def test_containersymbol_initialisation():
     sym = ContainerSymbol("my_mod")
     assert isinstance(sym, ContainerSymbol)
     assert sym.name == "my_mod"
-    assert not sym._reference  # Reference are not evaluated until told
+    # References are not followed/evaluated until explicitly requested
+    assert not sym._reference
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
     assert sym._interface == FortranModuleInterface
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
-    assert "ContainerSymbol name attribute should be of type 'str'" \
+    assert "ContainerSymbol 'name' attribute should be of type 'str'" \
         in str(error.value)
 
 
@@ -165,3 +166,14 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     assert ("Error importing the Fortran module 'different_name_module' into "
             "a PSyIR container. The imported module has the unexpected name: "
             "'dummy_module'." in str(error.value))
+
+
+def test_containersymbol_wildcard_import():
+    ''' Check the setter and getter for the wildcard_import property. '''
+    csym = ContainerSymbol("my_mod")
+    assert not csym.wildcard_import
+    csym.wildcard_import = True
+    assert csym.wildcard_import
+    with pytest.raises(TypeError) as err:
+        csym.wildcard_import = "false"
+    assert "wildcard_import must be a bool but got" in str(err.value)

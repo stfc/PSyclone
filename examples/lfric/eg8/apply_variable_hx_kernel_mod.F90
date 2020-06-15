@@ -5,17 +5,54 @@
 !-------------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+!------------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
 
 module apply_variable_hx_kernel_mod
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_REAL,         &
-                                    GH_READ, GH_WRITE,                      &
-                                    ANY_SPACE_1, W3, W2,                    &
-                                    CELLS 
-use constants_mod,           only : r_def
+
+use argument_mod,            only : arg_type,                       &
+                                    GH_FIELD, GH_OPERATOR, GH_REAL, &
+                                    GH_READ, GH_WRITE,              &
+                                    ANY_SPACE_1, CELLS
+use fs_continuity_mod,       only : W3, W2
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
+
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -37,7 +74,7 @@ type, public, extends(kernel_type) :: apply_variable_hx_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::apply_variable_hx_code
+  procedure, nopass :: apply_variable_hx_code
 end type
 type, public, extends(kernel_type) :: opt_apply_variable_hx_kernel_type
   private
@@ -59,43 +96,25 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! overload the default structure constructor for function space
-interface apply_variable_hx_kernel_type
-   module procedure apply_variable_hx_kernel_constructor
-end interface
-interface opt_apply_variable_hx_kernel_type
-   module procedure opt_apply_variable_hx_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public apply_variable_hx_code
 public opt_apply_variable_hx_code
+
 contains
 
-  type(apply_variable_hx_kernel_type) function apply_variable_hx_kernel_constructor() result(self)
-  return
-end function apply_variable_hx_kernel_constructor
-  type(opt_apply_variable_hx_kernel_type) function opt_apply_variable_hx_kernel_constructor() result(self)
-  return
-end function opt_apply_variable_hx_kernel_constructor
-
-!> @brief Applies the component of the helmholtz operator that maps from velocity space 
+!> @brief Applies the component of the helmholtz operator that maps from velocity space
 !>        to the pressure space as well as the constant in space part
 !> @details The Helmholtz operator can be summarised as:
 !>          \f[
 !>             H(p) = Mp + \nabla.\left( \nabla p \right) + \bar{ \nabla p }
 !>         \f]
-!>        For a given p & \f[ \nabla p \f] this kernel applies the 
+!>        For a given p & \f[ \nabla p \f] this kernel applies the
 !>        divergence \f[ \nabla. X \f] and averaging  \f[ \bar{X} \f]
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[inout] lhs pressure field with helmholtz operator applied to it
+!> @param[in,out] lhs pressure field with helmholtz operator applied to it
 !> @param[in] x gradient of the pressure field in the velocity space
 !> @param[in] mt_inv lumped inverse mass matrix for the temperature space
 !> @param[in] pressure field that helmholtz operator is being applied to
@@ -107,7 +126,7 @@ end function opt_apply_variable_hx_kernel_constructor
 !> @param[in] pt2 mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
 !> @param[in] m3 mass matrix for the pressure space
-!> @param[in] tau relaxtation weight 
+!> @param[in] tau relaxtation weight
 !> @param[in] dt weight based upon the timestep
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
@@ -130,23 +149,24 @@ subroutine apply_variable_hx_code(cell,        &
                                   ncell_3d_3,  &
                                   pt2,         &
                                   ncell_3d_4,  &
-                                  m3,          &     
+                                  m3,          &
                                   tau,         &
                                   dt,          &
                                   ndf_w3, undf_w3, map_w3, &
                                   ndf_w2, undf_w2, map_w2, &
                                   ndf_wt, undf_wt, map_wt)
- 
+
   implicit none
+
   ! Arguments
-  integer,                    intent(in) :: cell, nlayers
-  integer,                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer,                    intent(in) :: undf_w2, ndf_w2
-  integer,                    intent(in) :: undf_w3, ndf_w3
-  integer,                    intent(in) :: undf_wt, ndf_wt
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def),                    intent(in) :: cell, nlayers
+  integer(kind=i_def),                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
+  integer(kind=i_def),                    intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                    intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                    intent(in) :: undf_wt, ndf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w2), intent(in)    :: x
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_inv
@@ -160,7 +180,7 @@ subroutine apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d_4), intent(in) :: m3
 
   ! Internal variables
-  integer                             :: df, k, ik, is, ie
+  integer(kind=i_def)                 :: df, k, ik, is, ie
   real(kind=r_def), dimension(ndf_w2) :: x_e
   real(kind=r_def), dimension(ndf_w3) :: lhs_e, p_e
   real(kind=r_def), dimension(ndf_wt) :: t_e
@@ -168,19 +188,19 @@ subroutine apply_variable_hx_code(cell,        &
   real(kind=r_def), allocatable, dimension(:) :: t
 
   ! Only need a section of the theta field that contains indices for this
-  ! column   
+  ! column
   is = minval(map_wt)
   ie = maxval(map_wt)+nlayers-1
   allocate( t(is:ie) )
-  t(is:ie) = 0.0_r_def 
+  t(is:ie) = 0.0_r_def
 
   ! Compute Pt2 * u
   do k = 0, nlayers-1
-    do df = 1, ndf_w2  
+    do df = 1, ndf_w2
       x_e(df) = x(map_w2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
-      
+
     t_e = matmul(pt2(:,:,ik),x_e)
     do df = 1,ndf_wt
       t(map_wt(df)+k) = t(map_wt(df)+k) + t_e(df)
@@ -203,20 +223,20 @@ subroutine apply_variable_hx_code(cell,        &
 
     lhs_e = matmul(m3(:,:,ik),p_e) + dt*(matmul(div(:,:,ik),x_e) + matmul(p3t(:,:,ik),t_e))
     do df = 1,ndf_w3
-       lhs(map_w3(df)+k) = lhs_e(df) 
+       lhs(map_w3(df)+k) = lhs_e(df)
     end do
   end do
 end subroutine apply_variable_hx_code
 
 !=============================================================================!
-!> @brief Applies the component of the helmholtz operator that maps from velocity space 
+!> @brief Applies the component of the helmholtz operator that maps from velocity space
 !>        to the pressure space as well as the constant in space part, optimised for lowest
 !>        order elements with horizontally discontinuous temperature space
 !> @details The Helmholtz operator can be summarised as:
 !>          \f[
 !>             H(p) = Mp + \nabla.\left( \nabla p \right) + \bar{ \nabla p }
 !>         \f]
-!>        For a given p & \f[ \nabla p \f] this kernel applies the 
+!>        For a given p & \f[ \nabla p \f] this kernel applies the
 !>        divergence \f[ \nabla. X \f] and averaging  \f[ \bar{X} \f]
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
@@ -233,7 +253,7 @@ end subroutine apply_variable_hx_code
 !> @param[in] pt2 mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
 !> @param[in] m3 mass matrix for the pressure space
-!> @param[in] tau relaxtation weight 
+!> @param[in] tau relaxtation weight
 !> @param[in] dt weight based upon the timestep
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
@@ -256,23 +276,24 @@ subroutine opt_apply_variable_hx_code(cell,        &
                                   ncell_3d_3,  &
                                   pt2,         &
                                   ncell_3d_4,  &
-                                  m3,          &     
+                                  m3,          &
                                   tau,         &
                                   dt,          &
                                   ndf_w3, undf_w3, map_w3, &
                                   ndf_w2, undf_w2, map_w2, &
                                   ndf_wt, undf_wt, map_wt)
- 
+
   implicit none
+
   ! Arguments
-  integer,                    intent(in) :: cell, nlayers
-  integer,                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer,                    intent(in) :: undf_w2, ndf_w2
-  integer,                    intent(in) :: undf_w3, ndf_w3
-  integer,                    intent(in) :: undf_wt, ndf_wt
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def),                    intent(in) :: cell, nlayers
+  integer(kind=i_def),                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
+  integer(kind=i_def),                    intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                    intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                    intent(in) :: undf_wt, ndf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w2), intent(in)    :: x
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_inv
@@ -286,7 +307,7 @@ subroutine opt_apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(1,1,ncell_3d_4), intent(in) :: m3
 
   ! Internal variables
-  integer                        :: df, k, ik
+  integer(kind=i_def)            :: df, k, ik
   real(kind=r_def), dimension(2) :: t_e
   real(kind=r_def)               :: div_u
 

@@ -43,14 +43,15 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, Kern
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
-from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
-    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
+from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
+    INTEGER_TYPE, DataSymbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -109,7 +110,6 @@ class KernelTrans(Transformation):
 
         '''
         from psyclone.errors import GenerationError
-        from psyclone.psyir.symbols import SymbolError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -137,8 +137,8 @@ class KernelTrans(Transformation):
         from psyclone.psyGen import KernelSchedule
         for var in kernel_schedule.walk(Reference):
             try:
-                _ = var.find_symbol(var.name,
-                                    scope_limit=var.ancestor(KernelSchedule))
+                _ = var.find_or_create_symbol(
+                    var.name, scope_limit=var.ancestor(KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -480,9 +480,6 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
         # Now test for Dynamo-specific constraints
 
-        from psyclone.dynamo0p3 import VALID_FUNCTION_SPACE_NAMES, \
-            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
-
         # 1) Check that we don't have an inter-grid kernel
         check_intergrid(node1)
         check_intergrid(node2)
@@ -491,16 +488,17 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         node1_fs_name = node1.field_space.orig_name
         node2_fs_name = node2.field_space.orig_name
         # 2.1) Check that both function spaces are valid
-        if not (node1_fs_name in VALID_FUNCTION_SPACE_NAMES and
-                node2_fs_name in VALID_FUNCTION_SPACE_NAMES):
+        if not (node1_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES and
+                node2_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES):
             raise TransformationError(
                 "Error in {0} transformation: One or both function "
                 "spaces '{1}' and '{2}' have invalid names.".
                 format(self.name, node1_fs_name, node2_fs_name))
         # Check whether any of the spaces is ANY_SPACE. Loop fusion over
         # ANY_SPACE is allowed only when the 'same_space' flag is set
-        node_on_any_space = node1_fs_name in VALID_ANY_SPACE_NAMES or \
-            node2_fs_name in VALID_ANY_SPACE_NAMES
+        node_on_any_space = node1_fs_name in \
+            FunctionSpace.VALID_ANY_SPACE_NAMES or \
+            node2_fs_name in FunctionSpace.VALID_ANY_SPACE_NAMES
         # 2.2) If 'same_space' is true check that both function spaces are
         # the same or that at least one of the nodes is on ANY_SPACE. The
         # former case is convenient when loop fusion is applied generically.
@@ -530,9 +528,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
             # loop bounds are the same (checked further below).
             if node1_fs_name != node2_fs_name:
                 if not (node1_fs_name in
-                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
+                        FunctionSpace.VALID_DISCONTINUOUS_NAMES and
                         node2_fs_name in
-                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
+                        FunctionSpace.VALID_DISCONTINUOUS_NAMES):
                     raise TransformationError(
                         "Error in {0} transformation: Cannot fuse loops "
                         "that are over different spaces '{1}' and '{2}' "
@@ -936,10 +934,29 @@ class OMPLoopTrans(ParallelLoopTrans):
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
+        from psyclone.nemo import NemoInvokeSchedule
+
         if not options:
             options = {}
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
+
+        # Add variable names for OMP functions into the InvokeSchedule (root)
+        # symboltable if they don't already exist
+        if not isinstance(node.root, NemoInvokeSchedule):
+            symtab = node.root.symbol_table
+            try:
+                symtab.lookup_with_tag("omp_thread_index")
+            except KeyError:
+                thread_idx = symtab.new_symbol_name("th_idx")
+                symtab.add(DataSymbol(thread_idx, INTEGER_TYPE),
+                           tag="omp_thread_index")
+            try:
+                symtab.lookup_with_tag("omp_num_threads")
+            except KeyError:
+                nthread = symtab.new_symbol_name("nthreads")
+                symtab.add(DataSymbol(nthread, INTEGER_TYPE),
+                           tag="omp_num_threads")
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -1208,9 +1225,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
-        from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
         if node.field_space.orig_name not in \
-           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -1634,9 +1650,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
         if node.field_space.orig_name in \
-           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
@@ -1707,7 +1722,7 @@ class ParallelRegionTrans(RegionTrans):
 
         # Haloexchange calls existing within a parallel region are not
         # supported.
-        from psyclone.psyGen import HaloExchange, InvokeSchedule
+        from psyclone.psyGen import HaloExchange
         for node in node_list:
             if isinstance(node, HaloExchange):
                 raise TransformationError(
@@ -1743,8 +1758,6 @@ class ParallelRegionTrans(RegionTrans):
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
 
-        :raises TransformationError: if the nodes argument is not of the \
-                                     correct type.
         :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
@@ -1754,19 +1767,7 @@ class ParallelRegionTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        from psyclone.psyir.nodes import Node
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Node):
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {0} transformation. "
-                                      "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {1}".
-                                      format(self.name, arg_type))
+        node_list = self.get_node_list(nodes)
         self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1793,11 +1794,11 @@ class ParallelRegionTrans(RegionTrans):
                                      children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the region directive's Schedule as their parent. Use a slice
-        # of the list of nodes so that we're looping over a local
-        # copy of the list. Otherwise things get confused when
-        # we remove children from the list.
-        for child in node_list[:]:
+        # the region directive's Schedule as their parent. Note
+        # that node_list is a copy, so we can remove children
+        # from the tree without affecting the content of
+        # node_list
+        for child in node_list:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
             child.parent = directive.dir_body
@@ -1953,7 +1954,8 @@ class GOConstLoopBoundsTrans(Transformation):
     a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
     generate loops where the bounds are obtained by de-referencing a field
     object, e.g.:
-    ::
+
+    .. code-block:: fortran
 
       DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
 
@@ -1961,7 +1963,8 @@ class GOConstLoopBoundsTrans(Transformation):
     provided with information on the relative trip-counts of the loops
     within an Invoke. With constant loop bounds switched on, PSyclone
     generates code like:
-    ::
+
+    .. code-block:: fortran
 
       ny = my_field%grid%subdomain%internal%ystop
       ...
@@ -2402,16 +2405,18 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
 class GOLoopSwapTrans(Transformation):
     ''' Provides a loop-swap transformation, e.g.:
-    ::
 
-      DO j=1, m
-         DO i=1, n
+    .. code-block:: fortran
+
+        DO j=1, m
+            DO i=1, n
 
     becomes:
-    ::
 
-      DO i=1, n
-         DO j=1, m
+    .. code-block:: fortran
+
+        DO i=1, n
+            DO j=1, m
 
     This transform is used as follows:
 
@@ -2621,7 +2626,7 @@ class OCLTrans(Transformation):
         :raises NotImplementedError: if any of the kernels have arguments \
                                      passed by value.
         '''
-        from psyclone.psyGen import InvokeSchedule, args_filter
+        from psyclone.psyGen import args_filter
         from psyclone.gocean1p0 import GOInvokeSchedule
 
         if isinstance(sched, InvokeSchedule):
@@ -2649,16 +2654,15 @@ class OCLTrans(Transformation):
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
-            # TODO: While we are not able to capture the value of 'use'
-            # parameters (issue 323) we have to bypass this validation and
-            # provide them manually for the OpenCL kernels to compile.
-            continue
             global_variables = ksched.symbol_table.global_datasymbols
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
-                    "symbols with 'global' scope: {1}. PSyclone cannot "
-                    "currently transform such a kernel into OpenCL.".
+                    "symbols with 'global' scope: {1}. An OpenCL kernel cannot"
+                    " call other kernels and all of the data it accesses must "
+                    "be passed by argument. Use the KernelGlobalsToArguments "
+                    "transformation to convert such symbols to kernel "
+                    "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
 
@@ -2785,6 +2789,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
     # element for different orders. Formulas kindly provided by Tom Melvin and
     # Thomas Gibson. See the Qr table at http://femtable.org/background.html,
     # for computed values of w0, w1, w2 and w3 up to order 7.
+    # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
+    # As there is currently no dedicated structure for face dofs in kernel
+    # constants, w2*trace dofs are included here. w2*trace ndofs formulas
+    # require the number of reference element faces in the horizontal (4)
+    # for w2htrace space, in the vertical (2) for w2vtrace space and all (6)
+    # for w2trace space.
+
     space_to_dofs = {"w3":       (lambda n: (n+1)**3),
                      "w2":       (lambda n: 3*(n+2)*(n+1)**2),
                      "w1":       (lambda n: 3*(n+2)**2*(n+1)),
@@ -2793,7 +2804,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
                      "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
                      "w2v":      (lambda n: (n+2)*(n+1)**2),
                      "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
-                     "w2trace":  (lambda n: 6*(n+1)**2)}
+                     "wchi":     (lambda n: (n+1)**3),
+                     "w2trace":  (lambda n: 6*(n+1)**2),
+                     "w2htrace": (lambda n: 4*(n+1)**2),
+                     "w2vtrace": (lambda n: 2*(n+1)**2)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
@@ -2874,7 +2888,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     argument. Defaults to None.
 
             '''
-            from psyclone.psyir.symbols import DataSymbol, DataType
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
@@ -2885,11 +2898,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                               len(symbol_table.argument_list)))
             # Perform some basic checks on the argument to make sure
             # it is the expected type
-            if symbol.datatype != DataType.INTEGER or \
-               symbol.shape or symbol.is_constant:
+            if not isinstance(symbol.datatype, ScalarType):
+                raise TransformationError(
+                    "Expected entry to be a scalar argument but found "
+                    "'{0}'.".format(type(symbol.datatype).__name__))
+            if symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(symbol))
+                    "but found '{0}'.".format(symbol.datatype))
+            if symbol.is_constant:
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument "
+                    "but found a constant.")
 
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
@@ -2898,7 +2918,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", DataType.INTEGER,
+            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
                                       constant_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -2941,7 +2961,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                           number_of_layers)
 
         if quadrature and arg_list_info.nqp_positions:
-            if kernel.eval_shape.lower() == "gh_quadrature_xyoz":
+            # TODO #705 - support the transformation of kernels requiring
+            # other quadrature types (face/edge, multiple).
+            if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["horizontal"],
                               element_order+3)
@@ -2951,15 +2973,16 @@ class Dynamo0p3KernelConstTrans(Transformation):
             else:
                 raise TransformationError(
                     "Error in Dynamo0p3KernelConstTrans transformation. "
-                    "Support is currently limited to xyoz quadrature but "
-                    "found '{0}'.".format(kernel.eval_shape))
+                    "Support is currently limited to 'xyoz' quadrature but "
+                    "found {0}.".format(kernel.eval_shapes))
 
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                        (VALID_ANY_SPACE_NAMES +
-                         VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
+                        (FunctionSpace.VALID_ANY_SPACE_NAMES +
+                         FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
+                         ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "
@@ -3292,8 +3315,11 @@ class ACCRoutineTrans(KernelTrans):
 
         :raises TransformationError: if the target kernel is a built-in.
         :raises TransformationError: if any of the symbols in the kernel are \
-                                     accessed via a module use statement.
-
+                            accessed via a module use statement.
+        :raises TransformationError: if the target kernel has already been \
+                            transformed (since all other transformations work \
+                            on the PSyIR but this one still uses the fparser2 \
+                            parse tree (#490).
         '''
         from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
@@ -3306,21 +3332,29 @@ class ACCRoutineTrans(KernelTrans):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
+        if kern.modified:
+            raise TransformationError(
+                "Cannot transform kernel '{0}' because it has previously been "
+                "transformed and this transformation works on the fparser2 "
+                "parse tree rather than the PSyIR (#490).".format(kern.name))
 
         # Perform general validation checks. In particular this checks that
-        # a PSyIR of the kernel body can be constructed.
+        # the PSyIR of the kernel body can be constructed.
         super(ACCRoutineTrans, self).validate(kern, options)
 
-        # Check that the kernel does not access any data via a module 'use'
-        # statement
+        # Check that the kernel does not access any data or routines via a
+        # module 'use' statement
         sched = kern.get_kernel_schedule()
         global_variables = sched.symbol_table.global_datasymbols
         if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
-                "symbols with 'global' scope: {1}. PSyclone cannot currently "
-                "transform kernels for execution on an OpenACC device if "
-                "they access data not passed by argument.".
+                "symbol(s) with global scope: {1}. If these symbols represent"
+                " data then they must first be converted to kernel arguments "
+                "using the KernelGlobalsToArguments transformation. If the "
+                "symbols represent external routines then PSyclone cannot "
+                "currently transform this kernel for execution on an OpenACC "
+                "device (issue #342).".
                 format(kern.name, [sym.name for sym in global_variables]))
         # Prevent unwanted side effects by removing the kernel schedule that
         # we have just constructed. This is necessary while
@@ -3439,8 +3473,8 @@ class ACCKernelsTrans(RegionTrans):
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyir.nodes import Loop
         # Check that the front-end is valid
-        sched = node_list[0].root
-        if not isinstance(sched, (NemoInvokeSchedule, DynInvokeSchedule)):
+        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
@@ -3678,47 +3712,49 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
-        # Get a reference to the Invoke to which this loop belongs
-        invoke = loop.root.invoke
-        nsm = invoke._name_space_manager
+        # Get a reference to the highest-level symbol table
+        symbol_table = loop.root.symbol_table
         config = Config.get().api_conf("nemo")
         index_order = config.get_index_order()
         loop_type_data = config.get_loop_type_data()
 
         loop_type = loop_type_data[index_order[outermost_dim]]
         base_name = loop_type["var"]
-        loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
-                                   label=base_name)
+        loop_var = symbol_table.new_symbol_name(base_name)
+        symbol_table.add(DataSymbol(loop_var, INTEGER_TYPE))
         loop_start = loop_type["start"]
         loop_stop = loop_type["stop"]
         loop_step = "1"
-        name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO #255 we need some sort of type/declarations table to check that
-        # we don't already have a declaration for a variable of this name.
-        # For the moment we keep a list of variables we have created in
-        # Invoke._loop_vars.
-        if loop._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(loop_var)
-            prog_unit = loop.ast.get_root()
-            spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
-            if not spec_list:
-                # Routine has no specification part so create one and add it
-                # in to the parse tree
-                from psyclone.psyGen import object_index
-                exe_part = walk(prog_unit.content,
-                                Fortran2003.Execution_Part)[0]
-                idx = object_index(exe_part.parent.content, exe_part)
 
-                spec = Fortran2003.Specification_Part(
-                    FortranStringReader("integer :: {0}".format(loop_var)))
-                spec.parent = exe_part.parent
-                exe_part.parent.content.insert(idx, spec)
-            else:
-                spec = spec_list[0]
+        # TODO remove this as part of #435 (since we will no longer have to
+        # insert declarations into the fparser2 parse tree).
+        prog_unit = loop.ast.get_root()
+        spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
+        if not spec_list:
+            # Routine has no specification part so create one and add it
+            # in to the parse tree
+            from psyclone.psyGen import object_index
+            exe_part = walk(prog_unit.content,
+                            Fortran2003.Execution_Part)[0]
+            idx = object_index(exe_part.parent.content, exe_part)
+
+            spec = Fortran2003.Specification_Part(
+                FortranStringReader("integer :: {0}".format(loop_var)))
+            spec.parent = exe_part.parent
+            exe_part.parent.content.insert(idx, spec)
+        else:
+            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+            reader = Fparser2Reader()
+            fake_parent = Schedule()
+            spec = spec_list[0]
+            reader.process_declarations(fake_parent, [spec], [])
+            if loop_var not in fake_parent.symbol_table:
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader("integer :: {0}".format(loop_var)))
                 decln.parent = spec
                 spec.content.append(decln)
+
+        name = Fortran2003.Name(FortranStringReader(loop_var))
 
         # Modify the line containing the implicit do by replacing every
         # occurrence of the outermost ':' with the new loop variable name.
@@ -3772,7 +3808,6 @@ class NemoExplicitLoopTrans(Transformation):
         astprocessor.process_nodes(psyir_parent, [new_loop])
         # Delete the old PSyIR node that we have transformed
         del loop
-        loop = None
         # Return the new NemoLoop object that we have created
         return psyir_parent.children[0], keep
 
@@ -3826,9 +3861,13 @@ class KernelGlobalsToArguments(Transformation):
         :raises TransformationError: if the supplied node is not a CodedKern.
         :raises TransformationError: if this transformation is not applied to \
             a Gocean API Invoke.
+        :raises TransformationError: if the supplied kernel contains wildcard \
+            imports of symbols from one or more containers (e.g. a USE without\
+            an ONLY clause in Fortran).
         '''
         from psyclone.psyGen import CodedKern
         from psyclone.gocean1p0 import GOInvokeSchedule
+
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 "The {0} transformation can only be applied to CodedKern "
@@ -3841,24 +3880,42 @@ class KernelGlobalsToArguments(Transformation):
                 "GOcean API but got an InvokeSchedule of type: '{1}'".
                 format(self.name, type(node.root).__name__))
 
+        # Check that there are no unqualified imports or undeclared symbols
+        try:
+            kernel = node.get_kernel_schedule()
+        except SymbolError as err:
+            raise TransformationError(
+                "Kernel '{0}' contains undeclared symbol: {1}".format(
+                    node.name, str(err.value)))
+
+        symtab = kernel.symbol_table
+        for container in symtab.containersymbols:
+            if container.wildcard_import:
+                raise TransformationError(
+                    "Kernel '{0}' has a wildcard import of symbols from "
+                    "container '{1}'. This is not supported.".format(
+                        node.name, container.name))
+
+        # TODO #649. Check for variables accessed by the kernel but declared
+        # in an outer scope.
+
     def apply(self, node, options=None):
         '''
         Convert the global variables used inside the kernel into arguments and
         modify the InvokeSchedule to pass the same global variables to the
         kernel call.
 
+        This apply() method does not return anything, as agreed in #595.
+        However, this change has yet to be applied to the other Transformation
+        classes.
+
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: tuple of the modified Schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
         '''
         from psyclone.psyir.symbols import ArgumentInterface
-        from psyclone.psyir.symbols import DataType
 
         self.validate(node)
 
@@ -3866,17 +3923,22 @@ class KernelGlobalsToArguments(Transformation):
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
 
-        # Transform each global variable into an argument
+        # Transform each global variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no globals are found in the kernel.
-        for globalvar in kernel.symbol_table.global_datasymbols:
+        for globalvar in kernel.symbol_table.global_datasymbols[:]:
 
             # Resolve the data type information if it is not available
-            if globalvar.datatype == DataType.DEFERRED:
+            if isinstance(globalvar.datatype, DeferredType):
                 globalvar.resolve_deferred()
 
             # Copy the global into the InvokeSchedule SymbolTable
-            invoke_symtab.copy_external_global(globalvar)
+            invoke_symtab.copy_external_global(
+                globalvar, tag="AlgArgs_" + globalvar.name)
+
+            # Keep a reference to the original container so that we can
+            # update it after the interface has been updated.
+            container = globalvar.interface.container_symbol
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
@@ -3897,9 +3959,9 @@ class KernelGlobalsToArguments(Transformation):
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype == DataType.REAL:
+            if globalvar.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype == DataType.INTEGER:
+            elif globalvar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
@@ -3910,3 +3972,11 @@ class KernelGlobalsToArguments(Transformation):
 
             # Add the global variable in the call argument list
             node.arguments.append(globalvar.name, go_space)
+
+            # Check whether we still need the Container symbol from which
+            # this global was originally accessed
+            if not kernel.symbol_table.imported_symbols(container) and \
+               not container.wildcard_import:
+                kernel.symbol_table.remove(container)
+        # TODO #663 - uncomment line below and fix tests.
+        # node.modified = True

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,14 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+from __future__ import absolute_import
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
+    ContainerSymbol, ScalarType, ArrayType, SymbolTable
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
+    Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 
 # The list of Fortran instrinsic functions that we know about (and can
@@ -52,11 +56,13 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
-# Mapping from PSyIR types to Fortran data types - simply reverse the map
-# from the frontend.
+# Mapping from PSyIR types to Fortran data types. Simply reverse the
+# map from the frontend, removing the special case of "double
+# precision", which is captured as a REAL intrinsic in the PSyIR.
 TYPE_MAP_TO_FORTRAN = {}
 for key, item in TYPE_MAP_FROM_FORTRAN.items():
-    TYPE_MAP_TO_FORTRAN[item] = key
+    if key != "double precision":
+        TYPE_MAP_TO_FORTRAN[item] = key
 
 
 def gen_intent(symbol):
@@ -101,7 +107,6 @@ def gen_dims(symbol):
     supported.
 
     '''
-
     dims = []
     for index in symbol.shape:
         if isinstance(index, DataSymbol):
@@ -110,7 +115,7 @@ def gen_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
-        elif isinstance(index, DataSymbol.Extent):
+        elif isinstance(index, ArrayType.Extent):
             # unknown extent
             dims.append(":")
         else:
@@ -144,46 +149,43 @@ def gen_datatype(symbol):
 
     '''
     try:
-        datatype = TYPE_MAP_TO_FORTRAN[symbol.datatype]
+        fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.intrinsic]
     except KeyError:
         raise NotImplementedError(
-            "unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(symbol.datatype, symbol.name))
+            "Unsupported datatype '{0}' for symbol '{1}' found in "
+            "gen_datatype().".format(symbol.datatype.intrinsic, symbol.name))
 
-    if not symbol.precision:
-        # This symbol has no precision information so simply return
-        # the name of the datatype.
-        return datatype
+    precision = symbol.datatype.precision
 
-    if isinstance(symbol.precision, int):
-        if datatype not in ['real', 'integer', 'logical']:
+    if isinstance(precision, int):
+        if fortrantype not in ['real', 'integer', 'logical']:
             raise VisitorError("Explicit precision not supported for datatype "
                                "'{0}' in symbol '{1}' in Fortran backend."
-                               "".format(datatype, symbol.name))
-        if datatype == 'real' and symbol.precision not in [4, 8, 16]:
+                               "".format(fortrantype, symbol.name))
+        if fortrantype == 'real' and precision not in [4, 8, 16]:
             raise VisitorError(
                 "Datatype 'real' in symbol '{0}' supports fixed precision of "
                 "[4, 8, 16] but found '{1}'.".format(symbol.name,
-                                                     symbol.precision))
-        if datatype in ['integer', 'logical'] and symbol.precision not in \
+                                                     precision))
+        if fortrantype in ['integer', 'logical'] and precision not in \
            [1, 2, 4, 8, 16]:
             raise VisitorError(
                 "Datatype '{0}' in symbol '{1}' supports fixed precision of "
                 "[1, 2, 4, 8, 16] but found '{2}'."
-                "".format(datatype, symbol.name, symbol.precision))
+                "".format(fortrantype, symbol.name, precision))
         # Precision has an an explicit size. Use the "type*size" Fortran
         # extension for simplicity. We could have used
         # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
         # ISO_FORTRAN_ENV; type(type64) :: MyType.
-        return "{0}*{1}".format(datatype, symbol.precision)
+        return "{0}*{1}".format(fortrantype, precision)
 
-    if isinstance(symbol.precision, DataSymbol.Precision):
+    if isinstance(precision, ScalarType.Precision):
         # The precision information is not absolute so is either
         # machine specific or is specified via the compiler. Fortran
         # only distinguishes relative precision for single and double
         # precision reals.
-        if datatype.lower() == "real" and \
-           symbol.precision == DataSymbol.Precision.DOUBLE:
+        if fortrantype.lower() == "real" and \
+           precision == ScalarType.Precision.DOUBLE:
             return "double precision"
         # This logging warning can be added when issue #11 is
         # addressed.
@@ -192,19 +194,19 @@ def gen_datatype(symbol):
         #      "Fortran does not support relative precision for the '%s' "
         #      "datatype but '%s' was specified for variable '%s'.",
         #      datatype, str(symbol.precision), symbol.name)
-        return datatype
+        return fortrantype
 
-    if isinstance(symbol.precision, DataSymbol):
-        if datatype not in ["real", "integer", "logical"]:
+    if isinstance(precision, DataSymbol):
+        if fortrantype not in ["real", "integer", "logical"]:
             raise VisitorError(
                 "kind not supported for datatype '{0}' in symbol '{1}' in "
-                "Fortran backend.".format(datatype, symbol.name))
+                "Fortran backend.".format(fortrantype, symbol.name))
         # The precision information is provided by a parameter, so use KIND.
-        return "{0}(kind={1})".format(datatype, symbol.precision.name)
+        return "{0}(kind={1})".format(fortrantype, precision.name)
 
     raise VisitorError(
         "Unsupported precision type '{0}' found for symbol '{1}' in Fortran "
-        "backend.".format(type(datatype).__name__, symbol.name))
+        "backend.".format(type(precision).__name__, symbol.name))
 
 
 def _reverse_map(op_map):
@@ -232,33 +234,154 @@ def _reverse_map(op_map):
     return mapping
 
 
+def get_fortran_operator(operator):
+    '''Determine the Fortran operator that is equivalent to the provided
+    PSyIR operator. This is achieved by reversing the Fparser2Reader
+    maps that are used to convert from Fortran operator names to PSyIR
+    operator names.
+
+    :param operator: a PSyIR operator.
+    :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
+
+    :returns: the Fortran operator.
+    :rtype: str
+
+    :raises KeyError: if the supplied operator is not known.
+
+    '''
+    unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
+    if operator in unary_mapping:
+        return unary_mapping[operator].upper()
+
+    binary_mapping = _reverse_map(Fparser2Reader.binary_operators)
+    if operator in binary_mapping:
+        return binary_mapping[operator].upper()
+
+    nary_mapping = _reverse_map(Fparser2Reader.nary_operators)
+    if operator in nary_mapping:
+        return nary_mapping[operator].upper()
+    raise KeyError()
+
+
+def is_fortran_intrinsic(fortran_operator):
+    '''Determine whether the supplied Fortran operator is an intrinsic
+    Fortran function or not.
+
+    :param str fortran_operator: the supplied Fortran operator.
+
+    :returns: true if the supplied Fortran operator is a Fortran \
+        intrinsic and false otherwise.
+
+    '''
+    return fortran_operator in FORTRAN_INTRINSICS
+
+
+def precedence(fortran_operator):
+    '''Determine the relative precedence of the supplied Fortran operator.
+    Relative Operator precedence is taken from the Fortran 2008
+    specification document and encoded as a list.
+
+    :param str fortran_operator: the supplied Fortran operator.
+
+    :returns: an integer indicating the relative precedence of the \
+        supplied Fortran operator. The higher the value, the higher \
+        the precedence.
+
+    :raises KeyError: if the supplied operator is not in the \
+        precedence list.
+
+    '''
+    # The index of the fortran_precedence list indicates relative
+    # precedence. Strings within sub-lists have the same precendence
+    # apart from the following two caveats. 1) unary + and - have
+    # a higher precedence than binary + and -, e.g. -(a-b) !=
+    # -a-b and 2) floating point operations are not actually
+    # associative due to rounding errors, e.g. potentially (a * b) / c
+    # != a * (b / c). Therefore, if a particular ordering is specified
+    # then it should be respected. These issues are dealt with in the
+    # binaryoperation handler.
+    fortran_precedence = [
+        ['.EQV.', 'NEQV'],
+        ['.OR.'],
+        ['.AND.'],
+        ['.NOT.'],
+        ['.EQ.', '.NE.', '.LT.', '.LE.', '.GT.', '.GE.', '==', '/=', '<',
+         '<=', '>', '>='],
+        ['//'],
+        ['+', '-'],
+        ['*', '/'],
+        ['**']]
+    for oper_list in fortran_precedence:
+        if fortran_operator in oper_list:
+            return fortran_precedence.index(oper_list)
+    raise KeyError()
+
+
 class FortranWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
     '''
-    def gen_use(self, symbol):
-        '''Create and return the Fortran use statement for this DataSymbol.
+    def gen_use(self, symbol, symbol_table):
+        ''' Performs consistency checks and then creates and returns the
+        Fortran use statement(s) for this ContainerSymbol as required for
+        the supplied symbol table. If this symbol has both a wildcard import
+        and explicit imports then two use statements are generated. (This
+        means that when generating Fortran from PSyIR created from Fortran
+        code, we replicate the structure of the original.)
 
-        :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param symbol: the container symbol instance.
+        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :param symbol_table: the symbol table containing this container symbol.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the Fortran use statement as a string.
+        :returns: the Fortran use statement(s) as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol argument does not specify \
-        a use statement (its interface value is not a Global instance).
-
+        :raises VisitorError: if the symbol argument is not a ContainerSymbol.
+        :raises VisitorError: if the symbol_table argument is not a \
+                            SymbolTable.
+        :raises VisitorError: if the supplied symbol is not in the supplied \
+                            SymbolTable.
+        :raises VisitorError: if the supplied symbol has the same name as an \
+                            entry in the SymbolTable but is a different object.
         '''
-        if not symbol.is_global:
+        if not isinstance(symbol, ContainerSymbol):
             raise VisitorError(
-                "gen_use() requires the symbol interface for symbol '{0}' to "
-                "be a Global instance but found '{1}'."
-                "".format(symbol.name, type(symbol.interface).__name__))
+                "gen_use() expects a ContainerSymbol as its first argument "
+                "but got '{0}'".format(type(symbol).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise VisitorError(
+                "gen_use() expects a SymbolTable as its second argument but "
+                "got '{0}'".format(type(symbol_table).__name__))
+        if symbol.name not in symbol_table:
+            raise VisitorError("gen_use() - the supplied symbol ('{0}') is not"
+                               " in the supplied SymbolTable.".format(
+                                   symbol.name))
+        if symbol_table.lookup(symbol.name) is not symbol:
+            raise VisitorError(
+                "gen_use() - the supplied symbol ('{0}') is not the same "
+                "object as the entry with that name in the supplied "
+                "SymbolTable.".format(symbol.name))
 
-        return "{0}use {1}, only : {2}\n".format(
-            self._nindent, symbol.interface.container_symbol.name, symbol.name)
+        # Construct the list of symbol names for the ONLY clause
+        only_list = [dsym.name for dsym in
+                     symbol_table.imported_symbols(symbol)]
+
+        # Finally construct the use statements for this Container (module)
+        if not only_list and not symbol.wildcard_import:
+            # We have a "use xxx, only:" - i.e. an empty only list
+            return "{0}use {1}, only :\n".format(self._nindent, symbol.name)
+        use_stmts = ""
+        if only_list:
+            use_stmts = "{0}use {1}, only : {2}\n".format(
+                self._nindent, symbol.name, ", ".join(sorted(only_list)))
+        # It's possible to have both explicit and wildcard imports from the
+        # same Fortran module.
+        if symbol.wildcard_import:
+            use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
+        return use_stmts
 
     def gen_vardecl(self, symbol):
         '''Create and return the Fortran variable declaration for this Symbol.
@@ -283,8 +406,8 @@ class FortranWriter(PSyIRVisitor):
 
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)
-        if DataSymbol.Extent.DEFERRED in symbol.shape:
-            if not all(dim == DataSymbol.Extent.DEFERRED
+        if ArrayType.Extent.DEFERRED in symbol.shape:
+            if not all(dim == ArrayType.Extent.DEFERRED
                        for dim in symbol.shape):
                 raise VisitorError(
                     "A Fortran declaration of an allocatable array must have"
@@ -293,13 +416,13 @@ class FortranWriter(PSyIRVisitor):
                                                          symbol.shape))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
-        if DataSymbol.Extent.ATTRIBUTE in symbol.shape:
-            if not all(dim == DataSymbol.Extent.ATTRIBUTE
+        if ArrayType.Extent.ATTRIBUTE in symbol.shape:
+            if not all(dim == ArrayType.Extent.ATTRIBUTE
                        for dim in symbol.shape):
                 # If we have an 'assumed-size' array then only the last
                 # dimension is permitted to have an 'ATTRIBUTE' extent
-                if symbol.shape.count(DataSymbol.Extent.ATTRIBUTE) != 1 or \
-                   symbol.shape[-1] != DataSymbol.Extent.ATTRIBUTE:
+                if symbol.shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or \
+                   symbol.shape[-1] != ArrayType.Extent.ATTRIBUTE:
                     raise VisitorError(
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
@@ -359,8 +482,8 @@ class FortranWriter(PSyIRVisitor):
         # declares any argument variables before local variables.
 
         # 1: Use statements
-        for symbol in symbol_table.global_datasymbols:
-            declarations += self.gen_use(symbol)
+        for symbol in symbol_table.containersymbols:
+            declarations += self.gen_use(symbol, symbol_table)
 
         # 2: Argument variable declarations
         if symbol_table.argument_datasymbols and not args_allowed:
@@ -503,18 +626,34 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping
-        mapping = _reverse_map(Fparser2Reader.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
-            oper = mapping[node.operator]
-            # This is a binary operation
-            if oper.upper() in FORTRAN_INTRINSICS:
+            fort_oper = get_fortran_operator(node.operator)
+            if is_fortran_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
-                return "{0}({1}, {2})".format(oper.upper(), lhs, rhs)
-            return "{0} {1} {2}".format(lhs, oper, rhs)
+                return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
+            parent = node.parent
+            if isinstance(parent, Operation):
+                # We may need to enforce precedence
+                parent_fort_oper = get_fortran_operator(parent.operator)
+                if not is_fortran_intrinsic(parent_fort_oper):
+                    # We still may need to enforce precedence
+                    if precedence(fort_oper) < precedence(parent_fort_oper):
+                        # We need brackets to enforce precedence
+                        return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+                    if precedence(fort_oper) == precedence(parent_fort_oper):
+                        # We still may need to enforce precedence
+                        if (isinstance(parent, UnaryOperation) or
+                                (isinstance(parent, BinaryOperation) and
+                                 parent.children[1] == node)):
+                            # We need brackets to enforce precedence
+                            # as a) a unary operator is performed
+                            # before a binary operator and b) floating
+                            # point operations are not actually
+                            # associative due to rounding errors.
+                            return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+            return "{0} {1} {2}".format(lhs, fort_oper, rhs)
         except KeyError:
             raise VisitorError("Unexpected binary op '{0}'."
                                "".format(node.operator))
@@ -532,15 +671,12 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if an unexpected N-ary operator is found.
 
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = _reverse_map(Fparser2Reader.nary_operators)
         arg_list = []
         for child in node.children:
             arg_list.append(self._visit(child))
         try:
-            oper = mapping[node.operator]
-            return "{0}({1})".format(oper.upper(), ", ".join(arg_list))
+            fort_oper = get_fortran_operator(node.operator)
+            return "{0}({1})".format(fort_oper, ", ".join(arg_list))
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
@@ -562,6 +698,82 @@ class FortranWriter(PSyIRVisitor):
         result = "{0}({1})".format(node.name, ",".join(args))
         return result
 
+    def range_node(self, node):
+        '''This method is called when a Range instance is found in the PSyIR
+        tree.
+
+        :param node: a Range PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Range`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        def _full_extent(node, operator):
+            '''Utility function that returns True if the supplied node
+            represents the first index of an array dimension (via the LBOUND
+            operator) or the last index of an array dimension (via the
+            UBOUND operator).
+
+            This function is required as, whilst Fortran supports an
+            implicit lower and/or upper bound e.g. a(:), the PSyIR
+            does not. Therefore the a(:) example is represented as
+            a(lbound(a,1):ubound(a,1):1). In order to output implicit
+            upper and/or lower bounds (so that we output e.g. a(:), we
+            must therefore recognise when the lbound and/or ubound
+            matches the above pattern.
+
+            :param node: the node to check.
+            :type node: :py:class:`psyclone.psyir.nodes.Range`
+            :param operator: an lbound or ubound operator.
+            :type operator: either :py:class:`Operator.LBOUND` or \
+                :py:class:`Operator.UBOUND` from \
+                :py:class:`psyclone.psyir.nodes.BinaryOperation`
+
+            '''
+            my_range = node.parent
+            array = my_range.parent
+            array_index = array.children.index(my_range) + 1
+            # pylint: disable=too-many-boolean-expressions
+            if isinstance(node, BinaryOperation) and \
+               node.operator == operator and \
+               isinstance(node.children[0], Reference) and \
+               node.children[0].name == array.name and \
+               isinstance(node.children[1], Literal) and \
+               node.children[1].datatype.intrinsic == \
+               ScalarType.Intrinsic.INTEGER and \
+               node.children[1].value == str(array_index):
+                return True
+            return False
+
+        if _full_extent(node.start, BinaryOperation.Operator.LBOUND):
+            # The range starts for the first element in this
+            # dimension. This is the default in Fortran so no need to
+            # output anything.
+            start = ""
+        else:
+            start = self._visit(node.start)
+
+        if _full_extent(node.stop, BinaryOperation.Operator.UBOUND):
+            # The range ends with the last element in this
+            # dimension. This is the default in Fortran so no need to
+            # output anything.
+            stop = ""
+        else:
+            stop = self._visit(node.stop)
+        result = "{0}:{1}".format(start, stop)
+
+        if isinstance(node.step, Literal) and \
+           node.step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER and \
+           node.step.value == "1":
+            # Step is 1. This is the default in Fortran so no need to
+            # output any text.
+            pass
+        else:
+            step = self._visit(node.step)
+            result += ":{0}".format(step)
+        return result
+
     # pylint: disable=no-self-use
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
@@ -574,11 +786,26 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # Booleans need to be converted to Fortran format
-        if node.datatype == DataType.BOOLEAN:
+        if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            # Booleans need to be converted to Fortran format
             result = '.' + node.value + '.'
+        elif node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            result = "'{0}'".format(node.value)
         else:
             result = node.value
+        precision = node.datatype.precision
+        if isinstance(precision, DataSymbol):
+            # A KIND variable has been specified
+            if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                result = "{0}_{1}".format(precision.name, result)
+            else:
+                result = "{0}_{1}".format(result, precision.name)
+        if isinstance(precision, int):
+            # A KIND value has been specified
+            if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                result = "{0}_{1}".format(precision, result)
+            else:
+                result = "{0}_{1}".format(result, precision)
         return result
 
     # pylint: enable=no-self-use
@@ -636,7 +863,7 @@ class FortranWriter(PSyIRVisitor):
         start = self._visit(node.start_expr)
         stop = self._visit(node.stop_expr)
         step = self._visit(node.step_expr)
-        variable_name = node.variable_name
+        variable_name = node.variable.name
 
         self._depth += 1
         body = ""
@@ -662,18 +889,13 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if an unexpected Unary op is encountered.
 
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = _reverse_map(Fparser2Reader.unary_operators)
-
         content = self._visit(node.children[0])
         try:
-            oper = mapping[node.operator]
-            # This is a unary operation
-            if oper.upper() in FORTRAN_INTRINSICS:
+            fort_oper = get_fortran_operator(node.operator)
+            if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                return "{0}({1})".format(oper.upper(), content)
-            return "{0}{1}".format(oper, content)
+                return "{0}({1})".format(fort_oper, content)
+            return "{0}{1}".format(fort_oper, content)
         except KeyError:
             raise VisitorError("Unexpected unary op '{0}'.".format(
                 node.operator))

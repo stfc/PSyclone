@@ -1,0 +1,45 @@
+Program test
+    USE field_mod
+    USE grid_mod
+    use decomposition_mod, only    : decomposition_type
+    use parallel_mod, only         : parallel_init
+
+    use init_field_mod,   only     : init_field
+    use update_field_mod, only     : update_field
+    use extract_psy_data_mod, only : extract_PSyDataType, &
+                                     extract_PSyDataInit, &
+                                     extract_PSyDataShutdown
+
+    TYPE(r2d_field)               :: a_fld, b_fld, c_fld, d_fld
+    double precision              :: x, y
+    ! Just to show that different declarations work as expected
+    ! (a single precision value would not work, since the generic
+    ! interface does not provide a method for single precision).
+    real(kind=kind(1.0d0))        :: z
+    TYPE(grid_type), target       :: grid
+
+    call parallel_init()
+    call extract_PSyDataInit()
+    grid = grid_type(GO_ARAKAWA_C,                                 &
+                     (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
+                     GO_OFFSET_SW)
+    call grid%decompose(3, 3, 1, 1, 1, halo_width=1)
+    ! Grid init adds a halo region of 2 automatically
+    call grid_init(grid, 1.0_8, 1.0_8)
+    a_fld = r2d_field(grid, GO_T_POINTS)
+    b_fld = r2d_field(grid, GO_T_POINTS)
+    c_fld = r2d_field(grid, GO_T_POINTS)
+    d_fld = r2d_field(grid, GO_T_POINTS)
+  
+    call invoke (init_field(a_fld, 1.0), &
+                 init_field(b_Fld, 2.0), &
+                 init_field(c_Fld, 3.0), &
+                 init_field(d_Fld, 4.0)    )
+
+    x = 0
+    z = 1
+    call invoke (update_field(a_fld, b_fld, c_fld, d_fld, x, y, z) )
+
+    print *,a_fld%data(1:5, 1:5)
+    call extract_PSyDataShutdown()
+end program test

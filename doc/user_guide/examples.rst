@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified I. Kavcic, Met Office
+.. Modified by I. Kavcic, Met Office
 
 .. _examples:
 
@@ -50,6 +50,19 @@ the host system, see :ref:`getting-going`. This section is intended
 to provide an overview of the various examples so that a user can find
 one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
+
+For the purposes of correctness checking, the whole suite of examples
+may be executed using Gnu ``make`` (this functionality is used by Travis
+alongside the test suite). The default target is ``transform`` which
+just performs the PSyclone code transformation steps for each
+example. For those examples that support it, the ``compile`` target
+also requests that the generated code be compiled.
+
+.. note:: if you have copied the examples directory to some other
+	  location but still wish to use ``make`` then you will also
+	  have to set the ``PSYCLONE_CONFIG`` environment variable to
+	  the full path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
 GOcean
 ------
@@ -94,7 +107,58 @@ Example 4: Kernels containing use statements
 Transforming kernels for use with either OpenACC or OpenCL requires
 that we handle those that access data and/or routines via module
 ``use`` statements. This example shows the various forms for which
-support is planned (Issues #323 and #342).
+support is being implemented. Although there is support for converting
+global-data accesses into kernel arguments, PSyclone does not yet support
+nested ``use`` of modules (i.e. data accessed via a module that in turn
+imports that symbol from another module) and kernels that call other
+kernels (Issue #342). In addition, the transformation that adds
+``!$ACC ROUTINE`` to kernel code is written to work with the fparser2
+parse tree and therefore does not inter-operate with the other kernel
+transformations that work on the PSyIR (Issue #490).
+
+Example 5: Profiling
+^^^^^^^^^^^^^^^^^^^^
+
+This example shows how to use the profiling support in PSyclone.
+It instruments two invoke statements and can link in with any
+of the following profiling wrapper libraries: template,
+simple_timer, apeg-dl_timer, and DrHook (see
+:ref:`profiling_third_party_tools`). The ``README.md``
+file contains detailed instructions on how to build the
+different executables. By default (i.e. just using ``make``
+without additional parameters) it links in with the
+template profiling library included in PSyclone. This library just
+prints out the name of the module and region before and after each
+invoke is executed. This example can actually be executed to
+test the behaviour of the various profiling wrappers, and is
+also useful if you want to develop your own wrapper libraries.
+
+
+Example 6: Kernel data extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of kernel data extraction in PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based kernel extraction code.
+It uses the dl_esm_inf-specific extraction library 'netcdf'
+(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+available (including ``nc-config`` to detect installation-specific
+paths). You need to compile the NetCDF extraction library
+(see :ref:`psyke_netcdf`).
+The makefile in this example will link with the compiled NetCDF
+extraction library and NetCDF. You can execute the created
+binary and it will create two output netcdf files, one for
+each of the two invokes.
+
+It will also create two stand-alone driver programs (one for
+each invoke), that will read the corresponding NetCDF file,
+and then executes the original code.
+
+.. note::
+    At this stage the driver program will not compile
+    (see issue #644).
+
+.. _examples_lfric:
 
 LFRic
 ------
@@ -120,7 +184,8 @@ Example 3
 
 Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
-kernels.
+kernels. Also shows the use of ``Wchi`` function space metadata for
+coordinate fields in LFRic.
 
 Example 4
 ^^^^^^^^^
@@ -167,7 +232,7 @@ Example 10
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions), as well as the
-use of ``ANY_DISCONTINUOUS_SPACE`` metadata.
+use of ``ANY_DISCONTINUOUS_SPACE`` function space metadata.
 
 Example 11
 ^^^^^^^^^^
@@ -257,7 +322,7 @@ in progress with the idea being that PSyclone transformations will be
 able to reproduce hand-optimised code.
 
 There is one script which, when run:
-  
+
 .. code-block:: bash
 
    > psyclone ./matvec_opt.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
@@ -315,4 +380,3 @@ create.py: Constructing PSyIR
 
 A Python script that demonstrates the use of ``create`` methods to
 build a PSyIR tree from scratch.
-

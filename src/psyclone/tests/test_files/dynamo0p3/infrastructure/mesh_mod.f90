@@ -9,8 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology
-! Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology
+! Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modified: A. R. Porter, STFC Daresbury Laboratory
 
 module mesh_mod
 
@@ -45,6 +46,7 @@ module mesh_mod
   use linked_list_data_mod, only : linked_list_data_type
   use partition_mod, only: partition_type
   use mesh_map_mod, only: mesh_map_type
+  use reference_element_mod, only : reference_element_type
   implicit none
 
   private
@@ -52,6 +54,8 @@ module mesh_mod
   type, extends(linked_list_data_type), public :: mesh_type
 
     private
+
+    class(reference_element_type), allocatable :: reference_element
 
     type(partition_type) :: partition
     integer(i_def) :: nlayers
@@ -85,6 +89,7 @@ module mesh_mod
     integer(i_def), allocatable :: edge_cell_owner(:,:)
     integer(i_def), allocatable :: vertex_ownership(:,:)
     integer(i_def), allocatable :: edge_ownership(:,:)
+    integer(i_def), allocatable :: face_id_in_adjacent_cell(:,:)
 
     integer(i_def),              private :: ncolours
     integer(i_def), allocatable, private :: ncells_per_colour(:)
@@ -94,6 +99,8 @@ module mesh_mod
 
   contains
 
+    procedure, public :: get_adjacent_face
+    procedure, public :: get_reference_element
     procedure, public :: get_nlayers
     procedure, public :: get_ncells_2d
     procedure, public :: get_ncells_2d_with_ghost
@@ -168,6 +175,27 @@ module mesh_mod
 
 contains
 
+  function get_adjacent_face( self ) result( adjacent_face )
+    
+    implicit none
+
+    class(mesh_type), target, intent(in) :: self
+    integer(i_def), pointer :: adjacent_face(:,:)
+    
+    adjacent_face => self%face_id_in_adjacent_cell(:,:)
+
+  end function get_adjacent_face
+
+  function get_reference_element( self )
+    implicit none
+
+    class(mesh_type), intent(in), target :: self
+    class(reference_element_type), pointer :: get_reference_element
+
+    get_reference_element => self%reference_element
+
+  end function get_reference_element
+    
   subroutine get_vert_coords(self, vert_lid, vertex_coords)
 
     implicit none

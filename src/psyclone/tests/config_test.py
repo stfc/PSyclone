@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -61,10 +62,15 @@ DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
+VALID_PSY_DATA_PREFIXES = profile extract
 [dynamo0.3]
+access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
+                 gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 KERNEL_DATA_LAYOUT = layout_zxy
 KERNEL_DATA_ADDRESSING = direct_z, indirect_xy
+default_kind = real: r_def, integer: i_def, logical: l_def
+RUN_TIME_CHECKS = false
 '''
 
 
@@ -93,7 +99,8 @@ def clear_config_instance():
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
-                        "COMPUTE_ANNEXED_DOFS"])
+                        "COMPUTE_ANNEXED_DOFS",
+                        "RUN_TIME_CHECKS"])
 def bool_entry(request):
     '''
     Parameterised fixture that will cause a test that has it as an
@@ -407,6 +414,21 @@ def test_broken_fmt(tmpdir):
                 "formatted correctly? (Error was: File contains no section "
                 "headers" in str(err.value))
 
+    # Test for general parsing error (here broken key-value mapping)
+    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
+                     "DEFAULT",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            config = Config()
+            config.load(config_file=str(config_file))
+        assert "Error was: Source contains parsing errors" in str(err.value)
+
 
 def test_default_missing(tmpdir):
     ''' Check that we produce a suitable error if the [DEFAULT] section
@@ -569,11 +591,11 @@ def test_mappings():
 
 
 def test_invalid_access_mapping(tmpdir):
-    '''Test that providing an invalid an invalid access type (i.e. not
+    '''Test that providing an invalid access type (i.e. not
     'read', 'write', ...) raises an exception.
     '''
     # Test for an invalid key
-    content = _CONFIG_CONTENT + "access_mapping = gh_read:invalid"
+    content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
     config_file = tmpdir.join("config")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -603,3 +625,76 @@ def test_default_access_mapping(tmpdir):
         api_config = config.api_conf("dynamo0.3")
         for access_mode in api_config.get_access_mapping().values():
             assert isinstance(access_mode, AccessType)
+
+
+def test_access_mapping_order(tmpdir):
+    ''' Test that the order of the access mappings in the config file
+    does not affect the correct access type-mode conversion. '''
+    content = re.sub(r"gh_write: write, gh_readwrite: readwrite",
+                     "gh_readwrite: readwrite, gh_write: write",
+                     _CONFIG_CONTENT)
+    content = re.sub(r"gh_inc: inc, gh_sum: sum",
+                     "gh_sum: sum, gh_inc: inc", content)
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+
+        api_config = Config.get().api_conf("dynamo0.3")
+        for access_mode in api_config.get_access_mapping().values():
+            assert isinstance(access_mode, AccessType)
+
+
+def test_psy_data_prefix(tmpdir):
+    ''' Check the handling of PSyData class prefixes.'''
+    config_file = tmpdir.join("config.correct")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(_CONFIG_CONTENT)
+        new_cfg.close()
+        config = Config()
+        config.load(config_file=str(config_file))
+
+        assert "profile" in config.valid_psy_data_prefixes
+        assert "extract" in config.valid_psy_data_prefixes
+        assert len(config.valid_psy_data_prefixes) == 2
+
+    # Now handle a config file without psy data prefixes:
+    # This should not raise an exception, but define an empty list
+    content = re.sub(r"VALID_PSY_DATA_PREFIXES", "NO-PSY-DATA",
+                     _CONFIG_CONTENT)
+    config_file = tmpdir.join("config.no_psydata")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+        assert not config.valid_psy_data_prefixes
+
+
+def test_invalid_prefix(tmpdir):
+    '''Tests invalid PSyData prefixes (i.e. ones that would result
+    in invalid Fortran names when used).
+    '''
+
+    for prefix in ["1", "&AB", "?", "_ab", "ab'", "cd\"", "ef?"]:
+        content = re.sub(r"^VALID_PSY_DATA_PREFIXES.*$",
+                         "VALID_PSY_DATA_PREFIXES="+prefix,
+                         _CONFIG_CONTENT, flags=re.MULTILINE)
+        config_file = tmpdir.join("config.invalid_psydata")
+        with config_file.open(mode="w") as new_cfg:
+            new_cfg.write(content)
+            new_cfg.close()
+            config = Config()
+            with pytest.raises(ConfigurationError) as err:
+                config.load(config_file=str(config_file))
+            # When there is a '"' in the invalid prefix, the "'" in the
+            # error message is escaped with a '\'. So in order to test the
+            # invalid 'cd"' prefix, we need to have two tests in the assert:
+            assert "Invalid PsyData-prefix '{0}' in config file" \
+                   .format(prefix) in str(err.value)  \
+                or "Invalid PsyData-prefix \\'{0}\\' in config file" \
+                   .format(prefix) in str(err.value)
+            assert "The prefix must be valid for use as the start of a " \
+                   "Fortran variable name." in str(err.value)

@@ -44,7 +44,8 @@ from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.errors import GenerationError
-from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, DataType
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
+    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
 from psyclone.tests.utilities import Compile, get_invoke
 
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
@@ -427,7 +428,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = DataSymbol("arg1", DataType.INTEGER, [],
+    arg1 = DataSymbol("arg1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
@@ -440,7 +441,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 2 kernel argument
-    arg2 = DataSymbol("arg2", DataType.INTEGER, shape=[],
+    arg2 = DataSymbol("arg2", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
@@ -450,7 +451,8 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    arg3 = DataSymbol("buffer1", DataType.REAL, shape=[10, 10],
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    arg3 = DataSymbol("buffer1", array_type,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg3)
@@ -462,24 +464,22 @@ def test_symtab_implementation_for_opencl():
     assert data_args[0] is arg3
 
     # Test gen_ocl with wrong iteration indices types and shapes.
-    arg1._datatype = DataType.REAL
+    arg1._datatype._intrinsic = ScalarType.Intrinsic.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
-            " but got a scalar of type 'DataType.REAL' for kernel 'test'."
+    assert ("GOcean 1.0 API kernels first argument should be a scalar "
+            "integer but got 'Scalar<REAL, UNDEFINED>' for kernel 'test'."
             in str(err.value))
 
-    arg1._datatype = DataType.INTEGER  # restore
-    arg2._shape = [None]
+    arg1._datatype._intrinsic = ScalarType.Intrinsic.INTEGER  # restore
+    arg2._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
-            " but got an array of type 'DataType.INTEGER' for kernel 'test'."
-            in str(err.value))
+            " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
+            "kernel 'test'." in str(err.value))
 
 
-@pytest.mark.xfail(reason="OCLTrans bypasses the Use statment check. Issue "
-                          "#323 will add support for Use statments.")
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_kernel_with_use():
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
@@ -491,5 +491,5 @@ def test_opencl_kernel_with_use():
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. PSyclone cannot currently"
-            in str(err.value))
+            "'global' scope: ['rdt']. An OpenCL kernel cannot call other "
+            "kernels and all of the data" in str(err.value))

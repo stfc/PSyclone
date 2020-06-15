@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,14 +45,17 @@
 !> @details Stores the diagonal elements of a mass matrix M into a field D
 !>          i.e D(df) = M(df,df)
 module mm_diagonal_kernel_mod
+
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1,                            &
-                                    CELLS 
-use constants_mod,           only : r_def
+                                    CELLS
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -66,36 +69,24 @@ type, public, extends(kernel_type) :: mm_diagonal_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass ::mm_diagonal_kernel_code
+  procedure, nopass :: mm_diagonal_kernel_code
 end type
-
-!-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface mm_diagonal_kernel_type
-  module procedure mm_diagonal_kernel_constructor
-end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public mm_diagonal_kernel_code
-contains
 
-  type(mm_diagonal_kernel_type) function mm_diagonal_kernel_constructor() result(self)
-  return
-end function mm_diagonal_kernel_constructor
+contains
 
 !> @brief The subroutine which is called directly by the Psy layer, strores the diagonal of a mass_matrix
 !> @param[in]  cell the horizontal cell index
 !! @param[in] nlayers Integer the number of layers
 !! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The unique number of degrees of freedom 
+!! @param[in] undf The unique number of degrees of freedom
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[inout] mm_diag Real array the field array to store the diagonal entries
-!!               of the mass matrix
+!! @param[in,out] mm_diag Real array the field array to store the diagonal entries
+!!                of the mass matrix
 !! @param[in] ncell_3d total number of cells
 !! @param[in] mass_matrix Real: Array holding mass matrix values
 subroutine mm_diagonal_kernel_code(cell,        &
@@ -103,25 +94,27 @@ subroutine mm_diagonal_kernel_code(cell,        &
                                    mm_diag,     &
                                    ncell_3d,    &
                                    mass_matrix, &
-                                   ndf,undf,map)
- 
+                                   ndf, undf, map)
+
+  implicit none
+
   ! Arguments
-  integer,                   intent(in)    :: cell, nlayers, ndf
-  integer,                   intent(in)    :: undf, ncell_3d
-  integer, dimension(ndf),   intent(in)    :: map
+  integer(kind=i_def),                   intent(in) :: cell, nlayers, ndf
+  integer(kind=i_def),                   intent(in) :: undf, ncell_3d
+  integer(kind=i_def), dimension(ndf),   intent(in) :: map
   real(kind=r_def), dimension(undf), intent(inout) :: mm_diag
   real(kind=r_def), dimension(ndf,ndf,ncell_3d), intent(in) :: mass_matrix
 
   ! Internal variables
-  integer :: df, k, ik
- 
+  integer(kind=i_def) :: df, k, ik
+
   do k = 0, nlayers-1
     ik = (cell-1)*nlayers + k + 1
     do df = 1,ndf
        mm_diag(map(df)+k) = mm_diag(map(df)+k) + mass_matrix(df,df,ik)
     end do
   end do
- 
+
 end subroutine mm_diagonal_kernel_code
 
 end module mm_diagonal_kernel_mod

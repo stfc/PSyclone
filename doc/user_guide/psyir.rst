@@ -100,6 +100,15 @@ subclassed into a kernel-layer ``KernelSchedule``. In addition to
 ``BinaryOperation`` and ``NaryOperation``.
 
 
+Node Descriptions
+=================
+
+The Range node
+--------------
+
+.. autoclass:: psyclone.psyir.nodes.Range
+    :members: create, start, step, stop
+
 Text Representation
 ===================
 
@@ -164,6 +173,99 @@ information about the exact location.
 .. automethod:: psyclone.psyir.nodes.Node.walk
 
 
+DataTypes
+=========
+
+The PSyIR supports scalar and array datatypes. These datatypes are
+used when creating instances of DataSymbol and Literal.
+
+Scalar DataTypes
+----------------
+
+A Scalar datatype consists of an intrinsic and a precision.
+
+The intrinsic can be one of ``INTEGER``, ``REAL``, ``BOOLEAN`` and
+``CHARACTER``.
+
+The precision can be ``UNDEFINED``, ``SINGLE``, ``DOUBLE``, an integer
+value specifying the precision in bytes, or a datasymbol (see Section
+:ref:`symbol-label`) that contains precision information. Note that
+``UNDEFINED``, ``SINGLE`` and ``DOUBLE`` allow the precision to be set
+by the system so may be different for different architectures. For
+example:
+
+::
+
+   > char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+   >                        ScalarType.Precision.UNDEFINED)
+   >
+   > int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+   >                       ScalarType.Precision.SINGLE)
+   >
+   > bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
+   >
+   > symbol = DataSymbol("rdef", int_type, constant_value=4)
+   > scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+
+For convenience PSyclone predefines a number of scalar datatypes:
+
+``REAL_TYPE``, ``INTEGER_TYPE``, ``BOOLEAN_TYPE`` and
+``CHARACTER_TYPE`` all have precision set to ``UNDEFINED``;
+
+``REAL_SINGLE_TYPE``, ``REAL_DOUBLE_TYPE``, ``INTEGER_SINGLE_TYPE``
+and ``INTEGER_DOUBLE_TYPE``;
+
+``REAL4_TYPE``, ``REAL8_TYPE``, ``INTEGER4_TYPE`` and
+``INTEGER8_TYPE``.
+
+Array DataTypes
+----------------
+
+An Array datatype has a scalar datatype specifying the type of its
+elements and a shape. The shape can have an arbitrary number of
+dimensions. Each dimension captures what is known about its extent. It
+is necessary to distinguish between four cases:
+
+.. tabularcolumns:: |p{9cm}|L|
+
++--------------------------------------------+--------------------------------+
+|Description                                 | Entry in ``shape`` list        |
++============================================+================================+
+|An array has a static extent known at       | Integer ``Literal``            |
+|compile time.                               |                                |
++--------------------------------------------+--------------------------------+
+|An array has an extent defined by another   | ``Symbol``                     |
+|symbol.                                     |                                |
++--------------------------------------------+--------------------------------+
+|An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
+|known at compile time but can be queried    |                                |
+|at runtime.                                 |                                |
++--------------------------------------------+--------------------------------+
+|It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
+|allocated to it in the current scoping unit.|                                |
++--------------------------------------------+--------------------------------+
+
+The distinction between the last two cases is that in the former the
+extents are known but are kept internally with the array (for example
+an assumed shape array in Fortran) and in the latter the array has not
+yet been allocated any memory (for example the declaration of an
+allocatable array in Fortran) so the extents may have not been defined
+yet.
+
+For example:
+
+::
+
+   > array_type = ArrayType(REAL4_TYPE, [5, 10])
+   >
+   > n_var = DataSymbol("n", INTEGER_TYPE)
+   > array_type = ArrayType(INTEGER_TYPE, [n_var, n_var])
+   >
+   > array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
+   >                                     ArrayType.Extent.ATTRIBUTE])
+   >
+   > array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+
 .. _symbol-label:
 
 Symbols and Symbol Tables
@@ -182,41 +284,13 @@ Where each element is a ``Symbol`` with an immutable name:
 .. autoclass:: psyclone.psyir.symbols.Symbol
     :members:
 
-There are several ``Symbol`` sub-classes to represent different labeled entities
-in the PSyIR. At the moment the available symbols are:
+There are several ``Symbol`` sub-classes to represent different
+labeled entities in the PSyIR. At the moment the available symbols
+are:
 
 - .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
-
-As described in the ``DataSymbol`` constructor, the ``shape``
-specification not only describes whether or not the ``Symbol`` is an
-array but also, if it is an array, captures what is known about how the extent
-(size) of each dimension is managed. This is necessary to distinguish
-between four cases:
-
-.. tabularcolumns:: |p{9cm}|L|
-
-+--------------------------------------------+--------------------------------+
-|Description                                 | Entry in ``shape`` list        |
-+============================================+================================+
-|An array has a static extent known at       | Integer ``Literal``            |
-|compile time.                               |                                |
-+--------------------------------------------+--------------------------------+
-|An array has an extent defined by another   | ``Symbol``                     |
-|symbol.                                     |                                |
-+--------------------------------------------+--------------------------------+
-|An array has a definite extent which is not | ``DataSymbol.Extent.ATTRIBUTE``|
-|known at compile time but can be queried    |                                |
-|at runtime.                                 |                                |
-+--------------------------------------------+--------------------------------+
-|It is not known whether an array has memory | ``DataSymbol.Extent.DEFERRED`` |
-|allocated to it in the current scoping unit.|                                |
-+--------------------------------------------+--------------------------------+
-
-(The distinction between the last two cases is necessary to allow the
-PSyIR Fortran backend to create correct code for a subroutine
-which is passed an allocatable array.)
 
 Creating PSyIR
 ==============
@@ -228,7 +302,7 @@ PSyIR symbol names can be specified by a user. For example::
 
    > var_name = "my_name"
    > symbol_table = SymbolTable()
-   > data = DataSymbol(var_name, DataType.REAL)
+   > data = DataSymbol(var_name, REAL_TYPE)
    > symbol_table.add(data)
    > reference = Reference(data)
 
@@ -245,11 +319,11 @@ value of the ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
 section of the PSyclone config file, followed by an optional "_" and
 an integer. For example, the following code::
 
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
+  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL4_TYPE
   > symbol_table = SymbolTable()
   > for i in range(0, 3):
   >     var_name = symbol_table.new_symbol_name()
-  >     symbol_table.add(DataSymbol(var_name, DataType.REAL))
+  >     symbol_table.add(DataSymbol(var_name, REAL4_TYPE))
   >     print (var_name)
 
 gives the following output::
@@ -272,11 +346,11 @@ readable names, the ``new_symbol_name()`` method allows the user to specify a
 root name as an argument to the method which then takes the place of
 the default root name. For example, the following code::
   
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, DataType
+  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_SINGLE_TYPE
   > symbol_table = SymbolTable()
   > for i in range(0, 3):
   >     var_name = symbol_table.new_symbol_name(root_name="something")
-  >     symbol_table.add(DataSymbol(var_name, DataType.REAL))
+  >     symbol_table.add(DataSymbol(var_name, REAL_SINGLE_TYPE))
   >     print (var_name)
 
 gives the following output::
@@ -299,7 +373,7 @@ together. For example::
 
     > ...
     > assignment = Assignment()
-    > literal = Literal("0.0")
+    > literal = Literal("0.0", REAL_TYPE)
     > reference = Reference(symbol)
     > literal.parent = assignment
     > reference.parent = assignment
@@ -316,7 +390,7 @@ construct the PSyIR using a bottom up approach. Using this method, the
 above example then becomes::
 
     > ...
-    > literal = Literal("0.0")
+    > literal = Literal("0.0", REAL_TYPE)
     > reference = Reference(symbol)
     > assignment = Assignment.create(reference, literal)
 

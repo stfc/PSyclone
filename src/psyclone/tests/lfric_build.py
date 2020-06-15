@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. Porter and R. Ford, STFC Daresbury Lab
+# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
@@ -59,23 +60,27 @@ class LFRicBuild(Compile):
     # order can be important, they will be compiled in the order
     # specified here.
     INFRASTRUCTURE_MODULES = ["constants_mod",
+                              "fs_continuity_mod",
                               "linked_list_data_mod",
                               "argument_mod",
                               "kernel_mod",
                               "partition_mod",
+                              "reference_element_mod",
                               "mesh_map_mod",
                               "mesh_mod",
                               "stencil_dofmap_mod",
                               "function_space_mod",
+                              "scalar_mod",
                               "field_mod",
-                              "abstract_quadrature_mod",
-                              "quadrature_rule_mod",
+                              "quadrature_mod",
                               "quadrature_xyz_mod",
                               "quadrature_xyoz_mod",
                               "quadrature_xoyoz_mod",
-                              "quadrature_mod",
+                              "quadrature_edge_mod",
+                              "quadrature_face_mod",
                               "operator_mod",
-                              "flux_direction_mod"]
+                              "flux_direction_mod",
+                              "log_mod"]
 
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.

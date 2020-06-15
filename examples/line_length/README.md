@@ -15,11 +15,10 @@ In the example in this directory the call to the `testkern_qr_code`
 Kernel subroutine from the generated PSy layer is longer than 132
 characters so is line wrapped.
 
-To run from the command line simply type the following
+To run from the command line simply type the following:
 
 ```sh
-python ../../src/psyclone/generator.py -l -d \
-  ../../src/psyclone/tests/test_files/dynamo0p3 longlines.f90
+psyclone -l -d ../../src/psyclone/tests/test_files/dynamo0p3 longlines.f90
 ```
 
 To see how to run interactively, look at (and run) the "runme.py"

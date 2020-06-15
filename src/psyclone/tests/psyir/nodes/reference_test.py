@@ -40,9 +40,10 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, Array, Assignment, Literal
-from psyclone.psyir.symbols import DataSymbol, DataType, SymbolError, \
-    SymbolTable
+from psyclone.psyir.nodes import Reference, Array, Assignment, Literal, \
+    BinaryOperation, Range
+from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -64,7 +65,7 @@ def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("rname", DataType.INTEGER)
+    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     ref = Reference(symbol, assignment)
@@ -76,7 +77,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("rname", DataType.INTEGER)
+    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     ref = Reference(symbol, assignment)
@@ -88,9 +89,20 @@ def test_reference_optional_parent():
     argument is not supplied.
 
     '''
-    ref = Reference(DataSymbol("rname", DataType.REAL))
+    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
     assert ref.parent is None
 
+
+def test_reference_children_validation():
+    '''Test that children added to Reference are validated. A Reference node
+    does not accept any children.
+
+    '''
+    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        ref.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 # Test Array class
 
@@ -99,8 +111,8 @@ def test_array_node_str():
     ''' Check the node_str method of the Array class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", DataType.INTEGER,
-                        [DataSymbol.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    symbol = DataSymbol("aname", array_type)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     array = Array(symbol, parent=assignment)
@@ -112,7 +124,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", DataType.INTEGER)
+    symbol = DataSymbol("aname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     array = Array(symbol, assignment)
@@ -124,11 +136,12 @@ def test_array_create():
     creates an Array instance.
 
     '''
-    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10, 10, 10])
-    symbol_i = DataSymbol("i", DataType.INTEGER)
-    symbol_j = DataSymbol("j", DataType.INTEGER)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", DataType.INTEGER)]
+                Literal("1", INTEGER_SINGLE_TYPE)]
     array = Array.create(symbol_temp, children)
     check_links(array, children)
     result = FortranWriter().array_node(array)
@@ -140,11 +153,11 @@ def test_array_create_invalid1():
     if the provided symbol is not an array.
 
     '''
-    symbol_i = DataSymbol("i", DataType.INTEGER)
-    symbol_j = DataSymbol("j", DataType.INTEGER)
-    symbol_temp = DataSymbol("temp", DataType.REAL)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    symbol_temp = DataSymbol("temp", REAL_SINGLE_TYPE)
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", DataType.INTEGER)]
+                Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create(symbol_temp, children)
     assert ("expecting the symbol to be an array, not a scalar."
@@ -157,11 +170,12 @@ def test_array_create_invalid2():
     the number of indices provided to the create method.
 
     '''
-    symbol_temp = DataSymbol("temp", DataType.REAL, shape=[10])
-    symbol_i = DataSymbol("i", DataType.INTEGER)
-    symbol_j = DataSymbol("j", DataType.INTEGER)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", DataType.INTEGER)]
+                Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = Array.create(symbol_temp, children)
     assert ("the symbol should have the same number of dimensions as indices "
@@ -183,33 +197,185 @@ def test_array_create_invalid3():
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create(DataSymbol("temp", DataType.REAL), "invalid")
+        _ = Array.create(DataSymbol("temp", REAL_SINGLE_TYPE), "invalid")
     assert ("children argument in create method of Array class should "
             "be a list but found 'str'." in str(excinfo.value))
 
-    # contents of children list are not Node
+
+def test_array_children_validation():
+    '''Test that children added to Array are validated. Array accepts
+    DataNodes and Range children.'''
+    array_type = ArrayType(REAL_SINGLE_TYPE, shape=[5, 5])
+    array = Array(DataSymbol("rname", array_type))
+    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
+    erange = Range()
+    assignment = Assignment()
+
+    # Invalid child
     with pytest.raises(GenerationError) as excinfo:
-        _ = Array.create(DataSymbol("temp", DataType.REAL),
-                         [Reference(DataSymbol("i", DataType.INTEGER)),
-                          "invalid"])
-    assert (
-        "child of children argument in create method of Array class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+        array.addchild(assignment)
+    assert ("Item 'Assignment' can't be child 0 of 'ArrayReference'. The valid"
+            " format is: '[DataNode | Range]*'." in str(excinfo.value))
+
+    # Valid children
+    array.addchild(datanode1)
+    array.addchild(erange)
 
 
-def test_reference_check_declared():
-    '''Test that the check_declared method in the Reference class raises
-    an exception if the associated symbol does not exist in a symbol
-    table associated with an ancestor node. Note, this exception is
-    only raised if a symbol table exists. If one does not exist then
-    it silently returns (to support the NEMO API which does not have
-    symbol tables see issue #500).
+def test_array_is_full_range():
+    '''Test that the is_full_range method in the Array Node works as
+    expected. '''
+    # pylint: disable=too-many-statements
+    zero = Literal("0", INTEGER_SINGLE_TYPE)
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    symbol = DataSymbol("my_array", array_type)
+    reference = Reference(symbol)
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    reference, one)
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    reference, one)
+    symbol_error = DataSymbol("another_array", array_type)
+    reference_error = Reference(symbol_error)
 
-    '''
-    ref = Reference(DataSymbol("rname", DataType.REAL))
-    assignment = Assignment.create(ref, Literal("0.0", DataType.REAL))
-    _ = KernelSchedule.create("test", SymbolTable(),
-                              [assignment])
-    with pytest.raises(SymbolError) as excinfo:
-        ref.check_declared()
-    assert "Undeclared reference 'rname' found." in str(excinfo.value)
+    # Index out of bounds
+    array_reference = Array.create(symbol, [one])
+    with pytest.raises(ValueError) as excinfo:
+        array_reference.is_full_range(1)
+    assert ("In Array 'my_array' the specified index '1' must be less than "
+            "the number of dimensions '1'." in str(excinfo.value))
+
+    # Array dimension is not a Range
+    assert not array_reference.is_full_range(0)
+
+    # Check LBOUND
+    # Array dimension range lower bound is not a binary operation
+    my_range = Range.create(one, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range lower bound is not an LBOUND binary operation
+    my_range = Range.create(ubound, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range lower bound is an LBOUND binary operation
+    # with the first value not being a reference
+    lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                          zero, zero)
+    my_range = Range.create(lbound_error, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range lower bound is an LBOUND binary operation
+    # with the first value being a reference to a different symbol
+    lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                          reference_error, zero)
+    my_range = Range.create(lbound_error, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range lower bound is an LBOUND binary operation
+    # with the second value not being a literal.
+    lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                          reference, reference)
+    my_range = Range.create(lbound_error, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range lower bound is an LBOUND binary operation
+    # with the second value not being an integer literal.
+    lbound_error = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, reference,
+        Literal("1.0", REAL_SINGLE_TYPE))
+    my_range = Range.create(lbound_error, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range lower bound is an LBOUND binary operation
+    # with the second value being an integer literal with the wrong
+    # value (should be 0 as this dimension index is 0).
+    lbound_error = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, reference, one)
+    my_range = Range.create(lbound_error, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Check UBOUND
+    # Array dimension range upper bound is not a binary operation
+    my_range = Range.create(lbound, one, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range upper bound is not a UBOUND binary operation
+    my_range = Range.create(lbound, lbound, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range upper bound is a UBOUND binary operation
+    # with the first value not being a reference
+    ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                          zero, zero)
+    my_range = Range.create(lbound, ubound_error, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range upper bound is a UBOUND binary operation
+    # with the first value being a reference to a different symbol
+    ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                          reference_error, zero)
+    my_range = Range.create(lbound, ubound_error, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range upper bound is a UBOUND binary operation
+    # with the second value not being a literal.
+    ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                          reference, reference)
+    my_range = Range.create(lbound, ubound_error, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range upper bound is a UBOUND binary operation
+    # with the second value not being an integer literal.
+    ubound_error = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, reference,
+        Literal("1.0", REAL_SINGLE_TYPE))
+    my_range = Range.create(lbound, ubound_error, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range upper bound is a UBOUND binary operation
+    # with the second value being an integer literal with the wrong
+    # value (should be 1 as this dimension is 1).
+    ubound_error = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, reference, zero)
+    my_range = Range.create(lbound, ubound_error, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Check Step
+    # Array dimension range step is not a literal.
+    my_range = Range.create(lbound, ubound, lbound)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range step is not an integer literal.
+    my_range = Range.create(lbound, ubound, one)
+    # We have to change this to a non-integer manually as the create
+    # function only accepts integer literals for the step argument.
+    my_range.children[2] = Literal("1.0", REAL_SINGLE_TYPE)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # Array dimension range step is is an integer literal with the
+    # wrong value (not 1).
+    my_range = Range.create(lbound, ubound, zero)
+    array_reference = Array.create(symbol, [my_range])
+    assert not array_reference.is_full_range(0)
+
+    # All is as it should be.
+    # The full range is covered so return true.
+    my_range = Range.create(lbound, ubound, one)
+    array_reference = Array.create(symbol, [my_range])
+    assert array_reference.is_full_range(0)

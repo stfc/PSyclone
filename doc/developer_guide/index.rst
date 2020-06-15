@@ -6,7 +6,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2019, Science and Technology Facilities Council.
+   Copyright (c) 2017-2020, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -36,17 +36,20 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 .. toctree::
    :maxdepth: 3
 
    working_practises
    psyir
+   psyir_symbols
+   psyir_backends
    parsing
    APIs
    modules
    transformations
+   psy_data
    system_specific_setup
    coding-style
    zz_bibliography

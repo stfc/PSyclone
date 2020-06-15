@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,8 @@
     a given built-in call. '''
 
 from __future__ import absolute_import
-from psyclone import psyGen
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import BuiltIn, NameSpaceFactory
+from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
@@ -124,12 +123,10 @@ class DynBuiltIn(BuiltIn):
     Parent class for a call to a Dynamo Built-in.
     '''
     def __init__(self):
-        self._name_space_manager = NameSpaceFactory().create()
-        # Look=up/create the name of the loop variable for the loop over DoFs
-        self._idx_name = self._name_space_manager.\
-            create_name(root_name="df",
-                        context="PSyVars",
-                        label="dof_loop_idx")
+        # Builtins do not accept quadrature
+        self.qr_rules = {}
+        # Builtins cannot request mesh properties
+        self.mesh = None
         super(DynBuiltIn, self).__init__()
 
     def __str__(self):
@@ -139,10 +136,13 @@ class DynBuiltIn(BuiltIn):
         ''' Populate the state of this object using the supplied call
         object. '''
         from psyclone.dynamo0p3 import FSDescriptors
+        self._parent = parent  # Needed on the DynKernelArguments() below
         BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
+        self._idx_name = \
+            self.root.symbol_table.name_from_tag("dof_loop_idx", root="df")
         # Check that this built-in kernel is valid
         self._validate()
 
@@ -188,15 +188,24 @@ class DynBuiltIn(BuiltIn):
     @property
     def undf_name(self):
         ''' Dynamically looks up the name of the undf variable for the
-        space that this kernel updates '''
+        space that this kernel updates.
+
+        :returns: the name of the undf variable.
+        :rtype: str
+
+        '''
         field = self._arguments.iteration_space_arg()
-        from psyclone.dynamo0p3 import get_fs_undf_name
-        return get_fs_undf_name(field.function_space)
+        return field.function_space.undf_name
 
     @property
     def qr_required(self):
         ''' Built-ins do not currently require quadrature '''
         return False
+
+    @property
+    def reference_element(self):
+        ''' Built-ins do not require reference-element properties. '''
+        return None
 
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")

@@ -48,6 +48,9 @@ cd eg3/
 psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
 ```
 
+This example also demonstrates the use of `Wchi` function space metadata
+for coordinate fields in LFRic.
+
 ## Example 4
 
 The fourth example illustrates the use of (multiple) calls to built-in
@@ -158,7 +161,8 @@ cd eg10/
 psyclone intergrid_3levels.x90
 ```
 
-This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE` metadata.
+This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE`
+function space metadata.
 
 ## Example 11: Asynchronous halo exchanges
 
@@ -261,7 +265,8 @@ psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mo
 ```
 
 3. Adding OpenACC enter data, parallel and loop directives in the
-presence of halo exchanges.
+presence of halo exchanges. This does not currently produce compilable code because
+calls to set_clean()/dirty() end up within parallel regions - TODO #450.
 ```sh
 cd eg14/
 psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90

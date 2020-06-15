@@ -38,19 +38,16 @@
 
 ''' This module contains the Return node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.statement import Statement
 
 
-class Return(Node):
+class Return(Statement):
     '''
     Node representing a Return statement (subroutine break without return
     value).
 
-    :param parent: the parent node of this Return in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
-    def __init__(self, parent=None):
-        super(Return, self).__init__(parent=parent)
-
-    def __str__(self):
-        return "Return[]\n"
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "Return"
+    _colour_key = "Return"

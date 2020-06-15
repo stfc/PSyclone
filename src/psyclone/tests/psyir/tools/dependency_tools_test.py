@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -39,6 +40,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from psyclone.tests.utilities import get_invoke
 from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.psyGen import PSyFactory
 
@@ -78,6 +80,8 @@ def test_nested_loop_detection(parser):
     '''Tests if nested loop are handled correctly.
     '''
     reader = FortranStringReader('''program test
+                                 integer :: ji, jk, jpi, jpk
+                                 real, dimension(jpi,jpi,jpk) :: umask, xmask
                                  do jk = 1, jpk   ! loop 0
                                    umask(1,1,jk) = -1.0d0
                                  end do
@@ -107,6 +111,8 @@ def test_loop_type(parser):
     '''Tests general functionality of can_loop_be_parallelised.
     '''
     reader = FortranStringReader('''program test
+                                 integer ji, jpi
+                                 real, dimension(jpi,1,1) :: xmask
                                  do ji = 1, jpi
                                    xmask(ji,1,1) = -1.0d0
                                  end do
@@ -127,6 +133,8 @@ def test_arrays_parallelise(parser):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
     reader = FortranStringReader('''program test
+                                 integer ji, jj, jk, jpi, jpj
+                                 real, dimension(jpi,jpi) :: mask, umask
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
                                        mask(jk, jk) = -1.0d0
@@ -184,6 +192,8 @@ def test_scalar_parallelise(parser):
     '''Tests the scalar checks of can_loop_be_parallelised.
     '''
     reader = FortranStringReader('''program test
+                                 integer :: ji, jj, jpi, jpj, b
+                                 integer, dimension(jpi,jpj) :: a, c
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
                                        a(ji, jj) = b
@@ -233,12 +243,11 @@ def test_scalar_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.xfail(reason="#363 PSyIR does not yet support derived types")
 def test_derived_type(parser):
-    '''Tests assignment to derived type variables. For now (see #363)
-    they are only partially supported, and as default assume that these
-    kind of statements are not parallelisable.
-    '''
+    ''' Tests assignment to derived type variables. '''
     reader = FortranStringReader('''program test
+                                 integer :: ji, jj, jpi, jpj
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
                                        a%b(ji, jj) = 0
@@ -294,3 +303,50 @@ def test_derived_type(parser):
         can_loop_be_parallelised(loops[1], "jj",
                                  variables_to_ignore=["a % b", "b % b"])
     assert parallel
+
+
+# -----------------------------------------------------------------------------
+def test_inout_parameters_nemo(parser):
+    '''Test detection of input and output parameters in NEMO.
+    '''
+    reader = FortranStringReader('''program test
+                         integer :: ji, jj, jpi, jpj
+                         real :: a(5,5), c(5,5), b
+                         do jj = 1, jpj   ! loop 0
+                            do ji = 1, jpi
+                               a(ji, jj) = b+c(ji, jj)
+                             end do
+                         end do
+                         end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test").schedule
+
+    dep_tools = DependencyTools()
+    input_list = dep_tools.get_input_parameters(loops)
+    # Use set to be order independent
+    input_set = set(input_list)
+    assert input_set == set(["b", "c", "jpi", "jpj"])
+
+    output_list = dep_tools.get_output_parameters(loops)
+    # Use set to be order independent
+    output_set = set(output_list)
+    assert output_set == set(["jj", "ji", "a"])
+
+    in_list1, out_list1 = dep_tools.get_in_out_parameters(loops)
+
+    assert in_list1 == input_list
+    assert out_list1 == output_list
+
+
+# -----------------------------------------------------------------------------
+def test_const_argument():
+    '''Check that using a const scalar as parameter works, i.e. is not
+    listed as input variable.'''
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           api="gocean1.0", idx=0)
+    dep_tools = DependencyTools()
+    input_list = dep_tools.get_input_parameters(invoke.schedule)
+    # Make sure the constant '0' is not listed
+    assert input_list == ['p_fld', 'p_fld%grid%subdomain%internal%xstop',
+                          'p_fld%grid%tmask']

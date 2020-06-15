@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 '''This module tests the various classes in core.access_info.'''
 
@@ -96,7 +97,6 @@ def test_variable_access_info():
     assert not vai.is_read()
     assert vai.is_written()
     assert not vai.is_read_only()
-    assert not vai.is_array()
 
     # Now we have one write access, which we should not be able to
     # change to write again:
@@ -151,17 +151,6 @@ def test_variable_access_info_read_write():
     assert vai.has_read_write()
     assert vai.is_read()
     assert vai.is_written()
-
-    vai_array = VariableAccessInfo("array")
-    vai_array.add_access(AccessType.READ, 2, Node(), [1])
-    vai_array.add_access(AccessType.WRITE, 3, Node(), ["i"])
-    assert vai_array.is_array()
-
-    # Adding a non-array access marks this as not array:
-    # TODO #500: once we have a symboltable, this test
-    # needs to be adjusted.
-    vai_array.add_access(AccessType.WRITE, 3, Node())
-    assert not vai_array.is_array()
 
 
 # -----------------------------------------------------------------------------
@@ -269,3 +258,40 @@ def test_variables_access_info_merge():
     # and the new location 1 increases the current location from
     # 1 to 2:
     assert var_accesses1.location == 2
+
+
+# -----------------------------------------------------------------------------
+def test_constructor():
+    '''Test the optional constructor parameter (single node and list
+    of nodes).'''
+    from psyclone.tests.utilities import create_schedule
+    code = '''module test
+        contains
+        subroutine tmp()
+          integer :: a,b,c
+          a = b/c
+          c = a*b
+        end subroutine tmp
+        end module test'''
+    schedule = create_schedule(code, "tmp")
+    node1 = schedule[0]
+    node2 = schedule[1]
+    vai1 = VariablesAccessInfo(node1)
+    assert str(vai1) == "a: WRITE, b: READ, c: READ"
+    vai2 = VariablesAccessInfo([node1, node2])
+    assert str(vai2) == "a: READ+WRITE, b: READ, c: READ+WRITE"
+
+    with pytest.raises(InternalError) as err:
+        VariablesAccessInfo([node1, node2, 3])
+    assert "One element in the node list is not a Node, but of type " in \
+        str(err.value)
+    # The error message is slightly different between python 2 and 3
+    # so only test for the part that is the same in both:
+    assert "'int'>" in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        VariablesAccessInfo(1)
+    assert "Error in VariablesAccessInfo" in str(err.value)
+    # The error message is slightly different between python 2 and 3
+    # so only test for the part that is the same in both:
+    assert "'int'>" in str(err.value)

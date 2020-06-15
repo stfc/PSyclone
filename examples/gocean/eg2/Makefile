@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,17 @@
 #
 #     make NVTX_DIR=/apps/packages/cuda/10.0/lib64 profile
 #
-# The compiler to use must be specified via the F90 environment
+# The compiler to use may be specified via the F90 environment
 # variable. e.g. to use PGI and OpenACC:
 #
 # export F90=pgf90
 # export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
 # export LDFLAGS="-acc -ta=tesla,cc70"
+
+include ../../common.mk
+
+GENERATED_FILES += *.o *.mod inc_field_*_mod.f90 psy*.f90 alg_gen.f90 \
+  alg_prof.f90 single*.exe
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -64,16 +69,23 @@ PROFILE_LIB = ${PROFILE_DIR}/libnvtx_prof.a
 NVTX_DIR ?= /usr/local/lib64/cuda10.0
 NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
 
-.PHONY: all kernels profile clean allclean
+.PHONY: kernels profile
 
-all: single.exe
+all: transform compile profile
 
-# Target to make the same application but instrumented for profiling
+compile: single.exe
+
+# Target to make the same application but instrumented for profiling.
+# Requires both the target profiling library and associated
+# PSyclone wrapper library.
 profile: single_prof.exe
+
+# Perform the PSyclone transformations only
+transform: psy.f90 alg_gen.f90 psy_prof.f90 alg_prof.f90
 
 # The dl_esm_inf library
 ${INF_LIB}:
-	${MAKE} -C ${INF_DIR}
+	${MAKE} -C ${INF_DIR} F90=${F90}
 
 # The profiling wrapper library
 ${PROFILE_LIB}:
@@ -91,11 +103,11 @@ single_prof.exe: ${INF_LIB} ${PROFILE_LIB} psy_prof.f90 kernels psy_prof.o alg_p
 ${PROFILE_LIB} ${NVTX_LINK} -o single.exe
 
 psy.f90 alg_gen.f90: alg.f90
-	psyclone -l -api "gocean1.0" -s ./acc_transform.py -opsy psy.f90 \
+	${PSYCLONE} -l -api "gocean1.0" -s ./acc_transform.py -opsy psy.f90 \
 -oalg alg_gen.f90 alg.f90
 
 psy_prof.f90 alg_prof.f90: alg.f90
-	psyclone -l -api "gocean1.0" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
+	${PSYCLONE} -l -api "gocean1.0" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
 -oalg alg_prof.f90 alg.f90
 
 %.o: %.f90
@@ -107,10 +119,3 @@ psy_prof.f90 alg_prof.f90: alg.f90
 kernels:
 	${MAKE} inc_field_mod.o inc_field_0_mod.o
 
-clean:
-	rm -f *.o *.mod *~
-
-# Delete generated Fortran and exe
-allclean: clean
-	rm -f inc_field_*_mod.f90
-	rm -f psy*.f90 alg_gen.f90 alg_prof.f90 single*.exe

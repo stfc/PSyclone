@@ -37,32 +37,44 @@
 of an Invoke into a stand-alone application."
 '''
 
+from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.nodes import ExtractNode, Schedule
+from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.undoredo import Memento
 
 
-class ExtractTrans(RegionTrans):
-    ''' Provides a transformation to extract code represented by a \
-    subset of the Nodes in the PSyIR of a Schedule into a stand-alone \
-    program. Examples are given in descriptions of children classes \
-    DynamoExtractTrans and GOceanExtractTrans.
+class ExtractTrans(PSyDataTrans):
+    '''This transformation inserts an ExtractNode or a node derived
+    from ExtractNode into the PSyIR of a schedule. At code creation
+    time this node will use the PSyData API to create code that can
+    write the input and output parameters to a file. The node might
+    also create a stand-alone driver program that can read the created
+    file and then execute the instrumented region.
+    Examples are given in the derived classes DynamoExtractTrans and
+    GOceanExtractTrans.
 
-    After applying the transformation the Nodes marked for extraction are \
-    children of the ExtractNode. \
-    Nodes to extract can be individual constructs within an Invoke (e.g. \
-    Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
+    After applying the transformation the Nodes marked for extraction are
+    children of the ExtractNode.
+    Nodes to extract can be individual constructs within an Invoke (e.g.
+    Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
+
+    :param node_class: The Node class of which an instance will be inserted \
+        into the tree (defaults to ExtractNode), but can be any derived class.
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or \
+        derived class
+
     '''
     from psyclone.psyir import nodes
     from psyclone import psyGen
     # The types of node that this transformation can enclose
     valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, nodes.Literal, nodes.Reference)
+
+    def __init__(self, node_class=ExtractNode):
+        super(ExtractTrans, self).__init__(node_class=node_class)
 
     def __str__(self):
         return ("Create a sub-tree of the PSyIR that has ExtractNode "
@@ -74,7 +86,8 @@ class ExtractTrans(RegionTrans):
         return "ExtractTrans"
 
     def validate(self, node_list, options=None):
-        ''' Perform validation checks before applying the transformation
+        '''Performs validation checks specific to extract-based
+        transformations.
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -93,16 +106,12 @@ class ExtractTrans(RegionTrans):
                                      Directive.
         '''
 
-        # First check constraints on Nodes in the node_list common to
-        # all RegionTrans transformations.
-        super(ExtractTrans, self).validate(node_list, options)
-
-        # Now check ExtractTrans specific constraints.
+        # Check ExtractTrans specific constraints.
 
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
-        # GlobalSum classses as they are only generated when distributed
+        # GlobalSum classes as they are only generated when distributed
         # memory is enabled.
         if Config.get().distributed_memory:
             raise TransformationError(
@@ -112,7 +121,7 @@ class ExtractTrans(RegionTrans):
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
         from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import BuiltIn, Directive, \
+        from psyclone.psyGen import BuiltIn, Directive, Kern, \
             OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
@@ -147,76 +156,6 @@ class ExtractTrans(RegionTrans):
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
-    def apply(self, nodes, options=None):
-        # pylint: disable=arguments-differ
-        ''' Apply this transformation to a subset of the Nodes within
-        a Schedule - i.e. enclose the specified Nodes in the Schedule
-        within a single Extract region.
-
-        :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the `nodes` argument is not of \
-                                     the correct type.
-
-        :returns: tuple of the modified Schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
-        '''
-
-        # Check whether we've been passed a list of Nodes or just a
-        # single Node. If the latter then we create ourselves a list
-        # containing just that Node.
-        from psyclone.psyir.nodes import Node
-        if isinstance(nodes, list) and isinstance(nodes[0], Node):
-            node_list = nodes
-        elif isinstance(nodes, Schedule):
-            node_list = nodes.children
-        elif isinstance(nodes, Node):
-            node_list = [nodes]
-        else:
-            arg_type = str(type(nodes))
-            raise TransformationError("Error in {0}: "
-                                      "Argument must be a single Node in a "
-                                      "Schedule or a list of Nodes in a "
-                                      "Schedule but have been passed an "
-                                      "object of type: {1}".
-                                      format(str(self.name), arg_type))
-
-        # Validate transformation
-        self.validate(node_list, options)
-
-        # Keep a reference to the parent of the Nodes that are to be
-        # enclosed within an Extract region. Also keep the index of
-        # the first child to be enclosed as that will be the position
-        # of the ExtractNode.
-        node_parent = node_list[0].parent
-        node_position = node_list[0].position
-
-        # Create a Memento of the Schedule and the proposed
-        # transformation
-        schedule = node_list[0].root
-
-        keep = Memento(schedule, self)
-
-        from psyclone.extractor import ExtractNode
-        extract_node = ExtractNode(parent=node_parent, children=node_list[:])
-
-        # Change all of the affected children so that they have the
-        # ExtractNode as their parent. Use a slice of the list of Nodes
-        # so that we're looping over a local copy of the list. Otherwise
-        # things get confused when we remove children from the list.
-        for child in node_list[:]:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
-            child.parent = extract_node
-
-        # Add the ExtractNode as a child of the parent of the Nodes being
-        # enclosed at the original location of the first of these Nodes
-        node_parent.addchild(extract_node,
-                             index=node_position)
-
-        return schedule, keep
+        # Performs validation checks specific to PSyData-based
+        # transformations.
+        super(ExtractTrans, self).validate(node_list, options)
