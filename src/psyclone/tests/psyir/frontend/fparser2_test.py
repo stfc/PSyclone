@@ -1289,6 +1289,7 @@ def test_process_declarations_kind_new_param():
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, UnknownType)
 
+
 @pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_kind_param():

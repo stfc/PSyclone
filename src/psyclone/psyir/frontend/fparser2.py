@@ -1017,7 +1017,8 @@ class Fparser2Reader(object):
         return (default_visibility, list(explicit_public),
                 list(explicit_private))
 
-    def _process_use_stmts(self, parent, nodes):
+    @staticmethod
+    def _process_use_stmts(parent, nodes):
         '''
         Process all of the USE statements in the fparser2 parse tree
         supplied as a list of nodes. Imported symbols are added to
