@@ -127,7 +127,7 @@ class KernCallArgList(ArgOrdering):
         self.append(nlayers_name)
         if var_accesses is not None:
             var_accesses.add_access(nlayers_name, AccessType.READ, self._kern)
-        self._nlayers_positions.append(len(self.arglist))
+        self._nlayers_positions.append(self.num_args)
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
@@ -349,7 +349,7 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
 
         self._ndf_positions.append(
-            KernCallArgList.NdfInfo(position=len(self.arglist),
+            KernCallArgList.NdfInfo(position=self.num_args,
                                     function_space=function_space.orig_name))
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -594,8 +594,8 @@ class KernCallArgList(ArgOrdering):
                 # XYoZ quadrature requires the number of quadrature points in
                 # the horizontal and in the vertical.
                 self._nqp_positions.append(
-                    {"horizontal": len(self.arglist) + 1,
-                     "vertical": len(self.arglist) + 2})
+                    {"horizontal": self.num_args + 1,
+                     "vertical": self.num_args + 2})
                 self.extend(rule.kernel_args)
 
             elif shape == "gh_quadrature_edge":

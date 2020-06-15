@@ -139,7 +139,7 @@ def test_kernstubarglist_arglist_error():
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = create_arg_list.arglist
     assert (
         "Internal error. The argument list in KernStubArgList:arglist() is "

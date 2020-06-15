@@ -72,6 +72,13 @@ class ArgOrdering(object):
         self._arglist.extend(list_var_name)
 
     @property
+    def num_args(self):
+        ''':returns: the current number of arguments stored in _arglist.
+        :rtype: int
+        '''
+        return len(self._arglist)
+
+    @property
     def arglist(self):
         '''
         :return: the kernel argument list. The generate method must be \
@@ -84,8 +91,8 @@ class ArgOrdering(object):
         '''
         if not self._generate_called:
             raise InternalError(
-                "KernCallArgList: the generate() method should be called "
-                "before the arglist() method")
+                "Internal error. The argument list in KernStubArgList:"
+                "arglist() is empty. Has the generate() method been called?")
         return self._arglist
 
     def generate(self, var_accesses=None):
@@ -106,6 +113,9 @@ class ArgOrdering(object):
         :raises GenerationError: if the kernel arguments break the
                                  rules for the Dynamo 0.3 API.
         '''
+        # Setting this first is important, since quite a few derived classes
+        # will access self.arglist during generate() (e.g. to test if an
+        # argument is already contained in the argument list).
         self._generate_called = True
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
