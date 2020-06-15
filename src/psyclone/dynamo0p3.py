@@ -6283,7 +6283,7 @@ class HaloReadAccess(HaloDepth):
                     # stencil_depth is provided in the kernel metadata
                     self._literal_depth += stencil_depth
                 else:
-                    # Stencil_depth is provided by the algorithm layer
+                    # Stencil_depth is provided by the algorithm layer.
                     # It is currently not possible to specify kind for an
                     # integer literal stencil depth in a kernel call. This
                     # will be enabled when addressing issue #753.
