@@ -3,7 +3,9 @@
 	2) #782 for #780. Refactor FunctionSpace support and move it
 	out of dynamo0p3.py and into the lfric domain.
 
-	3) #785 for 679. Use a DataSymbol to represent the PSyIR Loop variable.
+	3) #785 for #679. Use a DataSymbol to represent the PSyIR Loop variable.
+
+	4) #795 for #793. Add the scope property to PSyIR node.
 
 release 1.9.0 20th May 2020
 
