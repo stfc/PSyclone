@@ -299,6 +299,29 @@ def test_set_kern_args(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
+def test_set_kern_args_real_grid_property(kernel_outputdir):
+    ''' Check that we generate correct code to set a real scalar grid
+    property. '''
+    psy, _ = get_invoke("driver_test.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+    print(generated_code)
+    expected = '''\
+    SUBROUTINE compute_kernel_code_set_args(kernel_obj, out_fld, in_out_fld, \
+in_fld, dx, dx, gphiu)
+      USE clfortran, ONLY: clSetKernelArg
+      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE ocl_utils_mod, ONLY: check_status
+      INTEGER(KIND=c_intptr_t), intent(in), target :: out_fld, in_out_fld, \
+in_fld, dx, gphiu
+      REAL(KIND=go_wp), intent(in), target :: dx'''
+    assert expected in generated_code
+    # dx symbol clash
+    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
 def test_set_kern_float_arg(kernel_outputdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
