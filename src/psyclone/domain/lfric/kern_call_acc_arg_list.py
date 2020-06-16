@@ -44,8 +44,7 @@ from psyclone.domain.lfric import KernCallArgList
 
 
 class KernCallAccArgList(KernCallArgList):
-    '''
-    Kernel call arguments that need to be declared by OpenACC
+    '''Kernel call arguments that need to be declared by OpenACC
     directives. KernCallArgList only needs to be specialised
     where modified, or additional, arguments are required.
     Scalars are apparently not required but it is valid in
@@ -54,84 +53,74 @@ class KernCallAccArgList(KernCallArgList):
 
     '''
     def field_vector(self, argvect, var_accesses=None):
-        '''
-        Add the field vector associated with the argument 'argvect' to
-        the argument list. OpenACC requires the field and the
+        '''Add the field vector associated with the argument 'argvect' to the
+        argument list. OpenACC requires the field and the
         dereferenced data to be specified. If supplied it also stores
         this access in var_accesses.
 
-        :param argvect: the kernel argument (vector field).
-        :type argvect:  :py:class:`psyclone.dynamo0p3.\
-            DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance \
-            to store the information about variable accesses.
+        :param argvect: the field vector to add.
+        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+
+        # We cannot call the base class here, since then the order of
+        # arguments would change
         for idx in range(1, argvect.vector_size+1):
             text1 = argvect.proxy_name + "(" + str(idx) + ")"
-
             self.append(text1)
-            text2 = text1 + "%data"
-            self.append(text2)
+            self.append(text1 + "%data")
         if var_accesses is not None:
+            # Only record the main field:
             var_accesses.add_access(argvect.proxy_name,
                                     AccessType.READ, self._kern)
 
     def field(self, arg, var_accesses=None):
-        '''
-        Add the field associated with the argument 'arg' to
-        the argument list. OpenACC requires the field and the
+        '''Add the field array associated with the argument 'arg' to the
+        argument list. OpenACC requires the field and the
         dereferenced data to be specified. If supplied it also
         stores this access in var_accesses.
 
-        :param arg: the kernel argument (field).
+        :param arg: the field to be added.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance \
-            to store the information about variable accesses.
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
         text1 = arg.proxy_name
         self.append(text1)
-        text2 = text1 + "%data"
-        self.append(text2)
-        if var_accesses is not None:
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            var_accesses.add_access(arg.name, arg.access,
-                                    self._kern, [1])
+        # This will add the field%data argument, and add the field
+        # to the variable access list.
+        super(KernCallAccArgList, self).field(arg, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
-        '''
-        Add the stencil dofmap associated with this kernel
-        argument. OpenACC requires the full dofmap to be
-        specified. If supplied it also stores this access in
-        var_accesses.
+        '''Add general stencil information associated with the argument 'arg'
+        to the argument list. OpenACC requires the full dofmap to be
+        specified. If supplied it also stores this access in var_accesses.
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to \
-            store the information about variable accesses.
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
         from psyclone.dynamo0p3 import DynStencils
-        var_name = \
-            DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         self.append(var_name)
         if var_accesses is not None:
             var_accesses.add_access(var_name, AccessType.READ,
                                     self._kern, [1])
 
     def operator(self, arg, var_accesses=None):
-        '''
-        Add the operator arguments to the argument list if
+        '''Add the operator arguments to the argument list if
         they have not already been added. OpenACC requires the
         derived type and the dereferenced data to be
         specified. If supplied it also stores this access in
@@ -139,8 +128,8 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the meta-data description of the operator.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance \
-            to store the information about variable accesses.
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
@@ -159,22 +148,24 @@ class KernCallAccArgList(KernCallArgList):
                                         [1])
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
-        '''
-        Add compulsory arguments associated with this function space to
+        '''Add compulsory arguments associated with this function space to
         the list. OpenACC requires the full function-space map
         to be specified. If supplied it also stores this access in
         var_accesses.
 
-        :param arg: the current functionspace.
-        :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance \
-            to store the information about variable accesses.
+        :param function_space: the function space for which the compulsory \
+            arguments are added.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
         undf_name = function_space.undf_name
         self.append(undf_name)
+        # The base class only adds one dimension tothe list, while OpenACC
+        # needs the whole field, so we cannot call the base class
         map_name = function_space.map_name
         self.append(map_name)
         if var_accesses is not None:
