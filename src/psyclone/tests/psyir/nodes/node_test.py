@@ -43,7 +43,8 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes.node import ChildrenList, Node
+from psyclone.psyir.nodes.node import (ChildrenList, Node,
+                                       _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
     Assignment, Return, Loop, Literal, Statement
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
@@ -478,10 +479,19 @@ def test_dag_names():
     assert builtin.dag_name == "builtin_sum_x_12"
 
 
+def test_node_digraph_no_graphviz(monkeypatch):
+    ''' Test that the function to get the graphviz Digraph class type returns
+    None if graphviz is not installed. We monkeypatch sys.modules to ensure
+    that it always appears that graphviz is not installed on this system. '''
+    monkeypatch.setitem(sys.modules, 'graphviz', None)
+    dag_class = _graphviz_digraph_class()
+    assert dag_class is None
+
+
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
-    '''test that dag generation does nothing if graphviz is not
-    installed. We monkeypatch sys.modules to ensure that it always
-    appears that graphviz is not installed on this system. '''
+    ''' Test that the dag generation returns None (and that no file is created)
+    when graphviz is not installed. We make this test independent of whether or
+    not graphviz is installed by monkeypatching sys.modules. '''
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -489,10 +499,66 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
     my_file = tmpdir.join('test')
-    schedule.dag(file_name=my_file.strpath)
+    dag = invoke.schedule.dag(file_name=my_file.strpath)
+    assert dag is None
     assert not os.path.exists(my_file.strpath)
+
+
+def test_node_dag_returns_digraph(tmpdir, monkeypatch):
+    ''' Test that the dag generation returns the expected Digraph object. We
+    make this test independent of whether or not graphviz is installed by
+    monkeypatching the psyir.nodes.node._graphviz_digraph_class function to
+    return a fake digraph class type. '''
+    class fake_digraph(object):
+        ''' Fake version of graphviz.Digraph class with key methods
+        implemented as noops. '''
+        def __init__(self, format=None):
+            return
+
+        def node(self, name):
+            return
+
+        def edge(self, name1, name2, color="red"):
+            return
+
+        def render(self, filename):
+            return
+    from psyclone.psyir.nodes import node
+    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: fake_digraph)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    dag = schedule.dag()
+    assert isinstance(dag, fake_digraph)
+
+
+def test_node_dag_wrong_file_format(monkeypatch):
+    ''' Test the handling of the error raised by graphviz when it is passed
+    an invalid file format. We make this test independent of whether or not
+    graphviz is actually available by monkeypatching the
+    psyir.nodes.node._graphviz_digraph_class function to return a fake digraph
+    class type that mimics the error. '''
+    class fake_digraph(object):
+        ''' Fake version of graphviz.Digraph class that raises a ValueError
+        when instantiated. '''
+        def __init__(self, format=None):
+            raise ValueError()
+    from psyclone.psyir.nodes import node
+    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: fake_digraph)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    with pytest.raises(GenerationError) as err:
+        invoke.schedule.dag()
+    assert "unsupported graphviz file format 'svg' provided" in str(err.value)
 
 
 # Use a regex to allow for whitespace differences between graphviz
@@ -528,10 +594,11 @@ EXPECTED2 = re.compile(
 
 
 def test_node_dag(tmpdir, have_graphviz):
-    '''test that dag generation works correctly. Skip the test if
-    graphviz is not installed'''
+    ''' Test that dag generation works correctly. Skip the test if
+    graphviz is not installed. '''
     if not have_graphviz:
         return
+    import graphviz
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -540,7 +607,9 @@ def test_node_dag(tmpdir, have_graphviz):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     my_file = tmpdir.join('test')
-    schedule.dag(file_name=my_file.strpath)
+    dag = schedule.dag(file_name=my_file.strpath)
+    assert isinstance(dag, graphviz.Digraph)
+
     result = my_file.read()
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')

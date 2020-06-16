@@ -96,6 +96,24 @@ except ImportError:
         return text
 
 
+def _graphviz_digraph_class():
+    '''
+    Wrapper that returns the graphviz Digraph type if graphviz is installed
+    and None otherwise.
+
+    :returns: the graphviz Digraph type or None.
+    :rtype: :py:class:`graphviz.Digraph` or NoneType.
+
+    '''
+    try:
+        import graphviz as gv
+        return gv.Digraph
+    except ImportError:
+        # TODO #11 add a warning to a log file here
+        # silently return if graphviz bindings are not installed
+        return None
+
+
 class ChildrenList(list):
     '''
     Customized list to keep track of the children nodes. It is initialised with
@@ -447,14 +465,11 @@ class Node(object):
                                  recognised by Graphviz.
 
         '''
-        try:
-            import graphviz as gv
-        except ImportError:
-            # TODO #11 add a warning to a log file here
-            # silently return if graphviz bindings are not installed
+        digraph = _graphviz_digraph_class()
+        if digraph is None:
             return None
         try:
-            graph = gv.Digraph(format=file_format)
+            graph = digraph(format=file_format)
         except ValueError:
             raise GenerationError(
                 "unsupported graphviz file format '{0}' provided".
