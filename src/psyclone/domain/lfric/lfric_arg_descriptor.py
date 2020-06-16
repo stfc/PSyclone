@@ -367,6 +367,7 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
+        field_cont_accesses = [AccessType.READ, AccessType.INC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
@@ -393,13 +394,17 @@ class LFRicArgDescriptor(Descriptor):
         # 'ANY_SPACE_*' will have the same allowed accesses as discontinuous
         # fields as they do not need colouring when updating quantities
         # in parallel.
+        fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
+                            field_cont_accesses]
         if self._function_space1.lower() in \
            FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
-           and self._access_type == AccessType.READWRITE:
+           and self._access_type not in field_cont_accesses:
             raise ParseError(
-                "It does not make sense for a field on a continuous "
-                "space ('{0}') to have a 'gh_readwrite' access".
-                format(self._function_space1.lower()))
+                "In the LFRic API allowed accesses for a field on a "
+                "continuous function space ('{0}') are {1}, but found "
+                "'{2}' in '{3}'".
+                format(self._function_space1.lower(), fld_cont_acc_msg,
+                       rev_access_mapping[self._access_type], arg_type))
         if self._function_space1.lower() in \
            FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type == AccessType.READWRITE:
