@@ -898,7 +898,7 @@ class InvokeSchedule(Schedule):
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
         module_map = {}
-        for globalvar in self.symbol_table.global_datasymbols:
+        for globalvar in self.symbol_table.global_symbols:
             module_name = globalvar.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(globalvar.name)

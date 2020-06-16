@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,27 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
   ! Description: A very long assignment statement with continuation characters
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
+
   implicit none
+
   type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: a
+  real(r_def)      :: a
 
   my_very_long_variable_name(my_very_long_lookup_name(my_very_long_index)) = &
   my_very_long_variable_name(my_very_long_lookup_name(my_very_long_index)) + &
   my_very_long_value_name
 
-  call invoke(                      &
-       testkern_type(a,f1,f2,m1,m2)   &
+  call invoke(                          &
+       testkern_type(a, f1, f2, m1, m2) &
           )
 
 end program single_invoke

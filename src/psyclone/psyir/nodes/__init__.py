@@ -56,6 +56,7 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.call import Call
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
@@ -80,4 +81,5 @@ __all__ = [
         'Literal',
         'ExtractNode',
         'ProfileNode',
-        'PSyDataNode']
+        'PSyDataNode',
+        'Call']

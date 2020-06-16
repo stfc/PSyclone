@@ -46,7 +46,8 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, SymbolTable
+    ContainerSymbol, ScalarType, ArrayType, SymbolTable, RoutineSymbol, \
+    GlobalInterface
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -455,6 +456,9 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran declarations as a string.
         :rtype: str
 
+        :raises VisitorError: if one of the symbols is a RoutineSymbol \
+            and it does not have a GlobalInterface interface as this \
+            is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
                               argument declarations exist in symbol_table.
         :raises VisitorError: if any symbols representing variables (i.e. \
@@ -463,6 +467,13 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         declarations = ""
+
+        if not all([isinstance(symbol.interface, GlobalInterface)
+                    for symbol in symbol_table.symbols
+                    if isinstance(symbol, RoutineSymbol)]):
+            raise VisitorError(
+                "Routine symbols without a global interface are unsupported "
+                "by the Fortran back-end.")
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
@@ -1019,3 +1030,21 @@ class FortranWriter(PSyIRVisitor):
         self._depth -= 1
         result_list.append("!${0}\n".format(node.end_string()))
         return "".join(result_list)
+
+    def call_node(self, node):
+        '''Translate the PSyIR call node to Fortran.
+
+        :param node: a Call PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+
+        result_list = []
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ", ".join(result_list)
+        return "{0}call {1}({2})\n".format(self._nindent, node.routine.name,
+                                           args)

@@ -38,12 +38,12 @@ module testkern_stencil_multi_2_mod
 
   use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
 
-  type, public, extends(kernel_type) :: testkern_stencil_multi_2_type
-     private
+  type, extends(kernel_type) :: testkern_stencil_multi_2_type
      type(arg_type), dimension(4) :: meta_args = (/              &
           arg_type(gh_field, gh_inc,  w1),                       &
           arg_type(gh_field, gh_read, w1, stencil(xory1d)),      &
@@ -53,8 +53,9 @@ module testkern_stencil_multi_2_mod
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_stencil_multi_2_code
+     procedure, nopass :: code => testkern_stencil_multi_2_code
   end type testkern_stencil_multi_2_type
+
 contains
 
   subroutine testkern_stencil_multi_2_code(nlayers,                                 &

@@ -281,7 +281,7 @@ class GOInvoke(Invoke):
 
         # get the list of global symbols used in the invoke
         global_names = [sym.name for sym in
-                        self.schedule.symbol_table.global_datasymbols]
+                        self.schedule.symbol_table.global_symbols]
 
         # add the subroutine argument declarations for real scalars which
         # are not global symbols

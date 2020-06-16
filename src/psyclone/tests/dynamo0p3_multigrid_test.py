@@ -605,7 +605,7 @@ def test_prolong_with_gp_error():
     from psyclone.errors import GenerationError
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory(API).create(invoke_info)
-    assert ("no other kernel types but kernels 'testkern_code_w2_only' in "
+    assert ("no other kernel types but kernels 'testkern_w2_only_code' in "
             "invoke 'invoke_0' are not inter-grid" in str(err.value))
 
 

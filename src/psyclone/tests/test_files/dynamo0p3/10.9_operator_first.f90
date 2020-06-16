@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-!
+! Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+!           I. Kavcic, Met Office
+
 !>@brief compute the locally assembled SI operators
 module si_operators_alg_mod
 
@@ -51,6 +53,7 @@ module si_operators_alg_mod
                                        solver_preconditioner_tridiagonal, &
                                        normalise
   implicit none
+
   private
 
   ! Variables private to this module that can only be accessed by public
@@ -81,10 +84,12 @@ module si_operators_alg_mod
   public :: get_mt_lumped
   public :: get_tri_precon
   public :: get_helm_diag
+
 contains
 
 !> Subroutine to create the si operators
 subroutine create_si_operators(mesh_id)
+
   use function_space_mod,        only: function_space_type
   use fs_continuity_mod,         only: W0, W2, W3, Wtheta
   use finite_element_config_mod, only: element_order
@@ -146,9 +151,7 @@ subroutine compute_si_operators(ref_state)
   use weighted_proj_3theta_kernel_mod, only: weighted_proj_3theta_kernel_type
   use compound_operator_kernel_mod,    only: compound_operator_kernel_type
   use psykal_lite_mod,                 only: invoke_sample_flux_kernel, &
-                                             invoke_set_field_scalar, &
                                              invoke_compute_tri_precon_kernel, &
-                                             invoke_divide_field_data, &
                                              invoke_weighted_div_bd_kernel_type
   use multiplicity_kernel_mod,         only: multiplicity_kernel_type
   use finite_element_config_mod,       only: element_order, wtheta_on

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,16 +39,19 @@ program multikernel_invokes_7
   ! Multiple kernel calls within an invoke where the fields updated by
   ! the two kernels are on different spaces
 
-  use ru_kernel_mod, only: ru_kernel_type
-  use testkern_mod,  only: testkern_type
-  use inf,           only: field_type
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use ru_kernel_mod,       only: ru_kernel_type
+  use testkern_mod,        only: testkern_type
 
   implicit none
 
-  type(field_type)      :: a, b, c, d, e(3), f, qr, g
-  real(r_def)           :: ascalar, rdt
-  integer(i_def)        :: istp
-               
+  type(field_type)           :: a, b, c, d, e(3), f, qr, g
+  real(r_def)                :: ascalar, rdt
+  integer(i_def)             :: istp
+  type(quadrature_xyoz_type) :: qr
+
   call invoke(                                            &
                ! h is written, rest are read-only
                testkern_type(rdt, h, f, c, d),            &
