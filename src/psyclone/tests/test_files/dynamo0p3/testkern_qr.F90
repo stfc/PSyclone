@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
+
 module testkern_qr
 
   use constants_mod
