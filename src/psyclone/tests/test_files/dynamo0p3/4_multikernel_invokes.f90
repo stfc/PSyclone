@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,16 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program multikernel_invokes_1
 
   ! Multiple kernel calls within an invoke
 
-  use testkern_mod, only : testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
+
   implicit none
 
   type(field_type) :: f1, f2, m1, m2

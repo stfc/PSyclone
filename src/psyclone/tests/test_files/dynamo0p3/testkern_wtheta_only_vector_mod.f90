@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,12 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author I. Kavcic, Met Office
 
 module testkern_wtheta_only_vector_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 
@@ -54,7 +55,7 @@ module testkern_wtheta_only_vector_mod
 
 contains
 
-  SUBROUTINE testkern_wtheta_only_vector_code(nlayers,     &
+  subroutine testkern_wtheta_only_vector_code(nlayers,     &
                                               field1_v1,   &
                                               field1_v2,   &
                                               field1_v3,   &
@@ -65,19 +66,19 @@ contains
                                               undf_wtheta, &
                                               map_wtheta)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf_wtheta
-    INTEGER, intent(in) :: undf_wtheta
-    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
-    REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) :: field1_v1
-    REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) :: field1_v2
-    REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) :: field1_v3
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_v1
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_v2
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_v3
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: map_wtheta
+    real(kind=r_def), intent(inout), dimension(undf_wtheta) :: field1_v1
+    real(kind=r_def), intent(inout), dimension(undf_wtheta) :: field1_v2
+    real(kind=r_def), intent(inout), dimension(undf_wtheta) :: field1_v3
+    real(kind=r_def), intent(in), dimension(undf_wtheta) :: field2_v1
+    real(kind=r_def), intent(in), dimension(undf_wtheta) :: field2_v2
+    real(kind=r_def), intent(in), dimension(undf_wtheta) :: field2_v3
 
-  END SUBROUTINE testkern_wtheta_only_vector_code
+  end subroutine testkern_wtheta_only_vector_code
 
 end module testkern_wtheta_only_vector_mod

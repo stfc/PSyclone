@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,18 +31,22 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program orientation
 
   ! Description: Orientation example updating a continuous field
-  use testkern_orientation2, only: testkern_orientation2_type
-  use inf,      only: field_type
-  implicit none
-  type(field_type) :: f1, f2, m1
-  type(quadrature_rule) :: qr
+  use field_mod,                 only: field_type
+  use quadrature_xyoz_mod,       only: quadrature_xyoz_type
+  use testkern_orientation2_mod, only: testkern_orientation2_type
 
-  call invoke(                   &
-       testkern_orientation2_type(f1,f2,m1,qr)   &
+  implicit none
+
+  type(field_type)           :: f1, f2, m1
+  type(quadrature_xyoz_type) :: qr
+
+  call invoke(                                    &
+       testkern_orientation2_type(f1, f2, m1, qr) &
           )
 
 end program orientation

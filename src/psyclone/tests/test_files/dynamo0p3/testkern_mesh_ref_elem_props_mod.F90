@@ -30,11 +30,13 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Laboratory
+! Modified: I. Kavcic, Met Office
 
 !> Test kernel requiring both properties of the mesh *and* the reference element.
 module testkern_mesh_ref_elem_props_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 

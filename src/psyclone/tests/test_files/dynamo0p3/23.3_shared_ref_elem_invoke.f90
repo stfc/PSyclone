@@ -32,20 +32,23 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke
 
   ! Description: multiple kernels requiring some of the same
   ! reference-element properties specified in an invoke call.
-  use testkern_ref_elem_mod, only: testkern_ref_elem_type
+  use constants_mod,             only: r_def
+  use field_mod,                 only: field_type
+  use testkern_ref_elem_mod,     only: testkern_ref_elem_type
   use testkern_ref_elem_out_mod, only: testkern_ref_elem_out_type
 
   implicit none
 
   type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
-  real(r_def) :: a
+  real(r_def)      :: a
 
-  call invoke( testkern_ref_elem_type(a,f1,f2,m1,m2), &
-               testkern_ref_elem_out_type(a,f3,f4,m3,m4) )
+  call invoke( testkern_ref_elem_type(a, f1, f2, m1, m2), &
+               testkern_ref_elem_out_type(a, f3, f4, m3, m4) )
 
 end program single_invoke

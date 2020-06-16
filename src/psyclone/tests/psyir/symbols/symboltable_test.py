@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError
+    SymbolError, RoutineSymbol
 from psyclone.errors import InternalError
 
 
@@ -635,29 +635,37 @@ def test_local_datasymbols():
     assert sym_table.lookup("var4") not in sym_table.local_datasymbols
 
 
-def test_global_datasymbols():
-    '''Test that the global_datasymbols property returns those DataSymbols with
-    'global' scope (i.e. that represent data that exists outside the current
-    scoping unit) but are not routine arguments. '''
+def test_global_symbols():
+    '''Test that the global_symbols property returns those Symbols with
+    'global' scope (i.e. that represent data/code that exists outside
+    the current scoping unit) and are not routine arguments.
+
+    '''
     sym_table = SymbolTable()
-    assert sym_table.global_datasymbols == []
+    assert sym_table.global_symbols == []
     # Add some local symbols
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
-    assert sym_table.global_datasymbols == []
-    # Add some global symbols
+    assert sym_table.global_symbols == []
+    # Add a global symbol
     sym_table.add(DataSymbol("gvar1", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
-    assert sym_table.lookup("gvar1") in sym_table.global_datasymbols
+    assert sym_table.lookup("gvar1") in sym_table.global_symbols
     sym_table.add(
         DataSymbol("gvar2", REAL_TYPE,
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)))
-    gsymbols = sym_table.global_datasymbols
+    gsymbols = sym_table.global_symbols
     assert len(gsymbols) == 1
     assert sym_table.lookup("gvar2") not in gsymbols
+    # Add another global symbol
+    sym_table.add(RoutineSymbol("my_sub",
+                                interface=GlobalInterface(
+                                    ContainerSymbol("my_mod"))))
+    assert sym_table.lookup("my_sub") in sym_table.global_symbols
+    assert len(sym_table.global_symbols) == 2
 
 
 def test_abstract_properties():

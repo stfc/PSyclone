@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,20 +30,48 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_stencil_w3_mod
+
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_stencil_w3_type
-     type(arg_type), dimension(2) :: meta_args =            &
-          (/ arg_type(gh_field,gh_write,w3),                &
-             arg_type(gh_field,gh_read, w2, stencil(cross)) &
+     type(arg_type), dimension(2) :: meta_args =              &
+          (/ arg_type(gh_field, gh_write, w3),                &
+             arg_type(gh_field, gh_read,  w2, stencil(cross)) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => testkern_stencil_w3_code
+     procedure, nopass :: code => testkern_stencil_w3_code
   end type testkern_stencil_w3_type
+
 contains
 
-  subroutine testkern_stencil_w3_code()
+  subroutine testkern_stencil_w3_code(nlayers, fld1, fld2,          &
+                                      fld2_st_size, fld2_st_dofmap, &
+                                      ndf_w3, undf_w3, map_w3,      &
+                                      ndf_w2, undf_w2, map_w2)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_w3, undf_w2
+    integer(kind=i_def), intent(in) :: fld2_st_size
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w2,fld2_st_size) :: fld2_st_dofmap
+    real(kind=r_def), intent(out), dimension(undf_w3) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
+
   end subroutine testkern_stencil_w3_code
+
 end module testkern_stencil_w3_mod

@@ -7,6 +7,13 @@
 
 	4) #795 for #793. Add the scope property to PSyIR node.
 
+	5) #779 for #763. Capture unrecognised declarations in a new
+	PSyIR UnknownType DataType.
+
+	6) #787 for #786. Introduce the PSyIR Call node and the RoutineSymbol.
+
+	7) #784 for #764. Update LFRic test kernels to use fs_continuity_mod.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

@@ -2360,6 +2360,7 @@ class DynOrientations(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
+        # TODO #783: Remove duplicates from the declaration list
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
             parent.add(DeclGen(parent, datatype="integer",
@@ -5936,7 +5937,10 @@ class HaloReadAccess(HaloDepth):
                     # stencil_depth is provided in the kernel metadata
                     self._literal_depth += stencil_depth
                 else:
-                    # stencil_depth is provided by the algorithm layer
+                    # Stencil_depth is provided by the algorithm layer.
+                    # It is currently not possible to specify kind for an
+                    # integer literal stencil depth in a kernel call. This
+                    # will be enabled when addressing issue #753.
                     if field.stencil.extent_arg.is_literal():
                         # a literal is specified
                         value_str = field.stencil.extent_arg.text
