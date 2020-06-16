@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,17 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author I. Kavcic, Met Office
 
 program single_invoke_wtheta_only_vector
 
   ! Description: single function in an invoke iterating over and
   ! reading from wtheta field vectors (discontinuous)
+  use field_mod,                       only: field_type
   use testkern_wtheta_only_vector_mod, only: testkern_wtheta_only_vector_type
-  use inf,                             only: field_type
+
   implicit none
+
   type(field_type) :: f1(3), f2(3)
 
   call invoke(                                  &

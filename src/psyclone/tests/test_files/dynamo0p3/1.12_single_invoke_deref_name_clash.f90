@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,20 +32,24 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke
 
   ! Description: single function specified in an invoke call with one
   ! argument obtained by dereferencing a derived type. The 2nd and 3rd
   ! arguments should have different names in the PSy layer.
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
-  implicit none
-  type(field_type) :: f1, m1, m2
-  real(r_def) :: a
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
 
-  call invoke(                                   &
-       testkern_type(a,f1_my_field,f1%my_field,m1,m2)   &
+  implicit none
+
+  type(field_type) :: f1, m1, m2
+  real(r_def)      :: a
+
+  call invoke(                                            &
+       testkern_type(a, f1_my_field, f1%my_field, m1, m2) &
           )
 
 end program single_invoke

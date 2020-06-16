@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
 program single_invoke_prolong
 
   ! Description: invoke of single kernel that performs a prolongation
+  use field_mod,               only: field_type
   use prolong_test_kernel_mod, only: prolong_test_kernel_type
 
   implicit none

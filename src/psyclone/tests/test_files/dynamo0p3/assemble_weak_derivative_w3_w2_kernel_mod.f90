@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,23 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module assemble_weak_derivative_w3_w2_kernel_mod
-  use constants_mod
-  use argument_mod
-  use kernel_mod
-  IMPLICIT NONE
+
+  use kernel_mod,            only : kernel_type
+  use constants_mod,         only : r_def, i_def
+  use fs_continuity_mod,     only : W3, W2, W0
+  use argument_mod,          only : arg_type, func_type,     &
+                                    GH_FIELD, GH_OPERATOR,   &
+                                    GH_WRITE, GH_READ,       &
+                                    GH_BASIS, GH_DIFF_BASIS, &
+                                    GH_ORIENTATION, CELLS,   &
+                                    gh_quadrature_XYoZ
+
+  implicit none
+
+  private
 
   type, public, extends(kernel_type) :: assemble_weak_derivative_w3_w2_kernel_type
     private
@@ -54,21 +65,38 @@ module assemble_weak_derivative_w3_w2_kernel_mod
   contains
     procedure, nopass :: assemble_weak_derivative_w3_w2_kernel_code
   end type
+
+  public assemble_weak_derivative_w3_w2_kernel_code
+
+contains
 !
-CONTAINS
-!
-  subroutine assemble_weak_derivative_w3_w2_kernel_code(cell, nlayers, &
-       ncell_3d, local_stencil, xdata, ydata, zdata, ndf_w3, basis_w3, &
-       ndf_w2, diff_basis_w2, orientation_w2, ndf_w0, undf_w0, map_w0, &
-       diff_basis_w0, np_xy, np_z, weights_xy, weights_z)
+  subroutine assemble_weak_derivative_w3_w2_kernel_code(cell, nlayers, ncell_3d,    &
+                                            local_stencil, xdata, ydata, zdata,     &
+                                            ndf_w3, basis_w3,                       &
+                                            ndf_w2, diff_basis_w2, orientation_w2,  &
+                                            ndf_w0, undf_w0, map_w0, diff_basis_w0, &
+                                            np_xy, np_z, weights_xy, weights_z)
+
     implicit none
-    integer :: cell, nlayers, ncell_3d, ndf_w3, ndf_w2, ndf_w0, undf_w0
-    integer :: np_xy, np_z
-    integer, dimension(:) :: map_w0, orientation_w2
-    real(kind=r_def), dimension(:,:,:) :: local_stencil
-    real(kind=r_def), dimension(:) :: xdata, ydata, zdata, weights_xy, weights_z
-    real(kind=r_def), dimension(:,:,:,:) :: basis_w3, diff_basis_w2, &
-                                            diff_basis_w0
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_3d
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: ndf_w3, ndf_w2, undf_w0
+    integer(kind=i_def), intent(in) :: np_xy, np_z
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: orientation_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
+    real(kind=r_def), intent(out), dimension(ndf_w3,ndf_w2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(in), dimension(undf_w0) :: xdata
+    real(kind=r_def), intent(in), dimension(undf_w0) :: ydata
+    real(kind=r_def), intent(in), dimension(undf_w0) :: zdata
+    real(kind=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) :: diff_basis_w0
+    real(kind=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) :: basis_w3
+    real(kind=r_def), intent(in), dimension(1,ndf_w2,np_xy,np_z) :: diff_basis_w2
+    real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
+    real(kind=r_def), intent(in), dimension(np_z)  :: weights_z
+
   end subroutine assemble_weak_derivative_w3_w2_kernel_code
 !
 end module assemble_weak_derivative_w3_w2_kernel_mod

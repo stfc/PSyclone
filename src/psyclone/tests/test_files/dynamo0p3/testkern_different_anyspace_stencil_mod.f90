@@ -36,16 +36,16 @@ module testkern_different_anyspace_stencil_mod
 
   use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
 
-  type, public, extends(kernel_type) :: testkern_different_anyspace_stencil_type
-    private
-    type(arg_type), dimension(3) :: meta_args = (/                  &
-         arg_type(gh_field, gh_write, w1),                          &
-         arg_type(gh_field, gh_read,  any_space_1, stencil(cross)), &
-         arg_type(gh_field, gh_read,  any_space_2, stencil(cross))  &
+  type, extends(kernel_type) :: testkern_different_anyspace_stencil_type
+    type(arg_type), dimension(3) :: meta_args = (/                 &
+         arg_type(gh_field, gh_inc,  w1),                          &
+         arg_type(gh_field, gh_read, any_space_1, stencil(cross)), &
+         arg_type(gh_field, gh_read, any_space_2, stencil(cross))  &
          /)
     integer :: iterates_over = cells
   contains
@@ -76,7 +76,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w1)    :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_aspc1,field2_stencil_size) :: field2_stencil_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_aspc2,field3_stencil_size) :: field3_stencil_dofmap
-    real(kind=r_def), intent(out), dimension(undf_w1)   :: field1
+    real(kind=r_def), intent(inout), dimension(undf_w1) :: field1
     real(kind=r_def), intent(in), dimension(undf_aspc1) :: field2
     real(kind=r_def), intent(in), dimension(undf_aspc2) :: field3
 

@@ -394,7 +394,7 @@ def test_node_list_dynamo0p3():
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -465,7 +465,7 @@ def test_dynamo0p3_builtin():
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -533,7 +533,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=1,undf_aspc1_f1
-        f1_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)
+        f1_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)
       END DO
       !$omp end parallel do
       CALL extract_psy_data%PostStart
@@ -586,7 +586,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart

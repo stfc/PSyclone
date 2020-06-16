@@ -278,10 +278,11 @@ def test_globalstoarguments_multiple_kernels():
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()
 
-        # In this case we hardcode all globals to REAL to avoid searching and
-        # importing of modules during this test.
-        for var in kschedule.symbol_table.global_datasymbols:
-            var._datatype = REAL_TYPE
+        # In this case we hardcode all global variables to REAL to
+        # avoid searching and importing of modules during this test.
+        for var in kschedule.symbol_table.global_symbols:
+            if isinstance(var, DataSymbol):
+                var._datatype = REAL_TYPE
 
         trans.apply(kernel)
 

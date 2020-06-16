@@ -66,7 +66,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Literal": "yellow",
                        "Return": "yellow",
                        "CodeBlock": "red",
-                       "Container": "green"}
+                       "Container": "green",
+                       "Call": "cyan"}
 
 
 # Default indentation string

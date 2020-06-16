@@ -78,7 +78,7 @@ def test_containersymbol_initialisation():
     assert not sym._reference
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
-    assert sym._interface == FortranModuleInterface
+    assert isinstance(sym._interface, FortranModuleInterface)
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
@@ -103,9 +103,9 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     sym = ContainerSymbol("my_mod")
 
     monkeypatch.setattr(sym._interface, "import_container",
-                        staticmethod(lambda x: "MockContainer"))
+                        lambda x: "MockContainer")
 
-    # At the beggining the reference is never resolved (lazy evaluation)
+    # At the beginning the reference is never resolved (lazy evaluation)
     assert not sym._reference
 
     # When container is invoked the reference is resolved

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,20 +30,25 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program multi_qr_per_invoke
 
-  use testkern_qr, only: testkern_qr_type
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use testkern_qr,         only: testkern_qr_type
+
   implicit none
-  type(field_type)      :: f0, f1, f2, f3, f4
-  type(quadrature_type) :: qr0, qr1
-  real                  :: ascalar
-  integer               :: iscalar
 
-  call invoke(                                               &
-       testkern_qr_type(f1,f2,f3,ascalar,f4,iscalar,qr0),    &
-       testkern_qr_type(f1,f2,f3,ascalar,f4,iscalar,qr1),    &
-       testkern_qr_type(f0,f2,f3,ascalar,f4,iscalar,qr0) )
+  type(field_type)           :: f0, f1, f2, f3, f4
+  type(quadrature_xyoz_type) :: qr0, qr1
+  real(r_def)                :: ascalar
+  integer(i_def)             :: iscalar
 
+  call invoke(                                                  &
+       testkern_qr_type(f1, f2, f3, ascalar, f4, iscalar, qr0), &
+       testkern_qr_type(f1, f2, f3, ascalar, f4, iscalar, qr1), &
+       testkern_qr_type(f0, f2, f3, ascalar, f4, iscalar, qr0) )
 
 end program multi_qr_per_invoke

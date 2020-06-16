@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ program restrict_prolong
 
   ! Description: invoke containing restrictions/prolongations where
   ! fields swap roles (what was 'fine' becomes 'coarse')
+  use field_mod,                only: field_type
   use restrict_test_kernel_mod, only: restrict_test_kernel_type
   use prolong_test_kernel_mod,  only: prolong_test_kernel_type
 

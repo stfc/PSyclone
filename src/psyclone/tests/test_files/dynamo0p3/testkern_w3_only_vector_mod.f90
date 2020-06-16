@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,12 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 module testkern_w3_only_vector_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 
@@ -55,7 +56,7 @@ module testkern_w3_only_vector_mod
 
 contains
 
-  SUBROUTINE testkern_w3_only_vector_code(nlayers,   &
+  subroutine testkern_w3_only_vector_code(nlayers,   &
                                           field1_v1, &
                                           field1_v2, &
                                           field1_v3, &
@@ -64,19 +65,19 @@ contains
                                           field2_v3, &
                                           ndf_w3, undf_w3, map_w3)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf_w3
-    INTEGER, intent(in) :: undf_w3
-    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v1
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v2
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v3
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_v1
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_v2
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_v3
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v1
+    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v2
+    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v3
+    real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v1
+    real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v2
+    real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v3
 
-  END SUBROUTINE testkern_w3_only_vector_code
+  end subroutine testkern_w3_only_vector_code
 
 end module testkern_w3_only_vector_mod

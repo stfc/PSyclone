@@ -493,8 +493,9 @@ def test_field_qr_deref(tmpdir):
 
         assert (
             "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
-            " qr_data)\n" in gen)
-        assert "TYPE(quadrature_xyoz_type), intent(in) :: qr_data" in gen
+            " unit_cube_qr_xyoz)\n" in gen)
+        assert ("TYPE(quadrature_xyoz_type), intent(in) :: unit_cube_qr_xyoz"
+                in gen)
 
 
 def test_internal_qr_err(monkeypatch):
