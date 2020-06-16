@@ -31,55 +31,40 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' PSyIR nodes package module '''
+''' Perform py.test tests on the psygen.psyir.symbols.routinesymbol file '''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.extract_node import ExtractNode
-from psyclone.psyir.nodes.profile_node import ProfileNode
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.call import Call
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnresolvedInterface
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'DataNode',
-        'Statement',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'ExtractNode',
-        'ProfileNode',
-        'PSyDataNode',
-        'Call']
+
+def test_routinesymbol_init():
+    '''Test that a RoutineSymbol instance can be created.'''
+
+    assert isinstance(RoutineSymbol('jo'), RoutineSymbol)
+    assert isinstance(
+        RoutineSymbol('ellie', visibility=Symbol.Visibility.PRIVATE),
+        RoutineSymbol)
+    assert isinstance(
+        RoutineSymbol('isaac', interface=UnresolvedInterface()),
+        RoutineSymbol)
+
+
+def test_routinesymbol_init_error():
+    '''Test that the RoutineSymbol raises an error (via the Symbol parent
+    class) if there is an invalid argument.
+
+    '''
+    with pytest.raises(TypeError) as error:
+        _ = RoutineSymbol(None)
+    assert ("RoutineSymbol 'name' attribute should be of type 'str' but "
+            "'NoneType' found." in str(error.value))
+
+
+def test_routinesymbol_str():
+    '''Test that the __str__ method in routinesymbol behaves as expected.'''
+    routine_symbol = RoutineSymbol("roo")
+    assert routine_symbol.__str__() == "roo : RoutineSymbol"

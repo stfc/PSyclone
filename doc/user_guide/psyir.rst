@@ -94,10 +94,10 @@ Kernel-layer classes. Additionally, the ``Schedule`` class is further
 subclassed into a kernel-layer ``KernelSchedule``. In addition to
 ``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
 ``IfBlock``, ``CodeBlock``, ``Assignment``, ``Range``, ``Reference``,
-``Operation``, ``Literal``, ``Return`` and ``Container``. The
-``Reference`` class is further subclassed into ``Array`` and the
-``Operation`` class is further subclassed into ``UnaryOperation``,
-``BinaryOperation`` and ``NaryOperation``.
+``Operation``, ``Literal``, ``Call``, ``Return`` and
+``Container``. The ``Reference`` class is further subclassed into
+``Array`` and the ``Operation`` class is further subclassed into
+``UnaryOperation``, ``BinaryOperation`` and ``NaryOperation``.
 
 
 Node Descriptions
@@ -299,6 +299,9 @@ are:
 - .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
+
+- .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
+
 
 Creating PSyIR
 ==============

@@ -31,55 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' PSyIR nodes package module '''
+''' This module contains the RoutineSymbol.'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.extract_node import ExtractNode
-from psyclone.psyir.nodes.profile_node import ProfileNode
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.call import Call
+from __future__ import absolute_import
+from psyclone.psyir.symbols.symbol import Symbol
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.nodes import Literal'
-__all__ = [
-        'Node',
-        'DataNode',
-        'Statement',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
-        'Array',
-        'IfBlock',
-        'Loop',
-        'CodeBlock',
-        'Container',
-        'Literal',
-        'ExtractNode',
-        'ProfileNode',
-        'PSyDataNode',
-        'Call']
+
+class RoutineSymbol(Symbol):
+    '''Symbol identifying a callable routine.'''
+
+    def __str__(self):
+        return "{0} : {1}".format(self.name, type(self).__name__)
