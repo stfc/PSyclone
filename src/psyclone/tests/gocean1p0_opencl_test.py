@@ -299,7 +299,7 @@ def test_set_kern_args(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_set_kern_args_real_grid_property(kernel_outputdir):
+def test_set_kern_args_real_grid_property():
     ''' Check that we generate correct code to set a real scalar grid
     property. '''
     psy, _ = get_invoke("driver_test.f90", API, idx=0)
@@ -318,7 +318,10 @@ in_fld, dx, dx, gphiu)
 in_fld, dx, gphiu
       REAL(KIND=go_wp), intent(in), target :: dx'''
     assert expected in generated_code
-    # dx symbol clash
+    # This generated code cannot be compiled due to issue #798. Note the
+    # duplicated dx symbol name in the argument list. This is not essential
+    # for the purpose of this test that just checks that the grid property
+    # dx is declared as 'REAL(KIND=go_wp), intent(in), target :: dx'
     # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
