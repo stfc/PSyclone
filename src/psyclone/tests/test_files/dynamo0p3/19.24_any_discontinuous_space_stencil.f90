@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,17 @@ program single_kernel_any_dscnt_space_stencil
   ! same space).
   ! This also tests the case where we have different fields with the same and
   ! different any_discontinuous_space names in different kernels.
-  use testkern_same_any_dscnt_space_stencil_mod,      only: &
-                         testkern_same_any_dscnt_space_stencil_type
-  use testkern_different_any_dscnt_space_stencil_mod, only: &
-                         testkern_different_any_dscnt_space_stencil_type
-  use inf,                                            only: field_type
+  use constants_mod, only: i_def
+  use field_mod,     only: field_type
+  use testkern_same_any_dscnt_space_stencil_mod, &
+                     only: testkern_same_any_dscnt_space_stencil_type
+  use testkern_different_any_dscnt_space_stencil_mod, &
+                     only: testkern_different_any_dscnt_space_stencil_type
 
   implicit none
 
-  type(field_type)   :: f0, f1, f2, f3, f4, f5
-  integer, parameter :: extent = 3
+  type(field_type)          :: f0, f1, f2, f3, f4, f5
+  integer(i_def), parameter :: extent = 3
 
   ! 1) same kernel, different field, same any_discontinuous_space (f1, f2)
   ! 2) same kernel, different field, different any_discontinuous_space (f4, f5)

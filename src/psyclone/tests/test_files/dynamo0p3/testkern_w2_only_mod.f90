@@ -1,8 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council
-! All rights reserved.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,9 +30,10 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic, Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
-module testkern_w2v_mod
+module testkern_w2_only_mod
 
   use argument_mod
   use fs_continuity_mod
@@ -42,35 +42,30 @@ module testkern_w2v_mod
 
   implicit none
 
-  ! Description: discontinuous field readwriter (w2v) and reader (wtheta)
-  type, extends(kernel_type) :: testkern_w2v_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_field, gh_readwrite, w2v),   &
-             arg_type(gh_field, gh_read,      wtheta) &
+  type, extends(kernel_type) :: testkern_w2_only_type
+     type(arg_type), dimension(2) :: meta_args = &
+          (/ arg_type(gh_field, gh_write, w2),   &
+             arg_type(gh_field, gh_read,  w2)    &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_w2v_code
-  end type testkern_w2v_type
+     procedure, nopass :: code => testkern_w2_only_code
+  end type testkern_w2_only_type
 
 contains
 
-  subroutine testkern_w2v_code(nlayers, field1, field2,    &
-                               ndf_w2v, undf_w2v, map_w2v, &
-                               ndf_wtheta, undf_wtheta, map_wtheta)
+  subroutine testkern_w2_only_code(nlayers, fld1, fld2, &
+                                   ndf_w2, undf_w2, map_w2)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_w2v
-    integer(kind=i_def), intent(in) :: undf_w2v
-    integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: undf_wtheta
-    integer(kind=i_def), intent(in), dimension(ndf_w2v)    :: map_w2v
-    integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: map_wtheta
-    real(kind=r_def), intent(inout), dimension(undf_w2v) :: field1
-    real(kind=r_def), intent(in), dimension(undf_wtheta) :: field2
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    real(kind=r_def), intent(out), dimension(undf_w2) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
 
-  end subroutine testkern_w2v_code
+  end subroutine testkern_w2_only_code
 
-end module testkern_w2v_mod
+end module testkern_w2_only_mod

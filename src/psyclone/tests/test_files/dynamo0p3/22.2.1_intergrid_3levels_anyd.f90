@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ program restrict_prolong_anyd
   ! Description: invoke containing a chain of two restrictions and prolongations
   ! from a fine to a coarse mersh and back. Restrictions operate on
   ! any_discontinuous_space so there should not be any halo exchanges for them.
+  use field_mod,               only: field_type
   use restrict_kernel_mod,     only: restrict_kernel_type
   use prolong_test_kernel_mod, only: prolong_test_kernel_type
 

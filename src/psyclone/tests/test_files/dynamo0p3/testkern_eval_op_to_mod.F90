@@ -1,19 +1,16 @@
 !-------------------------------------------------------------------------------
-! BSD 3-Clause License
-!
 ! Copyright (c) 2017-2020, Science and Technology Facilities Council
-! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
-!
+! 
 ! * Redistributions of source code must retain the above copyright notice, this
 !   list of conditions and the following disclaimer.
 !
 ! * Redistributions in binary form must reproduce the above copyright notice,
 !   this list of conditions and the following disclaimer in the documentation
 !   and/or other materials provided with the distribution.
-!
+! 
 ! * Neither the name of the copyright holder nor the names of its
 !   contributors may be used to endorse or promote products derived from
 !   this software without specific prior written permission.
@@ -28,53 +25,59 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Authors: A. R. Porter and  R. W. Ford, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+!-------------------------------------------------------------------------------
+! Author: A. R. Porter STFC Daresbury Lab
+! Modified: I. Kavcic Met Office
 
-module testkern_operator_nofield_scalar_mod
+module testkern_eval_op_to_mod
 
+  use constants_mod
   use argument_mod
   use fs_continuity_mod
   use kernel_mod
-  use constants_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_operator_nofield_scalar_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w2, w2), &
-             arg_type(gh_integer,  gh_read)           &
-          /)
-     type(func_type) :: meta_funcs(1) =               &
-          (/ func_type(w2, gh_basis)                  &
-          /)
+  ! Test kernel that writes to an operator and requires an evaluator with
+  ! a space corresponding to the 'to' space of the operator.
+  type, extends(kernel_type) :: testkern_eval_op_to_type
+     type(arg_type)  :: meta_args(2) =  (/     &
+       arg_type(GH_OPERATOR, GH_READ, W2, W0), &
+       arg_type(GH_FIELD,    GH_WRITE, W3)     &
+       /)
+     type(func_type) :: meta_funcs(2) = (/     &
+       func_type(W2, GH_BASIS, GH_DIFF_BASIS), &
+       func_type(W3, GH_DIFF_BASIS)            &
+       /)
      integer :: iterates_over = cells
-     integer :: gh_shape = gh_quadrature_XYoZ
+     integer :: gh_shape = gh_evaluator
    contains
-     procedure, nopass :: code => testkern_operator_code
-  end type testkern_operator_nofield_scalar_type
+     procedure, nopass :: code => testkern_eval_op_to_code
+  end type testkern_eval_op_to_type
 
 contains
 
-  subroutine testkern_operator_code(cell, nlayers, ncell_3d, &
-                                    local_stencil,           &
-                                    box_b, ndf_w2, basis_w2, &
-                                    np_xy, np_z, weights_xy, weights_z)
+  subroutine testkern_eval_op_to_code(cell, nlayers, ncell_3d,     &
+                                      op1_stencil, f2, ndf_w2,     &
+                                      basis_w2_on_w3,              &
+                                      diff_basis_w2_on_w3, ndf_w0, &
+                                      ndf_w3, undf_w3, map_w3,     &
+                                      diff_basis_w3_on_w3)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d
-    integer(kind=i_def), intent(in) :: ndf_w2
-    integer(kind=i_def), intent(in) :: box_b
-    integer(kind=i_def), intent(in) :: np_xy, np_z
-    real(kind=r_def), intent(out), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
-    real(kind=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
-    real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
-    real(kind=r_def), intent(in), dimension(np_z)  :: weights_z
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in) :: ndf_w2, ndf_w0, undf_w3
+    real(kind=r_def), intent(out), dimension(undf_w3) :: f2
+    real(kind=r_def), intent(in), dimension(ndf_w2,ndf_w0,ncell_3d) :: op1_stencil
+    real(kind=r_def), intent(in), dimension(3,ndf_w2,ndf_w3) :: basis_w2_on_w3
+    real(kind=r_def), intent(in), dimension(1,ndf_w2,ndf_w3) :: diff_basis_w2_on_w3
+    real(kind=r_def), intent(in), dimension(3,ndf_w3,ndf_w3) :: diff_basis_w3_on_w3
 
-  end subroutine testkern_operator_code
+  end subroutine testkern_eval_op_to_code
 
-end module testkern_operator_nofield_scalar_mod
+end module testkern_eval_op_to_mod

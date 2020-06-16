@@ -2,7 +2,7 @@
 !
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,11 @@ module prolong_vec_kernel_mod
   use constants_mod
   use argument_mod
   use kernel_mod
+  use fs_continuity_mod
 
   implicit none
+
+  private
 
   type, public, extends(kernel_type) :: prolong_vec_kernel_type
      private

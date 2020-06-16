@@ -29,21 +29,48 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
-program vector_field
+module testkern_coord_w0_mod
 
-  ! Description: vector field obtained by de-referencing a derived type
-  ! passed as an argument
-  use field_mod,             only: field_type, field_container_type
-  use testkern_coord_w0_mod, only: testkern_coord_w0_type
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
 
   implicit none
 
-  type(field_type)           :: f1, f2
-  type(field_container_type) :: box
+  type, extends(kernel_type) :: testkern_coord_w0_type
+     type(arg_type), dimension(3) :: meta_args = &
+          (/ arg_type(gh_field,   gh_inc,  w0),  &
+             arg_type(gh_field*3, gh_inc,  w0),  &
+             arg_type(gh_field,   gh_read, w0)   &
+          /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_coord_w0_code
+  end type testkern_coord_w0_type
 
-  call invoke( testkern_coord_w0_type(f1, box%chi, f2) )
+contains
 
-end program vector_field
+  subroutine testkern_coord_w0_code(nlayers, field1,      &
+                                    field2_v1, field2_v2, &
+                                    field2_v3, field3,    &
+                                    ndf_w0, undf_w0, map_w0)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: undf_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: field1
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: field2_v1
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: field2_v2
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: field2_v3
+    real(kind=r_def), intent(in), dimension(undf_w0)    :: field3
+
+  end subroutine testkern_coord_w0_code
+
+end module testkern_coord_w0_mod

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,30 +31,35 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program multi_invokes
 
   ! Description: multiple invoke calls, each with a single function
-  use testkern_mod, only: testkern_type
-  use testkern_qr,  only: testkern_qr_type
-  use inf,      only: field_type
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use testkern_mod,        only: testkern_type
+  use testkern_qr,         only: testkern_qr_type
+
   implicit none
-  type(field_type) :: f1, f2, m1, m2
-  type(quadrature_rule_type) :: qr
-  real(r_def) :: a
-  integer :: istp
 
-  call invoke(                        &
-       testkern_type(a,f1,f2,m1,m2)   &
+  type(field_type)           :: f1, f2, m1, m2
+  type(quadrature_xyoz_type) :: qr
+  real(r_def)                :: a
+  integer(i_def)             :: istp
+
+  call invoke(                          &
+       testkern_type(a, f1, f2, m1, m2) &
        )
 
-  call invoke(                            &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr)   &
+  call invoke(                                       &
+       testkern_qr_type(f1, f2, m1, a, m2, istp, qr) &
        )
 
-  call invoke(                        &
-       testkern_type(a,f1,f2,m1,m2)   &
+  call invoke(                          &
+       testkern_type(a, f1, f2, m1, m2) &
        )
 
 end program multi_invokes
