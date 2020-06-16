@@ -219,8 +219,8 @@ def test_ad_scalar_type_no_write():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("scalar arguments must be read-only ('gh_read') or a "
-                "reduction (['gh_sum']) but found 'gh_write'" in
+        assert ("scalar arguments must have read-only ('gh_read') or a "
+                "reduction (['gh_sum']) access but found 'gh_write'" in
                 str(excinfo.value))
 
 
@@ -235,8 +235,8 @@ def test_ad_scalar_type_no_inc():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("scalar arguments must be read-only ('gh_read') or a "
-                "reduction (['gh_sum']) but found 'gh_inc'" in
+        assert ("scalar arguments must have read-only ('gh_read') or a "
+                "reduction (['gh_sum']) access but found 'gh_inc'" in
                 str(excinfo.value))
 
 
@@ -3512,8 +3512,8 @@ def test_stencil_read_only():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
-    assert ("A stencil must be read-only so its access should be "
-            "'gh_read'" in str(excinfo.value))
+    assert ("In the LFRic API a field stencil must have read-only access "
+            "('gh_read'), but found 'gh_write'" in str(excinfo.value))
 
 
 def test_fs_discontinuous_and_inc_error():
@@ -3527,9 +3527,10 @@ def test_fs_discontinuous_and_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("It does not make sense for a field on a discontinuous "
-                "space ('{0}') to have a 'gh_inc' access".format(fspace)
-                in str(excinfo.value))
+        assert ("In the LFRic API allowed accesses for a field on a "
+                "discontinuous function space ('{0}') are ['gh_read', "
+                "'gh_write', 'gh_readwrite'], but found 'gh_inc'".
+                format(fspace) in str(excinfo.value))
 
 
 def test_fs_continuous_and_readwrite_error():

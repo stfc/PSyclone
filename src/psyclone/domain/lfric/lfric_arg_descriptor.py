@@ -178,7 +178,16 @@ class LFRicArgDescriptor(Descriptor):
                 "'{1}' in '{2}'".format(valid_names,
                                         arg_type.args[1].name, arg_type))
 
-        # Reduction access descriptors are only valid for real scalar arguments
+        # Reduction access descriptors are only valid for real scalar
+        # arguments.
+        # TODO in issues #471 and #138: "_validate" methods for fields on
+        # discontinuous function spaces and operators check for the allowed
+        # accesses instead of exceptions so the reduction access check is
+        # redundant for them. However, fields on 'ANY_SPACE's need to
+        # differentiate between looping over cells and DoFs for the allowed
+        # accesses. When this is introduced this check can be moved to
+        # "_validate_scalar" method and repurposed to disallow integer
+        # scalar reductions.
         if self._type != "gh_real" and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
@@ -356,13 +365,34 @@ class LFRicArgDescriptor(Descriptor):
                     format(arg_type, str(err)))
 
         # Test allowed accesses for fields
+        field_disc_accesses = [AccessType.READ, AccessType.WRITE,
+                               AccessType.READWRITE]
+        # Convert generic access types to GH_* names for error messages
+        api_config = Config.get().api_conf(API)
+        rev_access_mapping = api_config.get_reverse_access_mapping()
+
+        # Check fields on discontinuous function spaces
+        fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
+                            field_disc_accesses]
         if self._function_space1.lower() in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and self._access_type == AccessType.INC:
+           and self._access_type not in field_disc_accesses:
             raise ParseError(
-                "It does not make sense for a field on a discontinuous "
-                "space ('{0}') to have a 'gh_inc' access".
-                format(self._function_space1.lower()))
+                "In the LFRic API allowed accesses for a field on a "
+                "discontinuous function space ('{0}') are {1}, but found "
+                "'{2}' in '{3}'".
+                format(self._function_space1.lower(), fld_disc_acc_msg,
+                       rev_access_mapping[self._access_type], arg_type))
+
+        # Check fields on continuous function spaces
+        # TODO in issues #471 and #138: Allowed accesses for fields on
+        # continuous function spaces for the user-defined kernels that loop
+        # over cells should only be [AccessType.READ, AccessType.INC]. This
+        # will remove the currently implicitly allowed "WRITE" access.
+        # The kernels that loop over DoFs (built-ins) and are specified on
+        # 'ANY_SPACE_*' will have the same allowed accesses as discontinuous
+        # fields as they do not need colouring when updating quantities
+        # in parallel.
         if self._function_space1.lower() in \
            FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
            and self._access_type == AccessType.READWRITE:
@@ -370,19 +400,20 @@ class LFRicArgDescriptor(Descriptor):
                 "It does not make sense for a field on a continuous "
                 "space ('{0}') to have a 'gh_readwrite' access".
                 format(self._function_space1.lower()))
-        # TODO: extend restriction to "gh_write" for kernels that loop
-        # over cells (issue #138) and update access rules for kernels
-        # (built-ins) that loop over DoFs to accesses for discontinuous
-        # quantities (issue #471)
         if self._function_space1.lower() in \
            FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type == AccessType.READWRITE:
             raise ParseError(
                 "In the LFRic API a field on 'any_space' cannot have "
                 "'gh_readwrite' access because it is treated as continuous")
+
+        # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:
-            raise ParseError("A stencil must be read-only so its access "
-                             "should be 'gh_read'")
+            raise ParseError(
+                "In the LFRic API a field stencil must have read-only access "
+                "('{0}'), but found '{1}' in '{2}'".
+                format(rev_access_mapping[AccessType.READ],
+                       rev_access_mapping[self._access_type], arg_type))
 
     def _validate_operator(self, arg_type):
         '''
@@ -425,7 +456,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API the 3rd argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one of "
-                "{0}), but found '{1}' in '{2}".
+                "{0}), but found '{1}' in '{2}'".
                 format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[2].name, arg_type))
         self._function_space1 = arg_type.args[2].name
@@ -440,10 +471,19 @@ class LFRicArgDescriptor(Descriptor):
         self._function_space2 = arg_type.args[3].name
 
         # Test allowed accesses for operators
-        if self._access_type == AccessType.INC:
+        operator_accesses = [AccessType.READ, AccessType.WRITE,
+                             AccessType.READWRITE]
+        # Convert generic access types to GH_* names for error messages
+        api_config = Config.get().api_conf(API)
+        rev_access_mapping = api_config.get_reverse_access_mapping()
+        op_acc_msg = [rev_access_mapping[acc] for acc in operator_accesses]
+        if self._access_type not in operator_accesses:
             raise ParseError(
-                "In the LFRic API operators cannot have a 'gh_inc' "
-                "access because they behave as discontinuous quantities")
+                "In the LFRic API allowed accesses for operators are {0} "
+                "because they behave as discontinuous quantities, but found "
+                "'{1}' in '{2}'".
+                format(op_acc_msg, rev_access_mapping[self._access_type],
+                       arg_type))
 
     def _validate_scalar(self, arg_type):
         '''
@@ -475,17 +515,19 @@ class LFRicArgDescriptor(Descriptor):
                 "found {0} in '{1}'".format(len(arg_type.args), arg_type))
 
         # Test allowed accesses for scalars (read_only or reduction)
-        if self._access_type not in [AccessType.READ] + \
-           AccessType.get_valid_reduction_modes():
-            api_config = Config.get().api_conf(API)
-            rev_access_mapping = api_config.get_reverse_access_mapping()
+        scalar_accesses = [AccessType.READ] + \
+            AccessType.get_valid_reduction_modes()
+        # Convert generic access type to GH_* names for error messages
+        api_config = Config.get().api_conf(API)
+        rev_access_mapping = api_config.get_reverse_access_mapping()
+        if self._access_type not in scalar_accesses:
             api_specific_name = rev_access_mapping[self._access_type]
             valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
-                "In the LFRic API scalar arguments must be "
-                "read-only ('gh_read') or a reduction ({0}) but found "
-                "'{1}' in '{2}'".format(valid_reductions, api_specific_name,
-                                        arg_type))
+                "In the LFRic API scalar arguments must have read-only "
+                "('gh_read') or a reduction ({0}) access but found '{1}' "
+                "in '{2}'".format(valid_reductions, api_specific_name,
+                                  arg_type))
 
         # Scalars don't have vector size
         self._vector_size = 0

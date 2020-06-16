@@ -191,8 +191,10 @@ def test_ad_op_type_wrong_access():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API operators cannot have a 'gh_inc' access"
-            in str(excinfo.value))
+    assert ("In the LFRic API allowed accesses for operators are "
+            "['gh_read', 'gh_write', 'gh_readwrite'] because they behave "
+            "as discontinuous quantities, but found 'gh_inc'" in
+            str(excinfo.value))
 
 
 def test_arg_descriptor_op():
