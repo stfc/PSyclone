@@ -1631,7 +1631,7 @@ def test_invoke_uniq_declns():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
     assert ("Invoke.unique_declarations() called with an invalid argument "
             "type. Expected one of {0} but found 'not_a_type'".
@@ -1662,12 +1662,14 @@ def test_invoke_uniq_declns_valid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_read = psy.invokes.invoke_list[0]\
+    fields_read_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READ)
     fields_read = [arg.declaration_name for arg in fields_read_args]
     assert fields_read == ["f2", "m1", "m2"]
-    fields_incremented = psy.invokes.invoke_list[0]\
+    fields_incremented_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.INC)
+    fields_incremented = [arg.declaration_name for arg in
+                          fields_incremented_args]
     assert fields_incremented == ["f1"]
 
     # Test WRITE
@@ -1675,8 +1677,9 @@ def test_invoke_uniq_declns_valid_access():
                                         "1_single_invoke_w3_only_vector.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_written = psy.invokes.invoke_list[0]\
+    fields_written_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.WRITE)
+    fields_written = [arg.declaration_name for arg in fields_written_args]
     assert fields_written == ["f1(3)"]
 
     # Test READWRITE
@@ -1684,8 +1687,10 @@ def test_invoke_uniq_declns_valid_access():
                                         "1_single_invoke_w2v.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_readwritten = psy.invokes.invoke_list[0]\
+    fields_readwritten_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READWRITE)
+    fields_readwritten = [arg.declaration_name for arg in
+                          fields_readwritten_args]
     assert fields_readwritten == ["f1"]
 
 
@@ -1696,7 +1701,7 @@ def test_invoke_uniq_proxy_declns():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
     assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
             "argument type. Expected one of {0} but found 'not_a_type'".
@@ -1741,7 +1746,7 @@ def test_dyninvoke_uniq_declns_inv_type():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
     assert ("Invoke.unique_declns_by_intent() called with an invalid "
             "argument type. Expected one of {0} but found 'gh_invalid'".
@@ -1757,9 +1762,8 @@ def test_dyninvoke_uniq_declns_intent_fields():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
     args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == []
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['f1']
+    assert args_inout == ['f1']
+    assert args['out'] == []
     args_in = [arg.declaration_name for arg in args['in']]
     assert args_in == ['f2', 'm1', 'm2']
 
@@ -1772,10 +1776,8 @@ def test_dyninvoke_uniq_declns_intent_real():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == []
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == []
+    assert args['inout'] == []
+    assert args['out'] == []
     args_in = [arg.declaration_name for arg in args['in']]
     assert args_in == ['a']
 
@@ -1788,10 +1790,8 @@ def test_dyninvoke_uniq_declns_intent_int():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == []
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == []
+    assert args['inout'] == []
+    assert args['out'] == []
     args_in = [arg.declaration_name for arg in args['in']]
     assert args_in == ['istep']
 
@@ -1804,12 +1804,10 @@ def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == []
+    assert args['inout'] == []
     args_out = [arg.declaration_name for arg in args['out']]
     assert args_out == ['op']
-    args_in = [arg.declaration_name for arg in args['in']]
-    assert args_in == []
+    assert args['in'] == []
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1825,8 +1823,10 @@ def test_dyninvoke_uniq_declns_intent_cma_ops():
         .unique_declns_by_intent("gh_columnwise_operator")
     args_inout = [arg.declaration_name for arg in args['inout']]
     assert args_inout == ['cma_opc']
+    # 'cma_op1' is "write" arg in columnwise_op_mul_kernel_type call
     args_out = [arg.declaration_name for arg in args['out']]
     assert args_out == ['cma_op1']
+    # 'cma_op1' is "read" arg in columnwise_op_app_kernel_type call
     args_in = [arg.declaration_name for arg in args['in']]
     assert args_in == ['cma_op1', 'cma_opb']
 

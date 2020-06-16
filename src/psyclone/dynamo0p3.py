@@ -3240,25 +3240,27 @@ class DynScalarArgs(DynCollection):
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
 
+        # Create lists of real and integer scalar arguments
+        self._real_scalar_names = {}
+        self._int_scalar_names = {}
         if self._invoke:
-            # Get a list of Invoke scalar arguments
-            self._real_scalars = self._invoke.unique_declns_by_intent(
-                "gh_real")
-            self._int_scalars = self._invoke.unique_declns_by_intent(
-                "gh_integer")
-        else:
-            # We have a Kernel stub, so create a list of scalar arguments.
-            self._real_scalars = {}
-            self._int_scalars = {}
+            real_scalars = self._invoke.unique_declns_by_intent("gh_real")
+            int_scalars = self._invoke.unique_declns_by_intent("gh_integer")
             for intent in FORTRAN_INTENT_NAMES:
-                self._real_scalars[intent] = []
-                self._int_scalars[intent] = []
+                self._real_scalar_names[intent] = [arg.declaration_name for arg
+                                                   in real_scalars[intent]]
+                self._int_scalar_names[intent] = [arg.declaration_name for arg
+                                                  in int_scalars[intent]]
+        else:
+            for intent in FORTRAN_INTENT_NAMES:
+                self._real_scalar_names[intent] = []
+                self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.type in GH_VALID_SCALAR_NAMES:
                     if arg.type == "gh_real":
-                        self._real_scalars[arg.intent].append(arg)
+                        self._real_scalar_names[arg.intent].append(arg.name)
                     elif arg.type == "gh_integer":
-                        self._int_scalars[arg.intent].append(arg)
+                        self._int_scalar_names[arg.intent].append(arg.name)
                     else:
                         raise InternalError(
                             "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
@@ -3275,24 +3277,19 @@ class DynScalarArgs(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalars[intent]:
-                arg_list = [arg.declaration_name for arg in
-                            self._real_scalars[intent]]
-                dtype = "real"
-                parent.add(DeclGen(parent, datatype=dtype,
-                                   kind=api_config.default_kind[dtype],
-                                   entity_decls=arg_list,
-                                   intent=intent))
+            if self._real_scalar_names[intent]:
+                parent.add(
+                    DeclGen(parent, datatype="real",
+                            kind=api_config.default_kind["real"],
+                            entity_decls=self._real_scalar_names[intent],
+                            intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalars[intent]:
-                arg_list = [arg.declaration_name for arg in
-                            self._int_scalars[intent]]
-                dtype = "integer"
+            if self._int_scalar_names[intent]:
                 parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
-                            entity_decls=arg_list,
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=self._int_scalar_names[intent],
                             intent=intent))
 
     def _stub_declarations(self, parent):
@@ -5038,19 +5035,19 @@ class DynInvoke(Invoke):
         :param str argument_type: argument type that proxy declarations are \
                                   searched for.
         :param access: optional AccessType for the specified argument type.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
 
         :returns: a list of all required proxy declarations for the \
                   specified argument type.
         :rtype: list of str
 
-        :raises GenerationError: if the supplied argument type is invalid.
+        :raises InternalError: if the supplied argument type is invalid.
         :raises InternalError: if an invalid access is specified, i.e. \
                                not of type AccessType.
 
         '''
         if argument_type not in GH_VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
+            raise InternalError(
                 "DynInvoke.unique_proxy_declarations() called with an invalid "
                 "argument type. Expected one of {0} but found '{1}'".
                 format(str(GH_VALID_ARG_TYPE_NAMES), argument_type))

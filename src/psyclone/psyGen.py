@@ -549,20 +549,21 @@ class Invoke(object):
         API argument type. If access is supplied (e.g. "write") then
         only declarations with that access are returned.
 
-        :param string argument_type: the type of the kernel argument for \
-                                     the particular API for which the intent \
-                                     is required.
+        :param str argument_type: the type of the kernel argument for \
+                                  the particular API for which the intent \
+                                  is required.
         :param access: optional AccessType that the declaration should have.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
 
         :returns: a list of all declared kernel arguments.
         :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises GenerationError: if an invalid argument type is given.
+        :raises InternalError: if an invalid argument type is given.
         :raises InternalError: if an invalid access is specified.
 
         '''
         if argument_type not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
+            raise InternalError(
                 "Invoke.unique_declarations() called with an invalid argument "
                 "type. Expected one of {0} but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), argument_type))
@@ -603,20 +604,20 @@ class Invoke(object):
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string argument_type: the type of the kernel argument for the \
-                                     particular API for which the intent is \
-                                     required.
+        :param str argument_type: the type of the kernel argument for the \
+                                  particular API for which the intent is \
+                                  required.
 
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
         :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises GenerationError: if the kernel argument is not a valid \
-                                 argument type for the particular API.
+        :raises InternalError: if the kernel argument is not a valid \
+                               argument type for the particular API.
 
         '''
         if argument_type not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
+            raise InternalError(
                 "Invoke.unique_declns_by_intent() called with an invalid "
                 "argument type. Expected one of {0} but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), argument_type))
