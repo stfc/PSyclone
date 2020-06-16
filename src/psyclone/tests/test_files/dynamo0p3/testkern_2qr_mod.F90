@@ -29,21 +29,24 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab.
+! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_2qr_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
+  use constants_mod, only: r_def, i_def
 
   implicit none
 
   type, extends(kernel_type) :: testkern_2qr_type
      type(arg_type), dimension(4) :: meta_args = &
-          (/ arg_type(gh_field,  gh_inc, w1),  &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w3)  &
+          (/ arg_type(gh_field,  gh_inc,  w1),   &
+             arg_type(gh_field,  gh_read, w2),   &
+             arg_type(gh_field,  gh_read, w2),   &
+             arg_type(gh_field,  gh_read, w3)    &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -67,15 +70,20 @@ contains
           nfaces, nqp_faces, wqp_faces,                                      &
           nedges, nqp_edges, wqp_edges)
 
-    use constants_mod, only: r_def, i_def
-
     implicit none
 
-    integer(kind=i_def) :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-                           undf_w3, nqp_faces, nfaces, nqp_edges, nedges
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ndf_w1, undf_w1, ndf_w2, &
+                           undf_w2, ndf_w3, undf_w3
+    integer(kind=i_def) :: nqp_faces, nfaces, nqp_edges, nedges
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
+    real(kind=r_def), intent(inout), dimension(undf_w1) :: f1
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: f2
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: f3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: f4
     real(kind=r_def), dimension(nqp_faces,nfaces) :: wqp_faces
     real(kind=r_def), dimension(nqp_edges,nedges) :: wqp_edges
     real(kind=r_def), dimension(3,ndf_w1,nqp_faces,nfaces) :: basis_w1_faces

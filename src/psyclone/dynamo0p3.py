@@ -108,7 +108,7 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 # indicates either x1d or y1d.
 # Note, the LFRic infrastructure currently does not have 'region' as
 # an option in stencil_dofmap_mod.F90 so it is not included in
-# STENCIL_MAPPING.
+# STENCIL_MAPPING. Related PSyclone issue is #194.
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
@@ -2708,6 +2708,7 @@ class DynOrientations(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
+        # TODO #783: Remove duplicates from the declaration list
         declns = [orient.name+"(:) => null()" for orient in self._orients]
         if declns:
             parent.add(DeclGen(parent, datatype="integer",
@@ -6282,7 +6283,10 @@ class HaloReadAccess(HaloDepth):
                     # stencil_depth is provided in the kernel metadata
                     self._literal_depth += stencil_depth
                 else:
-                    # stencil_depth is provided by the algorithm layer
+                    # Stencil_depth is provided by the algorithm layer.
+                    # It is currently not possible to specify kind for an
+                    # integer literal stencil depth in a kernel call. This
+                    # will be enabled when addressing issue #753.
                     if field.stencil.extent_arg.is_literal():
                         # a literal is specified
                         value_str = field.stencil.extent_arg.text
@@ -6330,7 +6334,7 @@ class DynLoop(Loop):
         # different symbol table and if this is the case we will end
         # up declaring the variable twice. Issue #630 describes this
         # problem.
-        symtab = self.find_symbol_table()
+        symtab = self.scope.symbol_table
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:

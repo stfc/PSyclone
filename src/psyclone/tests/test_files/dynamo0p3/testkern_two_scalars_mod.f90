@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,48 +31,56 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-!        C.M. Maynard Met Office/University of Reading
+! Author R. W. Ford STFC Daresbury Lab
+!        C. M. Maynard Met Office/University of Reading
+! Modified I. Kavcic Met Office
 
-
-module testkern_two_scalars
+module testkern_two_scalars_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
   
-  type, extends(kernel_type) :: testkern_type
+  type, extends(kernel_type) :: testkern_two_scalars_type
      type(arg_type), dimension(6) :: meta_args = &
-          (/ arg_type(gh_real, gh_read    ), &
-             arg_type(gh_field,   gh_write,w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_field,   gh_read, w3), &
-             arg_type(gh_integer, gh_read    )  &
+          (/ arg_type(gh_real,    gh_read    ),  &
+             arg_type(gh_field,   gh_inc,  w1),  &
+             arg_type(gh_field,   gh_read, w2),  &
+             arg_type(gh_field,   gh_read, w2),  &
+             arg_type(gh_field,   gh_read, w3),  &
+             arg_type(gh_integer, gh_read    )   &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_code
-  end type testkern_type
+     procedure, nopass :: code => testkern_two_scalars_code
+  end type testkern_two_scalars_type
+
 contains
 
-  subroutine testkern_code(nlayers, a, f1data, f2data, m1data, m2data, istep, &
-                           ndf_w1, undf_w1, map_w1,                           &
-                           ndf_w2, undf_w2, map_w2,                           &
-                           ndf_w3, undf_w3, map_w3                            )
+  subroutine testkern_two_scalars_code(nlayers, a, f1data, f2data, &
+                                       m1data, m2data, istep,      &
+                                       ndf_w1, undf_w1, map_w1,    &
+                                       ndf_w2, undf_w2, map_w2,    &
+                                       ndf_w3, undf_w3, map_w3)
     implicit none
-    integer(kind=i_def),                     intent(in)    :: nlayers
-    real(kind=r_def),                        intent(in)    :: a
-    integer(kind=i_def),                     intent(in)    :: ndf_w1, undf_w1
-    integer(kind=i_def),                     intent(in)    :: ndf_w2, undf_w2
-    integer(kind=i_def),                     intent(in)    :: ndf_w3, undf_w3
-    real(kind=r_def),    dimension(undf_w1), intent(inout) :: f1data
-    real(kind=r_def),    dimension(undf_w2), intent(inout) :: f2data
-    real(kind=r_def),    dimension(undf_w2), intent(inout) :: m1data
-    real(kind=r_def),    dimension(undf_w3), intent(inout) :: m2data
-    integer(kind=i_def),                     intent(in)    :: istep
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1, undf_w1
+    integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
+    integer(kind=i_def), intent(in) :: ndf_w3, undf_w3
+    integer(kind=i_def), intent(in) :: istep
     integer(kind=i_def), dimension(ndf_w1),  intent(in)    :: map_w1
     integer(kind=i_def), dimension(ndf_w2),  intent(in)    :: map_w2
-    integer(kind=i_def), dimension(ndf_w3),  intent(in)    :: map_w3       
-  end subroutine testkern_code
-end module testkern_two_scalars
+    integer(kind=i_def), dimension(ndf_w3),  intent(in)    :: map_w3
+    real(kind=r_def), intent(in)    :: a
+    real(kind=r_def),    dimension(undf_w1), intent(inout) :: f1data
+    real(kind=r_def),    dimension(undf_w2), intent(in)    :: f2data
+    real(kind=r_def),    dimension(undf_w2), intent(in)    :: m1data
+    real(kind=r_def),    dimension(undf_w3), intent(in)    :: m2data
+
+  end subroutine testkern_two_scalars_code
+
+end module testkern_two_scalars_mod

@@ -281,7 +281,7 @@ class GOInvoke(Invoke):
 
         # get the list of global symbols used in the invoke
         global_names = [sym.name for sym in
-                        self.schedule.symbol_table.global_datasymbols]
+                        self.schedule.symbol_table.global_symbols]
 
         # add the subroutine argument declarations for real scalars which
         # are not global symbols
@@ -445,7 +445,7 @@ class GOLoop(Loop):
         # different symbol table and if this is the case we will end
         # up declaring the variable twice. Issue #630 describes this
         # problem.
-        symtab = self.find_symbol_table()
+        symtab = self.scope.symbol_table
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:
