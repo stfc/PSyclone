@@ -49,7 +49,7 @@ from psyclone.errors import InternalError
 # pylint: disable=invalid-name
 
 
-CODE2 = (
+CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
     "    type(arg_type), dimension(1) :: meta_args =    &\n"
@@ -65,7 +65,7 @@ CODE2 = (
 
     )
 
-CODE = (
+CODE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
     "    type(arg_type), dimension(1) :: meta_args =    &\n"
@@ -81,7 +81,12 @@ CODE = (
     "  end subroutine sub_code\n"
     "end module test_mod\n"
 
-    )    
+    )
+
+@pytest.fixture(scope="module",params=[CODE,CODE_INTERFACE])
+def get_code(request):
+    '''Fixture for testing two code versions'''
+    return request.param
 
 # function get_kernel_filepath
 
@@ -154,12 +159,12 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
 # function get_kernel_metadata
 
 
-def test_get_kernel_metadata_no_match():
+def test_get_kernel_metadata_no_match(get_code):
     '''Test that we get a ParseError when searching for a kernel that does
     not exist in the parse tree.
 
     '''
-    module_parse_tree = parse(CODE)
+    module_parse_tree = parse(get_code)
     kernel_type_name = "no_matching_kernel"
     with pytest.raises(ParseError) as excinfo:
         get_kernel_metadata(
@@ -168,23 +173,23 @@ def test_get_kernel_metadata_no_match():
             in str(excinfo.value))
 
 
-def test_get_kernel_metadata_match():
+def test_get_kernel_metadata_match(get_code):
     '''Test that something (anything at this point) is returned when
     searching for a kernel that exists in the parse tree.
 
     '''
-    module_parse_tree = parse(CODE)
+    module_parse_tree = parse(get_code)
     kernel_type_name = "test_type"
     meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
     assert meta is not None
 
 
-def test_get_kernel_metadata_match_case_insensitive():
+def test_get_kernel_metadata_match_case_insensitive(get_code):
     '''Test that searching for a kernel is not dependent upon the
     case of the name.
 
     '''
-    module_parse_tree = parse(CODE)
+    module_parse_tree = parse(get_code)
     kernel_type_name = "TeSt_TyPe"
     meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
     # Make sure we found it.
@@ -226,7 +231,6 @@ def test_descriptor_repr():
 
 # class KernelProcedure() test utility
 
-
 def create_kernelprocedure(code):
     '''Support function that attempts to create an instance of the
     'KernelProcedure' class. It is assumed that the name of the
@@ -257,21 +261,31 @@ def test_kernelprocedure_notfound():
 
     '''
     with pytest.raises(ParseError) as excinfo:
-#        my_code = CODE.replace("=> test_code", "=> non_existant_code")
-        my_code = CODE.replace("module procedure sub_code", "module procedure sub_code, non_existant_code")
+        my_code = CODE.replace("=> test_code", "=> non_existant_code")
         _ = create_kernelprocedure(my_code)
     assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)
 
+def test_kernelinterface_notfound():
+    '''Test that the appropriate exception is raised if the kernel
+    subroutine specified in the kernel metadata does not exist in the
+    module.
+
+    '''
+    with pytest.raises(ParseError) as excinfo:
+        my_code = CODE_INTERFACE.replace("module procedure sub_code", "module procedure sub_code, non_existant_code")
+        _ = create_kernelprocedure(my_code)
+    assert "Kernel subroutine 'non_existant_code' not found." \
+        in str(excinfo.value)    
+
 # class KernelProcedure() tests
 
-
-def test_kernelprocedure_repr():
+def test_kernelprocedure_repr(get_code):
     '''Test that the __repr__ method in KernelProcedure() behaves as
     expected.
 
     '''
-    tmp = create_kernelprocedure(CODE)
+    tmp = create_kernelprocedure(get_code)
     assert repr(tmp) == ("KernelProcedure(test_code)")
 
 
