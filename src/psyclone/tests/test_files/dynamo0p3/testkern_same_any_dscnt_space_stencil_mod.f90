@@ -38,12 +38,12 @@ module testkern_same_any_dscnt_space_stencil_mod
 
   use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
 
-  type, public, extends(kernel_type) :: testkern_same_any_dscnt_space_stencil_type
-    private
+  type, extends(kernel_type) :: testkern_same_any_dscnt_space_stencil_type
     type(arg_type), dimension(3) :: meta_args = (/               &
          arg_type(gh_field, gh_write, wtheta),                   &
          arg_type(gh_field, gh_read,  any_discontinuous_space_1, &
@@ -53,7 +53,7 @@ module testkern_same_any_dscnt_space_stencil_mod
          /)
     integer :: iterates_over = cells
   contains
-    procedure, public, nopass :: code => testkern_same_any_dscnt_space_stencil_code
+    procedure, nopass :: code => testkern_same_any_dscnt_space_stencil_code
   end type testkern_same_any_dscnt_space_stencil_type
 
 contains

@@ -38,13 +38,13 @@ module testkern_stencil_fs_mod
 
   use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
 
   ! Example of stencils on all supported function space identifiers
-  type, public, extends(kernel_type) :: testkern_stencil_fs_type
-     private
+  type, extends(kernel_type) :: testkern_stencil_fs_type
      type(arg_type), dimension(16) :: meta_args = (/                &
           arg_type(gh_field, gh_inc,  w1),                          &
           arg_type(gh_field, gh_read, w0,          stencil(cross)), &
@@ -66,7 +66,7 @@ module testkern_stencil_fs_mod
            /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_stencil_fs_code
+     procedure, nopass :: code => testkern_stencil_fs_code
   end type testkern_stencil_fs_type
 contains
 

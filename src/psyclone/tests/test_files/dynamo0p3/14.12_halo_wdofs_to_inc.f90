@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,6 +31,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program halo_dofs_write_to_inc
 
@@ -38,16 +39,18 @@ program halo_dofs_write_to_inc
   ! loop and read in a following loop, where the field is a continuous
   ! field, the first loop iterates over dofs and the second iterates
   ! over cells.
-  
+
+  use constants_mod,   only: r_def
+  use field_mod,       only: field_type
   use testkern_w0_mod, only: testkern_w0_type
-  
-  use inf,      only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2
 
   call invoke(                    &
-       setval_c(f1,0),            &
-       testkern_w0_type(f1,f2)    &
+       setval_c(f1, 0.0_r_def),   &
+       testkern_w0_type(f1, f2)   &
           )
 
 end program halo_dofs_write_to_inc

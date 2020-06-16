@@ -43,6 +43,8 @@ module restrict_test_kernel_mod
 
   implicit none
 
+  private
+
   type, public, extends(kernel_type) :: restrict_test_kernel_type
      private
      type(arg_type) :: meta_args(2) = (/                                &

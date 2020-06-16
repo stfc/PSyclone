@@ -92,16 +92,12 @@ At the moment, root nodes (e.g. `InvokeSchedules`, `KernelSchedules`
 and `Containers`) have a symbol table which contains the symbols used by their
 descendant nodes.
 
-
-.. note:: Some symbols are still hardwired as strings inside some of the PSyIR
-    nodes, but there are issues raised to replace these.
-
 The `new_symbol_name` method is provided to avoid name clashes when defining
 a new symbol in the symbol table.
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
 
-However, if this variable needs to be retrieved later on, one must keep track
+However, if this symbol needs to be retrieved later on, one must keep track
 of the symbol or the returned name. As this is not always feasible when
 accessed from different routines, there is also the option to provide a tag to
 uniquely identify the symbol internally (the tag is not displayed in the

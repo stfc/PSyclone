@@ -45,17 +45,9 @@
 
 module argument_mod
 
-  ! Test files need to be updated to reference function spaces from
-  ! fs_continuity_mod rather than the old location argument_mod.f90. The
-  ! inclusion of fs_continuity_mod here is a temporary solution until
-  ! this issue (#764) is addressed.
-  ! Note: this module should really have a keyword "private" before the explicit
-  ! declaration of "public" parameter. This is currently not possible due to
-  ! the use of fs_continuity_mod, however it will need to be added.
-
-  use fs_continuity_mod
-
   implicit none
+
+  private
 
   ! Argument types
   integer, public, parameter :: GH_FIELD               = 1

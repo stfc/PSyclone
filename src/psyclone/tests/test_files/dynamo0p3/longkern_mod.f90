@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,27 +31,33 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
-module testkern_w2_only
+module longkern_mod
+
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
-  type, extends(kernel_type) :: testkern_w2_only_type
-     type(arg_type), dimension(2) :: meta_args =  (/  &
-             arg_type(gh_field,gh_write,w2), &
-             arg_type(gh_field,gh_read, w2)  &
+
+  implicit none
+
+  type, extends(kernel_type) :: longkern_type
+     type(arg_type), dimension(4) :: meta_args = &
+          (/ arg_type(gh_field, gh_inc,  w1),    &
+             arg_type(gh_field, gh_read, w2),    &
+             arg_type(gh_field, gh_read, w2),    &
+             arg_type(gh_field, gh_read, w3)     &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_code_w2_only
-  end type testkern_w2_only_type
+     procedure, nopass :: code => longkern_code
+  end type longkern_type
 contains
 
-  subroutine testkern_code_w2_only(nlayers, fld1, fld2, ndf_w2, undf_w2, map_w2)
-    integer :: nlayers
-    real(kind=r_def), dimension(:) :: fld1, fld2
-    integer :: ndf_w2, undf_w2
-    integer, dimension(:) :: map_w2
-  end subroutine testkern_code_w2_only
-end module testkern_w2_only
+  ! here is a long line here is a long line here is a long line here is a long line here is a long line here is a long line here is a long line
+  subroutine longkern_code()
+  end subroutine longkern_code
+
+end module longkern_mod

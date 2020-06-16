@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,20 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 program single_invoke_w3
 
   ! Description: single function iterating over w3 (discontinuous)
   ! specified in an invoke call
+  use constants_mod,   only: r_def
+  use field_mod,       only: field_type
   use testkern_w3_mod, only: testkern_w3_type
-  use inf,             only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: a
+  real(r_def)      :: a
 
   call invoke(                             &
        testkern_w3_type(a, f1, f2, m1, m2) &

@@ -356,7 +356,7 @@ class SymbolTable(object):
             raise KeyError("The '{0}' entry in this SymbolTable is not the "
                            "supplied ContainerSymbol.".format(csymbol.name))
 
-        return [symbol for symbol in self.global_datasymbols if
+        return [symbol for symbol in self.global_symbols if
                 symbol.interface.container_symbol is csymbol]
 
     def remove(self, symbol):
@@ -478,7 +478,7 @@ class SymbolTable(object):
 
         '''
         unresolved_symbols = [sym for sym in self.datasymbols
-                              if sym.unresolved_interface]
+                              if sym.is_unresolved]
         if ignore_precision:
             unresolved_datasymbols = list(set(unresolved_symbols) -
                                           set(self.precision_datasymbols))
@@ -520,14 +520,14 @@ class SymbolTable(object):
         return [sym for sym in self.datasymbols if sym.is_argument]
 
     @property
-    def global_datasymbols(self):
+    def global_symbols(self):
         '''
         :returns: list of symbols that have 'global' interface (are \
             associated with data that exists outside the current scope).
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        return [sym for sym in self.datasymbols if sym.is_global]
+        return [sym for sym in self.symbols if sym.is_global]
 
     @property
     def precision_datasymbols(self):
