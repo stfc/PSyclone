@@ -539,41 +539,45 @@ class KernelProcedure(object):
                     bname = statement.name.lower()
                 break
         if bname is None:
-            # If no type-bound procedure found, search for an explicit interface that has module procedures.
-            bname, subnames=get_kernel_interface(modast)
+            # If no type-bound procedure found, search for an explicit
+            # interface that has module procedures.
+            bname, subnames = get_kernel_interface(modast)
             if bname is None:
                 # no interface found either
                 raise ParseError(
-                    "Kernel type {0} does not bind a specific procedure or provide an explicit interface".format(name))
-            else:
-                # walk the AST to check the subroutine names exist.
-                for subname in subnames:
-                    code = None
-                    for statement, _ in fpapi.walk(modast, -1):
-                        if isinstance(statement, fparser1.block_statements.Subroutine) and statement.name.lower() == subname.lower():
-                            code = statement
-                            break
-                    if not code:
-                        raise ParseError(
-                            "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
-                            "'{0}' not found.".format(subname))
+                    "Kernel type {0} does not bind a specific procedure or \
+                    provide an explicit interface".format(name))
+            # walk the AST to check the subroutine names exist.
+            for subname in subnames:
+                code = None
+                for statement, _ in fpapi.walk(modast):
+                    if isinstance(statement,
+                                  fparser1.block_statements.Subroutine) \
+                                  and statement.name.lower() \
+                                  == subname.lower():
+                        code = statement
+                        break
+                if not code:
+                    raise ParseError(
+                        "kernel.py:KernelProcedure:get_procedure: Kernel "
+                        "subroutine '{0}' not found.".format(subname))
         elif bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        # Walk through the rest of kernel to check if the subroutine actually exists for type bound procedure
+        # Walk through the rest of kernel to check if the subroutine actually
+        # exists for type bound procedure
         else:
             code = None
-            for statement, _ in fpapi.walk(modast, -1):
-                if isinstance(statement, fparser1.block_statements.Subroutine) and statement.name.lower() == bname:
+            for statement, _ in fpapi.walk(modast):
+                if isinstance(statement, fparser1.block_statements.Subroutine)\
+                  and statement.name.lower() == bname:
                     code = statement
                     break
             if not code:
                 raise ParseError(
-                "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
-                "'{0}' not found.".format(bname))
-                
+                    "kernel.py:KernelProcedure:get_procedure: Kernel "
+                    "subroutine '{0}' not found.".format(bname))
         return code, bname
-
 
     @property
     def name(self):
@@ -620,7 +624,7 @@ def get_kernel_metadata(name, ast):
 
     '''
     ktype = None
-    for statement, _ in fpapi.walk(ast, -1):
+    for statement, _ in fpapi.walk(ast):
         if isinstance(statement, fparser1.block_statements.Type) \
            and statement.name.lower() == name.lower():
             ktype = statement
@@ -629,6 +633,7 @@ def get_kernel_metadata(name, ast):
         raise ParseError("Kernel type {0} does not exist".format(name))
     return ktype
 
+
 def get_kernel_interface(ast):
     '''Takes the kernel module parse tree and returns the interface part
     of the parse tree.
@@ -636,24 +641,27 @@ def get_kernel_interface(ast):
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    :returns: Name 'name' of the parse tree of the interface 
+    :returns: Name 'name' of the parse tree of the interface
     :rtype: :str `fparser.one.block_statements.Interface.name`
 
-    :returns 'None' if there is no interface, the interface has no name or has no module procedures
-    '''
+    :returns 'None' if there is no interface, the interface has no name or has
+    no module procedures.'''
+
     iname = None
-    sbane = None
-    for statement, _ in fpapi.walk(ast, -1):
+    sname = None
+    for statement, _ in fpapi.walk(ast):
         if isinstance(statement, fparser1.block_statements.Interface):
-#           Check the interfaces assigns module procedures.
+            # Check the interfaces assigns module procedures.
             if statement.a.module_procedures:
                 iname = statement.name.lower()
                 sname = statement.a.module_procedures
-#      If implicit interface (no name) set to none as there is no procedure name for PSyclone to use.
-            if iname=='':
-                iname=None
+                # If implicit interface (no name) set to none as there is no
+                # procedure name for PSyclone to use.
+            if iname == '':
+                iname = None
             break
     return iname, sname
+
 
 def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     '''Get the required argument metadata information for a kernel.
@@ -751,7 +759,7 @@ class KernelType(object):
             # the module is called <name/>_mod and the type is called
             # <name/>_type
             found = False
-            for statement, _ in fpapi.walk(ast, -1):
+            for statement, _ in fpapi.walk(ast):
                 if isinstance(statement, fparser1.block_statements.Module):
                     module_name = statement.name
                     found = True
@@ -852,7 +860,7 @@ class KernelType(object):
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 
-        for statement, _ in fpapi.walk(self._ktype, -1):
+        for statement, _ in fpapi.walk(self._ktype):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
                 # fparser only goes down to the statement level. We use
                 # fparser2 to parse the statement itself (eventually we'll
@@ -895,7 +903,7 @@ class KernelType(object):
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 
-        for statement, _ in fpapi.walk(self._ktype, -1):
+        for statement, _ in fpapi.walk(self._ktype):
             if not isinstance(statement, fparser1.typedecl_statements.Integer):
                 # This isn't an integer declaration so skip it
                 continue
