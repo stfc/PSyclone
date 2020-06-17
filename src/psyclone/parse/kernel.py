@@ -534,41 +534,46 @@ class KernelProcedure(object):
                             "Kernel type {0} binds to a specific procedure but"
                             " does not use 'code' as the generic name.".
                             format(name))
-                    bname = statement.bname
+                    bname = statement.bname.lower()
                 else:
-                    bname = statement.name
+                    bname = statement.name.lower()
                 break
         if bname is None:
             # If no type-bound procedure found, search for an explicit interface that has module procedures.
-            bname=get_kernel_interface(modast)
+            bname, subnames=get_kernel_interface(modast)
             if bname is None:
+                # no interface found either
                 raise ParseError(
-                    "Kernel type {0} does not bind a specific procedure or provide an explicit interface".
-                    format(name))
-        if bname == '':
+                    "Kernel type {0} does not bind a specific procedure or provide an explicit interface".format(name))
+            else:
+                # walk the AST to check the subroutine names exist.
+                for subname in subnames:
+                    code = None
+                    for statement, _ in fpapi.walk(modast, -1):
+                        if isinstance(statement, fparser1.block_statements.Subroutine) and statement.name.lower() == subname.lower():
+                            code = statement
+                            break
+                    if not code:
+                        raise ParseError(
+                            "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
+                            "'{0}' not found.".format(subname))
+        elif bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        code = None
-        for statement, _ in fpapi.walk(modast, -1):
-            if isinstance(statement, fparser1.block_statements.Interface) and statement.name == bname:
-                     subnames=statement.a.module_procedures
-                     for subname in subnames:
-                         code = None
-                         for newstatement, _ in fpapi.walk(modast, -1):
-                            if isinstance(newstatement, fparser1.block_statements.Subroutine) and newstatement.name == subname:
-                                code = statement
-                         if not code:
-                             raise ParseError(
-                    "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
-                    "'{0}' not found.".format(subname))
-            elif isinstance(statement, fparser1.block_statements.Subroutine) and statement.name == bname:
-                code = statement
-                break
-        if not code:
-            raise ParseError(
+        # Walk through the rest of kernel to check if the subroutine actually exists for type bound procedure
+        else:
+            code = None
+            for statement, _ in fpapi.walk(modast, -1):
+                if isinstance(statement, fparser1.block_statements.Subroutine) and statement.name.lower() == bname:
+                    code = statement
+                    break
+            if not code:
+                raise ParseError(
                 "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
                 "'{0}' not found.".format(bname))
+                
         return code, bname
+
 
     @property
     def name(self):
@@ -637,16 +642,18 @@ def get_kernel_interface(ast):
     :returns 'None' if there is no interface, the interface has no name or has no module procedures
     '''
     iname = None
+    sbane = None
     for statement, _ in fpapi.walk(ast, -1):
         if isinstance(statement, fparser1.block_statements.Interface):
 #           Check the interfaces assigns module procedures.
             if statement.a.module_procedures:
-                iname = statement.name
+                iname = statement.name.lower()
+                sname = statement.a.module_procedures
 #      If implicit interface (no name) set to none as there is no procedure name for PSyclone to use.
             if iname=='':
                 iname=None
             break
-    return iname
+    return iname, sname
 
 def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     '''Get the required argument metadata information for a kernel.
