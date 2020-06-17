@@ -41,7 +41,8 @@ from __future__ import absolute_import
 import os
 import pytest
 from fparser.api import parse
-from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
+from psyclone.parse.kernel import KernelType, get_kernel_metadata,\
+    get_kernel_interface,\
     KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
@@ -83,8 +84,9 @@ CODE_INTERFACE = (
 
     )
 
-@pytest.fixture(scope="module",params=[CODE,CODE_INTERFACE])
-def get_code(request):
+
+@pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE])
+def get_code_fragment(request):
     '''Fixture for testing two code versions'''
     return request.param
 
@@ -156,15 +158,50 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
     assert "tmp" in result
     assert "test_mod.f90" in result
 
+
+# function get_kernel_interface
+def test_get_kernel_interface_match():
+    ''' Tests that something is returned when searching for an interface'''
+    module_parse_tree = parse(CODE_INTERFACE)
+    meta1, meta2 = get_kernel_interface(module_parse_tree)
+    assert meta1 is not None
+    assert meta2 is not None
+
+
+def test_get_kernel_interface_no_match():
+    ''' Tests for none when searching there is no interface'''
+    module_parse_tree = parse(CODE)
+    meta1, meta2 = get_kernel_interface(module_parse_tree)
+    assert meta1 is None
+    assert meta2 is None
+
+
+def test_get_kernel_interface_match_caseinsensitive():
+    ''' Tests that the interface name is case insensitive'''
+    module_parse_tree = parse(CODE_INTERFACE.replace("test_code", "TeST_CoDe"))
+    meta1, meta2 = get_kernel_interface(module_parse_tree)
+    assert meta1 == "test_code"
+    assert meta2 is not None
+
+
+def test_get_kernel_interface_match_correct():
+    ''' Tests that something is returned when searching for an interface'''
+    module_parse_tree = parse(CODE_INTERFACE.replace(
+        "module procedure sub_code",
+        "module procedure sub_code, more_code"))
+    meta1, meta2 = get_kernel_interface(module_parse_tree)
+    assert meta1 == "test_code"
+    assert meta2[0] == "sub_code"
+    assert meta2[1] == "more_code"
+
+
 # function get_kernel_metadata
-
-
-def test_get_kernel_metadata_no_match(get_code):
+def test_get_kernel_metadata_no_match(get_code_fragment):
     '''Test that we get a ParseError when searching for a kernel that does
     not exist in the parse tree.
 
     '''
-    module_parse_tree = parse(get_code)
+    module_parse_tree = parse(get_code_fragment)
     kernel_type_name = "no_matching_kernel"
     with pytest.raises(ParseError) as excinfo:
         get_kernel_metadata(
@@ -173,23 +210,23 @@ def test_get_kernel_metadata_no_match(get_code):
             in str(excinfo.value))
 
 
-def test_get_kernel_metadata_match(get_code):
+def test_get_kernel_metadata_match(get_code_fragment):
     '''Test that something (anything at this point) is returned when
     searching for a kernel that exists in the parse tree.
 
     '''
-    module_parse_tree = parse(get_code)
+    module_parse_tree = parse(get_code_fragment)
     kernel_type_name = "test_type"
     meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
     assert meta is not None
 
 
-def test_get_kernel_metadata_match_case_insensitive(get_code):
+def test_get_kernel_metadata_match_case_insensitive(get_code_fragment):
     '''Test that searching for a kernel is not dependent upon the
     case of the name.
 
     '''
-    module_parse_tree = parse(get_code)
+    module_parse_tree = parse(get_code_fragment)
     kernel_type_name = "TeSt_TyPe"
     meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
     # Make sure we found it.
@@ -229,8 +266,8 @@ def test_descriptor_repr():
     tmp = Descriptor("gh_inc", "w1")
     assert repr(tmp) == "Descriptor(gh_inc, w1)"
 
-# class KernelProcedure() test utility
 
+# class KernelProcedure() test utility
 def create_kernelprocedure(code):
     '''Support function that attempts to create an instance of the
     'KernelProcedure' class. It is assumed that the name of the
@@ -266,6 +303,7 @@ def test_kernelprocedure_notfound():
     assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)
 
+
 def test_kernelinterface_notfound():
     '''Test that the appropriate exception is raised if the kernel
     subroutine specified in the kernel metadata does not exist in the
@@ -273,19 +311,21 @@ def test_kernelinterface_notfound():
 
     '''
     with pytest.raises(ParseError) as excinfo:
-        my_code = CODE_INTERFACE.replace("module procedure sub_code", "module procedure sub_code, non_existant_code")
+        my_code = CODE_INTERFACE.replace(
+            "module procedure sub_code",
+            "module procedure sub_code, non_existant_code")
         _ = create_kernelprocedure(my_code)
     assert "Kernel subroutine 'non_existant_code' not found." \
-        in str(excinfo.value)    
+        in str(excinfo.value)
+
 
 # class KernelProcedure() tests
-
-def test_kernelprocedure_repr(get_code):
+def test_kernelprocedure_repr(get_code_fragment):
     '''Test that the __repr__ method in KernelProcedure() behaves as
     expected.
 
     '''
-    tmp = create_kernelprocedure(get_code)
+    tmp = create_kernelprocedure(get_code_fragment)
     assert repr(tmp) == ("KernelProcedure(test_code)")
 
 
@@ -547,7 +587,6 @@ def test_get_int_array_constructor_err(monkeypatch):
         ''' dummy class '''
         self.items = assign.items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
-
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert ("Failed to parse array constructor: '[hello, goodbye]'"
