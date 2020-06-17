@@ -641,11 +641,11 @@ def get_kernel_interface(ast):
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    :returns: Name 'name' of the parse tree of the interface
-    :rtype: :str `fparser.one.block_statements.Interface.name`
-
-    :returns 'None' if there is no interface, the interface has no name or has
-    no module procedures.'''
+    :returns: Name of the parse tree of the interface block and
+              the names of the module procedures. Or None, None if
+              there is no interface or the interface has no nodule procedures.
+    :rtype: : `fparser.one.block_statements.Interface.name`,
+              `fparser.one.block_statements.Interface.a.module_procedures` '''
 
     iname = None
     sname = None
