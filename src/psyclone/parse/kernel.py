@@ -649,8 +649,13 @@ def get_kernel_interface(ast):
 
     iname = None
     sname = None
+    count = 0
     for statement, _ in fpapi.walk(ast):
         if isinstance(statement, fparser1.block_statements.Interface):
+            # count the interfaces, then can be only one!
+            count = count + 1
+            if count >= 2:
+                raise ParseError("Kernel has more than one interface.")
             # Check the interfaces assigns module procedures.
             if statement.a.module_procedures:
                 iname = statement.name.lower()
@@ -659,7 +664,6 @@ def get_kernel_interface(ast):
                 # procedure name for PSyclone to use.
             if iname == '':
                 iname = None
-            break
     return iname, sname
 
 

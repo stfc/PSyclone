@@ -85,6 +85,28 @@ CODE_INTERFACE = (
     )
 
 
+CODE_DOUBLE_INTERFACE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "     integer :: iterates_over = cells\n"
+    "   contains\n"
+    "  end type test_type\n"
+    "  interface test_code\n"
+    "    module procedure sub_code\n"
+    "  end interface test_code\n"
+    "  interface test_code_again\n"
+    "    module procedure more_code\n"
+    "  end interface test_code_again\n"
+    "contains\n"
+    "  subroutine sub_code()\n"
+    "  end subroutine sub_code\n"
+    "end module test_mod\n"
+
+    )
+
+
 @pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE])
 def get_code_fragment(request):
     '''Fixture for testing two code versions'''
@@ -193,6 +215,15 @@ def test_get_kernel_interface_match_correct():
     assert meta1 == "test_code"
     assert meta2[0] == "sub_code"
     assert meta2[1] == "more_code"
+
+
+def test_get_kernel_interface_double_interface():
+    ''' Tests that parse error occurs for two interfaces.'''
+    module_parse_tree = parse(CODE_DOUBLE_INTERFACE)
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = get_kernel_interface(module_parse_tree)
+    assert "Kernel has more than one interface.'" \
+        in str(excinfo.value)
 
 
 # function get_kernel_metadata
