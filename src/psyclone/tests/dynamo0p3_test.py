@@ -5437,17 +5437,12 @@ def test_argordering_exceptions():
                        create_arg_list.stencil_unknown_direction,
                        create_arg_list.stencil,
                        create_arg_list.operator,
-                       create_arg_list.scalar,
-                       create_arg_list.fs_common,
                        create_arg_list.fs_compulsory_field,
                        create_arg_list.fs_intergrid,
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
-                       create_arg_list.orientation,
                        create_arg_list.field_bcs_kernel,
                        create_arg_list.operator_bcs_kernel,
-                       create_arg_list.banded_dofmap,
-                       create_arg_list.indirection_dofmap,
                        create_arg_list.cma_operator]:
             with pytest.raises(NotImplementedError):
                 method(None)

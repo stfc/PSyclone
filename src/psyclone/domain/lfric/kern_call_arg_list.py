@@ -226,6 +226,7 @@ class KernCallArgList(ArgOrdering):
         text = arg.proxy_name + "%data"
         self.append(text)
         if var_accesses is not None:
+            # Add the field object, not just the proxy part as being read.
             # It's an array, so add an arbitrary index value for the
             # stored indices (which is at this stage the only way to
             # indicate an array access).
@@ -249,7 +250,7 @@ class KernCallArgList(ArgOrdering):
         name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
         self.append(name)
         if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern)
+            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -316,23 +317,6 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(arg.proxy_name_indexed+"%local_stencil",
                                     AccessType.READ, self._kern, [1])
 
-    def scalar(self, scalar_arg, var_accesses=None):
-        '''Add the name associated with the scalar argument to the argument
-        list and optionally add this scalar to the variable access
-        information.
-
-        :param var_accesses: optional VariablesAccessInfo instance that \
-            stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-
-        self.append(scalar_arg.name)
-        if var_accesses is not None:
-            var_accesses.add_access(scalar_arg.name, AccessType.READ,
-                                    self._kern)
-
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
         fields. If supplied it also stores this access in var_accesses.
@@ -346,12 +330,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # There is currently one argument: "ndf"
-        ndf_name = function_space.ndf_name
-        self.append(ndf_name)
-        if var_accesses is not None:
-            var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
-
+        super(KernCallArgList, self).fs_common(function_space, var_accesses)
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=self.num_args,
                                     function_space=function_space.orig_name))
@@ -454,7 +433,7 @@ class KernCallArgList(ArgOrdering):
         var_accesses.
 
         :param function_space: the function space for which the differential \
-                               basis functions are required.
+            basis functions are required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
@@ -485,32 +464,13 @@ class KernCallArgList(ArgOrdering):
                     var_accesses.add_access(diff_basis_name, AccessType.READ,
                                             self._kern, [1])
 
-    def orientation(self, function_space, var_accesses=None):
-        '''Add orientation information for this function space to the
-        argument list. If supplied it also stores this access in
-        var_accesses.
-
-        :param function_space: the function space for which orientation \
-            information is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        orientation_name = function_space.orientation_name
-        self.append(orientation_name)
-        if var_accesses is not None:
-            var_accesses.add_access(orientation_name, AccessType.READ,
-                                    self._kern, [1])
-
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
         also stores this access in var_accesses.
 
         :param function_space: the function space for which boundary dofs \
             are required.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -616,47 +576,6 @@ class KernCallArgList(ArgOrdering):
                     "quad_rule: no support implemented for quadrature with a "
                     "shape of '{0}'. Supported shapes are: {1}.".format(
                         shape, supported_qr_shapes))
-
-    def banded_dofmap(self, function_space, var_accesses=None):
-        '''Add banded dofmap (required for CMA operator assembly).
-
-        :param function_space: the function space for which banded dofmaps
-            is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        # Note that the necessary ndf values will already have been added
-        # to the argument list as they are mandatory for every function
-        # space that appears in the meta-data.
-        map_name = function_space.cbanded_map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
-
-    def indirection_dofmap(self, function_space, operator=None,
-                           var_accesses=None):
-        '''Add indirection dofmap required when applying a CMA operator. If
-        supplied it also stores this access in var_accesses.
-
-        :param function_space: the function space for which indirect dofmap \
-            is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param operator: the CMA operator.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        map_name = function_space.cma_indirection_map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     @property
     def nlayers_positions(self):

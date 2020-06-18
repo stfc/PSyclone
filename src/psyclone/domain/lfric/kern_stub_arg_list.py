@@ -67,8 +67,6 @@ class KernStubArgList(ArgOrdering):
                 "Kernel {0} is an inter-grid kernel and stub generation "
                 "is not yet supported for inter-grid kernels".
                 format(kern.name))
-        self._first_arg = True
-        self._first_arg_decl = None
         ArgOrdering.__init__(self, kern)
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an
@@ -90,7 +88,7 @@ class KernStubArgList(ArgOrdering):
             var_accesses.add_access("cell", AccessType.READ, self._kern)
 
     def mesh_height(self, var_accesses=None):
-        ''' Add mesh height (nlayers) to the argument list and if supplied
+        '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
         :param var_accesses: optional VariablesAccessInfo instance to store \
@@ -116,140 +114,6 @@ class KernStubArgList(ArgOrdering):
         self.append("ncell_2d")
         if var_accesses is not None:
             var_accesses.add_access("ncell_2d", AccessType.READ, self._kern)
-
-    def field_vector(self, argvect, var_accesses=None):
-        '''Add the field vector associated with the argument 'argvect' to the
-        argument list. If supplied it also stores these accesses to the
-        var_access object.
-
-        :param argvect: the corresponding kernel argument.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        # the range function below returns values from
-        # 1 to the vector size which is what we
-        # require in our Fortran code
-        for idx in range(1, argvect.vector_size+1):
-            text = (argvect.name + "_" +
-                    argvect.function_space.mangled_name +
-                    "_v" + str(idx))
-            if self._first_arg:
-                self._first_arg = False
-            self.append(text)
-            if var_accesses is not None:
-                # Each argument is array, so mark the array access:
-                var_accesses.add_access(text, AccessType.READ, self._kern, [1])
-
-    def field(self, arg, var_accesses=None):
-        '''Add the field associated with the argument 'arg' to the argument
-        list. If supplied it also stores this access in var_accesses.
-
-        :param arg: the kernel argument (field).
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        text = arg.name + "_" + arg.function_space.mangled_name
-        self.append(text)
-        if var_accesses is not None:
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            var_accesses.add_access(text, arg.access, self._kern, [1])
-
-    def stencil_unknown_extent(self, arg, var_accesses=None):
-        '''Add stencil information associated with a kernel argument if the
-        extent is unknown. If supplied it also stores this access in
-        var_accesses.
-
-        :param arg: the meta-data description of the kernel argument with \
-                    which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
-
-    def stencil_unknown_direction(self, arg, var_accesses=None):
-        '''
-        Add stencil information associated with the argument 'arg' if the
-        direction is unknown. If supplied it also stores this access in
-        var_accesses.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.direction_name(self._stub_symtab, arg)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern)
-
-    def stencil(self, arg, var_accesses=None):
-        '''Add general stencil information associated with a kernel
-        argument. If supplied it also stores this access in var_accesses.
-
-        :param arg: the meta-data description of the kernel argument with \
-                    which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-         :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_name(self._stub_symtab, arg)
-        self.append(name)
-        if var_accesses is not None:
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
-
-    def operator(self, arg, var_accesses=None):
-        '''Add the operator arguments to the argument list. If supplied it
-        also stores this access in var_accesses.
-
-        :param arg: the operator to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        size = arg.name + "_ncell_3d"
-        self.append(size)
-        # If this is the first argument in the kernel then keep a
-        # note so that we can put subsequent declarations in the
-        # correct location
-        if self._first_arg:
-            self._first_arg = False
-        text = arg.name
-        self.append(text)
-        if var_accesses is not None:
-            var_accesses.add_access(size, AccessType.READ, self._kern)
-            var_accesses.add_access(text, AccessType.READ, self._kern)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
@@ -288,102 +152,127 @@ class KernStubArgList(ArgOrdering):
             for var_name in _local_args:
                 var_accesses.add_access(var_name, AccessType.READ, self._kern)
 
-        if self._first_arg:
-            self._first_arg = False
+    def field_vector(self, argvect, var_accesses=None):
+        '''Add the field vector associated with the argument 'argvect' to the
+        argument list. If supplied it also stores these accesses to the
+        var_access object.
 
-    def banded_dofmap(self, function_space, var_accesses=None):
-        ''' Declare the banded dofmap required for a CMA operator
-        that maps to/from the specified function space. If supplied it also
-        stores this access in var_accesses.
-
-         :param function_space: the function space for which banded dofmap
-            is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param argvect: the field vector to add.
+        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-         '''
-        dofmap = function_space.cbanded_map_name
-        self.append(dofmap)
-        if var_accesses is not None:
-            var_accesses.add_access(dofmap, AccessType.READ, self._kern)
+        '''
+        # the range function below returns values from
+        # 1 to the vector size which is what we
+        # require in our Fortran code
+        for idx in range(1, argvect.vector_size+1):
+            text = (argvect.name + "_" +
+                    argvect.function_space.mangled_name +
+                    "_v" + str(idx))
+            self.append(text)
+            if var_accesses is not None:
+                # Each argument is array, so mark the array access:
+                var_accesses.add_access(text, AccessType.READ, self._kern, [1])
 
-    def indirection_dofmap(self, function_space, operator=None,
-                           var_accesses=None):
-        '''Declare the indirection dofmaps required when applying a
-        CMA operator. If supplied it also stores this access in var_accesses.
+    def field(self, arg, var_accesses=None):
+        '''Add the field array associated with the argument 'arg' to the
+        argument list. If supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the indirect \
-            dofmap is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param operator: the CMA operator.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param arg: the field to be added.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises GenerationError: if no kernel argument is supplied.
-        :raises GenerationError: if the supplied kernel argument is not a \
-                                 CMA operator.
-
         '''
-        if not operator:
-            raise GenerationError("Internal error: no CMA operator supplied.")
-        if operator.type != "gh_columnwise_operator":
-            raise GenerationError(
-                "Internal error: a CMA operator (gh_columnwise_operator) must "
-                "be supplied but got {0}".format(operator.type))
-        map_name = function_space.cma_indirection_map_name
-        self.append(map_name)
+        text = arg.name + "_" + arg.function_space.mangled_name
+        self.append(text)
         if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+            # It's an array, so add an arbitrary index value for the
+            # stored indices (which is at this stage the only way to
+            # indicate an array access).
+            var_accesses.add_access(text, arg.access, self._kern, [1])
 
-    def scalar(self, scalar_arg, var_accesses=None):
-        '''Add the name associated with the scalar argument to the argument
-        list and optionally add this scalar to the variable access
-        information.
+    def stencil_unknown_extent(self, arg, var_accesses=None):
+        '''Add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
 
-        :param scalar_arg: the kernel argument.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance that \
-            stores information about variable accesses.
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises InternalError: if the argument is not a recognised scalar type.
+        '''
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
+        self.append(name)
+        if var_accesses is not None:
+            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
+
+    def stencil_unknown_direction(self, arg, var_accesses=None):
+        '''Add stencil information to the argument list associated with the
+        argument 'arg' if the direction is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        if not scalar_arg.is_scalar():
-            from psyclone.dynamo0p3 import GH_VALID_SCALAR_NAMES
-            raise InternalError(
-                "Expected argument type to be one of '{0}' but got '{1}'".
-                format(GH_VALID_SCALAR_NAMES, scalar_arg.type))
-        self.append(scalar_arg.name)
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.direction_name(self._stub_symtab, arg)
+        self.append(name)
         if var_accesses is not None:
-            var_accesses.add_access(scalar_arg.name, AccessType.READ,
-                                    self._kern)
+            var_accesses.add_access(name, AccessType.READ, self._kern)
 
-    def fs_common(self, function_space, var_accesses=None):
-        '''Provide arguments common to LMA operators and fields on a space.
-        There is one: "ndf". If supplied it also stores this access in
+    def stencil(self, arg, var_accesses=None):
+        '''Add general stencil information associated with the argument 'arg'
+        to the argument list. If supplied it also stores this access in
         var_accesses.
 
-        :param function_space: the function space for which the related \
-            arguments common to LMA operators and fields are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param arg: the meta-data description of the kernel \
+            argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        ndf_name = function_space.ndf_name
-        self.append(ndf_name)
+        from psyclone.dynamo0p3 import DynStencils
+        var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
+        self.append(var_name)
         if var_accesses is not None:
-            var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
+            var_accesses.add_access(var_name, AccessType.READ, self._kern, [1])
+
+    def operator(self, arg, var_accesses=None):
+        '''Add the operator arguments to the argument list. If supplied it
+        also stores this access in var_accesses.
+
+        :param arg: the meta-data description of the operator.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        size = arg.name + "_ncell_3d"
+        self.append(size)
+        self.append(arg.name)
+        if var_accesses is not None:
+            var_accesses.add_access(size, AccessType.READ, self._kern)
+            var_accesses.add_access(arg.name, AccessType.READ, self._kern)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         ''' Provide compulsory arguments if there is a field on this
@@ -408,11 +297,11 @@ class KernStubArgList(ArgOrdering):
             var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     def basis(self, function_space, var_accesses=None):
-        '''
-        Add the necessary declarations for basis function(s) on the supplied
-        function space. There can be more than one if this is an evaluator
-        and/or multiple 'gh_shape's have been requested in the kernel metadata.
-        If supplied it also stores these accesses in var_accesses.
+        '''Add basis function information for this function space to the
+        argument list and optionally to the variable access information.
+        There can be more than one if this is an evaluator and/or multiple
+        'gh_shape's have been requested in the kernel metadata. If supplied
+        it also stores these accesses in var_accesses.
 
         :param function_space: the function space for which to provide \
                                the basis functions
@@ -456,13 +345,12 @@ class KernStubArgList(ArgOrdering):
                     "{1}".format(shape, VALID_EVALUATOR_SHAPES))
 
     def diff_basis(self, function_space, var_accesses=None):
-        '''
-        Provide the necessary declarations for the differential basis function
-        on the supplied function space. If supplied it also stores this access
-        in var_accesses.
+        '''Add differential basis information for the function space to the
+        argument list. If supplied it also stores this access in
+        var_accesses.
 
-        :param function_space: the function space for which to provide the \
-                               differential basis function
+        :param function_space: the function space for which the differential \
+            basis functions are required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
@@ -485,7 +373,7 @@ class KernStubArgList(ArgOrdering):
                 self.append(diff_basis_name)
                 if var_accesses is not None:
                     var_accesses.add_access(diff_basis_name, AccessType.READ,
-                                            self._kern)
+                                            self._kern, [1])
 
             elif shape in VALID_EVALUATOR_SHAPES:
                 # We need differential basis functions for an evaluator,
@@ -504,26 +392,6 @@ class KernStubArgList(ArgOrdering):
                                     "Expected one of: {1}".format(
                                         shape, VALID_EVALUATOR_SHAPES))
 
-    def orientation(self, function_space, var_accesses=None):
-        '''
-        Provide orientation information for the function space. If supplied
-        it also stores this access in var_accesses.
-
-        :param function_space: the function space for which orientation \
-            is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        orientation_name = function_space.orientation_name
-        self.append(orientation_name)
-        if var_accesses is not None:
-            var_accesses.add_access(orientation_name, AccessType.READ,
-                                    self._kern)
-
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
         also stores this access in var_accesses.
@@ -541,13 +409,12 @@ class KernStubArgList(ArgOrdering):
         name = "boundary_dofs_"+arg.name
         self.append(name)
         if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern)
+            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
-        '''Implement the boundary_dofs array fix for operators. This is the
-        same as for fields with the function space set to the 'to' space of
-        the operator. If supplied it also stores this access in
-        var_accesses.
+        '''Supply necessary additional arguments for the kernel that
+        applies boundary conditions to a LMA operator. If supplied it
+        also stores this access in var_accesses.
 
         :param function_space: the 'to' function space of the operator.
         :type function_space: :py:class:`psyclone.dynamo3.FunctionSpace`
@@ -560,7 +427,7 @@ class KernStubArgList(ArgOrdering):
         self.field_bcs_kernel(function_space, var_accesses=var_accesses)
 
     def mesh_properties(self, var_accesses=None):
-        ''' Provide the kernel arguments required for the mesh properties
+        '''Provide the kernel arguments required for the mesh properties
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
 
@@ -576,8 +443,9 @@ class KernStubArgList(ArgOrdering):
                         kern_args(stub=True, var_accesses=var_accesses))
 
     def quad_rule(self, var_accesses=None):
-        '''Provide quadrature information for this kernel stub (necessary
-        arguments). If supplied it also stores this access in var_accesses.
+        '''Add quadrature-related information to the kernel argument list.
+        Adds the necessary arguments to the argument list, and optionally
+        adds variable access information to the var_accesses object.
 
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
@@ -591,3 +459,33 @@ class KernStubArgList(ArgOrdering):
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern)
             self.extend(rule.kernel_args)
+
+    def indirection_dofmap(self, function_space, operator=None,
+                           var_accesses=None):
+        '''Add indirection dofmap required when applying a CMA operator. If
+        supplied it also stores this access in var_accesses.
+
+        :param function_space: the function space for which the indirect \
+            dofmap is required.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param operator: the CMA operator.
+        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises GenerationError: if no kernel argument is supplied.
+        :raises GenerationError: if the supplied kernel argument is not a \
+                                 CMA operator.
+
+        '''
+        if not operator:
+            raise GenerationError("Internal error: no CMA operator supplied.")
+        if operator.type != "gh_columnwise_operator":
+            raise GenerationError(
+                "Internal error: a CMA operator (gh_columnwise_operator) must "
+                "be supplied but got {0}".format(operator.type))
+        super(KernStubArgList, self).indirection_dofmap(function_space,
+                                                        operator,
+                                                        var_accesses)

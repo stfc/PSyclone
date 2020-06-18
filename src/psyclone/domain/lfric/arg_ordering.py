@@ -456,16 +456,25 @@ class ArgOrdering(object):
         list and optionally add this scalar to the variable access
         information.
 
+        :param scalar_arg: the kernel argument.
+        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
+        :raises InternalError: if the argument is not a recognised scalar type.
 
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.scalar() must be implemented by subclass")
+        if not scalar_arg.is_scalar():
+            from psyclone.dynamo0p3 import GH_VALID_SCALAR_NAMES
+            raise InternalError(
+                "Expected argument type to be one of '{0}' but got '{1}'".
+                format(GH_VALID_SCALAR_NAMES, scalar_arg.type))
+        self.append(scalar_arg.name)
+        if var_accesses is not None:
+            var_accesses.add_access(scalar_arg.name, AccessType.READ,
+                                    self._kern)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -479,12 +488,12 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_common() must be implemented by "
-            "subclass")
+        # There is currently one argument: "ndf"
+        ndf_name = function_space.ndf_name
+        self.append(ndf_name)
+        if var_accesses is not None:
+            var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
@@ -545,7 +554,7 @@ class ArgOrdering(object):
         var_accesses.
 
         :param function_space: the function space for which the differential \
-                               basis functions are required.
+            basis functions are required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
@@ -571,11 +580,12 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.orientation() must be implemented by subclass")
+        orientation_name = function_space.orientation_name
+        self.append(orientation_name)
+        if var_accesses is not None:
+            var_accesses.add_access(orientation_name, AccessType.READ,
+                                    self._kern, [1])
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
@@ -643,7 +653,7 @@ class ArgOrdering(object):
     def banded_dofmap(self, function_space, var_accesses=None):
         '''Add banded dofmap (required for CMA operator assembly).
 
-        :param function_space: the function space for which banded dofmaps
+        :param function_space: the function space for which banded dofmap
             is added.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
@@ -651,32 +661,36 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
-                                  " be implemented by subclass")
+        # Note that the necessary ndf values will already have been added
+        # to the argument list as they are mandatory for every function
+        # space that appears in the meta-data.
+        map_name = function_space.cbanded_map_name
+        self.append(map_name)
+        if var_accesses is not None:
+            var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
         '''Add indirection dofmap required when applying a CMA operator. If
         supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which indirect dofmap \
-            is required.
+        :param function_space: the function space for which the indirect \
+            dofmap is required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param operator: the CMA operator.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :param operator: the CMA operator (not used at the moment).
+        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
-                                  "must be implemented by subclass")
+        # pylint: disable=unused-argument
+        map_name = function_space.cma_indirection_map_name
+        self.append(map_name)
+        if var_accesses is not None:
+            var_accesses.add_access(map_name, AccessType.READ, self._kern)
 
     def ref_element_properties(self, var_accesses=None):
         '''Add kernel arguments relating to properties of the reference
