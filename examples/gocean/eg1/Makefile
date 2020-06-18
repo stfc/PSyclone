@@ -58,7 +58,7 @@ dag:
 openacc:
 	${PYTHON} ./runme_openacc.py
 
-# The "--kernel-renaming single" parameter avoid generating duplicate
+# The "--kernel-renaming single" parameter avoids generating duplicate
 # versions of OpenCL kernels called multiple times.
 opencl:
 	${PSYCLONE} -s ./opencl_transformation.py --kernel-renaming single \
