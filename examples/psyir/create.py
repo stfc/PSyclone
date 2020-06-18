@@ -49,12 +49,12 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container, Range, Array
+    Container, Range, Array, Call
 from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    ArgumentInterface, ScalarType, ArrayType, GlobalInterface, REAL_TYPE, \
-    REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, INTEGER_SINGLE_TYPE, \
-    INTEGER4_TYPE, INTEGER8_TYPE
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
+    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
+    GlobalInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
+    INTEGER_SINGLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
@@ -68,11 +68,13 @@ TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
 TMP_SYMBOL = DataSymbol(TMP_NAME2, REAL_DOUBLE_TYPE)
 SYMBOL_TABLE.add(TMP_SYMBOL)
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-SYMBOL_TABLE.add(DataSymbol(INDEX_NAME, INTEGER4_TYPE))
+INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
+SYMBOL_TABLE.add(INDEX_SYMBOL)
 SYMBOL_TABLE.specify_argument_list([ARG1])
 REAL_KIND_NAME = SYMBOL_TABLE.new_symbol_name(root_name="RKIND")
 REAL_KIND = DataSymbol(REAL_KIND_NAME, INTEGER_TYPE, constant_value=8)
 SYMBOL_TABLE.add(REAL_KIND)
+ROUTINE_SYMBOL = RoutineSymbol("my_sub")
 
 # Array using precision defined by another symbol
 ARRAY_NAME = SYMBOL_TABLE.new_symbol_name(root_name="a")
@@ -120,16 +122,19 @@ ASSIGN4 = Assignment.create(TMP1, TMP2)
 ASSIGN5 = Assignment.create(TMP1, NARYOPERATION)
 ASSIGN6 = Assignment.create(TMPARRAY, TWO)
 
+# Call
+CALL = Call.create(ROUTINE_SYMBOL, [TMP1, BINARYOPERATION])
+
 # If statement
 IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
 IFBLOCK = IfBlock.create(IF_CONDITION, [ASSIGN3, ASSIGN4])
 
 # Loop
-LOOP = Loop.create(INDEX_NAME, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
+LOOP = Loop.create(INDEX_SYMBOL, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
 
 # KernelSchedule
-KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE,
-                                        [ASSIGN2, LOOP, ASSIGN5, ASSIGN6])
+KERNEL_SCHEDULE = KernelSchedule.create(
+    "work", SYMBOL_TABLE, [CALL, ASSIGN2, LOOP, ASSIGN5, ASSIGN6])
 
 # Container
 CONTAINER_SYMBOL_TABLE = SymbolTable()
@@ -138,9 +143,12 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 
 # Import data from another container
 EXTERNAL_CONTAINER = ContainerSymbol("some_mod")
+CONTAINER_SYMBOL_TABLE.add(EXTERNAL_CONTAINER)
 EXTERNAL_VAR = DataSymbol("some_var", INTEGER_TYPE,
                           interface=GlobalInterface(EXTERNAL_CONTAINER))
-CONTAINER_SYMBOL_TABLE.add(EXTERNAL_CONTAINER)
+CONTAINER_SYMBOL_TABLE.add(EXTERNAL_VAR)
+ROUTINE_SYMBOL.interface = GlobalInterface(EXTERNAL_CONTAINER)
+CONTAINER_SYMBOL_TABLE.add(ROUTINE_SYMBOL)
 
 # Write out the code as Fortran
 WRITER = FortranWriter()

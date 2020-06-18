@@ -233,11 +233,28 @@ class DynLoop(Loop):
 
         # Work out the variable name from  the loop type
         if self._loop_type == "colours":
-            self._variable_name = "colour"
+            tag = "colours_loop_idx"
+            suggested_name = "colour"
         elif self._loop_type == "colour":
-            self._variable_name = "cell"
+            tag = "colour_loop_idx"
+            suggested_name = "cell"
         else:
-            self._variable_name = "cell"
+            tag = "cell_loop_idx"
+            suggested_name = "cell"
+
+        # This will return the symbol table from the closest ancestor
+        # that contains one. However, the original symbol my be in a
+        # different symbol table and if this is the case we will end
+        # up declaring the variable twice. Issue #630 describes this
+        # problem.
+        symtab = self.scope.symbol_table
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(suggested_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

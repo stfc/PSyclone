@@ -66,4 +66,5 @@ directives.
 ## Example 4
 
 SIR generation and transformation to CUDA using Dawn with simple
-examples.
+examples and a cut down version of the tracer advection (tra_adv)
+benchmark.

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,6 +31,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program halo_continuous_cell_w_to_r
 
@@ -41,16 +42,17 @@ program halo_continuous_cell_w_to_r
   ! order to compute valid values for owned cells. In general the
   ! outermost halo level will be invalid and must therefore remain
   ! dirty.
-  
+
+  use field_mod,       only: field_type
   use testkern_w0_mod, only: testkern_w0_type
-  
-  use inf,      only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2, f3
 
   call invoke(                    &
-       testkern_w0_type(f1,f2),   &
-       testkern_w0_type(f3,f1)    &
+       testkern_w0_type(f1, f2),  &
+       testkern_w0_type(f3, f1)   &
           )
 
 end program halo_continuous_cell_w_to_r

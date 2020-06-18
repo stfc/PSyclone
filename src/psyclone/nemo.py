@@ -67,26 +67,28 @@ class NemoFparser2Reader(Fparser2Reader):
         '''
         return NemoInvokeSchedule()
 
-    def _create_loop(self, parent, variable_name):
+    def _create_loop(self, parent, variable):
         '''
-        Specialized method to create a NemoLoop instead of a
+        Specialised method to create a NemoLoop instead of a
         generic Loop.
 
         :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param str variable_name: name of the iteration variable.
+        :param variable: the loop variable.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :return: a new NemoLoop instance.
         :rtype: :py:class:`psyclone.nemo.NemoLoop`
+
         '''
-        loop = NemoLoop(parent=parent, variable_name=variable_name)
+        loop = NemoLoop(parent=parent, variable=variable)
 
         loop_type_mapping = Config.get().api_conf("nemo")\
             .get_loop_type_mapping()
 
         # Identify the type of loop
-        if variable_name in loop_type_mapping:
-            loop.loop_type = loop_type_mapping[variable_name]
+        if variable.name in loop_type_mapping:
+            loop.loop_type = loop_type_mapping[variable.name]
         else:
             loop.loop_type = "unknown"
 
@@ -485,10 +487,10 @@ class NemoLoop(Loop):
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
     '''
-    def __init__(self, parent=None, variable_name=''):
+    def __init__(self, parent=None, variable=None):
         valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
         Loop.__init__(self, parent=parent,
-                      variable_name=variable_name,
+                      variable=variable,
                       valid_loop_types=valid_loop_types)
 
     @property

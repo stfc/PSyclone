@@ -48,8 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
-from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES, \
-    VALID_ANY_DISCONTINUOUS_SPACE_NAMES
+from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol
@@ -481,9 +480,6 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
         # Now test for Dynamo-specific constraints
 
-        from psyclone.dynamo0p3 import VALID_FUNCTION_SPACE_NAMES, \
-            VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
-
         # 1) Check that we don't have an inter-grid kernel
         check_intergrid(node1)
         check_intergrid(node2)
@@ -492,16 +488,17 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         node1_fs_name = node1.field_space.orig_name
         node2_fs_name = node2.field_space.orig_name
         # 2.1) Check that both function spaces are valid
-        if not (node1_fs_name in VALID_FUNCTION_SPACE_NAMES and
-                node2_fs_name in VALID_FUNCTION_SPACE_NAMES):
+        if not (node1_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES and
+                node2_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES):
             raise TransformationError(
                 "Error in {0} transformation: One or both function "
                 "spaces '{1}' and '{2}' have invalid names.".
                 format(self.name, node1_fs_name, node2_fs_name))
         # Check whether any of the spaces is ANY_SPACE. Loop fusion over
         # ANY_SPACE is allowed only when the 'same_space' flag is set
-        node_on_any_space = node1_fs_name in VALID_ANY_SPACE_NAMES or \
-            node2_fs_name in VALID_ANY_SPACE_NAMES
+        node_on_any_space = node1_fs_name in \
+            FunctionSpace.VALID_ANY_SPACE_NAMES or \
+            node2_fs_name in FunctionSpace.VALID_ANY_SPACE_NAMES
         # 2.2) If 'same_space' is true check that both function spaces are
         # the same or that at least one of the nodes is on ANY_SPACE. The
         # former case is convenient when loop fusion is applied generically.
@@ -531,9 +528,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
             # loop bounds are the same (checked further below).
             if node1_fs_name != node2_fs_name:
                 if not (node1_fs_name in
-                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES and
+                        FunctionSpace.VALID_DISCONTINUOUS_NAMES and
                         node2_fs_name in
-                        VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES):
+                        FunctionSpace.VALID_DISCONTINUOUS_NAMES):
                     raise TransformationError(
                         "Error in {0} transformation: Cannot fuse loops "
                         "that are over different spaces '{1}' and '{2}' "
@@ -1228,9 +1225,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
-        from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
         if node.field_space.orig_name not in \
-           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -1654,9 +1650,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
         if node.field_space.orig_name in \
-           VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+           FunctionSpace.VALID_DISCONTINUOUS_NAMES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
@@ -2659,7 +2654,7 @@ class OCLTrans(Transformation):
         for kern in sched.kernels():
             KernelTrans.validate(kern)
             ksched = kern.get_kernel_schedule()
-            global_variables = ksched.symbol_table.global_datasymbols
+            global_variables = ksched.symbol_table.global_symbols
             if global_variables:
                 raise TransformationError(
                     "The Symbol Table for kernel '{0}' contains the following "
@@ -2985,8 +2980,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
-                        (VALID_ANY_SPACE_NAMES +
-                         VALID_ANY_DISCONTINUOUS_SPACE_NAMES + ["any_w2"])):
+                        (FunctionSpace.VALID_ANY_SPACE_NAMES +
+                         FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
+                         ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
                     print(
                         "    Skipped dofs, arg position {0}, function space "
@@ -3349,7 +3345,7 @@ class ACCRoutineTrans(KernelTrans):
         # Check that the kernel does not access any data or routines via a
         # module 'use' statement
         sched = kern.get_kernel_schedule()
-        global_variables = sched.symbol_table.global_datasymbols
+        global_variables = sched.symbol_table.global_symbols
         if global_variables:
             raise TransformationError(
                 "The Symbol Table for kernel '{0}' contains the following "
@@ -3930,7 +3926,7 @@ class KernelGlobalsToArguments(Transformation):
         # Transform each global variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no globals are found in the kernel.
-        for globalvar in kernel.symbol_table.global_datasymbols[:]:
+        for globalvar in kernel.symbol_table.global_symbols[:]:
 
             # Resolve the data type information if it is not available
             if isinstance(globalvar.datatype, DeferredType):

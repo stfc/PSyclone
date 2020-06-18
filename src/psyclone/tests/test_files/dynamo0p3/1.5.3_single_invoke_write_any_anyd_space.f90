@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@ program single_invoke_fs
 
   ! Description: single function that writes to fields on any_space (continuous)
   ! and any_discontinuous_space
+  use field_mod,                   only: field_type
   use testkern_write_any_anyd_mod, only: testkern_write_any_anyd_type
-  use inf,                         only: field_type
 
   implicit none
 

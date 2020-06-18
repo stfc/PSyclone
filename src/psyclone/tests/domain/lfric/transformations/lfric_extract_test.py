@@ -394,7 +394,7 @@ def test_node_list_dynamo0p3():
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -465,7 +465,7 @@ def test_dynamo0p3_builtin():
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -533,7 +533,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=1,undf_aspc1_f1
-        f1_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)
+        f1_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)
       END DO
       !$omp end parallel do
       CALL extract_psy_data%PostStart
@@ -586,7 +586,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       END DO
       DO cell=1,f3_proxy%vspace%get_ncell()
         !
-        CALL testkern_code_w2_only(nlayers, f3_proxy%data, """ + \
+        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
         """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -625,7 +625,7 @@ def test_extract_colouring_omp_dynamo0p3():
     in Dynamo0.3 API. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
-    from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
+    from psyclone.domain.lfric import FunctionSpace
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -640,7 +640,7 @@ def test_extract_colouring_omp_dynamo0p3():
     cschedule = schedule
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
-           not in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES \
+           not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
            and child.iteration_space == "cells":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops

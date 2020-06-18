@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,17 +30,23 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
+
 program single_invoke
 
   ! Description: kernel with incorrect shape specified in metadata
+  use constants_mod,               only: r_def, i_def
+  use field_mod,                   only: field_type
+  use quadrature_xyoz_mod,         only: quadrature_xyoz_type
   use testkern_wrong_shape_qr_mod, only: testkern_wrong_shape_qr_type
-  use inf,         only: field_type
-  implicit none
-  type(field_type) :: f1, f2, m1, m2
-  type(quadrature_rule) :: qr
-  real(r_def) :: a
-  integer :: istp
 
-  call invoke( testkern_wrong_shape_qr_type(f1,f2,m1,a,m2,istp,qr) )
+  implicit none
+
+  type(field_type)           :: f1, f2, m1, m2
+  type(quadrature_xyoz_type) :: qr
+  real(r_def)                :: a
+  integer(i_def)             :: istp
+
+  call invoke( testkern_wrong_shape_qr_type(f1, f2, m1, a, m2, istp, qr) )
 
 end program single_invoke

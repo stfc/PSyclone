@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,18 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke_wtheta_w3
 
   ! Description: single function in an invoke iterating over wtheta and
   ! reading from w3 (both discontinuous)
+  use field_mod,           only: field_type
   use testkern_wtheta_mod, only: testkern_wtheta_type
-  use inf,                 only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2
 
   call invoke(                      &

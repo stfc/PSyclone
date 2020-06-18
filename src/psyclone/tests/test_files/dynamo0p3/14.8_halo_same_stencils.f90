@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,7 +30,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program halo_same_stencils
 
@@ -39,19 +40,22 @@ program halo_same_stencils
   ! distributed memory is used. The stencils are of the same type
   ! ('cross' in this case) so 'cross' is returned which will ensure
   ! that both stencil accesses are covered.
+  use constants_mod,           only: i_def, r_def
+  use field_mod,               only: field_type
   use testkern_stencil_w3_mod, only: testkern_stencil_w3_type
-  use inf,      only: field_type
-  implicit none
-  type(field_type) :: f1, f2, f3
-  integer :: f2_extent=2
 
-  call invoke(                                    &
-       setval_c(f2, 0.0),                         &
+  implicit none
+
+  type(field_type) :: f1, f2, f3
+  integer(i_def)   :: f2_extent = 2
+
+  call invoke(                                      &
+       setval_c(f2, 0.0_r_def),                     &
        ! f1 is w3 and is written to
        ! f2 is w2 and is read with stencil cross
        ! f3 is w3 and is written to
-       testkern_stencil_w3_type(f1,f2,f2_extent), &
-       testkern_stencil_w3_type(f3,f2,f2_extent)  &
+       testkern_stencil_w3_type(f1, f2, f2_extent), &
+       testkern_stencil_w3_type(f3, f2, f2_extent)  &
           )
 
 end program halo_same_stencils

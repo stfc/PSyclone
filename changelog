@@ -1,3 +1,20 @@
+	1) #778 for #713. Use 'make' to execute all examples.
+
+	2) #782 for #780. Refactor FunctionSpace support and move it
+	out of dynamo0p3.py and into the lfric domain.
+
+	3) #785 for #679. Use a DataSymbol to represent the PSyIR Loop variable.
+
+	4) #795 for #793. Add the scope property to PSyIR node.
+
+	5) #779 for #763. Capture unrecognised declarations in a new
+	PSyIR UnknownType DataType.
+
+	6) #787 for #786. Introduce the PSyIR Call node and the RoutineSymbol.
+
+	7) #784 for #764. Update LFRic test kernels to use fs_continuity_mod.
+
+release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
 	self.
@@ -188,6 +205,12 @@
 
 	59) PR #735 for #732. Add a Visibility attribute to symbols and
 	fparser2 front-end captures public and private visibilities.
+
+	60) PR #770 for #766. Fix operation precedence issues in the Fortran
+	back-end by inserting parenthesis when needed.
+
+	61) PR #769 for #588. Adds frontend support for *N and double
+	precision type declarations.
 
 release 1.8.1 29th November 2019
 

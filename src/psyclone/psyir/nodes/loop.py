@@ -41,13 +41,13 @@
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core.access_info import AccessType
 from psyclone.errors import InternalError, GenerationError
 
 
 class Loop(Statement):
-    '''
-    Node representing a loop within the PSyIR. It has 4 mandatory children:
+    '''Node representing a loop within the PSyIR. It has 4 mandatory children:
     the first one represents the loop lower bound, the second one represents
     the loop upper bound, the third one represents the step value and the
     fourth one is always a PSyIR Schedule node containing the statements inside
@@ -59,8 +59,10 @@ class Loop(Statement):
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param str variable_name: optional name of the loop iterator \
-        variable. Defaults to an empty string.
+    :param variable: optional reference to the loop iterator \
+        variable. Defaults to None.
+    :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
+        `NoneType`
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
@@ -79,7 +81,7 @@ class Loop(Statement):
     _text_name = "Loop"
     _colour_key = "Loop"
 
-    def __init__(self, parent=None, variable_name="", valid_loop_types=None,
+    def __init__(self, parent=None, variable=None, valid_loop_types=None,
                  annotations=None):
         super(Loop, self).__init__(self, parent=parent,
                                    annotations=annotations)
@@ -111,8 +113,37 @@ class Loop(Statement):
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
-        self._variable_name = variable_name
+        if variable:
+            # The variable might not be provided when the loop is
+            # first created so only check if it is.
+            self._check_variable(variable)
+        self._variable = variable
         self._id = ""
+
+    @staticmethod
+    def _check_variable(variable):
+        '''The loop variable should be a scalar integer. Check that this is
+        the case and raise an exception if not.
+
+        :param variable: the loop iterator.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises GenerationError: if the supplied variable is not a \
+            scalar integer.
+
+        '''
+        if not isinstance(variable, DataSymbol):
+            raise GenerationError(
+                "variable property in Loop class should be a DataSymbol but "
+                "found '{0}'.".format(type(variable).__name__))
+        if not isinstance(variable.datatype, ScalarType):
+            raise GenerationError(
+                "variable property in Loop class should be a ScalarType but "
+                "found '{0}'.".format(type(variable.datatype).__name__))
+        if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
+            raise GenerationError(
+                "variable property in Loop class should be a scalar integer "
+                "but found '{0}'.".format(variable.datatype.intrinsic.name))
 
     @staticmethod
     def _validate_child(position, child):
@@ -129,13 +160,14 @@ class Loop(Statement):
             position == 3 and isinstance(child, Schedule))
 
     @staticmethod
-    def create(var_name, start, stop, step, children):
-        '''Create a Loop instance given valid instances of a variable name,
+    def create(variable, start, stop, step, children):
+        '''Create a Loop instance given valid instances of a variable,
         start, stop and step nodes, and a list of child nodes for the
         loop body.
 
-        :param str var_name: the PSyIR node containing the variable \
-            name of the loop iterator.
+        :param variable: the PSyIR node containing the variable \
+            of the loop iterator.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param start: the PSyIR node determining the value for the \
             start of the loop.
         :type start: :py:class:`psyclone.psyir.nodes.Node`
@@ -156,18 +188,15 @@ class Loop(Statement):
             are not of the expected type.
 
         '''
-        if not isinstance(var_name, str):
-            raise GenerationError(
-                "var_name argument in create method of Loop class "
-                "should be a string but found '{0}'."
-                "".format(type(var_name).__name__))
+        Loop._check_variable(variable)
+
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Loop class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
 
-        loop = Loop(variable_name=var_name)
+        loop = Loop(variable=variable)
         schedule = Schedule(parent=loop, children=children)
         loop.children = [start, stop, step, schedule]
         for child in children:
@@ -362,19 +391,32 @@ class Loop(Statement):
         self._kern = kern
 
     @property
-    def variable_name(self):
+    def variable(self):
         '''
-        :returns: the name of the control variable for this loop.
-        :rtype: str
+        :returns: a reference to the control variable for this loop.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return self._variable_name
+        self._check_variable(self._variable)
+        return self._variable
+
+    @variable.setter
+    def variable(self, var):
+        '''
+        Setter for the variable associated with this loop.
+
+        :param var: the control variable reference.
+        :type var: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        self._check_variable(var)
+        self._variable = var
 
     def __str__(self):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
         result += "id:'" + self._id
-        result += "', variable:'" + self._variable_name
+        result += "', variable:'" + self.variable.name
         if self.loop_type:
             result += "', loop_type:'" + self._loop_type
         result += "']\n"
@@ -399,8 +441,8 @@ class Loop(Statement):
         # the dependency analysis for declaring openmp private variables
         # will automatically declare the loop variables to be private
         # (write access before read)
-        var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
-        var_accesses.add_access(self.variable_name, AccessType.READ, self)
+        var_accesses.add_access(self.variable.name, AccessType.WRITE, self)
+        var_accesses.add_access(self.variable.name, AccessType.READ, self)
 
         # Accesses of the start/stop/step expressions
         self.start_expr.reference_accesses(var_accesses)
@@ -501,7 +543,7 @@ class Loop(Statement):
             else:
                 step_str = fwriter(self.step_expr)
 
-            do_stmt = DoGen(parent, self._variable_name,
+            do_stmt = DoGen(parent, self.variable.name,
                             fwriter(self.start_expr),
                             fwriter(self.stop_expr),
                             step_str)
@@ -511,5 +553,5 @@ class Loop(Statement):
             for child in self.loop_body:
                 child.gen_code(do_stmt)
             my_decl = DeclGen(parent, datatype="integer",
-                              entity_decls=[self._variable_name])
+                              entity_decls=[self.variable.name])
             parent.add(my_decl)

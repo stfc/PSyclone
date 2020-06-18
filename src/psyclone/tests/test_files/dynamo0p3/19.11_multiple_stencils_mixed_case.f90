@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,16 @@
 program single_stencil
   ! Description: single kernel call with the same extent and direction
   ! names but mixed case
-  use testkern_stencil_multi_2_mod, only: testkern_stencil_multi_2_type
-  use inf,                          only: field_type
+  use constants_mod,                only: i_def
+  use field_mod,                    only: field_type
   use flux_direction_mod,           only: y_direction
+  use testkern_stencil_multi_2_mod, only: testkern_stencil_multi_2_type
 
   implicit none
 
   type(field_type) :: f1, f2, f3, f4
-  integer          :: extent = 2
-  integer          :: direction = y_direction
+  integer(i_def)   :: extent = 2
+  integer(i_def)   :: direction = y_direction
 
   call invoke(                                              &
        testkern_stencil_multi_2_type(f1,                    &

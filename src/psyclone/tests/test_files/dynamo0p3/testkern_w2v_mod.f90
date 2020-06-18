@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,12 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author I. Kavcic, Met Office
 
 module testkern_w2v_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 
@@ -54,24 +55,22 @@ module testkern_w2v_mod
 
 contains
 
-  SUBROUTINE testkern_w2v_code(nlayers,                    &
-                               field1_w2v,                 &
-                               field2_wtheta,              &
+  subroutine testkern_w2v_code(nlayers, field1, field2,    &
                                ndf_w2v, undf_w2v, map_w2v, &
                                ndf_wtheta, undf_wtheta, map_wtheta)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf_w2v
-    INTEGER, intent(in) :: undf_w2v
-    INTEGER, intent(in) :: ndf_wtheta
-    INTEGER, intent(in) :: undf_wtheta
-    REAL(KIND=r_def), intent(inout), dimension(undf_w2v) :: field1_w2v
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_wtheta
-    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
-    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), intent(in) :: undf_w2v
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), intent(in), dimension(ndf_w2v)    :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: map_wtheta
+    real(kind=r_def), intent(inout), dimension(undf_w2v) :: field1
+    real(kind=r_def), intent(in), dimension(undf_wtheta) :: field2
 
-  END SUBROUTINE testkern_w2v_code
+  end subroutine testkern_w2v_code
 
 end module testkern_w2v_mod

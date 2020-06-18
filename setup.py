@@ -84,7 +84,7 @@ CLASSIFIERS = [
 # that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
-    exec(vfile.read())
+    exec(vfile.read()) # pylint:disable=exec-used
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 if __name__ == '__main__':
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     # Examples will be installed under share/psyclone/examples
     INSTALL_PATH = os.path.join("share", "psyclone", "examples")
     # The suffixes of files we will install from under examples/
-    VALID_SUFFIXES = ["90", "py", "md", ".c", ".cl", "Makefile"]
+    VALID_SUFFIXES = ["90", "py", "md", ".c", ".cl", "Makefile", ".mk"]
     # We create a list of 2-tuples, each consisting of the target installation
     # directory and a list of files (specified relative to the project root
     # directory).
@@ -128,7 +128,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.10', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.11', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
