@@ -6524,10 +6524,11 @@ def test_dynkernelarguments_acc_args_2():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy(1)', 'f1_proxy(1)%data', 'f1_proxy(2)',
-        'f1_proxy(2)%data', 'f1_proxy(3)', 'f1_proxy(3)%data', 'f2_proxy(1)',
-        'f2_proxy(1)%data', 'f2_proxy(2)', 'f2_proxy(2)%data', 'f2_proxy(3)',
-        'f2_proxy(3)%data', 'ndf_w3', 'undf_w3', 'map_w3']
+        'nlayers', 'f1_proxy(1)', 'f1_proxy(2)', 'f1_proxy(3)',
+        'f1_proxy(1)%data', 'f1_proxy(2)%data', 'f1_proxy(3)%data',
+        'f2_proxy(1)', 'f2_proxy(2)', 'f2_proxy(3)',
+        'f2_proxy(1)%data', 'f2_proxy(2)%data', 'f2_proxy(3)%data',
+        'ndf_w3', 'undf_w3', 'map_w3']
 
 
 # (3/4) Method acc_args
@@ -6565,8 +6566,8 @@ def test_dynkernelarguments_acc_args_4():
     acc_args = kern_args.acc_args
     assert acc_args == [
         'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
-        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(1)%data',
-        'coord_proxy(2)', 'coord_proxy(2)%data', 'coord_proxy(3)',
+        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(2)',
+        'coord_proxy(3)', 'coord_proxy(1)%data', 'coord_proxy(2)%data',
         'coord_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
