@@ -3243,9 +3243,6 @@ class DynScalarArgs(DynCollection):
         # Create lists of real and integer scalar arguments
         self._real_scalar_names = {}
         self._int_scalar_names = {}
-        for intent in FORTRAN_INTENT_NAMES:
-            self._real_scalar_names[intent] = []
-            self._int_scalar_names[intent] = []
         if self._invoke:
             real_scalars = self._invoke.unique_declns_by_intent("gh_real")
             int_scalars = self._invoke.unique_declns_by_intent("gh_integer")
@@ -3255,6 +3252,9 @@ class DynScalarArgs(DynCollection):
                 self._int_scalar_names[intent] = [arg.declaration_name for arg
                                                   in int_scalars[intent]]
         else:
+            for intent in FORTRAN_INTENT_NAMES:
+                self._real_scalar_names[intent] = []
+                self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.type in GH_VALID_SCALAR_NAMES:
                     if arg.type == "gh_real":

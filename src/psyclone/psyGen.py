@@ -679,6 +679,8 @@ class Invoke(object):
             # or inc'd before it is written then it must have intent(inout).
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
+            # TODO #801: The first access check should be for all "read"-like
+            # accesses (e.g. "READWRITE", "INC") and not only for "READ".
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access == AccessType.READ:
                 if arg not in declns["inout"]:
