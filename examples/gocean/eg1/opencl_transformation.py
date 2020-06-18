@@ -33,14 +33,15 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
 
-''' Module providing a transformation script that converts the Schedule of
-    each Invoke to use OpenCL. '''
+''' Module providing a PSyclone transformation script that converts the
+Schedule of each Invoke to use OpenCL. '''
 
 
 def trans(psy):
     '''
-    Transformation routine for use with PSyclone. Applies the OpenCL
-    transform.
+    Transformation routine for use with PSyclone. Converts any global-variable
+    accesses into kernel arguments and then applies the OpenCL transformation
+    to the PSy layer.
 
     :param psy: the PSy object which this script will transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -59,7 +60,8 @@ def trans(psy):
         print("Converting to OpenCL invoke: " + invoke.name)
         schedule = invoke.schedule
 
-        # Skip invoke_2
+        # Skip invoke_2 as its kernels contains symbols declared outside of
+        # the subroutine scope. A fix to Issue #630 may solve this.
         if invoke.name == "invoke_2":
             continue
 
