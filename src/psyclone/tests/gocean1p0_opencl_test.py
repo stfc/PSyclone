@@ -299,6 +299,7 @@ def test_set_kern_args(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_set_kern_args_real_grid_property():
     ''' Check that we generate correct code to set a real scalar grid
     property. '''
@@ -307,7 +308,6 @@ def test_set_kern_args_real_grid_property():
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    print(generated_code)
     expected = '''\
     SUBROUTINE compute_kernel_code_set_args(kernel_obj, out_fld, in_out_fld, \
 in_fld, dx, dx, gphiu)

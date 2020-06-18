@@ -44,6 +44,7 @@ Deals with reading the config file and storing default settings.
 from __future__ import absolute_import, print_function
 from collections import namedtuple
 import os
+from psyclone.errors import InternalError
 
 
 # Name of the config file we search for
@@ -948,11 +949,13 @@ class GOceanConfig(APISpecificConfig):
                             all_props[grid_property].split(":")
                     except ValueError:
                         # Raised when the string does not contain exactly
-                        # two values separated by ":"
+                        # three values separated by ":"
                         error = "Invalid property \"{0}\" found with value " \
                                 "\"{1}\" in \"{2}\". It must have exactly " \
                                 "three ':'-delimited separated values: the " \
-                                "property and the type." \
+                                "property, whether it is a scalar or an " \
+                                "array, and the intrinsic type (real or " \
+                                "integer)." \
                                 .format(grid_property,
                                         all_props[grid_property],
                                         config.filename)
@@ -1007,12 +1010,10 @@ class GOceanConfig(APISpecificConfig):
         :raises InternalError: if intrinsic_type is not 'integer' or 'real'
         '''
         if type_name not in ['array', 'scalar']:
-            from psyclone.errors import InternalError
             raise InternalError("Type must be 'array' or 'scalar' but is "
                                 "'{0}'.".format(type_name))
 
         if intrinsic_type not in ['integer', 'real']:
-            from psyclone.errors import InternalError
             raise InternalError("Intrinsic type must be 'integer' or 'real' "
                                 "but is '{0}'.".format(intrinsic_type))
 
