@@ -46,7 +46,7 @@ import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
-    Assignment, Return, Loop, Literal, Statement
+    Assignment, Return, Loop, Literal, Statement, node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
     UnresolvedInterface, ScalarType, DeferredType
@@ -367,39 +367,39 @@ def test_node_is_valid_location():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: new node argument is invalid
-    node = schedule.children[0]
+    anode = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location("invalid_node_argument")
+        anode.is_valid_location("invalid_node_argument")
     assert "argument is not a Node, it is a 'str'." in str(excinfo.value)
     # 2: optional position argument is invalid
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(node, position="invalid_node_argument")
+        anode.is_valid_location(anode, position="invalid_node_argument")
     assert "The position argument in the psyGen" in str(excinfo.value)
     assert "method must be one of" in str(excinfo.value)
     # 3: parents of node and new_node are not the same
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(schedule.children[3].children[0])
+        anode.is_valid_location(schedule.children[3].children[0])
     assert ("the node and the location do not have the same "
             "parent") in str(excinfo.value)
     # 4: positions are the same
     prev_node = schedule.children[0]
-    node = schedule.children[1]
+    anode = schedule.children[1]
     next_node = schedule.children[2]
     # a) before this node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(node, position="before")
+        anode.is_valid_location(anode, position="before")
     assert "the node and the location are the same" in str(excinfo.value)
     # b) after this node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(node, position="after")
+        anode.is_valid_location(anode, position="after")
     assert "the node and the location are the same" in str(excinfo.value)
     # c) after previous node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(prev_node, position="after")
+        anode.is_valid_location(prev_node, position="after")
     assert "the node and the location are the same" in str(excinfo.value)
     # d) before next node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(next_node, position="before")
+        anode.is_valid_location(next_node, position="before")
     assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
     _, invoke_info = parse(
@@ -409,22 +409,22 @@ def test_node_is_valid_location():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 6: valid no prev dep
-    node = schedule.children[2]
-    assert node.is_valid_location(schedule.children[0])
+    anode = schedule.children[2]
+    assert anode.is_valid_location(schedule.children[0])
     # 7: valid prev dep (after)
-    node = schedule.children[6]
-    assert node.is_valid_location(schedule.children[3], position="after")
+    anode = schedule.children[6]
+    assert anode.is_valid_location(schedule.children[3], position="after")
     # 8: invalid prev dep (before)
-    assert not node.is_valid_location(schedule.children[3], position="before")
+    assert not anode.is_valid_location(schedule.children[3], position="before")
     # 9: valid no following dep
-    node = schedule.children[4]
-    assert node.is_valid_location(schedule.children[6], position="after")
+    anode = schedule.children[4]
+    assert anode.is_valid_location(schedule.children[6], position="after")
     # 10: valid following dep (before)
-    node = schedule.children[0]
-    assert node.is_valid_location(schedule.children[3], position="before")
+    anode = schedule.children[0]
+    assert anode.is_valid_location(schedule.children[3], position="before")
     # 11: invalid following dep (after)
-    node = schedule.children[0]
-    assert not node.is_valid_location(schedule.children[3], position="after")
+    anode = schedule.children[0]
+    assert not anode.is_valid_location(schedule.children[3], position="after")
 
 
 def test_node_ancestor():
@@ -432,21 +432,21 @@ def test_node_ancestor():
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched[0].loop_body[0].loop_body[0]
-    node = kern.ancestor(Node)
-    assert isinstance(node, Schedule)
+    anode = kern.ancestor(Node)
+    assert isinstance(anode, Schedule)
     # If 'excluding' is supplied then it can only be a single type or a
     # tuple of types
-    node = kern.ancestor(Node, excluding=Schedule)
-    assert node is sched[0].loop_body[0]
-    node = kern.ancestor(Node, excluding=(Schedule,))
-    assert node is sched[0].loop_body[0]
+    anode = kern.ancestor(Node, excluding=Schedule)
+    assert anode is sched[0].loop_body[0]
+    anode = kern.ancestor(Node, excluding=(Schedule,))
+    assert anode is sched[0].loop_body[0]
     with pytest.raises(TypeError) as err:
         kern.ancestor(Node, excluding=[Schedule])
     assert ("argument to ancestor() must be a type or a tuple of types but "
             "got: 'list'" in str(err.value))
     # Check that the include_self argument behaves as expected
-    node = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
-    assert node is kern
+    anode = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
+    assert anode is kern
 
 
 def test_dag_names():
@@ -505,27 +505,28 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     assert not os.path.exists(my_file.strpath)
 
 
-def test_node_dag_returns_digraph(tmpdir, monkeypatch):
+def test_node_dag_returns_digraph(monkeypatch):
     ''' Test that the dag generation returns the expected Digraph object. We
     make this test independent of whether or not graphviz is installed by
     monkeypatching the psyir.nodes.node._graphviz_digraph_class function to
     return a fake digraph class type. '''
-    class fake_digraph(object):
+    class FakeDigraph(object):
         ''' Fake version of graphviz.Digraph class with key methods
         implemented as noops. '''
+        # pylint: disable=redefined-builtin
         def __init__(self, format=None):
-            return
+            ''' Fake constructor. '''
 
-        def node(self, name):
-            return
+        def node(self, _name):
+            ''' Fake node method. '''
 
-        def edge(self, name1, name2, color="red"):
-            return
+        def edge(self, _name1, _name2, color="red"):
+            ''' Fake edge method. '''
 
         def render(self, filename):
-            return
-    from psyclone.psyir.nodes import node
-    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: fake_digraph)
+            ''' Fake render method. '''
+
+    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -534,7 +535,7 @@ def test_node_dag_returns_digraph(tmpdir, monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     dag = schedule.dag()
-    assert isinstance(dag, fake_digraph)
+    assert isinstance(dag, FakeDigraph)
 
 
 def test_node_dag_wrong_file_format(monkeypatch):
@@ -543,13 +544,14 @@ def test_node_dag_wrong_file_format(monkeypatch):
     graphviz is actually available by monkeypatching the
     psyir.nodes.node._graphviz_digraph_class function to return a fake digraph
     class type that mimics the error. '''
-    class fake_digraph(object):
+    class FakeDigraph(object):
         ''' Fake version of graphviz.Digraph class that raises a ValueError
         when instantiated. '''
+        # pylint: disable=redefined-builtin
         def __init__(self, format=None):
             raise ValueError()
-    from psyclone.psyir.nodes import node
-    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: fake_digraph)
+
+    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -598,6 +600,9 @@ def test_node_dag(tmpdir, have_graphviz):
     graphviz is not installed. '''
     if not have_graphviz:
         return
+    # We may not have graphviz installed so disable pylint error
+    # pylint: disable=import-error
+    # pylint: disable=import-outside-toplevel
     import graphviz
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
@@ -652,9 +657,9 @@ def test_scope():
     assert kernel_schedule.scope is kernel_schedule
     assert container.scope is container
 
-    node = Literal("x", INTEGER_TYPE)
+    anode = Literal("x", INTEGER_TYPE)
     with pytest.raises(InternalError) as excinfo:
-        _ = node.scope
+        _ = anode.scope
     assert ("PSyclone internal error: Unable to find the scope of node "
             "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
