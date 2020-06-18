@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,19 +32,19 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 module testkern_w3_mod
 
   use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
 
   ! Description: discontinuous field (read)writer (w3)
-  type, public, extends(kernel_type) :: testkern_w3_type
-     private
+  type, extends(kernel_type) :: testkern_w3_type
      type(arg_type), dimension(5) :: meta_args = (/ &
           arg_type(gh_real,  gh_read),              &
           arg_type(gh_field, gh_read,      w0),     &
@@ -54,7 +54,7 @@ module testkern_w3_mod
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_w3_code
+     procedure, nopass :: code => testkern_w3_code
   end type testkern_w3_type
 
 contains

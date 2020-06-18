@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 ''' Tests for the algorithm generation (re-writing) as implemented
     in alg_gen.py '''
@@ -100,7 +101,7 @@ def test_multi_kernel_named_invoke():
     gen = str(alg)
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_some_name" in gen
     assert (
-        "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+        "CALL invoke_some_name(a, b, istp, rdt, d, e, ascalar, f, c, g, qr)"
         in gen)
 
 
@@ -114,16 +115,16 @@ def test_multi_position_named_invoke():
                      "4.10_multi_position_named_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
+
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_first" in gen
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_middle" in gen
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_last" in gen
-    assert "CALL invoke_name_first(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
-    assert "CALL invoke_name_middle(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
-    assert "CALL invoke_name_last(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
+    assert ("CALL invoke_name_first(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
+    assert ("CALL invoke_name_middle(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
+    assert ("CALL invoke_name_last(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
 
 
 def test_single_function_invoke_qr():
@@ -272,17 +273,18 @@ def test_multi_deref_derived_type_args():
 
 def test_op_and_scalar_and_qr_derived_type_args():
     ''' Test the case where the operator, scalar and qr arguments to a
-    kernel are all supplied by de-referencing derived types '''
+    kernel are all supplied by de-referencing derived types. '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "10.6.1_operator_no_field_scalar_deref.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
+
     assert (
         "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox % my_mapping, box % b(1), qr % get_instance(qr3, 9, 3))" in gen)
+        "opbox % my_mapping, box % b(1), qr % init_quadrature_symmetrical"
+        "(3_i_def, qrl_gauss))" in gen)
 
 
 def test_vector_field_arg_deref():
@@ -295,8 +297,8 @@ def test_vector_field_arg_deref():
                      "8.1_vector_field_deref.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
-    assert "CALL invoke_0_testkern_chi_type(f1, box % chi, f2)" in gen
+
+    assert "CALL invoke_0_testkern_coord_w0_type(f1, box % chi, f2)" in gen
 
 
 def test_single_stencil():

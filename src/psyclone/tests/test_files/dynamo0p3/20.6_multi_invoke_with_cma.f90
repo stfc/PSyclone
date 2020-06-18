@@ -40,10 +40,9 @@ program multi_invoke_cma
   ! CMA related
   use constants_mod,                      only: r_def
   use field_mod,                          only: field_type
-  use operator_mod,                       only: operator_type
-  use columnwise_operator_mod,            only: columnwise_operator_type
+  use operator_mod,                       only: operator_type, columnwise_operator_type
   use columnwise_op_asm_field_kernel_mod, only: columnwise_op_asm_field_kernel_type
-  use testkern_two_real_scalars,          only: testkern_type
+  use testkern_two_real_scalars_mod,      only: testkern_two_real_scalars_type
   
   implicit none
 
@@ -52,7 +51,8 @@ program multi_invoke_cma
   type(columnwise_operator_type) :: cma_op1, cma_opb, cma_opc
   real(kind=r_def)               :: scalar1, scalar2
 
-  call invoke( columnwise_op_asm_field_kernel_type(afield, lma_op1, cma_op1), &
-               testkern_type(scalar1, afield, bfield, cfield, dfield, scalar2) )
+  call invoke(                                                        &
+       columnwise_op_asm_field_kernel_type(afield, lma_op1, cma_op1), &
+       testkern_two_real_scalars_type(scalar1, afield, bfield, cfield, dfield, scalar2) )
 
 end program multi_invoke_cma

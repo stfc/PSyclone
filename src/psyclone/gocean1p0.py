@@ -281,7 +281,7 @@ class GOInvoke(Invoke):
 
         # get the list of global symbols used in the invoke
         global_names = [sym.name for sym in
-                        self.schedule.symbol_table.global_datasymbols]
+                        self.schedule.symbol_table.global_symbols]
 
         # add the subroutine argument declarations for real scalars which
         # are not global symbols
@@ -445,7 +445,7 @@ class GOLoop(Loop):
         # different symbol table and if this is the case we will end
         # up declaring the variable twice. Issue #630 describes this
         # problem.
-        symtab = self.find_symbol_table()
+        symtab = self.scope.symbol_table
         try:
             data_symbol = symtab.lookup_with_tag(tag)
         except KeyError:
@@ -1184,10 +1184,19 @@ class GOKern(CodedKern):
                             intent="in", target=True,
                             entity_decls=[arg.name for arg in args]))
 
-        # Scalar grid properties are all integers
-        args = [x for x in grid_prop_args if x.is_scalar()]
+        # Scalar integer grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar() and x.intrinsic_type == "integer"]
         if args:
             sub.add(DeclGen(sub, datatype="integer", intent="in",
+                            target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar real grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar() and x.intrinsic_type == "real"]
+        if args:
+            sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
                             target=True,
                             entity_decls=[arg.name for arg in args]))
 
@@ -1252,7 +1261,7 @@ class GOKern(CodedKern):
                         .fortran.format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
-                    # they are just arrays) so we check whether the device
+                    # they are just pointers) so we check whether the device
                     # pointer is NULL.
                     device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
                                                                arg.name)
@@ -1626,6 +1635,16 @@ class GOKernelGridArgument(Argument):
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''
         return self._type
+
+    @property
+    def intrinsic_type(self):
+        '''
+        :returns: the intrinsic_type of this argument.
+        :rtype: str
+
+        '''
+        api_config = Config.get().api_conf("gocean1.0")
+        return api_config.grid_properties[self._property_name].intrinsic_type
 
     def is_scalar(self):
         ''':return: If this variable is a scalar variable or not.

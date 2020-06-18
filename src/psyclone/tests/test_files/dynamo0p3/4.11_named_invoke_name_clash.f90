@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,28 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. Ford and A. Porter STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program multikernel_invokes_7
 
   ! Multiple kernel calls within a named invoke
 
-  use ru_kernel_mod, only: ru_kernel_type
-  use testkern_mod,  only: testkern_type
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use ru_kernel_mod,       only: ru_kernel_type
+  use testkern_mod,        only: testkern_type
 
-  use inf, only : field_type
   implicit none
-  type(field_type)      :: invoke_a, b, c, d(3), e, f, g
-  real(r_def)           :: ascalar, rdt
-  integer(i_def)        :: istp
 
-  call invoke( ru_kernel_type(invoke_a, b, c, istp, rdt, d, e), &
-               name="a",                                        &
+  type(field_type)           :: invoke_a, b, c, d, e(3), f, g
+  real(r_def)                :: ascalar, rdt
+  integer(i_def)             :: istp
+  type(quadrature_xyoz_type) :: qr
+
+  call invoke( ru_kernel_type(invoke_a, b, istp, rdt, d, e, qr), &
+               name="a",                                         &
                testkern_type(ascalar, f, b, c, g) )
 
 end program multikernel_invokes_7

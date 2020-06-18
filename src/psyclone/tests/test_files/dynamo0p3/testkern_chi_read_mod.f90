@@ -30,35 +30,45 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module testkern_chi_read_mod
+
   use argument_mod
   use kernel_mod
+  use fs_continuity_mod
   use constants_mod
+
   type, extends(kernel_type) :: testkern_chi_read_type
      type(arg_type), dimension(2) :: meta_args =  &
-          (/ arg_type(gh_field,gh_inc,w0),        &
-             arg_type(gh_field*3,gh_read,wchi)    &
+          (/ arg_type(gh_field,   gh_inc,  w0),   &
+             arg_type(gh_field*3, gh_read, wchi)  &
            /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_chi_read_code
   end type testkern_chi_read_type
+
 contains
-  subroutine testkern_chi_read_code(nlayers, field_1_w0, field_2_wchi_v1,   &
-       field_2_wchi_v2, field_2_wchi_v3, ndf_w0, undf_w0, map_w0, ndf_wchi, &
-       undf_wchi, map_wchi)
-      USE constants_mod, ONLY: r_def, i_def
-      IMPLICIT NONE
-      INTEGER(KIND=i_def), intent(in) :: nlayers
-      INTEGER(KIND=i_def), intent(in) :: ndf_w0
-      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0
-      INTEGER(KIND=i_def), intent(in) :: ndf_wchi
-      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) :: map_wchi
-      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_wchi
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0
-      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: field_2_wchi_v1
-      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: field_2_wchi_v2
-      REAL(KIND=r_def), intent(in), dimension(undf_wchi) :: field_2_wchi_v3
+
+  subroutine testkern_chi_read_code(nlayers, field1, field2_v1, &
+                                    field2_v2, field2_v3,       &
+                                    ndf_w0, undf_w0, map_w0,    &
+                                    ndf_wchi, undf_wchi, map_wchi)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: ndf_wchi
+    integer(kind=i_def), intent(in) :: undf_w0, undf_wchi
+    integer(kind=i_def), intent(in), dimension(ndf_w0)   :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: field1
+    real(kind=r_def), intent(in), dimension(undf_wchi)  :: field2_v1
+    real(kind=r_def), intent(in), dimension(undf_wchi)  :: field2_v2
+    real(kind=r_def), intent(in), dimension(undf_wchi)  :: field2_v3
+
   end subroutine testkern_chi_read_code
+
 end module testkern_chi_read_mod

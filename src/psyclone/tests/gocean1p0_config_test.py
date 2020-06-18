@@ -205,7 +205,7 @@ def test_invalid_config_files(tmpdir):
     assert "Expression '4+' is not a valid do loop boundary" in str(err.value)
 
     # Test invalid field properties - too many fields
-    content = _CONFIG_CONTENT + "grid-properties = a: {0}%%b:c:d"
+    content = _CONFIG_CONTENT + "grid-properties = a: {0}%%b:c:d:e"
     config_file = tmpdir.join("config1")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -214,7 +214,7 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid property \"a\" found with value \"{0}%b:c:d\"" \
+        assert "Invalid property \"a\" found with value \"{0}%b:c:d:e\"" \
                in str(err.value)
 
     # Test invalid field properties - not enough fields
@@ -231,7 +231,7 @@ def test_invalid_config_files(tmpdir):
                in str(err.value)
 
     # Test missing required values
-    content = _CONFIG_CONTENT + "grid-properties = a:b:array"
+    content = _CONFIG_CONTENT + "grid-properties = a:b:array:real"
     config_file = tmpdir.join("config1")
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
@@ -257,19 +257,29 @@ def test_properties():
 
     assert all_props["go_grid_area_t"].fortran == "{0}%grid%area_t"
     assert all_props["go_grid_area_t"].type == "array"
+    assert all_props["go_grid_area_t"].intrinsic_type == "real"
 
     with pytest.raises(InternalError) as error:
-        new_prop = GOceanConfig.make_property("my_fortran", "my_type")
+        new_prop = GOceanConfig.make_property("my_fortran", "my_type",
+                                              "integer")
     assert "Type must be 'array' or 'scalar' but is 'my_type'" \
         in str(error.value)
 
-    new_prop = GOceanConfig.make_property("my_fortran", "array")
+    with pytest.raises(InternalError) as error:
+        new_prop = GOceanConfig.make_property("my_fortran", "scalar",
+                                              "my_intrinsic")
+    assert "Intrinsic type must be 'integer' or 'real' but is 'my_intrinsic'" \
+        in str(error.value)
+
+    new_prop = GOceanConfig.make_property("my_fortran", "array", "integer")
     assert new_prop.fortran == "my_fortran"
     assert new_prop.type == "array"
+    assert new_prop.intrinsic_type == "integer"
 
-    new_prop = GOceanConfig.make_property("my_fortran", "scalar")
+    new_prop = GOceanConfig.make_property("my_fortran", "scalar", "real")
     assert new_prop.fortran == "my_fortran"
     assert new_prop.type == "scalar"
+    assert new_prop.intrinsic_type == "real"
 
 
 # =============================================================================

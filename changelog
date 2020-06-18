@@ -3,7 +3,19 @@
 	2) #782 for #780. Refactor FunctionSpace support and move it
 	out of dynamo0p3.py and into the lfric domain.
 
-	3) #785 for 679. Use a DataSymbol to represent the PSyIR Loop variable.
+	3) #785 for #679. Use a DataSymbol to represent the PSyIR Loop variable.
+
+	4) #795 for #793. Add the scope property to PSyIR node.
+
+	5) #779 for #763. Capture unrecognised declarations in a new
+	PSyIR UnknownType DataType.
+
+	6) #787 for #786. Introduce the PSyIR Call node and the RoutineSymbol.
+
+	7) #784 for #764. Update LFRic test kernels to use fs_continuity_mod.
+
+	8) #797 for #790. Add intrinsic type information to GOcean grid
+	properties in config file. Add OpenCL to GOcean/eg1 ('shallow').
 
 release 1.9.0 20th May 2020
 

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,24 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program halo_reader_vector_xory
 
   ! Test halo exchange calls, stencils and vector fields.
+  use constants_mod,                    only: i_def
+  use field_mod,                        only: field_type
+  use flux_direction_mod,               only: x_direction
   use testkern_stencil_vector_xory_mod, only: testkern_stencil_vector_xory_type
-  use flux_direction_mod, only: x_direction
-  use inf,      only: field_type
 
   implicit none
-  type(field_type) :: f1, f2
-  integer :: f2_extent=3
-  integer :: f2_direction=x_direction
 
-  call invoke(                                                         &
-       testkern_stencil_vector_xory_type(f1,f2,f2_extent,f2_direction) &
+  type(field_type) :: f1, f2
+  integer(i_def)   :: f2_extent = 3
+  integer(i_def)   :: f2_direction = x_direction
+
+  call invoke(                                                            &
+       testkern_stencil_vector_xory_type(f1, f2, f2_extent, f2_direction) &
           )
 
 end program halo_reader_vector_xory

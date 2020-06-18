@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -36,21 +36,26 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-!
+! Modified I. Kavcic, Met Office
+
 !> @brief Compute the projection operator from the velocity space to
 !!        the potential temperature space weighted by the potential temperature gradient
 !> @details Compute the projection operator \f[<\gamma,\nabla(\theta*)v>\f]
 !!          where v is in W2 and gamma is in the potential temperature space
 module weighted_proj_theta2_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_OPERATOR, GH_FIELD, GH_READ, GH_WRITE,&
-                                    ANY_SPACE_9, W2,                         &
-                                    GH_BASIS, GH_DIFF_BASIS,                 &
-                                    CELLS
+use fs_continuity_mod,       only : W2
+use argument_mod,            only : arg_type, func_type,   &
+                                    GH_OPERATOR, GH_FIELD, &
+                                    GH_READ, GH_WRITE,     &
+                                    ANY_SPACE_9, CELLS,    &
+                                    GH_BASIS, GH_DIFF_BASIS
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -68,35 +73,22 @@ type, public, extends(kernel_type) :: weighted_proj_theta2_kernel_type
        /)
   integer :: iterates_over = CELLS
   integer :: gh_shape = GH_QUADRATURE_XYoZ
-
 contains
-  procedure, nopass ::weighted_proj_theta2_code
+  procedure, nopass :: weighted_proj_theta2_code
 end type
-
-!-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface weighted_proj_theta2_kernel_type
-   module procedure weighted_proj_theta2_kernel_constructor
-end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public weighted_proj_theta2_code
-contains
 
-type(weighted_proj_theta2_kernel_type) function weighted_proj_theta2_kernel_constructor() result(self)
-  return
-end function weighted_proj_theta2_kernel_constructor
+contains
 
 !> @brief Compute the weighted projection operator that maps from W2 to Wtheta
 !! @param[in] cell Current cell index
 !! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d Total number of cells in the 3d mesh
-!! @param[inout] projection Locally assembled projection operator
+!! @param[in, out] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
 !! @param[in] undf_wtheta Number of unique degrees of freedom  for wtheta
@@ -115,7 +107,7 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,              &
                                      ndf_wtheta, undf_wtheta, map_wtheta,  &
                                      wtheta_basis, wtheta_diff_basis,      &
                                      ndf_w2, w2_basis,                     &
-                                     nqp_h, nqp_v, wqp_h, wqp_v )
+                                     nqp_h, nqp_v, wqp_h, wqp_v)
 
   implicit none
 

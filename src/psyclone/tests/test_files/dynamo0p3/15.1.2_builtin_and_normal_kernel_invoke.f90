@@ -37,11 +37,11 @@
 program single_invoke_builtin_then_kernel
 
   ! Description: single invoke call with a builtin followed by a kernel call
-  use constants_mod,       only: r_def
-  use field_mod,           only: field_type
-  use testkern_mod,        only: testkern_type
-  use testkern_wtheta_mod, only: testkern_wtheta_type
-  use testkern_w2_only,    only: testkern_w2_only_type
+  use constants_mod,        only: r_def
+  use field_mod,            only: field_type
+  use testkern_mod,         only: testkern_type
+  use testkern_wtheta_mod,  only: testkern_wtheta_type
+  use testkern_w2_only_mod, only: testkern_w2_only_type
 
   implicit none
 

@@ -44,6 +44,7 @@ Deals with reading the config file and storing default settings.
 from __future__ import absolute_import, print_function
 from collections import namedtuple
 import os
+from psyclone.errors import InternalError
 
 
 # Name of the config file we search for
@@ -937,21 +938,24 @@ class GOceanConfig(APISpecificConfig):
                 pass
             elif key == "grid-properties":
                 # Grid properties have the format:
-                # go_grid_area_u: {0}%%grid%%area_u: array,
+                # go_grid_area_u: {0}%%grid%%area_u: array: real,
                 # First the name, then the Fortran code to access the property,
-                # followed by the type ("array" or "scalar")
+                # followed by the type ("array" or "scalar") and then the
+                # intrinsic type ("integer" or "real")
                 all_props = self.create_dict_from_string(section[key])
                 for grid_property in all_props:
                     try:
-                        fortran, variable_type = all_props[grid_property]\
-                                            .split(":")
+                        fortran, variable_type, intrinsic_type = \
+                            all_props[grid_property].split(":")
                     except ValueError:
                         # Raised when the string does not contain exactly
-                        # two values separated by ":"
+                        # three values separated by ":"
                         error = "Invalid property \"{0}\" found with value " \
                                 "\"{1}\" in \"{2}\". It must have exactly " \
-                                "two ':'-delimited separated values: the " \
-                                "property and the type." \
+                                "three ':'-delimited separated values: the " \
+                                "property, whether it is a scalar or an " \
+                                "array, and the intrinsic type (real or " \
+                                "integer)." \
                                 .format(grid_property,
                                         all_props[grid_property],
                                         config.filename)
@@ -960,7 +964,8 @@ class GOceanConfig(APISpecificConfig):
                     # file might contain
                     self._grid_properties[grid_property] = \
                         GOceanConfig.make_property(fortran.strip(),
-                                                   variable_type.strip())
+                                                   variable_type.strip(),
+                                                   intrinsic_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
                 for required in ["go_grid_xstop", "go_grid_ystop",
@@ -986,7 +991,7 @@ class GOceanConfig(APISpecificConfig):
 
     # ---------------------------------------------------------------------
     @staticmethod
-    def make_property(dereference_format, type_name):
+    def make_property(dereference_format, type_name, intrinsic_type):
         '''Creates a property (based on namedtuple) for a given Fortran
         code to access a grid property, and the type.
 
@@ -995,26 +1000,32 @@ class GOceanConfig(APISpecificConfig):
             string. E.g. "{0}%whole%xstop").
         :param str type_name: The type of the grid property, must be \
             'scalar' or 'array'.
+        :param str intrinsic_type: The intrinsic type of the grid property, \
+            must be 'integer' or 'real'.
 
         :returns: a namedtuple for a grid property given the Fortran
             statement to access it and the type.
 
         :raises InternalError: if type_name is not 'scalar' or 'array'
+        :raises InternalError: if intrinsic_type is not 'integer' or 'real'
         '''
         if type_name not in ['array', 'scalar']:
-            from psyclone.errors import InternalError
             raise InternalError("Type must be 'array' or 'scalar' but is "
                                 "'{0}'.".format(type_name))
 
-        Property = namedtuple("Property", "fortran type")
-        return Property(dereference_format, type_name)
+        if intrinsic_type not in ['integer', 'real']:
+            raise InternalError("Intrinsic type must be 'integer' or 'real' "
+                                "but is '{0}'.".format(intrinsic_type))
+
+        Property = namedtuple("Property", "fortran type intrinsic_type")
+        return Property(dereference_format, type_name, intrinsic_type)
 
     # ---------------------------------------------------------------------
     @property
     def grid_properties(self):
         ''':returns: the dict containing the grid properties.
-        :rtype: a dict with values of namedtuple("Property","fortran type") \
-            instances.
+        :rtype: a dict with values of \
+            namedtuple("Property","fortran type intrinsic_type") instances.
         '''
         return self._grid_properties
 
