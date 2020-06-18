@@ -1812,7 +1812,7 @@ def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dyninvoke_uniq_declns_intent_cma_ops():
+def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
     ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for columnwise operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1829,6 +1829,8 @@ def test_dyninvoke_uniq_declns_intent_cma_ops():
     # 'cma_op1' is "read" arg in columnwise_op_app_kernel_type call
     args_in = [arg.declaration_name for arg in args['in']]
     assert args_in == ['cma_op1', 'cma_opb']
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_dyninvoke_arg_for_fs():
