@@ -134,18 +134,15 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # In case of OpenACC we do not want to transfer the same
+        # data to GPU twice.
         if arg.proxy_name_indexed not in self.arglist:
             self.append(arg.proxy_name_indexed)
-            self.append(arg.proxy_name_indexed + "%ncell_3d")
-            self.append(arg.proxy_name_indexed + "%local_stencil")
             if var_accesses is not None:
-                var_accesses.add_access(arg.proxy_name_indexed +
-                                        "%ncell_3d",
+                var_accesses.add_access(arg.proxy_name_indexed,
                                         AccessType.READ, self._kern)
-                var_accesses.add_access(arg.proxy_name_indexed +
-                                        "%local_stencil",
-                                        AccessType.READ, self._kern,
-                                        [1])
+            # This adds ncell_3d and local_stencil after the derived type:
+            super(KernCallAccArgList, self).operator(arg, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
