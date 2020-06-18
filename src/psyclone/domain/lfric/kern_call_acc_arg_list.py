@@ -66,17 +66,11 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-
-        # We cannot call the base class here, since then the order of
-        # arguments would change
+        # First provide the derived class
         for idx in range(1, argvect.vector_size+1):
-            text1 = argvect.proxy_name + "(" + str(idx) + ")"
-            self.append(text1)
-            self.append(text1 + "%data")
-        if var_accesses is not None:
-            # Only record the main field:
-            var_accesses.add_access(argvect.proxy_name,
-                                    AccessType.READ, self._kern)
+            self.append(argvect.proxy_name + "(" + str(idx) + ")")
+        # Then provide the actual fields that are in the derived class
+        super(KernCallAccArgList, self).field_vector(argvect, var_accesses)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
