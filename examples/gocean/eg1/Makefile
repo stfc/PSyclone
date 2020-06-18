@@ -59,4 +59,5 @@ openacc:
 	${PYTHON} ./runme_openacc.py
 
 opencl:
-	${PYTHON} ./runme_opencl.py
+	${PSYCLONE} -s ./opencl_transformation.py --kernel-renaming single \
+		-api gocean1.0 shallow_alg.f90

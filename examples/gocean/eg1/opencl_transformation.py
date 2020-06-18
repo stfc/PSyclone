@@ -33,50 +33,42 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenCL with PSyclone.
-In order to use it you must first install PSyclone like so:
+''' Module providing a transformation script that converts the Schedule of
+    each Invoke to use OpenCL. '''
 
- >>> pip install --user psyclone
 
-(or see the Getting Going section in ../../psyclone.pdf.) Once PSyclone is
-installed, this script may be run by doing:
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Applies the OpenCL
+    transform.
 
- >>> python runme_opencl.py
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
-This should generate a lot of output, ending with the generated
-Fortran invoke subroutines using FortCl to interface with the OpenCL
-runtime. Additionally it should create a .cl file for each of the kernels.
+    '''
+    from psyclone.psyGen import TransInfo
 
-'''
+    # Get the necessary transformations
+    tinfo = TransInfo()
+    globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
+    cltrans = tinfo.get_trans_name('OCLTrans')
 
-from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+    for invoke in psy.invokes.invoke_list:
+        print("Converting to OpenCL invoke: " + invoke.name)
+        schedule = invoke.schedule
 
-API = "gocean1.0"
-_, INVOKEINFO = parse("shallow_alg.f90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
-print(PSY.gen)
+        # Skip invoke_2
+        if invoke.name == "invoke_2":
+            continue
 
-TRANS_INFO = TransInfo()
-print(TRANS_INFO.list)
-GLOBAL_TRANS = TRANS_INFO.get_trans_name('KernelGlobalsToArguments')
-CL_TRANS = TRANS_INFO.get_trans_name('OCLTrans')
+        # Remove the globals from inside each kernel
+        for kern in schedule.kernels():
+            print("Remove glovals from kernel: " + kern.name)
+            globaltrans.apply(kern)
 
-for invoke in PSY.invokes.invoke_list:
-    print("Converting to OpenCL the invoke: " + invoke.name)
-    schedule = invoke.schedule
+        # Transform invoke to OpenCL
+        cltrans.apply(schedule)
 
-    # Skip invoke_2
-    if invoke.name == "invoke_2":
-        continue
-
-    # Remove the globals from inside each kernel
-    for kern in schedule.kernels():
-        print("Remove glovals from kernel: " + kern.name)
-        GLOBAL_TRANS.apply(kern)
-
-    # Transform invoke to OpenCL
-    CL_TRANS.apply(schedule)
-
-print(PSY.gen)
+    return psy
