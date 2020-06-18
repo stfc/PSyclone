@@ -264,3 +264,47 @@ class Range(Node):
 
     def __str__(self):
         return self.node_str(colour=False)
+
+    def same_as(self, range_node):
+        '''Check whether this range node and the supplied range_node argument
+        have the same bounds.
+
+        In general it may not be possible to know if two ranges are
+        the same or different until run-time. For example one range
+        might be '1:m:1' and another '1:n:1' and we may not be able to
+        determine whether m and n are the same.
+
+        Even if it is possible to determine them it may not be
+        possible to do so without symbol analysis e.g. 1:n+2:1 and
+        1:(3+n)-1:1.
+
+        For the time being the test takes the string of each range
+        node and its descendents and compares them. This approach
+        supports aribrarily complex ranges but only if they are
+        expressed in the same way.
+
+        ****
+        The main complication with the above approach is the use of
+        lbound and ubound functions as they will always indicate that
+        ranges differ if different arrays or different dimensions are
+        being compared, even if the actual dimension sizes are the
+        same. To get round this the declared bounds for lbound and
+        ubound are used instead of lbound and ubound if they can be
+        determined from the symbol table.
+        ****
+
+        :returns: True if the ranges are known to be the same, False \
+            if they are known to be different and None if it is not \
+            possible to determine.
+        :rtype: bool or NoneType
+
+        '''
+        self_range_str = ""
+        for node in self.walk(Node):
+            self_range_str += str(node)
+        input_range_str = ""
+        for node in range_node.walk(Node):
+            input_range_str += str(node)
+        if self_range_str == input_range_str:
+            return True
+        return None
