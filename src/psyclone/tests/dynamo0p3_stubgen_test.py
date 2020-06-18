@@ -43,7 +43,6 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import KernStubArgList
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
@@ -59,27 +58,6 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-
-
-def test_kernel_stub_invalid_scalar_argument():
-    '''Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
-    arg = kernel.arguments.args[1]
-    arg._type = "invalid"
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(InternalError) as excinfo:
-        create_arg_list.scalar(arg)
-    assert (
-        "Expected argument type to be one of '['gh_real', "
-        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
 
 
 def test_dynscalars_err(monkeypatch):
@@ -103,70 +81,6 @@ def test_dynscalars_err(monkeypatch):
         _ = DynScalarArgs(kernel)
     assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
             "but not handled" in str(err.value))
-
-
-def test_kernel_stub_ind_dofmap_errors():
-    '''Check that we raise the expected exceptions if the wrong arguments
-    are supplied to KernelStubArgList.indirection_dofmap() '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    # First call it without an argument object
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3")
-    assert "no CMA operator supplied" in str(excinfo.value)
-    # Second, call it with an argument object but one that is not
-    # an operator
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
-    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
-
-
-def test_kernstubarglist_arglist_error():
-    '''Check that we raise an exception if we call the arglist method in
-    kernstubarglist without first calling the generate method'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.arglist
-    assert (
-        "Internal error. The argument list in KernStubArgList:arglist() is "
-        "empty. Has the generate() method been "
-        "called?") in str(excinfo.value)
-
-
-def test_kernstubarglist_eval_shape_error():
-    ''' Check that we raise the expected exception if we call the basis() or
-    diff_basis() methods and one of the kernel's evaluator shapes is
-    invalid. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_faces_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    create_arg_list = KernStubArgList(kernel)
-    # Break the list of qr rules
-    kernel.eval_shapes.insert(0, "broken")
-    with pytest.raises(InternalError) as err:
-        create_arg_list.basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
-    with pytest.raises(InternalError) as err:
-        create_arg_list.diff_basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
 
 
 def test_stub_generate_with_anyw2():

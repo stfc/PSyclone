@@ -133,31 +133,6 @@ def test_refelem_stub_gen():
     assert output in gen
 
 
-def test_refelem_stub_arglist_err():
-    ''' Check that the KernStubArgList.ref_element_properties method raises
-    the expected error if it encounters an unsupported property. '''
-    from psyclone.psyGen import InternalError
-    from psyclone.domain.lfric import KernStubArgList
-    # Create the Kernel object
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_ref_elem_all_faces_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Break the list of ref-element properties required by the Kernel
-    kernel.reference_element.properties.append("Wrong property")
-    with pytest.raises(InternalError) as err:
-        KernStubArgList(kernel).generate()
-    assert "('Wrong property') " in str(err.value)
-    assert (
-        "Supported properties are: ['Property.NORMALS_TO_HORIZONTAL_FACES', "
-        "'Property.NORMALS_TO_VERTICAL_FACES', 'Property.NORMALS_TO_FACES', "
-        "'Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES', "
-        "'Property.OUTWARD_NORMALS_TO_VERTICAL_FACES', "
-        "'Property.OUTWARD_NORMALS_TO_FACES']" in str(err.value))
-
-
 def test_refelem_quad_stub_gen():
     ''' Check that correct stub code is produced when the kernel metadata
     contain reference element and quadrature properties (quadrature
