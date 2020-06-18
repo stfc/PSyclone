@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,35 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Authors: S. Siso, STFC Daresbury Lab
 
-include ../../common.mk
+''' Module providing a PSyclone transformation script that converts the
+Schedule of each Invoke to use OpenCL. '''
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
 
-.PHONY: basic openmp loop_fuse dag openacc opencl
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Converts any global-variable
+    accesses into kernel arguments and then applies the OpenCL transformation
+    to the PSy layer.
 
-transform: basic openmp loop_fuse dag openacc opencl
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
-compile: transform
+    '''
+    from psyclone.psyGen import TransInfo
 
-basic:
-	${PYTHON} ./runme.py
+    # Get the necessary transformations
+    tinfo = TransInfo()
+    globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
+    cltrans = tinfo.get_trans_name('OCLTrans')
 
-openmp:
-	${PYTHON} ./runme_openmp.py
+    for invoke in psy.invokes.invoke_list:
+        print("Converting to OpenCL invoke: " + invoke.name)
+        schedule = invoke.schedule
 
-loop_fuse:
-	${PYTHON} ./runme_loop_fuse.py
+        # Skip invoke_2 as its kernels contains symbols declared outside of
+        # the subroutine scope. A fix to Issue #630 may solve this.
+        if invoke.name == "invoke_2":
+            continue
 
-dag:
-	${PYTHON} ./runme_dag.py
+        # Remove the globals from inside each kernel
+        for kern in schedule.kernels():
+            print("Remove glovals from kernel: " + kern.name)
+            globaltrans.apply(kern)
 
-openacc:
-	${PYTHON} ./runme_openacc.py
+        # Transform invoke to OpenCL
+        cltrans.apply(schedule)
 
-# The "--kernel-renaming single" parameter avoids generating duplicate
-# versions of OpenCL kernels called multiple times.
-opencl:
-	${PSYCLONE} -s ./opencl_transformation.py --kernel-renaming single \
-		-api gocean1.0 shallow_alg.f90
+    return psy
