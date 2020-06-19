@@ -16,11 +16,11 @@ this is done, Binder has to construct a Container and install the necessary
 software. This can  take serval minutes. You can track its progress
 by clicking the 'show' link next to the 'Build logs' heading.)
 
- * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb) Uses PSyclone's NEMO API to process some simple Fortran code, display the resulting PSyIR and then re-generate Fortran.
+ * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb) Uses PSyclone's NEMO API to process some simple Fortran code, display the resulting PSyIR and then re-generate Fortran.
 
- * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fgocean%2Feg1%2Fopenmp.ipynb) Uses PSyclone's GOcean API to process example code that conforms to the PSyKAl separation of concerns. Transformations are applied in order to fuse various loops before parallelising the result with OpenMP.
+ * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fopenmp.ipynb) Uses PSyclone's GOcean API to process example code that conforms to the PSyKAl separation of concerns. Transformations are applied in order to fuse various loops before parallelising the result with OpenMP.
  
- * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/575_jupyter_egs?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb) demonstrates the generation of a DAG for the PSy layer of the previous example.
+ * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb) demonstrates the generation of a DAG for the PSy layer of the previous example.
 
 # Installation #
 
