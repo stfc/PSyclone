@@ -44,15 +44,83 @@ from __future__ import absolute_import
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop, Literal, Range, Reference, BinaryOperation, Array, Assignment
+from psyclone.psyir.nodes import Loop, Literal, Range, Reference, \
+    BinaryOperation, Array, Assignment
+
 
 class ArrayRange2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR Array Range to a PSyIR
     Loop.
 
     '''
+
+    @staticmethod
+    def same_range(array1, idx1, array2, idx2):
+        '''This method compares the range node at position 'idx1' in array
+        access 'array1' with the range node at position 'idx2' in
+        array access 'array2'.
+
+        The natural place to test the equivalence of two ranges is in
+        the Range class. However, the test required here is slightly
+        different as we can assume that two array slices are the same
+        even if we don't know their actual sizes (as the code itself
+        would raise an exception if this were not the case).
+
+        :param array1: an array node containing a range node at index idx1.
+        :type array1: py:class:`psyclone.psyir.node.Array`
+        :param int idx1: an index indicating the location of a range \
+            node in array1 (in its children list).
+        :param array2: an array node containing a range node at index idx2.
+        :type array2: py:class:`psyclone.psyir.node.Array`
+        :param int idx2: an index indicating the location of a range \
+            node in array2 (in its children list).
+
+        :returns: True if the ranges are the same and False if they \
+            are not the same, or if it is not possible to determine.
+        :rtype: bool
+
+        :raises: TransformationError if one or more of the arguments \
+            are invalid.
+
+        '''
+        if not isinstance(array1, Range):
+            raise TransformationError(
+                "The first argument to the same_range() method should be a "
+                "Range but found '{0}'.".format(type(array1).__name__)
+        if not isinstance(idx1, int):
+            raise TransformationError(
+                "The second argument to the same_range() method should be an "
+                "int but found '{0}'.".format(type(array2).__name__)
+        if not isinstance(array2, Range): 
+            raise TransformationError(
+                "The third argument to the same_range() method should be a "
+                "Range but found '{0}'.".format(type(array2).__name__)
+        if not isinstance(idx2, int):
+                "The fourth argument to the same_range() method should be an "
+                "int but found '{0}'.".format(type(array2).__name__)
+        if not isinstance(array1.children[idx1], Range):
+            raise TransformationError(
+                "The child of array1 at index idx1 is not a Range node.")
+        if not isinstance(array2.children[idx2], Range):
+            raise TransformationError("XXX")
+
+        range1 = array1.children[idx1]
+        range2 = array2.children[idx2]
+
+        # lower bounds
+        if (array1.is_lower_bound(idx1) != array2.is_lower_bound(idx2) and
+            not range1.lb_same_as(range2)):
+            return False
+        # upper bounds
+        if (array1.is_upper_bound(idx1) != array2.is_upper_bound(idx2) and
+            not range1.ub_same_as(range2)):
+            return False
+        # steps
+        if not range1.step_same_as(range2):
+            return False
+        return True
+        
     def apply(self, node):
         ''' xxx '''
         self.validate(node)
@@ -62,55 +130,16 @@ class ArrayRange2LoopTrans(Transformation):
         loop_variable_name = symbol_table.new_symbol_name(root_name="idx")
         loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
         symbol_table.add(loop_variable_symbol)
-        
-        # replace the first range found in all arrays with the
+
+        # Replace the first range found in all arrays with the
         # iterator and use the range from the LHS range for the loop
         # iteration space.
         for array in node.walk(Array):
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
-                    # find any lbounds
-                    for lbound in [op for op in child.walk(BinaryOperation) if op.operator == BinaryOperation.Operator.LBOUND]:
-                        array_ref = lbound.children[0]
-                        array_index = int(lbound.children[1].value)-1
-                        array_symbol = array_ref.symbol
-                        dimension = array_symbol.shape[array_index]
-                        if isinstance(dimension, int):
-                            # lbound is 1
-                            index = lbound.parent.children.index(lbound)
-                            lbound.parent.children[index] = Literal("1", INTEGER_TYPE)
-                        else:
-                            raise NotImplementedError("Implement me")
-
-                    # find any ubounds
-                    for ubound in [op for op in child.walk(BinaryOperation) if op.operator == BinaryOperation.Operator.UBOUND]:
-                        array_ref = ubound.children[0]
-                        array_index = int(ubound.children[1].value)-1
-                        array_symbol = array_ref.symbol
-                        dimension = array_symbol.shape[array_index]
-                        if isinstance(dimension, int):
-                            # ubound is the value
-                            index = ubound.parent.children.index(ubound)
-                            ubound.parent.children[index] = Literal(str(dimension), INTEGER_TYPE)
-                        else:
-                            raise NotImplementedError("Implement me")
-
                     if array is node.lhs:
-                        lhs_index = idx
+                        # Save this range to determine indexing
                         lhs_range = child
-                    else:
-                        # Issue #YYY: Support loop variables where the
-                        # ranges are different.
-                        if not lhs_range.same_as(child):
-                            # Ranges are, or may be, different.
-                            raise GenerationError(
-                                "The ArrayRange2LoopTrans transformation only "
-                                "supports ranges that are known to be the same "
-                                "as each other but array access '{0}' "
-                                "dimension {1} and '{2}' dimension {3} are "
-                                "either different or can't be determined."
-                                "".format(node.lhs.name, lhs_index, array.name,
-                                          idx))
                     array.children[idx] = Reference(loop_variable_symbol,
                                                         parent=array)
                     break
@@ -138,7 +167,6 @@ class ArrayRange2LoopTrans(Transformation):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 
-
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
 
@@ -150,6 +178,9 @@ class ArrayRange2LoopTrans(Transformation):
             Assignment whose left hand side is an Array that does not \
             have Range specifying the access to at least one of its \
             dimensions.
+        :raises TransformationError: if two or more of the loop ranges \
+        in the assignment are different or are not known to be the \
+        same.
 
         '''
         if not isinstance(node, Assignment):
@@ -170,3 +201,29 @@ class ArrayRange2LoopTrans(Transformation):
                 "Assignment node should be a PSyIR Array with at least one "
                 "of its dimensions being a Range, but found None."
                 "".format(self.name))
+
+        for array in node.walk(Array):
+            for idx, child in enumerate(array.children):
+                if isinstance(child, Range):
+                    if array is node.lhs:
+                        # Save this range to allow comparison with
+                        # other ranges.
+                        lhs_index = idx
+                        lhs_range = child
+                    else:
+                        # We could add support for adding loop
+                        # variables where the ranges are different.
+                        if not ArrayRange2LoopTrans.same_range(
+                                node.lhs, lhs_index, child, idx):
+                            # Ranges are, or may be, different so we
+                            # can't safely replace this range with a
+                            # loop iterator.
+                            raise TransformationError(
+                                "The ArrayRange2LoopTrans transformation only "
+                                "supports ranges that are known to be the same "
+                                "as each other but array access '{0}' "
+                                "dimension {1} and '{2}' dimension {3} are "
+                                "either different or can't be determined."
+                                "".format(node.lhs.name, lhs_index, array.name,
+                                          idx))
+                    break

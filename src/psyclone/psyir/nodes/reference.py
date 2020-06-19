@@ -228,6 +228,46 @@ class Array(Reference):
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
 
+    def is_lower_bound(self, index):
+        ''' xxx '''
+        array_dimension = self.children[index]
+        if not isinstance(array_dimension, Range):
+            return False
+
+        lower = array_dimension.children[0]
+        if not (isinstance(lower, BinaryOperation) and
+                lower.operator == BinaryOperation.Operator.LBOUND):
+            return False
+        if not (isinstance(lower.children[0], Reference) and
+                lower.children[0].name == self.name):
+            return False
+        if not (isinstance(lower.children[1], Literal) and
+                lower.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER
+                and lower.children[1].value == str(index+1)):
+            return False
+        return True
+        
+    def is_upper_bound(self, index):
+        ''' xxx '''
+        array_dimension = self.children[index]
+        if not isinstance(array_dimension, Range):
+            return False
+
+        upper = array_dimension.children[1]
+        if not (isinstance(upper, BinaryOperation) and
+                upper.operator == BinaryOperation.Operator.UBOUND):
+            return False
+        if not (isinstance(upper.children[0], Reference) and
+                upper.children[0].name == self.name):
+            return False
+        if not (isinstance(upper.children[1], Literal) and
+                upper.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER
+                and upper.children[1].value == str(index+1)):
+            return False
+        return True
+        
     def is_full_range(self, index):
         '''Returns True if the specified array index is a Range Node that
         specified all elements in this index. In the PSyIR this is
@@ -246,7 +286,6 @@ class Array(Reference):
             number of dimensions in the array.
 
         '''
-        # pylint: disable=too-many-return-statements
         if index > len(self.children)-1:
             raise ValueError(
                 "In Array '{0}' the specified index '{1}' must be less than "
@@ -254,44 +293,11 @@ class Array(Reference):
                 "".format(self.name, index, len(self.children)))
 
         array_dimension = self.children[index]
-
-        if not isinstance(array_dimension, Range):
-            return False
-
-        lower = array_dimension.children[0]
-        upper = array_dimension.children[1]
-        step = array_dimension.children[2]
-
-        # lower
-        if not (isinstance(lower, BinaryOperation) and
-                lower.operator == BinaryOperation.Operator.LBOUND):
-            return False
-        if not (isinstance(lower.children[0], Reference) and
-                lower.children[0].name == self.name):
-            return False
-        if not (isinstance(lower.children[1], Literal) and
-                lower.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER
-                and lower.children[1].value == str(index+1)):
-            return False
-
-        # upper
-        if not (isinstance(upper, BinaryOperation) and
-                upper.operator == BinaryOperation.Operator.UBOUND):
-            return False
-        if not (isinstance(upper.children[0], Reference) and
-                upper.children[0].name == self.name):
-            return False
-        if not (isinstance(upper.children[1], Literal) and
-                upper.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER
-                and upper.children[1].value == str(index+1)):
-            return False
-
-        # step
-        if not (isinstance(step, Literal) and
-                step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-                and step.value == "1"):
-            return False
-
-        return True
+        if isinstance(array_dimension, Range):
+            if self.is_lower_bound(index) and self.is_upper_bound(index):
+                step = array_dimension.children[2]
+                if (isinstance(step, Literal) and
+                    step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+                    and step.value == "1"):
+                    return True
+        return False

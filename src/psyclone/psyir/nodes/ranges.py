@@ -265,6 +265,36 @@ class Range(Node):
     def __str__(self):
         return self.node_str(colour=False)
 
+    def lb_same_as(self, range_node):
+        ''' xxx '''
+        self_lb_str = ""
+        for node in self.start.walk(Node):
+            self_lb_str += str(node)
+        other_lb_str = ""
+        for node in range_node.start.walk(Node):
+            other_lb_str += str(node)
+        return self_lb_str == other_lb_str
+        
+    def ub_same_as(self, range_node):
+        ''' xxx '''
+        self_ub_str = ""
+        for node in self.end.walk(Node):
+            self_ub_str += str(node)
+        other_ub_str = ""
+        for node in range_node.end.walk(Node):
+            other_ub_str += str(node)
+        return self_ub_str == other_ub_str
+
+    def step_same_as(self, range_node):
+        ''' xxx '''
+        self_step_str = ""
+        for node in self.step.walk(Node):
+            self_step_str += str(node)
+        other_step_str = ""
+        for node in range_node.step.walk(Node):
+            other_step_str += str(node)
+        return self_step_str == other_step_str
+        
     def same_as(self, range_node):
         '''Check whether this range node and the supplied range_node argument
         have the same bounds.
