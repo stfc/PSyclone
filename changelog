@@ -14,6 +14,12 @@
 
 	7) #784 for #764. Update LFRic test kernels to use fs_continuity_mod.
 
+	8) #797 for #790. Add intrinsic type information to GOcean grid
+	properties in config file. Add OpenCL to GOcean/eg1 ('shallow').
+
+        9) #792 for #789. Return kernel argument objects instead of just names
+	from unique_declarations() and unique_declarations_by_intent().
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
