@@ -1,6 +1,6 @@
 # PSyclone GOcean Example 1
 
-**Authors:** A. R. Porter, STFC Daresbury Lab
+**Authors:** A. R. Porter, S. Siso, STFC Daresbury Lab
 
 These scripts and this version of PSyclone work with version 1.0 of GOcean.
 
@@ -15,6 +15,17 @@ python ./runme.py
 ``` 
 
 Examine the runme*.py scripts themselves for further details.
+
+
+## OpenCL PSyclone script
+
+The OpenCL transformation is provided with a PSyclone transformation script
+(`opencl_transformation.py`). This can be run using the PSyclone command:
+
+```sh
+psyclone -s ./opencl_transformation.py -api gocean1.0 shallow_alg.f90
+```
+
 
 ## Licence
 

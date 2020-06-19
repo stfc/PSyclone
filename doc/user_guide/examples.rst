@@ -83,7 +83,7 @@ Example 1: Loop transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examples of applying various transformations (loop fusion, OpenMP,
-OpenACC) to the semi-PSyKAl'd version of the Shallow
+OpenACC, OpenCL) to the semi-PSyKAl'd version of the Shallow
 benchmark. ("semi" because not all kernels are called from within
 invoke()'s.) Also includes an example of generating a DAG from an
 InvokeSchedule.
