@@ -547,12 +547,12 @@ def test_lfric_cma():
     assert "cma_op1_beta: READ" in var_info
     assert "cma_op1_gamma_m: READ" in var_info
     assert "cma_op1_gamma_p: READ" in var_info
-    assert "cma_op1_matrix: READ" in var_info
+    assert "cma_op1_matrix: WRITE" in var_info
     assert "cma_op1_ncol: READ" in var_info
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: READ" in var_info
+    assert "op1_proxy%local_stencil: WRITE" in var_info
     assert "op1_proxy%ncell_3d: READ" in var_info
 
 
@@ -881,7 +881,7 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
 
 
 def test_lfric_stencil():
@@ -906,6 +906,6 @@ def test_lfric_stencil():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1_proxy: READ" in var_info
-    assert "f2_proxy: READ" in var_info
+    assert "f1: READ+WRITE" in var_info
+    assert "f2: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info

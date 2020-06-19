@@ -183,8 +183,11 @@ class KernCallArgList(ArgOrdering):
                 name_from_tag(arg.name + "_" + component)
             self.append(name)
             if var_accesses is not None:
-                # All cma parameters are scalar
-                var_accesses.add_access(name, AccessType.READ, self._kern)
+                # Matrix is an output parameter, the rest are input
+                if component == "matrix":
+                    var_accesses.add_access(name, AccessType.WRITE, self._kern)
+                else:
+                    var_accesses.add_access(name, AccessType.READ, self._kern)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -208,7 +211,7 @@ class KernCallArgList(ArgOrdering):
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
             # Add an arbitrary index to mark this field as array.
-            var_accesses.add_access(argvect.proxy_name, argvect.access,
+            var_accesses.add_access(argvect.name, argvect.access,
                                     self._kern, [1])
 
     def field(self, arg, var_accesses=None):
@@ -315,7 +318,7 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(arg.proxy_name_indexed+"%ncell_3d",
                                     AccessType.READ, self._kern)
             var_accesses.add_access(arg.proxy_name_indexed+"%local_stencil",
-                                    AccessType.READ, self._kern, [1])
+                                    AccessType.WRITE, self._kern, [1])
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
