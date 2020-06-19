@@ -549,7 +549,7 @@ def test_node_dag_wrong_file_format(monkeypatch):
         when instantiated. '''
         # pylint: disable=redefined-builtin
         def __init__(self, format=None):
-            raise ValueError()
+            raise ValueError(format)
 
     monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
     _, invoke_info = parse(
