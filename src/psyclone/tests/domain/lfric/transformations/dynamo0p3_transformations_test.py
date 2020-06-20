@@ -72,10 +72,12 @@ def setup():
 
 
 def test_colour_trans_declarations(tmpdir, dist_mem):
-    '''Check that we generate the correct variable declarations when
+    ''' Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
-    is both off and on. '''
-    # test of the colouring transformation of a single loop
+    is both off and on.
+
+    '''
+    # Test of the colouring transformation of a single loop
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type",
                              dist_mem=dist_mem)
@@ -83,7 +85,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     ctrans = Dynamo0p3ColourTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -107,7 +109,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
 
 
 def test_colour_trans(tmpdir, dist_mem):
-    '''test of the colouring transformation of a single loop. We test
+    ''' Test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on. '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type",
@@ -116,7 +118,7 @@ def test_colour_trans(tmpdir, dist_mem):
     ctrans = Dynamo0p3ColourTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -387,7 +389,7 @@ def test_colour_str():
 
 
 def test_omp_colour_trans(tmpdir, dist_mem):
-    '''Test the OpenMP transformation applied to a coloured loop. We test
+    ''' Test the OpenMP transformation applied to a coloured loop. We test
     when distributed memory is on or off. '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type",
@@ -398,7 +400,7 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     otrans = DynamoOMPParallelLoopTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -613,12 +615,20 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colouring_after_openmp(dist_mem):
-    '''Test that we raise an error if the user attempts to colour a loop
+def test_colouring_after_openmp(dist_mem, monkeypatch):
+    ''' Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
-    distributed memory is on or off. '''
-    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                           name="invoke_0_testkern_type", dist_mem=dist_mem)
+    distributed memory is on or off.
+    Note: OpenMP parallel transformation can be applied on its own only on
+    a discontinuous function space. However, colouring can be applied when
+    an argument has "INC" access and in LFRic API this is only possible
+    for fields on a continuous function space. Therefore we need to
+    monkeypatch the function space of the loop argument to a continuous
+    function space before applying colouring.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
+                           name="invoke_0_testkern_w3_type", dist_mem=dist_mem)
     schedule = invoke.schedule
 
     ctrans = Dynamo0p3ColourTrans()
@@ -630,7 +640,14 @@ def test_colouring_after_openmp(dist_mem):
         index = 0
 
     # Apply OpenMP to the loop
-    schedule, _ = otrans.apply(schedule.children[index])
+    schedule, _ = otrans.apply(schedule[index])
+
+    # Monkeypatch the loop argument to "INC" access and a continuous function
+    # space so colouring can be applied
+    write_arg = schedule[index].dir_body[0].loop_body[0].arguments.args[4]
+    fspace = write_arg.function_space
+    monkeypatch.setattr(write_arg, "access", AccessType.INC)
+    monkeypatch.setattr(fspace, "_orig_name", "w1")
 
     # Now attempt to colour the loop within this OpenMP region
     with pytest.raises(TransformationError) as excinfo:
@@ -687,11 +704,16 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
 
 
 def test_omp_region_omp_do(dist_mem):
-    '''Test that we correctly generate code for the case of a single OMP
+    ''' Test that we correctly generate code for the case of a single OMP
     DO within an OMP PARALLEL region without colouring. We test when
-    distributed memory is on or off. '''
-    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                             name="invoke_0_testkern_type", dist_mem=dist_mem)
+    distributed memory is on or off.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    psy, invoke = get_invoke(
+        "1_single_invoke_w3.f90", TEST_API,
+        name="invoke_0_testkern_w3_type", dist_mem=dist_mem)
     schedule = invoke.schedule
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
@@ -720,9 +742,9 @@ def test_omp_region_omp_do(dist_mem):
     cell_loop_idx = -1
     omp_enddo_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -805,8 +827,12 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
 def test_multi_kernel_single_omp_region(dist_mem):
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
-    within a single OMP region. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
+    within a single OMP region.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    psy, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90", TEST_API,
                              name="invoke_0",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
@@ -835,9 +861,9 @@ def test_multi_kernel_single_omp_region(dist_mem):
     cell_loop_idx = -1
     end_do_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
         if (cell_loop_idx == -1) and (loop_str in line):
             cell_loop_idx = idx
@@ -861,7 +887,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
 
 def test_multi_different_kernel_omp(
         tmpdir, monkeypatch, dist_mem, annexed):
-    '''Test that we correctly generate the OpenMP private lists when we
+    ''' Test that we correctly generate the OpenMP private lists when we
     have more than one kernel of a different type (requiring a
     different private list) within an invoke. Test with and without
     DM. We also test when annexed is False and True as it affects how
@@ -882,7 +908,7 @@ def test_multi_different_kernel_omp(
             index2 = 8
         else:
             index1 = 6
-            index2 = 9
+            index2 = 10
     else:
         index1 = 0
         index2 = 1
@@ -945,13 +971,12 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
         ftrans.same_space = same_space
         mtrans = MoveTrans()
         if dist_mem:
-            # c and g halo exchange between loops can be moved before
-            # 1st loop as they are not accessed in first loop
-            schedule, _ = mtrans.apply(schedule.children[7],
-                                       schedule.children[6])
-            schedule, _ = mtrans.apply(schedule.children[8],
-                                       schedule.children[7])
-            index = 8
+            index = 9
+            # f, c and g halo exchanges between loops can be moved
+            # before 1st loop as they are not accessed in first loop
+            for idx in range(index-3, index):
+                schedule, _ = mtrans.apply(schedule.children[idx+1],
+                                           schedule.children[idx])
         else:
             index = 0
 
@@ -994,7 +1019,7 @@ def test_loop_fuse(dist_mem):
     schedule = invoke.schedule
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -1040,36 +1065,34 @@ def test_loop_fuse_set_dirty():
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     # Fuse the loops
-    schedule, _ = ftrans.apply(schedule.children[3],
-                               schedule.children[4])
-    schedule.view()
+    schedule, _ = ftrans.apply(schedule.children[4],
+                               schedule.children[5])
+
     gen = str(psy.gen)
     print(gen)
     assert gen.count("set_dirty()") == 1
 
 
 def test_loop_fuse_omp(dist_mem):
-    '''Test that we can loop-fuse two loop nests and enclose them in an
-       OpenMP parallel region. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
+    ''' Test that we can loop-fuse two loop nests and enclose them in an
+    OpenMP parallel region.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
-
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
 
     ftrans = DynamoLoopFuseTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    schedule, _ = ftrans.apply(schedule.children[index],
-                               schedule.children[index+1])
+    schedule, _ = ftrans.apply(schedule.children[0],
+                               schedule.children[1])
 
-    schedule, _ = otrans.apply(schedule.children[index])
+    schedule, _ = otrans.apply(schedule.children[0])
 
     code = str(psy.gen)
-    print(code)
 
     # Check generated code
     omp_para_idx = -1
@@ -1079,7 +1102,7 @@ def test_loop_fuse_omp(dist_mem):
     call1_idx = -1
     call2_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
     else:
         loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
@@ -1088,7 +1111,7 @@ def test_loop_fuse_omp(dist_mem):
         if "!$omp parallel do default(shared), " +\
            "private(cell), schedule(static)" in line:
             omp_para_idx = idx
-        if "CALL testkern_code" in line:
+        if "CALL testkern_w2v_code" in line:
             if call1_idx == -1:
                 call1_idx = idx
             else:
@@ -1342,11 +1365,15 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
 
 
 def test_omp_par_and_halo_exchange_error():
-    '''Tests that we raise an error if we try to apply an omp parallel
+    ''' Tests that we raise an error if we try to apply an OMP parallel
     transformation to a list containing halo_exchange calls. If this is
     allowed then it is likely that we will get incorrect results, or that
-    the code will fail.'''
-    _, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
+    the code will fail.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90", TEST_API,
                            name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
@@ -3849,13 +3876,13 @@ def test_rc_node_not_loop():
 
 
 def test_rc_invalid_loop(monkeypatch):
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied loop does not iterate over cells or dofs. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
@@ -3880,13 +3907,13 @@ def test_rc_nodm():
 
 
 def test_rc_invalid_depth():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 0})
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
@@ -3894,13 +3921,13 @@ def test_rc_invalid_depth():
 
 
 def test_rc_invalid_depth_continuous():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth equals 1 when modifying a continuous field. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 1})
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
@@ -3909,16 +3936,18 @@ def test_rc_invalid_depth_continuous():
 
 
 def test_rc_continuous_depth():
-    '''Test that the loop bounds for a continuous kernel (iterating over
+    ''' Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
     the redundant computation transformation with a fixed value for
-    halo depth. '''
+    halo depth.
+
+    '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
@@ -3934,20 +3963,26 @@ def test_rc_continuous_depth():
 
 
 def test_rc_continuous_no_depth():
-    '''Test that the loop bounds for a continuous kernel (iterating over
+    ''' Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
     the redundant computation transformation with no value for halo
-    depth. '''
+    depth.
+
+    '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert ("      IF (f1_proxy%is_dirty(depth=mesh%get_halo_"
+            "depth()-1)) THEN\n"
+            "        CALL f1_proxy%halo_exchange(depth=mesh%"
+            "get_halo_depth()-1)") in result
     for field_name in ["f2", "m1", "m2"]:
         assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_halo_"
                 "depth())) THEN\n"
@@ -4350,32 +4385,36 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[4]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    loop = schedule.children[index]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # check the f1 halo exchange is added and the f2 halo exchange is
+    # Check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
         assert ("CALL {0}_proxy%halo_exchange(depth=3"
                 ")".format(field_name)) in result
-    # there is no need for a run-time is_dirty check for field f1 as
+    # There is no need for a run-time is_dirty check for field f1 as
     # we know that we need a halo exchange. We know this as f1 is
     # modified in an earlier loop which leaves all of f1's halo
     # dirty. As we know that we need the halo to be clean to depth 3
     # we can be certain we need a halo exchange.
     assert ("IF (f1_proxy%is_dirty(depth=3)) "
             "THEN") not in result
-    # there is a need for a run-time is_dirty check for field f2 as
+    # There is a need for a run-time is_dirty check for field f2 as
     # this field is not modified in this invoke and therefore its halo
     # is in an unknown state before it is read
     assert ("IF (f2_proxy%is_dirty(depth=3)) "
             "THEN") in result
 
-    # check the existing m1 and m2 halo exchanges (for the first
+    # Check the existing m1 and m2 halo exchanges (for the first
     # un-modified loop) remain unchanged
     for field_name in ["m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
@@ -4388,21 +4427,23 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
 
 
 def test_rc_dofs_no_depth_prev_dep():
-    '''Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo
-    fields have a previous (non-halo-exchange) dependence. '''
+    fields have a previous (non-halo-exchange) dependence.
+
+    '''
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.children[5]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
-    # check the f1 halo exchange is added and the f2 halo exchange is
+
+    # Check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
@@ -4411,7 +4452,7 @@ def test_rc_dofs_no_depth_prev_dep():
             "THEN") not in result
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
-    # check the existing m1 and m2 halo exchanges remain unchanged
+    # Check the existing m1 and m2 halo exchanges remain unchanged
     for field_name in ["m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
@@ -4529,33 +4570,35 @@ def test_rc_vector_no_depth(tmpdir):
 
 
 def test_rc_no_halo_decrease():
-    '''Test that we do not decrease an existing halo size when setting it
+    ''' Test that we do not decrease an existing halo size when setting it
     to a particular value. This situation may happen when the
     redundant computation affects the same field in two different
-    loops and both depend on the same halo exchange. '''
+    loops and both depend on the same halo exchange.
+
+    '''
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # first, change the size of the f2 halo exchange to 3 by performing
+    # First, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
-    # second, try to change the size of the f2 halo exchange to 2 by
+    # Second, try to change the size of the f2 halo exchange to 2 by
     # performing redundant computation in the second loop
-    loop = schedule.children[4]
+    loop = schedule.children[5]
     schedule, _ = rc_trans.apply(loop, {"depth": 2})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
-    # third, set the size of the f2 halo exchange to the full halo
+    # Third, set the size of the f2 halo exchange to the full halo
     # depth by performing redundant computation in the second loop
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4564,9 +4607,9 @@ def test_rc_no_halo_decrease():
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
-    # fourth, try to change the size of the f2 halo exchange to 4 by
+    # Fourth, try to change the size of the f2 halo exchange to 4 by
     # performing redundant computation in the first loop
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, {"depth": 4})
     invoke.schedule = schedule
     result = str(psy.gen)
@@ -4691,31 +4734,34 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     field to maximum depth. Also check that the halo exchange is not
     removed for the continuous case as the outer halo stays dirty.
     The halo should also have an if round it as we do not know how
-    much redundant computation we are doing. '''
+    much redundant computation we are doing.
+
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
     #
-    # at this point we know we need a halo exchange of depth 1 for f3
+    # f3 has "inc" access so there is a check for the halo exchange
+    # of depth 1
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
+
     # f3 halo exchange is not removed even though we redundantly
     # compute f3 as the redundant computation is on a continuous field
     # and therefore the outermost halo stays dirty. We can not be
     # certain whether the halo exchange is required or not as we don't
     # know the depth of the halo.
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    # we do not know whether we need the halo exchange so we include an if
+    # We do not know whether we need the halo exchange so we include an if
     assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
     #
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-    loop = schedule.children[4]
+    loop = schedule.children[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
     # f4 halo exchange is removed as it is redundantly computed to the
@@ -4734,16 +4780,20 @@ def test_rc_continuous_halo_remove():
     halo access depth. The reason for this is that the outer halo
     remains invalid when written to for a continuous field. Also check
     that we do remove the halo exchange when the redundant computation
-    depth is one more than the required halo access depth. '''
+    depth is one more than the required halo access depth.
+
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    f3_write_loop = schedule.children[3]
-    f3_read_loop = schedule.children[7]
+    f3_write_loop = schedule.children[4]
+    f3_read_loop = schedule.children[9]
+    # f3 has "inc" access so there is a check for the halo exchange
+    # of depth 1
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
     rc_trans.apply(f3_read_loop, {"depth": 3})
     rc_trans.apply(f3_write_loop, {"depth": 3})
     result = str(psy.gen)
@@ -4761,14 +4811,16 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
-    than the required halo access depth. '''
+    than the required halo access depth.
+
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    f4_write_loop = schedule.children[4]
-    f4_read_loop = schedule.children[7]
+    f4_write_loop = schedule.children[5]
+    f4_read_loop = schedule.children[9]
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
     assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
     rc_trans.apply(f4_read_loop, {"depth": 3})
@@ -4795,11 +4847,12 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
 
 
 def test_rc_reader_halo_remove():
-    '''check that we do not add an unnecessary halo exchange when we
+    ''' Check that we do not add an unnecessary halo exchange when we
     increase the depth of halo that a loop computes but the previous loop
     still computes deep enough into the halo to avoid needing a halo
-    exchange.'''
+    exchange.
 
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4811,16 +4864,16 @@ def test_rc_reader_halo_remove():
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # redundant computation to avoid halo exchange for f2
+    # Redundant computation to avoid halo exchange for f2
     schedule, _ = rc_trans.apply(schedule.children[1], {"depth": 2})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "CALL f2_proxy%halo_exchange(" not in result
 
-    # redundant computation to depth 2 in f2 reader loop should not
+    # Redundant computation to depth 2 in f2 reader loop should not
     # cause a new halo exchange as it is still covered by depth=2 in
     # the writer loop
-    schedule, _ = rc_trans.apply(schedule.children[2], {"depth": 2})
+    schedule, _ = rc_trans.apply(schedule.children[4], {"depth": 2})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "CALL f2_proxy%halo_exchange(" not in result
@@ -4940,13 +4993,15 @@ def test_stencil_rc_max_depth_1(monkeypatch):
 
 
 def test_rc_invalid_depth_type():
-    '''If an incorrect type is passed as a depth value to the redundant
+    ''' If an incorrect type is passed as a depth value to the redundant
     computation transformation an exception should be raised. This test
-    checks that this exception is raised as expected.'''
+    checks that this exception is raised as expected.
+
+    '''
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
@@ -5151,54 +5206,58 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned(tmpdir):
 
 
 def test_rc_no_directive():
-    '''When the redundant computation transformation is given a Loop whose
+    ''' When the redundant computation transformation is given a Loop whose
     parent is a directive an exception is raised as this is not
     supported (redundant computation transformations must be applied
     before directives are added). This test checks that this exception
-    is raised correctly.'''
+    is raised correctly.
+
+    '''
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create a colouring transformation and apply this to the loop
+    # Create a colouring transformation and apply this to the loop
     ctrans = Dynamo0p3ColourTrans()
-    schedule, _ = ctrans.apply(schedule[3])
+    schedule, _ = ctrans.apply(schedule[4])
 
-    # create an openmp transformation and apply this to the loop
+    # Create an openmp transformation and apply this to the loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule[3].loop_body[0])
+    schedule, _ = otrans.apply(schedule[4].loop_body[0])
 
-    # create a redundant computation transformation and apply this to the loop
+    # Create a redundant computation transformation and apply this to the loop
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(
-            schedule[3].loop_body[0].dir_body[0], {"depth": 1})
+            schedule[4].loop_body[0].dir_body[0], {"depth": 1})
     assert ("Redundant computation must be applied before directives are added"
             in str(excinfo.value))
 
 
 def test_rc_wrong_parent(monkeypatch):
-    '''When the redundant computation transformation is given a Loop which
+    ''' When the redundant computation transformation is given a Loop which
     has the wrong parent, and that parent is not a Directive (which is
     handled in a separate case) an exception is raised. This test
-    checks that this exception is raised correctly.'''
+    checks that this exception is raised correctly.
+
+    '''
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # make the parent of the loop a halo exchange
-    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+    # Make the parent of the loop a halo exchange
+    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = rc_trans.apply(schedule.children[3], {"depth": 1})
+        schedule, _ = rc_trans.apply(schedule.children[4], {"depth": 1})
     assert ("the parent of the supplied loop must be the DynInvokeSchedule, "
             "or a Loop") in str(excinfo.value)
 
 
 def test_rc_parent_loop_colour(monkeypatch):
-    '''If the parent of the loop supplied to the redundant computation
+    ''' If the parent of the loop supplied to the redundant computation
     transformation is a loop then
 
     1) the parent loop's parent should be a schedule. If this is not
@@ -5218,52 +5277,52 @@ def test_rc_parent_loop_colour(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # apply colouring
-    # create colour transformation
+    # Apply colouring
+    # Create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
-    # make the parent of the outermost loop something other than
+    # Make the parent of the outermost loop something other than
     # InvokeSchedule (we use halo exchange in this case)
-    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the DynInvokeSchedule"
             in str(excinfo.value))
 
-    # make the outermost loop iterate over cells (it should be
+    # Make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
     # exception is ecountered before the previous one.
-    monkeypatch.setattr(schedule.children[3], "_loop_type", "cells")
+    monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
-    # make the innermost loop iterate over cells (it should be
+    # Make the innermost loop iterate over cells (it should be
     # colour). We can ignore the previous monkeypatches as this
     # exception is encountered before the previous ones.
-    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'colour'" in str(excinfo.value))
 
 
 def test_rc_unsupported_loop_type(monkeypatch):
-    '''When an unsupported loop type is provided to the redundant
+    ''' When an unsupported loop type is provided to the redundant
     computation apply method an exception is raised. It is not
     possible to get to this exception in normal circumstances due to
     the validation tests so we monkey patch it. This test checks that
@@ -5274,30 +5333,30 @@ def test_rc_unsupported_loop_type(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # apply colouring
-    # create colour transformation
+    # Apply colouring
+    # Create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
-    # make the loop type invalid
-    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
+    # Make the loop type invalid
+    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "invalid")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # switch off validation
+    # Switch off validation
     monkeypatch.setattr(rc_trans, "validate",
                         lambda loop, options: None)
 
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
 def test_rc_colour_no_loop_decrease():
-    '''Test that we raise an exception if we try to reduce the size of a
+    ''' Test that we raise an exception if we try to reduce the size of a
     loop halo depth when using the redundant computation
     transformation. This is not allowed partly for simplicity but also
     because, in the current implementation we might not decrease the
@@ -5309,30 +5368,30 @@ def test_rc_colour_no_loop_decrease():
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # first set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[3].loop_body[0]
+    # First set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[4].loop_body[0]
     schedule, _ = rc_trans.apply(loop, {"depth": 2})
     invoke.schedule = schedule
-    # now try to reduce the redundant computation to the level 1 halo
+    # Now try to reduce the redundant computation to the level 1 halo
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 1})
     assert ("supplied depth (1) must be greater than the existing halo depth "
             "(2)") in str(excinfo.value)
-    # second set our loop to redundantly compute to the maximum halo depth
+    # Second set our loop to redundantly compute to the maximum halo depth
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
-    # now try to reduce the redundant computation to a fixed value
+    # Now try to reduce the redundant computation to a fixed value
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 2})
     assert ("loop is already set to the maximum halo depth so can't be "
             "set to a fixed value") in str(excinfo.value)
-    # now try to set the redundant computation to the same (max) value
+    # Now try to set the redundant computation to the same (max) value
     # it is now
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop)
@@ -5341,21 +5400,21 @@ def test_rc_colour_no_loop_decrease():
 
 
 def test_rc_colour(tmpdir):
-    '''Test that we can redundantly compute over a colour in a coloured
-    loop.'''
+    ''' Test that we can redundantly compute over a colour in a coloured
+    loop. '''
     psy, invoke = get_invoke("1_single_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
+    cschedule, _ = ctrans.apply(schedule.children[4])
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the colour loop
-    rc_trans.apply(cschedule.children[3].loop_body[0], {"depth": 2})
+    # Apply redundant computation to the colour loop
+    rc_trans.apply(cschedule.children[4].loop_body[0], {"depth": 2})
 
     result = str(psy.gen)
 
@@ -5389,22 +5448,22 @@ def test_rc_colour(tmpdir):
 
 
 def test_rc_max_colour(tmpdir):
-    '''Test that we can redundantly compute over a colour to the maximum
-    depth in a coloured loop.'''
+    ''' Test that we can redundantly compute over a colour to the maximum
+    depth in a coloured loop. '''
     psy, invoke = get_invoke("1_single_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
+    cschedule, _ = ctrans.apply(schedule.children[4])
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the colour loop out to the full
+    # Apply redundant computation to the colour loop out to the full
     # halo depth
-    rc_trans.apply(cschedule.children[3].loop_body[0])
+    rc_trans.apply(cschedule.children[4].loop_body[0])
 
     result = str(psy.gen)
     assert (
@@ -5454,7 +5513,7 @@ def test_colour_discontinuous():
 
 
 def test_rc_then_colour(tmpdir):
-    '''Test that we generate correct code when we first perform redundant
+    ''' Test that we generate correct code when we first perform redundant
     computation to a fixed depth then colour the loop.
 
     '''
@@ -5462,17 +5521,17 @@ def test_rc_then_colour(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # apply redundant computation to the loop, out to the level-3 halo
-    schedule, _ = rc_trans.apply(schedule.children[3], {"depth": 3})
+    # Apply redundant computation to the loop, out to the level-3 halo
+    schedule, _ = rc_trans.apply(schedule.children[4], {"depth": 3})
 
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
@@ -5509,7 +5568,7 @@ def test_rc_then_colour(tmpdir):
 
 
 def test_rc_then_colour2(tmpdir):
-    '''Test that we generate correct code when we first perform redundant
+    ''' Test that we generate correct code when we first perform redundant
     computation to the full depth then colour the loop.
 
     '''
@@ -5517,17 +5576,17 @@ def test_rc_then_colour2(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # apply redundant computation to the loop to the full halo depth
-    schedule, _ = rc_trans.apply(schedule.children[3])
+    # Apply redundant computation to the loop to the full halo depth
+    schedule, _ = rc_trans.apply(schedule.children[4])
 
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
@@ -5559,35 +5618,39 @@ def test_rc_then_colour2(tmpdir):
 
 
 def test_loop_fuse_then_rc(tmpdir):
-    '''Test that we are able to fuse two loops together, perform
-    redundant computation and then colour.'''
+    ''' Test that we are able to fuse two loops together, perform
+    redundant computation and then colour. '''
     psy, invoke = get_invoke("4_multikernel_invokes.f90",
                              TEST_API, name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
     ftrans = DynamoLoopFuseTrans()
 
-    # fuse the loops
-    schedule, _ = ftrans.apply(schedule.children[3],
-                               schedule.children[4])
+    # Fuse the loops
+    schedule, _ = ftrans.apply(schedule.children[4],
+                               schedule.children[5])
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # apply redundant computation to the loop
-    schedule, _ = rc_trans.apply(schedule.children[3])
+    # Apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(schedule.children[4])
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
     result = str(psy.gen)
 
     assert (
+        "      IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth()-1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=mesh%get_halo_depth()-1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF\n"
@@ -6445,19 +6508,23 @@ def test_async_hex_str():
 
 
 def test_async_hex(tmpdir):
-    '''Test that we can convert a synchronous halo exchange to an
+    ''' Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans transformation.
 
     '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    f2_hex = schedule.children[0]
+    f2_hex = schedule.children[1]
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
     result = str(psy.gen)
     assert (
         "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange_start(depth=1)\n"
@@ -6472,7 +6539,7 @@ def test_async_hex(tmpdir):
 
 
 def test_async_hex_move_1(tmpdir):
-    '''Test that we can convert a synchronous halo exchange to an
+    ''' Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move them before and after other halo exchanges
@@ -6482,15 +6549,15 @@ def test_async_hex_move_1(tmpdir):
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    m1_hex = schedule.children[1]
+    m1_hex = schedule.children[2]
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
-    schedule, _ = mtrans.apply(schedule.children[1],
-                               schedule.children[0])
-    schedule, _ = mtrans.apply(schedule.children[3],
-                               schedule.children[2])
+    schedule, _ = mtrans.apply(schedule.children[2],
+                               schedule.children[1])
+    schedule, _ = mtrans.apply(schedule.children[4],
+                               schedule.children[3])
     result = str(psy.gen)
     assert (
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
