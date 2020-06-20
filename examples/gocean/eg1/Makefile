@@ -35,11 +35,11 @@
 
 include ../../common.mk
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png
+GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
 
-.PHONY: basic openmp loop_fuse dag openacc
+.PHONY: basic openmp loop_fuse dag openacc opencl
 
-transform: basic openmp loop_fuse dag openacc
+transform: basic openmp loop_fuse dag openacc opencl
 
 compile: transform
 
@@ -57,3 +57,9 @@ dag:
 
 openacc:
 	${PYTHON} ./runme_openacc.py
+
+# The "--kernel-renaming single" parameter avoids generating duplicate
+# versions of OpenCL kernels called multiple times.
+opencl:
+	${PSYCLONE} -s ./opencl_transformation.py --kernel-renaming single \
+		-api gocean1.0 shallow_alg.f90

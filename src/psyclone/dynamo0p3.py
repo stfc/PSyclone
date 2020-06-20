@@ -2509,10 +2509,12 @@ class DynFields(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(datatype="gh_field")
-        if fld_args:
+        fld_args = self._invoke.unique_declarations(argument_type="gh_field")
+        # Create a list of field names
+        fld_arg_list = [arg.declaration_name for arg in fld_args]
+        if fld_arg_list:
             parent.add(TypeDeclGen(parent, datatype="field_type",
-                                   entity_decls=fld_args,
+                                   entity_decls=fld_arg_list,
                                    intent="in"))
 
     def _stub_declarations(self, parent):
@@ -2886,28 +2888,32 @@ class DynScalarArgs(DynCollection):
 
     :raises InternalError: if an unrecognised type of scalar argument is \
                            encountered.
+
     '''
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
 
+        # Create lists of real and integer scalar arguments
+        self._real_scalar_names = {}
+        self._int_scalar_names = {}
         if self._invoke:
-            self._real_scalars = self._invoke.unique_declns_by_intent(
-                "gh_real")
-            self._int_scalars = self._invoke.unique_declns_by_intent(
-                "gh_integer")
-        else:
-            # We have a kernel stub.
-            self._real_scalars = {}
-            self._int_scalars = {}
+            real_scalars = self._invoke.unique_declns_by_intent("gh_real")
+            int_scalars = self._invoke.unique_declns_by_intent("gh_integer")
             for intent in FORTRAN_INTENT_NAMES:
-                self._real_scalars[intent] = []
-                self._int_scalars[intent] = []
+                self._real_scalar_names[intent] = [arg.declaration_name for arg
+                                                   in real_scalars[intent]]
+                self._int_scalar_names[intent] = [arg.declaration_name for arg
+                                                  in int_scalars[intent]]
+        else:
+            for intent in FORTRAN_INTENT_NAMES:
+                self._real_scalar_names[intent] = []
+                self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     if arg.type == "gh_real":
-                        self._real_scalars[arg.intent].append(arg.name)
+                        self._real_scalar_names[arg.intent].append(arg.name)
                     elif arg.type == "gh_integer":
-                        self._int_scalars[arg.intent].append(arg.name)
+                        self._int_scalar_names[arg.intent].append(arg.name)
                     else:
                         raise InternalError(
                             "Scalar type '{0}' is in LFRicArgDescriptor."
@@ -2925,18 +2931,19 @@ class DynScalarArgs(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalars[intent]:
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   entity_decls=self._real_scalars[intent],
-                                   intent=intent))
+            if self._real_scalar_names[intent]:
+                parent.add(
+                    DeclGen(parent, datatype="real",
+                            kind=api_config.default_kind["real"],
+                            entity_decls=self._real_scalar_names[intent],
+                            intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalars[intent]:
+            if self._int_scalar_names[intent]:
                 parent.add(
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
-                            entity_decls=self._int_scalars[intent],
+                            entity_decls=self._int_scalar_names[intent],
                             intent=intent))
 
     def _stub_declarations(self, parent):
@@ -2998,10 +3005,12 @@ class DynLMAOperators(DynCollection):
 
         '''
         # Add the Invoke subroutine argument declarations for operators
-        op_args = self._invoke.unique_declarations(datatype="gh_operator")
-        if op_args:
+        op_args = self._invoke.unique_declarations(argument_type="gh_operator")
+        # Create a list of operator names
+        op_arg_list = [arg.declaration_name for arg in op_args]
+        if op_arg_list:
             parent.add(TypeDeclGen(parent, datatype="operator_type",
-                                   entity_decls=op_args,
+                                   entity_decls=op_arg_list,
                                    intent="in"))
 
 
@@ -3136,11 +3145,13 @@ class DynCMAOperators(DynCollection):
         # Add the Invoke subroutine argument declarations for column-wise
         # operators
         cma_op_args = self._invoke.unique_declarations(
-            datatype="gh_columnwise_operator")
-        if cma_op_args:
+            argument_type="gh_columnwise_operator")
+        # Create a list of column-wise operator names
+        cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
+        if cma_op_arg_list:
             parent.add(TypeDeclGen(parent,
                                    datatype="columnwise_operator_type",
-                                   entity_decls=cma_op_args,
+                                   entity_decls=cma_op_arg_list,
                                    intent="in"))
 
         for op_name in self._cma_ops:
@@ -4669,37 +4680,44 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
-    def unique_proxy_declarations(self, datatype, access=None):
-        ''' Returns a list of all required proxy declarations for the
-        specified datatype.  If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned.
-        :param str datatype: Datatype that proxy declarations are \
-                             searched for.
-        :param access: optional AccessType for the specified data type.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`.
-        :return: a list of all required proxy declarations for the \
-                 specified datatype.
-        :raises GenerationError: if datatype is invalid.
-        :raises InternalError: if an invalid access is specified, i.e. \
-                not of type AccessType.
+    def unique_proxy_declarations(self, argument_type, access=None):
         '''
-        if datatype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
-                "unique_proxy_declarations called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES), datatype))
+        Returns a list of all required proxy declarations for the specified
+        argument type. If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned.
+
+        :param str argument_type: argument type that proxy declarations are \
+                                  searched for.
+        :param access: optional AccessType for the specified argument type.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
+
+        :returns: a list of all required proxy declarations for the \
+                  specified argument type.
+        :rtype: list of str
+
+        :raises InternalError: if the supplied argument type is invalid.
+        :raises InternalError: if an invalid access is specified, i.e. \
+                               not of type AccessType.
+
+        '''
+        if argument_type not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
+            raise InternalError(
+                "DynInvoke.unique_proxy_declarations() called with an invalid "
+                "argument type. Expected one of {0} but found '{1}'".
+                format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
+                       argument_type))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
-                "unique_proxy_declarations called with an invalid access "
-                "type. Expected one of '{0}' but got '{1}'".
+                "DynInvoke.unique_proxy_declarations() called with an invalid "
+                "access type. Expected one of {0} but found '{1}'".
                 format(valid_names, access))
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
-                    if arg.text and arg.type == datatype:
+                    if arg.text and arg.type == argument_type:
                         if arg.proxy_declaration_name not in declarations:
                             declarations.append(arg.proxy_declaration_name)
         return declarations

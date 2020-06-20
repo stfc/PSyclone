@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,18 +30,47 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Authors: S. Siso, STFC Daresbury Lab
 
-.DEFAULT_GOAL := transform
+''' Module providing a PSyclone transformation script that converts the
+Schedule of each Invoke to use OpenCL. '''
 
-.PHONY: all transform compile notebook clean allclean
 
-all transform compile notebook clean allclean:
-	${MAKE} -C gocean $@
-	${MAKE} -C nemo $@
-	${MAKE} -C lfric $@
-	${MAKE} -C line_length $@
-	${MAKE} -C psyir $@
-	${MAKE} -C stub_generation $@
-	${MAKE} -C transformations $@
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Converts any global-variable
+    accesses into kernel arguments and then applies the OpenCL transformation
+    to the PSy layer.
+
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+    from psyclone.psyGen import TransInfo
+
+    # Get the necessary transformations
+    tinfo = TransInfo()
+    globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
+    cltrans = tinfo.get_trans_name('OCLTrans')
+
+    for invoke in psy.invokes.invoke_list:
+        print("Converting to OpenCL invoke: " + invoke.name)
+        schedule = invoke.schedule
+
+        # Skip invoke_2 as its kernels contains symbols declared outside of
+        # the subroutine scope. A fix to Issue #630 may solve this.
+        if invoke.name == "invoke_2":
+            continue
+
+        # Remove the globals from inside each kernel
+        for kern in schedule.kernels():
+            print("Remove glovals from kernel: " + kern.name)
+            globaltrans.apply(kern)
+
+        # Transform invoke to OpenCL
+        cltrans.apply(schedule)
+
+    return psy

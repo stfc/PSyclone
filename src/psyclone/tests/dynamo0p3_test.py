@@ -33,8 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic Met Office,
-#          C. M. Maynard, Met Office/University of Reading,
-#          J. Henrichs, Bureau of Meteorology.
+#          C. M. Maynard, Met Office/University of Reading.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -1703,21 +1702,23 @@ def test_op_any_discontinuous_space_2(tmpdir):
 
 
 def test_invoke_uniq_declns():
-    ''' tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid type '''
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
-    assert 'unique_declarations called with an invalid datatype' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declarations() called with an invalid argument "
+            "type. Expected one of {0} but found 'not_a_type'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            str(excinfo.value))
 
 
 def test_invoke_uniq_declns_invalid_access():
-    ''' tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid access type '''
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid access type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1725,12 +1726,12 @@ def test_invoke_uniq_declns_invalid_access():
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
-    assert 'unique_declarations called with an invalid access type' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declarations() called with an invalid access "
+            "type. Type is 'invalid_acc'" in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
-    ''' Tests all valid access modes for user-defined field arguments
+    ''' Tests that all valid access modes for user-defined field arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
     are accepted by Invoke.unique_declarations(). '''
 
@@ -1739,11 +1740,14 @@ def test_invoke_uniq_declns_valid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_read = psy.invokes.invoke_list[0]\
+    fields_read_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READ)
+    fields_read = [arg.declaration_name for arg in fields_read_args]
     assert fields_read == ["f2", "m1", "m2"]
-    fields_incremented = psy.invokes.invoke_list[0]\
+    fields_incremented_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.INC)
+    fields_incremented = [arg.declaration_name for arg in
+                          fields_incremented_args]
     assert fields_incremented == ["f1"]
 
     # Test WRITE
@@ -1751,8 +1755,9 @@ def test_invoke_uniq_declns_valid_access():
                                         "1_single_invoke_w3_only_vector.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_written = psy.invokes.invoke_list[0]\
+    fields_written_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.WRITE)
+    fields_written = [arg.declaration_name for arg in fields_written_args]
     assert fields_written == ["f1(3)"]
 
     # Test READWRITE
@@ -1760,37 +1765,44 @@ def test_invoke_uniq_declns_valid_access():
                                         "1_single_invoke_w2v.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    fields_readwritten = psy.invokes.invoke_list[0]\
+    fields_readwritten_args = psy.invokes.invoke_list[0]\
         .unique_declarations("gh_field", access=AccessType.READWRITE)
+    fields_readwritten = [arg.declaration_name for arg in
+                          fields_readwritten_args]
     assert fields_readwritten == ["f1"]
 
 
 def test_invoke_uniq_proxy_declns():
-    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid type '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
-    assert 'unique_proxy_declarations called with an invalid datatype' \
-        in str(excinfo.value)
-
-
-def test_uniq_proxy_declns_invalid_access():
-    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
-    is called for an invalid access type '''
+    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
+    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
+            "argument type. Expected one of {0} but found 'not_a_type'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            str(excinfo.value))
+
+
+def test_uniq_proxy_declns_invalid_access():
+    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid access type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    api_config = Config.get().api_conf("dynamo0.3")
+    valid_access_names = api_config.get_valid_accesses_api()
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             "gh_field",
             access="invalid_acc")
-    assert 'unique_proxy_declarations called with an invalid access type' \
-        in str(excinfo.value)
+    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
+            "access type. Expected one of {0} but found 'invalid_acc'".
+            format(valid_access_names) in str(excinfo.value))
 
 
 def test_dyninvoke_first_access():
@@ -1807,34 +1819,38 @@ def test_dyninvoke_first_access():
 
 
 def test_dyninvoke_uniq_declns_inv_type():
-    ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid argument type '''
+    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
+    is called for an invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
-    assert 'unique_declns_by_intent called with an invalid datatype' \
-        in str(excinfo.value)
+    assert ("Invoke.unique_declns_by_intent() called with an invalid "
+            "argument type. Expected one of {0} but found 'gh_invalid'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
+            str(excinfo.value))
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
     ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_fields. '''
+    list of arguments for 'gh_field' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
-    assert args['inout'] == ['f1']
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == ['f1']
     assert args['out'] == []
-    assert args['in'] == ['f2', 'm1', 'm2']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['f2', 'm1', 'm2']
 
 
 def test_dyninvoke_uniq_declns_intent_real():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_real '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_real' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1842,12 +1858,13 @@ def test_dyninvoke_uniq_declns_intent_real():
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
     assert args['inout'] == []
     assert args['out'] == []
-    assert args['in'] == ['a']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['a']
 
 
 def test_dyninvoke_uniq_declns_intent_int():
-    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_integer '''
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_integer' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1855,7 +1872,8 @@ def test_dyninvoke_uniq_declns_intent_int():
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
     assert args['inout'] == []
     assert args['out'] == []
-    assert args['in'] == ['istep']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['istep']
 
 
 def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
@@ -1867,8 +1885,32 @@ def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
     assert args['inout'] == []
-    assert args['out'] == ['op']
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == ['op']
     assert args['in'] == []
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for columnwise operator arguments. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.5_multi_cma_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    args = psy.invokes.invoke_list[0]\
+        .unique_declns_by_intent("gh_columnwise_operator")
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == ['cma_opc']
+    # 'cma_op1' is "write" arg in columnwise_op_asm_field_kernel_type call,
+    # then "read" arg in columnwise_op_app_kernel_type call and finally
+    # "readwrite" arg in columnwise_op_mul_kernel_type. Its intent should
+    # be "inout" rather than "out" and "in". This will be revisited in #801.
+    args_out = [arg.declaration_name for arg in args['out']]
+    assert args_out == ['cma_op1']
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['cma_op1', 'cma_opb']
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
