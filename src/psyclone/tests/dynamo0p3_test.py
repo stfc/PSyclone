@@ -5806,19 +5806,21 @@ def test_multi_anyw2(dist_mem, tmpdir):
         assert output in generated_code
 
 
-def test_anyw2_vectors():
-    '''Check generated code works correctly when we have any_w2 field
-    vectors'''
+def test_anyw2_vectors(dist_mem, tmpdir):
+    ''' Check generated code works correctly when we have any_w2 field
+    vectors. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.3_single_invoke_anyw2_vector.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        assert "f3_proxy(1) = f3(1)%get_proxy()" in generated_code
-        assert "f3_proxy(2) = f3(2)%get_proxy()" in generated_code
-        assert "f3_proxy(1)%data, f3_proxy(2)%data" in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert "f3_proxy(1) = f3(1)%get_proxy()" in generated_code
+    assert "f3_proxy(2) = f3(2)%get_proxy()" in generated_code
+    assert "f3_proxy(1)%data, f3_proxy(2)%data" in generated_code
 
 
 def test_anyw2_operators(dist_mem, tmpdir):
@@ -5853,25 +5855,27 @@ def test_anyw2_operators(dist_mem, tmpdir):
     assert output in generated_code
 
 
-def test_anyw2_stencils():
-    '''Check generated code works correctly when we have any_w2 fields
-    with stencils'''
+def test_anyw2_stencils(dist_mem, tmpdir):
+    ''' Check generated code works correctly when we have any_w2 fields
+    with stencils. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.5_single_invoke_anyw2_stencil.f90"),
         api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        output = (
-            "      ! Initialise stencil dofmaps\n"
-            "      !\n"
-            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap"
-            "(STENCIL_CROSS,extent)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-            "      f2_stencil_size = f2_stencil_map%get_size()\n"
-            "      !\n")
-        assert output in generated_code
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output = (
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap"
+        "(STENCIL_CROSS,extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      !\n")
+    assert output in generated_code
 
 
 def test_no_halo_for_discontinuous(tmpdir):
@@ -6504,7 +6508,9 @@ def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
         assert "CALL f2_proxy%halo_exchange" not in result
