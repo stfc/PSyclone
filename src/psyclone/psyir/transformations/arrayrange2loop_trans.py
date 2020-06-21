@@ -54,6 +54,28 @@ class ArrayRange2LoopTrans(Transformation):
     Loop.
 
     '''
+    @staticmethod
+    def string_compare(node1, node2):
+        '''Utility function to determine whether two node hierarchies are the
+        same by comparing their string representations.
+
+        :param node1: the first node involved in the comparison.
+        :type node1: :py:class:`psyclone.psyir.nodes.Node`
+        :param node2: the second node involved in the comparison.
+        :type node2: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: True if the string representations are the same and \
+            False otherwise.
+        :rtype: bool
+
+        '''
+        node1_str = ""
+        for node in node1.walk(Node):
+            node1_str += str(node)
+        node2_str = ""
+        for node in node2.walk(Node):
+            node2_str += str(node)
+        return node1_str == node2_str
 
     @staticmethod
     def same_range(array1, idx1, array2, idx2):
@@ -87,18 +109,19 @@ class ArrayRange2LoopTrans(Transformation):
         if not isinstance(array1, Range):
             raise TransformationError(
                 "The first argument to the same_range() method should be a "
-                "Range but found '{0}'.".format(type(array1).__name__)
+                "Range but found '{0}'.".format(type(array1).__name__))
         if not isinstance(idx1, int):
             raise TransformationError(
                 "The second argument to the same_range() method should be an "
-                "int but found '{0}'.".format(type(array2).__name__)
+                "int but found '{0}'.".format(type(array2).__name__))
         if not isinstance(array2, Range): 
             raise TransformationError(
                 "The third argument to the same_range() method should be a "
-                "Range but found '{0}'.".format(type(array2).__name__)
+                "Range but found '{0}'.".format(type(array2).__name__))
         if not isinstance(idx2, int):
+            raise TransformationError(
                 "The fourth argument to the same_range() method should be an "
-                "int but found '{0}'.".format(type(array2).__name__)
+                "int but found '{0}'.".format(type(array2).__name__))
         if not isinstance(array1.children[idx1], Range):
             raise TransformationError(
                 "The child of array1 at index idx1 is not a Range node.")
@@ -108,19 +131,61 @@ class ArrayRange2LoopTrans(Transformation):
         range1 = array1.children[idx1]
         range2 = array2.children[idx2]
 
-        # lower bounds
-        if (array1.is_lower_bound(idx1) != array2.is_lower_bound(idx2) and
-            not range1.lb_same_as(range2)):
+        # compare lower bounds
+        if array1.is_lower_bound(idx1) and array2.is_lower_bound(idx2):
+            # Both array1 and array2 use the lbound() intrinsic to
+            # specify the lower bound of the array dimension. We may
+            # not be able to determine what the lower bounds of these
+            # arrays are statically but at runtime the code will fail
+            # if the ranges do not match so we assume that the lower
+            # bounds are consistent.
+            pass
+        elif array1.is_lower_bound(idx1) or array2.is_lower_bound(idx2):
+            # One and only one of array1 and array2 use the lbound()
+            # intrinsic to specify the lower bound of the array
+            # dimension. In this case assume that the ranges are
+            # different (although they could potentially be the same).
             return False
-        # upper bounds
-        if (array1.is_upper_bound(idx1) != array2.is_upper_bound(idx2) and
-            not range1.ub_same_as(range2)):
+        elif not string_compare(range1.start, range2.start):
+            # Neither array1 nor array2 use the lbound() intrinsic to
+            # specify the lower bound of the array dimension. Try to
+            # determine if they are the same by matching the
+            # text. Some form of symbolic matching would be better
+            # here, or at least something similar to the math_equal
+            # approach.
             return False
-        # steps
-        if not range1.step_same_as(range2):
+
+        # compare upper bounds
+        if array1.is_upper_bound(idx1) and array2.is_upper_bound(idx2):
+            # Both array1 and array2 use the ubound() intrinsic to
+            # specify the upper bound of the array dimension. We may
+            # not be able to determine what the upper bounds of these
+            # arrays are statically but at runtime the code will fail
+            # if the ranges do not match so we assume that the upper
+            # bounds are consistent.
+            pass
+        elif array1.is_upper_bound(idx1) or array2.is_upper_bound(idx2):
+            # One and only one of array1 and array2 use the ubound()
+            # intrinsic to specify the upper bound of the array
+            # dimension. In this case assume that the ranges are
+            # different (although they could potentially be the same).
             return False
+        elif not string_compare(range1.stop, range2.stop):
+            # Neither array1 nor array2 use the ubound() intrinsic to
+            # specify the upper bound of the array dimension. Try to
+            # determine if they are the same by matching the
+            # text. Some form of symbolic matching would be better
+            # here, or at least something similar to the math_equal
+            # approach.
+            return False
+
+        # compare steps
+        if not string_compare(range1.step, range2.step):
+            return False
+
+        # Everything matches.
         return True
-        
+
     def apply(self, node):
         ''' xxx '''
         self.validate(node)
