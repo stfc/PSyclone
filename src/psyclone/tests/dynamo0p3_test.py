@@ -628,6 +628,10 @@ def test_field_deref(tmpdir, dist_mem):
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
+            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
             "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
@@ -962,6 +966,10 @@ def test_real_scalar(tmpdir):
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
@@ -2308,7 +2316,7 @@ def test_kern_colourmap(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
+    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
@@ -2326,7 +2334,7 @@ def test_kern_ncolours(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[3].loop_body[0]
+    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
@@ -2666,28 +2674,27 @@ def test_dynkernmetadata_read_fs_error():
             in str(info.value))
 
 
-def test_dynkernelargument_intent_invalid():
-    '''Tests that an error is raised in DynKernelArgument when an invalid
-    intent value is found. Tests with and without distributed memory '''
+def test_dynkernelargument_intent_invalid(dist_mem):
+    ''' Tests that an error is raised in DynKernelArgument when an invalid
+    intent value is found. Tests with and without distributed memory. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
-    for dist_mem in [False, True]:
-        if dist_mem:
-            idx = 3
-        else:
-            idx = 0
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        loop = schedule.children[idx]
-        call = loop.loop_body[0]
-        arg = call.arguments.args[0]
-        arg._access = "invalid"
-        with pytest.raises(GenerationError) as excinfo:
-            _ = arg.intent
-        assert "Expecting argument access to be one of 'gh_read," in \
-            str(excinfo.value)
+    if dist_mem:
+        idx = 4
+    else:
+        idx = 0
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[idx]
+    call = loop.loop_body[0]
+    arg = call.arguments.args[0]
+    arg._access = "invalid"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = arg.intent
+    assert "Expecting argument access to be one of 'gh_read," in \
+        str(excinfo.value)
 
 
 def test_arg_ref_name_method_error1():
@@ -3410,11 +3417,11 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
 
 
 def test_stencil_read_only():
-    '''test that an error is raised if a field with a stencil is not
-    accessed as gh_read'''
+    ''' Test that an error is raised if a field with a stencil is not
+    accessed as 'gh_read'. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = STENCIL_CODE.replace("gh_read, w2, stencil(cross)",
-                                "gh_write, w2, stencil(cross)", 1)
+                                "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
@@ -3580,13 +3587,13 @@ def test_lower_bound_fortran_1():
 
 
 def test_lower_bound_fortran_2(monkeypatch):
-    '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
-    method - second GenerationError'''
+    ''' Tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    method - second GenerationError. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
-    # we can not use the standard set_lower_bound function as that
+    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
+    # We can not use the standard set_lower_bound function as that
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value="invalid")
     with pytest.raises(GenerationError) as excinfo:
@@ -3601,12 +3608,12 @@ def test_lower_bound_fortran_2(monkeypatch):
                           ("cell_halo", 1, "ncells_cell()"),
                           ("cell_halo", 10, "cell_halo_cell(9)")])
 def test_lower_bound_fortran_3(monkeypatch, name, index, output):
-    '''test _lower_bound_fortran() with multiple valid iteration spaces'''
+    ''' Test _lower_bound_fortran() with multiple valid iteration spaces. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
-    # we can not use the standard set_lower_bound function as that
+    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
+    # We can not use the standard set_lower_bound function as that
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
     monkeypatch.setattr(my_loop, "_lower_bound_index", value=index)
@@ -3653,11 +3660,11 @@ def test_upper_bound_fortran_2(monkeypatch):
 
 def test_upper_bound_inner(monkeypatch):
     ''' Check that we get the correct Fortran generated if a loop's upper
-    bound is "inner" '''
+    bound is "inner". '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
+    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
     ubound = my_loop._upper_bound_fortran()
     assert ubound == "mesh%get_last_inner_cell(1)"
@@ -5566,79 +5573,79 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         assert output in generated_code
 
 
-def test_unexpected_type_error():
-    '''Check that we raise an exception if an unexpected datatype is found
+def test_unexpected_type_error(dist_mem):
+    ''' Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
-    the KernCallArgList sub class'''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "1.0.1_single_named_invoke.f90"),
-            api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.loop_body[0]
-        # sabotage one of the arguments to make it have an invalid type.
-        kernel.arguments.args[0]._type = "invalid"
-        # Now call KernCallArgList to raise an exception
-        create_arg_list = KernCallArgList(kernel)
-        with pytest.raises(GenerationError) as excinfo:
-            create_arg_list.generate()
-        assert (
-            "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
-            "generate()") in str(excinfo.value)
+    the KernCallArgList sub class.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.0.1_single_named_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if dist_mem:
+        index = 4
+    else:
+        index = 0
+    loop = schedule.children[index]
+    kernel = loop.loop_body[0]
+    # Sabotage one of the arguments to make it have an invalid type.
+    kernel.arguments.args[0]._type = "invalid"
+    # Now call KernCallArgList to raise an exception
+    create_arg_list = KernCallArgList(kernel)
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.generate()
+    assert (
+        "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
+        "generate()") in str(excinfo.value)
 
 
-def test_argordering_exceptions():
-    '''Check that we raise an exception if the abstract methods are called
-    in an instance of the ArgOrdering class '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "1.0.1_single_named_invoke.f90"),
-            api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.loop_body[0]
-        from psyclone.dynamo0p3 import ArgOrdering
-        create_arg_list = ArgOrdering(kernel)
-        for method in [create_arg_list.cell_map,
-                       create_arg_list.cell_position,
-                       create_arg_list.mesh_height,
-                       create_arg_list.mesh_ncell2d]:
-            with pytest.raises(NotImplementedError):
-                method()
-        for method in [create_arg_list.field_vector,
-                       create_arg_list.field,
-                       create_arg_list.stencil_unknown_extent,
-                       create_arg_list.stencil_unknown_direction,
-                       create_arg_list.stencil,
-                       create_arg_list.operator,
-                       create_arg_list.scalar,
-                       create_arg_list.fs_common,
-                       create_arg_list.fs_compulsory_field,
-                       create_arg_list.basis,
-                       create_arg_list.diff_basis,
-                       create_arg_list.orientation,
-                       create_arg_list.field_bcs_kernel,
-                       create_arg_list.operator_bcs_kernel,
-                       create_arg_list.banded_dofmap,
-                       create_arg_list.indirection_dofmap,
-                       create_arg_list.cma_operator]:
-            with pytest.raises(NotImplementedError):
-                method(None)
+def test_argordering_exceptions(dist_mem):
+    ''' Check that we raise an exception if the abstract methods are called
+    in an instance of the ArgOrdering class. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.0.1_single_named_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if dist_mem:
+        index = 4
+    else:
+        index = 0
+    loop = schedule.children[index]
+    kernel = loop.loop_body[0]
+    from psyclone.dynamo0p3 import ArgOrdering
+    create_arg_list = ArgOrdering(kernel)
+    for method in [create_arg_list.cell_map,
+                   create_arg_list.cell_position,
+                   create_arg_list.mesh_height,
+                   create_arg_list.mesh_ncell2d]:
+        with pytest.raises(NotImplementedError):
+            method()
+    for method in [create_arg_list.field_vector,
+                   create_arg_list.field,
+                   create_arg_list.stencil_unknown_extent,
+                   create_arg_list.stencil_unknown_direction,
+                   create_arg_list.stencil,
+                   create_arg_list.operator,
+                   create_arg_list.scalar,
+                   create_arg_list.fs_common,
+                   create_arg_list.fs_compulsory_field,
+                   create_arg_list.basis,
+                   create_arg_list.diff_basis,
+                   create_arg_list.orientation,
+                   create_arg_list.field_bcs_kernel,
+                   create_arg_list.operator_bcs_kernel,
+                   create_arg_list.banded_dofmap,
+                   create_arg_list.indirection_dofmap,
+                   create_arg_list.cma_operator]:
+        with pytest.raises(NotImplementedError):
+            method(None)
 
 
 def test_kernel_args_has_op():
@@ -5657,9 +5664,9 @@ def test_kernel_args_has_op():
 
 
 def test_kerncallarglist_args_error(dist_mem):
-    '''Check that we raise an exception if we call the methods that return
-    information in kerncallarglist without first calling the generate
-    method
+    ''' Check that we raise an exception if we call the methods that return
+    information in KernCallArgList without first calling the generate
+    method.
 
     '''
     _, invoke_info = parse(
@@ -5670,7 +5677,7 @@ def test_kerncallarglist_args_error(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     if dist_mem:
-        loop = schedule.children[3]
+        loop = schedule.children[4]
     else:
         loop = schedule.children[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])
@@ -6052,7 +6059,11 @@ def test_arg_discontinuous(monkeypatch, annexed):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].loop_body[0]
+    if annexed:
+        index = 3
+    else:
+        index = 4
+    kernel = schedule.children[index].loop_body[0]
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
     assert not field.discontinuous
@@ -6216,9 +6227,11 @@ def test_HaloReadAccess_input_field():
 
 
 def test_HaloReadAccess_field_in_call():
-    '''The field passed to HaloReadAccess should be within a kernel or
+    ''' The field passed to HaloReadAccess should be within a kernel or
     builtin. If it is not then an exception is raised. This test
-    checks that this exception is raised correctly'''
+    checks that this exception is raised correctly.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -6227,7 +6240,7 @@ def test_HaloReadAccess_field_in_call():
     field = halo_exchange.field
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field)
-    assert ("field 'f2' should be from a call but found "
+    assert ("field 'f1' should be from a call but found "
             "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
             in str(excinfo.value))
 
@@ -6469,7 +6482,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
 def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
                                      annexed):
-    '''If a kernel writes to a discontinuous field and also reads from a
+    ''' If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
     continuous field makes the annexed dofs valid then no halo
@@ -6494,9 +6507,10 @@ def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
     assert LFRicBuild(tmpdir).code_compiles(psy)
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
+        assert "CALL f2_proxy%halo_exchange" not in result
     else:
         assert "CALL f1_proxy%halo_exchange" in result
-    assert "CALL f2_proxy%halo_exchange" not in result
+        assert "CALL f2_proxy%halo_exchange" in result
 
 
 def test_annexed_default():
@@ -6621,7 +6635,7 @@ def test_dyncelliterators_err(monkeypatch):
 
 
 def test_kerncallarglist_positions_noquad(dist_mem):
-    '''Check that the positions methods (nlayers_positions, nqp_positions,
+    ''' Check that the positions methods (nlayers_positions, nqp_positions,
     ndf_positions) return the expected values when a kernel has no
     quadrature.
 
@@ -6633,7 +6647,7 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
     index = 0
     if dist_mem:
-        index = 3
+        index = 4
     loop = schedule.children[index]
     kernel = loop.loop_body[0]
     create_arg_list = KernCallArgList(kernel)
@@ -6647,7 +6661,7 @@ def test_kerncallarglist_positions_noquad(dist_mem):
 
 
 def test_kerncallarglist_positions_quad(dist_mem):
-    '''Check that the positions methods (nlayers_positions,
+    ''' Check that the positions methods (nlayers_positions,
     nqp_positions, nqp_positions, ndf_positions) return the
     expected values when a kernel has xyoz quadrature.
 
@@ -6660,7 +6674,7 @@ def test_kerncallarglist_positions_quad(dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
     index = 0
     if dist_mem:
-        index = 3
+        index = 4
     loop = schedule.children[index]
     kernel = loop.loop_body[0]
     create_arg_list = KernCallArgList(kernel)
