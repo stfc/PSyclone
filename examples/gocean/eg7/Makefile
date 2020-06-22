@@ -25,10 +25,11 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
 
-F90 ?= gfortran
-F90FLAGS ?= -g -O0
+include ../../common.mk
+
+GENERATED_FILES += alg.f90 psy.f90 *.o *.mod
 
 DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
 READ_ONLY_DIR = ../../../lib/read_only/dl_esm_inf
@@ -42,9 +43,12 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 EXEC = read_only_test
 
-all:	$(EXEC)
 
-$(EXEC):	$(KERNELS) alg.o psy.o $(READ_ONLY_DIR)/$(LIB_NAME)
+all: transform compile
+
+transform: alg.f90
+
+compile: $(KERNELS) alg.o psy.o $(READ_ONLY_DIR)/$(LIB_NAME)
 	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
 	-L$(READ_ONLY_DIR) -l_read_only \
 	-L $(DL_DIR) -l_fd
@@ -61,6 +65,3 @@ psy.o:	$(KERNELS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(READ_ONLY_DIR) -c $<
-
-clean:
-	rm -f *.o *.mod alg.f90 psy.f90 $(EXEC)
