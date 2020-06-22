@@ -46,7 +46,7 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.nodes import Loop, Literal, Range, Reference, \
-    BinaryOperation, Array, Assignment
+    BinaryOperation, Array, Assignment, Node
 
 
 class ArrayRange2LoopTrans(Transformation):
@@ -68,7 +68,17 @@ class ArrayRange2LoopTrans(Transformation):
             False otherwise.
         :rtype: bool
 
+        :raises: TypeError if the arguments are the wrong type.
+
         '''
+        if not isinstance(node1, Node):
+            raise TypeError(
+                "The first argument to the string_compare method should be a "
+                "Node but found '{0}'.".format(type(node1).__name__))
+        if not isinstance(node2, Node):
+            raise TypeError(
+                "The second argument to the string_compare method should be a "
+                "Node but found '{0}'.".format(type(node2).__name__))
         node1_str = ""
         for node in node1.walk(Node):
             node1_str += str(node)
@@ -85,9 +95,9 @@ class ArrayRange2LoopTrans(Transformation):
 
         The natural place to test the equivalence of two ranges is in
         the Range class. However, the test required here is slightly
-        different as we can assume that two array slices are the same
-        even if we don't know their actual sizes (as the code itself
-        would raise an exception if this were not the case).
+        different as it is valid to assume that two array slices are
+        the same even if their actual sizes are not known (as the code
+        would raise a runtime exception if this were not the case).
 
         :param array1: an array node containing a range node at index idx1.
         :type array1: py:class:`psyclone.psyir.node.Array`
@@ -102,31 +112,48 @@ class ArrayRange2LoopTrans(Transformation):
             are not the same, or if it is not possible to determine.
         :rtype: bool
 
-        :raises: TransformationError if one or more of the arguments \
-            are invalid.
+        :raises: TypeError if one or more of the arguments are of the \
+            wrong type.
 
         '''
-        if not isinstance(array1, Range):
-            raise TransformationError(
-                "The first argument to the same_range() method should be a "
-                "Range but found '{0}'.".format(type(array1).__name__))
+        if not isinstance(array1, Array):
+            raise TypeError(
+                "The first argument to the same_range() method should be an "
+                "Array but found '{0}'.".format(type(array1).__name__))
         if not isinstance(idx1, int):
-            raise TransformationError(
+            raise TypeError(
                 "The second argument to the same_range() method should be an "
-                "int but found '{0}'.".format(type(array2).__name__))
-        if not isinstance(array2, Range): 
-            raise TransformationError(
-                "The third argument to the same_range() method should be a "
-                "Range but found '{0}'.".format(type(array2).__name__))
+                "int but found '{0}'.".format(type(idx1).__name__))
+        if not isinstance(array2, Array): 
+            raise TypeError(
+                "The third argument to the same_range() method should be an "
+                "Array but found '{0}'.".format(type(array2).__name__))
         if not isinstance(idx2, int):
-            raise TransformationError(
+            raise TypeError(
                 "The fourth argument to the same_range() method should be an "
-                "int but found '{0}'.".format(type(array2).__name__))
+                "int but found '{0}'.".format(type(idx2).__name__))
+        if not idx1 < len(array1.children):
+            raise IndexError(
+                "The value of the second argument to the same_range() method "
+                "'{0}' should be less than the number of dimensions '{1}' in "
+                "the associated array 'array1'."
+                "".format(idx1, len(array1.children)))
+        if not idx2 < len(array2.children):
+            raise IndexError(
+                "The value of the fourth argument to the same_range() method "
+                "'{0}' should be less than the number of dimensions '{1}' in "
+                "the associated array 'array2'."
+                "".format(idx2, len(array2.children)))
         if not isinstance(array1.children[idx1], Range):
-            raise TransformationError(
-                "The child of array1 at index idx1 is not a Range node.")
+            raise TypeError(
+                "The child of array1 at index idx1 should be a Range node, "
+                "but found '{0}'."
+                "".format(type(array1.children[idx1]).__name__))
         if not isinstance(array2.children[idx2], Range):
-            raise TransformationError("XXX")
+            raise TypeError(
+                "The child of array2 at index idx2 should be a Range node, "
+                "but found '{0}'."
+                "".format(type(array2.children[idx2]).__name__))
 
         range1 = array1.children[idx1]
         range2 = array2.children[idx2]

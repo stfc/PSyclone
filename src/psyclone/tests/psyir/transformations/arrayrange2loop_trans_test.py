@@ -1,7 +1,7 @@
 import pytest
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, Range, Array, Assignment, Node, DataNode
 from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, INTEGER_TYPE, REAL_TYPE, Symbol
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -101,6 +101,93 @@ def test_transform():
     assert isinstance(ArrayRange2LoopTrans(), Transformation)
 
 
+def test_string_compare():
+    '''Check that the string_compare utility function in
+    ArrayRange2LoopTrans works as expected.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.string_compare(None, None)
+    assert (
+        "The first argument to the string_compare method should be a Node "
+        "but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.string_compare(Node(), None)
+    assert (
+        "The second argument to the string_compare method should be a Node "
+        "but found 'NoneType'." in str(info.value))
+
+    node1 = Literal("1.0", REAL_TYPE)
+    node2 = BinaryOperation.create(BinaryOperation.Operator.MUL, node1, node1)
+    node3 = BinaryOperation.create(BinaryOperation.Operator.MAX, node2, node2)
+    assert ArrayRange2LoopTrans.string_compare(node3, node3)
+    assert not ArrayRange2LoopTrans.string_compare(node3, node2)
+
+
+def test_same_range():
+    '''test that the same_range utility function behaves in the expected
+    way
+
+    '''
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.same_range(None, None, None, None)
+    assert ("The first argument to the same_range() method should be an "
+            "Array but found 'NoneType'." in str(info.value))
+
+    array_type = ArrayType(REAL_TYPE, [10])
+    array_value = Array.create(
+        DataSymbol("dummy", array_type), children=[DataNode("x")])
+    array_range = Array.create(
+        DataSymbol("dummy", array_type), children=[Range()])
+
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.same_range(array_value, None, None, None)
+    assert ("The second argument to the same_range() method should be an "
+            "int but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.same_range(array_value, 1, None, None)
+    assert ("The third argument to the same_range() method should be an "
+            "Array but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.same_range(array_value, 1, array_value, None)
+    assert ("The fourth argument to the same_range() method should be an "
+            "int but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(IndexError) as info:
+        ArrayRange2LoopTrans.same_range(array_value, 1, array_value, 2)
+    assert ("The value of the second argument to the same_range() method "
+            "'1' should be less than the number of dimensions '1' in the "
+            "associated array 'array1'." in str(info.value))
+
+    with pytest.raises(IndexError) as info:
+        ArrayRange2LoopTrans.same_range(array_value, 0, array_value, 2)
+    assert ("The value of the fourth argument to the same_range() method "
+            "'2' should be less than the number of dimensions '1' in the "
+            "associated array 'array2'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.same_range(array_value, 0, array_value, 0)
+    assert ("The child of array1 at index idx1 should be a Range node, but "
+            "found 'DataNode'" in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        ArrayRange2LoopTrans.same_range(array_range, 0, array_value, 0)
+    assert ("The child of array2 at index idx2 should be a Range node, but "
+            "found 'DataNode'" in str(info.value))
+
+    # ***********************************
+    # lower bounds both use lbound
+    # one of lower bounds uses lbound, other does not
+    # neither use lower bound and are different (calls string_compare)
+    # upper bounds both use ubound
+    # one of upper bounds uses ubound, other does not
+    # neither use upper bound and are different (calls string_compare)
+    # steps are different (calls string_compare)
+    # everything matches
+
 @pytest.mark.parametrize("lhs_create,rhs_create,result",
                          [(create_array_x, create_literal,
                            "  do idx = 1, 10, 1\n"
@@ -190,8 +277,3 @@ def test_validate():
         "Error in ArrayRange2LoopTrans transformation. The lhs of the "
         "supplied Assignment node should be a PSyIR Array with at least one "
         "of its dimensions being a Range, but found None." in str(info.value))
-
-    # all ranges are the same (check as we go along instead?)
-
-
-# Test fail with unsupported if ranges are different for different loops
