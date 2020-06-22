@@ -670,7 +670,7 @@ def test_extract_colouring_omp_dynamo0p3():
               """diff_basis_w0_qr)
       CALL extract_psy_data%PreDeclareVariable("diff_basis_w2_qr", """
               """diff_basis_w2_qr)
-      CALL extract_psy_data%PreDeclareVariable("e_proxy", e_proxy)
+      CALL extract_psy_data%PreDeclareVariable("e", e)
       CALL extract_psy_data%PreDeclareVariable("istp", istp)
       CALL extract_psy_data%PreDeclareVariable("map_w0", map_w0)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
@@ -702,7 +702,7 @@ def test_extract_colouring_omp_dynamo0p3():
               """diff_basis_w0_qr)
       CALL extract_psy_data%ProvideVariable("diff_basis_w2_qr", """
               """diff_basis_w2_qr)
-      CALL extract_psy_data%ProvideVariable("e_proxy", e_proxy)
+      CALL extract_psy_data%ProvideVariable("e", e)
       CALL extract_psy_data%ProvideVariable("istp", istp)
       CALL extract_psy_data%ProvideVariable("map_w0", map_w0)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)

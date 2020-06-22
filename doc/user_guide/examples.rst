@@ -51,18 +51,30 @@ to provide an overview of the various examples so that a user can find
 one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
 
+Alternatively, some of the examples have associated Jupyter notebooks
+that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+This is most easily done by following the links from the top-level
+`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by Travis
 alongside the test suite). The default target is ``transform`` which
 just performs the PSyclone code transformation steps for each
 example. For those examples that support it, the ``compile`` target
-also requests that the generated code be compiled.
+also requests that the generated code be compiled. The ``notebook``
+target checks the various Jupyter notebooks using ``nbconvert``.
 
 .. note:: if you have copied the examples directory to some other
 	  location but still wish to use ``make`` then you will also
 	  have to set the ``PSYCLONE_CONFIG`` environment variable to
 	  the full path to the PSyclone configuration file, e.g.
 	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
+
+Each of the Makefiles also provides the ``clean`` and ``allclean``
+targets.  The former simply removes all generated files while the
+latter also cleans each of the infrastructure libraries used when
+compiling the examples (``dl_timer``, ``dl_esm_inf`` and the various
+PSyData wrapper libraries).
 
 GOcean
 ------
