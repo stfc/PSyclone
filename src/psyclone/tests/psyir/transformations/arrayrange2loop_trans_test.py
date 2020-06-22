@@ -207,16 +207,16 @@ def test_same_range():
 
 @pytest.mark.parametrize("lhs_create,rhs_create,result",
                          [(create_array_x, create_literal,
-                           "  do idx = 1, 10, 1\n"
+                           "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
                            "    x(idx)=0.0\n"),
                           (create_array_x, create_array_y,
-                           "  do idx = 1, 10, 1\n"
+                           "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
                            "    x(idx)=y(n,idx)\n"),
                           (create_array_y, create_array_x,
-                           "  do idx = 1, 10, 1\n"
+                           "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
                            "    y(n,idx)=x(idx)\n"),
                           (create_array_y_2, create_array_z,
-                           "  do idx = 1, 20, 1\n"
+                           "  do idx = LBOUND(y, 1), UBOUND(y, 1), 1\n"
                            "    y(idx,:)=z(idx,n,:)\n"),
                           (create_array_y_3, create_expr,
                            "  do idx = 2, n, 2\n"
@@ -240,12 +240,21 @@ def test_transform_apply(lhs_create, rhs_create, result):
     assignment = Assignment.create(lhs, rhs)
     routine = KernelSchedule.create("work", symbol_table,
                                     [assignment])
+    print (result)
     trans.apply(assignment)
     writer = FortranWriter()
     print (writer(routine))
     assert result in writer(routine)
 
-# test_transform_apply2 - check that we call self.validate with an example
+
+def test_apply_calls_validate():
+    '''Check that the apply() method calls the validate method.'''
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.apply(None)
+    assert("Error in ArrayRange2LoopTrans transformation. The supplied node "
+           "argument should be a PSyIR Assignment, but found 'NoneType'."
+           in str(info.value))
 
 
 def test_str():
@@ -294,3 +303,17 @@ def test_validate():
         "Error in ArrayRange2LoopTrans transformation. The lhs of the "
         "supplied Assignment node should be a PSyIR Array with at least one "
         "of its dimensions being a Range, but found None." in str(info.value))
+
+    array_x = create_array_x(SymbolTable())
+    assignment = Assignment.create(
+        create_array_x(SymbolTable()), array_x)
+    trans.validate(assignment)
+
+    array_x.children[0].step = Literal("2", INTEGER_TYPE)
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assignment)
+    assert (
+        "The ArrayRange2LoopTrans transformation only supports ranges that "
+        "are known to be the same as each other but array access 'x' "
+        "dimension 0 and 'x' dimension 0 are either different or can't be "
+        "determined." in str(info.value))

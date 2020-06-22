@@ -214,7 +214,17 @@ class ArrayRange2LoopTrans(Transformation):
         return True
 
     def apply(self, node):
-        ''' xxx '''
+        '''Apply the ArrayRange2Loop transformation to the specified node. The
+        node must be an assignment. The first range node in each array
+        within the assignment is replaced with a loop index and the
+        assignment is placed within a loop iterating over that
+        index. The bounds of the loop are determined from the bounds
+        of the array range on the left hand side of the assignment.
+
+        :param node: an Assignment node.
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+
+        '''
         self.validate(node)
 
         parent = node.parent
@@ -306,7 +316,7 @@ class ArrayRange2LoopTrans(Transformation):
                         # We could add support for adding loop
                         # variables where the ranges are different.
                         if not ArrayRange2LoopTrans.same_range(
-                                node.lhs, lhs_index, child, idx):
+                                node.lhs, lhs_index, array, idx):
                             # Ranges are, or may be, different so we
                             # can't safely replace this range with a
                             # loop iterator.
