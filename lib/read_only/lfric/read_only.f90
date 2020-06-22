@@ -72,6 +72,13 @@ module read_only_verify_psy_data_mod
         !! to 'verify checksum'.
         logical :: verify_checksums
 
+        !> Verbosity level for output at runtime. This is taken from the
+        !! PSYDATA_VERBOSE environment variable.
+        !! 0: Only errors will be written (PSYDATA_VERBOSE undefined)
+        !! 1: Additionally write the name of the confirmed kernel_name
+        !! 2: Also write the name of each tested variable
+        integer :: verbosity
+
         !> Store the name of the module and region
         character(MAX_STRING_LENGTH) :: module_name, region_name
 
@@ -142,13 +149,34 @@ Contains
         character(*), intent(in) :: module_name, region_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
 
+        character(1) :: verbose
+        integer :: status
+
+        call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
+        this%verbosity=0
+        if (status==0) then
+            if(verbose=="0") then
+                this%verbosity = 0
+            else if (verbose=="1") then
+                this%verbosity = 1
+            else if (verbose=="2") then
+                this%verbosity = 2
+            else
+                print *,"PSyData: invalid setting of PSYDATA_VERBOSE."
+                print *,"It must be '0', 1' or '2', but it is '", verbose,"'."
+                this%verbosity = 0
+            endif
+        endif
+
         if (num_pre_vars /= num_post_vars) then
-            print *,"The same number of variables must be provided before and"
-            print *,"after the instrumented region. But the values are:"
+            print *,"PSYDATA: The same number of variables must be provided before"
+            print *,"and after the instrumented region. But the values are:"
             print *,"Before: ", num_pre_vars, " after: ", num_post_vars
             stop
         endif
-        print *,"PreStart ", module_name, " ", region_name
+        if(this%verbosity>0) &
+            print *,"PSYDATA: checking ", module_name, " ", region_name
+
         this%count_checksums = 0
         this%verify_checksums = .false.
         this%module_name = module_name
@@ -162,18 +190,17 @@ Contains
     subroutine PreEndDeclaration(this)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
-        print *,"PreEndDecl, #vars ", this%count_checksums
-        flush(6)
+
         ! During the declaration the number of checksums to be
-        ! stored was counted, so allocate the array now:
+        ! stored was counted, so allocate the array now (if it has
+        ! not been allocated already):
         if (.not. allocated(this%checksums)) then
             allocate(this%checksums(this%count_checksums))
         endif
-        print *,"PreEndDecl2, #vars ", this%count_checksums, shape(this%checksums)
-        flush(6)
-
+        ! Reset the pointer to the next checksum index to use
         this%next_var_index = 1
     end subroutine PreEndDeclaration
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the value of all variables has been
     !! provided (and declared). After this call the instrumented region will
@@ -183,6 +210,7 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
     end subroutine PreEnd
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
@@ -197,6 +225,7 @@ Contains
         this%verify_checksums = .true.
         this%next_var_index = 1
     end subroutine PostStart
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
@@ -205,6 +234,9 @@ Contains
     subroutine PostEnd(this)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
+        if(this%verbosity>0) &
+            print *,"PSYDATA: checked  ", trim(this%module_name), &
+                    " ", trim(this%region_name)
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
@@ -236,18 +268,19 @@ Contains
             if (value /= this%checksums(this%next_var_index)) then
                 print *,"--------------------------------------"
                 print *,"Integer variable ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                    trim(this%module_name)," : ", trim(this%region_name)
                 ! In case of integer variables, we can use the checksum as the
                 ! original value:
                 print *,"Original value: ", this%checksums(this%next_var_index)
                 print *,"New value:      ", value
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = value
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumScalarInt
 
     ! -------------------------------------------------------------------------
@@ -285,16 +318,17 @@ Contains
             if (checksum /= this%checksums(this%next_var_index)) then
                 print *,"--------------------------------------"
                 print *,"Integer array ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                    trim(this%module_name)," : ", trim(this%region_name)
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", checksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumArray1dInt
 
     ! -------------------------------------------------------------------------
@@ -334,16 +368,17 @@ Contains
             if (checksum /= this%checksums(this%next_var_index)) then
                 print *,"--------------------------------------"
                 print *,"2d Integer array ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                    trim(this%module_name)," : ", trim(this%region_name)
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", checksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumArray2dInt
 
     ! -------------------------------------------------------------------------
@@ -385,16 +420,17 @@ Contains
             if (checksum /= this%checksums(this%next_var_index)) then
                 print *,"--------------------------------------"
                 print *,"3d Integer array ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                    trim(this%module_name)," : ", trim(this%region_name)
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", checksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumArray3dInt
 
     ! -------------------------------------------------------------------------
@@ -429,7 +465,7 @@ Contains
         ! no undefined bits in result)
         chksum32 = transfer(value, chksum32)
         ! Now assign to 64 bit, so we have a 64 bit checksum
-        ! without potentiall undefined bits.
+        ! without potentially undefined bits.
         chksum64 = chksum32
 
         if(this%verify_checksums) then
@@ -439,16 +475,17 @@ Contains
                 orig_value = transfer(chksum32, orig_value)
                 print *,"--------------------------------------"
                 print *,"Real variable ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                    trim(this%module_name)," : ", trim(this%region_name)
                 print *,"Original value: ", orig_value
                 print *,"New value:      ", value
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = chksum64
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumScalarReal
 
     ! -------------------------------------------------------------------------
@@ -482,16 +519,17 @@ Contains
             if(this%checksums(this%next_var_index) /= checksum) then
                 print *,"--------------------------------------"
                 print *,"1d double array ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                    trim(this%module_name)," : ", trim(this%region_name)
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", checksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumArray1dDouble
 
     ! -------------------------------------------------------------------------
@@ -529,12 +567,13 @@ Contains
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", checksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", trim(name), checksum
     end subroutine ChecksumArray3dDouble
 
     ! -------------------------------------------------------------------------
@@ -567,17 +606,18 @@ Contains
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= checksum) then
                 print *,"--------------------------------------"
-                print *,"3d double array ", name, " has been modified in ", &
-                    this%module_name," : ", this%region_name
+                print *,"4d double array ", name, " has been modified in ", &
+                    trim(this%module_name)," : ", trim(this%region_name)
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", checksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumArray4dDouble
 
     ! -------------------------------------------------------------------------
@@ -618,12 +658,13 @@ Contains
                 print *,"Original value: ", orig_value
                 print *,"New value:      ", value
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumScalarDouble
 
     ! -------------------------------------------------------------------------
@@ -639,7 +680,6 @@ Contains
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), intent(in) :: value
-        print *,"Declare field ", name
         this%count_checksums = this%count_checksums + 1
     end subroutine DeclareFieldDouble
 
@@ -662,8 +702,6 @@ Contains
 
         value_proxy = value%get_proxy()
         cksum = ComputeChecksum1d(value_proxy%data)
-        print *,"Provide field ", name, value_proxy%data(1), cksum, size(value_proxy%data, 1), shape(value_proxy%data)
-        print *,"LOC", loc(value_proxy%data(1))
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= cksum) then
                 print *,"--------------------------------------"
@@ -672,12 +710,13 @@ Contains
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", cksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum
         endif
         this%next_var_index = this%next_var_index + 1
-        print *,"Checked: ", name
     end subroutine ChecksumFieldDouble
 
     ! -------------------------------------------------------------------------
@@ -693,7 +732,6 @@ Contains
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), dimension(3), intent(in) :: value
-        print *,"Declare", name, " size ", size(value, 1)
         this%count_checksums = this%count_checksums + size(value, 1)
     end subroutine DeclareFieldVectorDouble
 
@@ -715,18 +753,17 @@ Contains
         type(field_proxy_type) :: value_proxy
         integer(kind=int64):: cksum
         integer :: i
-        character(512) :: new_name
-        print *,"checksumfieldvectordouble", size(value, 1)
-        return
+        ! Enough for a 6 digit number plus '()'
+        character(8) :: index_string
 
+        ! Provide each member of the vector as a normal field. This way
+        ! the checksum will be computed for each member individually.
         do i=1, size(value, 1)
             value_proxy = value(i)%get_proxy()
-            print *,"Provide vector", name, value_proxy%data(1), size(value_proxy%data, 1), shape(value_proxy%data)
-            new_name = name
-            call this%ChecksumFieldDouble(name, value(i))
+            write(index_string, '("(",i0,")")') i
+            call this%ChecksumFieldDouble(name//trim(index_string), value(i))
             this%next_var_index = this%next_var_index + 1
         enddo
-        print *,"Checked: ", name
     end subroutine ChecksumFieldVectorDouble
 
     ! -------------------------------------------------------------------------
@@ -736,23 +773,21 @@ Contains
         implicit none
         integer(kind=int64) :: checksum
         double precision, dimension(:) :: field
-        integer :: j
-        print *,"computechecksum1d", field(1), size(field, 1), shape(field), transfer(field(1), checksum)
+        integer :: i
         checksum = 0
-        do j=1, size(field, 1)
-            checksum = checksum + transfer(field(j), checksum)
+        do i=1, size(field, 1)
+            checksum = checksum + transfer(field(i), checksum)
         enddo
     end function ComputeChecksum1d
 
     ! -------------------------------------------------------------------------
-    !> This function computes a 64-bit integer checksum for a 4d double
+    !> This function computes a 64-bit integer checksum for a 3d double
     !! precision Fortran array.
     function ComputeChecksum3d(field) result(checksum)
         implicit none
         integer(kind=int64) :: checksum
         double precision, dimension(:,:,:) :: field
         integer :: i, j, k
-        print *,"computechecksum3d", size(field, 1), size(field, 2), size(field, 3), shape(field)
         checksum = 0
         do k=1, size(field, 3)
             do j=1, size(field, 2)
@@ -771,13 +806,12 @@ Contains
         integer(kind=int64) :: checksum
         double precision, dimension(:,:,:,:) :: field
         integer :: i, j, k, l
-        print *,"computechecksum4d", size(field, 1), size(field, 2), size(field, 3), shape(field)
         checksum = 0
         do l=1, size(field, 4)
             do k=1, size(field, 3)
                 do j=1, size(field, 2)
                     do i=1, size(field, 1)
-                        checksum = checksum + transfer(field(i,j,k, l), checksum)
+                        checksum = checksum + transfer(field(i,j,k,l), checksum)
                     enddo
                 enddo
             enddo
