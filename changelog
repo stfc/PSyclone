@@ -20,6 +20,9 @@
         9) #792 for #789. Return kernel argument objects instead of just names
 	from unique_declarations() and unique_declarations_by_intent().
 
+	10) #750 for #575. Add support for jupyter notebooks with links to
+	binder for some examples.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

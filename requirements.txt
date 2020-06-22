@@ -30,18 +30,11 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory.
 
-.DEFAULT_GOAL := transform
-
-.PHONY: all transform compile notebook clean allclean
-
-all transform compile notebook clean allclean:
-	${MAKE} -C gocean $@
-	${MAKE} -C nemo $@
-	${MAKE} -C lfric $@
-	${MAKE} -C line_length $@
-	${MAKE} -C psyir $@
-	${MAKE} -C stub_generation $@
-	${MAKE} -C transformations $@
+# Python packages required for Binder and not installed by default
+# when using setup.py. (See README.md for details on launching the
+# examples on Binder.)
+termcolor
+graphviz

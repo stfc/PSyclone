@@ -131,6 +131,7 @@ if __name__ == '__main__':
         install_requires=['pyparsing', 'fparser==0.0.11', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
+            'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
             'test': ["pep8", "pylint==1.6.5", "pytest-cov",
                      "pytest-pep8", "pytest-pylint", "pytest-flakes",
