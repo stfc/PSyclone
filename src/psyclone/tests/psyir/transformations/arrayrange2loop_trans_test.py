@@ -177,16 +177,33 @@ def test_same_range():
         ArrayRange2LoopTrans.same_range(array_range, 0, array_value, 0)
     assert ("The child of array2 at index idx2 should be a Range node, but "
             "found 'DataNode'" in str(info.value))
+    
+    # lower bounds both use lbound, upper bounds both use ubound and
+    # step is the same so everything matches.
+    array_x = create_array_x(SymbolTable())
+    array_x_2 = create_array_x(SymbolTable())
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
 
-    # ***********************************
-    # lower bounds both use lbound
-    # one of lower bounds uses lbound, other does not
-    # neither use lower bound and are different (calls string_compare)
-    # upper bounds both use ubound
-    # one of upper bounds uses ubound, other does not
-    # neither use upper bound and are different (calls string_compare)
     # steps are different (calls string_compare)
-    # everything matches
+    array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
+    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+
+    # one of upper bounds uses ubound, other does not
+    array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
+    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    
+    # neither use upper bound and are different (calls string_compare)
+    array_x.children[0].stop = Literal("1", INTEGER_TYPE)
+    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+
+    # one of lower bounds uses lbound, other does not
+    array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
+    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    
+    # neither use lower bound and are different (calls string_compare)
+    array_x.children[0].start = Literal("2", INTEGER_TYPE)
+    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+
 
 @pytest.mark.parametrize("lhs_create,rhs_create,result",
                          [(create_array_x, create_literal,

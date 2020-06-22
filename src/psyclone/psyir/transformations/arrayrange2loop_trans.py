@@ -173,7 +173,7 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not string_compare(range1.start, range2.start):
+        elif not ArrayRange2LoopTrans.string_compare(range1.start, range2.start):
             # Neither array1 nor array2 use the lbound() intrinsic to
             # specify the lower bound of the array dimension. Try to
             # determine if they are the same by matching the
@@ -197,7 +197,7 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not string_compare(range1.stop, range2.stop):
+        elif not ArrayRange2LoopTrans.string_compare(range1.stop, range2.stop):
             # Neither array1 nor array2 use the ubound() intrinsic to
             # specify the upper bound of the array dimension. Try to
             # determine if they are the same by matching the
@@ -207,7 +207,7 @@ class ArrayRange2LoopTrans(Transformation):
             return False
 
         # compare steps
-        if not string_compare(range1.step, range2.step):
+        if not ArrayRange2LoopTrans.string_compare(range1.step, range2.step):
             return False
 
         # Everything matches.
