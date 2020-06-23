@@ -94,9 +94,10 @@ def create_indexed_range(symbol_table):
     return Range.create(lbound, ubound, step)
 
 
-def create_literal():
+def create_literal(_):
     '''Utility routine that creates and returns a literal node. We choose
-    a real with value 0.0 but it could be any literal type.
+    a real with value 0.0 but it could be any literal type. Takes an
+    empty argument to be consistent with other create calls.
 
     :returns: a real literal node with value 0.0.
     :rtype: :py:class:`psyclone.psyir.nodes.Literal
@@ -360,7 +361,7 @@ def test_same_range():
 
 
 @pytest.mark.parametrize("lhs_create,rhs_create,result",
-                         [(create_array_x, create_literal(),
+                         [(create_array_x, create_literal,
                            "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
                            "    x(idx)=0.0\n"),
                           (create_array_x, create_array_y,
