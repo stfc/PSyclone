@@ -268,7 +268,7 @@ class Array(Reference):
 
         '''
         self._check_index(index)
-        
+
         array_dimension = self.children[index]
         if not isinstance(array_dimension, Range):
             return False
@@ -286,7 +286,7 @@ class Array(Reference):
                 and lower.children[1].value == str(index+1)):
             return False
         return True
-        
+
     def is_upper_bound(self, index):
         '''Returns True if the array index contains a Range Node that
         specifies the "stop" part of the (start, stop, step) range
@@ -324,7 +324,7 @@ class Array(Reference):
                 and upper.children[1].value == str(index+1)):
             return False
         return True
-        
+
     def is_full_range(self, index):
         '''Returns True if the specified array index is a Range Node that
         specifies all elements in this index. In the PSyIR this is
@@ -347,7 +347,7 @@ class Array(Reference):
             if self.is_lower_bound(index) and self.is_upper_bound(index):
                 step = array_dimension.children[2]
                 if (isinstance(step, Literal) and
-                    step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-                    and step.value == "1"):
+                        step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+                        and step.value == "1"):
                     return True
         return False

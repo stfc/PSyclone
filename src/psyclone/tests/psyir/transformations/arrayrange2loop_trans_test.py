@@ -1,18 +1,70 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2020, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author R. W. Ford, STFC Daresbury Lab
+
+'''Module containing tests for the ArrayRange2LoopTrans
+transformation.'''
+
+from __future__ import absolute_import
+
 import pytest
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, Range, Array, Assignment, Node, DataNode
-from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, INTEGER_TYPE, REAL_TYPE, Symbol
-from psyclone.psyir.transformations import ArrayRange2LoopTrans
+
+from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
+    Range, Array, Assignment, Node, DataNode
+from psyclone.psyGen import KernelSchedule, Transformation
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
+    INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
+    TransformationError
 from psyclone.psyir.backend.fortran import FortranWriter
-
-from psyclone.transformations import TransformationError, Transformation
-
-# fparser2reader: is_bound_full_extent, is_range_full_extent
-# fparser2reader: check_array_range_literal
 
 
 def create_range(array_symbol, dim):
-    ''' helper '''    
+    '''Utility routine that creates and returns a Range Node that
+    specifies the full range of the supplied dimension (dim) in the
+    array (array_symbol). This is done using the LBOUND and UBOUND
+    intrinsics.
+
+    :param array_symbol: the array of interest.
+    :type array_symbol: :py:class:`psyclone.psyir.symbol.ArraySymbol`
+    :param int dim: the dimension of interest in the array.
+
+    :returns: a range node specifying the full range of the supplied \
+        array dimension.
+    :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+    '''
     int_dim = Literal(str(dim), INTEGER_TYPE)
     lbound = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
@@ -23,45 +75,114 @@ def create_range(array_symbol, dim):
     return Range.create(lbound, ubound)
 
 
-def create_indexed_range(array_symbol, symbol_table):
-    ''' helper '''    
+def create_indexed_range(symbol_table):
+    '''Utility routine that creates and returns a Range Node that
+    specifies a range from "2" to "n" step "2" for the supplied dimension
+    (dim) in the array (array_symbol).
+
+    :param symbol_table: the symbol table holding the variable "n".
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: a range node specifying a range from 2 to n with a step \
+        of 2 for the supplied array dimension.
+    :rtype: :py:class:`psyclone.psyir.nodes.Range`
+
+    '''
     lbound = Literal("2", INTEGER_TYPE)
     ubound = Reference(symbol_table.lookup("n"))
     step = Literal("2", INTEGER_TYPE)
     return Range.create(lbound, ubound, step)
 
 
-def create_literal(_):
-    ''' helper '''
+def create_literal():
+    '''Utility routine that creates and returns a literal node. We choose
+    a real with value 0.0 but it could be any literal type.
+
+    :returns: a real literal node with value 0.0.
+    :rtype: :py:class:`psyclone.psyir.nodes.Literal
+
+    '''
     return Literal("0.0", REAL_TYPE)
 
 
 def create_array_x(symbol_table):
-    ''' helper '''
+    '''Utility routine that create and returns an array reference to a 1
+    dimensional array "x". The array reference accesses the all
+    elements in the array dimension using a range node.
+
+    :param symbol_table: the symbol table to which we add the array \
+        symbol.
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: an array reference that accesses all elements of the \
+        array "x".
+    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+
+    '''
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol, [create_range(array_symbol, 1)])
 
 
 def create_array_y(symbol_table):
-    ''' helper '''
-    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10,10]))
+    '''Utility routine that create and returns an array reference to a 2
+    dimensional array "y". The array reference accesses all elements
+    in the arrays 2nd dimension using a range node and the n'th
+    element of the 1st dimension.
+
+    :param symbol_table: the symbol table to which we add the array \
+        symbol and access the symbol "n".
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: an array reference that accesses all elements of the \
+        array "y"'s 2nd dimension and the n'th element of its 1st \
+        dimension.
+    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+
+    '''
+    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol, [Reference(symbol_table.lookup("n")),
                                        create_range(array_symbol, 2)])
 
 
 def create_array_y_2(symbol_table):
-    ''' helper '''
-    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [20,10]))
+    '''Utility routine that create and returns an array reference to a 2
+    dimensional array "y". The array reference accesses all elements
+    in the arrays 1st and 2nd dimensions using range nodes.
+
+    :param symbol_table: the symbol table to which we add the array \
+        symbol.
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: an array reference that accesses all elements of the \
+        array "y"'s 1st and 2nd dimensions.
+    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+
+    '''
+    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [20, 10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol, [create_range(array_symbol, 1),
                                        create_range(array_symbol, 2)])
 
 
 def create_array_z(symbol_table):
-    ''' helper '''
-    array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [20,10,10]))
+    '''Utility routine that create and returns an array reference to a 3
+    dimensional array "z". The array reference accesses all elements
+    in the arrays 1st and 3rd dimensions using range nodes and access
+    element "n" in its second dimension.
+
+    :param symbol_table: the symbol table to which we add the array \
+        symbol and access the symbol "n"
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: an array reference that accesses all elements of the \
+        array "z"'s 1st and 3rd dimensions and the n'th element of its \
+        second dimension.
+    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+
+    '''
+    array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [20, 10, 10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol, [create_range(array_symbol, 1),
                                        Reference(symbol_table.lookup("n")),
@@ -69,25 +190,58 @@ def create_array_z(symbol_table):
 
 
 def create_array_y_3(symbol_table):
-    ''' helper '''
-    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10,10]))
+    '''Utility routine that create and returns an array reference to a 2
+    dimensional array "y". The array reference accesses elements 2 to
+    "n" step 2 in the arrays 2nd dimension using a range node and the
+    n'th element of the 1st dimension.
+
+    :param symbol_table: the symbol table to which we add the array \
+        symbol and access the symbol "n".
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: an array reference that accesses elements 2 to "n" step \
+        2 in the array "y"'s 2nd dimension and the n'th element of its \
+        1st dimension.
+    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+
+    '''
+    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol, [Reference(symbol_table.lookup("n")),
-                                       create_indexed_range(array_symbol, symbol_table)])
+    return Array.create(array_symbol,
+                        [Reference(symbol_table.lookup("n")),
+                         create_indexed_range(symbol_table)])
+
 
 def create_expr(symbol_table):
-    ''' xxx '''
+    '''Utility routine that create and returns an expression containing a
+    number of array references containing range nodes. The expression
+    looks like the following (using Fortran notation):
+
+    x(2:n:2)*z(1,2:n:2)+a(1)
+
+    :param symbol_table: the symbol table to which we add the array \
+        symbol.
+    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+
+    :returns: an expression containing 3 array references, 2 of which \
+        contain ranges.
+    :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+
+    '''
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
-    array_x = Array.create(array_symbol, [create_indexed_range(array_symbol, symbol_table)])
-    array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [10,10]))
+    array_x = Array.create(array_symbol,
+                           [create_indexed_range(symbol_table)])
+    array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    array_z = Array.create(array_symbol, [Literal("1", INTEGER_TYPE),
-                                          create_indexed_range(array_symbol, symbol_table)])
+    array_z = Array.create(array_symbol,
+                           [Literal("1", INTEGER_TYPE),
+                            create_indexed_range(symbol_table)])
     array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
     array_a = Array.create(array_symbol, [Literal("1", INTEGER_TYPE)])
     symbol_table.add(array_symbol)
-    mult = BinaryOperation.create(BinaryOperation.Operator.MUL, array_x, array_z)
+    mult = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, array_x, array_z)
     add = BinaryOperation.create(BinaryOperation.Operator.ADD, mult, array_a)
     return add
 
@@ -126,8 +280,8 @@ def test_string_compare():
 
 
 def test_same_range():
-    '''test that the same_range utility function behaves in the expected
-    way
+    '''Test that the same_range utility function behaves in the expected
+    way.
 
     '''
     with pytest.raises(TypeError) as info:
@@ -177,7 +331,7 @@ def test_same_range():
         ArrayRange2LoopTrans.same_range(array_range, 0, array_value, 0)
     assert ("The child of array2 at index idx2 should be a Range node, but "
             "found 'DataNode'" in str(info.value))
-    
+
     # lower bounds both use lbound, upper bounds both use ubound and
     # step is the same so everything matches.
     array_x = create_array_x(SymbolTable())
@@ -191,7 +345,7 @@ def test_same_range():
     # one of upper bounds uses ubound, other does not
     array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
     assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
-    
+
     # neither use upper bound and are different (calls string_compare)
     array_x.children[0].stop = Literal("1", INTEGER_TYPE)
     assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
@@ -199,14 +353,14 @@ def test_same_range():
     # one of lower bounds uses lbound, other does not
     array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
     assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
-    
+
     # neither use lower bound and are different (calls string_compare)
     array_x.children[0].start = Literal("2", INTEGER_TYPE)
     assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
 
 
 @pytest.mark.parametrize("lhs_create,rhs_create,result",
-                         [(create_array_x, create_literal,
+                         [(create_array_x, create_literal(),
                            "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
                            "    x(idx)=0.0\n"),
                           (create_array_x, create_array_y,
@@ -240,10 +394,8 @@ def test_transform_apply(lhs_create, rhs_create, result):
     assignment = Assignment.create(lhs, rhs)
     routine = KernelSchedule.create("work", symbol_table,
                                     [assignment])
-    print (result)
     trans.apply(assignment)
     writer = FortranWriter()
-    print (writer(routine))
     assert result in writer(routine)
 
 

@@ -214,7 +214,7 @@ class ArrayRange2LoopTrans(Transformation):
         # Everything matches.
         return True
 
-    def apply(self, node):
+    def apply(self, node, options=None):
         '''Apply the ArrayRange2Loop transformation to the specified node. The
         node must be an assignment. The first range node in each array
         within the assignment is replaced with a loop index and the
@@ -246,7 +246,7 @@ class ArrayRange2LoopTrans(Transformation):
                     array.children[idx] = Reference(
                         loop_variable_symbol, parent=array)
                     break
-        # Issue #XXX: If Loop bounds were a Range we would just
+        # Issue #806: If Loop bounds were a Range we would just
         # need to provide the range node which would be simpler.
         loop = Loop.create(loop_variable_symbol, lhs_range.children[0],
                            lhs_range.children[1], lhs_range.children[2],
@@ -266,7 +266,7 @@ class ArrayRange2LoopTrans(Transformation):
         '''
         return type(self).__name__
 
-    def validate(self, node):
+    def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 

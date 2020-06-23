@@ -221,6 +221,7 @@ def test_array_children_validation():
     array.addchild(datanode1)
     array.addchild(erange)
 
+
 def test_array_check_index():
     '''Test that the check_index utility function behaves as expected.'''
     array = Array.create(DataSymbol("test", ArrayType(REAL_TYPE, [10])),
@@ -261,7 +262,7 @@ def test_array_is_lower_bound():
 
     # range node lbound references a different array
     array2 = Array.create(DataSymbol("test2", ArrayType(REAL_TYPE, [10])),
-                         [one])
+                          [one])
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, array2,
         Literal("1", INTEGER_TYPE))
@@ -305,7 +306,7 @@ def test_array_is_upper_bound():
 
     # range node ubound references a different array
     array2 = Array.create(DataSymbol("test2", ArrayType(REAL_TYPE, [10])),
-                         [one])
+                          [one])
     operator = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, array2,
         Literal("1", INTEGER_TYPE))
