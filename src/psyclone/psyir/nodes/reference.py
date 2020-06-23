@@ -228,8 +228,47 @@ class Array(Reference):
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
 
+    def _check_index(self, index):
+        '''Utility function that checks that the supplied index is an integer
+        and is less than the number of array dimensions.
+
+        :param int index: the array index to check.
+
+        :raises TypeError: if the index argument is not an integer.
+        :raises IndexError: if the index value is greater than the \
+            number of dimensions in the array (-1).
+
+        '''
+        if not isinstance(index, int):
+            raise TypeError(
+                "The index argument should be an integer but found '{0}'."
+                "".format(type(index).__name__))
+        if index > len(self.children)-1:
+            raise ValueError(
+                "In Array '{0}' the specified index '{1}' must be less than "
+                "the number of dimensions '{2}'."
+                "".format(self.name, index, len(self.children)))
+
     def is_lower_bound(self, index):
-        ''' xxx '''
+        '''Returns True if the array index contains a Range Node that
+        specifies the "start" part of the (start, stop, step) range
+        values is equal to the lowest element value in that index, by
+        using the LBOUND(name,index) intrinsic. If this is not the
+        case it returns False.
+
+        For example, if an array A was declared as
+        A(10) then the smallest element is 1 and LBOUND(A,1) would
+        return that value.
+
+        :param int index: the array index to check.
+
+        :returns: True if the array index is a range with its start \
+            value being LBOUND(array,index) and False otherwise.
+        :rtype: bool
+
+        '''
+        self._check_index(index)
+        
         array_dimension = self.children[index]
         if not isinstance(array_dimension, Range):
             return False
@@ -249,7 +288,25 @@ class Array(Reference):
         return True
         
     def is_upper_bound(self, index):
-        ''' xxx '''
+        '''Returns True if the array index contains a Range Node that
+        specifies the "stop" part of the (start, stop, step) range
+        values is equal to the largest element in that index, by using
+        the UBOUND(name,index) intrinsic. If this is not the case it
+        returns False.
+
+        For example, if an array A was declared as
+        A(10) then the largest element is 10 and UBOUND(A,1) would
+        return that value.
+
+        :param int index: the array index to check.
+
+        :returns: True if the array index is a range with its stop \
+            value being UBOUND(array,index) and False otherwise.
+        :rtype: bool
+
+        '''
+        self._check_index(index)
+
         array_dimension = self.children[index]
         if not isinstance(array_dimension, Range):
             return False
@@ -270,7 +327,7 @@ class Array(Reference):
         
     def is_full_range(self, index):
         '''Returns True if the specified array index is a Range Node that
-        specified all elements in this index. In the PSyIR this is
+        specifies all elements in this index. In the PSyIR this is
         specified by using LBOUND(name,index) for the lower bound of
         the range, UBOUND(name,index) for the upper bound of the range
         and "1" for the range step.
@@ -282,15 +339,8 @@ class Array(Reference):
             false.
         :rtype: bool
 
-        :raises ValueError: if the supplied index is not less than the \
-            number of dimensions in the array.
-
         '''
-        if index > len(self.children)-1:
-            raise ValueError(
-                "In Array '{0}' the specified index '{1}' must be less than "
-                "the number of dimensions '{2}'."
-                "".format(self.name, index, len(self.children)))
+        self._check_index(index)
 
         array_dimension = self.children[index]
         if isinstance(array_dimension, Range):

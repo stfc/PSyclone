@@ -41,12 +41,12 @@ not support array ranges.
 '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import Kern, Transformation
+from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop, Literal, Range, Reference, \
-    BinaryOperation, Array, Assignment, Node
+from psyclone.psyir.nodes import Loop, Range, Reference, Array, Assignment, \
+    Node
 
 
 class ArrayRange2LoopTrans(Transformation):
@@ -124,7 +124,7 @@ class ArrayRange2LoopTrans(Transformation):
             raise TypeError(
                 "The second argument to the same_range() method should be an "
                 "int but found '{0}'.".format(type(idx1).__name__))
-        if not isinstance(array2, Array): 
+        if not isinstance(array2, Array):
             raise TypeError(
                 "The third argument to the same_range() method should be an "
                 "Array but found '{0}'.".format(type(array2).__name__))
@@ -173,7 +173,8 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not ArrayRange2LoopTrans.string_compare(range1.start, range2.start):
+        elif not ArrayRange2LoopTrans.string_compare(
+                range1.start, range2.start):
             # Neither array1 nor array2 use the lbound() intrinsic to
             # specify the lower bound of the array dimension. Try to
             # determine if they are the same by matching the
@@ -242,8 +243,8 @@ class ArrayRange2LoopTrans(Transformation):
                     if array is node.lhs:
                         # Save this range to determine indexing
                         lhs_range = child
-                    array.children[idx] = Reference(loop_variable_symbol,
-                                                        parent=array)
+                    array.children[idx] = Reference(
+                        loop_variable_symbol, parent=array)
                     break
         # Issue #XXX: If Loop bounds were a Range we would just
         # need to provide the range node which would be simpler.
@@ -311,7 +312,6 @@ class ArrayRange2LoopTrans(Transformation):
                         # Save this range to allow comparison with
                         # other ranges.
                         lhs_index = idx
-                        lhs_range = child
                     else:
                         # We could add support for adding loop
                         # variables where the ranges are different.
@@ -322,8 +322,8 @@ class ArrayRange2LoopTrans(Transformation):
                             # loop iterator.
                             raise TransformationError(
                                 "The ArrayRange2LoopTrans transformation only "
-                                "supports ranges that are known to be the same "
-                                "as each other but array access '{0}' "
+                                "supports ranges that are known to be the "
+                                "same as each other but array access '{0}' "
                                 "dimension {1} and '{2}' dimension {3} are "
                                 "either different or can't be determined."
                                 "".format(node.lhs.name, lhs_index, array.name,
