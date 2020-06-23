@@ -126,13 +126,13 @@ class LFRicArgDescriptor(Descriptor):
         if arg_type.name != 'arg_type':
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must be of type "
-                "'arg_type', but found '{0}'".format(arg_type.name))
+                "'arg_type', but found '{0}'.".format(arg_type.name))
 
         # We require at least 2 args
         if len(arg_type.args) < 2:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
-                "least 2 args, but found '{0}'".format(len(arg_type.args)))
+                "least 2 args, but found '{0}'.".format(len(arg_type.args)))
 
         # Check the first argument descriptor. If it is a binary operator
         # then it has to be a field vector with an "*n" appended where "*"
@@ -155,7 +155,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API the 1st argument of a 'meta_arg' "
                 "entry should be a valid argument type (one of {0}), but "
-                "found '{1}' in '{2}'".
+                "found '{1}' in '{2}'.".
                 format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
                        argtype, arg_type))
 
@@ -176,8 +176,8 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API the 2nd argument of a 'meta_arg' entry "
                 "must be a valid access descriptor (one of {0}), but found "
-                "'{1}' in '{2}'".format(valid_names,
-                                        arg_type.args[1].name, arg_type))
+                "'{1}' in '{2}'.".format(valid_names,
+                                         arg_type.args[1].name, arg_type))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._type in LFRicArgDescriptor.VALID_FIELD_NAMES:
@@ -196,7 +196,7 @@ class LFRicArgDescriptor(Descriptor):
             # We should never get to here if the checks are tight enough
             raise InternalError(
                 "LFRicArgDescriptor.__init__(): failed argument validation "
-                "for the 'meta_arg' entry '{0}', should not get to here".
+                "for the 'meta_arg' entry '{0}', should not get to here.".
                 format(arg_type))
 
         # Initialise the parent class
@@ -230,7 +230,7 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API the 1st argument of a 'meta_arg' "
                 "entry may be a field vector but if so must use '*' as "
                 "the separator in the format 'field*n', but found "
-                "'{0}' in '{1}'".format(separator, arg_type))
+                "'{0}' in '{1}'.".format(separator, arg_type))
 
         # Now try to find the vector size for a field vector and return
         # an error if it is not an integer number...
@@ -240,14 +240,14 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API, the field vector notation must be in "
                 "the format 'field*n' where 'n' is an integer, but the "
-                "following '{0}' was found in '{1}'".
+                "following '{0}' was found in '{1}'.".
                 format(str(arg_type.args[0].toks[2]), arg_type))
         # ... or it is less than 2 (1 is the default for all fields)...
         if vectsize < 2:
             raise ParseError(
                 "In the LFRic API the 1st argument of a 'meta_arg' entry "
                 "may be a field vector with format 'field*n' where n is "
-                "an integer > 1. However, found n = {0} in '{1}'".
+                "an integer > 1. However, found n = {0} in '{1}'.".
                 format(vectsize, arg_type))
         # ... and set the vector size if all checks pass
         self._vector_size = vectsize
@@ -256,8 +256,8 @@ class LFRicArgDescriptor(Descriptor):
         if self._type not in \
            LFRicArgDescriptor.VALID_FIELD_NAMES and self._vector_size:
             raise ParseError(
-                "In the LFRic API vector notation is only supported "
-                "for {0} argument types but found '{1}'".
+                "In the LFRic API, vector notation is only supported "
+                "for {0} argument types but found '{1}'.".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[0]))
 
@@ -290,7 +290,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
                 "LFRicArgDescriptor._validate_field(): expecting a field "
-                "argument but got an argument of type '{0}'".
+                "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
         # There must be at least 3 arguments
@@ -298,7 +298,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
                 "least 3 arguments if its first argument is of {0} type, "
-                "but found {1} in '{2}'".
+                "but found {1} in '{2}'.".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        len(arg_type.args), arg_type))
         # There must be at most 4 arguments
@@ -306,7 +306,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
                 "most 4 arguments if its first argument is of {0} type, "
-                "but found {1} in '{2}'".
+                "but found {1} in '{2}'.".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        len(arg_type.args), arg_type))
 
@@ -317,9 +317,9 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API the 3rd argument of a 'meta_arg' "
                 "entry must be a valid function space name (one of {0}) if "
                 "its first argument is of {1} type, but found '{2}' in "
-                "'{3}'".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                               LFRicArgDescriptor.VALID_FIELD_NAMES,
-                               arg_type.args[2].name, arg_type))
+                "'{3}'.".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                                LFRicArgDescriptor.VALID_FIELD_NAMES,
+                                arg_type.args[2].name, arg_type))
         self._function_space1 = arg_type.args[2].name
 
         # The optional 4th argument is either a stencil specification
@@ -341,7 +341,7 @@ class LFRicArgDescriptor(Descriptor):
                     "In the LFRic API the 4th argument of a 'meta_arg' "
                     "field entry must be either a valid stencil specification"
                     "or a mesh identifier (for inter-grid kernels). However, "
-                    "entry '{0}' raised the following error: {1}".
+                    "entry '{0}' raised the following error: {1}.".
                     format(arg_type, str(err)))
 
         # Test allowed accesses for fields
@@ -367,9 +367,9 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_DISCONTINUOUS_NAMES \
            and self._access_type not in field_disc_accesses:
             raise ParseError(
-                "In the LFRic API allowed accesses for a field on a "
-                "discontinuous function space ('{0}') are {1}, but found "
-                "'{2}' in '{3}'".
+                "In the LFRic API, allowed accesses for a field on a "
+                "discontinuous function space '{0}' are {1}, but found "
+                "'{2}' in '{3}'.".
                 format(self._function_space1.lower(), fld_disc_acc_msg,
                        rev_access_mapping[self._access_type], arg_type))
 
@@ -380,9 +380,9 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
            and self._access_type not in field_cont_accesses:
             raise ParseError(
-                "In the LFRic API allowed accesses for a field on a "
-                "continuous function space ('{0}') are {1}, but found "
-                "'{2}' in '{3}'".
+                "In the LFRic API, allowed accesses for a field on a "
+                "continuous function space '{0}' are {1}, but found "
+                "'{2}' in '{3}'.".
                 format(self._function_space1.lower(), fld_cont_acc_msg,
                        rev_access_mapping[self._access_type], arg_type))
         # As said above, allowed accesses for fields on ANY_SPACE depend on
@@ -392,8 +392,8 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type not in field_cont_accesses:
             raise ParseError(
-                "In the LFRic API allowed access for a field on "
-                "'any_space' are {0}, but found '{1}' in '{2}'".
+                "In the LFRic API, allowed accesses for a field on "
+                "'any_space' are {0}, but found '{1}' in '{2}'.".
                 format(fld_cont_acc_msg,
                        rev_access_mapping[self._access_type], arg_type))
 
@@ -401,7 +401,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._stencil and self._access_type != AccessType.READ:
             raise ParseError(
                 "In the LFRic API a field with a stencil access must be "
-                "read-only ('{0}'), but found '{1}' in '{2}'".
+                "read-only ('{0}'), but found '{1}' in '{2}'.".
                 format(rev_access_mapping[AccessType.READ],
                        rev_access_mapping[self._access_type], arg_type))
 
@@ -427,7 +427,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise InternalError(
                 "LFRicArgDescriptor._validate_operator(): expecting an "
-                "operator argument but got an argument of type '{0}'".
+                "operator argument but got an argument of type '{0}'.".
                 format(self._type))
 
         # We expect 4 arguments with the 3rd and 4th each being a
@@ -436,7 +436,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have 4 "
                 "arguments if its first argument is an operator (one "
-                "of {0}), but found {1} in '{2}'".
+                "of {0}), but found {1} in '{2}'.".
                 format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
                        len(arg_type.args), arg_type))
 
@@ -446,7 +446,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API the 3rd argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one of "
-                "{0}), but found '{1}' in '{2}'".
+                "{0}), but found '{1}' in '{2}'.".
                 format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[2].name, arg_type))
         self._function_space1 = arg_type.args[2].name
@@ -455,7 +455,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API the 4th argument of a 'meta_arg' "
                 "operator entry must be a valid function space name (one "
-                "of {0}), but found '{1}' in '{2}'".
+                "of {0}), but found '{1}' in '{2}'.".
                 format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[3].name, arg_type))
         self._function_space2 = arg_type.args[3].name
@@ -469,9 +469,9 @@ class LFRicArgDescriptor(Descriptor):
         op_acc_msg = [rev_access_mapping[acc] for acc in operator_accesses]
         if self._access_type not in operator_accesses:
             raise ParseError(
-                "In the LFRic API allowed accesses for operators are {0} "
+                "In the LFRic API, allowed accesses for operators are {0} "
                 "because they behave as discontinuous quantities, but found "
-                "'{1}' in '{2}'".
+                "'{1}' in '{2}'.".
                 format(op_acc_msg, rev_access_mapping[self._access_type],
                        arg_type))
 
@@ -494,15 +494,15 @@ class LFRicArgDescriptor(Descriptor):
         if self._type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             raise InternalError(
                 "LFRicArgDescriptor._validate_scalar(): expecting a scalar "
-                "argument but got an argument of type '{0}'. Should be "
-                "impossible.".format(arg_type.args[0]))
+                "argument but got an argument of type '{0}'.".
+                format(arg_type.args[0]))
 
         # There must be at least 2 arguments to describe a scalar
         if len(arg_type.args) != 2:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have 2 "
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
-                "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+                "found {0} in '{1}'.".format(len(arg_type.args), arg_type))
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
@@ -516,15 +516,15 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API scalar arguments must have read-only "
                 "('gh_read') or a reduction ({0}) access but found '{1}' "
-                "in '{2}'".format(valid_reductions, api_specific_name,
-                                  arg_type))
+                "in '{2}'.".format(valid_reductions, api_specific_name,
+                                   arg_type))
         # Reduction access is currently only valid for real scalar arguments
         if self._type != "gh_real" and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
-                "In the LFRic API a reduction access '{0}' is only valid "
-                "with a real scalar argument, but '{1}' was found".
-                format(valid_reductions, self._type))
+                "In the LFRic API a reduction access {0} is only valid "
+                "with a real scalar argument, but '{1}' was found in '{2}'.".
+                format(valid_reductions, self._type, arg_type))
 
         # Scalars don't have vector size
         self._vector_size = 0
@@ -554,7 +554,7 @@ class LFRicArgDescriptor(Descriptor):
             return self._function_space1
         raise InternalError(
             "In the LFRic API 'function_space_to' only makes sense "
-            "for one of {0}, but this is a '{1}'".
+            "for one of {0}, but this is a '{1}'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES, self._type))
 
     @property
@@ -573,7 +573,7 @@ class LFRicArgDescriptor(Descriptor):
             return self._function_space2
         raise InternalError(
             "In the LFRic API 'function_space_from' only makes sense "
-            "for one of {0}, but this is a '{1}'".
+            "for one of {0}, but this is a '{1}'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES, self._type))
 
     @property

@@ -133,8 +133,8 @@ def test_cma_mdata_validate_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
     assert ("LFRicArgDescriptor._validate_operator(): expecting an operator "
-            "argument but got an argument of type 'gh_real'. Should be "
-            "impossible." in str(excinfo.value))
+            "argument but got an argument of type 'gh_real'." in
+            str(excinfo.value))
 
 
 def test_cma_mdata_assembly_missing_op():
@@ -260,28 +260,28 @@ def test_cma_mdata_asm_vector_error():
     ''' Check that we raise the expected error if a kernel assembling a
     CMA operator has any vector arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Change the space of the field that is written
+    name = "testkern_cma_type"
+
+    # Reject a field vector argument
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_field, gh_read, any_space_1)",
         "arg_type(gh_field*3, gh_read, any_space_1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-
-    # Reject a field vector argument
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
-            "vector argument ('gh_field*3'). This is forbidden."
+            "vector argument 'gh_field*3'. This is forbidden."
             in str(excinfo.value))
+
     # Reject a CMA operator vector argument
     code = CMA_ASSEMBLE.replace(
         "gh_columnwise_operator,", "gh_columnwise_operator*2,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API vector notation is only supported "
-            "for a ['gh_field'] argument type but found "
-            "'gh_columnwise_operator * 2'" in str(excinfo.value))
+    assert ("In the LFRic API, vector notation is only supported "
+            "for ['gh_field'] argument types but found "
+            "'gh_columnwise_operator * 2'." in str(excinfo.value))
 
 
 def test_cma_mdata_asm_stencil_error():
@@ -449,26 +449,27 @@ def test_cma_mdata_apply_vector_error():
     ''' Check that we raise the expected error if the metadata for a kernel
     that applies a CMA operator contains a vector argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)",
-                             "arg_type(GH_FIELD*3,  GH_INC,  ANY_SPACE_1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
 
     # Reject a field vector argument
+    code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)",
+                             "arg_type(GH_FIELD*3,  GH_INC,  ANY_SPACE_1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
-            "vector argument ('gh_field*3'). This is forbidden."
+            "vector argument 'gh_field*3'. This is forbidden."
             in str(excinfo.value))
+
+    # Reject a CMA operator vector argument
     code = CMA_APPLY.replace("GH_COLUMNWISE_OPERATOR,",
                              "GH_COLUMNWISE_OPERATOR*4,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    # Reject a CMA operator vector argument
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API vector notation is only supported "
-            "for a ['gh_field'] argument type but found "
-            "'gh_columnwise_operator * 4'" in str(excinfo.value))
+    assert ("In the LFRic API, vector notation is only supported "
+            "for ['gh_field'] argument types but found "
+            "'gh_columnwise_operator * 4'." in str(excinfo.value))
 
 
 def test_cma_mdata_apply_fld_stencil_error():
@@ -637,26 +638,28 @@ def test_cma_mdata_stencil_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have 4 arguments if its first "
-            "argument is one of {0}".
+            "argument is an operator (one of {0})".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES)
             in str(excinfo.value))
 
 
 def test_cma_mdata_matrix_vector_error():
     ''' Check that we raise the expected error when a matrix-matrix kernel
-    contains a vector argument '''
+    contains a vector argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_cma_type"
+
+    # Reject a CMA operator vector argument
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
         "arg_type(GH_COLUMNWISE_OPERATOR*3,GH_WRITE, ANY_SPACE_1,ANY_SPACE_2)",
         1)
     ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API vector notation is only supported "
-            "for a ['gh_field'] argument type but found "
-            "'gh_columnwise_operator * 3'" in str(excinfo.value))
+    assert ("In the LFRic API, vector notation is only supported "
+            "for ['gh_field'] argument types but found "
+            "'gh_columnwise_operator * 3'." in str(excinfo.value))
 
 
 def test_cma_asm_cbanded_dofmap_error():
