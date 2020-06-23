@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE, UnknownType, Symbol
+    REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
@@ -937,6 +937,26 @@ def test_process_array_declarations():
     assert symbol.name == "l10"
     assert symbol.shape == [ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE]
+
+    # Extent given by variable with UnknownType
+    fake_parent.symbol_table.add(DataSymbol("udim",
+                                            UnknownType("integer :: udim")))
+    reader = FortranStringReader("integer :: l11(udim)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("l11")
+    assert symbol.name == "l11"
+    assert symbol.shape == [ArrayType.Extent.ATTRIBUTE]
+
+    # Extent given by variable with DeferredType
+    fake_parent.symbol_table.add(DataSymbol("ddim", DeferredType(),
+                                            interface=UnresolvedInterface()))
+    reader = FortranStringReader("integer :: l12(ddim)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("l12")
+    assert symbol.name == "l12"
+    assert symbol.shape == [ArrayType.Extent.ATTRIBUTE]
 
 
 @pytest.mark.usefixtures("f2008_parser")
