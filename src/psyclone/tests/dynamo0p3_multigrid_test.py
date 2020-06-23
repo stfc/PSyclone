@@ -241,8 +241,8 @@ def test_two_grid_types(monkeypatch):
     name = "restrict_kernel_type"
     with pytest.raises(InternalError) as err:
         _ = DynKernMetadata(ast, name=name)
-    assert ("The implementation of inter-grid support in the Dynamo "
-            "0.3 API assumes there are exactly two mesh types but "
+    assert ("The implementation of inter-grid support in the LFRic "
+            "API assumes there are exactly two mesh types but "
             "LFRicArgDescriptor.VALID_MESH_TYPES contains 3: "
             "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
 

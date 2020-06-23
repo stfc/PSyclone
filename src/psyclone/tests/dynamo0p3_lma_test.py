@@ -111,7 +111,7 @@ def test_ad_op_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("'meta_arg' entry must have 4 arguments if its first "
-            "argument is one of {0}".
+            "argument is an operator (one of {0})".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
             str(excinfo.value))
 
@@ -163,8 +163,8 @@ def test_no_vector_operator():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("vector notation is only supported for a ['gh_field'] "
-            "argument type but found 'gh_operator * 3'" in
+    assert ("vector notation is only supported for ['gh_field'] "
+            "argument types but found 'gh_operator * 3'" in
             str(excinfo.value))
 
 
@@ -179,8 +179,8 @@ def test_ad_op_type_validate_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
     assert ("LFRicArgDescriptor._validate_operator(): expecting an "
-            "operator argument but got an argument of type 'gh_field'. "
-            "Should be impossible." in str(excinfo.value))
+            "operator argument but got an argument of type 'gh_field'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
@@ -191,7 +191,7 @@ def test_ad_op_type_wrong_access():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API allowed accesses for operators are "
+    assert ("In the LFRic API, allowed accesses for operators are "
             "['gh_read', 'gh_write', 'gh_readwrite'] because they behave "
             "as discontinuous quantities, but found 'gh_inc'" in
             str(excinfo.value))
