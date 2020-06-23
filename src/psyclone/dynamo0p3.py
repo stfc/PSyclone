@@ -686,8 +686,8 @@ class DynKernMetadata(KernelType):
             # implementation assumes that there are just two grids
             # (coarse and fine).
             raise InternalError(
-                "The implementation of inter-grid support in the Dynamo "
-                "0.3 API assumes there are exactly two mesh types but "
+                "The implementation of inter-grid support in the LFRic "
+                "API assumes there are exactly two mesh types but "
                 "LFRicArgDescriptor.VALID_MESH_TYPES contains {0}: {1}".
                 format(len(LFRicArgDescriptor.VALID_MESH_TYPES),
                        LFRicArgDescriptor.VALID_MESH_TYPES))
@@ -742,7 +742,7 @@ class DynKernMetadata(KernelType):
             if arg.vector_size > 1:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has a "
-                    "vector argument ('{1}'). This is forbidden.".
+                    "vector argument '{1}'. This is forbidden.".
                     format(self.name,
                            arg.type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
@@ -7279,8 +7279,8 @@ class ArgOrdering(object):
                 self.scalar(arg)
             else:
                 raise InternalError(
-                    "ArgOrdering.generate(): Unexpected argument type found "
-                    "in dynamo0p3.py. Expected one of {0} but found '{1}'".
+                    "dynamo0p3.ArgOrdering.generate(): Unexpected "
+                    "argument type. Expected one of {0} but found '{1}'".
                     format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES, arg.type))
         # For each function space (in the order they appear in the
         # metadata arguments)
@@ -9035,7 +9035,8 @@ class DynKernelArgument(KernelArgument):
         :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
         :param arg_meta_data: Information obtained from the meta-data for
                               this kernel argument
-        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+        :type arg_meta_data: \
+            :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
@@ -9365,7 +9366,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'FunctionSpace',
     'DynFuncDescriptor03',
-    'LFRicArgDescriptor',
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
