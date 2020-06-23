@@ -900,10 +900,20 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if (sym.datatype.intrinsic !=
-                                ScalarType.Intrinsic.INTEGER or
-                                isinstance(sym.datatype, ArrayType)):
+                        # Explicitly forbid symbols that we *know* are not
+                        # integer scalars. (We allow symbols of
+                        # Unknown/DeferredType.)
+                        if (isinstance(sym.datatype, ArrayType) or
+                                (isinstance(sym.datatype, ScalarType) and
+                                 sym.datatype.intrinsic !=
+                                 ScalarType.Intrinsic.INTEGER)):
                             _unsupported_type_error(dimensions)
+                        if isinstance(sym.datatype,
+                                      (UnknownType, DeferredType)):
+                            # We didn't previously know the type of this symbol
+                            # but since it is being used to dimension an array
+                            # it must be an integer scalar.
+                            sym.datatype = default_integer_type()
                     except KeyError:
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't

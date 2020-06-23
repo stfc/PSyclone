@@ -946,7 +946,11 @@ def test_process_array_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l11")
     assert symbol.name == "l11"
-    assert symbol.shape == [ArrayType.Extent.ATTRIBUTE]
+    assert len(symbol.shape) == 1
+    # Extent symbol should now be an integer scalar
+    assert symbol.shape[0].name == "udim"
+    assert isinstance(symbol.shape[0].datatype, ScalarType)
+    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
     # Extent given by variable with DeferredType
     fake_parent.symbol_table.add(DataSymbol("ddim", DeferredType(),
@@ -956,7 +960,11 @@ def test_process_array_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l12")
     assert symbol.name == "l12"
-    assert symbol.shape == [ArrayType.Extent.ATTRIBUTE]
+    assert len(symbol.shape) == 1
+    # Extent symbol should now be an integer scalar
+    assert symbol.shape[0].name == "ddim"
+    assert isinstance(symbol.shape[0].datatype, ScalarType)
+    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 
 @pytest.mark.usefixtures("f2008_parser")
