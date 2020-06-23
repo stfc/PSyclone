@@ -9366,6 +9366,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'FunctionSpace',
     'DynFuncDescriptor03',
+    'LFRicArgDescriptor',
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
