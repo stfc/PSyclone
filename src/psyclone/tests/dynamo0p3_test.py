@@ -173,8 +173,8 @@ def test_ad_scalar_validate_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._validate_scalar(wrong_arg)
     assert ("LFRicArgDescriptor._validate_scalar(): expecting a scalar "
-            "argument but got an argument of type 'gh_operator'. Should "
-            "be impossible." in str(excinfo.value))
+            "argument but got an argument of type 'gh_operator'." in
+            str(excinfo.value))
 
 
 def test_ad_scalar_type_too_few_args():
@@ -249,7 +249,7 @@ def test_ad_int_scalar_type_no_sum():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("reduction access 'gh_sum' is only valid with a real scalar "
+    assert ("reduction access ['gh_sum'] is only valid with a real scalar "
             "argument, but 'gh_integer' was found" in str(excinfo.value))
 
 
@@ -264,8 +264,8 @@ def test_ad_field_validate_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._validate_field(wrong_arg)
     assert ("LFRicArgDescriptor._validate_field(): expecting a field "
-            "argument but got an argument of type 'gh_real'. Should "
-            "be impossible." in str(excinfo.value))
+            "argument but got an argument of type 'gh_real'" in
+            str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():
@@ -279,7 +279,7 @@ def test_ad_field_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have at least 3 arguments if its "
-            "first argument is of a ['gh_field'] type" in str(excinfo.value))
+            "first argument is of ['gh_field'] type" in str(excinfo.value))
 
 
 def test_ad_fld_type_too_many_args():
@@ -293,12 +293,11 @@ def test_ad_fld_type_too_many_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have at most 4 arguments if its "
-            "first argument is of a ['gh_field'] type" in str(excinfo.value))
+            "first argument is of ['gh_field'] type" in str(excinfo.value))
 
 
 def test_ad_fld_type_1st_arg():
-    ''' Tests that an error is raised when the 1st argument is
-    invalid (parsing of a field vector expression). '''
+    ''' Tests that an error is raised when the 1st argument is invalid. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
                         "arg_type(gh_hedge, gh_inc, w1)", 1)
@@ -368,7 +367,7 @@ def test_arg_descriptor_invalid_fs1():
         _ = DynKernMetadata(ast, name=name)
     assert ("3rd argument of a 'meta_arg' entry must be a valid "
             "function space name (one of {0}) if its first argument "
-            "is of a ['gh_field'] type, but found 'w4'".
+            "is of ['gh_field'] type, but found 'w4'".
             format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES)
             in str(excinfo.value))
 
@@ -388,9 +387,9 @@ def test_arg_descriptor_invalid_fs2():
             in str(excinfo.value))
 
 
-def test_invalid_vector_separator():
+def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
-    as its separator operator. '''
+    as its operator. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("gh_field, gh_inc, w1", "gh_field+3, gh_inc, w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -409,8 +408,9 @@ def test_invalid_vector_value_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("vector notation expects the format '(field*n)' where 'n' is "
-            "an integer, but the following 'n'" in str(excinfo.value))
+    assert ("the field vector notation must be in the format 'field*n' "
+            "where 'n' is an integer, but the following 'n' was found "
+            in str(excinfo.value))
 
 
 def test_invalid_vector_value_range():
@@ -422,8 +422,9 @@ def test_invalid_vector_value_range():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("must contain a valid integer vector size in the format '(field*n"
-            ", where n > 1)', but found n = 1" in str(excinfo.value))
+    assert ("the 1st argument of a 'meta_arg' entry may be a field vector "
+            "with format 'field*n' where n is an integer > 1. However, "
+            "found n = 1" in str(excinfo.value))
 
 # Testing that an error is raised when a vector value is not provided is
 # not required here as it causes a parse error in the generic code.
@@ -1450,8 +1451,8 @@ def test_no_vector_scalar():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("vector notation is only supported for a ['gh_field'] "
-                "argument type but found '{0}'".format(vectname) in
+        assert ("vector notation is only supported for ['gh_field'] "
+                "argument types but found '{0}'".format(vectname) in
                 str(excinfo.value))
 
 
@@ -2997,12 +2998,12 @@ def test_arg_desc_func_space_tofrom_err():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space_to
     assert ("In the LFRic API 'function_space_to' only makes sense "
             "for one of ['gh_operator', 'gh_columnwise_operator'], but "
             "this is a 'gh_real'") in str(excinfo.value)
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space_from
     assert ("In the LFRic API 'function_space_from' only makes sense "
             "for one of ['gh_operator', 'gh_columnwise_operator'], but "
@@ -3148,8 +3149,9 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type)
-    assert ("LFRicArgDescriptor.__init__(): failed argument validation, "
-            "should not get to here" in str(excinfo.value))
+    assert ("LFRicArgDescriptor.__init__(): failed argument validation for "
+            "the 'meta_arg' entry 'arg_type(GH_INVALID, gh_read)', should "
+            "not get to here." in str(excinfo.value))
 
 
 def test_func_descriptor_repr():
@@ -3554,8 +3556,9 @@ def test_stencil_read_only():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
-    assert ("In the LFRic API a field stencil must have read-only access "
-            "('gh_read'), but found 'gh_write'" in str(excinfo.value))
+    assert ("In the LFRic API a field with a stencil access must be "
+            "read-only ('gh_read'), but found 'gh_write'" in
+            str(excinfo.value))
 
 
 def test_fs_discontinuous_and_inc_error():
@@ -3569,8 +3572,8 @@ def test_fs_discontinuous_and_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API allowed accesses for a field on a "
-                "discontinuous function space ('{0}') are ['gh_read', "
+        assert ("In the LFRic API, allowed accesses for a field on a "
+                "discontinuous function space '{0}' are ['gh_read', "
                 "'gh_write', 'gh_readwrite'], but found 'gh_inc'".
                 format(fspace) in str(excinfo.value))
 
@@ -3586,8 +3589,9 @@ def test_fs_continuous_and_readwrite_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("It does not make sense for a field on a continuous "
-                "space ('{0}') to have a 'gh_readwrite' access".
+        assert ("In the LFRic API, allowed accesses for a field on a "
+                "continuous function space '{0}' are ['gh_read', "
+                "'gh_inc', 'gh_write'], but found 'gh_readwrite'".
                 format(fspace) in str(excinfo.value))
 
 
@@ -3602,8 +3606,9 @@ def test_fs_anyspace_and_readwrite_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("field on 'any_space' cannot have 'gh_readwrite' access"
-                in str(excinfo.value))
+        assert ("In the LFRic API, allowed accesses for a field on "
+                "'any_space' are ['gh_read', 'gh_inc', 'gh_write'], but "
+                "found 'gh_readwrite'" in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
@@ -3803,7 +3808,7 @@ def test_upper_bound_inner(monkeypatch):
 
 def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
-    access type gh_sum '''
+    access type gh_sum. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_field, gh_read, w2)",
                         "arg_type(gh_field, gh_sum, w2)", 1)
@@ -3811,14 +3816,14 @@ def test_field_gh_sum_invalid():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument" in str(excinfo.value))
-    assert "but 'gh_field' was found" in str(excinfo.value)
+    assert ("allowed accesses for a field on a continuous function "
+            "space 'w2' are ['gh_read', 'gh_inc', 'gh_write'], but "
+            "found 'gh_sum'" in str(excinfo.value))
 
 
 def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with
-    access type gh_sum '''
+    access type gh_sum. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_sum, w2, w2)", 1)
@@ -3826,9 +3831,9 @@ def test_operator_gh_sum_invalid():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument" in str(excinfo.value))
-    assert "but 'gh_operator' was found" in str(excinfo.value)
+    assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
+            "'gh_readwrite'] because they behave as discontinuous "
+            "quantities, but found 'gh_sum'" in str(excinfo.value))
 
 
 def test_derived_type_arg(dist_mem, tmpdir):
@@ -5730,8 +5735,8 @@ def test_unexpected_type_error(dist_mem):
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.generate()
     assert (
-        "ArgOrdering.generate(): Unexpected argument type found "
-        "in dynamo0p3.py. Expected one of {0} but found 'invalid'".
+        "dynamo0p3.ArgOrdering.generate(): Unexpected argument "
+        "type. Expected one of {0} but found 'invalid'".
         format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
         in str(excinfo.value))
 
