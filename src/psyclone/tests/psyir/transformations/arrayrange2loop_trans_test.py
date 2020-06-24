@@ -161,7 +161,7 @@ def create_array_y_2(symbol_table):
     :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
     '''
-    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [20, 10]))
+    array_symbol = DataSymbol("y2", ArrayType(REAL_TYPE, [20, 10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol, [create_range(array_symbol, 1),
                                        create_range(array_symbol, 2)])
@@ -206,7 +206,7 @@ def create_array_y_3(symbol_table):
     :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
     '''
-    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
+    array_symbol = DataSymbol("y3", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol,
                         [Reference(symbol_table.lookup("n")),
@@ -371,19 +371,19 @@ def test_same_range():
                            "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
                            "    y(n,idx)=x(idx)\n"),
                           (create_array_y_2, create_array_z,
-                           "  do idx = LBOUND(y, 1), UBOUND(y, 1), 1\n"
-                           "    y(idx,:)=z(idx,n,:)\n"),
+                           "  do idx = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
+                           "    y2(idx,:)=z(idx,n,:)\n"),
                           (create_array_y_3, create_expr,
                            "  do idx = 2, n, 2\n"
-                           "    y(n,idx)=x(idx) * z(1,idx) + a(1)")])
+                           "    y3(n,idx)=x(idx) * z(1,idx) + a(1)")])
 def test_transform_apply(lhs_create, rhs_create, result):
     '''Check that the PSyIR is transformed as expected for various types
     of ranges in an array. The resultant Fortran code is used to
     confirm the transformation has worked correctly.
 
     The parametrised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
-    y(n,:)=x(:), 4: y(:,:)=z(:,n,:) and 5:
-    y(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
+    y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
+    y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 
     '''
     trans = ArrayRange2LoopTrans()
@@ -397,6 +397,38 @@ def test_transform_apply(lhs_create, rhs_create, result):
                                     [assignment])
     trans.apply(assignment)
     writer = FortranWriter()
+    assert result in writer(routine)
+
+
+def test_transform_apply_insert():
+    '''Check that the PSyIR is transformed as expected when there are
+    multiple statements in the PSyIR. The resultant Fortran code is used to
+    confirm the transformation has worked correctly.
+
+    '''
+    trans = ArrayRange2LoopTrans()
+
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("n", INTEGER_TYPE)
+    symbol_table.add(symbol)
+    lhs = create_array_x(symbol_table)
+    rhs = create_array_y(symbol_table)
+    assignment1 = Assignment.create(lhs, rhs)
+    lhs = create_array_y_2(symbol_table)
+    rhs = create_array_z(symbol_table)
+    assignment2 = Assignment.create(lhs, rhs)
+    routine = KernelSchedule.create("work", symbol_table,
+                                    [assignment1, assignment2])
+    trans.apply(assignment1)
+    trans.apply(assignment2)
+    writer = FortranWriter()
+    result = (
+        "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+        "    x(idx)=y(n,idx)\n"
+        "  enddo\n"
+        "  do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
+        "    y2(idx_1,:)=z(idx_1,n,:)\n"
+        "  enddo\n")
     assert result in writer(routine)
 
 

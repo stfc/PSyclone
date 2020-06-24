@@ -246,12 +246,13 @@ class ArrayRange2LoopTrans(Transformation):
                     array.children[idx] = Reference(
                         loop_variable_symbol, parent=array)
                     break
+        position = node.position
         # Issue #806: If Loop bounds were a Range we would just
         # need to provide the range node which would be simpler.
         loop = Loop.create(loop_variable_symbol, lhs_range.children[0],
                            lhs_range.children[1], lhs_range.children[2],
                            [node])
-        parent.children[node.position] = loop
+        parent.children[position] = loop
         loop.parent = parent
 
     def __str__(self):
