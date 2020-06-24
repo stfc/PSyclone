@@ -24,7 +24,7 @@
 	binder for some examples.
 
 	11) #804 for #801. Correct Fortran intents for invoke arguments in
-	unique_declarations_by_intent().
+	unique_declns_by_intent().
 
 release 1.9.0 20th May 2020
 
