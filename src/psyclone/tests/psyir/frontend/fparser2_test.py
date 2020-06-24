@@ -939,32 +939,33 @@ def test_process_array_declarations():
                             ArrayType.Extent.ATTRIBUTE]
 
     # Extent given by variable with UnknownType
-    fake_parent.symbol_table.add(DataSymbol("udim",
-                                            UnknownType("integer :: udim")))
+    udim = DataSymbol("udim", UnknownType("integer :: udim"))
+    fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l11")
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
-    # Extent symbol should now be an integer scalar
+    # Extent symbol should be udim
     assert symbol.shape[0].name == "udim"
-    assert isinstance(symbol.shape[0].datatype, ScalarType)
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[0] is udim
+    assert isinstance(udim.datatype, UnknownType)
 
     # Extent given by variable with DeferredType
-    fake_parent.symbol_table.add(DataSymbol("ddim", DeferredType(),
-                                            interface=UnresolvedInterface()))
+    ddim = DataSymbol("ddim", DeferredType(),
+                      interface=UnresolvedInterface())
+    fake_parent.symbol_table.add(ddim)
     reader = FortranStringReader("integer :: l12(ddim)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     symbol = fake_parent.symbol_table.lookup("l12")
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
-    # Extent symbol should now be an integer scalar
+    # Extent symbol should now be ddim
     assert symbol.shape[0].name == "ddim"
-    assert isinstance(symbol.shape[0].datatype, ScalarType)
-    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[0] is ddim
+    assert isinstance(symbol.shape[0].datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
