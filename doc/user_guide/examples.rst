@@ -170,6 +170,46 @@ and then executes the original code.
     At this stage the driver program will not compile
     (see issue #644).
 
+.. _gocean_example_7:
+
+Example 7: Read-only-verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of read-only-verification with PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based read-only-verification code.
+It uses the dl_esm_inf-specific read-only-verification library
+(``lib/read_only/dl_esm_inf/``).
+
+.. note::
+
+    The ``update_field_mod`` subroutine contains some very
+    buggy and non-standard code to change the value of some
+    read-only variables and fields, even though the variables
+    are all declared with
+    ``intent(in)``. It uses the addresses of variables and
+    then out-of-bound writes to a writeable array to
+    actually overwrite the read-only variables. Using
+    array bounds checking at runtime will be triggered by these
+    out-of-bound writes.
+
+The makefile in this example will link with the compiled 
+read-only-verification library. You can execute the created
+binary and it will print two warnings about modified
+read-only variables::
+
+    --------------------------------------
+    Double precision field b_fld has been modified in main : update
+    Original checksum:   4611686018427387904
+    New checksum:        4638355772470722560
+    --------------------------------------
+    --------------------------------------
+    Double precision variable z has been modified in main : update
+    Original value:    1.0000000000000000     
+    New value:         123.00000000000000     
+    --------------------------------------
+
+
 .. _examples_lfric:
 
 LFRic

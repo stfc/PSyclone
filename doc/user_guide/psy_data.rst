@@ -33,7 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by J. Henrichs, Bureau of Meteorology
 
-.. highlight:: fortran
+.. highlight:: python
 
 .. _psy_data:
 
@@ -59,18 +59,20 @@ Kernel Data Extraction:
   library that extracts input- and output-data into a netcdf file
   is included with PSyclone (see :ref:`psyke_netcdf`).
 
+Access Verification:
+  The callbacks can be used to make sure a field declared as read-only
+  is not modified during a kernel call (either because of an incorrect
+  declaration, or because memory is overwritten). The implementation
+  included in PSyclone uses a simple 64-bit checksum to detect changes
+  to a field (and scalar values). See :ref:`psydata_read_validation`
+  for details.
+
 In-situ Visualisation:
   By giving access to output fields of a kernel, an in-situ visualisation
   library can be used to plot fields while a (PSyclone-processed)
   application is running. There is no example library available at
   this stage, but the API has been designed with this application in mind.
 
-Access Verification:
-  The callbacks can be used to make sure a field declared as read-only
-  is not modified during a kernel (either because of an incorrect
-  declaration, or because memory is overwritten). A checksum can be
-  used to detect any changes to a read-only field. Again, this is 
-  a feature for the future and not available at this stage.
 
 The PsyData API should be general enough to allow these and other
 applications to be developed and used.
@@ -80,3 +82,122 @@ the PSyData API, for example ``ProfileTrans``, ``GOceanExtractTrans``
 and ``LFRicExtractTrans``. A user can develop additional transformations
 and corresponding runtime libraries for additional functionality.
 Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
+
+
+.. _psydata_read_validation:
+
+Read-Only Verification
+----------------------
+The PSyData interface is being used to verify that read-only variables
+in a kernel are not overwritten. The ``ReadOnlyVerifyTrans`` (in 
+``psyir.tranformations.read_only_verify_trans``) uses the dependency
+analysis to determine all read-only variables (i.e. arguments declared
+to be read-only in metadata, most implicit arguments in LFRic, grid
+properties in GOcean). A simple 64-bit checksum is then computed for all
+these arguments before a kernel call, and compared with the checksum
+after the kernel call. Any change in the checksum causes a message to
+be printed at runtime, e.g.::
+
+    --------------------------------------
+    Double precision field b_fld has been modified in main : update
+    Original checksum:   4611686018427387904
+    New checksum:        4638355772470722560
+    --------------------------------------
+
+The transformation that adds read-only-verification to an application
+can be applied for any API. Here an example that searches for each
+loop in an invoke (which will always surround kernel calls) and applies the
+transformation to each one. This code has been successfully used as a
+global transformation with the LFRic gravity-wave miniapps::
+
+    def trans(psy):
+        from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+        from psyclone.psyir.nodes import Loop
+        read_only_verify = ReadOnlyVerifyTrans()
+
+        for invoke in psy.invokes.invoke_list:
+            schedule = invoke.schedule
+            for node in schedule:
+                if isinstance(node, Loop):
+                    schedule, _ = read_only_verify.apply(node)
+
+        return psy
+
+Besides the transformation, a library is required to do the actual
+verification at runtime. There are two implementations of the
+read-only-verification library included in PSyclone: one for LFRic,
+and one for GOcean.
+
+Read-Only Verification Library for LFRic
+++++++++++++++++++++++++++++++++++++++++
+This library is contained in ``lib/read_only/lfric`` and it must be compiled
+before compiling any LFRic-based application that uses read-only verification.
+Compiling this library requires access to the LFRic infrastructure library
+(since it must implement a generic interface for e.g. the LFRic ``Field`` class).
+The makefile uses the variable ``LFRIC_DIR`` to point to the location where
+LFRic's ``field_mod`` has been compiled. It defaults to
+``../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field``
+but this will certainly need to be changed for any user. The LFRic
+infrastructure library is not used in linking the verification library.
+The application which uses the read-only-verification library needs to
+link in the infrastructure library anyway.
+
+.. note:
+    It is the responsibility of the user to make sure that the infrastructure
+    files used during compilation of the Read-Only-Verification library is
+    also used when linking the application. Otherwise strange and
+    non-reproducible crashes might happen.
+
+Compilation of the library is done by invoking ``make`` and setting
+the required variables:
+
+.. code-block:: shell
+
+    make LFRIC_DIR=some_path F90=ifort F90FLAGS="--some-flag"
+
+This will create a library called ``lib_read_only.a``.
+
+At runtime the environment variable ``PSYDATA_VERBOSE`` can be used
+to control how much output is generated at runtime. If the
+variable is not specified or has the value '0', only changed checksums
+warnings will be printed. If it is set to '1', a message will be 
+printed before and after each kernel call that is checked. If the
+variable is set to '2', it will additionally print the name of each
+variable that is checked.
+
+Read-Only-Verification Library for GOcean
++++++++++++++++++++++++++++++++++++++++++
+This library is contained in ``lib/read_only/dl_esm_info`` and it
+must be compiled before linking any LFRic-based application that uses
+read-only verification.  Compiling this library requires access to the
+Gocean infrastructure library
+(since it must implement a generic interface for e.g. the dl_esm_inf
+``r2d_field`` class).
+
+The makefile uses the variable ``DL_DIR`` to point to the location where
+LFRic's ``field_mod`` has been compiled. It defaults to
+``../../../external/dl_esm_inf/finite_difference/src``,
+which is the location of the dl_esm_info version that is included with
+PSyclone. It can be changed to a user-specified location if required.
+The ``dl_esm_inf`` library is not used in linking the verification library.
+The application which uses the read-only-verification library needs to
+link in the infrastructure library anyway.
+
+.. note:
+    It is the responsibility of the user to make sure that the infrastructure
+    files used during compilation of the Read-Only-Verification library is
+    also used when linking the application. Otherwise strange and
+    non-reproducible crashes might happen.
+
+Compilation of the library is done by invoking ``make`` and setting
+the required variables:
+
+.. code-block:: shell
+
+    make DL_DIR=some_path F90=ifort F90FLAGS="--some-flag"
+
+This will create a library called ``lib_read_only.a``.
+An executable example for using the GOcean read-only-verification
+library is included in ``examples/gocean/eg7``, see
+:ref:`gocean_example_7`.
+
