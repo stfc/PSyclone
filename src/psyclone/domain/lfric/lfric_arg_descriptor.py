@@ -510,21 +510,22 @@ class LFRicArgDescriptor(Descriptor):
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
-        valid_reductions = AccessType.get_valid_reduction_names()
         if self._access_type not in scalar_accesses:
             api_specific_name = rev_access_mapping[self._access_type]
+            valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
                 "In the LFRic API scalar arguments must have read-only "
-                "('gh_read') or a reduction ({0}) access but found '{1}' "
+                "('gh_read') or a reduction {0} access but found '{1}' "
                 "in '{2}'.".format(valid_reductions, api_specific_name,
                                    arg_type))
         # Reduction access is currently only valid for real scalar arguments
         if self._type != "gh_real" and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
-                "In the LFRic API a reduction access {0} is only valid "
+                "In the LFRic API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found in '{2}'.".
-                format(valid_reductions, self._type, arg_type))
+                format(self._access_type.api_specific_name(),
+                       self._type, arg_type))
 
         # Scalars don't have vector size
         self._vector_size = 0

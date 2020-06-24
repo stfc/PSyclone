@@ -219,7 +219,7 @@ def test_ad_scalar_type_no_write():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction (['gh_sum']) access but found 'gh_write'" in
+                "reduction ['gh_sum'] access but found 'gh_write'" in
                 str(excinfo.value))
 
 
@@ -235,7 +235,7 @@ def test_ad_scalar_type_no_inc():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction (['gh_sum']) access but found 'gh_inc'" in
+                "reduction ['gh_sum'] access but found 'gh_inc'" in
                 str(excinfo.value))
 
 
@@ -249,7 +249,7 @@ def test_ad_int_scalar_type_no_sum():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("reduction access ['gh_sum'] is only valid with a real scalar "
+    assert ("reduction access 'gh_sum' is only valid with a real scalar "
             "argument, but 'gh_integer' was found" in str(excinfo.value))
 
 
