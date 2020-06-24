@@ -1902,16 +1902,12 @@ def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0]\
         .unique_declns_by_intent("gh_columnwise_operator")
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == ['cma_opc']
-    # 'cma_op1' is "write" arg in columnwise_op_asm_field_kernel_type call,
-    # then "read" arg in columnwise_op_app_kernel_type call and finally
-    # "readwrite" arg in columnwise_op_mul_kernel_type. Its intent should
-    # be "inout" rather than "out" and "in". This will be revisited in #801.
     args_out = [arg.declaration_name for arg in args['out']]
     assert args_out == ['cma_op1']
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == ['cma_opc']
     args_in = [arg.declaration_name for arg in args['in']]
-    assert args_in == ['cma_op1', 'cma_opb']
+    assert args_in == ['cma_opb']
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

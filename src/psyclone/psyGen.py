@@ -624,78 +624,41 @@ class Invoke(object):
                 "argument type. Expected one of {0} but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), argument_type))
 
-        # Get the lists of all kernel arguments that are accessed as
-        # inc (shared update), write, read and readwrite (independent
-        # update). A single argument may be accessed in different ways
-        # by different kernels.
-        inc_args = self.unique_declarations(argument_type,
-                                            access=AccessType.INC)
-        write_args = self.unique_declarations(argument_type,
-                                              access=AccessType.WRITE)
-        read_args = self.unique_declarations(argument_type,
-                                             access=AccessType.READ)
-        readwrite_args = self.unique_declarations(argument_type,
-                                                  AccessType.READWRITE)
-        sum_args = self.unique_declarations(argument_type,
-                                            access=AccessType.SUM)
-        # sum_args behave as if they are write_args from
-        # the PSy-layer's perspective.
-        write_args += sum_args
-        # readwrite_args behave in the same way as inc_args
-        # from the perspective of first access and intents
-        inc_args += readwrite_args
-        # Rationalise our lists so that any fields that are updated
-        # (have inc or readwrite access) do not appear in the list
-        # of those that are only written to
-        for arg in write_args[:]:
-            if arg in inc_args:
-                write_args.remove(arg)
-        # Fields that are only ever read by any kernel that
-        # accesses them
-        for arg in read_args[:]:
-            if arg in write_args or arg in inc_args:
-                read_args.remove(arg)
-
         # We will return a dictionary containing as many lists
         # as there are types of intent
         declns = {}
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in inc_args:
-            # For every arg that is updated ('inc'd' or readwritten)
-            # by at least one kernel, identify the type of the first
-            # access. If it is 'write' then the arg is only
-            # intent(out), otherwise it is intent(inout)
+        for arg in self.unique_declarations(argument_type):
             first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access != AccessType.WRITE:
-                if arg not in declns["inout"]:
-                    declns["inout"].append(arg)
-            else:
-                if arg not in declns["out"]:
-                    declns["out"].append(arg)
-
-        for arg in write_args:
-            # For every argument that is written to by at least one kernel,
-            # identify the type of the first access - if it is read
-            # or inc'd before it is written then it must have intent(inout).
-            # However, we deal with inc and readwrite args separately so we
-            # do not consider those here.
-            # TODO #801: The first access check should be for all "read"-like
-            # accesses (e.g. "READWRITE", "INC") and not only for "READ".
-            first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access == AccessType.READ:
-                if arg not in declns["inout"]:
-                    declns["inout"].append(arg)
-            else:
-                if arg not in declns["out"]:
-                    declns["out"].append(arg)
-
-        for arg in read_args:
-            # Anything we have left must be declared as intent(in)
-            if arg not in declns["in"]:
+            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+                # If the first access is a write then the intent is
+                # out irrespective of any other accesses. Note,
+                # sum_args behave as if they are write_args from the
+                # PSy-layer's perspective.
+                declns["out"].append(arg)
+                continue
+            # if all accesses are read, then the intent is in,
+            # otherwise the intent is inout (as we have already
+            # dealt with intent out).
+            read_only = True
+            for call in self.schedule.kernels():
+                for tmp_arg in call.arguments.args:
+                    if tmp_arg.text is not None and \
+                       tmp_arg.declaration_name == arg.declaration_name:
+                        if tmp_arg.access != AccessType.READ:
+                            # readwrite_args behave in the
+                            # same way as inc_args from the
+                            # perspective of intents
+                            read_only = False
+                            break
+                if not read_only:
+                    break
+            if read_only:
                 declns["in"].append(arg)
-
+            else:
+                declns["inout"].append(arg)
         return declns
 
     def gen(self):
