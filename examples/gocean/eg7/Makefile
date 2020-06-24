@@ -44,15 +44,19 @@ KERNELS = init_field_mod.o update_field_mod.o
 EXEC = read_only_test
 
 
+.PHONY: $(READ_ONLY_DIR)/$(LIB_NAME)
+
 all: transform compile
 
 transform: alg.f90
 
-compile: $(KERNELS) alg.o psy.o $(READ_ONLY_DIR)/$(LIB_NAME)
+compile: $(READ_ONLY_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
 	-L$(READ_ONLY_DIR) -l_read_only \
 	-L $(DL_DIR) -l_fd
-	
+
+$(READ_ONLY_DIR)/$(LIB_NAME):
+	$(MAKE) -C $(READ_ONLY_DIR)
 
 alg.f90 psy.f90: test.x90 read_only_transform.py
 	psyclone -nodm -l -api "gocean1.0" -s ./read_only_transform.py\
@@ -65,3 +69,6 @@ psy.o:	$(KERNELS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(READ_ONLY_DIR) -c $<
+
+allclean: clean
+	make -C $(READ_ONLY_DIR) clean

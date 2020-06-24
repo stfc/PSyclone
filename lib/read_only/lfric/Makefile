@@ -25,7 +25,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
 
 
 # This Makefile picks up the compiler to use plus any flags from
@@ -34,15 +34,12 @@
 # export F90=mpif90
 # export F90FLAGS="-O3"
 # export AR=ar
-#
-# It also uses nf-config to query for flags required for NetCDF compilation.
+
+LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
 
 F90 ?= gfortran
-
-DL_DIR = /home/joerg/lfric/work/trunk/miniapps/gravity_wave/working/field
-
-F90FLAGS ?= 
-F90FLAGS += -I$(DL_DIR)
+F90FLAGS ?= -O0 -g
+F90FLAGS += -I$(LFRIC_DIR)
 LIB_NAME = lib_read_only.a
 
 default: $(LIB_NAME)
