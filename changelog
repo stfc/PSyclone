@@ -17,11 +17,14 @@
 	8) #797 for #790. Add intrinsic type information to GOcean grid
 	properties in config file. Add OpenCL to GOcean/eg1 ('shallow').
 
-        9) #792 for #789. Return kernel argument objects instead of just names
+	9) #792 for #789. Return kernel argument objects instead of just names
 	from unique_declarations() and unique_declarations_by_intent().
 
 	10) #750 for #575. Add support for jupyter notebooks with links to
 	binder for some examples.
+
+	11) #804 for #801. Correct Fortran intents for invoke arguments in
+	unique_declarations_by_intent().
 
 release 1.9.0 20th May 2020
 
