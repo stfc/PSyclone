@@ -137,7 +137,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
         read_only = []
         for var_name in variables_info:
             if variables_info[var_name].is_read_only():
-                print(var_name)
                 read_only.append(var_name)
 
         # Add a callback here so that derived classes can adjust the list
