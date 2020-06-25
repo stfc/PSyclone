@@ -64,6 +64,13 @@ module read_only_verify_psy_data_mod
         !! to 'verify checksum'.
         logical :: verify_checksums
 
+        !> Verbosity level for output at runtime. This is taken from the
+        !! PSYDATA_VERBOSE environment variable.
+        !! 0: Only errors will be written (PSYDATA_VERBOSE undefined)
+        !! 1: Additionally write the name of the confirmed kernel_name
+        !! 2: Also write the name of each tested variable
+        integer :: verbosity
+
         !> Store the name of the module and region
         character(MAX_STRING_LENGTH) :: module_name, region_name
 
@@ -113,12 +120,34 @@ Contains
         character(*), intent(in) :: module_name, region_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
 
+        character(1) :: verbose
+        integer :: status
+
+        call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
+        this%verbosity=0
+        if (status==0) then
+            if(verbose=="0") then
+                this%verbosity = 0
+            else if (verbose=="1") then
+                this%verbosity = 1
+            else if (verbose=="2") then
+                this%verbosity = 2
+            else
+                print *,"PSyData: invalid setting of PSYDATA_VERBOSE."
+                print *,"It must be '0', 1' or '2', but it is '", verbose,"'."
+                this%verbosity = 0
+            endif
+        endif
+
         if (num_pre_vars /= num_post_vars) then
             print *,"The same number of variables must be provided before and"
             print *,"after the instrumented region. But the values are:"
             print *,"Before: ", num_pre_vars, " after: ", num_post_vars
             stop
         endif
+
+        if(this%verbosity>0) &
+            print *,"PSYDATA: checking ", module_name, " ", region_name
 
         allocate(this%checksums(num_pre_vars+num_post_vars))
         this%next_var_index = 1
@@ -145,6 +174,7 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
     end subroutine PreEnd
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
@@ -159,6 +189,7 @@ Contains
         this%verify_checksums = .true.
         this%next_var_index = 1
     end subroutine PostStart
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
@@ -167,6 +198,10 @@ Contains
     subroutine PostEnd(this)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
+
+        if(this%verbosity>0) &
+            print *,"PSYDATA: checked ", trim(this%module_name), &
+                    " ", trim(this%region_name)
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
@@ -203,6 +238,8 @@ Contains
                 print *,"Original value: ", this%checksums(this%next_var_index)
                 print *,"New value:      ", value
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = value
@@ -254,6 +291,8 @@ Contains
                 print *,"Original value: ", orig_value
                 print *,"New value:      ", value
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = chksum64
@@ -298,6 +337,8 @@ Contains
                 print *,"Original value: ", orig_value
                 print *,"New value:      ", value
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum
@@ -362,6 +403,8 @@ Contains
                 print *,"Original checksum: ", this%checksums(this%next_var_index)
                 print *,"New checksum:      ", cksum
                 print *,"--------------------------------------"
+            else if(this%verbosity>1) then
+                print *,"PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum

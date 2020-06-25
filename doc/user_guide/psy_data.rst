@@ -127,6 +127,15 @@ Besides the transformation, a library is required to do the actual
 verification at runtime. There are two implementations of the
 read-only-verification library included in PSyclone: one for LFRic,
 and one for GOcean.
+Both libraries support the environment variable ``PSYDATA_VERBOSE``
+at runtime, which can be used to control how much output is generated
+by the read-only-verification library at runtime. If the
+variable is not specified or has the value '0', only changed checksums
+warnings will be printed. If it is set to '1', a message will be 
+printed before and after each kernel call that is checked. If the
+variable is set to '2', it will additionally print the name of each
+variable that is checked.
+
 
 Read-Only Verification Library for LFRic
 ++++++++++++++++++++++++++++++++++++++++
@@ -156,14 +165,6 @@ the required variables:
     make LFRIC_DIR=some_path F90=ifort F90FLAGS="--some-flag"
 
 This will create a library called ``lib_read_only.a``.
-
-At runtime the environment variable ``PSYDATA_VERBOSE`` can be used
-to control how much output is generated at runtime. If the
-variable is not specified or has the value '0', only changed checksums
-warnings will be printed. If it is set to '1', a message will be 
-printed before and after each kernel call that is checked. If the
-variable is set to '2', it will additionally print the name of each
-variable that is checked.
 
 Read-Only-Verification Library for GOcean
 +++++++++++++++++++++++++++++++++++++++++

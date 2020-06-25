@@ -62,8 +62,8 @@ module read_only_verify_psy_data_mod
         !! in which the values are provided).
         integer :: next_var_index
 
-        !> During the declaration of the variable, this variable is
-        !! used to count the number of checksums to store. Reason for
+        !> This variable is used while variables are declared to count
+        !! the number of checksums to store. Reason for
         !! this are vector fields, which are declared as one variable,
         !! but we store the checksum for each member individually.
         integer :: count_checksums
@@ -193,7 +193,7 @@ Contains
 
         ! During the declaration the number of checksums to be
         ! stored was counted, so allocate the array now (if it has
-        ! not been allocated already):
+        ! not been allocated already in a previous call):
         if (.not. allocated(this%checksums)) then
             allocate(this%checksums(this%count_checksums))
         endif
@@ -235,7 +235,7 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         if(this%verbosity>0) &
-            print *,"PSYDATA: checked  ", trim(this%module_name), &
+            print *,"PSYDATA: checked ", trim(this%module_name), &
                     " ", trim(this%region_name)
     end subroutine PostEnd
 
