@@ -494,11 +494,13 @@ class KernelProcedure(object):
     def get_procedure(ast, name, modast):
         '''
         Get the name of the subroutine associated with the Kernel. This is
-        a type-bound procedure in the meta-data which may take one of two
+        a type-bound procedure in the meta-data which may take one of three
         forms:
                 PROCEDURE, nopass :: code => <proc_name>
         or
                 PROCEDURE, nopass :: <proc_name>
+        or if there is no type-bound procedure, an interface may be used:
+                INTERFACE <proc_name>
 
         :param ast: the fparser1 parse tree for the Kernel meta-data.
         :type ast: :py:class:`fparser.one.block_statements.Type`
@@ -513,9 +515,10 @@ class KernelProcedure(object):
         :rtype: (:py:class:`fparser1.block_statements.Subroutine`, str)
 
         :raises ParseError: if the supplied Kernel meta-data does not \
-                            have a type-bound procedure.
+                            have a type-bound procedure or interface.
         :raises ParseError: if no implementation is found for the \
-                             type-bound procedure.
+                             type-bound procedure or interface module \
+                             procedures.
         :raises ParseError: if the type-bound procedure specifies a binding \
                             name but the generic name is not "code".
         :raises InternalError: if we get an empty string for the name of the \
@@ -541,42 +544,31 @@ class KernelProcedure(object):
         if bname is None:
             # If no type-bound procedure found, search for an explicit
             # interface that has module procedures.
-            bname, subnames = get_kernel_interface(modast)
+            bname, subnames = get_kernel_interface(name, modast)
             if bname is None:
                 # no interface found either
                 raise ParseError(
                     "Kernel type {0} does not bind a specific procedure or \
                     provide an explicit interface".format(name))
-            # walk the AST to check the subroutine names exist.
-            for subname in subnames:
-                code = None
-                for statement, _ in fpapi.walk(modast):
-                    if isinstance(statement,
-                                  fparser1.block_statements.Subroutine) \
-                                  and statement.name.lower() \
-                                  == subname.lower():
-                        code = statement
-                        break
-                if not code:
-                    raise ParseError(
-                        "kernel.py:KernelProcedure:get_procedure: Kernel "
-                        "subroutine '{0}' not found.".format(subname))
         elif bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        # Walk through the rest of kernel to check if the subroutine actually
-        # exists for type bound procedure
+        # add the name of the tbp to the list of strings to search for.
         else:
-            code = None
+            subnames = [bname]
+        # walk the AST to check the subroutine names exist.
+        for subname in subnames:
             for statement, _ in fpapi.walk(modast):
-                if isinstance(statement, fparser1.block_statements.Subroutine)\
-                  and statement.name.lower() == bname:
+                if isinstance(statement,
+                    fparser1.block_statements.Subroutine) \
+                       and statement.name.lower() \
+                       == subname.lower():
                     code = statement
                     break
-            if not code:
+            else:
                 raise ParseError(
                     "kernel.py:KernelProcedure:get_procedure: Kernel "
-                    "subroutine '{0}' not found.".format(bname))
+                    "subroutine '{0}' not found.".format(subname))
         return code, bname
 
     @property
@@ -634,10 +626,11 @@ def get_kernel_metadata(name, ast):
     return ktype
 
 
-def get_kernel_interface(ast):
+def get_kernel_interface(name, ast):
     '''Takes the kernel module parse tree and returns the interface part
     of the parse tree.
 
+    :param str name: The kernel name
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
@@ -655,7 +648,8 @@ def get_kernel_interface(ast):
             # count the interfaces, then can be only one!
             count = count + 1
             if count >= 2:
-                raise ParseError("Kernel has more than one interface.")
+                raise ParseError("Kernel {0} has more than one interface, " 
+                      "this is forbidden in the LFRic API.".format(name))
             # Check the interfaces assigns module procedures.
             if statement.a.module_procedures:
                 iname = statement.name.lower()
