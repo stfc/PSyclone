@@ -41,8 +41,12 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import ReadOnlyVerifyNode
-from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Node, ReadOnlyVerifyNode
+from psyclone.psyir.transformations import (ReadOnlyVerifyTrans,
+                                            TransformationError)
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import OMPParallelLoopTrans
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
@@ -57,17 +61,69 @@ def test_extract_trans():
     assert read_only.name == "ReadOnlyVerifyTrans"
 
 
+# -----------------------------------------------------------------------------
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ReadOnlyVerifyNode does
     not have a single Schedule node as its child. '''
-    from psyclone.psyir.nodes import Node
-    from psyclone.errors import InternalError
-    enode = ReadOnlyVerifyNode()
-    monkeypatch.setattr(enode, "_children", [])
+    read_node = ReadOnlyVerifyNode()
+    monkeypatch.setattr(read_node, "_children", [])
     with pytest.raises(InternalError) as err:
-        _ = enode.read_only_verify_body
+        _ = read_node.read_only_verify_body
     assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    monkeypatch.setattr(read_node, "_children", [Node(), Node()])
     with pytest.raises(InternalError) as err:
-        _ = enode.read_only_verify_body
+        _ = read_node.read_only_verify_body
     assert "malformed or incomplete. It should have a " in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_read_only_basic():
+    '''Check basic functionality: node names, schedule view.
+    '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    read_only = ReadOnlyVerifyTrans()
+    new_sched, _ = read_only.apply(invoke.schedule[0].loop_body[0])
+    new_sched.view()
+
+    read_node = new_sched[0].loop_body[0]
+    assert read_node.dag_name == "read_only_verify_0"
+
+
+# -----------------------------------------------------------------------------
+def test_read_only_options():
+    '''Check that options are passed to the ReadOnly Node and trigger
+    the use of the newly defined names.
+    '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    read_only = ReadOnlyVerifyTrans()
+    _, _ = read_only.apply(invoke.schedule[0].loop_body[0],
+                           options={"region_name": ("a", "b")})
+    code = str(invoke.gen())
+
+    assert 'CALL read_only_verify_psy_data%PreStart("a", "b", 2, 2)' in code
+
+
+# -----------------------------------------------------------------------------
+def test_invalid_apply():
+    '''Test the exceptions that should be raised by ReadOnlyVerifyTrans.
+
+    '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    read_only = ReadOnlyVerifyTrans()
+    omp = OMPParallelLoopTrans()
+    _, _ = omp.apply(invoke.schedule[0])
+    with pytest.raises(TransformationError) as err:
+        _, _ = read_only.apply(invoke.schedule[0].dir_body[0],
+                               options={"region_name": ("a", "b")})
+    assert "Extraction of a Loop without its parent Directive is not "\
+           "allowed." in str(err.value)
+
+    with pytest.raises(TransformationError) as err:
+        _, _ = read_only.apply(invoke.schedule[0].dir_body[0].loop_body[0],
+                               options={"region_name": ("a", "b")})
+    print(str(err.value))
+    assert "Extraction of Nodes enclosed within a thread-parallel region " \
+           "is not allowed." in str(err.value)
