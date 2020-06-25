@@ -1025,7 +1025,7 @@ def test_loop_fuse(dist_mem):
 
     ftrans = DynamoLoopFuseTrans()
 
-    # fuse the loops
+    # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[index],
                                schedule.children[index+1])
 
@@ -1069,7 +1069,6 @@ def test_loop_fuse_set_dirty():
                                schedule.children[5])
 
     gen = str(psy.gen)
-    print(gen)
     assert gen.count("set_dirty()") == 1
 
 
@@ -3951,7 +3950,7 @@ def test_rc_continuous_depth():
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
     for field_name in ["f2", "m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
                 format(field_name)) in result
@@ -4613,7 +4612,6 @@ def test_rc_no_halo_decrease():
     schedule, _ = rc_trans.apply(loop, {"depth": 4})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
@@ -4788,22 +4786,40 @@ def test_rc_continuous_halo_remove():
     schedule = invoke.schedule
     result = str(psy.gen)
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    f3_write_loop = schedule.children[4]
+    f3_inc_hex = schedule.children[2]
+    f3_inc_loop = schedule.children[4]
+    f3_read_hex = schedule.children[7]
     f3_read_loop = schedule.children[9]
     # f3 has "inc" access so there is a check for the halo exchange
-    # of depth 1
-    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    # of depth 1, as well as two halo exchanges of depth 1 in code
+    # (one before f3_inc_loop and one before the f3_read_loop).
+    assert result.count("CALL f3_proxy%halo_exchange(depth=1") == 2
     assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+    #
+    # Applying redundant computation to equal depth on f3_inc_loop and
+    # f3_read_loop does not remove the initial number of halo exchanges.
+    # However, the "is_dirty" check and the halo exchange before the
+    # f3_inc_loop are now to depth 2.
     rc_trans.apply(f3_read_loop, {"depth": 3})
-    rc_trans.apply(f3_write_loop, {"depth": 3})
+    rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
-    assert "CALL f3_proxy%halo_exchange(depth=3)" in result
+    assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
+    assert f3_inc_hex._compute_halo_depth() == "2"
+    assert f3_read_hex._compute_halo_depth() == "3"
+    assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
     assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
     #
-    rc_trans.apply(f3_write_loop, {"depth": 4})
+    # Applying redundant computation to one more depth to f3_inc_loop
+    # removes the halo exchange before the f3_read_loop.
+    # The "is_dirty" check and the halo exchange before the
+    # f3_inc_loop are now to depth 3.
+    rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
-    assert "CALL f3_proxy%halo_exchange(depth=" not in result
-    assert "IF (f3_proxy%is_dirty(depth=" not in result
+    assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
+    assert f3_inc_hex._compute_halo_depth() == "3"
+    # Position 7 is now halo exchange on f4 instead of f3
+    assert schedule.children[7].field != "f3"
+    assert "IF (f3_proxy%is_dirty(depth=4)" not in result
 
 
 def test_rc_discontinuous_halo_remove(monkeypatch):
