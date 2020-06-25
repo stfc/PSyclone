@@ -216,7 +216,7 @@ class ArrayRange2LoopTrans(Transformation):
 
     def apply(self, node, options=None):
         '''Apply the ArrayRange2Loop transformation to the specified node. The
-        node must be an assignment. The first range node in each array
+        node must be an assignment. The rightmost range node in each array
         within the assignment is replaced with a loop index and the
         assignment is placed within a loop iterating over that
         index. The bounds of the loop are determined from the bounds
@@ -234,11 +234,11 @@ class ArrayRange2LoopTrans(Transformation):
         loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
         symbol_table.add(loop_variable_symbol)
 
-        # Replace the first range found in all arrays with the
+        # Replace the rightmost range found in all arrays with the
         # iterator and use the range from the LHS range for the loop
         # iteration space.
         for array in node.walk(Array):
-            for idx, child in enumerate(array.children):
+            for idx, child in reversed(list(enumerate(array.children))):
                 if isinstance(child, Range):
                     if array is node.lhs:
                         # Save this range to determine indexing
@@ -314,7 +314,7 @@ class ArrayRange2LoopTrans(Transformation):
                         # other ranges.
                         lhs_index = idx
                     else:
-                        # We could add support for adding loop
+                        # Issue #814 We should add support for adding loop
                         # variables where the ranges are different.
                         if not ArrayRange2LoopTrans.same_range(
                                 node.lhs, lhs_index, array, idx):

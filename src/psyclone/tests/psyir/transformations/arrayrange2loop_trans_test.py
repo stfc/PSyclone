@@ -371,8 +371,8 @@ def test_same_range():
                            "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
                            "    y(n,idx)=x(idx)\n"),
                           (create_array_y_2, create_array_z,
-                           "  do idx = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
-                           "    y2(idx,:)=z(idx,n,:)\n"),
+                           "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+                           "    y2(:,idx)=z(:,n,idx)\n"),
                           (create_array_y_3, create_expr,
                            "  do idx = 2, n, 2\n"
                            "    y3(n,idx)=x(idx) * z(1,idx) + a(1)")])
@@ -397,6 +397,36 @@ def test_transform_apply(lhs_create, rhs_create, result):
                                     [assignment])
     trans.apply(assignment)
     writer = FortranWriter()
+    assert result in writer(routine)
+
+
+@pytest.mark.xfail(reason="issue #630. The generated loop indices should be "
+                   "different.")
+def test_transform_multi_apply():
+    '''Check that the ArrayRange2Loop transformation can be used to create
+    nested loops by calling it multiple times when an array has
+    multiple dimensions that use a range.
+
+    '''
+    trans = ArrayRange2LoopTrans()
+
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("n", INTEGER_TYPE)
+    symbol_table.add(symbol)
+    lhs = create_array_y_2(symbol_table)
+    rhs = create_array_z(symbol_table)
+    assignment = Assignment.create(lhs, rhs)
+    routine = KernelSchedule.create("work", symbol_table,
+                                    [assignment])
+    trans.apply(assignment)
+    trans.apply(assignment)
+    writer = FortranWriter()
+    result = (
+        "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+        "    do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
+        "      y2(idx_1,idx)=z(idx_1,n,idx)\n"
+        "    enddo\n"
+        "  enddo\n")
     assert result in writer(routine)
 
 
@@ -426,8 +456,8 @@ def test_transform_apply_insert():
         "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
         "    x(idx)=y(n,idx)\n"
         "  enddo\n"
-        "  do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
-        "    y2(idx_1,:)=z(idx_1,n,:)\n"
+        "  do idx_1 = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+        "    y2(:,idx_1)=z(:,n,idx_1)\n"
         "  enddo\n")
     assert result in writer(routine)
 
