@@ -31,41 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
 
-'''Transformation module, containing all generic (API independent)
-transformations and base classes.
+''' Module containing tests for ReadOnlyVerifyTrans and ReadOnlyVerifyNode
 '''
 
-from psyclone.psyir.transformations.extract_trans import ExtractTrans
-from psyclone.psyir.transformations.profile_trans import ProfileTrans
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
-from psyclone.psyir.transformations.read_only_verify_trans \
-    import ReadOnlyVerifyTrans
-from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
-    Abs2CodeTrans
-from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    Matmul2CodeTrans
-from psyclone.psyir.transformations.intrinsics.min2code_trans import \
-    Min2CodeTrans
-from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
-    Sign2CodeTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from __future__ import absolute_import
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
+import pytest
 
-__all__ = ['ExtractTrans',
-           'ProfileTrans',
-           'PSyDataTrans',
-           'ReadOnlyVerifyTrans',
-           'RegionTrans',
-           'Abs2CodeTrans',
-           'Matmul2CodeTrans',
-           'Min2CodeTrans',
-           'Sign2CodeTrans',
-           'TransformationError']
+from psyclone.psyir.nodes import ReadOnlyVerifyNode
+from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+
+# --------------------------------------------------------------------------- #
+# ================== Extract Transformation tests =========================== #
+# --------------------------------------------------------------------------- #
+
+
+def test_extract_trans():
+    '''Tests basic functions in ReadOnlyVerifyTrans.'''
+    read_only = ReadOnlyVerifyTrans()
+    assert str(read_only) == "Create a sub-tree of the PSyIR that has " \
+                             "a ReadOnlyVerifyNode at its root."
+    assert read_only.name == "ReadOnlyVerifyTrans"
+
+
+def test_malformed_extract_node(monkeypatch):
+    ''' Check that we raise the expected error if an ReadOnlyVerifyNode does
+    not have a single Schedule node as its child. '''
+    from psyclone.psyir.nodes import Node
+    from psyclone.errors import InternalError
+    enode = ReadOnlyVerifyNode()
+    monkeypatch.setattr(enode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        _ = enode.read_only_verify_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        _ = enode.read_only_verify_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
