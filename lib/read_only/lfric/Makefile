@@ -35,6 +35,9 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 
+#TODO: #813 keeps track of adding enough files from LFRic to PSyclone to be
+#      able to compile this library without the need of external
+#      files (or #745, which will try to create a stand-alone example).
 LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
 
 F90 ?= gfortran
