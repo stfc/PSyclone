@@ -562,7 +562,7 @@ class KernelProcedure(object):
                 if isinstance(statement,
                     fparser1.block_statements.Subroutine) \
                        and statement.name.lower() \
-                       == subname.lower():
+                       == subname:
                     code = statement
                     break
             else:
@@ -634,9 +634,9 @@ def get_kernel_interface(name, ast):
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    :returns: Name of the parse tree of the interface block and
-              the names of the module procedures. Or None, None if
-              there is no interface or the interface has no nodule procedures.
+    :returns: Name of the interface block and the names of the module
+              procedures (lower case). Or None, None if there is no i
+              nterface or the interface has no nodule procedures.
     :rtype: : `fparser.one.block_statements.Interface.name`,
               `fparser.one.block_statements.Interface.a.module_procedures` '''
 
@@ -648,16 +648,19 @@ def get_kernel_interface(name, ast):
             # count the interfaces, then can be only one!
             count = count + 1
             if count >= 2:
-                raise ParseError("Kernel {0} has more than one interface, " 
-                      "this is forbidden in the LFRic API.".format(name))
+                raise ParseError("Kernel {0} has more than one interface, "
+                                 "this is forbidden in the LFRic API."
+                                 .format(name))
             # Check the interfaces assigns module procedures.
             if statement.a.module_procedures:
                 iname = statement.name.lower()
-                sname = statement.a.module_procedures
                 # If implicit interface (no name) set to none as there is no
                 # procedure name for PSyclone to use.
-            if iname == '':
-                iname = None
+                if iname == '':
+                    iname = None
+                else:
+                    sname = [str(sname).lower() for sname
+                             in statement.a.module_procedures]
     return iname, sname
 
 

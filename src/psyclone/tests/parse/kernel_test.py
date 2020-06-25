@@ -183,7 +183,8 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
 
 # function get_kernel_interface
 def test_get_kernel_interface_match():
-    ''' Tests that something is returned when searching for an interface'''
+    ''' Tests that something is returned when searching for an interface
+        block in a parse tree that contains one.'''
     module_parse_tree = parse(CODE_INTERFACE)
     kernel_type_name = "interface_found"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
@@ -192,9 +193,10 @@ def test_get_kernel_interface_match():
 
 
 def test_get_kernel_interface_no_match():
-    ''' Tests for none when searching there is no interface'''
+    ''' Tests for none when searching there is no interface 
+        when searching a parse tree that does not contain an interface.'''
     module_parse_tree = parse(CODE)
-    kernel_type_name = "no_interface_found"    
+    kernel_type_name = "no_interface_found"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
     assert meta1 is None
     assert meta2 is None
@@ -203,14 +205,25 @@ def test_get_kernel_interface_no_match():
 def test_get_kernel_interface_match_caseinsensitive():
     ''' Tests that the interface name is case insensitive'''
     module_parse_tree = parse(CODE_INTERFACE.replace("test_code", "TeST_CoDe"))
-    kernel_type_name = "interface_found"    
+    kernel_type_name = "interface_found"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
     assert meta1 == "test_code"
     assert meta2 is not None
 
 
+def test_get_kernel_interface_match_no_name():
+    ''' Tests that the interface with no name returns None'''
+    module_parse_tree = parse(CODE_INTERFACE.replace("test_code", ""))
+    print(module_parse_tree)
+    kernel_type_name = "interface_withnoname"
+    meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
+    assert meta1 is None
+    assert meta2 is None
+
+
 def test_get_kernel_interface_match_correct():
-    ''' Tests that something is returned when searching for an interface'''
+    ''' Tests that the fucntion has correct return when searching for an
+        interface that defines more than one module procedure. '''
     module_parse_tree = parse(CODE_INTERFACE.replace(
         "module procedure sub_code",
         "module procedure sub_code, more_code"))
@@ -222,14 +235,15 @@ def test_get_kernel_interface_match_correct():
 
 
 def test_get_kernel_interface_double_interface():
-    ''' Tests that parse error occurs for two interfaces.'''
+    ''' Tests that parse error occurs when the parse tree 
+        contains two interfaces.'''
     module_parse_tree = parse(CODE_DOUBLE_INTERFACE)
-    kernel_type_name = "double_interface_kernel"    
+    kernel_type_name = "double_interface_kernel"
     with pytest.raises(ParseError) as excinfo:
         _, _ = get_kernel_interface(kernel_type_name, module_parse_tree)
     assert "Kernel double_interface_kernel has more than one interface, "\
-            "this is forbidden in the LFRic API." \
-            in str(excinfo.value)
+           "this is forbidden in the LFRic API." \
+           in str(excinfo.value)
 
 
 # function get_kernel_metadata
