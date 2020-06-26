@@ -74,7 +74,6 @@ all: template simple_timing drhook dl_timer
 template: PROFILE_DIR=../../../lib/profiling/template
 template: PROFILE_LINK=-ldummy
 template: ../../../lib/profiling/template/libdummy.a $(NAME).template
-	./$(NAME).template
 
 # Build the template profiling library
 ../../../lib/profiling/template/libdummy.a:
