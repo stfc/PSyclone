@@ -532,3 +532,26 @@ def test_validate():
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
         "determined." in str(info.value))
+
+
+def test_validate_intrinsic():
+    '''Check that the validate method returns an exception if the rhs of
+    the assignment contains an operator that only returns an array
+    i.e. can't be performed elementwise. At the moment MATMUL is the
+    only operator of this type.
+
+    '''
+    symbol_table = SymbolTable()
+    array_x = create_array_x(symbol_table)
+    array_y_2 = create_array_y_2(symbol_table)
+    matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
+                                    array_y_2, array_x)
+    assignment = Assignment.create(array_x, matmul)
+
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assignment)
+    assert (
+        "Error in ArrayRange2LoopTrans transformation. The rhs of the "
+        "supplied Assignment node contains the MATMUL operator which can't "
+        "be performed elementwise." in str(info.value))

@@ -46,12 +46,34 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.nodes import Loop, Range, Reference, Array, Assignment, \
-    Node
+    Node, Operation, BinaryOperation
 
 
 class ArrayRange2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR Array Range to a PSyIR
-    Loop.
+    Loop. For example:
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "nemo"
+    >>> filename = "tra_adv.F90"
+    >>> ast, invoke_info = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invoke_info)
+    >>> schedule = psy.invokes.invoke_list[0].schedule
+    >>>
+    >>> from psyclone.psyir.nodes import Assignment
+    >>> from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
+    >>>     TransformationError
+    >>>
+    >>> schedule.view()
+    >>> trans = ArrayRange2LoopTrans()
+    >>> for assignment in schedule.walk(Assignment):
+    >>>     while True:
+    >>>         try:
+    >>>             trans.apply(assignment)
+    >>>         except TransformationError:
+    >>>             break
+    >>> schedule.view()
 
     '''
     @staticmethod
@@ -305,6 +327,21 @@ class ArrayRange2LoopTrans(Transformation):
                 "Assignment node should be a PSyIR Array with at least one "
                 "of its dimensions being a Range, but found None."
                 "".format(self.name))
+
+        # If an operator on the rhs only returns an array then we are
+        # not able to turn the assignment into an explicit loop. At
+        # the moment we do not capture what an operator returns and
+        # therefore can not check this. This will be addressed in
+        # issue #685. For the moment we check with an explicit list
+        # which happens to only contain a single operator (MATMUL)
+        # because at this time all other operators in the PSyIR can be
+        # performed elementwise.
+        if [operation for operation in node.rhs.walk(Operation)
+                if operation.operator in [BinaryOperation.Operator.MATMUL]]:
+            raise TransformationError(
+                "Error in {0} transformation. The rhs of the supplied "
+                "Assignment node contains the MATMUL operator which can't be "
+                "performed elementwise.".format(self.name))
 
         for array in node.walk(Array):
             for idx, child in enumerate(array.children):
