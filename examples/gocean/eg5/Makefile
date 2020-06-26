@@ -39,7 +39,7 @@
 #     export F90=mpif90
 #     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
-#     export DL_DIR=../../../external/dl_esm_inf/finite_difference/src
+#     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
 # If you are using the dl_timer, you can also use:
 #     export DL_TIMER_ROOT=../../../../apeg-dl_timer
 # Similarly for DrHook:
@@ -47,11 +47,21 @@
 
 include ../../common.mk
 
+# Reset the default goal to be 'compile', i.e. to include compilation
+.DEFAULT_GOAL:=
+DEFAULT: compile
+
 GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
 
 F90 ?= gfortran
 F90FLAGS ?=
-DL_DIR ?= ../../../external/dl_esm_inf/finite_difference/src
+
+# Location of the infrastucture code (which is a submodule of the
+# PSyclone git repo).
+SHARED_DIR = ../../../external
+INF_DIR = $(SHARED_DIR)/dl_esm_inf/finite_difference
+INF_INC = $(INF_DIR)/src
+INF_LIB = $(INF_DIR)/src/lib_fd.a
 
 KERNELS = init_field_mod.o update_field_mod.o
 NAME=profile_test
@@ -96,7 +106,7 @@ dl_timer: $(NAME).dl_timer
 #.SECONDARY:
 
 $(NAME).%: $(KERNELS) psy_%.o alg.o
-	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) -L $(DL_DIR) -l_fd
+	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) $(INF_LIB)
 
 alg.f90 psy.f90: transform
 
@@ -104,13 +114,21 @@ transform: test.x90
 	${PSYCLONE} --profile invokes -l -api "gocean1.0" \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
+# Make sure the infrastructure library is compiled, so the mods are found
+$(KERNELS): $(INF_LIB)
+
+# The dl_esm_inf library
+$(INF_LIB):
+	$(MAKE) -C $(INF_DIR) F90=$(F90)
+
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
 # since PSyDataType will differ from one wrapper library to the next)
 psy_%.o: psy.f90 $(KERNELS)
-	$(F90) -o $@ $(F90FLAGS) -I $(DL_DIR) -I $(PROFILE_DIR) -c $<
+	$(F90) -o $@ $(F90FLAGS) -I $(INF_INC) -I $(PROFILE_DIR) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(PROFILE_DIR) -c $<
+	$(F90) $(F90FLAGS) -I $(INF_INC) -I $(PROFILE_DIR) -c $<
 
 allclean: clean
 	${MAKE} -C ../../../lib/profiling/template clean
+	$(MAKE) -C $(INF_DIR) clean

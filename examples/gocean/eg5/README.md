@@ -4,7 +4,7 @@
 
 ## Introduction
 
-This is a very simple test that shows how to use the profling
+This is a very simple test that shows how to use the profiling
 support in PSyclone. It is a stand alone program that can be compiled
 and run. 
 
@@ -24,19 +24,24 @@ for ``<wrapper library name>``. The name of the executable will be
 ``profile_test.<wrapper library name>``. There is also a target ``make all``
 which will create executables for all libraries listed above.    
 
-You also have to compile the GOcean infrastructure library
-dl_esm_inf (which is included in ``external/dl_esm_inf``), and
-the corresponding profile wrapper library in ``lib/profiling``.
-Instructions for those are are given in the corresponding subdirectories.
-If you are using ``dl_timer`` or ``drhook``, you also need to compile these
-libraries yourself, and modify the ``Makefile`` in this directory
+You have to compile the GOcean infrastructure library
+dl_esm_inf, and the corresponding profile wrapper library in
+``lib/profiling``. By default the included dl_esm_inf library in
+``externa/dl_esm_inf`` is compiled (set the environment variable``INF_DIR``
+for the ``make`` command to pick a different version), and the template
+profiling library in ``lib/profiling/template`` is also compiled by default.
+More detailed instructions for compiling these libraries are are given in
+the corresponding subdirectories.
+
+If you are using ``dl_timer`` or ``drhook``, you need to compile these
+libraries yourself first, and modify the ``Makefile`` in this directory
 to specify the required linking parameters. The ``Makefile``
 supports the following environment variables that can be defined
 to find the various software packages:
 
-### DL_DIR:
-   The location of the dl_esm_inf library, it defaults to
-   ``../../../external/dl_esm_inf/finite_difference/src``,
+### INF_DIR:
+   The location of the dl_esm_inf infrastructure library, it defaults to
+   ``../../../external/dl_esm_inf/finite_difference``,
    which is the version included in PSyclone.
 ### DL_TIMER_ROOT:
     The location of the apeg-dl_timer library. It defaults to
@@ -54,7 +59,7 @@ The makefile here will invoke psyclone with the ``--profile invokes``
 flag, which will add profiling around the two invokes used in the example.
 
 ### Note:
-The actual runtime is extremly short, so likely the profiling
+The actual runtime is extremely short, so likely the profiling
 tool used will report 0 seconds for each of the invokes.
 
 ## Running
