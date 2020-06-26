@@ -9,10 +9,16 @@ support in PSyclone. It is a stand-alone program that can be compiled
 and run.
 
 ## Compilation
-You have to compile dl_esm_inf (which is included in external/dl_esm_inf)
-and one of the extraction libraries in lib/extract. 
-The documentation assumes that lib/extract/netcdf is used.
-Instructions for those are are given in the corresponding subdirectories.
+This example needs two libraries: the gocean infrastructure library
+dl_esm_inf, and a corresponding extraction library. By default
+it will use the infrastructure library in ``../../../external/dl_esm_inf``
+and automatically compile this library. You can set the environment
+variable ``INF_DIR`` to point to a different directory.
+The NetCDF extraction library in ``../../../lib/extract/netcdf`` is used
+as default, and will also be automatically compiled. You can set the
+environment variable ``EXTRACT_DIR`` to point to a different library if 
+required. More details on compiling these libraries are in the
+corresponding subdirectories.
 To create and compile the example, modify the Makefile if required
 and type ``make``.
 
@@ -41,7 +47,7 @@ Grid has bounds:  (1: 12,1:  6)
    15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000        15.000000000000000     
 ```
 
-Two netcdf files will be produced, one for each of the two invokes
+Two NetCDF files will be produced, one for each of the two invokes
 instrumented with an extract region.
 
 ## Licence
