@@ -181,19 +181,8 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
     assert "test_mod.f90" in result
 
 
-# function get_kernel_interface
-def test_get_kernel_interface_match():
-    ''' Tests that something is returned when searching for an interface
-        block in a parse tree that contains one.'''
-    module_parse_tree = parse(CODE_INTERFACE)
-    kernel_type_name = "interface_found"
-    meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
-    assert meta1 is not None
-    assert meta2 is not None
-
-
 def test_get_kernel_interface_no_match():
-    ''' Tests for none when searching there is no interface 
+    ''' Tests for none when searching there is no interface
         when searching a parse tree that does not contain an interface.'''
     module_parse_tree = parse(CODE)
     kernel_type_name = "no_interface_found"
@@ -235,7 +224,7 @@ def test_get_kernel_interface_match_correct():
 
 
 def test_get_kernel_interface_double_interface():
-    ''' Tests that parse error occurs when the parse tree 
+    ''' Tests that parse error occurs when the parse tree
         contains two interfaces.'''
     module_parse_tree = parse(CODE_DOUBLE_INTERFACE)
     kernel_type_name = "double_interface_kernel"
@@ -259,17 +248,6 @@ def test_get_kernel_metadata_no_match(get_code_fragment):
             kernel_type_name, module_parse_tree)
     assert ('Kernel type no_matching_kernel does not exist'
             in str(excinfo.value))
-
-
-def test_get_kernel_metadata_match(get_code_fragment):
-    '''Test that something (anything at this point) is returned when
-    searching for a kernel that exists in the parse tree.
-
-    '''
-    module_parse_tree = parse(get_code_fragment)
-    kernel_type_name = "test_type"
-    meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
-    assert meta is not None
 
 
 def test_get_kernel_metadata_match_case_insensitive(get_code_fragment):
@@ -348,8 +326,8 @@ def test_kernelprocedure_notfound():
     module.
 
     '''
+    my_code = CODE.replace("=> test_code", "=> non_existant_code")
     with pytest.raises(ParseError) as excinfo:
-        my_code = CODE.replace("=> test_code", "=> non_existant_code")
         _ = create_kernelprocedure(my_code)
     assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)

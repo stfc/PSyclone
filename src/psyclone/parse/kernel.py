@@ -560,9 +560,9 @@ class KernelProcedure(object):
         for subname in subnames:
             for statement, _ in fpapi.walk(modast):
                 if isinstance(statement,
-                    fparser1.block_statements.Subroutine) \
-                       and statement.name.lower() \
-                       == subname:
+                              fparser1.block_statements.Subroutine) \
+                              and statement.name.lower() \
+                              == subname:
                     code = statement
                     break
             else:
@@ -637,8 +637,9 @@ def get_kernel_interface(name, ast):
     :returns: Name of the interface block and the names of the module
               procedures (lower case). Or None, None if there is no i
               nterface or the interface has no nodule procedures.
-    :rtype: : `fparser.one.block_statements.Interface.name`,
-              `fparser.one.block_statements.Interface.a.module_procedures` '''
+    :raises ParseError: if more than one interface is found.
+    :rtype: : `str`, list of str`.
+    '''
 
     iname = None
     sname = None
