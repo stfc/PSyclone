@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -278,3 +278,10 @@ issues:
    the hierarchy, with levels that support commutitivity checking each
    option. This is similar to the approach taken in ``math_equal()`` in
    the ``Node`` base-class.
+
+4) there is a test for non-elementwise operations on the rhs of an
+   assignment as it is not possible to turn this into an explicit
+   loop. At the moment, the return type(s) of an operation are not
+   returned. This is the subject of #685. For the moment the test just
+   checks for MATMUL as that is currently the only non-elementwise
+   operation in the PSyiR.
