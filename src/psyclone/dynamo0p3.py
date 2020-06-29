@@ -423,7 +423,6 @@ class DynKernMetadata(KernelType):
                         rules for the Dynamo 0.3 API.
     '''
     def __init__(self, ast, name=None):
-        from psyclone.parse.kernel import getkerneldescriptors
 
         KernelType.__init__(self, ast, name=name)
 
@@ -9122,7 +9121,7 @@ class DynKernelArgument(KernelArgument):
                         self.function_space_names))
         if self._type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             return "vspace"
-        elif self.is_operator:
+        if self.is_operator:
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
             elif function_space.orig_name == self.descriptor.function_space_to:

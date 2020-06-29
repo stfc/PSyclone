@@ -42,7 +42,7 @@ and properties.
 # Imports
 from __future__ import print_function, absolute_import
 import os
-from psyclone.parse.kernel import Descriptor
+from psyclone.parse.kernel import Descriptor, get_stencil, get_mesh
 from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone.configuration import Config
@@ -70,8 +70,6 @@ class LFRicArgDescriptor(Descriptor):
                         valid argument types.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
-    :raises ParseError: if an argument that is not a real scalar has a \
-                        reduction access.
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
 
@@ -326,7 +324,6 @@ class LFRicArgDescriptor(Descriptor):
         # or a mesh identifier (for inter-grid kernels)
         if len(arg_type.args) == 4:
             try:
-                from psyclone.parse.kernel import get_stencil, get_mesh
                 if "stencil" in str(arg_type.args[3]):
                     self._stencil = get_stencil(
                         arg_type.args[3],
@@ -488,6 +485,8 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if there are not exactly 2 metadata arguments.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
+        :raises ParseError: if a scalar argument that is not a real \
+                            scalar has a reduction access.
 
         '''
         # Check whether something other than a scalar is passed in
@@ -671,3 +670,9 @@ class LFRicArgDescriptor(Descriptor):
             raise InternalError("LFRicArgDescriptor.__str__(), should not "
                                 "get to here.")
         return res
+
+
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = [
+    'LFRicArgDescriptor']
