@@ -41,11 +41,12 @@
 from __future__ import absolute_import
 import re
 import pytest
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol
+from psyclone.psyGen import KernelSchedule
 from psyclone.errors import InternalError
 
 
@@ -854,3 +855,76 @@ def test_name_from_tag():
     assert symtab.lookup("newsymbol").name == "newsymbol"
     assert symtab.lookup_with_tag("tag3").name == "newsymbol"
     assert symtab.name_from_tag("tag4", root="newsymbol") == "newsymbol_1"
+
+
+def test_all_symbols():
+    '''Check that the all_symbols property in the SymbolTable class
+    behaves as expected.
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1)
+
+    # all_symbols() works when the symbol table is not attached to a
+    # node.
+    all_symbols = schedule_symbol_table.all_symbols
+    assert len(all_symbols) == 1
+    assert all_symbols[symbol1.name] is symbol1
+
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])    
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2)
+    container = Container.create("my_container", container_symbol_table, [schedule])
+
+    # all_symbols() works when the symbol table is attached to a
+    # node which has no parent.
+    all_symbols = container_symbol_table.all_symbols
+    assert len(all_symbols) == 1
+    assert all_symbols[symbol2.name] is symbol2
+
+    # all_symbols() works when the symbol table has ancestor symbol
+    # tables.
+    all_symbols = schedule_symbol_table.all_symbols
+    assert len(all_symbols) == 2
+    assert all_symbols[symbol1.name] is symbol1
+    assert all_symbols[symbol2.name] is symbol2
+
+
+def test_new_symbol_name_ancestors():
+    '''Check that new_symbol_name in the SymbolTable class behaves as
+    expected when the check_ancestors argument is set to True.
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1)
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])    
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2)
+    container = Container.create("my_container", container_symbol_table, [schedule])
+
+    assert schedule_symbol_table.new_symbol_name("symbol1") == "symbol1_1"
+    assert schedule_symbol_table.new_symbol_name(
+        "symbol1", check_ancestors=True) == "symbol1_1"
+    assert schedule_symbol_table.new_symbol_name("symbol2") == "symbol2"
+    assert schedule_symbol_table.new_symbol_name(
+        "symbol2", check_ancestors=True) == "symbol2_1"
+    assert container_symbol_table.new_symbol_name("symbol1") == "symbol1"
+    assert container_symbol_table.new_symbol_name(
+        "symbol1", check_ancestors=True) == "symbol1"
+    assert container_symbol_table.new_symbol_name("symbol2") == "symbol2_1"
+    assert container_symbol_table.new_symbol_name(
+        "symbol2", check_ancestors=True) == "symbol2_1"
+
+# add() with check_ancestors=True
+# lookup() with check_ancestors=True
+# lookup_with_tag() with check_ancestors=True
+# name_from_tag with check_ancestors=True
+
+# TBD all_tags() test
+
+# set default check_ancestors to True and fix broken tests (by setting
+# explicitely to False.

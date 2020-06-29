@@ -83,13 +83,14 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_symbols = {}.update(self._symbols)
+        all_symbols = OrderedDict()
+        all_symbols.update(self._symbols)
         current = self
         while current._schedule and current._schedule.parent:
             current = current._schedule.parent.scope.symbol_table
             for symbol in current._symbols:
                 if symbol not in all_symbols:
-                    all_symbols[symbol.key()] = symbol.item()
+                    all_symbols[symbol] = current._symbols[symbol]
         return all_symbols
         
     @property
