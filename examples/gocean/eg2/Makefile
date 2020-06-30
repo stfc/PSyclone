@@ -56,8 +56,8 @@ GENERATED_FILES += *.o *.mod inc_field_*_mod.f90 psy*.f90 alg_gen.f90 \
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
-SHARED_DIR = ../../../external
-INF_DIR = ${SHARED_DIR}/dl_esm_inf/finite_difference
+SHARED_DIR ?= ../../../external
+INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference
 INF_INC = ${INF_DIR}/src
 INF_LIB = ${INF_DIR}/src/lib_fd.a
 

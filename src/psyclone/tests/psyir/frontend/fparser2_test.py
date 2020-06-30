@@ -2716,22 +2716,6 @@ def test_handling_return_stmt():
     assert not new_node.children
 
 
-def test_handling_end_do_stmt(parser):
-    ''' Test that the fparser2 End_Do_Stmt is ignored.'''
-    reader = FortranStringReader('''
-      subroutine test()
-        integer :: i, a
-        do i=1,10
-            a=a+1
-        end do
-      end subroutine test
-        ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert len(result.children) == 1  # Just the loop (no end statement)
-
-
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
@@ -2746,48 +2730,6 @@ def test_handling_end_subroutine_stmt():
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2endsub])
     assert not fake_parent.children  # No new children created
-
-
-def test_do_construct(parser):
-    ''' Check that do loop constructs are converted to the expected
-    PSyIR node.
-
-    '''
-    reader = FortranStringReader('''
-      subroutine test()
-        integer :: i, sum
-        do i = 1, 10 , 2
-            sum = sum + i
-        end do
-      end subroutine test
-      ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert result.children[0]
-    new_loop = result.children[0]
-    assert isinstance(new_loop, Loop)
-    assert new_loop.variable.name == "i"
-    assert new_loop.start_expr.value == "1"
-    assert new_loop.stop_expr.value == "10"
-    assert new_loop.step_expr.value == "2"
-    assert len(new_loop.loop_body.children) == 1
-    assert isinstance(new_loop.loop_body[0], Assignment)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_do_construct_while():
-    ''' Check that do while constructs are placed in Codeblocks '''
-    reader = FortranStringReader('''
-        do while(a .gt. b)\n
-            c = c + 1\n
-        end do\n
-        ''')
-    fparser2while = Execution_Part.match(reader)[0][0]
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fparser2while])
-    assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 # (1/4) fparser2reader::nodes_to_code_block
@@ -2869,36 +2811,6 @@ def test_nodes_to_code_block_4():
         _ = Fparser2Reader.nodes_to_code_block(Directive(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_missing_loop_control(monkeypatch):
-    ''' Check that encountering a loop in the fparser parse tree that is
-    missing a Loop_Control element raises an InternalError. '''
-    from fparser.two.utils import walk
-    reader = FortranStringReader('''
-        do while(a .gt. b)\n
-            c = c + 1\n
-        end do\n
-        ''')
-    fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
-    processor = Fparser2Reader()
-
-    # We have to break the fparser2 parse tree in order to trigger the
-    # internal error
-    ctrl = walk(fparser2while.content[0].items, Fortran2003.Loop_Control)
-    # 'items' is a tuple and therefore immutable so make a new list
-    item_list = list(fparser2while.content[0].items)
-    # Create a new tuple for the items member without the Loop_Control
-    item_list.remove(ctrl[0])
-    fparser2while.content[0].items = tuple(item_list)
-    monkeypatch.setattr(fparser2while, "tostr", lambda: "<fparser2while>")
-
-    fake_parent = Schedule()
-    with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2while])
-    assert "Unrecognised form of DO loop - failed to find Loop_Control " \
-        "element in the node '<fparser2while>'." in str(err.value)
 
 
 def test_get_symbol_table():

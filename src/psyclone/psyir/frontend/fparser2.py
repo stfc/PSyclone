@@ -1775,14 +1775,13 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises InternalError: if the fparser2 tree has an unexpected \
-            structure.
+        :raises NotImplementedError: if the fparser2 tree has an unsupported \
+            structure (e.g. DO WHILE or a DO with no loop control).
         '''
         ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
-            raise InternalError(
-                "Unrecognised form of DO loop - failed to find Loop_Control "
-                "element in the node '{0}'.".format(str(node)))
+            # TODO #359 a DO with no loop control is put into a CodeBlock
+            raise NotImplementedError()
         if ctrl[0].items[0]:
             # If this is a DO WHILE then the first element of items will not
             # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
