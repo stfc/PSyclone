@@ -3560,7 +3560,7 @@ def test_stencil_read_only():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
-            "read-only ('gh_read'), but found 'gh_write'" in
+            "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
 
 
