@@ -1555,7 +1555,6 @@ def test_deferred_array_size():
 def test_unresolved_array_size():
     ''' Check that we handle the case where we do not find an explicit
     declaration of a symbol used in the definition of an array extent. '''
-    from psyclone.psyir.symbols import UnresolvedInterface
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, dimension(n) :: array3")

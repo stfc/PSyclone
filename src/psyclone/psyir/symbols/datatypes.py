@@ -38,8 +38,8 @@
 
 from __future__ import absolute_import
 import abc
-import six
 from enum import Enum
+import six
 from psyclone.errors import InternalError
 
 
@@ -286,7 +286,7 @@ class ArrayType(DataType):
 
         :param extents: list of extents, one for each array dimension.
         :type extents: list of :py:class:`psyclone.psyir.symbols.DataSymbol`, \
-                     :py:class:`psyclone.psyir.symbols.ArrayType.Extent` or int
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` or int
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \
@@ -306,9 +306,9 @@ class ArrayType(DataType):
                 if isinstance(dimension.datatype, (UnknownType, DeferredType)):
                     # We allow symbols of Unknown or Deferred Type
                     continue
-                elif not (dimension.is_scalar and
-                          dimension.datatype.intrinsic ==
-                          ScalarType.Intrinsic.INTEGER):
+                if not (dimension.is_scalar and
+                        dimension.datatype.intrinsic ==
+                        ScalarType.Intrinsic.INTEGER):
                     raise TypeError(
                         "DataSymbols that are part of another symbol shape can"
                         " only be scalar integers, but found '{0}'."
