@@ -524,3 +524,20 @@ def test_only_profile():
     correct_re = "PSyData.update is only supported for a ProfileNode, not " \
         "for a node of type .*DummyNode'>."
     assert re.search(correct_re, str(err.value))
+
+
+def test_no_return_in_profiling(parser):
+    ''' Check that the transformation refuses to include a Return node within
+    a profiled region. '''
+    psy, schedule = get_nemo_schedule(
+        parser,
+        "function my_test()\n"
+        "  integer :: my_test\n"
+        "  real :: my_array(3,3)\n"
+        "  my_array(:,:) = 0.0\n"
+        "  my_test = 1\n"
+        "  return\n"
+        "end function my_test\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children)
+    assert "hohoho" in str(err.value)
