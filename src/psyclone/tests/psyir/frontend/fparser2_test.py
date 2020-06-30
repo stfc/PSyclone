@@ -51,7 +51,6 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
     REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface
-from psyclone.psyir.nodes import Loop
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
