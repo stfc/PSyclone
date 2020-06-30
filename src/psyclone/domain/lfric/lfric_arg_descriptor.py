@@ -344,15 +344,13 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
-        # TODO in issues #138 and #471: Allowed accesses for fields on
-        # continuous function spaces for the user-defined kernels that loop
-        # over cells should only be [AccessType.READ, AccessType.INC].
-        # The kernels that loop over DoFs (built-ins) and are specified on
-        # 'ANY_SPACE_*' will have the same allowed accesses as discontinuous
-        # fields as they do not need colouring when updating quantities
-        # in parallel.
-        field_cont_accesses = [AccessType.READ, AccessType.INC,
-                               AccessType.WRITE]
+        field_cont_accesses = [AccessType.READ, AccessType.INC]
+        # TODO in issue #471: The kernels that loop over DoFs (built-ins)
+        # and are specified on 'ANY_SPACE_*' will have the same allowed
+        # accesses as discontinuous fields as they do not need colouring
+        # when updating quantities in parallel. This temporary accesses
+        # for continuous fields will be removed there.
+        field_cont_accesses_tmp = field_cont_accesses + [AccessType.WRITE]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
@@ -373,6 +371,10 @@ class LFRicArgDescriptor(Descriptor):
         # Check fields on continuous function spaces
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
+        # As said above, this temporary access for messages will be
+        # removed in #471
+        fld_cont_acc_msg_tmp = [rev_access_mapping[acc] for acc in
+                                field_cont_accesses_tmp]
         if self._function_space1.lower() in \
            FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
            and self._access_type not in field_cont_accesses:
@@ -384,14 +386,14 @@ class LFRicArgDescriptor(Descriptor):
                        rev_access_mapping[self._access_type], arg_type))
         # As said above, allowed accesses for fields on ANY_SPACE depend on
         # type of looping. This will be refined in #471, however for now we
-        # use the accesses for continuous spaces (worst-case scenarios).
+        # use the temporary accesses for continuous spaces.
         if self._function_space1.lower() in \
            FunctionSpace.VALID_ANY_SPACE_NAMES \
-           and self._access_type not in field_cont_accesses:
+           and self._access_type not in field_cont_accesses_tmp:
             raise ParseError(
                 "In the LFRic API, allowed accesses for a field on "
                 "'any_space' are {0}, but found '{1}' in '{2}'.".
-                format(fld_cont_acc_msg,
+                format(fld_cont_acc_msg_tmp,
                        rev_access_mapping[self._access_type], arg_type))
 
         # Test allowed accesses for fields that have stencil specification
