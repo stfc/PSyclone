@@ -26,6 +26,9 @@
 	11) #804 for #801. Correct Fortran intents for invoke arguments in
 	unique_declns_by_intent().
 
+	12) #794 for #788. Re-structuring and tidying of DynArgDescriptor03
+	to become LFRicArgDescriptor.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
