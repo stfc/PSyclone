@@ -12,8 +12,10 @@ and run.
 This example needs two libraries: the gocean infrastructure library
 dl_esm_inf, and a corresponding extraction library. By default
 it will use the infrastructure library in ``../../../external/dl_esm_inf``
-and automatically compile this library. You can set the environment
-variable ``INF_DIR`` to point to a different directory.
+and automatically compile this library
+(see https://psyclone-dev.readthedocs.io/en/latest/working_practises.html
+for the correct way of checking out all required software) . You can set
+the environment variable ``INF_DIR`` to point to a different directory.
 The NetCDF extraction library in ``../../../lib/extract/netcdf`` is used
 as default, and will also be automatically compiled. You can set the
 environment variable ``EXTRACT_DIR`` to point to a different library if 

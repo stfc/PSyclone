@@ -58,8 +58,8 @@ F90FLAGS ?=
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
-SHARED_DIR = ../../../external
-INF_DIR = $(SHARED_DIR)/dl_esm_inf/finite_difference
+SHARED_DIR ?= ../../../external
+INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 
@@ -71,7 +71,7 @@ NAME=profile_test
 compile: template
 all: template simple_timing drhook dl_timer
 
-template: PROFILE_DIR=../../../lib/profiling/template
+template: PROFILE_DIR?=../../../lib/profiling/template
 template: PROFILE_LINK=-ldummy
 template: ../../../lib/profiling/template/libdummy.a $(NAME).template
 
@@ -79,7 +79,7 @@ template: ../../../lib/profiling/template/libdummy.a $(NAME).template
 ../../../lib/profiling/template/libdummy.a:
 	${MAKE} -C ../../../lib/profiling/template
 
-simple_timing: PROFILE_DIR=../../../lib/profiling/simple_timing
+simple_timing: PROFILE_DIR?=../../../lib/profiling/simple_timing
 simple_timing: PROFILE_LINK=-lsimple_timing
 simple_timing: $(NAME).simple_timing
 
