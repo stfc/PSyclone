@@ -453,7 +453,8 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
+            self._arg_descriptors.append(
+                LFRicArgDescriptor(arg_type, self._iterates_over))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if

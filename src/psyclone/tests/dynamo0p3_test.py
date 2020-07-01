@@ -171,7 +171,8 @@ def test_ad_scalar_validate_wrong_type():
     # Get an argument which is not a scalar
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_scalar(wrong_arg)
+        LFRicArgDescriptor(
+            wrong_arg, metadata._iterates_over)._validate_scalar(wrong_arg)
     assert ("LFRicArgDescriptor._validate_scalar(): expecting a scalar "
             "argument but got an argument of type 'gh_operator'." in
             str(excinfo.value))
@@ -262,7 +263,8 @@ def test_ad_field_validate_wrong_type():
     # Get an argument which is not a field
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_field(wrong_arg)
+        LFRicArgDescriptor(
+            wrong_arg, metadata._iterates_over)._validate_field(wrong_arg)
     assert ("LFRicArgDescriptor._validate_field(): expecting a field "
             "argument but got an argument of type 'gh_real'" in
             str(excinfo.value))
