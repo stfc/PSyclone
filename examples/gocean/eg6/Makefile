@@ -30,13 +30,9 @@
 
 include ../../common.mk
 
-GENERATED_FILES += *.o *.mod $(EXEC) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
-		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90 alg.f90 psy.f90
-
-DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
-EXTRACT_DIR = ../../../lib/extract/dl_esm_inf/netcdf
-F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
-LIB_NAME = lib_kernel_data_netcdf.a
+# Reset the default goal to be 'all', i.e. to include compilation
+.DEFAULT_GOAL:=
+DEFAULT: all
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
@@ -49,6 +45,20 @@ DRIVER_INIT = driver-main-init
 
 # The name of the stand-alone driver that will call the update function.
 DRIVER_UPDATE = driver-main-update
+
+GENERATED_FILES += *.o *.mod $(EXEC) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
+		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90 alg.f90 psy.f90
+
+# Location of the infrastucture code (which is a submodule of the
+# PSyclone git repo).
+SHARED_DIR ?= ../../../external
+INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
+INF_INC = $(INF_DIR)/src
+INF_LIB = $(INF_DIR)/src/lib_fd.a
+
+EXTRACT_DIR = ../../../lib/extract/dl_esm_inf/netcdf
+F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
+LIB_NAME = lib_kernel_data_netcdf.a
 
 all: transform compile
 
@@ -69,33 +79,41 @@ $(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
 $(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o main.o \
 				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
 	$(F90) $(KERNELS) $(DRIVER_UPDATE).o main.o \
-	-o $(DRIVER_UPDATE)            \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
+	-o $(DRIVER_UPDATE)                         \
+	-L$(EXTRACT_DIR) -l_kernel_data_netcdf      \
 	$$(nf-config --flibs)
 
 $(EXEC): $(KERNELS) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a alg.o psy.o
 	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC) \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
-	-L $(DL_DIR) -l_fd                     \
+	-L$(EXTRACT_DIR) -l_kernel_data_netcdf    \
+	$(INF_LIB)                                \
 	$$(nf-config --flibs)
 
 transform: test.x90 extract_transform.py
-	${PSYCLONE} -nodm -l -api "gocean1.0" -s ./extract_transform.py\
+	$(PSYCLONE) -nodm -l -api "gocean1.0" -s ./extract_transform.py\
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 psy.f90 alg.f90: transform
 
-alg.o:	psy.o 
+alg.o:	psy.o
 
 psy.o:	$(KERNELS)
 
+# Dependency to INF_LIB to make sure the mod file are available
+$(KERNELS):  $(INF_LIB)
+
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(EXTRACT_DIR) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 # This target requires that the netcdf (Fortran) development package be
 # installed
 $(EXTRACT_DIR)/lib_kernel_data_netcdf.a:
 	make -C $(EXTRACT_DIR)
 
+# The dl_esm_inf library
+$(INF_LIB):
+	$(MAKE) -C $(INF_DIR) F90=$(F90)
+
 allclean: clean
+	make -C $(INF_DIR) clean
 	make -C $(EXTRACT_DIR) clean
