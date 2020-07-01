@@ -570,7 +570,6 @@ class KernelProcedure(object):
                         code = statement
                     else:
                         code = None  # set to None if there is more than one.
-                    print(code)
                     break
             else:
                 raise ParseError(
