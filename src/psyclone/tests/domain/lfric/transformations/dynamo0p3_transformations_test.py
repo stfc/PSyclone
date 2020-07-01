@@ -6307,7 +6307,7 @@ def test_accenterdata_builtin(tmpdir):
     assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
             "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
             "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
-            "undf_w3,map_w3,0.0,ndf_aspc1_f1,undf_aspc1_f1,"
+            "undf_w3,map_w3,0.0_r_def,ndf_aspc1_f1,undf_aspc1_f1,"
             "map_aspc1_f1)" in output)
     assert ("      !$acc loop independent\n"
             "      DO df=1,undf_aspc1_f1\n"
