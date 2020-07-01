@@ -79,8 +79,10 @@ def test_unexpected_type_error():
         with pytest.raises(GenerationError) as excinfo:
             create_arg_list.generate()
         assert (
-            "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
-            "generate()") in str(excinfo.value)
+            "ArgOrdering.generate(): Unexpected argument "
+            "type found. Expected one of '{0}' but found 'invalid'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_argordering_exceptions():
