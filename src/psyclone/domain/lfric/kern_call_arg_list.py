@@ -45,7 +45,7 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import ArgOrdering
+from psyclone.domain.lfric import (ArgOrdering, LFRicArgDescriptor)
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -487,11 +487,13 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        if farg.type != "gh_field":
+        if farg.type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise GenerationError(
-                "Expected a gh_field from which to look-up boundary dofs "
-                "for kernel {0} but got {1}".format(self._kern.name,
-                                                    farg.type))
+                "Expected an argument of {0} type from which to look-up "
+                "boundary dofs for kernel {1} but got '{2}'".
+                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                       self._kern.name, farg.type))
+
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self.append(name)

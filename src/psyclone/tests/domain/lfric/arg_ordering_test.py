@@ -42,7 +42,7 @@ import os
 import pytest
 
 from psyclone.domain.lfric import (ArgOrdering, KernCallArgList,
-                                   KernStubArgList)
+                                   KernStubArgList, LFRicArgDescriptor)
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -56,7 +56,9 @@ TEST_API = "dynamo0.3"
 def test_unexpected_type_error():
     '''Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
-    the KernCallArgList sub class'''
+    the KernCallArgList sub class.
+
+    '''
     for distmem in [False, True]:
         full_path = os.path.join(get_base_path(TEST_API),
                                  "1.0.1_single_named_invoke.f90")
@@ -77,13 +79,17 @@ def test_unexpected_type_error():
         with pytest.raises(GenerationError) as excinfo:
             create_arg_list.generate()
         assert (
-            "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
-            "generate()") in str(excinfo.value)
+            "ArgOrdering.generate(): Unexpected argument "
+            "type found. Expected one of '{0}' but found 'invalid'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_argordering_exceptions():
     '''Check that we raise an exception if the abstract methods are called
-    in an instance of the ArgOrdering class '''
+    in an instance of the ArgOrdering class.
+
+    '''
     for distmem in [False, True]:
         full_path = os.path.join(get_base_path(TEST_API),
                                  "1.0.1_single_named_invoke.f90")
@@ -136,9 +142,9 @@ def test_kernel_stub_invalid_scalar_argument():
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
-    assert (
-        "Expected argument type to be one of '['gh_real', "
-        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+    assert ("Expected argument type to be one of {0} but got "
+            "'invalid'".format(LFRicArgDescriptor.VALID_SCALAR_NAMES)
+            in str(excinfo.value))
 
 
 def test_kernel_stub_ind_dofmap_errors():

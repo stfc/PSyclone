@@ -42,14 +42,17 @@ kernel calls.
 from __future__ import print_function, absolute_import
 import abc
 
-from psyclone.errors import GenerationError, InternalError
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.errors import GenerationError, InternalError
 
 
 class ArgOrdering(object):
     # pylint: disable=too-many-public-methods
     '''Base class capturing the arguments, type and ordering of data in
-    a Kernel call.'''
+    a Kernel call.
+
+    '''
     def __init__(self, kern):
         self._kern = kern
         self._generate_called = False
@@ -58,7 +61,7 @@ class ArgOrdering(object):
     def append(self, var_name):
         '''Appends the specified variable name to the list of all arguments.
         :param str var_name: the name of the variable.
-
+E
         '''
         self._arglist.append(var_name)
 
@@ -68,6 +71,7 @@ class ArgOrdering(object):
 
         :param list_var_name: the list with name of the variables to append.
         :type list_var_name: list of str.
+
         '''
         self._arglist.extend(list_var_name)
 
@@ -75,6 +79,7 @@ class ArgOrdering(object):
     def num_args(self):
         ''':returns: the current number of arguments stored in _arglist.
         :rtype: int
+
         '''
         return len(self._arglist)
 
@@ -112,6 +117,7 @@ class ArgOrdering(object):
 
         :raises GenerationError: if the kernel arguments break the
                                  rules for the Dynamo 0.3 API.
+
         '''
         # Setting this first is important, since quite a few derived classes
         # will access self.arglist during generate() (e.g. to test if an
@@ -141,19 +147,15 @@ class ArgOrdering(object):
             # the coarse to the fine mesh.
             self.cell_map(var_accesses=var_accesses)
 
-        # for each argument in the order they are specified in the
+        # For each argument in the order they are specified in the
         # kernel metadata, call particular methods depending on what
         # type of argument we find (field, field vector, operator or
         # scalar). If the argument is a field or field vector and also
         # has a stencil access then also call appropriate stencil
         # methods.
 
-        # Import here to avoid circular depondency
-        from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, \
-            GH_VALID_SCALAR_NAMES
-
         for arg in self._kern.arguments.args:
-            if arg.type == "gh_field":
+            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 if arg.vector_size > 1:
                     self.field_vector(arg, var_accesses=var_accesses)
                 else:
@@ -175,14 +177,13 @@ class ArgOrdering(object):
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.type in GH_VALID_SCALAR_NAMES:
+            elif arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
-                    "Unexpected arg type found in dynamo0p3.py:"
-                    "ArgOrdering:generate(). Expected one of '{0}' "
-                    "but found '{1}'".format(GH_VALID_ARG_TYPE_NAMES,
-                                             arg.type))
+                    "ArgOrdering.generate(): Unexpected argument type found. "
+                    "Expected one of '{0}' but found '{1}'".
+                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES, arg.type))
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
@@ -270,6 +271,7 @@ class ArgOrdering(object):
         '''Add cell position information
 
         :raises NotImplementedError: because this is an abstract method
+
         '''
         raise NotImplementedError(
             "Error: ArgOrdering.cell_position() must be implemented by "
@@ -467,10 +469,10 @@ class ArgOrdering(object):
 
         '''
         if not scalar_arg.is_scalar():
-            from psyclone.dynamo0p3 import GH_VALID_SCALAR_NAMES
             raise InternalError(
-                "Expected argument type to be one of '{0}' but got '{1}'".
-                format(GH_VALID_SCALAR_NAMES, scalar_arg.type))
+                "Expected argument type to be one of {0} but got '{1}'".
+                format(LFRicArgDescriptor.VALID_SCALAR_NAMES, scalar_arg.type))
+
         self.append(scalar_arg.name)
         if var_accesses is not None:
             var_accesses.add_access(scalar_arg.name, AccessType.READ,

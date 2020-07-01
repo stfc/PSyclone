@@ -44,6 +44,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
@@ -64,7 +65,6 @@ def test_dynscalars_err(monkeypatch):
     ''' Check that the DynScalarArgs constructor raises the expected error
     if it encounters an unrecognised type of scalar. '''
     from psyclone.dynamo0p3 import DynScalarArgs
-    from psyclone import dynamo0p3
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
@@ -75,12 +75,14 @@ def test_dynscalars_err(monkeypatch):
     arg = kernel.arguments.args[1]
     arg._type = "invalid-scalar-type"
     # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(dynamo0p3, "GH_VALID_SCALAR_NAMES",
-                        ["gh_real", "gh_integer", "invalid-scalar-type"])
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_SCALAR_NAMES",
+        value=["gh_real", "gh_integer", "invalid-scalar-type"])
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
-            "but not handled" in str(err.value))
+    assert ("Scalar type 'invalid-scalar-type' is in LFRicArgDescriptor."
+            "VALID_SCALAR_NAMES but is not handled in DynScalarArgs"
+            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -223,7 +225,9 @@ def test_load_meta_wrong_type():
     metadata.arg_descriptors[0]._type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
-    assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
+    assert ("DynKern.load_meta() expected one of {0} but found "
+            "'gh_hedge'".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_intent():
@@ -490,15 +494,15 @@ def test_vectors():
 
 
 def test_arg_descriptor_vec_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have a vector quantity '''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected when we have a vector quantity. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(VECTORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w0'")

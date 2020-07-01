@@ -154,7 +154,7 @@ It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
 (``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
-available (including ``nc-config`` to detect installation-specific
+available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
 The makefile in this example will link with the compiled NetCDF
