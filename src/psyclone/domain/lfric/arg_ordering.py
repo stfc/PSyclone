@@ -181,8 +181,8 @@ E
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
-                    "ArgOrdering.generate(): Unexpected argument type found "
-                    "in dynamo0p3.py. Expected one of '{0}' but found '{1}'".
+                    "ArgOrdering.generate(): Unexpected argument type found. "
+                    "Expected one of '{0}' but found '{1}'".
                     format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES, arg.type))
         # For each function space (in the order they appear in the
         # metadata arguments)
