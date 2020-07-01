@@ -42,6 +42,8 @@
 
 module extract_psy_data_mod
 
+    use, intrinsic :: iso_fortran_env, only : int64, int32
+
     implicit none
 
     !> This is the data type that manages the information required
@@ -81,32 +83,40 @@ module extract_psy_data_mod
 
     contains
         ! The various procedures used
-        procedure :: DeclareScalarInt,    WriteScalarInt,    ReadScalarInt
-        procedure :: DeclareScalarReal,   WriteScalarReal,   ReadScalarReal
-        procedure :: DeclareFieldDouble,  WriteFieldDouble,  ReadFieldDouble
-        procedure :: DeclareScalarDouble, WriteScalarDouble, ReadScalarDouble
-        procedure :: PreStart, PreEndDeclaration, PreEnd
+        procedure :: DeclareScalarInt,     WriteScalarInt,     ReadScalarInt
+        procedure :: DeclareArray1dInt,    WriteArray1dInt,    ReadArray1dInt
+        procedure :: DeclareScalarReal,    WriteScalarReal,    ReadScalarReal
+        procedure :: DeclareScalarDouble,  WriteScalarDouble,  ReadScalarDouble
+        procedure :: DeclareArray4dDouble, WriteARray4dDouble, ReadArray4dDouble
+        procedure :: DeclareFieldDouble,   WriteFieldDouble,   ReadFieldDouble
+        procedure :: PreStart,  PreEndDeclaration, PreEnd
         procedure :: PostStart, PostEnd
         procedure :: OpenRead
 
         !> The generic interface for declaring a variable:
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
+                                                 DeclareArray1dInt,   &
                                                  DeclareScalarReal,   &
                                                  DeclareScalarDouble, &
+                                                 DeclareArray4dDouble, &
                                                  DeclareFieldDouble
         !> The generic interface for providing the value of variables,
         !! which in case of the NetCDF interface is written:                                               
-        generic, public :: ProvideVariable => WriteScalarInt,    &
-                                              WriteScalarReal,   &
-                                              WriteScalarDouble, &
+        generic, public :: ProvideVariable => WriteScalarInt,     &
+                                              WriteArray1dInt,    &
+                                              WriteScalarReal,    &
+                                              WriteScalarDouble,  &
+                                              WriteArray4dDouble, &
                                               WriteFieldDouble
 
         !> The generic interface for reading in variables previously
         !! written. Used in a driver that e.g. read previously written
         !! files.
-        generic, public :: ReadVariable => ReadScalarInt,    &
-                                           ReadScalarReal,   &
-                                           ReadScalarDouble, &
+        generic, public :: ReadVariable => ReadScalarInt,     &
+                                           ReadArray1dInt,    &
+                                           ReadScalarReal,    &
+                                           ReadScalarDouble,  &
+                                           ReadArray4dDouble, &
                                            ReadFieldDouble 
     end type extract_PSyDataType
 
@@ -196,6 +206,7 @@ Contains
         retval = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
                                         NF90_NOWRITE, this%ncid))
     end subroutine OpenRead
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called once all variables are declared (this includes
     !! variables that will be written before as well as variables that are
@@ -211,6 +222,7 @@ Contains
         retval = CheckError(nf90_enddef(this%ncid))
         this%next_var_index = 1
     end subroutine PreEndDeclaration
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the value of all variables has been
     !! provided (and declared). After this call the instrumented region will
@@ -221,6 +233,7 @@ Contains
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
     end subroutine PreEnd
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
@@ -231,6 +244,7 @@ Contains
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
     end subroutine PostStart
+
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
@@ -299,6 +313,65 @@ Contains
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarInt
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine declares an array of integer value.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray1dInt(this, name, value)
+        use netcdf, only: nf90_def_dim, nf90_def_var, NF90_INT
+        implicit none
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)          :: name
+        integer, dimension(:), intent(in) :: value
+
+        integer                           :: x_dimid, retval
+        integer, dimension(1)             :: dimids
+
+        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                         size(value,1), x_dimid))
+        dimids =  (/ x_dimid/)
+        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_INT,     &
+                                         dimids, this%var_id(this%next_var_index)))
+
+        this%count_checksums = this%count_checksums + 1
+    end subroutine DeclareArray1dInt
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine writes an integer array to the netcdf file.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteArray1dInt(this, name, value)
+        use netcdf, only: nf90_put_var
+        implicit none
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        integer, dimension(:), intent(in) :: value
+        integer(kind=int64) :: checksum
+        integer :: retval
+
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                         value))
+        this%next_var_index = this%next_var_index + 1
+
+    end subroutine WriteArray1dInt
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine reads an integer array from the netcdf file.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ReadArray1dInt(this, name, value)
+        implicit none
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        integer, dimension(:), intent(in) :: value
+        integer(kind=int64) :: checksum
+        integer :: i
+
+    end subroutine ReadArray1dInt
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a scalar single precision value. A
@@ -503,6 +576,108 @@ Contains
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadFieldDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine declares a 4d double precision array. A corresponding
+    !! variable definition is added to the NetCDF file, and the variable id
+    !! is stored in the var_id field.
+    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray4dDouble(this, name, value)
+        use netcdf, only : nf90_def_dim, nf90_def_var, NF90_REAL8
+        implicit none
+        class(extract_PsyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        double precision, dimension(:,:,:,:), allocatable, intent(in) :: value
+        integer :: n1_dimid, y_dimid, retval
+        integer, dimension(4) :: dimids
+
+        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                         size(value,1), dimids(1)))
+        retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+                                         size(value,2), dimids(2)))
+        retval = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
+                                         size(value,3), dimids(3)))
+        retval = CheckError(nf90_def_dim(this%ncid, name//"dim4",  &
+                                         size(value,4), dimids(4)))
+        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
+                                         dimids, this%var_id(this%next_var_index)))
+
+        this%next_var_index = this%next_var_index + 1
+    end subroutine DeclareArray4dDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine writes the value of a 4d doublre precision array
+    !! to the NetCDF file. It takes the variable id from the corresponding
+    !! declaration.
+    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteArray4dDouble(this, name, value)
+        use netcdf
+        use field_mod, only : field_type, field_proxy_type
+        implicit none
+        class(extract_PsyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        type(field_proxy_type) :: value_proxy
+        double precision, dimension(:,:,:,:), intent(in) :: value
+        integer :: retval
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                         value_proxy%data(:)))
+        this%next_var_index = this%next_var_index + 1
+    end subroutine WriteArray4dDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine reads the values of a 4d double precision array.
+    !! It allocates the 2d-double precision array to store the read values
+    !! which is then returned to the caller. If the memory for the array can
+    !! not be allocated, the application will be stopped.
+    !! @param[inout] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !!             which is allocated here and stores the values read.
+    subroutine ReadArray4dDouble(this, name, value)
+        use netcdf
+        implicit none
+
+        class(extract_PsyDataType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        double precision, dimension(:,:,:,:), allocatable, intent(out) :: value
+        integer :: retval, varid, ierr
+        integer :: dim1_id, dim1
+        integer :: dim2_id, dim2
+        integer :: dim3_id, dim3
+        integer :: dim4_id, dim4
+        character(100) :: x
+
+        ! First query the dimensions of the original r2d_field from the
+        ! netcdf file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
+                                                   len=dim1))
+        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
+                                                   len=dim2))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
+                                                   len=dim3))
+        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim4", dim4_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim4_id,  &
+                                                   len=dim4))
+        ! Allocate enough space to store the values to be read:
+        allocate(value(dim1, dim2, dim3, dim4), stat=ierr)
+        if (ierr /= 0) then
+            print *,"Cannot allocate array for ", name, &
+                    " of size ", dim1,"x",dim2,"x",dim3,"x",dim4," in ReadFieldDouble."
+            stop
+        endif
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        value = 0.0d0
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+    end subroutine ReadArray4dDouble
     ! -------------------------------------------------------------------------
 
 end module extract_psy_data_mod
