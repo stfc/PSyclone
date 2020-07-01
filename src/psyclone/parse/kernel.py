@@ -557,13 +557,20 @@ class KernelProcedure(object):
         else:
             subnames = [bname]
         # walk the AST to check the subroutine names exist.
+        procedure_count = 0
         for subname in subnames:
             for statement, _ in fpapi.walk(modast):
                 if isinstance(statement,
                               fparser1.block_statements.Subroutine) \
                               and statement.name.lower() \
                               == subname:
-                    code = statement
+                    procedure_count = procedure_count + 1
+                    if procedure_count == 1:
+                        # set code to statement if there is one procedure.
+                        code = statement
+                    else:
+                        code = None  # set to None if there is more than one.
+                    print(code)
                     break
             else:
                 raise ParseError(

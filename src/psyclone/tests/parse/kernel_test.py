@@ -106,6 +106,26 @@ CODE_DOUBLE_INTERFACE = (
 
     )
 
+CODE_DOUBLE_PROCEDURE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "     integer :: iterates_over = cells\n"
+    "   contains\n"
+    "  end type test_type\n"
+    "  interface test_code\n"
+    "    module procedure sub_code, more_code\n"
+    "  end interface test_code\n"
+    "contains\n"
+    "  subroutine sub_code()\n"
+    "  end subroutine sub_code\n"
+    "  subroutine more_code()\n"
+    "  end subroutine more_code\n"
+    "end module test_mod\n"
+
+    )
+
 
 @pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE])
 def get_code_fragment(request):
@@ -203,7 +223,6 @@ def test_get_kernel_interface_match_caseinsensitive():
 def test_get_kernel_interface_match_no_name():
     ''' Tests that the interface with no name returns None'''
     module_parse_tree = parse(CODE_INTERFACE.replace("test_code", ""))
-    print(module_parse_tree)
     kernel_type_name = "interface_withnoname"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
     assert meta1 is None
@@ -213,14 +232,20 @@ def test_get_kernel_interface_match_no_name():
 def test_get_kernel_interface_match_correct():
     ''' Tests that the fucntion has correct return when searching for an
         interface that defines more than one module procedure. '''
-    module_parse_tree = parse(CODE_INTERFACE.replace(
-        "module procedure sub_code",
-        "module procedure sub_code, more_code"))
+    module_parse_tree = parse(CODE_DOUBLE_PROCEDURE)
     kernel_type_name = "interface_procedures"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
     assert meta1 == "test_code"
     assert meta2[0] == "sub_code"
     assert meta2[1] == "more_code"
+
+
+def test_two_module_procedures():
+    ''' Tests that 'None' is returned as the ast if there are more than
+        one module procedure.'''
+    kp = create_kernelprocedure(CODE_DOUBLE_PROCEDURE)
+    assert kp.name == "test_code"
+    assert kp.ast is None
 
 
 def test_get_kernel_interface_double_interface():
