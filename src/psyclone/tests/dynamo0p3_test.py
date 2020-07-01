@@ -3146,7 +3146,7 @@ def test_arg_descriptor_init_error(monkeypatch):
         value=LFRicArgDescriptor.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
-        _ = LFRicArgDescriptor(arg_type)
+        _ = LFRicArgDescriptor(arg_type, metadata._iterates_over)
     assert ("LFRicArgDescriptor.__init__(): failed argument validation for "
             "the 'meta_arg' entry 'arg_type(GH_INVALID, gh_read)', should "
             "not get to here." in str(excinfo.value))
@@ -3605,8 +3605,9 @@ def test_fs_anyspace_and_readwrite_error():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("In the LFRic API, allowed accesses for a field on "
-                "'any_space' are ['gh_read', 'gh_inc', 'gh_write'], but "
-                "found 'gh_readwrite'" in str(excinfo.value))
+                "'any_space' that loops over cells are ['gh_read', "
+                "'gh_inc', 'gh_write'], but found 'gh_readwrite'" in
+                str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
