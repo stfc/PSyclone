@@ -32,14 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 '''Module for the LFRic domain.
 '''
 
-from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.domain.lfric.function_space import FunctionSpace
 # The order here is not alphabetical, but important because
-# KernCallAccArgList imports KernCallArgList
+# there are various dependencies between the modules (e.g.
+# KernCallAccArgList imports KernCallArgList, ArgOrdering
+# imports LFRicArgDescriptor, ...).
+from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
@@ -48,5 +52,10 @@ from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 # this package e.g.:
 # from psyclone.domain.lfric import FunctionSpace
 
-__all__ = ['ArgOrdering', 'FunctionSpace', 'KernCallAccArgList',
-           'KernCallArgList', 'KernStubArgList']
+__all__ = [
+    'ArgOrdering',
+    'FunctionSpace',
+    'KernCallAccArgList',
+    'KernCallArgList',
+    'KernStubArgList',
+    'LFRicArgDescriptor']

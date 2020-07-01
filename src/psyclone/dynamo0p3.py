@@ -49,14 +49,14 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
-from psyclone.parse.kernel import Descriptor, KernelType, getkerneldescriptors
+from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
-import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList, KernStubArgList)
+                                   KernCallArgList, KernStubArgList,
+                                   LFRicArgDescriptor)
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
@@ -92,37 +92,11 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_edge_type",
                            "proxy_type": "quadrature_edge_proxy_type"}}
 
-# ---------- API datatypes (scalars, fields, operators) --------------------- #
-GH_VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
-GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
-GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
-    GH_VALID_SCALAR_NAMES
-
-# ---------- Fortran datatypes ------------------------- #
+# ---------- Fortran datatypes ---------------------------------------------- #
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
-# ---------- Stencils ------------------------------------------------------- #
-VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
-# Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
-# file as it causes failures with py.test 2.8.7. Therefore some parts
-# of the code do not use the VALID_STENCIL_DIRECTIONS variable.
-VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
-# Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
-# indicates either x1d or y1d.
-# Note, the LFRic infrastructure currently does not have 'region' as
-# an option in stencil_dofmap_mod.F90 so it is not included in
-# STENCIL_MAPPING. Related PSyclone issue is #194.
-STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
-                   "cross": "STENCIL_CROSS"}
-
-# ---------- Mesh types ----------------------------------------------------- #
-# These are the valid mesh types that may be specified for a field
-# using the mesh_arg=... meta-data element (for inter-grid kernels that
-# perform prolongation/restriction).
-VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
-
 # ---------- Loops (bounds, types, names) ----------------------------------- #
-# These are loop bound names which identify positions in a fields
+# These are loop bound names which identify positions in a field's
 # halo. It is useful to group these together as we often need to
 # determine whether an access to a field or other object includes
 # access to the halo, or not.
@@ -163,8 +137,11 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen
-psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
-psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
+# psyGen ["iscalar", "rscalar"] translate to LFRic ["gh_integer", "gh_real"]
+psyGen.MAPPING_SCALARS = dict(zip(psyGen.MAPPING_SCALARS_LIST,
+                                  LFRicArgDescriptor.VALID_SCALAR_NAMES))
+# psyGen argument types translate to LFRic argument types
+psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #
 
@@ -293,338 +270,6 @@ class DynFuncDescriptor03(object):
         for idx, arg in enumerate(self._operator_names):
             res += "  operator_name[{0}] = '{1}'".format(idx+1, arg) + \
                    os.linesep
-        return res
-
-
-class DynArgDescriptor03(Descriptor):
-    ''' This class captures the information specified in an argument
-    descriptor.'''
-
-    def __init__(self, arg_type):
-        '''
-        :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
-        '''
-        self._arg_type = arg_type
-        if arg_type.name != 'arg_type':
-            raise ParseError(
-                "In the dynamo0.3 API each meta_arg entry must be of type "
-                "'arg_type', but found '{0}'".format(arg_type.name))
-
-        # We require at least 2 args
-        if len(arg_type.args) < 2:
-            raise ParseError(
-                "In the dynamo0.3 API each meta_arg entry must have at least "
-                "2 args, but found '{0}'".format(len(arg_type.args)))
-
-        # The first arg is the type of field, possibly with a *n appended
-        self._vector_size = 1
-        if isinstance(arg_type.args[0], expr.BinaryOperator):
-            # We expect 'field_type * n' to have been specified
-            self._type = arg_type.args[0].toks[0].name
-            operator = arg_type.args[0].toks[1]
-            try:
-                self._vector_size = int(arg_type.args[0].toks[2])
-            except TypeError:
-                raise ParseError(
-                    "In the dynamo0.3 API vector notation expects the format "
-                    "(field*n) where n is an integer, but the following was "
-                    "found '{0}' in '{1}'.".
-                    format(str(arg_type.args[0].toks[2]), arg_type))
-            if self._type not in GH_VALID_ARG_TYPE_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a meta_arg "
-                    "entry should be a valid argument type (one of {0}), but "
-                    "found '{1}' in '{2}'".format(GH_VALID_ARG_TYPE_NAMES,
-                                                  self._type, arg_type))
-            if self._type in GH_VALID_SCALAR_NAMES and self._vector_size > 1:
-                raise ParseError(
-                    "In the dynamo0.3 API vector notation is not supported "
-                    "for scalar arguments (found '{0}')".
-                    format(arg_type.args[0]))
-            if operator != "*":
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a meta_arg "
-                    "entry may be a vector but if so must use '*' as the "
-                    "separator in the format (field*n), but found '{0}' in "
-                    "'{1}'".format(operator, arg_type))
-            if self._vector_size <= 1:
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a meta_arg "
-                    "entry may be a vector but if so must contain a valid "
-                    "integer vector size in the format (field*n where n>1), "
-                    "but found '{0}' in '{1}'".format(self._vector_size,
-                                                      arg_type))
-
-        elif isinstance(arg_type.args[0], expr.FunctionVar):
-            # We expect 'field_type' to have been specified
-            if arg_type.args[0].name not in GH_VALID_ARG_TYPE_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a "
-                    "meta_arg entry should be a valid argument type (one of "
-                    "{0}), but found '{1}' in '{2}'".
-                    format(GH_VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
-                           arg_type))
-            self._type = arg_type.args[0].name
-        else:
-            raise ParseError(
-                "Internal error in DynArgDescriptor03.__init__, (1) should "
-                "not get to here")
-
-        # The 2nd arg is an access descriptor
-        # Convert from GH_* names to the generic access type:
-        api_config = Config.get().api_conf("dynamo0.3")
-        access_mapping = api_config.get_access_mapping()
-        try:
-            self._access_type = access_mapping[arg_type.args[1].name]
-        except KeyError:
-            valid_names = api_config.get_valid_accesses_api()
-            raise ParseError(
-                "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
-                "must be a valid access descriptor (one of {0}), but found "
-                "'{1}' in '{2}'".format(valid_names,
-                                        arg_type.args[1].name, arg_type))
-
-        # Reduction access descriptors are only valid for real scalar arguments
-        if self._type != "gh_real" and \
-           self._access_type in \
-           AccessType.get_valid_reduction_modes():
-            raise ParseError(
-                "In the dynamo0.3 API a reduction access '{0}' is only valid "
-                "with a real scalar argument, but '{1}' was found".
-                format(self._access_type.api_specific_name(),
-                       self._type))
-
-        # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
-        stencil = None
-        mesh = None
-        # Fields
-        if self._type == "gh_field":
-            if len(arg_type.args) < 3:
-                raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have at "
-                    "least 3 arguments if its first argument is gh_field, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type)
-                    )
-            # There must be at most 4 arguments.
-            if len(arg_type.args) > 4:
-                raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have at "
-                    "most 4 arguments if its first argument is gh_field, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
-            # The 3rd argument must be a function space name
-            if arg_type.args[2].name not in \
-                    FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API the 3rd argument of a meta_arg "
-                    "entry must be a valid function space name if its first "
-                    "argument is gh_field (one of {0}), but found '{1}' in "
-                    "'{2}".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                                  arg_type.args[2].name, arg_type))
-            self._function_space1 = arg_type.args[2].name
-
-            # The optional 4th argument is either a stencil specification
-            # or a mesh identifier (for inter-grid kernels)
-            if len(arg_type.args) == 4:
-                try:
-                    from psyclone.parse.kernel import get_stencil, get_mesh
-                    if "stencil" in str(arg_type.args[3]):
-                        stencil = get_stencil(arg_type.args[3],
-                                              VALID_STENCIL_TYPES)
-                    elif "mesh" in str(arg_type.args[3]):
-                        mesh = get_mesh(arg_type.args[3], VALID_MESH_TYPES)
-                    else:
-                        raise ParseError("Unrecognised meta-data entry")
-                except ParseError as err:
-                    raise ParseError(
-                        "In the dynamo0.3 API the 4th argument of a "
-                        "meta_arg entry must be either a valid stencil "
-                        "specification  or a mesh identifier (for inter-"
-                        "grid kernels). However, "
-                        "entry {0} raised the following error: {1}".
-                        format(arg_type, str(err)))
-            # Test allowed accesses for fields
-            if self._function_space1.lower() in \
-               FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-               and self._access_type == AccessType.INC:
-                raise ParseError(
-                    "It does not make sense for a field on a discontinuous "
-                    "space ({0}) to have a 'gh_inc' access".
-                    format(self._function_space1.lower()))
-            if self._function_space1.lower() in \
-               FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
-               and self._access_type == AccessType.READWRITE:
-                raise ParseError(
-                    "It does not make sense for a field on a continuous "
-                    "space ({0}) to have a 'gh_readwrite' access".
-                    format(self._function_space1.lower()))
-            # TODO: extend restriction to "gh_write" for kernels that loop
-            # over cells (issue #138) and update access rules for kernels
-            # (built-ins) that loop over DoFs to accesses for discontinuous
-            # quantities (issue #471)
-            if self._function_space1.lower() in \
-               FunctionSpace.VALID_ANY_SPACE_NAMES \
-               and self._access_type == AccessType.READWRITE:
-                raise ParseError(
-                    "In the Dynamo0.3 API a field on any_space cannot "
-                    "have 'gh_readwrite' access because it is treated "
-                    "as continuous")
-            if stencil and self._access_type != AccessType.READ:
-                raise ParseError("a stencil must be read only so its access "
-                                 "should be gh_read")
-
-        # Operators
-        elif self._type in GH_VALID_OPERATOR_NAMES:
-            # we expect 4 arguments with the 3rd and 4th each being a
-            # function space
-            if len(arg_type.args) != 4:
-                raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have 4 "
-                    "arguments if its first argument is gh_operator or "
-                    "gh_columnwise_operator, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
-            if arg_type.args[2].name not in \
-                    FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API the 3rd argument of a meta_arg "
-                    "entry must be a valid function space name (one of {0}), "
-                    "but found '{1}' in '{2}".
-                    format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                           arg_type.args[2].name, arg_type))
-            self._function_space1 = arg_type.args[2].name
-            if arg_type.args[3].name not in \
-                    FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API the 4th argument of a meta_arg "
-                    "entry must be a valid function space name (one of {0}), "
-                    "but found '{1}' in '{2}".
-                    format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                           arg_type.args[2].name, arg_type))
-            self._function_space2 = arg_type.args[3].name
-            # Test allowed accesses for operators
-            if self._access_type == AccessType.INC:
-                raise ParseError(
-                    "In the dynamo0.3 API operators cannot have a 'gh_inc' "
-                    "access because they behave as discontinuous quantities")
-
-        # Scalars
-        elif self._type in GH_VALID_SCALAR_NAMES:
-            if len(arg_type.args) != 2:
-                raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have 2 "
-                    "arguments if its first argument is gh_{{r,i}}scalar, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
-            # Test allowed accesses for scalars (read_only or reduction)
-            if self._access_type not in [AccessType.READ] + \
-               AccessType.get_valid_reduction_modes():
-                rev_access_mapping = api_config.get_reverse_access_mapping()
-                api_specific_name = rev_access_mapping[self._access_type]
-                valid_reductions = AccessType.get_valid_reduction_names()
-                raise ParseError(
-                    "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) or a reduction ({0}) but found "
-                    "'{1}' in '{2}'".format(valid_reductions,
-                                            api_specific_name,
-                                            arg_type))
-            # Scalars don't have a function space
-            self._function_space1 = None
-            self._vector_size = 0
-
-        # We should never get to here
-        else:
-            raise ParseError(
-                "Internal error in DynArgDescriptor03.__init__, (2) should "
-                "not get to here")
-
-        Descriptor.__init__(self, self._access_type,
-                            self._function_space1, stencil=stencil,
-                            mesh=mesh)
-
-    @property
-    def function_space_to(self):
-        ''' Return the "to" function space for a gh_operator. This is
-        the first function space specified in the metadata. Raise an
-        error if this is not an operator. '''
-        if self._type in GH_VALID_OPERATOR_NAMES:
-            return self._function_space1
-        raise RuntimeError(
-            "function_space_to only makes sense for one of {0}, but "
-            "this is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
-
-    @property
-    def function_space_from(self):
-        ''' Return the "from" function space for a gh_operator. This is
-        the second function space specified in the metadata. Raise an
-        error if this is not an operator. '''
-        if self._type in GH_VALID_OPERATOR_NAMES:
-            return self._function_space2
-        raise RuntimeError(
-            "function_space_from only makes sense for one of {0}, but this"
-            " is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
-
-    @property
-    def function_space(self):
-        ''' Return the function space name that this instance operates
-        on. In the case of a gh_operator/gh_columnwise_operator, where there
-        are 2 function spaces, return function_space_from. '''
-        if self._type == "gh_field":
-            return self._function_space1
-        if self._type in GH_VALID_OPERATOR_NAMES:
-            return self._function_space2
-        if self._type in GH_VALID_SCALAR_NAMES:
-            return None
-        raise RuntimeError(
-            "Internal error, DynArgDescriptor03:function_space(), should "
-            "not get to here.")
-
-    @property
-    def function_spaces(self):
-        ''' Return the function space names that this instance operates
-        on as a list. In the case of a gh_operator, where there are 2 function
-        spaces, we return both. '''
-        if self._type == "gh_field":
-            return [self.function_space]
-        if self._type in GH_VALID_OPERATOR_NAMES:
-            # return to before from to maintain expected ordering
-            return [self.function_space_to, self.function_space_from]
-        if self._type in GH_VALID_SCALAR_NAMES:
-            return []
-        raise RuntimeError(
-            "Internal error, DynArgDescriptor03:function_spaces(), should "
-            "not get to here.")
-
-    @property
-    def vector_size(self):
-        ''' Returns the vector size of the argument. This will be 1 if *n
-        has not been specified. '''
-        return self._vector_size
-
-    @property
-    def type(self):
-        ''' returns the type of the argument (gh_field, gh_operator, ...). '''
-        return self._type
-
-    def __str__(self):
-        res = "DynArgDescriptor03 object" + os.linesep
-        res += "  argument_type[0]='{0}'".format(self._type)
-        if self._vector_size > 1:
-            res += "*"+str(self._vector_size)
-        res += os.linesep
-        res += "  access_descriptor[1]='{0}'"\
-               .format(self._access_type.api_specific_name())\
-               + os.linesep
-        if self._type == "gh_field":
-            res += "  function_space[2]='{0}'".format(self._function_space1) \
-                   + os.linesep
-        elif self._type in GH_VALID_OPERATOR_NAMES:
-            res += "  function_space_to[2]='{0}'".\
-                   format(self._function_space1) + os.linesep
-            res += "  function_space_from[3]='{0}'".\
-                   format(self._function_space2) + os.linesep
-        elif self._type in GH_VALID_SCALAR_NAMES:
-            pass  # we have nothing to add if we're a scalar
-        else:  # we should never get to here
-            raise ParseError("Internal error in DynArgDescriptor03.__str__")
         return res
 
 
@@ -780,7 +425,6 @@ class DynKernMetadata(KernelType):
                         rules for the Dynamo 0.3 API.
     '''
     def __init__(self, ast, name=None):
-        from psyclone.parse.kernel import getkerneldescriptors
 
         KernelType.__init__(self, ast, name=name)
 
@@ -811,7 +455,7 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -924,7 +568,7 @@ class DynKernMetadata(KernelType):
             if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to a field on a read-only function space
-                if arg.type == "gh_field" and \
+                if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES and \
                    arg.function_spaces[0] in \
                    FunctionSpace.READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
@@ -935,7 +579,7 @@ class DynKernMetadata(KernelType):
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
-                   arg.type in GH_VALID_SCALAR_NAMES:
+                   arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
                         "A user-supplied Dynamo 0.3 kernel must not "
                         "write/update a scalar argument but kernel {0} has "
@@ -1014,7 +658,7 @@ class DynKernMetadata(KernelType):
         non_field_arg_types = set()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
-            if arg.type == "gh_field":
+            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 if arg.mesh:
                     # Argument has a mesh associated with it so this must
                     # be an inter-grid kernel
@@ -1037,22 +681,23 @@ class DynKernMetadata(KernelType):
             # this is not an inter-grid kernel
             return
 
-        if len(VALID_MESH_TYPES) != 2:
+        if len(LFRicArgDescriptor.VALID_MESH_TYPES) != 2:
             # Sanity check that nobody has messed with the number of
             # grid types that we recognise. This is here because the
             # implementation assumes that there are just two grids
             # (coarse and fine).
-            raise ParseError(
-                "The implementation of inter-grid support in the Dynamo "
-                "0.3 API assumes there are exactly two mesh types but "
-                "dynamo0p3.VALID_MESH_TYPES contains {0}: {1}".
-                format(len(VALID_MESH_TYPES), VALID_MESH_TYPES))
-        if len(mesh_list) != len(VALID_MESH_TYPES):
+            raise InternalError(
+                "The implementation of inter-grid support in the LFRic "
+                "API assumes there are exactly two mesh types but "
+                "LFRicArgDescriptor.VALID_MESH_TYPES contains {0}: {1}".
+                format(len(LFRicArgDescriptor.VALID_MESH_TYPES),
+                       LFRicArgDescriptor.VALID_MESH_TYPES))
+        if len(mesh_list) != len(LFRicArgDescriptor.VALID_MESH_TYPES):
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    VALID_MESH_TYPES, self.name,
+                    LFRicArgDescriptor.VALID_MESH_TYPES, self.name,
                     [str(name) for name in mesh_list]))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
@@ -1098,14 +743,14 @@ class DynKernMetadata(KernelType):
             if arg.vector_size > 1:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has a "
-                    "vector argument ({1}). This is forbidden.".
+                    "vector argument '{1}'. This is forbidden.".
                     format(self.name,
                            arg.type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
                     "Kernel {0} takes a CMA operator but has an argument "
-                    "with a stencil access ({1}). This is forbidden.".
+                    "with a stencil access ('{1}'). This is forbidden.".
                     format(self.name, arg.stencil['type']))
 
         # Count the number of CMA operators that are written to
@@ -1133,13 +778,15 @@ class DynKernMetadata(KernelType):
                     "two fields) but kernel {0} has {1} arguments".
                     format(self.name, len(self._arg_descriptors)))
             # Check that the other two arguments are fields
-            farg_read = psyGen.args_filter(self._arg_descriptors,
-                                           arg_types=["gh_field"],
-                                           arg_accesses=[AccessType.READ])
+            farg_read = psyGen.args_filter(
+                self._arg_descriptors,
+                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+                arg_accesses=[AccessType.READ])
             write_accesses = AccessType.all_write_accesses()
-            farg_write = psyGen.args_filter(self._arg_descriptors,
-                                            arg_types=["gh_field"],
-                                            arg_accesses=write_accesses)
+            farg_write = psyGen.args_filter(
+                self._arg_descriptors,
+                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+                arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
                     "Kernel {0} has a read-only CMA operator. In order "
@@ -1210,7 +857,8 @@ class DynKernMetadata(KernelType):
                 # A valid matrix-matrix kernel must only have CMA operators
                 # and scalars as arguments.
                 scalar_args = psyGen.args_filter(
-                    self._arg_descriptors, arg_types=GH_VALID_SCALAR_NAMES)
+                    self._arg_descriptors,
+                    arg_types=LFRicArgDescriptor.VALID_SCALAR_NAMES)
                 if (len(scalar_args) + len(cwise_ops)) != \
                    len(self._arg_descriptors):
                     raise ParseError(
@@ -1800,13 +1448,14 @@ class DynStencils(DynCollection):
                         parent.add(if_then)
                 else:
                     try:
-                        stencil_name = STENCIL_MAPPING[stencil_type]
+                        stencil_name = \
+                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
                     except KeyError:
                         raise GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
-                                   str(STENCIL_MAPPING)))
+                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +
@@ -1875,13 +1524,14 @@ class DynStencils(DynCollection):
                                                         "STENCIL_1DY"]))
             else:
                 try:
-                    stencil_name = STENCIL_MAPPING[stencil_type]
+                    stencil_name = \
+                        LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
                 except KeyError:
                     raise GenerationError(
                         "Unsupported stencil type '{0}' supplied. "
                         "Supported mappings are {1}".
                         format(arg.descriptor.stencil['type'],
-                               str(STENCIL_MAPPING)))
+                               str(LFRicArgDescriptor.STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=[stencil_name]))
                 parent.add(
@@ -2891,8 +2541,8 @@ class DynFields(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
-        fld_args = psyGen.args_filter(self._kernel.args,
-                                      arg_types=["gh_field"])
+        fld_args = psyGen.args_filter(
+            self._kernel.args, arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
             intent = fld.intent
@@ -2961,7 +2611,7 @@ class LFRicRunTimeChecks(DynCollection):
         existing_checks = []
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
-                if arg.type != "gh_field":
+                if arg.type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
                     # This check is limited to fields
                     continue
                 fs_name = arg.function_space.orig_name
@@ -3041,7 +2691,8 @@ class LFRicRunTimeChecks(DynCollection):
         modified_fields = []
         for call in self._invoke.schedule.kernels():
             for arg in call.arguments.args:
-                if (arg.text and arg.type == "gh_field" and
+                if (arg.text and arg.type in
+                        LFRicArgDescriptor.VALID_FIELD_NAMES and
                         arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
                              entry[0].name == arg.name]):
@@ -3143,7 +2794,7 @@ class DynProxies(DynCollection):
         parent.add(CommentGen(parent, ""))
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
-            if arg.type in GH_VALID_SCALAR_NAMES:
+            if arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                 continue
             if arg.vector_size > 1:
                 # the range function below returns values from
@@ -3180,7 +2831,7 @@ class DynCellIterators(DynCollection):
             return
         first_var = None
         for var in self._invoke.psy_unique_vars:
-            if var.type not in GH_VALID_SCALAR_NAMES:
+            if var.type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                 first_var = var
                 break
         if not first_var:
@@ -3271,15 +2922,16 @@ class DynScalarArgs(DynCollection):
                 self._real_scalar_names[intent] = []
                 self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
-                if arg.type in GH_VALID_SCALAR_NAMES:
+                if arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     if arg.type == "gh_real":
                         self._real_scalar_names[arg.intent].append(arg.name)
                     elif arg.type == "gh_integer":
                         self._int_scalar_names[arg.intent].append(arg.name)
                     else:
                         raise InternalError(
-                            "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
-                            " not handled in DynScalarArgs".format(arg.type))
+                            "Scalar type '{0}' is in LFRicArgDescriptor."
+                            "VALID_SCALAR_NAMES but is not handled in "
+                            "DynScalarArgs".format(arg.type))
 
     def _invoke_declarations(self, parent):
         '''
@@ -3619,7 +3271,7 @@ class DynMeshes(object):
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if var.type not in GH_VALID_SCALAR_NAMES:
+            if var.type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                 self._first_var = var
                 break
 
@@ -4940,8 +4592,8 @@ class DynInvoke(Invoke):
             return
         self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
-        reserved_names_list.extend(STENCIL_MAPPING.values())
-        reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
+        reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
@@ -5035,7 +4687,7 @@ class DynInvoke(Invoke):
             # global sum calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
-                        arg_types=GH_VALID_SCALAR_NAMES,
+                        arg_types=LFRicArgDescriptor.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
@@ -5061,11 +4713,12 @@ class DynInvoke(Invoke):
                                not of type AccessType.
 
         '''
-        if argument_type not in GH_VALID_ARG_TYPE_NAMES:
+        if argument_type not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
             raise InternalError(
                 "DynInvoke.unique_proxy_declarations() called with an invalid "
                 "argument type. Expected one of {0} but found '{1}'".
-                format(str(GH_VALID_ARG_TYPE_NAMES), argument_type))
+                format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
+                       argument_type))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
@@ -6445,7 +6098,7 @@ class DynLoop(Loop):
                 self.set_upper_bound("ndofs")
         else:
             if Config.get().distributed_memory:
-                if self._field.type in GH_VALID_OPERATOR_NAMES:
+                if self._field.type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
@@ -6719,7 +6372,7 @@ class DynLoop(Loop):
                     "currently unsupported for kernels with stencil "
                     "accesses. Found '{0}'.".format(self._upper_bound_name))
             return self._upper_bound_name in ["cell_halo", "ncells"]
-        if arg.type in GH_VALID_SCALAR_NAMES:
+        if arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
         if arg.is_operator:
@@ -7130,9 +6783,9 @@ class DynKern(CodedKern):
                 pre = "iscalar_"
             else:
                 raise GenerationError(
-                    "load_meta expected one of '{0}' but "
-                    "found '{1}'".format(GH_VALID_ARG_TYPE_NAMES,
-                                         descriptor.type))
+                    "DynKern.load_meta() expected one of {0} but found '{1}'".
+                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                           descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
 
             if descriptor.stencil:
@@ -7499,9 +7152,9 @@ class DynKern(CodedKern):
         parent_loop = self.parent.parent
 
         # Check whether this kernel reads from an operator
-        op_args = parent_loop.args_filter(arg_types=GH_VALID_OPERATOR_NAMES,
-                                          arg_accesses=[AccessType.READ,
-                                                        AccessType.READWRITE])
+        op_args = parent_loop.args_filter(
+            arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+            arg_accesses=[AccessType.READ, AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
@@ -7939,7 +7592,7 @@ class DynKernelArguments(Arguments):
                 # a direction argument has been added
                 if arg.stencil.direction_arg.varname and \
                    arg.stencil.direction_arg.varname not in \
-                   VALID_STENCIL_DIRECTIONS:
+                   LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS:
                     # Register the name of the direction argument to ensure
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
@@ -8020,13 +7673,14 @@ class DynKernelArguments(Arguments):
         of type op_type (either gh_operator [LMA] or gh_columnwise_operator
         [CMA]). If op_type is None then searches for *any* valid operator
         type. '''
-        if op_type and op_type not in GH_VALID_OPERATOR_NAMES:
+        if op_type and op_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise GenerationError(
-                "If supplied, op_type must be a valid operator type (one "
-                "of {0}) but got {1}".format(GH_VALID_OPERATOR_NAMES, op_type))
+                "If supplied, 'op_type' must be a valid operator type (one "
+                "of {0}) but got '{1}'".
+                format(LFRicArgDescriptor.VALID_OPERATOR_NAMES, op_type))
         if not op_type:
             # If no operator type is specified then we match any type
-            op_list = GH_VALID_OPERATOR_NAMES
+            op_list = LFRicArgDescriptor.VALID_OPERATOR_NAMES
         else:
             op_list = [op_type]
         for arg in self._args:
@@ -8062,9 +7716,10 @@ class DynKernelArguments(Arguments):
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
         write_accesses = AccessType.all_write_accesses()
-        op_args = psyGen.args_filter(self._args,
-                                     arg_types=GH_VALID_OPERATOR_NAMES,
-                                     arg_accesses=write_accesses)
+        op_args = psyGen.args_filter(
+            self._args,
+            arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+            arg_accesses=write_accesses)
         if op_args:
             return op_args[0]
 
@@ -8073,9 +7728,10 @@ class DynKernelArguments(Arguments):
         # we are prolonging (and thus writing to a field on the fine mesh)
         # or restricting.
         if self._parent_call.is_intergrid:
-            fld_args = psyGen.args_filter(self._args,
-                                          arg_types=["gh_field"],
-                                          arg_meshes=["gh_coarse"])
+            fld_args = psyGen.args_filter(
+                self._args,
+                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+                arg_meshes=["gh_coarse"])
             return fld_args[0]
 
         # This is not an inter-grid kernel and it does not write to an
@@ -8088,9 +7744,10 @@ class DynKernelArguments(Arguments):
         # a continuous FS is modified then our iteration space must be
         # larger (include L1-halo cells)
         write_accesses = AccessType.all_write_accesses()
-        fld_args = psyGen.args_filter(self._args,
-                                      arg_types=["gh_field"],
-                                      arg_accesses=write_accesses)
+        fld_args = psyGen.args_filter(
+            self._args,
+            arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            arg_accesses=write_accesses)
         if fld_args:
             for spaces in [FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
                            FunctionSpace.VALID_ANY_SPACE_NAMES,
@@ -8100,7 +7757,9 @@ class DynKernelArguments(Arguments):
                         return arg
 
         # No modified fields or operators. Check for unmodified fields...
-        fld_args = psyGen.args_filter(self._args, arg_types=["gh_field"])
+        fld_args = psyGen.args_filter(
+            self._args,
+            arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
         if fld_args:
             return fld_args[0]
 
@@ -8171,7 +7830,8 @@ class DynKernelArgument(KernelArgument):
         :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
         :param arg_meta_data: Information obtained from the meta-data for
                               this kernel argument
-        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
+        :type arg_meta_data: \
+            :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
@@ -8255,9 +7915,9 @@ class DynKernelArgument(KernelArgument):
                     "associated with this argument (fss='{1}')".format(
                         function_space.orig_name,
                         self.function_space_names))
-        if self._type == "gh_field":
+        if self._type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             return "vspace"
-        elif self.is_operator:
+        if self.is_operator:
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
             elif function_space.orig_name == self.descriptor.function_space_to:
@@ -8284,7 +7944,7 @@ class DynKernelArgument(KernelArgument):
     def is_scalar(self):
         ''':return: whether this variable is a scalar variable or not.
         :rtype: bool'''
-        return self.type in GH_VALID_SCALAR_NAMES
+        return self.type in LFRicArgDescriptor.VALID_SCALAR_NAMES
 
     @property
     def mesh(self):
@@ -8451,7 +8111,7 @@ class DynKernelArgument(KernelArgument):
                  False otherwise.
         :rtype: bool
         '''
-        return self._type in GH_VALID_OPERATOR_NAMES
+        return self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
 
 
 class DynKernCallFactory(object):
@@ -8500,7 +8160,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
     'DynFuncDescriptor03',
-    'DynArgDescriptor03',
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
