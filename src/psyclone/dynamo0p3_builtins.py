@@ -60,9 +60,18 @@ VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real", "gh_integer"]
 # The built-in operations F90 capitalised names are dictionary keys and need
 # to be converted to lower case for invoke generation purpose.
 def get_lowercase_builtin_map(builtin_map_capitalised_dict):
-    '''Convert the names of the supported built-in operations to lowercase
-    for comparison and invoke generation purpose. '''
+    '''
+    Convert the names of the supported built-in operations to lowercase
+    for comparison and invoke generation purpose.
 
+    :param builtin_map_capitalised_dict: a dictionary of built-in names.
+    :type builtin_map_capitalised_dict: dict of str
+
+    :returns: a dictionary of lowercase built-in names.
+    :rtype: str
+
+    '''
+    print(type(builtin_map_capitalised_dict))
     builtin_map_dict = {}
     for fortran_name in builtin_map_capitalised_dict:
         python_name = builtin_map_capitalised_dict[fortran_name]
@@ -71,22 +80,42 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
 
 
 class DynBuiltInCallFactory(object):
-    ''' Creates the necessary framework for a call to a Dynamo built-in,
-    This consists of the operation itself and the loop over unique DoFs. '''
+    '''
+    Creates the necessary framework for a call to a Dynamo built-in,
+    This consists of the operation itself and the loop over unique DoFs.
+
+    '''
 
     def __str__(self):
-        return "Factory for a call to a Dynamo built-in"
+        '''
+        :returns: information about this object.
+        :rtype: str
+
+        '''
+        return "Factory for a call to a Dynamo built-in."
 
     @staticmethod
     def create(call, parent=None):
-        ''' Create the objects needed for a call to the built-in
-        described in the call (BuiltInCall) object '''
+        '''
+        Create the objects needed for a call to the built-in described in
+        the call (BuiltInCall) object.
 
+        :param call: details of the call to this built-in in the \
+                     Algorithm layer.
+        :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
+        :param parent: the schedule instance to create the built-in call for.
+        :type parent: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`
+
+        :raises ParseError: for an unrecognised built-in call name.
+        :raises NotImplementedError: if a built-in call does not iterate \
+                                     over DoFs.
+
+        '''
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
-                "Unrecognised built-in call. Found '{0}' but expected "
-                "one of '{1}'".format(call.func_name,
-                                      list(BUILTIN_MAP_CAPITALISED.keys())))
+                "Unrecognised built-in call in LFRic API: found '{0}' but "
+                "expected one of {1}.".
+                format(call.func_name, list(BUILTIN_MAP_CAPITALISED.keys())))
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
@@ -103,9 +132,10 @@ class DynBuiltInCallFactory(object):
         # Check that our assumption that we're looping over DoFS is valid
         if builtin.iterates_over != "dofs":
             raise NotImplementedError(
-                "In the Dynamo 0.3 API built-in calls must iterate over "
-                "DoFs but found {0} for {1}".format(builtin.iterates_over,
-                                                    str(builtin)))
+                "In the LFRic API built-in calls must iterate over "
+                "DoFs but found '{0}' for {1}.".
+                format(builtin.iterates_over, str(builtin)))
+
         # Set-up its state
         dofloop.load(builtin)
 
@@ -130,11 +160,21 @@ class DynBuiltIn(BuiltIn):
         super(DynBuiltIn, self).__init__()
 
     def __str__(self):
+        ''' :raises NotImplementedError: if the method is called. '''
         raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
 
     def load(self, call, parent=None):
-        ''' Populate the state of this object using the supplied call
-        object. '''
+        '''
+        Populate the state of this object using the supplied call object.
+
+        :param call: The BuiltIn object from which to extract information
+                     about this built-in call.
+        :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
+        :param parent: The parent node of the kernel call in the AST
+                       we are constructing. This will be a loop.
+        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+
+        '''
         from psyclone.dynamo0p3 import FSDescriptors
         self._parent = parent  # Needed on the DynKernelArguments() below
         BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
@@ -147,47 +187,66 @@ class DynBuiltIn(BuiltIn):
         self._validate()
 
     def _validate(self):
-        ''' Check that this built-in conforms to the Dynamo 0.3 API '''
+        '''
+        Check that this built-in conforms to the LFRic API.
+
+        :raises ParseError: if an argument to a built-in kernel is not \
+                            one of valid argument types.
+        :raises ParseError: if a built-in kernel writes to more than \
+                            one argument.
+        :raises ParseError: if a built-in kernel does not have at least \
+                            one field argument.
+        :raises ParseError: if all field arguments are not on the same space.
+
+        '''
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
         for arg in self.arg_descriptors:
             if arg.access in [AccessType.WRITE, AccessType.SUM,
-                              AccessType.INC]:
+                              AccessType.READWRITE]:
                 write_count += 1
             if arg.type == "gh_field":
                 field_count += 1
                 spaces.add(arg.function_space)
             if arg.type not in VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    "In the Dynamo 0.3 API an argument to a built-in kernel "
-                    "must be one of {0} but kernel {1} has an argument of "
-                    "type {2}".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                      arg.type))
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must be one of {0} but kernel '{1}' has an argument of "
+                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
+                                         arg.type))
         if write_count != 1:
-            raise ParseError("A built-in kernel in the Dynamo 0.3 API must "
+            raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "
-                             "to but found {0} for kernel {1}".
+                             "to but found {0} for kernel '{1}'.".
                              format(write_count, self.name))
         if field_count == 0:
-            raise ParseError("A built-in kernel in the Dynamo 0.3 API "
+            raise ParseError("A built-in kernel in the LFRic API "
                              "must have at least one field as an argument but "
-                             "kernel {0} has none.".format(self.name))
+                             "kernel '{0}' has none.".format(self.name))
         if len(spaces) != 1:
             spaces_str = [str(x) for x in sorted(spaces)]
             raise ParseError(
-                "All field arguments to a built-in in the Dynamo 0.3 API "
+                "All field arguments to a built-in in the LFRic API "
                 "must be on the same space. However, found spaces {0} for "
-                "arguments to {1}".format(spaces_str, self.name))
+                "arguments to '{1}'".format(spaces_str, self.name))
 
     def array_ref(self, fld_name):
-        ''' Returns a string containing the array reference for a
-        proxy with the supplied name '''
+        '''
+        Returns a string containing the array reference for a proxy with
+        the supplied name.
+
+        :returns: the array reference for a proxy field.
+        :rtype: str
+
+        '''
+
         return fld_name + "%data(" + self._idx_name + ")"
 
     @property
     def undf_name(self):
-        ''' Dynamically looks up the name of the undf variable for the
+        '''
+        Dynamically looks up the name of the undf variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
@@ -199,29 +258,49 @@ class DynBuiltIn(BuiltIn):
 
     @property
     def qr_required(self):
-        ''' Built-ins do not currently require quadrature '''
+        '''
+        Built-ins do not currently require quadrature.
+
+        :returns: False
+        :rtype: bool
+
+        '''
         return False
 
     @property
     def reference_element(self):
-        ''' Built-ins do not require reference-element properties. '''
+        '''
+        Built-ins do not require reference-element properties.
+
+        :returns: None
+        :rtype: NoneType
+
+        '''
         return None
 
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
 
     def cma_operation(self):
-        ''' Built-ins do not perform operations with Column-Matrix-Assembly
-        operators '''
+        '''
+        Built-ins do not perform operations with Column-Matrix-Assembly
+        operators.
+
+        :returns: None
+        :rtype: NoneType
+
+        '''
+
         return None
 
     @property
     def is_intergrid(self):
         '''
-        We don't have any inter-grid Built-ins
+        We don't have any inter-grid Built-ins.
 
         :returns: False
         :rtype: bool
+
         '''
         return False
 
@@ -231,6 +310,7 @@ class DynBuiltIn(BuiltIn):
         :returns: a list of function space descriptor objects which \
                   contain information about the function spaces.
         :rtype: list of :py:class:`psyclone.dynamo0p3.FSDescriptor`
+
         '''
         return self._fs_descriptors
 
@@ -243,6 +323,11 @@ class DynXPlusYKern(DynBuiltIn):
     ''' Add one field to another and return the result as a third field '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Add fields"
 
     def gen_code(self, parent):
@@ -250,8 +335,9 @@ class DynXPlusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_plus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We add each element of f2 to the corresponding element of f1
@@ -267,6 +353,11 @@ class DynIncXPlusYKern(DynBuiltIn):
     ''' Add the 2nd field to the first field and return it '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Increment field"
 
     def gen_code(self, parent):
@@ -274,8 +365,9 @@ class DynIncXPlusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_X_plus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We add each element of f1 to the corresponding element of f2
@@ -291,6 +383,11 @@ class DynAXPlusYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: aX_plus_Y"
 
     def gen_code(self, parent):
@@ -298,8 +395,9 @@ class DynAXPlusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         aX_plus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (3rd arg) by a scalar
@@ -318,6 +416,11 @@ class DynIncAXPlusYKern(DynBuiltIn):
     ''' X = a.X + Y where 'a' is a scalar and 'X' and 'Y' are fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: inc_aX_plus_Y"
 
     def gen_code(self, parent):
@@ -325,8 +428,9 @@ class DynIncAXPlusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_aX_plus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (2nd arg) by a scalar
@@ -345,6 +449,11 @@ class DynIncXPlusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: inc_X_plus_bY"
 
     def gen_code(self, parent):
@@ -352,8 +461,9 @@ class DynIncXPlusBYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_X_plus_bY Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
@@ -371,6 +481,11 @@ class DynAXPlusBYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: aX_plus_bY"
 
     def gen_code(self, parent):
@@ -378,8 +493,9 @@ class DynAXPlusBYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         aX_plus_bY Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (3rd arg) by the first
@@ -402,6 +518,11 @@ class DynIncAXPlusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: inc_aX_plus_bY"
 
     def gen_code(self, parent):
@@ -409,8 +530,9 @@ class DynIncAXPlusBYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_aX_plus_bY Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (2nd arg) by the first scalar
@@ -436,6 +558,11 @@ class DynXMinusYKern(DynBuiltIn):
     third field '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Subtract fields"
 
     def gen_code(self, parent):
@@ -443,8 +570,9 @@ class DynXMinusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_minus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
@@ -461,6 +589,11 @@ class DynIncXMinusYKern(DynBuiltIn):
     ''' Subtract the second field from the first field and return it '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Decrement field"
 
     def gen_code(self, parent):
@@ -468,8 +601,9 @@ class DynIncXMinusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_X_minus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We subtract each element of f1 from the corresponding element of f2
@@ -485,6 +619,11 @@ class DynAXMinusYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: aX_minus_Y"
 
     def gen_code(self, parent):
@@ -492,8 +631,9 @@ class DynAXMinusYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         aX_minus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (3rd arg) by a scalar
@@ -513,6 +653,11 @@ class DynXMinusBYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: X_minus_bY"
 
     def gen_code(self, parent):
@@ -520,8 +665,9 @@ class DynXMinusBYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_minus_bY Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f2 (4th arg) by a scalar
@@ -541,6 +687,11 @@ class DynIncXMinusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: inc_X_minus_bY"
 
     def gen_code(self, parent):
@@ -548,8 +699,9 @@ class DynIncXMinusBYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_X_minus_bY Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
@@ -572,6 +724,11 @@ class DynXTimesYKern(DynBuiltIn):
     returned as a third field '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Multiply fields"
 
     def gen_code(self, parent):
@@ -579,8 +736,9 @@ class DynXTimesYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_times_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
@@ -597,6 +755,11 @@ class DynIncXTimesYKern(DynBuiltIn):
     ''' Multiply the first field by the second and return it '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Multiply field by another"
 
     def gen_code(self, parent):
@@ -604,8 +767,9 @@ class DynIncXTimesYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_X_times_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply each element of f1 by the corresponding element of
@@ -620,6 +784,11 @@ class DynIncAXTimesYKern(DynBuiltIn):
     ''' X = a.X.Y where 'a' is a scalar and 'X' and 'Y' are fields '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: inc_aX_times_Y"
 
     def gen_code(self, parent):
@@ -627,8 +796,9 @@ class DynIncAXTimesYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_aX_times_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply a scalar (1st arg) by a DoF-wise product of fields
@@ -651,6 +821,11 @@ class DynATimesXKern(DynBuiltIn):
     a second field (Y = a.X) '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Copy scaled field"
 
     def gen_code(self, parent):
@@ -658,8 +833,9 @@ class DynATimesXKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         a_times_X Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We multiply each element of f1 by the scalar argument and
@@ -675,6 +851,11 @@ class DynIncATimesXKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Scale a field"
 
     def gen_code(self, parent):
@@ -682,8 +863,9 @@ class DynIncATimesXKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_a_times_X Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # In this case we're multiplying each element of a field by the
@@ -704,6 +886,11 @@ class DynXDividebyYKern(DynBuiltIn):
     a third field '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Divide fields"
 
     def gen_code(self, parent):
@@ -711,8 +898,9 @@ class DynXDividebyYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_divideby_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
@@ -735,8 +923,9 @@ class DynIncXDividebyYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         inc_X_divideby_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
@@ -756,6 +945,11 @@ class DynIncXPowrealAKern(DynBuiltIn):
     ''' Raise a field to a real power and return it '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: raise a field to a real power"
 
     def gen_code(self, parent):
@@ -763,8 +957,9 @@ class DynIncXPowrealAKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_powreal_a Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # In this case we're raising each element of a field to a
@@ -779,6 +974,11 @@ class DynIncXPowintNKern(DynBuiltIn):
     ''' Raise a field to an integer power and return it '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: raise a field to an integer power"
 
     def gen_code(self, parent):
@@ -786,8 +986,9 @@ class DynIncXPowintNKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_powint_n Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # In this case we're raising each element of a field to a
@@ -807,6 +1008,11 @@ class DynSetvalCKern(DynBuiltIn):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Set field to a scalar value"
 
     def gen_code(self, parent):
@@ -814,8 +1020,9 @@ class DynSetvalCKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         setval_c Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # In this case we're assigning a single scalar value to all
@@ -829,6 +1036,11 @@ class DynSetvalXKern(DynBuiltIn):
     ''' Set a field equal to another field '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: Set a field equal to another field"
 
     def gen_code(self, parent):
@@ -836,8 +1048,9 @@ class DynSetvalXKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         setval_X Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We copy one element of field X (second arg) to the
@@ -857,6 +1070,12 @@ class DynXInnerproductYKern(DynBuiltIn):
     innprod = SUM( X(:)*Y(:) ) '''
 
     def __str__(self):
+
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: X_innerproduct_Y"
 
     def gen_code(self, parent):
@@ -864,8 +1083,9 @@ class DynXInnerproductYKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_innerproduct_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
@@ -882,6 +1102,11 @@ class DynXInnerproductXKern(DynBuiltIn):
     innprod = SUM( X(:)*X(:) ) '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: X_innerproduct_X"
 
     def gen_code(self, parent):
@@ -889,8 +1114,9 @@ class DynXInnerproductXKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         X_innerproduct_X Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
@@ -910,6 +1136,11 @@ class DynSumXKern(DynBuiltIn):
     ''' Computes the sum of the elements of a field '''
 
     def __str__(self):
+        '''
+        :returns: information about this Built-in.
+        :rtype: str
+
+        '''
         return "Built-in: sum a field"
 
     def gen_code(self, parent):
@@ -917,8 +1148,9 @@ class DynSumXKern(DynBuiltIn):
         Generates Dynamo0.3 API specific PSy code for a call to the
         sum_X Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call
+        :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
         from psyclone.f2pygen import AssignGen
         # Sum all the elements of a field. The variable holding the
