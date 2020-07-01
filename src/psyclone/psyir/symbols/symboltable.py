@@ -69,7 +69,12 @@ class SymbolTable(object):
         # Dict of tags. Some symbols can be identified with a tag.
         self._tags = {}
         # Reference to Schedule to which this symbol table belongs.
-        # TODO. Check schedule is a schedule
+        from psyclone.psyir.nodes import Schedule, Container
+        if schedule and not isinstance(schedule, (Schedule, Container)):
+            raise TypeError(
+                "Optional schedule argument to SymbolTable should be a "
+                "Schedule or a Container but found '{0}'."
+                "".format(type(schedule).__name__))
         self._schedule = schedule
 
     @property
@@ -83,14 +88,14 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_symbols = OrderedDict()
-        all_symbols.update(self._symbols)
+        all_symbols = OrderedDict(self._symbols)
         current = self
         while current._schedule and current._schedule.parent:
+            # Use schedule.parent to get out of the current scope
             current = current._schedule.parent.scope.symbol_table
-            for symbol in current._symbols:
-                if symbol not in all_symbols:
-                    all_symbols[symbol] = current._symbols[symbol]
+            for symbol_name in current._symbols:
+                if symbol_name not in all_symbols:
+                    all_symbols[symbol_name] = current._symbols[symbol_name]
         return all_symbols
         
     @property
@@ -104,15 +109,16 @@ class SymbolTable(object):
         :rtype: list of str
 
         '''
-        all_tags = {}.update(self.tags)
+        all_tags = OrderedDict(self._tags)
         current = self
-        while current._schedule.parent:
+        while current._schedule and current._schedule.parent:
+            # Use schedule.parent to get out of the current scope
             current = current._schedule.parent.scope.symbol_table
-            for tag in current.tags:
+            for tag in current._tags:
                 if tag not in all_tags:
-                    all_tags[tag.key()] = tag.item()
+                    all_tags[tag] = current._tags[tag]
         return all_tags
-        
+
     def shallow_copy(self):
         '''Create a copy of the symbol table where the top-level containers
         are new (symbols added to the new symbol table will not be added in
@@ -168,9 +174,14 @@ class SymbolTable(object):
 
         :raises TypeError: if the root_name argument is not a string \
         or None.
+        :raises TypeError: if the check_ancestors argument is not a boolean.
 
         '''
-        #TBD CHECK CHECK_ANCESTORS IS BOOL
+        if not isinstance(check_ancestors, bool):
+            raise TypeError(
+                "Expected the check_ancestors optional argument to the "
+                "new_symbol_name() method to be a boolean but found '{0}'."
+                "".format(type(check_ancestors).__name__))
         
         if check_ancestors:
             symbols = self.all_symbols
@@ -205,7 +216,11 @@ class SymbolTable(object):
         :raises KeyError: if the symbol name is already in use.
 
         '''
-        #TBD CHECK CHECK_ANCESTORS IS BOOL
+        if not isinstance(check_ancestors, bool):
+            raise TypeError(
+                "Expected the check_ancestors optional argument to the "
+                "add() method to be a boolean but found '{0}'."
+                "".format(type(check_ancestors).__name__))
 
         if check_ancestors:
             symbols = self.all_symbols
