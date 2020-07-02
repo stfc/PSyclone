@@ -141,13 +141,13 @@ Contains
     function CheckError(retval) 
         use netcdf, only: nf90_noerr, nf90_strerror
         implicit none
-        integer :: n=0
-        integer :: CheckError
+        integer             :: CheckError
+
         integer, intent(in) :: retval
+
         if (retval /= nf90_noerr) then
             print *,"NetCDF Error:"
             print *,trim(nf90_strerror(retval))
-            print *,1/n
             stop
         endif
         CheckError = retval
@@ -186,7 +186,6 @@ Contains
         integer, intent(in)      :: num_pre_vars, num_post_vars
         integer :: retval
 
-        print *,"BOMJH", module_name,"{}", kernel_name, num_pre_vars, num_post_vars
         ! Open the NetCDF file
         retval = CheckError(nf90_create(module_name//"-"//kernel_name//".nc", &
                                         NF90_CLOBBER, this%ncid))
@@ -212,7 +211,9 @@ Contains
         use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: module_name, kernel_name
+        character(*), intent(in) ::                          module_name, &
+                                                             kernel_name
+
         integer :: retval
 
         retval = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
@@ -278,14 +279,14 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalarInt(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_def_var, NF90_INT
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        integer, intent(in) :: value
+        character(*), intent(in)                          :: name
+        integer, intent(in)                               :: value
+
         integer :: retval
 
-        print *,"BOMJH dsi ", name, this%next_var_index
         retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
                                          this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
@@ -299,13 +300,14 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalarInt(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_put_var
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        integer, intent(in) :: value
+        character(*), intent(in)                          :: name
+        integer, intent(in)                               :: value
+
         integer :: retval
-        print *,"BOMJH wsi ", name, this%next_var_index
+
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
                                          value))
         this%next_var_index = this%next_var_index + 1
@@ -318,13 +320,14 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
     subroutine ReadScalarInt(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_varid, nf90_get_var
         implicit none
-
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        integer, intent(out) :: value
+        character(*), intent(in)                          :: name
+        integer, intent(out)                              :: value
+
         integer :: retval, varid
+
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarInt
@@ -338,16 +341,15 @@ Contains
         use netcdf, only: nf90_def_dim, nf90_def_var, NF90_INT
         implicit none
         class(extract_PSyDataType), intent(inout), target :: this
-        character(*), intent(in)          :: name
-        integer, dimension(:), intent(in) :: value
+        character(*), intent(in)                          :: name
+        integer, dimension(:), intent(in)                 :: value
 
-        integer                           :: x_dimid, retval
-        integer, dimension(1)             :: dimids
+        integer               :: retval
+        integer, dimension(1) :: dimids
 
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), x_dimid))
-        dimids =  (/ x_dimid/)
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_INT,     &
+                                         size(value,1), dimids(1)))
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -362,9 +364,9 @@ Contains
         use netcdf, only: nf90_put_var
         implicit none
         class(extract_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        integer, dimension(:), intent(in) :: value
-        integer(kind=int64) :: checksum
+        character(*), intent(in)                          :: name
+        integer, dimension(:), intent(in)                 :: value
+
         integer :: retval
 
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
@@ -379,15 +381,15 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ReadArray1dInt(this, name, value)
-        use netcdf, only : nf90_inq_dimid, nf90_inquire_dimension, nf90_get_var, &
-                           nf90_inq_varid
+        use netcdf, only : nf90_inq_dimid, nf90_inquire_dimension, &
+                           nf90_get_var, nf90_inq_varid
         implicit none
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         integer, dimension(:), allocatable, intent(out)   :: value
 
-        integer                                           :: dim_id1, dim1
-        integer                                           :: varid, retval, ierr
+        integer :: dim_id1, dim1
+        integer :: varid, retval, ierr
 
         ! First query the dimensions of the original array from the
         ! netcdf file
@@ -418,17 +420,17 @@ Contains
         use netcdf, only: nf90_def_dim, nf90_def_var, NF90_INT
         implicit none
         class(extract_PSyDataType), intent(inout), target :: this
-        character(*), intent(in)            :: name
-        integer, dimension(:,:), intent(in) :: value
+        character(*), intent(in)                          :: name
+        integer, dimension(:,:), intent(in)               :: value
 
-        integer                             :: retval
-        integer, dimension(2)               :: dimids
+        integer               :: retval
+        integer, dimension(2) :: dimids
 
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
                                          size(value,1), dimids(1)))
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
                                          size(value,2), dimids(2)))
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_INT,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -446,7 +448,7 @@ Contains
         character(*), intent(in)                          :: name
         integer, dimension(:,:), intent(in)               :: value
 
-        integer                                           :: retval
+        integer :: retval
 
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
                                          value))
@@ -460,19 +462,21 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ReadArray2dInt(this, name, value)
-        use netcdf, only : nf90_inq_dimid, nf90_inquire_dimension, nf90_get_var, &
-                           nf90_inq_varid
+        use netcdf, only : nf90_inq_dimid, nf90_inquire_dimension, &
+                           nf90_get_var, nf90_inq_varid
         implicit none
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         integer, dimension(:,:), allocatable, intent(out) :: value
 
-        integer                                           :: dim_id1, dim1
-        integer                                           :: dim_id2, dim2
-        integer                                           :: varid, retval, ierr
+        integer :: dim_id1, dim1
+        integer :: dim_id2, dim2
+        integer :: varid, retval, ierr
+
         ! First query the dimensions of the original array from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), &
+                                           dim_id1))
         retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
                                                    len=dim1))
         retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
@@ -501,13 +505,15 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalarReal(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_def_var, NF90_REAL
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        real, intent(in) :: value
+        character(*), intent(in)                          :: name
+        real, intent(in)                                  :: value
+
         integer :: retval
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL,     &
+
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL,     &
                                          this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareScalarReal
@@ -523,10 +529,12 @@ Contains
         use netcdf, only: nf90_put_var
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        real, intent(in) :: value
+        character(*), intent(in)                          :: name
+        real, intent(in)                                  :: value
+
         integer :: retval
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+
+        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
                                          value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteScalarReal
@@ -538,13 +546,15 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
     subroutine ReadScalarReal(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_varid, nf90_get_var
         implicit none
 
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        real, intent(out) :: value
+        character(*), intent(in)                          :: name
+        real, intent(out)                                 :: value
+
         integer :: retval, varid
+
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarReal
@@ -557,13 +567,15 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalarDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_def_var, NF90_REAL8
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, intent(in) :: value
+        character(*), intent(in)                          :: name
+        double precision, intent(in)                      :: value
+
         integer :: retval
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_DOUBLE,     &
+
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                          this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareScalarDouble
@@ -579,9 +591,11 @@ Contains
         use netcdf, only: nf90_put_var
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, intent(in) :: value
+        character(*), intent(in)                          :: name
+        double precision, intent(in)                      :: value
+
         integer :: retval
+
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
                                          value))
         this%next_var_index = this%next_var_index + 1
@@ -594,13 +608,15 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
     subroutine ReadScalarDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_varid, nf90_get_var
         implicit none
 
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, intent(out) :: value
+        character(*), intent(in)                         :: name
+        double precision, intent(out)                    :: value
+
         integer :: retval, varid
+
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarDouble
@@ -619,13 +635,13 @@ Contains
         character(*), intent(in)                          :: name
         double precision, dimension(:), intent(in)        :: value
 
-        integer                                           :: retval
-        integer, dimension(1)                             :: dimids
+        integer               :: retval
+        integer, dimension(1) :: dimids
         print *,"BOMJH d1dd ", name, this%next_var_index
 
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
                                          size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -639,13 +655,13 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteArray1dDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_put_var
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         double precision, dimension(:), intent(in)        :: value
 
-        integer                                           :: retval
+        integer :: retval
 
         print *,"BOMJH w1dd ", name, this%next_var_index
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
@@ -663,18 +679,16 @@ Contains
     !! @param[out] value An allocatable, unallocated 2d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, &
+                          nf90_inq_varid, nf90_get_var
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
+        class(extract_PsyDataType), intent(inout), target        :: this
+        character(*), intent(in)                                 :: name
         double precision, dimension(:), allocatable, intent(out) :: value
+
         integer :: retval, varid, ierr
         integer :: dim1_id, dim1
-        integer :: dim2_id, dim2
-        integer :: dim3_id, dim3
-        integer :: dim4_id, dim4
-        character(100) :: x
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
@@ -720,7 +734,7 @@ Contains
                                          size(value,2), dimids(2)))
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
                                          size(value,3), dimids(3)))
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -734,12 +748,13 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteArray3dDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_put_var
         use field_mod, only : field_type
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:,:), intent(in) :: value
+        character(*), intent(in)                          :: name
+        double precision, dimension(:,:,:), intent(in)    :: value
+
         integer :: retval
 
         print *,"BOMJH w3dd ", name, this%next_var_index
@@ -758,17 +773,17 @@ Contains
     !! @param[out] value An allocatable, unallocated 2d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, &
+                          nf90_inq_varid, nf90_get_var
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
+        class(extract_PsyDataType), intent(inout), target            :: this
+        character(*), intent(in)                                     :: name
         double precision, dimension(:,:,:), allocatable, intent(out) :: value
         integer :: retval, varid, ierr
         integer :: dim1_id, dim1
         integer :: dim2_id, dim2
         integer :: dim3_id, dim3
-        character(100) :: x
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
@@ -805,10 +820,11 @@ Contains
     subroutine DeclareArray4dDouble(this, name, value)
         use netcdf, only : nf90_def_dim, nf90_def_var, NF90_REAL8
         implicit none
-        class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
+        class(extract_PsyDataType), intent(inout), target             :: this
+        character(*), intent(in)                                      :: name
         double precision, dimension(:,:,:,:), allocatable, intent(in) :: value
-        integer :: n1_dimid, y_dimid, retval
+
+        integer               :: n1_dimid, retval
         integer, dimension(4) :: dimids
 
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
@@ -819,7 +835,7 @@ Contains
                                          size(value,3), dimids(3)))
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim4",  &
                                          size(value,4), dimids(4)))
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -833,12 +849,14 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteArray4dDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_put_var
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:,:,:), intent(in) :: value
+        character(*), intent(in)                          :: name
+        double precision, dimension(:,:,:,:), intent(in)  :: value
+
         integer :: retval
+
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
                                          value))
         this%next_var_index = this%next_var_index + 1
@@ -854,18 +872,18 @@ Contains
     !! @param[out] value An allocatable, unallocated 2d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, &
+                          nf90_inq_varid, nf90_get_var
         implicit none
 
-        class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
+        class(extract_PsyDataType), intent(inout), target              :: this
+        character(*), intent(in)                                       :: name
         double precision, dimension(:,:,:,:), allocatable, intent(out) :: value
         integer :: retval, varid, ierr
         integer :: dim1_id, dim1
         integer :: dim2_id, dim2
         integer :: dim3_id, dim3
         integer :: dim4_id, dim4
-        character(100) :: x
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
@@ -910,15 +928,14 @@ Contains
         character(*), intent(in)                          :: name
         type(field_type), intent(in)                      :: value
 
-        integer                :: x_dimid, y_dimid, retval
+        integer                :: retval
         type(field_proxy_type) :: value_proxy
         integer, dimension(1)  :: dimids
 
-        print *,"BOMJH dfd ", name, this%next_var_index
         value_proxy = value%get_proxy()
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
                                          size(value_proxy%data,1), dimids(1)))
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -932,16 +949,15 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_put_var
         use field_mod, only : field_type, field_proxy_type
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_proxy_type)                            :: value_proxy
         type(field_type), intent(in)                      :: value
 
-        integer :: retval
-        print *,"BOMJH wfd ", name, this%next_var_index
+        type(field_proxy_type) :: value_proxy
+        integer                :: retval
 
         value_proxy = value%get_proxy()
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
@@ -959,7 +975,8 @@ Contains
     !! @param[out] value An allocatable, unallocated 2d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadFieldDouble(this, name, value)
-        use netcdf
+        use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, &
+                          nf90_inq_varid, nf90_get_var
         implicit none
 
         class(extract_PsyDataType), intent(inout), target          :: this
@@ -969,7 +986,6 @@ Contains
         integer        :: retval, varid
         integer        :: dim1_id, dim1
         integer        :: dim2_id, dim2, ierr
-        character(100) :: x
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
@@ -1010,15 +1026,13 @@ Contains
         integer, dimension(2)               :: dimids
         type(field_proxy_type)              :: value_proxy
 
-        print *,"BOMJH dfvd ", name, this%next_var_index
-
         ! All fields in a vector have the same size, so just pick the first one
         value_proxy = value(1)%get_proxy()
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
                                          size(value,1), dimids(1)))
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
                                          size(value_proxy%data,1), dimids(2)))
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_INT,     &
+        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
                                          dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
@@ -1043,7 +1057,6 @@ Contains
         type(field_proxy_type)                        :: value_proxy
         double precision, dimension(:,:), allocatable :: tmp
 
-        print *,"BOMJH wfvd ", name, this%next_var_index
         ! The data of the vector fields need to be copied into a 
         ! standard Fortan array that is consecutive in memory
         value_proxy = value(1)%get_proxy()
