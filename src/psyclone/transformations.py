@@ -43,9 +43,10 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
+from psyclone import psyGen
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir import nodes
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.domain.lfric import FunctionSpace
@@ -133,12 +134,10 @@ class KernelTrans(Transformation):
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
-        from psyclone.psyir.nodes import Reference
-        from psyclone.psyGen import KernelSchedule
-        for var in kernel_schedule.walk(Reference):
+        for var in kernel_schedule.walk(nodes.Reference):
             try:
                 _ = var.find_or_create_symbol(
-                    var.name, scope_limit=var.ancestor(KernelSchedule))
+                    var.name, scope_limit=var.ancestor(psyGen.KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -1744,14 +1743,14 @@ class ParallelRegionTrans(RegionTrans):
                     "children of the same parent.".format(self.name))
         super(ParallelRegionTrans, self).validate(node_list, options)
 
-    def apply(self, nodes, options=None):
+    def apply(self, target_nodes, options=None):
         '''
         Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Loops in the
         schedule within a single parallel region.
 
-        :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param target_nodes: a single Node or a list of Nodes.
+        :type target_nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -1767,7 +1766,7 @@ class ParallelRegionTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        node_list = self.get_node_list(nodes)
+        node_list = self.get_node_list(target_nodes)
         self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1847,18 +1846,13 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
 
     '''
-    from psyclone import psyGen
-    from psyclone.psyir import nodes
-    # The types of node that this transformation can enclose
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.OMPDirective, psyGen.GlobalSum,
-                        nodes.Literal, nodes.Reference)
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.ACCDirective)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
-        from psyclone.psyGen import OMPParallelDirective
         # Set the type of directive that the base class will use
-        self._pdirective = OMPParallelDirective
+        self._pdirective = psyGen.OMPParallelDirective
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"
@@ -1923,19 +1917,16 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> # Add an enter-data directive
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
+
     '''
-    from psyclone import psyGen
-    from psyclone.psyir import nodes
-    valid_node_types = (
-        nodes.Loop, psyGen.Kern, nodes.IfBlock,
-        psyGen.ACCLoopDirective, nodes.Assignment, nodes.Reference,
-        nodes.Literal, nodes.BinaryOperation)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return,
+                           psyGen.ACCDataDirective,
+                           psyGen.ACCEnterDataDirective)
 
     def __init__(self):
-        from psyclone.psyGen import ACCParallelDirective
         super(ACCParallelTrans, self).__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = ACCParallelDirective
+        self._pdirective = psyGen.ACCParallelDirective
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"
@@ -2236,10 +2227,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         '''
         # check node is a loop
-        from psyclone.psyGen import Directive
-        from psyclone.psyir.nodes import Loop
         from psyclone.dynamo0p3 import DynInvokeSchedule
-        if not isinstance(node, Loop):
+        if not isinstance(node, nodes.Loop):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
@@ -2251,7 +2240,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        dir_node = node.ancestor(Directive)
+        dir_node = node.ancestor(psyGen.Directive)
         if dir_node:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -2259,13 +2248,13 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "type {0}. Redundant computation must be applied before "
                 "directives are added.".format(type(dir_node)))
         if not (isinstance(node.parent, DynInvokeSchedule) or
-                isinstance(node.parent.parent, Loop)):
+                isinstance(node.parent.parent, nodes.Loop)):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation "
                 "apply method the parent of the supplied loop must be "
                 "the DynInvokeSchedule, or a Loop, but found {0}".
                 format(type(node.parent)))
-        if isinstance(node.parent.parent, Loop):
+        if isinstance(node.parent.parent, nodes.Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
@@ -2540,7 +2529,7 @@ class GOLoopSwapTrans(Transformation):
             child.parent = outer.loop_body
 
         # Move outer under inner (create new Schedule to remove old entries)
-        inner.children[3] = Schedule()
+        inner.children[3] = nodes.Schedule()
         inner.loop_body.parent = inner
         inner.loop_body.children.append(outer)
         outer.parent = inner.loop_body
@@ -3192,7 +3181,7 @@ class ACCEnterDataTrans(Transformation):
 
         super(ACCEnterDataTrans, self).validate(sched, options)
 
-        if not isinstance(sched, Schedule):
+        if not isinstance(sched, nodes.Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
@@ -3389,12 +3378,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    from psyclone import nemo, psyGen, dynamo0p3
-    from psyclone.psyir import nodes
-    valid_node_types = (nodes.Loop, nemo.NemoKern, nodes.IfBlock,
-                        nodes.Operation, nodes.Literal,
-                        nodes.Assignment, nodes.Reference,
-                        dynamo0p3.DynLoop, dynamo0p3.DynKern, psyGen.BuiltIn)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return)
 
     @property
     def name(self):
@@ -3514,12 +3498,7 @@ class ACCDataTrans(RegionTrans):
     >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
-    from psyclone import psyGen
-    from psyclone.psyir import nodes
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, nodes.IfBlock, nodes.Literal,
-                        nodes.Assignment, nodes.Reference,
-                        nodes.Operation)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return)
 
     @property
     def name(self):
@@ -3745,7 +3724,7 @@ class NemoExplicitLoopTrans(Transformation):
         else:
             from psyclone.psyir.frontend.fparser2 import Fparser2Reader
             reader = Fparser2Reader()
-            fake_parent = Schedule()
+            fake_parent = nodes.Schedule()
             spec = spec_list[0]
             reader.process_declarations(fake_parent, [spec], [])
             if loop_var not in fake_parent.symbol_table:

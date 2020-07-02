@@ -529,7 +529,7 @@ def test_only_profile():
 def test_no_return_in_profiling(parser):
     ''' Check that the transformation refuses to include a Return node within
     a profiled region. '''
-    psy, schedule = get_nemo_schedule(
+    _, schedule = get_nemo_schedule(
         parser,
         "function my_test()\n"
         "  integer :: my_test\n"
@@ -540,4 +540,5 @@ def test_no_return_in_profiling(parser):
         "end function my_test\n")
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children)
-    assert "hohoho" in str(err.value)
+    assert ("Nodes of type 'Return' cannot be enclosed by a ProfileTrans "
+            "transformation" in str(err.value))

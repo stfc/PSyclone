@@ -43,6 +43,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Node, Schedule
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
+from psyclone.gocean1p0 import GOLoop
 
 
 class MyRegionTrans(RegionTrans):
@@ -161,13 +162,15 @@ def test_validate_errors():
     assert "Transformation apply method options argument must be a " \
         "dictionary" in str(err.value)
 
-    my_rt.valid_node_types = ()
+    # Check that the tuple of excluded node types is used correctly (by
+    # resetting it here to a Loop which is within the region)
+    my_rt.excluded_node_types = (GOLoop,)
     node_list = [schedule.children[0], schedule.children[1],
                  schedule.children[2]]
     with pytest.raises(TransformationError) as err:
         my_rt.validate(node_list)
-    assert "Transformation Error: Nodes of type '<class 'psyclone.gocean1p0."\
-        "GOLoop'>' cannot be enclosed" in str(err.value)
+    assert ("Transformation Error: Nodes of type 'GOLoop' cannot be enclosed"
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------
