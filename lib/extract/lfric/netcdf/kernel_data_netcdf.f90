@@ -135,22 +135,22 @@ Contains
     !> Checks if the return value from a netcdf call indicates an error.
     !! If so, print the corresponding error message and aborts the program.
     !! It is typically used as a wrapper around NetCDF calls:
-    !! retval = CheckError(nf90_close(ncid))
-    !! @param[in] retval The return value from a NetCDF operation.
+    !! err = CheckError(nf90_close(ncid))
+    !! @param[in] err The return value from a NetCDF operation.
     !! Returns the return value.
-    function CheckError(retval) 
+    function CheckError(err) 
         use netcdf, only: nf90_noerr, nf90_strerror
         implicit none
         integer             :: CheckError
 
-        integer, intent(in) :: retval
+        integer, intent(in) :: err
 
-        if (retval /= nf90_noerr) then
+        if (err /= nf90_noerr) then
             print *,"NetCDF Error:"
-            print *,trim(nf90_strerror(retval))
+            print *,trim(nf90_strerror(err))
             stop
         endif
-        CheckError = retval
+        CheckError = err
     end function CheckError
 
     ! -------------------------------------------------------------------------
@@ -184,11 +184,11 @@ Contains
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: module_name, kernel_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
-        integer :: retval
+        integer :: err
 
         ! Open the NetCDF file
-        retval = CheckError(nf90_create(module_name//"-"//kernel_name//".nc", &
-                                        NF90_CLOBBER, this%ncid))
+        err = CheckError(nf90_create(module_name//"-"//kernel_name//".nc", &
+                                     NF90_CLOBBER, this%ncid))
         ! Allocate the array that will store the variable IDs of all
         ! variables that are going to be declared:
         allocate(this%var_id(num_pre_vars+num_post_vars))
@@ -214,10 +214,10 @@ Contains
         character(*), intent(in) ::                          module_name, &
                                                              kernel_name
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
-                                        NF90_NOWRITE, this%ncid))
+        err = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
+                                   NF90_NOWRITE, this%ncid))
     end subroutine OpenRead
 
     ! -------------------------------------------------------------------------
@@ -231,8 +231,8 @@ Contains
         use netcdf, only : nf90_enddef
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        integer :: retval
-        retval = CheckError(nf90_enddef(this%ncid))
+        integer :: err
+        err = CheckError(nf90_enddef(this%ncid))
         this%next_var_index = 1
     end subroutine PreEndDeclaration
 
@@ -267,8 +267,8 @@ Contains
         use netcdf, only : nf90_close
         implicit none
         class(extract_PsyDataType), intent(inout), target :: this
-        integer :: retval
-        retval = CheckError(nf90_close(this%ncid))
+        integer :: err
+        err = CheckError(nf90_close(this%ncid))
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
@@ -285,10 +285,10 @@ Contains
         character(*), intent(in)                          :: name
         integer, intent(in)                               :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
-                                         this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
+                                      this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareScalarInt
 
@@ -306,10 +306,10 @@ Contains
         character(*), intent(in)                          :: name
         integer, intent(in)                               :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                      value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteScalarInt
 
@@ -326,10 +326,10 @@ Contains
         character(*), intent(in)                          :: name
         integer, intent(out)                              :: value
 
-        integer :: retval, varid
+        integer :: err, varid
 
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarInt
 
     ! -------------------------------------------------------------------------
@@ -344,13 +344,13 @@ Contains
         character(*), intent(in)                          :: name
         integer, dimension(:), intent(in)                 :: value
 
-        integer               :: retval
+        integer               :: err
         integer, dimension(1) :: dimids
 
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value,1), dimids(1)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareArray1dInt
@@ -367,10 +367,10 @@ Contains
         character(*), intent(in)                          :: name
         integer, dimension(:), intent(in)                 :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                      value))
         this%next_var_index = this%next_var_index + 1
 
     end subroutine WriteArray1dInt
@@ -389,16 +389,16 @@ Contains
         integer, dimension(:), allocatable, intent(out)   :: value
 
         integer :: dim_id1, dim1
-        integer :: varid, retval, ierr
+        integer :: varid, err
 
         ! First query the dimensions of the original array from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
-                                                   len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
+                                                len=dim1))
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1), stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1), stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1," in ReadArray1dInt."
             stop
@@ -406,8 +406,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
 
     end subroutine ReadArray1dInt
 
@@ -423,15 +423,15 @@ Contains
         character(*), intent(in)                          :: name
         integer, dimension(:,:), intent(in)               :: value
 
-        integer               :: retval
+        integer               :: err
         integer, dimension(2) :: dimids
 
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
-                                         size(value,2), dimids(2)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value,1), dimids(1)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+                                     size(value,2), dimids(2)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareArray2dInt
@@ -448,10 +448,10 @@ Contains
         character(*), intent(in)                          :: name
         integer, dimension(:,:), intent(in)               :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                      value))
         this%next_var_index = this%next_var_index + 1
 
     end subroutine WriteArray2dInt
@@ -471,20 +471,20 @@ Contains
 
         integer :: dim_id1, dim1
         integer :: dim_id2, dim2
-        integer :: varid, retval, ierr
+        integer :: varid, err
 
         ! First query the dimensions of the original array from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), &
-                                           dim_id1))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
-                                                   len=dim1))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id2,  &
-                                                   len=dim2))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), &
+                                        dim_id1))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
+                                                len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim_id2,  &
+                                                len=dim2))
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1, dim2), stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1, dim2), stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1,"x",dim2," in ReadArray2dInt."
             stop
@@ -492,8 +492,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
 
     end subroutine ReadArray2dInt
 
@@ -511,10 +511,10 @@ Contains
         character(*), intent(in)                          :: name
         real, intent(in)                                  :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL,     &
-                                         this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL,     &
+                                      this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareScalarReal
 
@@ -532,10 +532,10 @@ Contains
         character(*), intent(in)                          :: name
         real, intent(in)                                  :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                      value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteScalarReal
 
@@ -553,10 +553,10 @@ Contains
         character(*), intent(in)                          :: name
         real, intent(out)                                 :: value
 
-        integer :: retval, varid
+        integer :: err, varid
 
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarReal
 
     ! -------------------------------------------------------------------------
@@ -573,10 +573,10 @@ Contains
         character(*), intent(in)                          :: name
         double precision, intent(in)                      :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
-                                         this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
+                                      this%var_id(this%next_var_index)))
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareScalarDouble
 
@@ -594,10 +594,10 @@ Contains
         character(*), intent(in)                          :: name
         double precision, intent(in)                      :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                      value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteScalarDouble
     
@@ -615,10 +615,10 @@ Contains
         character(*), intent(in)                         :: name
         double precision, intent(out)                    :: value
 
-        integer :: retval, varid
+        integer :: err, varid
 
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalarDouble
 
     ! -------------------------------------------------------------------------
@@ -635,14 +635,13 @@ Contains
         character(*), intent(in)                          :: name
         double precision, dimension(:), intent(in)        :: value
 
-        integer               :: retval
+        integer               :: err
         integer, dimension(1) :: dimids
-        print *,"BOMJH d1dd ", name, this%next_var_index
 
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value,1), dimids(1)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareArray1dDouble
@@ -661,11 +660,10 @@ Contains
         character(*), intent(in)                          :: name
         double precision, dimension(:), intent(in)        :: value
 
-        integer :: retval
+        integer :: err
 
-        print *,"BOMJH w1dd ", name, this%next_var_index
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                      value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteArray1dDouble
 
@@ -687,17 +685,17 @@ Contains
         character(*), intent(in)                                 :: name
         double precision, dimension(:), allocatable, intent(out) :: value
 
-        integer :: retval, varid, ierr
+        integer :: err, varid
         integer :: dim1_id, dim1
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id, len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id, len=dim1))
         
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1), stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1), stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1, " in ReadArray1dDouble."
             stop
@@ -705,8 +703,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadArray1dDouble
 
     ! -------------------------------------------------------------------------
@@ -724,18 +722,16 @@ Contains
         double precision, dimension(:,:,:), intent(in)    :: value
 
         integer, dimension(3) :: dimids
-        integer               :: retval
+        integer               :: err
 
-        print *,"BOMJH d3dd ", name, this%next_var_index
-
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
-                                         size(value,2), dimids(2)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
-                                         size(value,3), dimids(3)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value,1), dimids(1)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+                                      size(value,2), dimids(2)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
+                                      size(value,3), dimids(3)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareArray3dDouble
@@ -755,11 +751,10 @@ Contains
         character(*), intent(in)                          :: name
         double precision, dimension(:,:,:), intent(in)    :: value
 
-        integer :: retval
+        integer :: err
 
-        print *,"BOMJH w3dd ", name, this%next_var_index
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                      value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteArray3dDouble
 
@@ -780,25 +775,25 @@ Contains
         class(extract_PsyDataType), intent(inout), target            :: this
         character(*), intent(in)                                     :: name
         double precision, dimension(:,:,:), allocatable, intent(out) :: value
-        integer :: retval, varid, ierr
+        integer :: err, varid
         integer :: dim1_id, dim1
         integer :: dim2_id, dim2
         integer :: dim3_id, dim3
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
-                                                   len=dim1))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
-                                                   len=dim2))
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
-                                                   len=dim3))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
+                                                len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
+                                                len=dim2))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
+                                                len=dim3))
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1, dim2, dim3), stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1, dim2, dim3), stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1,"x",dim2,"x",dim3, " in ReadFieldDouble."
             stop
@@ -806,8 +801,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadArray3dDouble
 
     ! -------------------------------------------------------------------------
@@ -824,19 +819,19 @@ Contains
         character(*), intent(in)                                      :: name
         double precision, dimension(:,:,:,:), allocatable, intent(in) :: value
 
-        integer               :: n1_dimid, retval
+        integer               :: n1_dimid, err
         integer, dimension(4) :: dimids
 
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
-                                         size(value,2), dimids(2)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
-                                         size(value,3), dimids(3)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim4",  &
-                                         size(value,4), dimids(4)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value,1), dimids(1)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+                                      size(value,2), dimids(2)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
+                                      size(value,3), dimids(3)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim4",  &
+                                      size(value,4), dimids(4)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareArray4dDouble
@@ -855,10 +850,10 @@ Contains
         character(*), intent(in)                          :: name
         double precision, dimension(:,:,:,:), intent(in)  :: value
 
-        integer :: retval
+        integer :: err
 
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                      value))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteArray4dDouble
 
@@ -879,7 +874,7 @@ Contains
         class(extract_PsyDataType), intent(inout), target              :: this
         character(*), intent(in)                                       :: name
         double precision, dimension(:,:,:,:), allocatable, intent(out) :: value
-        integer :: retval, varid, ierr
+        integer :: err, varid
         integer :: dim1_id, dim1
         integer :: dim2_id, dim2
         integer :: dim3_id, dim3
@@ -887,21 +882,21 @@ Contains
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
-                                                   len=dim1))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
-                                                   len=dim2))
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
-                                                   len=dim3))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim4", dim4_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim4_id,  &
-                                                   len=dim4))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
+                                                len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
+                                                len=dim2))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
+                                                len=dim3))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim4", dim4_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim4_id,  &
+                                                len=dim4))
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1, dim2, dim3, dim4), stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1, dim2, dim3, dim4), stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1,"x",dim2,"x",dim3,"x",dim4," in ReadFieldDouble."
             stop
@@ -909,8 +904,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadArray4dDouble
 
     ! -------------------------------------------------------------------------
@@ -928,15 +923,15 @@ Contains
         character(*), intent(in)                          :: name
         type(field_type), intent(in)                      :: value
 
-        integer                :: retval
+        integer                :: err
         type(field_proxy_type) :: value_proxy
         integer, dimension(1)  :: dimids
 
         value_proxy = value%get_proxy()
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value_proxy%data,1), dimids(1)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value_proxy%data,1), dimids(1)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareFieldDouble
@@ -957,11 +952,11 @@ Contains
         type(field_type), intent(in)                      :: value
 
         type(field_proxy_type) :: value_proxy
-        integer                :: retval
+        integer                :: err
 
         value_proxy = value%get_proxy()
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value_proxy%data(:)))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
+                                      value_proxy%data(:)))
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteFieldDouble
 
@@ -983,21 +978,21 @@ Contains
         character(*), intent(in)                                   :: name
         double precision, dimension(:,:), allocatable, intent(out) :: value
 
-        integer        :: retval, varid
+        integer        :: err, varid
         integer        :: dim1_id, dim1
-        integer        :: dim2_id, dim2, ierr
+        integer        :: dim2_id, dim2
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
-                                                   len=dim1))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
-                                                   len=dim2))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
+                                                len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
+                                                len=dim2))
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1, dim2), Stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1, dim2), Stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1,"x",dim2," in ReadFieldDouble."
             stop
@@ -1005,8 +1000,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadFieldDouble
 
     ! -------------------------------------------------------------------------
@@ -1015,25 +1010,25 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVectorDouble(this, name, value)
-        use netcdf, only: nf90_def_dim, nf90_def_var, NF90_INT
+        use netcdf, only: nf90_def_dim, nf90_def_var, NF90_REAL8
         use field_mod, only : field_type, field_proxy_type
         implicit none
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_type), dimension(:), intent(in)        :: value
 
-        integer                             :: retval
+        integer                             :: err
         integer, dimension(2)               :: dimids
         type(field_proxy_type)              :: value_proxy
 
         ! All fields in a vector have the same size, so just pick the first one
         value_proxy = value(1)%get_proxy()
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         size(value,1), dimids(1)))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
-                                         size(value_proxy%data,1), dimids(2)))
-        retval = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+                                      size(value,1), dimids(1)))
+        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+                                      size(value_proxy%data,1), dimids(2)))
+        err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
+                                      dimids, this%var_id(this%next_var_index)))
 
         this%next_var_index = this%next_var_index + 1
     end subroutine DeclareFieldVectorDouble
@@ -1053,25 +1048,25 @@ Contains
         character(*), intent(in)                          :: name
         type(field_type), dimension(:), intent(in)        :: value
 
-        integer                                       :: i, j, retval
+        integer                                       :: i, j, err
         type(field_proxy_type)                        :: value_proxy
         double precision, dimension(:,:), allocatable :: tmp
 
         ! The data of the vector fields need to be copied into a 
         ! standard Fortan array that is consecutive in memory
         value_proxy = value(1)%get_proxy()
-        allocate( tmp(size(value, 1), size(value_proxy%data, 1)), stat=retval )
-        if(retval /= 0) then
+        allocate( tmp(size(value, 1), size(value_proxy%data, 1)), stat=err )
+        if(err /= 0) then
             print *,"Cannot allocate temporary array for ", name,            &
                     " of size ", size(value,1),"x",size(value_proxy%data,1), &
                     " in WriteFieldVectorDouble."
         endif
         do i=1, size(value, 1)
             value_proxy = value(i)%get_proxy()
-            tmp(i,:) = value_proxy%data
+            tmp(i,:) = value_proxy%data(:)
         enddo
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
-                                         tmp))
+        err = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index), &
+                                      tmp))
         deallocate(tmp)
         this%next_var_index = this%next_var_index + 1
     end subroutine WriteFieldVectorDouble
@@ -1091,19 +1086,19 @@ Contains
 
         integer :: dim_id1, dim1
         integer :: dim_id2, dim2
-        integer :: varid, retval, ierr
+        integer :: varid, err
 
         ! First query the dimensions of the original array from the
         ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
-                                                   len=dim1))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id2,  &
-                                                   len=dim2))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
+                                                len=dim1))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
+        err = CheckError(nf90_inquire_dimension(this%ncid, dim_id2,  &
+                                                len=dim2))
         ! Allocate enough space to store the values to be read:
-        allocate(value(dim1, dim2), stat=ierr)
-        if (ierr /= 0) then
+        allocate(value(dim1, dim2), stat=err)
+        if (err /= 0) then
             print *,"Cannot allocate array for ", name, &
                     " of size ", dim1,"x",dim2," in ReadFieldVectorDouble."
             stop
@@ -1111,8 +1106,8 @@ Contains
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = 0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        err = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        err = CheckError(nf90_get_var(this%ncid, varid, value))
 
     end subroutine ReadFieldVectorDouXXble
 
