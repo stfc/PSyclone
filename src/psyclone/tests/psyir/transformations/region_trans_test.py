@@ -51,7 +51,7 @@ class MyRegionTrans(RegionTrans):
     abstract, so create a simple class that can be instantiated
     by adding dummy implementations of the missing methods.
     '''
-    valid_node_types = (Node, )
+    excluded_node_types = ()
 
     def apply(self, node, options=None):
         '''Dummy only to make this not abstract.'''
