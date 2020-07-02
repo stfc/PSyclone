@@ -296,9 +296,9 @@ def test_add_3():
     del container_symbol_table._symbols[symbol1.name]
 
 
-def test_add_with_tags():
+def test_add_with_tags_1():
     '''Test that the add method with a tag inserts new symbols in the symbol
-    table and raises appropiate errors.'''
+    table and raises appropriate errors.'''
     sym_table = SymbolTable()
 
     sym1 = Symbol("symbol_notag")
@@ -321,6 +321,69 @@ def test_add_with_tags():
     assert ("Symbol table already contains the tag 'tag1' for symbol "
             "'symbol_tag1', so it can not be associated to symbol "
             "'var1'.") in str(error.value)
+
+
+def test_add_with_tags_2():
+    '''Check that add(tag=xxx) in the SymbolTable class behaves as
+    expected with the check_ancestors flag being a) explicitly set to
+    False, b) explicitly set to True and c) using the default value
+    (False).
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2, tag="symbol2_tag")
+    container = Container.create(
+        "my_container", container_symbol_table, [schedule])
+    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+
+    # A clash of tags in this symbol table should raise an exception
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.add(symbol3, tag="symbol1_tag")
+    assert (
+        "Symbol table already contains the tag 'symbol1_tag' for symbol "
+        "'symbol1: <Scalar<INTEGER, UNDEFINED>, Local>', so it can not "
+        "be associated to symbol 'symbol3'." in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.add(
+            symbol3, tag="symbol1_tag", check_ancestors=False)
+    assert ("already contains the tag 'symbol1_tag'" in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.add(
+            symbol3, tag="symbol1_tag", check_ancestors=True)
+    assert ("already contains the tag 'symbol1_tag'" in str(info.value))
+
+    # A clash of tags in an ancestor symbol table will only be checked
+    # if check_ancestors=True
+    schedule_symbol_table.add(symbol3, tag="symbol2_tag")
+    del schedule_symbol_table._symbols[symbol3.name]
+    del schedule_symbol_table._tags["symbol2_tag"]
+    schedule_symbol_table.add(
+        symbol3, tag="symbol2_tag", check_ancestors=False)
+    del schedule_symbol_table._symbols[symbol3.name]
+    del schedule_symbol_table._tags["symbol2_tag"]
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.add(
+            symbol3, tag="symbol2_tag", check_ancestors=True)
+    assert (
+        "Symbol table already contains the tag 'symbol2_tag' for symbol "
+        "'symbol2: <Scalar<INTEGER, UNDEFINED>, Local>', so it can not be "
+        "associated to symbol 'symbol3'." in str(info.value))
+
+    # A clash of tags with a child symbol table is not checked
+    container_symbol_table.add(symbol1, tag="symbol1_tag")
+    del container_symbol_table._symbols[symbol1.name]
+    del container_symbol_table._tags["symbol1_tag"]
+    container_symbol_table.add(
+        symbol1, tag="symbol1_tag", check_ancestors=False)
+    del container_symbol_table._symbols[symbol1.name]
+    del container_symbol_table._tags["symbol1_tag"]
+    container_symbol_table.add(
+        symbol1, tag="symbol1_tag", check_ancestors=True)
 
 
 def test_imported_symbols():
@@ -496,9 +559,11 @@ def test_swap_symbol_properties():
     assert sym_table.argument_list[2].name == "var1"
 
 
-def test_lookup():
-    '''Test that the lookup method retrieves symbols from the symbol table
-    if the name exists, otherwise it raises an error.'''
+def test_lookup_1():
+    '''Test that the lookup method retrieves symbols from the current
+    symbol table if the name exists, otherwise it raises an error.
+
+    '''
     sym_table = SymbolTable()
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
                                        ArrayType.Extent.ATTRIBUTE])
@@ -520,8 +585,11 @@ def test_lookup():
         str(error.value)
 
 
-def test_lookup_visibility_filter():
-    ''' Test the filtering functionality of the lookup() method. '''
+def test_lookup_2():
+    '''Test the visibility argument filtering functionality of the
+    lookup() method.
+
+    '''
     sym_table = SymbolTable()
     sym1 = Symbol("var1")
     sym_table.add(sym1)
@@ -553,7 +621,102 @@ def test_lookup_visibility_filter():
             "searching for symbol 'var2'"in str(err))
 
 
-def test_lookup_with_tag():
+def test_lookup_3():
+    '''Check that lookup() in the SymbolTable class raises the expected
+    exception if the name or check_ancestors argument have the wrong type.
+
+    '''
+    sym_table = SymbolTable()
+    symbol = DataSymbol("var1", REAL_TYPE)
+    with pytest.raises(TypeError) as info:
+        _ = sym_table.lookup(symbol)
+    assert ("Expected the name argument to the lookup() method to be a str "
+            "but found 'DataSymbol'." in str(info.value))
+
+    sym_table = SymbolTable()
+    symbol = DataSymbol("var1", REAL_TYPE)
+    with pytest.raises(TypeError) as info:
+        _ = sym_table.lookup("var1", check_ancestors="hello")
+    assert ("Expected the check_ancestors optional argument to the lookup() "
+            "method to be a boolean but found 'str'." in str(info.value))
+
+
+def test_lookup_4():
+    '''Check that lookup() in the SymbolTable class behaves as
+    expected with the check_ancestors flag being a) explicitly set to
+    False, b) explicitly set to True and c) using the default value
+    (False).
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1)
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2)
+    container = Container.create(
+        "my_container", container_symbol_table, [schedule])
+    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+
+    # raise an exception if the symbol is not found
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup("does-not-exist")
+    assert ("Could not find 'does-not-exist' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup("does-not-exist", check_ancestors=False)
+    assert ("Could not find 'does-not-exist' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup("does-not-exist", check_ancestors=True)
+    assert ("Could not find 'does-not-exist' in the Symbol Table."
+            in str(info.value))
+
+    # The symbol is in an ancestor symbol table. This will only be
+    # found if check_ancestors=True
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup(symbol2.name)
+    assert ("Could not find 'symbol2' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup(symbol2.name, check_ancestors=False)
+    assert ("Could not find 'symbol2' in the Symbol Table."
+            in str(info.value))
+    assert (schedule_symbol_table.lookup(symbol2.name, check_ancestors=True)
+            is symbol2)
+
+    # A symbol in a child symbol table will not be found
+    with pytest.raises(KeyError) as info:
+        container_symbol_table.lookup(symbol1.name)
+    assert ("Could not find 'symbol1' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        container_symbol_table.lookup(symbol1.name, check_ancestors=False)
+    assert ("Could not find 'symbol1' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        container_symbol_table.lookup(symbol1.name, check_ancestors=True)
+    assert ("Could not find 'symbol1' in the Symbol Table."
+            in str(info.value))
+
+    # The symbol is in an ancestor symbol table, check_ancestors is
+    # True and visibility is set
+    assert (
+        schedule_symbol_table.lookup(
+            symbol2.name, visibility=Symbol.Visibility.PUBLIC,
+            check_ancestors=True)
+        is symbol2)
+    with pytest.raises(SymbolError) as info:
+        schedule_symbol_table.lookup(
+            symbol2.name, visibility=Symbol.Visibility.PRIVATE,
+            check_ancestors=True)
+    assert ("Symbol 'symbol2' exists in the Symbol Table but has visibility "
+            "'PUBLIC' which does not match with the requested visibility: "
+            "['PRIVATE']" in str(info.value))
+
+
+def test_lookup_with_tag_1():
     '''Test that the lookup_with_tag method retrieves symbols from the symbol
     table if the tag exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
@@ -572,6 +735,95 @@ def test_lookup_with_tag():
         sym_table.lookup_with_tag("symbol_tag1")
     assert "Could not find the tag 'symbol_tag1' in the Symbol Table." in \
         str(error.value)
+
+
+def test_lookup_with_tag_2():
+    '''Check that lookup_woth_tag() in the SymbolTable class raises the
+    expected exception if the tag or check_ancestors argument have
+    the wrong type.
+
+    '''
+    sym_table = SymbolTable()
+    symbol = DataSymbol("var1", REAL_TYPE)
+    with pytest.raises(TypeError) as info:
+        _ = sym_table.lookup_with_tag(None)
+    assert (
+        "Expected the tag argument to the lookup_with_tag() method to be a "
+        "str but found 'NoneType'." in str(info.value))
+
+    sym_table = SymbolTable()
+    symbol = DataSymbol("var1", REAL_TYPE)
+    with pytest.raises(TypeError) as info:
+        _ = sym_table.lookup_with_tag("tag_name", check_ancestors="hello")
+    assert ("Expected the check_ancestors optional argument to the "
+            "lookup_with_tag() method to be a boolean but found 'str'."
+            in str(info.value))
+
+
+def test_lookup_with_tag_3():
+    '''Check that lookup_with_tag() in the SymbolTable class behaves as
+    expected with the check_ancestors flag being a) explicitly set to
+    False, b) explicitly set to True and c) using the default value
+    (False).
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2, tag="symbol2_tag")
+    container = Container.create(
+        "my_container", container_symbol_table, [schedule])
+    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+
+    # raise an exception if the tag is not found
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup_with_tag("does-not-exist")
+    assert ("Could not find the tag 'does-not-exist' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup_with_tag(
+            "does-not-exist", check_ancestors=False)
+    assert ("Could not find the tag 'does-not-exist' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup_with_tag(
+            "does-not-exist", check_ancestors=True)
+    assert ("Could not find the tag 'does-not-exist' in the Symbol Table."
+            in str(info.value))
+
+    # The tag is in an ancestor symbol table. This will only be
+    # found if check_ancestors=True
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup_with_tag("symbol2_tag")
+    assert (
+        "Could not find the tag 'symbol2_tag' in the Symbol Table."
+        in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup_with_tag(
+            "symbol2_tag", check_ancestors=False)
+    assert ("Could not find the tag 'symbol2_tag' in the Symbol Table."
+            in str(info.value))
+    assert (schedule_symbol_table.lookup_with_tag(
+        "symbol2_tag", check_ancestors=True) is symbol2)
+
+    # The tag is in a child symbol table so will not be found
+    with pytest.raises(KeyError) as info:
+        container_symbol_table.lookup_with_tag("symbol1_tag")
+    assert ("Could not find the tag 'symbol1_tag' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        container_symbol_table.lookup_with_tag(
+            "symbol1_tag", check_ancestors=False)
+    assert ("Could not find the tag 'symbol1_tag' in the Symbol Table."
+            in str(info.value))
+    with pytest.raises(KeyError) as info:
+        container_symbol_table.lookup_with_tag(
+            "symbol1_tag", check_ancestors=True)
+    assert ("Could not find the tag 'symbol1_tag' in the Symbol Table."
+            in str(info.value))
 
 
 def test_view(capsys):
@@ -982,12 +1234,12 @@ def test_shallow_copy():
     assert "st1" not in symtab2
 
 
-def test_name_from_tag():
+def test_name_from_tag_1():
     ''' Tests the SymbolTable name_from_tag method '''
     symtab = SymbolTable()
     symtab.add(Symbol("symbol1"), tag="tag1")
 
-    # If the give tag exist, return the symbol name
+    # If the given tag exists, return the symbol name
     assert symtab.name_from_tag("tag1") == "symbol1"
 
     # If the tag does not exist, create a symbol with the tag as name
@@ -995,12 +1247,48 @@ def test_name_from_tag():
     assert symtab.lookup("tag2").name == "tag2"
     assert symtab.lookup_with_tag("tag2").name == "tag2"
 
-    # If the tag does not exist and a root name is givem create a new symbol
-    # with the given name as root
+    # If the tag does not exist and a root name is given, create a new
+    # symbol with the given name as root
     assert symtab.name_from_tag("tag3", root="newsymbol") == "newsymbol"
     assert symtab.lookup("newsymbol").name == "newsymbol"
     assert symtab.lookup_with_tag("tag3").name == "newsymbol"
     assert symtab.name_from_tag("tag4", root="newsymbol") == "newsymbol_1"
+
+
+def test_name_from_tag_2():
+    '''Check that name_from_tag() in the SymbolTable class behaves as
+    expected with the check_ancestors flag being a) explicitly set to
+    False, b) explicitly set to True and c) using the default value
+    (False).
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2, tag="symbol2_tag")
+    container = Container.create(
+        "my_container", container_symbol_table, [schedule])
+    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+
+    # The tag is in an ancestor symbol table. This will only be
+    # found if check_ancestors=True
+    symbol_name = schedule_symbol_table.name_from_tag("symbol2_tag")
+    assert (schedule_symbol_table.lookup_with_tag("symbol2_tag").name
+            is symbol_name)
+    del schedule_symbol_table._symbols[symbol_name]
+    del schedule_symbol_table._tags["symbol2_tag"]
+    symbol_name = schedule_symbol_table.name_from_tag(
+        "symbol2_tag", check_ancestors=False)
+    assert (schedule_symbol_table.lookup_with_tag("symbol2_tag").name
+            is symbol_name)
+    del schedule_symbol_table._symbols[symbol_name]
+    del schedule_symbol_table._tags["symbol2_tag"]
+    symbol_name = schedule_symbol_table.name_from_tag(
+        "symbol2_tag", check_ancestors=True)
+    assert symbol_name is symbol2.name
 
 
 def test_all_symbols():
@@ -1073,10 +1361,13 @@ def test_all_tags():
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
 
-
-# lookup() with check_ancestors=False, True, Default
-# lookup_with_tag() with check_ancestors=False, True, Default
-# name_from_tag with check_ancestors=False, True, Default
-
 # set default check_ancestors to True and fix broken tests (by setting
 # explicitely to False?)
+
+# check __contains__ and other methods are just local at the moment?
+
+# try to reduce lines of tests.
+
+# new exceptions and args are added to docstrings
+
+# six.text_type and str tests everywhere?

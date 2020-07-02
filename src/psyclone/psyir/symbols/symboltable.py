@@ -39,6 +39,7 @@
 ''' This module contains the SymbolTable implementation. '''
 
 from __future__ import print_function, absolute_import
+import six
 from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
@@ -235,7 +236,6 @@ class SymbolTable(object):
         if key in symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
-        self._symbols[key] = new_symbol
 
         if tag:
             if check_ancestors:
@@ -248,6 +248,8 @@ class SymbolTable(object):
                     " '{1}', so it can not be associated to symbol '{2}'.".
                     format(tag, tags[tag], new_symbol.name))
             self._tags[tag] = new_symbol
+
+        self._symbols[key] = new_symbol
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
@@ -328,7 +330,17 @@ class SymbolTable(object):
         :raises KeyError: if the given name is not in the Symbol Table.
 
         '''
-        #TBD CHECK CHECK_ANCESTORS IS BOOL
+        if not isinstance(name, (six.text_type, str)):
+            raise TypeError(
+                "Expected the name argument to the lookup() method to be "
+                "a str but found '{0}'."
+                "".format(type(name).__name__))
+                
+        if not isinstance(check_ancestors, bool):
+            raise TypeError(
+                "Expected the check_ancestors optional argument to the "
+                "lookup() method to be a boolean but found '{0}'."
+                "".format(type(check_ancestors).__name__))
 
         if check_ancestors:
             symbols = self.all_symbols
@@ -377,10 +389,21 @@ class SymbolTable(object):
         :returns: symbol with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises TypeError: if the tag argument is not a string.
+        :raises TypeError: if the check_ancestors argument is not a boolean.
         :raises KeyError: if the given tag is not in the Symbol Table.
 
         '''
-        #TBD CHECK CHECK_ANCESTORS IS BOOL
+        if not isinstance(tag, str):
+            raise TypeError(
+                "Expected the tag argument to the lookup_with_tag() method "
+                "to be a str but found '{0}'.".format(type(tag).__name__))
+                
+        if not isinstance(check_ancestors, bool):
+            raise TypeError(
+                "Expected the check_ancestors optional argument to the "
+                "lookup_with_tag() method to be a boolean but found '{0}'."
+                "".format(type(check_ancestors).__name__))
 
         if check_ancestors:
             tags = self.all_tags
@@ -394,8 +417,7 @@ class SymbolTable(object):
                            "".format(tag))
 
     def name_from_tag(self, tag, root=None, check_ancestors=False):
-        '''
-        Given a tag, if it exists in the symbol table return the symbol name
+        '''Given a tag, if it exists in the symbol table return the symbol name
         associated with it, otherwise create a new symbol associated with this
         tag (using the tag as name or optionally the provided root) and return
         the name of the new symbol.
@@ -405,6 +427,9 @@ class SymbolTable(object):
         This is commonly needed on the current psy-layer implementation but not
         recommented on new style PSyIR. This method may be deprecated in the
         future. (TODO #720)
+
+        There is no need to check the argument types as this method
+        calls methods which check the argument types.
 
         :param str tag: tag identifier.
         :param str root: optional name of the new symbols if this needs to \
@@ -418,8 +443,6 @@ class SymbolTable(object):
         :rtype: str
 
         '''
-        #TBD CHECK CHECK_ANCESTORS IS BOOL
-
         try:
             return self.lookup_with_tag(
                 tag, check_ancestors=check_ancestors).name
