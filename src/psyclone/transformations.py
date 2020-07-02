@@ -614,6 +614,10 @@ class ParallelLoopTrans(Transformation):
     code-generation time.
 
     '''
+    # The types of node that must be excluded from the section of PSyIR
+    # being transformed.
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange)
+
     @abc.abstractmethod
     def __str__(self):
         return  # pragma: no cover
@@ -1689,6 +1693,10 @@ class ParallelRegionTrans(RegionTrans):
     Base class for transformations that create a parallel region.
 
     '''
+    # The types of node that must be excluded from the section of PSyIR
+    # being transformed.
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange)
+
     def __init__(self):
         # Holds the class instance for the type of parallel region
         # to generate
@@ -1715,19 +1723,12 @@ class ParallelRegionTrans(RegionTrans):
             or not the type of the nodes enclosed in the region should be \
             tested to avoid using unsupported nodes inside a region.
 
-        :raises TransformationError: if the nodes cannot be put into a \
-                                     parallel region.
+        :raises TransformationError: if the supplied node is an \
+            InvokeSchedule rather than being within an InvokeSchedule.
+        :raises TransformationError: if the supplied nodes are not all \
+            children of the same parent (siblings).
+
         '''
-
-        # Haloexchange calls existing within a parallel region are not
-        # supported.
-        from psyclone.psyGen import HaloExchange
-        for node in node_list:
-            if isinstance(node, HaloExchange):
-                raise TransformationError(
-                    "A halo exchange within a parallel region is not "
-                    "supported")
-
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
                 "A {0} transformation cannot be applied to an InvokeSchedule "
@@ -1847,7 +1848,8 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     '''
     # The types of node that this transformation cannot enclose
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.ACCDirective)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.ACCDirective,
+                           psyGen.HaloExchange)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
@@ -2741,10 +2743,9 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                          HaloExchange (or subclass thereof)
 
         '''
-        from psyclone.psyGen import HaloExchange
         from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
 
-        if not isinstance(node, HaloExchange) or \
+        if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
             raise TransformationError(
                 "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
