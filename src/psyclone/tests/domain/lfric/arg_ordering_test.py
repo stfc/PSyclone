@@ -35,13 +35,13 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the Dynamo 0.3 ArgOrdering base class. '''
+''' This module tests the LFric classes based on ArgOrdering.'''
 
 from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.domain.lfric import (ArgOrdering, KernCallArgList,
+from psyclone.domain.lfric import (KernCallArgList,
                                    KernStubArgList, LFRicArgDescriptor)
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
@@ -83,48 +83,6 @@ def test_unexpected_type_error():
             "type found. Expected one of '{0}' but found 'invalid'".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
-
-
-def test_argordering_exceptions():
-    '''Check that we raise an exception if the abstract methods are called
-    in an instance of the ArgOrdering class.
-
-    '''
-    for distmem in [False, True]:
-        full_path = os.path.join(get_base_path(TEST_API),
-                                 "1.0.1_single_named_invoke.f90")
-        _, invoke_info = parse(full_path, api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.loop_body[0]
-        create_arg_list = ArgOrdering(kernel)
-        for method in [create_arg_list.cell_map,
-                       create_arg_list.cell_position,
-                       create_arg_list.mesh_height,
-                       create_arg_list.mesh_ncell2d]:
-            with pytest.raises(NotImplementedError):
-                method()
-        for method in [create_arg_list.field_vector,
-                       create_arg_list.field,
-                       create_arg_list.stencil_unknown_extent,
-                       create_arg_list.stencil_unknown_direction,
-                       create_arg_list.stencil,
-                       create_arg_list.operator,
-                       create_arg_list.fs_compulsory_field,
-                       create_arg_list.fs_intergrid,
-                       create_arg_list.basis,
-                       create_arg_list.diff_basis,
-                       create_arg_list.field_bcs_kernel,
-                       create_arg_list.operator_bcs_kernel,
-                       create_arg_list.cma_operator]:
-            with pytest.raises(NotImplementedError):
-                method(None)
 
 
 def test_kernel_stub_invalid_scalar_argument():

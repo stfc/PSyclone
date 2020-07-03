@@ -272,6 +272,7 @@ class ArgOrdering(object):
         if self._kern.qr_required:
             self.quad_rule(var_accesses=var_accesses)
 
+    @abc.abstractmethod
     def cell_position(self, var_accesses=None):
         '''Add cell position information.
 
@@ -280,13 +281,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.cell_position() must be implemented by "
-            "subclass")
 
+    @abc.abstractmethod
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
@@ -297,12 +294,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.cell_map() must be implemented by subclass")
 
+    @abc.abstractmethod
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
@@ -312,12 +306,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.mesh_height() must be implemented by subclass")
 
+    @abc.abstractmethod
     def mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
@@ -327,13 +318,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
-            "subclass")
 
+    @abc.abstractmethod
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
         list and optionally add them to the variable access
@@ -346,12 +333,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
-                                  "be implemented by subclass")
 
+    @abc.abstractmethod
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
@@ -364,13 +348,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field_vector() must be implemented by "
-            "subclass")
 
+    @abc.abstractmethod
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
         argument list. If supplied it also stores this access in var_accesses.
@@ -382,12 +362,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field() must be implemented by subclass")
 
+    @abc.abstractmethod
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
@@ -400,13 +377,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil_unknown_extent() must be implemented "
-            "by subclass")
 
+    @abc.abstractmethod
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown (i.e. it's being supplied
@@ -420,13 +393,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil_unknown_direction() must be "
-            "implemented by subclass")
 
+    @abc.abstractmethod
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
@@ -440,12 +409,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil() must be implemented by subclass")
 
+    @abc.abstractmethod
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments to the argument list. If supplied it
         also stores this access in var_accesses.
@@ -457,11 +423,7 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.operator() must be implemented by subclass")
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''Add the name associated with the scalar argument to the argument
@@ -507,6 +469,7 @@ class ArgOrdering(object):
         if var_accesses is not None:
             var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
 
+    @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
@@ -519,13 +482,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_compulsory_field() must be implemented "
-            "by subclass")
 
+    @abc.abstractmethod
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.
         If supplied it also stores this access in var_accesses.
@@ -538,10 +497,8 @@ class ArgOrdering(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_intergrid() must be implemented "
-            "by subclass")
 
+    @abc.abstractmethod
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
         argument list and optionally to the variable access information.
@@ -554,12 +511,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.basis() must be implemented by subclass")
 
+    @abc.abstractmethod
     def diff_basis(self, function_space, var_accesses=None):
         '''Add differential basis information for the function space to the
         argument list. If supplied it also stores this access in
@@ -573,11 +527,7 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.diff_basis() must be implemented by subclass")
 
     def orientation(self, function_space, var_accesses=None):
         '''Add orientation information for this function space to the
@@ -599,6 +549,7 @@ class ArgOrdering(object):
             var_accesses.add_access(orientation_name, AccessType.READ,
                                     self._kern, [1])
 
+    @abc.abstractmethod
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
         also stores this access in var_accesses.
@@ -610,13 +561,9 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
-            "subclass")
 
+    @abc.abstractmethod
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Supply necessary additional arguments for the kernel that
         applies boundary conditions to a LMA operator. If supplied it
@@ -629,12 +576,7 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
-            "subclass")
 
     @abc.abstractmethod
     def mesh_properties(self, var_accesses=None):
