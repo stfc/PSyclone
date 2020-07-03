@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic
+#          C.M. Maynard, Met Office / University of Reading
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -1360,6 +1361,25 @@ def test_omp_par_and_halo_exchange_error():
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rtrans.apply(schedule.children)
     assert "A halo exchange within a parallel region is not supported" \
+        in str(excinfo.value)
+
+
+def test_module_inline_no_code(monkeypatch):
+    '''Tests that if a kernel doesn't have a code AST set
+       _kernel_code = None, for example when an interface is
+       used, the inline transformation produces an error as
+       there is no code to inline.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    kern_call = schedule.children[8].loop_body[0]
+    monkeypatch.setattr(kern_call, "_kernel_code", None)
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    with pytest.raises(InternalError) as excinfo:
+        _ = psy.gen
+    assert "No kernel code to inline for kernel {0}.".format(kern_call) \
         in str(excinfo.value)
 
 

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: L. Mitchell Imperial College
 #          R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Modified: C.M. Maynard, Met Office / University of Reading
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.

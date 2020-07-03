@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: C.M. Maynard, Met Office / University of Reading
 
 '''A module to perform pytest unit tests on the parse/kernel.py
 file. Some tests for this file are in parse_test.py. This file adds
