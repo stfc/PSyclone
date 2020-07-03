@@ -45,6 +45,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
+from psyclone.domain.lfric import LFRicArgDescriptor
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -52,7 +53,8 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
 # The types of argument that are valid for built-in kernels in the
 # Dynamo 0.3 API
-VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real", "gh_integer"]
+VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
+    LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 
 # Function to return the built-in operations that we support for this API.
@@ -71,7 +73,6 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     :rtype: str
 
     '''
-    print(type(builtin_map_capitalised_dict))
     builtin_map_dict = {}
     for fortran_name in builtin_map_capitalised_dict:
         python_name = builtin_map_capitalised_dict[fortran_name]

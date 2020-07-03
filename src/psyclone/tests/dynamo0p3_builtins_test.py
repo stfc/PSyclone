@@ -241,7 +241,7 @@ def test_builtin_operator_arg():
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("In the LFRic API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
+            "must be one of ['gh_field', 'gh_integer', 'gh_real'] but " +
             "kernel '" + test_builtin_name.lower() + "' has an argument "
             "of type 'gh_operator'" in str(excinfo.value))
 

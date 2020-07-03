@@ -74,7 +74,6 @@ class LFRicArgDescriptor(Descriptor):
                         access descriptor.
     :raises InternalError: if the iteration space from the parsed kernel \
                            metadata is not over 'cells' or 'dofs'.
-                "'{0}'.".format(self._iterates_over))
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
 
@@ -399,23 +398,22 @@ class LFRicArgDescriptor(Descriptor):
 
         if self._function_space1.lower() in \
            FunctionSpace.VALID_ANY_SPACE_NAMES:
-           if self._iterates_over == "cells" and \
-              self._access_type not in field_cont_accesses_tmp:
+            if self._iterates_over == "cells" and \
+               self._access_type not in field_cont_accesses:
                 raise ParseError(
                     "In the LFRic API, allowed accesses for a field on "
                     "'any_space' that loops over cells are {0}, but found "
                     "'{1}' in '{2}'.".
-                    format(fld_cont_acc_msg_tmp,
+                    format(fld_cont_acc_msg,
                            rev_access_mapping[self._access_type], arg_type))
-           if self._iterates_over == "dofs" and \
-              self._access_type not in field_disc_accesses:
+            if self._iterates_over == "dofs" and \
+               self._access_type not in field_disc_accesses:
                 raise ParseError(
                     "In the LFRic API, allowed accesses for a field on "
                     "'any_space' that loops over DoFs are {0}, but found "
                     "'{1}' in '{2}'.".
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type], arg_type))
-
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:
