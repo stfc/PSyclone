@@ -152,7 +152,7 @@ class SymbolTable(object):
         new_key = key.lower()
         return new_key
 
-    def new_symbol_name(self, root_name=None, check_ancestors=False):
+    def new_symbol_name(self, root_name=None, check_ancestors=True):
         '''Create a symbol name that is not in this symbol table (if the
         `check_ancestors` argument is False) or in this or any
         ancestor symbol table (if the `check_ancestors` argument is
@@ -168,7 +168,7 @@ class SymbolTable(object):
         :param bool check_ancestors: optional logical flag indicating \
             whether the name should be unique in this symbol table \
             (False) or in this and all ancestor symbol tables \
-            (True). Defaults to False.
+            (True). Defaults to True.
 
         :returns: the new unique symbol name.
         :rtype: str
@@ -202,7 +202,7 @@ class SymbolTable(object):
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol, tag=None, check_ancestors=False):
+    def add(self, new_symbol, tag=None, check_ancestors=True):
         '''Add a new symbol to the symbol table.
 
         :param new_symbol: the symbol to add to the symbol table.
@@ -212,7 +212,7 @@ class SymbolTable(object):
         :param bool check_ancestors: optional logical flag indicating \
             whether the symbol name and tag (if provided) should be \
             unique in this symbol table (False) or in this and all \
-            ancestor symbol tables (True). Defaults to False.
+            ancestor symbol tables (True). Defaults to True.
 
         :raises KeyError: if the symbol name is already in use.
 
@@ -309,7 +309,7 @@ class SymbolTable(object):
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, check_ancestors=False):
+    def lookup(self, name, visibility=None, check_ancestors=True):
         '''Look up a symbol in the symbol table.
 
         :param str name: name of the symbol.
@@ -319,7 +319,7 @@ class SymbolTable(object):
         :param bool check_ancestors: optional logical flag indicating \
             whether the symbol name should be unique in this symbol \
             table (False) or in this and all ancestor symbol tables \
-            (True). Defaults to False.
+            (True). Defaults to True.
 
         :returns: symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -377,14 +377,14 @@ class SymbolTable(object):
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
 
-    def lookup_with_tag(self, tag, check_ancestors=False):
+    def lookup_with_tag(self, tag, check_ancestors=True):
         '''Look up a symbol in the symbol table using the tag identifier.
 
         :param str tag: tag identifier.
         :param bool check_ancestors: optional logical flag indicating \
             whether the tag should be from just this symbol table \
             (False) or this and all ancestor symbol tables \
-            (True). Defaults to False.
+            (True). Defaults to True.
 
         :returns: symbol with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -394,7 +394,7 @@ class SymbolTable(object):
         :raises KeyError: if the given tag is not in the Symbol Table.
 
         '''
-        if not isinstance(tag, str):
+        if not isinstance(tag, (six.text_type, str)):
             raise TypeError(
                 "Expected the tag argument to the lookup_with_tag() method "
                 "to be a str but found '{0}'.".format(type(tag).__name__))
@@ -416,7 +416,7 @@ class SymbolTable(object):
             raise KeyError("Could not find the tag '{0}' in the Symbol Table."
                            "".format(tag))
 
-    def name_from_tag(self, tag, root=None, check_ancestors=False):
+    def name_from_tag(self, tag, root=None, check_ancestors=True):
         '''Given a tag, if it exists in the symbol table return the symbol name
         associated with it, otherwise create a new symbol associated with this
         tag (using the tag as name or optionally the provided root) and return
@@ -437,7 +437,7 @@ class SymbolTable(object):
         :param bool check_ancestors: optional logical flag indicating \
             whether the tag should be from just this symbol table \
             (False) or this and all ancestor symbol tables \
-            (True). Defaults to False.
+            (True). Defaults to True.
 
         :returns: name associated with the given tag.
         :rtype: str
@@ -453,7 +453,7 @@ class SymbolTable(object):
             else:
                 name = self.new_symbol_name(
                     tag, check_ancestors=check_ancestors)
-            self.add(Symbol(name), tag=tag)
+            self.add(Symbol(name), tag=tag, check_ancestors=check_ancestors)
             return name
 
     def __contains__(self, key):

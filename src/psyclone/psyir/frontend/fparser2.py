@@ -1061,7 +1061,9 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name)
-                parent.symbol_table.add(container)
+                # It is OK if a parent symbol table also has a
+                # reference to this module so do not check ancestors.
+                parent.symbol_table.add(container, check_ancestors=False)
             else:
                 new_container = False
                 container = parent.symbol_table.lookup(mod_name)
