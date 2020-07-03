@@ -326,7 +326,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -344,7 +344,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the compulsory \
             arguments are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -367,7 +367,7 @@ class KernCallArgList(ArgOrdering):
         If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which to add arguments
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -402,7 +402,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the basis \
                                function is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -437,7 +437,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the differential \
             basis functions are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -473,7 +473,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which boundary dofs \
             are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \

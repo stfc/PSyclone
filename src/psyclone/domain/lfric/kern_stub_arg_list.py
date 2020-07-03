@@ -281,7 +281,7 @@ class KernStubArgList(ArgOrdering):
 
         :param function_space: the function space for which the compulsory \
             arguments are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -305,7 +305,7 @@ class KernStubArgList(ArgOrdering):
 
         :param function_space: the function space for which to provide \
                                the basis functions
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -351,7 +351,7 @@ class KernStubArgList(ArgOrdering):
 
         :param function_space: the function space for which the differential \
             basis functions are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -398,7 +398,7 @@ class KernStubArgList(ArgOrdering):
 
         :param function_space: the function space for which boundary dofs \
             are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -467,7 +467,7 @@ class KernStubArgList(ArgOrdering):
 
         :param function_space: the function space for which the indirect \
             dofmap is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
         :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \

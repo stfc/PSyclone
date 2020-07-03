@@ -52,6 +52,9 @@ class ArgOrdering(object):
     '''Base class capturing the arguments, type and ordering of data in
     a Kernel call.
 
+    :param kern: the kernel call object to use.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
     '''
     def __init__(self, kern):
         self._kern = kern
@@ -61,7 +64,7 @@ class ArgOrdering(object):
     def append(self, var_name):
         '''Appends the specified variable name to the list of all arguments.
         :param str var_name: the name of the variable.
-E
+
         '''
         self._arglist.append(var_name)
 
@@ -87,7 +90,7 @@ E
     def arglist(self):
         '''
         :return: the kernel argument list. The generate method must be \
-        called first.
+                 called first.
         :rtype: list of str.
 
         :raises InternalError: if the generate() method has not been \
@@ -96,8 +99,9 @@ E
         '''
         if not self._generate_called:
             raise InternalError(
-                "Internal error. The argument list in KernStubArgList:"
-                "arglist() is empty. Has the generate() method been called?")
+                "Internal error. The argument list in {0}:"
+                "arglist() is empty. Has the generate() method been called?"
+                .format(type(self).__name__))
         return self._arglist
 
     def generate(self, var_accesses=None):
@@ -108,7 +112,8 @@ E
         that can be specialised by a child class for its particular need.
         If the optional argument var_accesses is supplied, this function
         will also add variable access information for each implicit argument
-        that is added. These accesses will be marked as read.
+        (i.e. that is not explicitly listed in kernel metadata) that is
+        added. These accesses will be marked as read.
 
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores the information about variable accesses.
@@ -116,7 +121,7 @@ E
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :raises GenerationError: if the kernel arguments break the
-                                 rules for the Dynamo 0.3 API.
+                                 rules for the LFRic API.
 
         '''
         # Setting this first is important, since quite a few derived classes
@@ -268,7 +273,12 @@ E
             self.quad_rule(var_accesses=var_accesses)
 
     def cell_position(self, var_accesses=None):
-        '''Add cell position information
+        '''Add cell position information.
+
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :raises NotImplementedError: because this is an abstract method
 
@@ -475,7 +485,7 @@ E
 
         self.append(scalar_arg.name)
         if var_accesses is not None:
-            var_accesses.add_access(scalar_arg.name, AccessType.READ,
+            var_accesses.add_access(scalar_arg.name, scalar_arg.access,
                                     self._kern)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -484,7 +494,7 @@ E
 
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -503,7 +513,7 @@ E
 
         :param function_space: the function space for which the compulsory \
             arguments are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -521,7 +531,7 @@ E
         If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which to add arguments
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -538,7 +548,7 @@ E
 
         :param function_space: the function space for which the basis \
                                function is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -557,7 +567,7 @@ E
 
         :param function_space: the function space for which the differential \
             basis functions are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -576,7 +586,7 @@ E
 
         :param function_space: the function space for which orientation \
             information is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -613,7 +623,7 @@ E
         also stores this access in var_accesses.
 
         :param function_space: the function space of the operator.
-        :type function_space: :py:class:`psyclone.dynamo3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -657,7 +667,7 @@ E
 
         :param function_space: the function space for which banded dofmap
             is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -679,7 +689,7 @@ E
 
         :param function_space: the function space for which the indirect \
             dofmap is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator (not used at the moment).
         :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \

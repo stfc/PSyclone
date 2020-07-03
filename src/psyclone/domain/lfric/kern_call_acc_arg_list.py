@@ -146,7 +146,7 @@ class KernCallAccArgList(KernCallArgList):
 
         :param function_space: the function space for which the compulsory \
             arguments are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
