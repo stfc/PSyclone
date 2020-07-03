@@ -62,7 +62,7 @@ def trans(psy):
 
         # Skip invoke_2 as its time_smooth_code kernel contains a
         # module variable (alpha) which is not dealt with by the
-        # KernelGlobalsToArguments transformation.
+        # KernelGlobalsToArguments transformation, see issue #826.
         if invoke.name == "invoke_2":
             continue
 
