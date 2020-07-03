@@ -141,15 +141,17 @@ is controllable via the optional `check_ancestors` argument. This
 functionality is supported by the `all_symbols` and `all_tags`
 properties.
 
-Sibling symbol tables are currently not checked. It is not clear
-whether this is the right decision or not. It may turn out to make
-sense to check both in some circumstances. One result of this is that
-names and tags do not need to be unique in the symbol table hierarchy
-(just with their ancestor symbols). It makes sense for symbol names to
-not be unique in a hierarchy as names can be re-used within different
-scopes. However this may not be true for all names and it may make
-sense to have a separate global symbol table in the future as well as
-nested ones. It is less clear whether tags should be unique or not.
+Sibling symbol tables are currently not checked. The argument for
+doing this is that a symbol in a sibling scope should not be visible
+in the current scope so can be ignored. However, it may turn out to
+make sense to check both in some circumstances. One result of this is
+that names and tags do not need to be unique in the symbol table
+hierarchy (just with their ancestor symbols). It makes sense for
+symbol names to not be unique in a hierarchy as names can be re-used
+within different scopes. However this may not be true for all names
+and it may even make sense to have a separate global symbol table in
+the future, as well as the existing nested ones. It is less clear
+whether tags should be unique or not.
 
 All other methods act only on symbols in the local symbol table. In
 particular `__contains__`, `remove`, `get_unresolved_data_symbols`,
