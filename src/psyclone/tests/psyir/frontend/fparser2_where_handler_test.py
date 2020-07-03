@@ -241,7 +241,7 @@ def test_where_symbol_clash(parser):
     processor = Fparser2Reader()
     sched = processor.generate_schedule("widx1", fparser2spec)
     # Get the symbol table
-    sym_table = sched.root.symbol_table
+    sym_table = sched.scope.symbol_table
     # The symbol from the codeblock (the write statement) should be in
     # the SymbolTable
     cblock_var = sym_table.lookup("widx1_0")

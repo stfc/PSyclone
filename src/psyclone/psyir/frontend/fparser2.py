@@ -2364,10 +2364,7 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
-        # Since we don't have support for searching a hierarchy of symbol
-        # tables (#630), for now we simply add new symbols to the highest-level
-        # symbol table.
-        symbol_table = parent.root.symbol_table
+        symbol_table = parent.scope.symbol_table
 
         # Create a set of all of the symbol names in the fparser2 parse
         # tree so that we can find any clashes. We go as far back up the tree
@@ -2379,22 +2376,17 @@ class Fparser2Reader(object):
         for name_obj in name_list:
             name = str(name_obj)
             if name not in symbol_table:
-                # TODO #630 some of these symbols will be put in the wrong
-                # symbol table. We need support for creating a unique symbol
+                # We need support for creating a unique symbol
                 # within a hierarchy of symbol tables. However, until we are
                 # generating code from the PSyIR Fortran backend
                 # (#435) this doesn't matter.
-                symbol_table.add(Symbol(name))
+                symbol_table.add(Symbol(name), check_ancestors=False)
 
         integer_type = default_integer_type()
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            # TODO #630 this creation of a new symbol really needs to account
-            # for all of the symbols in the hierarchy of symbol tables. Since
-            # we don't yet have that functionality we just add everything to
-            # the top-level symbol table.
             loop_vars[idx-1] = symbol_table.new_symbol_name(
                 "widx{0}".format(idx))
 

@@ -1275,11 +1275,8 @@ def test_all_tags():
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
 
-# check __contains__ and other methods are just local at the moment?
+# update documentation explaining where up to
 
 # new exceptions and args are added to docstrings
 
 # six.text_type and str tests everywhere?
-
-# look for references to #630
-

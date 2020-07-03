@@ -60,14 +60,15 @@ def trans(psy):
         print("Converting to OpenCL invoke: " + invoke.name)
         schedule = invoke.schedule
 
-        # Skip invoke_2 as its kernels contains symbols declared outside of
-        # the subroutine scope. A fix to Issue #630 may solve this.
+        # Skip invoke_2 as its time_smooth_code kernel contains a
+        # module variable (alpha) which is not dealt with by the
+        # KernelGlobalsToArguments transformation.
         if invoke.name == "invoke_2":
             continue
 
         # Remove the globals from inside each kernel
         for kern in schedule.kernels():
-            print("Remove glovals from kernel: " + kern.name)
+            print("Remove globals from kernel: " + kern.name)
             globaltrans.apply(kern)
 
         # Transform invoke to OpenCL
