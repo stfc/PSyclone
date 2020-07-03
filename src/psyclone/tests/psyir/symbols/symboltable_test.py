@@ -40,15 +40,15 @@
 
 from __future__ import absolute_import
 import re
+from collections import OrderedDict
 import pytest
 from psyclone.psyir.nodes import Schedule, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol
-from psyclone.psyGen import KernelSchedule, Schedule
+from psyclone.psyGen import KernelSchedule
 from psyclone.errors import InternalError
-from collections import OrderedDict
 
 
 def test_instance():
@@ -58,7 +58,7 @@ def test_instance():
     '''
     sym_table = SymbolTable()
     assert isinstance(sym_table._symbols, OrderedDict)
-    assert len(sym_table._symbols) == 0
+    assert not sym_table._symbols
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._schedule is None
@@ -71,7 +71,7 @@ def test_instance():
     schedule = Schedule()
     sym_table = SymbolTable(schedule=schedule)
     assert isinstance(sym_table._symbols, OrderedDict)
-    assert len(sym_table._symbols) == 0
+    assert not sym_table._symbols
     assert sym_table._argument_list == []
     assert sym_table._tags == {}
     assert sym_table._schedule is schedule
@@ -170,8 +170,8 @@ def test_new_symbol_6():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2)
-    container = Container.create(
-        "my_container", container_symbol_table, [schedule])
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # A clash in this symbol table should return a unique symbol
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -253,22 +253,24 @@ def test_add_3():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2)
-    container = Container.create(
-        "my_container", container_symbol_table, [schedule])
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # A clash in this symbol table should raise an exception
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
         with pytest.raises(KeyError) as info:
             schedule_symbol_table.add(symbol1, **arg)
-            assert ("Symbol table already contains a symbol with name 'symbol1'"
-                    in str(info.value))
+            assert (
+                "Symbol table already contains a symbol with name 'symbol1'"
+                in str(info.value))
     # A clash in an ancestor symbol table will not be checked if
     # check_ancestors=False
     for arg in {}, {"check_ancestors": True}:
         with pytest.raises(KeyError) as info:
             schedule_symbol_table.add(symbol2, **arg)
-            assert ("Symbol table already contains a symbol with name 'symbol2'"
-                    in str(info.value))
+            assert (
+                "Symbol table already contains a symbol with name 'symbol2'"
+                in str(info.value))
     schedule_symbol_table.add(symbol2, check_ancestors=False)
     del schedule_symbol_table._symbols[symbol2.name]
     # A clash with a symbol in a child symbol table is not checked
@@ -318,8 +320,8 @@ def test_add_with_tags_2():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2, tag="symbol2_tag")
-    container = Container.create(
-        "my_container", container_symbol_table, [schedule])
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
     symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
 
     # A clash of tags in this symbol table should raise an exception
@@ -327,18 +329,20 @@ def test_add_with_tags_2():
         with pytest.raises(KeyError) as info:
             schedule_symbol_table.add(symbol3, tag="symbol1_tag", **arg)
             assert (
-                "Symbol table already contains the tag 'symbol1_tag' for symbol "
-                "'symbol1: <Scalar<INTEGER, UNDEFINED>, Local>', so it can not "
-                "be associated to symbol 'symbol3'." in str(info.value))
+                "Symbol table already contains the tag 'symbol1_tag' for "
+                "symbol 'symbol1: <Scalar<INTEGER, UNDEFINED>, Local>', so "
+                "it can not be associated to symbol 'symbol3'."
+                in str(info.value))
     # A clash of tags in an ancestor symbol table will not be checked
     # if check_ancestors=False
     for arg in {}, {"check_ancestors": True}:
         with pytest.raises(KeyError) as info:
             schedule_symbol_table.add(symbol3, tag="symbol2_tag", **arg)
             assert (
-                "Symbol table already contains the tag 'symbol2_tag' for symbol "
-                "'symbol2: <Scalar<INTEGER, UNDEFINED>, Local>', so it can not be "
-                "associated to symbol 'symbol3'." in str(info.value))
+                "Symbol table already contains the tag 'symbol2_tag' for "
+                "symbol 'symbol2: <Scalar<INTEGER, UNDEFINED>, Local>', so "
+                "it can not be associated to symbol 'symbol3'."
+                in str(info.value))
     schedule_symbol_table.add(
         symbol3, tag="symbol2_tag", check_ancestors=False)
     del schedule_symbol_table._symbols[symbol3.name]
@@ -619,9 +623,8 @@ def test_lookup_4():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2)
-    container = Container.create(
-        "my_container", container_symbol_table, [schedule])
-    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # raise an exception if the symbol is not found
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -687,7 +690,6 @@ def test_lookup_with_tag_2():
 
     '''
     sym_table = SymbolTable()
-    symbol = DataSymbol("var1", REAL_TYPE)
     with pytest.raises(TypeError) as info:
         _ = sym_table.lookup_with_tag(None)
     assert (
@@ -695,7 +697,6 @@ def test_lookup_with_tag_2():
         "str but found 'NoneType'." in str(info.value))
 
     sym_table = SymbolTable()
-    symbol = DataSymbol("var1", REAL_TYPE)
     with pytest.raises(TypeError) as info:
         _ = sym_table.lookup_with_tag("tag_name", check_ancestors="hello")
     assert ("Expected the check_ancestors optional argument to the "
@@ -717,16 +718,15 @@ def test_lookup_with_tag_3():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2, tag="symbol2_tag")
-    container = Container.create(
-        "my_container", container_symbol_table, [schedule])
-    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # raise an exception if the tag is not found
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
         with pytest.raises(KeyError) as info:
             schedule_symbol_table.lookup_with_tag("does-not-exist", **arg)
-            assert ("Could not find the tag 'does-not-exist' in the Symbol Table."
-                    in str(info.value))
+            assert ("Could not find the tag 'does-not-exist' in the Symbol "
+                    "Table." in str(info.value))
     # The tag is in an ancestor symbol table. This will not be
     # found if check_ancestors=False
     for arg in {}, {"check_ancestors": True}:
@@ -1188,14 +1188,13 @@ def test_name_from_tag_2():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2, tag="symbol2_tag")
-    container = Container.create(
-        "my_container", container_symbol_table, [schedule])
-    symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # The tag is in an ancestor symbol table. This will not be
     # found if check_ancestors=False
     for arg in {}, {"check_ancestors": True}:
-        symbol_name = schedule_symbol_table.name_from_tag("symbol2_tag")
+        symbol_name = schedule_symbol_table.name_from_tag("symbol2_tag", **arg)
         assert symbol_name is symbol2.name
     symbol_name = schedule_symbol_table.name_from_tag(
         "symbol2_tag", check_ancestors=False)
@@ -1224,7 +1223,8 @@ def test_all_symbols():
     container_symbol_table = SymbolTable()
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     container_symbol_table.add(symbol2)
-    container = Container.create("my_container", container_symbol_table, [schedule])
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # all_symbols() works when the symbol table is attached to a
     # node which has no parent.
@@ -1260,7 +1260,8 @@ def test_all_tags():
     symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
     symbol2_tag = "symbol2_tag"
     container_symbol_table.add(symbol2, tag=symbol2_tag)
-    container = Container.create("my_container", container_symbol_table, [schedule])
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
 
     # all_tags() works when the symbol table is attached to a
     # node which has no parent.

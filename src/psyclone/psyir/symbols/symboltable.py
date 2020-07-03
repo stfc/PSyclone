@@ -39,8 +39,8 @@
 ''' This module contains the SymbolTable implementation. '''
 
 from __future__ import print_function, absolute_import
-import six
 from collections import OrderedDict
+import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol
@@ -99,7 +99,7 @@ class SymbolTable(object):
                 if symbol_name not in all_symbols:
                     all_symbols[symbol_name] = current._symbols[symbol_name]
         return all_symbols
-        
+
     @property
     def all_tags(self):
         '''Return tags from this symbol table and all symbol tables associated
@@ -184,7 +184,7 @@ class SymbolTable(object):
                 "Expected the check_ancestors optional argument to the "
                 "new_symbol_name() method to be a boolean but found '{0}'."
                 "".format(type(check_ancestors).__name__))
-        
+
         if check_ancestors:
             symbols = self.all_symbols
         else:
@@ -343,7 +343,7 @@ class SymbolTable(object):
                 "Expected the name argument to the lookup() method to be "
                 "a str but found '{0}'."
                 "".format(type(name).__name__))
-                
+
         if not isinstance(check_ancestors, bool):
             raise TypeError(
                 "Expected the check_ancestors optional argument to the "
@@ -410,7 +410,7 @@ class SymbolTable(object):
             raise TypeError(
                 "Expected the tag argument to the lookup_with_tag() method "
                 "to be a str but found '{0}'.".format(type(tag).__name__))
-                
+
         if not isinstance(check_ancestors, bool):
             raise TypeError(
                 "Expected the check_ancestors optional argument to the "
