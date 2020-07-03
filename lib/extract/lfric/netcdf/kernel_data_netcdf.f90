@@ -347,7 +347,7 @@ Contains
         integer               :: err
         integer, dimension(1) :: dimids
 
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value,1), dimids(1)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -393,7 +393,7 @@ Contains
 
         ! First query the dimensions of the original array from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), dim_id1))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
                                                 len=dim1))
         ! Allocate enough space to store the values to be read:
@@ -426,9 +426,9 @@ Contains
         integer               :: err
         integer, dimension(2) :: dimids
 
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value,1), dimids(1)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim2",  &
                                      size(value,2), dimids(2)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_INT,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -475,11 +475,11 @@ Contains
 
         ! First query the dimensions of the original array from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), &
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), &
                                         dim_id1))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
                                                 len=dim1))
-        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"_dim2", dim_id2))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim_id2,  &
                                                 len=dim2))
         ! Allocate enough space to store the values to be read:
@@ -638,7 +638,7 @@ Contains
         integer               :: err
         integer, dimension(1) :: dimids
 
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value,1), dimids(1)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -690,7 +690,7 @@ Contains
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), dim1_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id, len=dim1))
         
         ! Allocate enough space to store the values to be read:
@@ -724,11 +724,11 @@ Contains
         integer, dimension(3) :: dimids
         integer               :: err
 
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value,1), dimids(1)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim2",  &
                                       size(value,2), dimids(2)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim3",  &
                                       size(value,3), dimids(3)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -782,13 +782,13 @@ Contains
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), dim1_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
                                                 len=dim1))
-        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"_dim2", dim2_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
                                                 len=dim2))
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim3"), dim3_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
                                                 len=dim3))
         ! Allocate enough space to store the values to be read:
@@ -822,13 +822,13 @@ Contains
         integer               :: n1_dimid, err
         integer, dimension(4) :: dimids
 
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value,1), dimids(1)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim2",  &
                                       size(value,2), dimids(2)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim3",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim3",  &
                                       size(value,3), dimids(3)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim4",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim4",  &
                                       size(value,4), dimids(4)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -882,16 +882,16 @@ Contains
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), dim1_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
                                                 len=dim1))
-        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"_dim2", dim2_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
                                                 len=dim2))
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim3"), dim3_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim3"), dim3_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim3_id,  &
                                                 len=dim3))
-        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim4", dim4_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"_dim4", dim4_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim4_id,  &
                                                 len=dim4))
         ! Allocate enough space to store the values to be read:
@@ -928,7 +928,7 @@ Contains
         integer, dimension(1)  :: dimids
 
         value_proxy = value%get_proxy()
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value_proxy%data,1), dimids(1)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -984,10 +984,10 @@ Contains
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), dim1_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
                                                 len=dim1))
-        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"_dim2", dim2_id))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
                                                 len=dim2))
         ! Allocate enough space to store the values to be read:
@@ -1023,9 +1023,9 @@ Contains
 
         ! All fields in a vector have the same size, so just pick the first one
         value_proxy = value(1)%get_proxy()
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim1",  &
                                       size(value,1), dimids(1)))
-        err = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
+        err = CheckError(nf90_def_dim(this%ncid, name//"_dim2",  &
                                       size(value_proxy%data,1), dimids(2)))
         err = CheckError(nf90_def_var(this%ncid, name, NF90_REAL8,     &
                                       dimids, this%var_id(this%next_var_index)))
@@ -1090,10 +1090,10 @@ Contains
 
         ! First query the dimensions of the original array from the
         ! netcdf file
-        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim_id1))
+        err = CheckError(nf90_inq_dimid(this%ncid, trim(name//"_dim1"), dim_id1))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim_id1,  &
                                                 len=dim1))
-        err = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim_id2))
+        err = CheckError(nf90_inq_dimid(this%ncid, name//"_dim2", dim_id2))
         err = CheckError(nf90_inquire_dimension(this%ncid, dim_id2,  &
                                                 len=dim2))
         ! Allocate enough space to store the values to be read:
