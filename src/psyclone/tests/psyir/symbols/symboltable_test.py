@@ -1274,9 +1274,3 @@ def test_all_tags():
     assert len(all_tags) == 2
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
-
-# update documentation explaining where up to
-
-# new exceptions and args are added to docstrings
-
-# six.text_type and str tests everywhere?

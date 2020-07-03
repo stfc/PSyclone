@@ -50,10 +50,11 @@ from psyclone.errors import InternalError
 
 class SymbolTable(object):
     # pylint: disable=too-many-public-methods
-    '''
-    Encapsulates the symbol table and provides methods to add new symbols
-    and look up existing symbols. It is implemented as a single scope
-    symbol table (nested scopes not supported).
+    '''Encapsulates the symbol table and provides methods to add new
+    symbols and look up existing symbols. Nested scopes are supported
+    and, by default, the add and lookup methods take any ancestor
+    symbol tables into consideration (ones attached to nodes that are
+    ancestors of the node that this symbol table is attached to).
 
     :param schedule: reference to the Schedule to which this symbol table \
         belongs.
@@ -173,9 +174,9 @@ class SymbolTable(object):
         :returns: the new unique symbol name.
         :rtype: str
 
+        :raises TypeError: if the check_ancestors argument is not a boolean.
         :raises TypeError: if the root_name argument is not a string \
         or None.
-        :raises TypeError: if the check_ancestors argument is not a boolean.
 
         '''
         if not isinstance(check_ancestors, bool):
@@ -203,7 +204,8 @@ class SymbolTable(object):
         return candidate_name
 
     def add(self, new_symbol, tag=None, check_ancestors=True):
-        '''Add a new symbol to the symbol table.
+        '''Add a new symbol to the symbol table if the symbol name is not
+        already in use.
 
         :param new_symbol: the symbol to add to the symbol table.
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -214,6 +216,7 @@ class SymbolTable(object):
             unique in this symbol table (False) or in this and all \
             ancestor symbol tables (True). Defaults to True.
 
+        :raises TypeError: if the check_ancestors argument is not a boolean.
         :raises KeyError: if the symbol name is already in use.
 
         '''
@@ -310,7 +313,10 @@ class SymbolTable(object):
         self._argument_list = argument_symbols[:]
 
     def lookup(self, name, visibility=None, check_ancestors=True):
-        '''Look up a symbol in the symbol table.
+        '''Look up a symbol in the symbol table (if the `check_ancestors`
+        argument is False) or in this or any ancestor symbol table (if
+        the `check_ancestors` argument is True).
+
 
         :param str name: name of the symbol.
         :param visibilty: the visibility or list of visibilities that the \
@@ -324,13 +330,15 @@ class SymbolTable(object):
         :returns: symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises TypeError: if the name argument is not a string.
+        :raises TypeError: if the check_ancestors argument is not a boolean.
         :raises SymbolError: if the name exists in the Symbol Table but does \
                              not have the specified visibility.
         :raises TypeError: if the visibility argument has the wrong type.
         :raises KeyError: if the given name is not in the Symbol Table.
 
         '''
-        if not isinstance(name, (six.text_type, str)):
+        if not isinstance(name, six.string_types):
             raise TypeError(
                 "Expected the name argument to the lookup() method to be "
                 "a str but found '{0}'."
@@ -378,7 +386,11 @@ class SymbolTable(object):
                            "".format(name))
 
     def lookup_with_tag(self, tag, check_ancestors=True):
-        '''Look up a symbol in the symbol table using the tag identifier.
+        '''Look up a symbol in the symbol table using the tag identifier (if
+        the `check_ancestors` argument is False) or in this or any
+        ancestor symbol table (if the `check_ancestors` argument is
+        True).
+
 
         :param str tag: tag identifier.
         :param bool check_ancestors: optional logical flag indicating \
@@ -394,7 +406,7 @@ class SymbolTable(object):
         :raises KeyError: if the given tag is not in the Symbol Table.
 
         '''
-        if not isinstance(tag, (six.text_type, str)):
+        if not isinstance(tag, six.string_types):
             raise TypeError(
                 "Expected the tag argument to the lookup_with_tag() method "
                 "to be a str but found '{0}'.".format(type(tag).__name__))
@@ -417,9 +429,12 @@ class SymbolTable(object):
                            "".format(tag))
 
     def name_from_tag(self, tag, root=None, check_ancestors=True):
-        '''Given a tag, if it exists in the symbol table return the symbol name
-        associated with it, otherwise create a new symbol associated with this
-        tag (using the tag as name or optionally the provided root) and return
+        '''Given a tag, if it exists in the symbol table (if the
+        `check_ancestors` argument is False) or in this or any
+        ancestor symbol table (if the `check_ancestors` argument is
+        True), then return the symbol name associated with it,
+        otherwise create a new symbol associated with this tag (using
+        the tag as name or optionally the provided root) and return
         the name of the new symbol.
 
         Note that this method creates generic Symbols without properties like
