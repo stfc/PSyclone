@@ -2212,22 +2212,24 @@ def test_mkern_invoke_vec_fields():
             not in generated_code)
 
 
-def test_multikern_invoke_orient():
+def test_multikern_invoke_orient(tmpdir):
     ''' Test that correct code is produced when there are multiple
-    kernels within an invoke with orientation '''
-    # TODO #783: Enable compilation when duplicate orientation declarations
-    # are not generated in PSy layer
+    kernels within an invoke with orientation. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.3_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    # 1st test for duplication of name vector-field declaration
-    assert "TYPE(field_type), intent(in) :: f2, f3(3), f3(3)" not in \
-        generated_code
+    # 1st test for duplication of orientation pointer
+    assert generated_code.count("orientation_w2(:) => null()") == 1
     # 2nd test for duplication of name vector-field declaration
+    assert ("TYPE(field_type), intent(in) :: f2, f3(3), f3(3)" not in
+            generated_code)
+    # 3rd test for duplication of name vector-field declaration
     assert ("TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy(3), "
             "f3_proxy(3)" not in generated_code)
+    # Compilation test
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_multikern_invoke_oper():
