@@ -389,12 +389,12 @@ def test_cma_mdata_apply_too_many_flds():
 
 def test_cma_mdata_apply_no_read_fld():
     ''' Check that we raise the expected error if there is no read-only
-    field arg to a kernel that applies a CMA operator '''
+    field arg to a kernel that applies a CMA operator.'''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Make the read-only field gh_write instead
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2), ",
-        "arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_2), ", 1)
+        "arg_type(GH_FIELD,    GH_INC, ANY_SPACE_2), ", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
