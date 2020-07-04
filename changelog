@@ -31,8 +31,11 @@
 
 	13) #807 for #805. Put fparser2 bare DO constructs inside CodeBlocks.
 
-	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
+ 	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
 	required) and #730 (bring GOcean/eg5 up-to-date with latest dl_timer).
+
+	15) #811 for #783. Removes potential duplication of orientation
+	pointer declarations.
 
 release 1.9.0 20th May 2020
 
