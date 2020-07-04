@@ -108,8 +108,6 @@ class DynBuiltInCallFactory(object):
         :type parent: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`
 
         :raises ParseError: for an unrecognised built-in call name.
-        :raises NotImplementedError: if a built-in call does not iterate \
-                                     over DoFs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -129,13 +127,6 @@ class DynBuiltInCallFactory(object):
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
         builtin.load(call, parent=dofloop)
-
-        # Check that our assumption that we're looping over DoFS is valid
-        if builtin.iterates_over != "dofs":
-            raise NotImplementedError(
-                "In the LFRic API built-in calls must iterate over "
-                "DoFs but found '{0}' for {1}.".
-                format(builtin.iterates_over, str(builtin)))
 
         # Set-up its state
         dofloop.load(builtin)
@@ -191,6 +182,7 @@ class DynBuiltIn(BuiltIn):
         '''
         Check that this built-in conforms to the LFRic API.
 
+        :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
         :raises ParseError: if a built-in kernel writes to more than \
@@ -200,6 +192,13 @@ class DynBuiltIn(BuiltIn):
         :raises ParseError: if all field arguments are not on the same space.
 
         '''
+        # Check that our assumption that we're looping over DoFs is valid
+        if self.iterates_over != "dofs":
+            raise ParseError(
+                "In the LFRic API built-in calls must iterate over "
+                "DoFs but found '{0}' for {1}.".
+                format(self.iterates_over, str(self)))
+        # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
@@ -207,7 +206,7 @@ class DynBuiltIn(BuiltIn):
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.READWRITE]:
                 write_count += 1
-            if arg.type == "gh_field":
+            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
             if arg.type not in VALID_BUILTIN_ARG_TYPES:

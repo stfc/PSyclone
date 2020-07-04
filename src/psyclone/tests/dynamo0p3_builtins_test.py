@@ -96,7 +96,7 @@ def test_dynbuiltin_not_over_dofs():
     # Restore the original file name before doing the assert in case
     # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("built-in calls must iterate over DoFs but found 'cells' for "
