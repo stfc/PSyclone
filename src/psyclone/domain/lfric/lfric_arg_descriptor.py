@@ -357,63 +357,50 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
-        field_cont_accesses = [AccessType.READ, AccessType.INC]
-        # TODO in issue #138: Allowed accesses for fields on
-        # continuous function spaces for the user-defined kernels that loop
-        # over cells should only be [AccessType.READ, AccessType.INC].
-        field_cont_accesses_tmp = field_cont_accesses + [AccessType.WRITE]
+        # TODO in issue #138: Allowed accesses for fields on continuous
+        # function spaces for the user-defined kernels that loop
+        # over cells should only be [AccessType.READ, AccessType.INC]
+        field_cont_accesses = [AccessType.READ, AccessType.INC,
+                               AccessType.WRITE]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
 
-        # Check fields on discontinuous function spaces
+        # Check accesses for fields that iterate over DoFs or that iterate
+        # over cells and are on discontinuous function spaces
         fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
                             field_disc_accesses]
-        if self._function_space1.lower() in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and self._access_type not in field_disc_accesses:
+        if self._iterates_over == "dofs" or \
+           (self._iterates_over == "cells" and self._function_space1.lower()
+            in FunctionSpace.VALID_DISCONTINUOUS_NAMES) and \
+           self._access_type not in field_disc_accesses:
             raise ParseError(
-                "In the LFRic API, allowed accesses for a field on a "
-                "discontinuous function space '{0}' are {1}, but found "
-                "'{2}' in '{3}'.".
-                format(self._function_space1.lower(), fld_disc_acc_msg,
-                       rev_access_mapping[self._access_type], arg_type))
+                "In the LFRic API, allowed accesses for a field that "
+                "iterates over DoFs or that iterates over cells and is on a "
+                "discontinuous function space ('any_discontinuous_space' or "
+                "one of {0}) are {1}, but found '{2}' for '{3}' in '{4}'.".
+                format(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES,
+                       fld_disc_acc_msg, rev_access_mapping[self._access_type],
+                       self._function_space1.lower(), arg_type))
 
-        # Check fields on continuous function spaces
+        # Check accesses for fields that iterate over cells and are on
+        # continuous function spaces (including any space)
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
-        fld_cont_acc_msg_tmp = [rev_access_mapping[acc] for acc in
-                                field_cont_accesses_tmp]
         # As said above, allowed accesses for fields on continuous function
         # spaces is dealt with in #138
-        if self._function_space1.lower() in \
-           FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
-           and self._access_type not in field_cont_accesses_tmp:
+        if self._iterates_over == "cells" and self._function_space1.lower() \
+           in (FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
+           FunctionSpace.VALID_ANY_SPACE_NAMES) and self._access_type \
+           not in field_cont_accesses:
             raise ParseError(
-                "In the LFRic API, allowed accesses for a field on a "
-                "continuous function space '{0}' are {1}, but found "
-                "'{2}' in '{3}'.".
-                format(self._function_space1.lower(), fld_cont_acc_msg_tmp,
-                       rev_access_mapping[self._access_type], arg_type))
-
-        if self._function_space1.lower() in \
-           FunctionSpace.VALID_ANY_SPACE_NAMES:
-            if self._iterates_over == "cells" and \
-               self._access_type not in field_cont_accesses:
-                raise ParseError(
-                    "In the LFRic API, allowed accesses for a field on "
-                    "'any_space' that loops over cells are {0}, but found "
-                    "'{1}' in '{2}'.".
-                    format(fld_cont_acc_msg,
-                           rev_access_mapping[self._access_type], arg_type))
-            if self._iterates_over == "dofs" and \
-               self._access_type not in field_disc_accesses:
-                raise ParseError(
-                    "In the LFRic API, allowed accesses for a field on "
-                    "'any_space' that loops over DoFs are {0}, but found "
-                    "'{1}' in '{2}'.".
-                    format(fld_disc_acc_msg,
-                           rev_access_mapping[self._access_type], arg_type))
+                "In the LFRic API, allowed accesses for a field that "
+                "iterates over cells and is on a continuous function "
+                "space ('any_space' or one of {0}) are {1}, but found "
+                "'{2}' for '{3}' in '{4}'.".
+                format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
+                       fld_cont_acc_msg, rev_access_mapping[self._access_type],
+                       self._function_space1.lower(), arg_type))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:
