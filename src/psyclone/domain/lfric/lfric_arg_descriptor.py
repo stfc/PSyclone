@@ -370,9 +370,10 @@ class LFRicArgDescriptor(Descriptor):
         # over cells and are on discontinuous function spaces
         fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
                             field_disc_accesses]
-        if self._iterates_over == "dofs" or \
-           (self._iterates_over == "cells" and self._function_space1.lower()
-            in FunctionSpace.VALID_DISCONTINUOUS_NAMES) and \
+        if (self._iterates_over == "dofs" or
+                (self._iterates_over == "cells" and
+                 self._function_space1.lower() in
+                 FunctionSpace.VALID_DISCONTINUOUS_NAMES)) and \
            self._access_type not in field_disc_accesses:
             raise ParseError(
                 "In the LFRic API, allowed accesses for a field that "
@@ -389,10 +390,11 @@ class LFRicArgDescriptor(Descriptor):
                             field_cont_accesses]
         # As said above, allowed accesses for fields on continuous function
         # spaces is dealt with in #138
-        if self._iterates_over == "cells" and self._function_space1.lower() \
-           in (FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
-           FunctionSpace.VALID_ANY_SPACE_NAMES) and self._access_type \
-           not in field_cont_accesses:
+        if self._iterates_over == "cells" and \
+           self._function_space1.lower() in \
+                (FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
+                 FunctionSpace.VALID_ANY_SPACE_NAMES) and \
+           self._access_type not in field_cont_accesses:
             raise ParseError(
                 "In the LFRic API, allowed accesses for a field that "
                 "iterates over cells and is on a continuous function "
