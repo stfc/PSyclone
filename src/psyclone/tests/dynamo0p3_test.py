@@ -3590,10 +3590,13 @@ def test_fs_discontinuous_and_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API, allowed accesses for a field on a "
-                "discontinuous function space '{0}' are ['gh_read', "
-                "'gh_write', 'gh_readwrite'], but found 'gh_inc'".
-                format(fspace) in str(excinfo.value))
+        assert ("In the LFRic API, allowed accesses for a field that "
+                "iterates over DoFs or that iterates over cells and is on a "
+                "discontinuous function space ('any_discontinuous_space' or "
+                "one of {0}) are ['gh_read', 'gh_write', 'gh_readwrite'], "
+                "but found 'gh_inc' for '{1}'".
+                format(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES, fspace)
+                in str(excinfo.value))
 
 
 def test_fs_continuous_and_readwrite_cells_error():
@@ -3601,36 +3604,41 @@ def test_fs_continuous_and_readwrite_cells_error():
     'gh_readwrite' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
-        code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+        code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
                             "arg_type(gh_field, gh_readwrite, " +
                             fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API, allowed accesses for a field on a "
-                "continuous function space '{0}' are ['gh_read', "
-                "'gh_inc', 'gh_write'], but found 'gh_readwrite'".
-                format(fspace) in str(excinfo.value))
+        assert ("In the LFRic API, allowed accesses for a field that "
+                "iterates over cells and is on a continuous function "
+                "space ('any_space' or one of {0}) are ['gh_read', "
+                "'gh_inc', 'gh_write'], but found 'gh_readwrite' for '{1}'".
+                format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES, fspace)
+                in str(excinfo.value))
 
 
 def test_fs_anyspace_and_inc_dofs_error():
-    ''' Test that an error is raised if 'any_space' and 'gh_inc' are "
-    "provided for the same field that loops over DoFs in the metadata. '''
+    ''' Test that an error is raised if 'any_space' and 'gh_inc' are
+    provided for the same field that loops over DoFs in the metadata. '''
     # TODO: Use testkern_not_cells and update logic!!!
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = CODE.replace("integer :: iterates_over = cells",
                             "integer :: iterates_over = dofs", 1)
     for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
-        code = dof_code.replace("arg_type(gh_field, gh_read, w2)",
+        code = dof_code.replace("arg_type(gh_field, gh_inc, w1)",
                                 "arg_type(gh_field, gh_inc, " +
                                 fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API, allowed accesses for a field on "
-                "'any_space' that loops over DoFs are ['gh_read', "
-                "'gh_write', 'gh_readwrite'], but found 'gh_inc'" in
-                str(excinfo.value))
+        assert ("In the LFRic API, allowed accesses for a field that "
+                "iterates over DoFs or that iterates over cells and is on a "
+                "discontinuous function space ('any_discontinuous_space' or "
+                "one of {0}) are ['gh_read', 'gh_write', 'gh_readwrite'], "
+                "but found 'gh_inc' for '{1}'".
+                format(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES, fspace)
+                in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
