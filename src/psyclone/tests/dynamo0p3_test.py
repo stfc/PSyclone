@@ -3846,9 +3846,11 @@ def test_field_gh_sum_invalid():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("allowed accesses for a field on a continuous function "
-            "space 'w2' are ['gh_read', 'gh_inc', 'gh_write'], but "
-            "found 'gh_sum'" in str(excinfo.value))
+    assert ("allowed accesses for a field that iterates over cells and is "
+            "on a continuous function space ('any_space' or one of {0}) are "
+            "['gh_read', 'gh_inc', 'gh_write'], but found 'gh_sum' for 'w2'".
+            format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES)
+            in str(excinfo.value))
 
 
 def test_operator_gh_sum_invalid():
