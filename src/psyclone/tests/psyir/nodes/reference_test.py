@@ -222,22 +222,22 @@ def test_array_children_validation():
     array.addchild(erange)
 
 
-def test_array_check_index():
-    '''Test that the check_index utility function behaves as expected.'''
+def test_array_validate_index():
+    '''Test that the validate_index utility function behaves as expected.'''
     array = Array.create(DataSymbol("test", ArrayType(REAL_TYPE, [10])),
                          [Literal("1", INTEGER_TYPE)])
     with pytest.raises(TypeError) as info:
-        array._check_index("hello")
+        array._validate_index("hello")
     assert ("The index argument should be an integer but found 'str'."
             in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        array._check_index(1)
+        array._validate_index(1)
     assert ("In Array 'test' the specified index '1' must be less than the "
             "number of dimensions '1'." in str(info.value))
 
-    array._check_index(0)
-    array._check_index(-1)
+    array._validate_index(0)
+    array._validate_index(-1)
 
 
 def test_array_is_lower_bound():
@@ -278,8 +278,7 @@ def test_array_is_lower_bound():
 
     # all is well
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array,
-        Literal("1", INTEGER_TYPE))
+        BinaryOperation.Operator.LBOUND, array, one)
     array.children[0] = Range.create(operator, one, one)
     assert array.is_lower_bound(0)
 
@@ -308,8 +307,7 @@ def test_array_is_upper_bound():
     array2 = Array.create(DataSymbol("test2", ArrayType(REAL_TYPE, [10])),
                           [one])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array2,
-        Literal("1", INTEGER_TYPE))
+        BinaryOperation.Operator.UBOUND, array2, one)
     array.children[0] = Range.create(one, operator, one)
     assert not array.is_upper_bound(0)
 
@@ -322,8 +320,7 @@ def test_array_is_upper_bound():
 
     # all is well
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array,
-        Literal("1", INTEGER_TYPE))
+        BinaryOperation.Operator.UBOUND, array, one)
     array.children[0] = Range.create(one, operator, one)
     assert array.is_upper_bound(0)
 

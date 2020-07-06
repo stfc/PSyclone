@@ -48,6 +48,7 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     TransformationError
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.tests.utilities import Compile
 
 
 def create_range(array_symbol, dim):
@@ -57,7 +58,7 @@ def create_range(array_symbol, dim):
     intrinsics.
 
     :param array_symbol: the array of interest.
-    :type array_symbol: :py:class:`psyclone.psyir.symbol.ArraySymbol`
+    :type array_symbol: :py:class:`psyclone.psyir.symbol.DataSymbol`
     :param int dim: the dimension of interest in the array.
 
     :returns: a range node specifying the full range of the supplied \
@@ -75,7 +76,7 @@ def create_range(array_symbol, dim):
     return Range.create(lbound, ubound)
 
 
-def create_indexed_range(symbol_table):
+def create_stepped_range(symbol_table):
     '''Utility routine that creates and returns a Range Node that
     specifies a range from "2" to "n" step "2" for the supplied dimension
     (dim) in the array (array_symbol).
@@ -89,7 +90,8 @@ def create_indexed_range(symbol_table):
 
     '''
     lbound = Literal("2", INTEGER_TYPE)
-    ubound = Reference(symbol_table.lookup("n"))
+    symbol = symbol_table.lookup("n")
+    ubound = Reference(symbol)
     step = Literal("2", INTEGER_TYPE)
     return Range.create(lbound, ubound, step)
 
@@ -100,16 +102,17 @@ def create_literal(_):
     empty argument to be consistent with other create calls.
 
     :returns: a real literal node with value 0.0.
-    :rtype: :py:class:`psyclone.psyir.nodes.Literal
+    :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
     '''
     return Literal("0.0", REAL_TYPE)
 
 
 def create_array_x(symbol_table):
-    '''Utility routine that create and returns an array reference to a 1
-    dimensional array "x". The array reference accesses the all
-    elements in the array dimension using a range node.
+    '''Utility routine that creates and returns an array reference to a
+    one-dimensional array "x". The array reference accesses all of the
+    elements in the array dimension using a range node. In Fortran
+    array notation this is "x(:)".
 
     :param symbol_table: the symbol table to which we add the array \
         symbol.
@@ -126,17 +129,18 @@ def create_array_x(symbol_table):
 
 
 def create_array_y(symbol_table):
-    '''Utility routine that create and returns an array reference to a 2
-    dimensional array "y". The array reference accesses all elements
-    in the arrays 2nd dimension using a range node and the n'th
-    element of the 1st dimension.
+    '''Utility routine that creates and returns an array reference to a
+    two-dimensional array "y". The array reference accesses all
+    elements in the 2nd dimension of the array using a range node and
+    the n'th element of the 1st dimension. In Fortran array notation
+    this is "y(n,:)".
 
     :param symbol_table: the symbol table to which we add the array \
         symbol and access the symbol "n".
     :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
 
     :returns: an array reference that accesses all elements of the \
-        array "y"'s 2nd dimension and the n'th element of its 1st \
+        2nd dimension of array "y" and the n'th element of its 1st \
         dimension.
     :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
@@ -147,17 +151,18 @@ def create_array_y(symbol_table):
                                        create_range(array_symbol, 2)])
 
 
-def create_array_y_2(symbol_table):
-    '''Utility routine that create and returns an array reference to a 2
+def create_array_y_2d_slice(symbol_table):
+    '''Utility routine that creates and returns an array reference to a 2
     dimensional array "y". The array reference accesses all elements
-    in the arrays 1st and 2nd dimensions using range nodes.
+    in the 1st and 2nd dimensions of the array using range nodes. In
+    Fortran array notation this is "y(:,:)".
 
     :param symbol_table: the symbol table to which we add the array \
         symbol.
     :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
 
-    :returns: an array reference that accesses all elements of the \
-        array "y"'s 1st and 2nd dimensions.
+    :returns: an array reference that accesses all elements of the 1st \
+        and 2nd dimensions of the "y" array.
     :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
     '''
@@ -168,17 +173,18 @@ def create_array_y_2(symbol_table):
 
 
 def create_array_z(symbol_table):
-    '''Utility routine that create and returns an array reference to a 3
+    '''Utility routine that creates and returns an array reference to a 3
     dimensional array "z". The array reference accesses all elements
-    in the arrays 1st and 3rd dimensions using range nodes and access
-    element "n" in its second dimension.
+    in the arrays 1st and 3rd dimensions using range nodes and
+    accesses element "n" in its second dimension. In Fortran array
+    notation this is "z(:,n,:)".
 
     :param symbol_table: the symbol table to which we add the array \
         symbol and access the symbol "n"
     :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
 
-    :returns: an array reference that accesses all elements of the \
-        array "z"'s 1st and 3rd dimensions and the n'th element of its \
+    :returns: an array reference that accesses all elements of the 1st \
+        and 3rd dimensions of array "z" and the n'th element of its \
         second dimension.
     :rtype: :py:class:`psyclone.psyir.nodes.Array`
 
@@ -190,11 +196,12 @@ def create_array_z(symbol_table):
                                        create_range(array_symbol, 3)])
 
 
-def create_array_y_3(symbol_table):
-    '''Utility routine that create and returns an array reference to a 2
+def create_array_y_slice_subset(symbol_table):
+    '''Utility routine that creates and returns an array reference to a 2
     dimensional array "y". The array reference accesses elements 2 to
     "n" step 2 in the arrays 2nd dimension using a range node and the
-    n'th element of the 1st dimension.
+    n'th element of the 1st dimension. In Fortran array notation this
+    is "y(n,2:n:2)".
 
     :param symbol_table: the symbol table to which we add the array \
         symbol and access the symbol "n".
@@ -210,18 +217,18 @@ def create_array_y_3(symbol_table):
     symbol_table.add(array_symbol)
     return Array.create(array_symbol,
                         [Reference(symbol_table.lookup("n")),
-                         create_indexed_range(symbol_table)])
+                         create_stepped_range(symbol_table)])
 
 
 def create_expr(symbol_table):
-    '''Utility routine that create and returns an expression containing a
+    '''Utility routine that creates and returns an expression containing a
     number of array references containing range nodes. The expression
-    looks like the following (using Fortran notation):
+    looks like the following (using Fortran array notation):
 
     x(2:n:2)*z(1,2:n:2)+a(1)
 
     :param symbol_table: the symbol table to which we add the array \
-        symbol.
+        symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
 
     :returns: an expression containing 3 array references, 2 of which \
@@ -232,12 +239,12 @@ def create_expr(symbol_table):
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
     array_x = Array.create(array_symbol,
-                           [create_indexed_range(symbol_table)])
+                           [create_stepped_range(symbol_table)])
     array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
     array_z = Array.create(array_symbol,
                            [Literal("1", INTEGER_TYPE),
-                            create_indexed_range(symbol_table)])
+                            create_stepped_range(symbol_table)])
     array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
     array_a = Array.create(array_symbol, [Literal("1", INTEGER_TYPE)])
     symbol_table.add(array_symbol)
@@ -276,8 +283,8 @@ def test_string_compare():
     node1 = Literal("1.0", REAL_TYPE)
     node2 = BinaryOperation.create(BinaryOperation.Operator.MUL, node1, node1)
     node3 = BinaryOperation.create(BinaryOperation.Operator.MAX, node2, node2)
-    assert ArrayRange2LoopTrans.string_compare(node3, node3)
-    assert not ArrayRange2LoopTrans.string_compare(node3, node2)
+    assert ArrayRange2LoopTrans.string_compare(node3, node3) is True
+    assert ArrayRange2LoopTrans.string_compare(node3, node2) is False
 
 
 def test_same_range():
@@ -325,42 +332,58 @@ def test_same_range():
 
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(array_value, 0, array_value, 0)
-    assert ("The child of array1 at index idx1 should be a Range node, but "
-            "found 'DataNode'" in str(info.value))
+    assert ("The child of the first array argument at the specified index (0) "
+            "should be a Range node, but found 'DataNode'" in str(info.value))
 
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(array_range, 0, array_value, 0)
-    assert ("The child of array2 at index idx2 should be a Range node, but "
-            "found 'DataNode'" in str(info.value))
+    assert ("The child of the second array argument at the specified index "
+            "(0) should be a Range node, but found 'DataNode'"
+            in str(info.value))
 
     # lower bounds both use lbound, upper bounds both use ubound and
     # step is the same so everything matches.
     array_x = create_array_x(SymbolTable())
     array_x_2 = create_array_x(SymbolTable())
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
 
     # steps are different (calls string_compare)
+    tmp = array_x_2.children[0].step
     array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
-    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+
+    # Put step value back to what it was in case it affects the ubound
+    # and lbound tests
+    array_x_2.children[0].step = tmp
 
     # one of upper bounds uses ubound, other does not
+    tmp1 = array_x_2.children[0].stop
     array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
-    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
     # neither use upper bound and are different (calls string_compare)
+    tmp2 = array_x.children[0].stop
     array_x.children[0].stop = Literal("1", INTEGER_TYPE)
-    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+
+    # Put upper bounds back to what they were in case they affect the
+    # lbound tests
+    array_x_2.children[0].stop = tmp1
+    array_x.children[0].stop = tmp2
 
     # one of lower bounds uses lbound, other does not
     array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
-    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
     # neither use lower bound and are different (calls string_compare)
     array_x.children[0].start = Literal("2", INTEGER_TYPE)
-    assert not ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
 
-@pytest.mark.parametrize("lhs_create,rhs_create,result",
+# The parametrised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
+# y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
+# y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
+@pytest.mark.parametrize("lhs_create,rhs_create,expected",
                          [(create_array_x, create_literal,
                            "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
                            "    x(idx)=0.0\n"),
@@ -370,20 +393,16 @@ def test_same_range():
                           (create_array_y, create_array_x,
                            "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
                            "    y(n,idx)=x(idx)\n"),
-                          (create_array_y_2, create_array_z,
+                          (create_array_y_2d_slice, create_array_z,
                            "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
                            "    y2(:,idx)=z(:,n,idx)\n"),
-                          (create_array_y_3, create_expr,
+                          (create_array_y_slice_subset, create_expr,
                            "  do idx = 2, n, 2\n"
                            "    y3(n,idx)=x(idx) * z(1,idx) + a(1)")])
-def test_transform_apply(lhs_create, rhs_create, result):
+def test_transform_apply(lhs_create, rhs_create, expected, tmpdir):
     '''Check that the PSyIR is transformed as expected for various types
     of ranges in an array. The resultant Fortran code is used to
     confirm the transformation has worked correctly.
-
-    The parametrised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
-    y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
-    y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 
     '''
     trans = ArrayRange2LoopTrans()
@@ -397,12 +416,14 @@ def test_transform_apply(lhs_create, rhs_create, result):
                                     [assignment])
     trans.apply(assignment)
     writer = FortranWriter()
-    assert result in writer(routine)
+    result = writer(routine)
+    assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 @pytest.mark.xfail(reason="issue #630. The generated loop indices should be "
                    "different.")
-def test_transform_multi_apply():
+def test_transform_multi_apply(tmpdir):
     '''Check that the ArrayRange2Loop transformation can be used to create
     nested loops by calling it multiple times when an array has
     multiple dimensions that use a range.
@@ -413,24 +434,26 @@ def test_transform_multi_apply():
     symbol_table = SymbolTable()
     symbol = DataSymbol("n", INTEGER_TYPE)
     symbol_table.add(symbol)
-    lhs = create_array_y_2(symbol_table)
+    lhs = create_array_y_2d_slice(symbol_table)
     rhs = create_array_z(symbol_table)
     assignment = Assignment.create(lhs, rhs)
     routine = KernelSchedule.create("work", symbol_table,
                                     [assignment])
     trans.apply(assignment)
     trans.apply(assignment)
-    writer = FortranWriter()
-    result = (
+    expected = (
         "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
         "    do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
         "      y2(idx_1,idx)=z(idx_1,n,idx)\n"
         "    enddo\n"
         "  enddo\n")
-    assert result in writer(routine)
+    writer = FortranWriter()
+    result = writer(routine)
+    assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_transform_apply_insert():
+def test_transform_apply_insert(tmpdir):
     '''Check that the PSyIR is transformed as expected when there are
     multiple statements in the PSyIR. The resultant Fortran code is used to
     confirm the transformation has worked correctly.
@@ -441,10 +464,12 @@ def test_transform_apply_insert():
     symbol_table = SymbolTable()
     symbol = DataSymbol("n", INTEGER_TYPE)
     symbol_table.add(symbol)
+    # Create the first assignment. In Fortran notation: x(:) = y(n,:)
     lhs = create_array_x(symbol_table)
     rhs = create_array_y(symbol_table)
     assignment1 = Assignment.create(lhs, rhs)
-    lhs = create_array_y_2(symbol_table)
+    # Create the second assignment. In Fortran notation: y2(:,:) = z(:,n,:)
+    lhs = create_array_y_2d_slice(symbol_table)
     rhs = create_array_z(symbol_table)
     assignment2 = Assignment.create(lhs, rhs)
     routine = KernelSchedule.create("work", symbol_table,
@@ -452,14 +477,16 @@ def test_transform_apply_insert():
     trans.apply(assignment1)
     trans.apply(assignment2)
     writer = FortranWriter()
-    result = (
+    expected = (
         "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
         "    x(idx)=y(n,idx)\n"
         "  enddo\n"
         "  do idx_1 = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
         "    y2(:,idx_1)=z(:,n,idx_1)\n"
         "  enddo\n")
-    assert result in writer(routine)
+    result = writer(routine)
+    assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_calls_validate():
@@ -477,8 +504,8 @@ def test_str():
     returns the expected value.
 
     '''
-    assert (str(ArrayRange2LoopTrans()) == "Convert a PSyIR Array Range to "
-            "a PSyIR Loop.")
+    assert (str(ArrayRange2LoopTrans()) == "Convert a PSyIR assignment to an "
+            "Array Range into a PSyIR Loop.")
 
 
 def test_name():
@@ -517,7 +544,10 @@ def test_validate():
     assert (
         "Error in ArrayRange2LoopTrans transformation. The lhs of the "
         "supplied Assignment node should be a PSyIR Array with at least one "
-        "of its dimensions being a Range, but found None." in str(info.value))
+        "of its dimensions being a Range, but found None in "
+        "'ArrayArrayReference[name:'x']\\nLiteral[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, UNDEFINED>]\\n'."
+        in str(info.value))
 
     array_x = create_array_x(SymbolTable())
     assignment = Assignment.create(
@@ -527,11 +557,15 @@ def test_validate():
     array_x.children[0].step = Literal("2", INTEGER_TYPE)
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
+    print (str(info.value))
+    exit(1)
     assert (
         "The ArrayRange2LoopTrans transformation only supports ranges that "
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
-        "determined." in str(info.value))
+        "determined in the assignment 'Assignment[]\\nArrayArrayReference["
+        "name:'x']\\nRange[]\\nArrayArrayReference[name:'x']\\nRange[]\\n'."
+        in str(info.value))
 
 
 def test_validate_intrinsic():
@@ -543,7 +577,7 @@ def test_validate_intrinsic():
     '''
     symbol_table = SymbolTable()
     array_x = create_array_x(symbol_table)
-    array_y_2 = create_array_y_2(symbol_table)
+    array_y_2 = create_array_y_2d_slice(symbol_table)
     matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
                                     array_y_2, array_x)
     assignment = Assignment.create(array_x, matmul)
@@ -553,5 +587,7 @@ def test_validate_intrinsic():
         trans.validate(assignment)
     assert (
         "Error in ArrayRange2LoopTrans transformation. The rhs of the "
-        "supplied Assignment node contains the MATMUL operator which can't "
-        "be performed elementwise." in str(info.value))
+        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\\n"
+        "ArrayArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
+        "ArrayArrayReference[name:'x']\\nRange[]\\n' contains the MATMUL "
+        "operator which can't be performed elementwise." in str(info.value))

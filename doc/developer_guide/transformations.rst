@@ -259,8 +259,8 @@ issues:
    underlying fparser2 tree. In the future the NEMO API will output
    code from the PSyIR representation using the back-ends provided.
 
-2) if the indices of the ranges in different loops that are going to
-   be modified to use a loop index are not the same then the
+2) if the indices of the ranges in different array accesses that are
+   going to be modified to use a loop index are not the same then the
    transformation raises an exception. For example ``a(1:2) =
    b(2:3)``. Issue #814 captures removing this limitation.
 
@@ -281,7 +281,8 @@ issues:
 
 4) there is a test for non-elementwise operations on the rhs of an
    assignment as it is not possible to turn this into an explicit
-   loop. At the moment, the return type(s) of an operation are not
-   returned. This is the subject of #685. For the moment the test just
-   checks for MATMUL as that is currently the only non-elementwise
-   operation in the PSyiR.
+   loop. At the moment, the type of data that a PSyIR Expression Node
+   returns can not be determined, so it is not possible to check
+   directly for a non-elementwise operation. Fixing this issue is the
+   subject of #685. For the moment the test just checks for MATMUL as
+   that is currently the only non-elementwise operation in the PSyiR.

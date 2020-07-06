@@ -228,14 +228,14 @@ class Array(Reference):
             # in super(Array...). Add the indices to that entry.
             var_info.all_accesses[-1].indices = list_indices
 
-    def _check_index(self, index):
+    def _validate_index(self, index):
         '''Utility function that checks that the supplied index is an integer
         and is less than the number of array dimensions.
 
         :param int index: the array index to check.
 
         :raises TypeError: if the index argument is not an integer.
-        :raises IndexError: if the index value is greater than the \
+        :raises ValueError: if the index value is greater than the \
             number of dimensions in the array (-1).
 
         '''
@@ -250,14 +250,14 @@ class Array(Reference):
                 "".format(self.name, index, len(self.children)))
 
     def is_lower_bound(self, index):
-        '''Returns True if the array index contains a Range Node that
-        specifies the "start" part of the (start, stop, step) range
-        values is equal to the lowest element value in that index, by
-        using the LBOUND(name,index) intrinsic. If this is not the
-        case it returns False.
+        '''Returns True if the specified array index contains a Range node
+        which has a starting value given by the 'LBOUND(name,index)'
+        intrinsic where 'name' is the name of the current Array and
+        'index' matches the specified array index. Otherwise False is
+        returned.
 
-        For example, if an array A was declared as
-        A(10) then the smallest element is 1 and LBOUND(A,1) would
+        For example, if a Fortran array A was declared as
+        A(10) then the starting value is 1 and LBOUND(A,1) would
         return that value.
 
         :param int index: the array index to check.
@@ -267,7 +267,7 @@ class Array(Reference):
         :rtype: bool
 
         '''
-        self._check_index(index)
+        self._validate_index(index)
 
         array_dimension = self.children[index]
         if not isinstance(array_dimension, Range):
@@ -288,14 +288,14 @@ class Array(Reference):
         return True
 
     def is_upper_bound(self, index):
-        '''Returns True if the array index contains a Range Node that
-        specifies the "stop" part of the (start, stop, step) range
-        values is equal to the largest element in that index, by using
-        the UBOUND(name,index) intrinsic. If this is not the case it
-        returns False.
+        '''Returns True if the specified array index contains a Range node
+        which has a stopping value given by the 'UBOUND(name,index)'
+        intrinsic where 'name' is the name of the current Array and
+        'index' matches the specified array index. Otherwise False is
+        returned.
 
-        For example, if an array A was declared as
-        A(10) then the largest element is 10 and UBOUND(A,1) would
+        For example, if a Fortran array A was declared as
+        A(10) then the stopping value is 10 and UBOUND(A,1) would
         return that value.
 
         :param int index: the array index to check.
@@ -305,7 +305,7 @@ class Array(Reference):
         :rtype: bool
 
         '''
-        self._check_index(index)
+        self._validate_index(index)
 
         array_dimension = self.children[index]
         if not isinstance(array_dimension, Range):
@@ -334,13 +334,13 @@ class Array(Reference):
 
         :param int index: the array index to check.
 
-        :returns: true if the access to this array index is a range \
+        :returns: True if the access to this array index is a range \
             that specifies all index elements. Otherwise returns \
-            false.
+            False.
         :rtype: bool
 
         '''
-        self._check_index(index)
+        self._validate_index(index)
 
         array_dimension = self.children[index]
         if isinstance(array_dimension, Range):

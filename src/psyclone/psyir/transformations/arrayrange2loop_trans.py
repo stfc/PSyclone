@@ -56,7 +56,7 @@ class ArrayRange2LoopTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
-    >>> filename = "tra_adv.F90"
+    >>> filename = "tra_adv_compute.F90"
     >>> ast, invoke_info = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>> schedule = psy.invokes.invoke_list[0].schedule
@@ -101,12 +101,8 @@ class ArrayRange2LoopTrans(Transformation):
             raise TypeError(
                 "The second argument to the string_compare method should be a "
                 "Node but found '{0}'.".format(type(node2).__name__))
-        node1_str = ""
-        for node in node1.walk(Node):
-            node1_str += str(node)
-        node2_str = ""
-        for node in node2.walk(Node):
-            node2_str += str(node)
+        node1_str = "".join([str(node) for node in node1.walk(Node)])
+        node2_str = "".join([str(node) for node in node2.walk(Node)])
         return node1_str == node2_str
 
     @staticmethod
@@ -168,14 +164,14 @@ class ArrayRange2LoopTrans(Transformation):
                 "".format(idx2, len(array2.children)))
         if not isinstance(array1.children[idx1], Range):
             raise TypeError(
-                "The child of array1 at index idx1 should be a Range node, "
-                "but found '{0}'."
-                "".format(type(array1.children[idx1]).__name__))
+                "The child of the first array argument at the specified index "
+                "({0}) should be a Range node, but found '{1}'."
+                "".format(idx1, type(array1.children[idx1]).__name__))
         if not isinstance(array2.children[idx2], Range):
             raise TypeError(
-                "The child of array2 at index idx2 should be a Range node, "
-                "but found '{0}'."
-                "".format(type(array2.children[idx2]).__name__))
+                "The child of the second array argument at the specified index "
+                "({0}) should be a Range node, but found '{1}'."
+                "".format(idx2, type(array2.children[idx2]).__name__))
 
         range1 = array1.children[idx1]
         range2 = array2.children[idx2]
@@ -278,7 +274,8 @@ class ArrayRange2LoopTrans(Transformation):
         loop.parent = parent
 
     def __str__(self):
-        return "Convert a PSyIR Array Range to a PSyIR Loop."
+        return ("Convert a PSyIR assignment to an Array Range into a "
+                "PSyIR Loop.")
 
     @property
     def name(self):
@@ -305,8 +302,8 @@ class ArrayRange2LoopTrans(Transformation):
             have Range specifying the access to at least one of its \
             dimensions.
         :raises TransformationError: if two or more of the loop ranges \
-        in the assignment are different or are not known to be the \
-        same.
+            in the assignment are different or are not known to be the \
+            same.
 
         '''
         if not isinstance(node, Assignment):
@@ -325,8 +322,8 @@ class ArrayRange2LoopTrans(Transformation):
             raise TransformationError(
                 "Error in {0} transformation. The lhs of the supplied "
                 "Assignment node should be a PSyIR Array with at least one "
-                "of its dimensions being a Range, but found None."
-                "".format(self.name))
+                "of its dimensions being a Range, but found None in '{1}'."
+                "".format(self.name, str(node.lhs)))
 
         # If an operator on the rhs only returns an array then we are
         # not able to turn the assignment into an explicit loop. At
@@ -340,30 +337,39 @@ class ArrayRange2LoopTrans(Transformation):
                 if operation.operator in [BinaryOperation.Operator.MATMUL]]:
             raise TransformationError(
                 "Error in {0} transformation. The rhs of the supplied "
-                "Assignment node contains the MATMUL operator which can't be "
-                "performed elementwise.".format(self.name))
+                "Assignment node '{1}' contains the MATMUL operator which "
+                "can't be performed elementwise."
+                "".format(self.name, str(node.rhs)))
 
+        # Find the outermost range for the array on the lhs of the
+        # assignment and save its index.
+        for idx, child in reversed(list(enumerate(node.lhs.children))):
+            if isinstance(child, Range):
+                lhs_index = idx
+                break
+
+        # For each array on the rhs of the assignment find the
+        # outermost range if there is one, then compare this range
+        # with the one on the lhs.
         for array in node.walk(Array):
-            for idx, child in enumerate(array.children):
+            for idx, child in reversed(list(enumerate(array.children))):
                 if isinstance(child, Range):
-                    if array is node.lhs:
-                        # Save this range to allow comparison with
-                        # other ranges.
-                        lhs_index = idx
-                    else:
-                        # Issue #814 We should add support for adding loop
-                        # variables where the ranges are different.
-                        if not ArrayRange2LoopTrans.same_range(
-                                node.lhs, lhs_index, array, idx):
-                            # Ranges are, or may be, different so we
-                            # can't safely replace this range with a
-                            # loop iterator.
-                            raise TransformationError(
-                                "The ArrayRange2LoopTrans transformation only "
-                                "supports ranges that are known to be the "
-                                "same as each other but array access '{0}' "
-                                "dimension {1} and '{2}' dimension {3} are "
-                                "either different or can't be determined."
-                                "".format(node.lhs.name, lhs_index, array.name,
-                                          idx))
+                    # Issue #814 We should add support for adding
+                    # loop variables where the ranges are
+                    # different, or occur in different index
+                    # locations.
+                    if not ArrayRange2LoopTrans.same_range(
+                            node.lhs, lhs_index, array, idx):
+                        # Ranges are, or may be, different so we
+                        # can't safely replace this range with a
+                        # loop iterator.
+                        raise TransformationError(
+                            "The ArrayRange2LoopTrans transformation only "
+                            "supports ranges that are known to be the "
+                            "same as each other but array access '{0}' "
+                            "dimension {1} and '{2}' dimension {3} are "
+                            "either different or can't be determined in the "
+                            "assignment '{4}'."
+                            "".format(node.lhs.name, lhs_index, array.name,
+                                      idx, str(node)))
                     break

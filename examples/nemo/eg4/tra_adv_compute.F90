@@ -38,7 +38,7 @@ contains
     !END DO
 
     ! Not sure how to cope with implicit loops in the SIR backend
-    ! zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
+    zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 1, jpj-1
