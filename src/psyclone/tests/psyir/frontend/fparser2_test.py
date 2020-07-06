@@ -949,7 +949,7 @@ def test_process_array_declarations():
     # Extent symbol should be udim
     assert symbol.shape[0].name == "udim"
     assert symbol.shape[0] is udim
-    assert isinstance(udim.datatype, UnknownType)
+    assert isinstance(symbol.shape[0].datatype, UnknownType)
 
     # Extent given by variable with DeferredType
     ddim = DataSymbol("ddim", DeferredType(),
