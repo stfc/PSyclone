@@ -557,8 +557,6 @@ def test_validate():
     array_x.children[0].step = Literal("2", INTEGER_TYPE)
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
-    print (str(info.value))
-    exit(1)
     assert (
         "The ArrayRange2LoopTrans transformation only supports ranges that "
         "are known to be the same as each other but array access 'x' "
