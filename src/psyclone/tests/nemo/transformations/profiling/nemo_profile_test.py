@@ -445,6 +445,7 @@ def test_profiling_mod_use_clash(parser):
                                       "program the_clash\n"
                                       "  use profile_psy_data_mod, only: "
                                       "some_var\n"
+                                      "  real :: my_array(20,10)\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program the_clash\n")
     PTRANS.apply(schedule.children[0])

@@ -45,6 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.nodes import Assignment
 
 # Constants
 API = "nemo"
@@ -69,7 +70,6 @@ def test_unamed_unit(parser):
     a name for the PSy object.
     '''
     code = ("program simple\n"
-            "  ztmp(:,:,:) = 0.0\n"
             "end program\n")
     reader = FortranStringReader(code)
     prog = parser(reader)
@@ -95,7 +95,6 @@ def test_explicit_do_sched():
     assert psy._name == "explicit_do_psy"
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
-
     # The schedule should contain 3 loop objects
     loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 3
@@ -124,7 +123,7 @@ def test_do_while():
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
     assert isinstance(sched[1], CodeBlock)
-    assert isinstance(sched[2], nemo.NemoLoop)
+    assert isinstance(sched[2], Assignment)
     assert isinstance(sched[4], CodeBlock)
 
 
@@ -143,30 +142,13 @@ def test_multi_kern():
             "one kernel but this loop contains 2" in str(err.value))
 
 
-def test_implicit_loop_assign():
-    ''' Check that we only identify an implicit loop when array syntax
-    is used as part of an assignment statement. '''
-    _, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
-    sched = invoke_info.schedule
-    loops = sched.walk(nemo.NemoLoop)
-    # We should have three implicit loops
-    assert len(loops) == 3
-    assert isinstance(sched.children[0], nemo.NemoLoop)
-    # Check the __str__ property of the implicit loop
-    txt = str(sched.children[0])
-    assert "NemoImplicitLoop[zftv(:, :, :)]" in txt
-    # The other statements (that use array syntax) are not assignments
-    # and therefore are not implicit loops
-    assert not isinstance(sched.children[1], nemo.NemoLoop)
-
-
 def test_complex_code():
     ''' Check that we get the right schedule when the code contains
     multiple statements of different types '''
     _, invoke_info = get_invoke("code_block.f90", api=API, idx=0)
     sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
-    assert len(loops) == 5
+    assert len(loops) == 4
     kerns = sched.coded_kernels()
     assert len(kerns) == 1
     # The last loop does not contain a kernel
@@ -186,7 +168,6 @@ def test_io_not_kernel():
 def test_fn_call_no_kernel(parser):
     ''' Check that we don't create a kernel if the loop body contains a
     function call. '''
-    from psyclone.psyir.nodes import Assignment
     reader = FortranStringReader("program fn_call\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
@@ -276,10 +257,12 @@ def test_no_implicit_loop_in_kernel(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
-    assert isinstance(loop.loop_body[0], nemo.NemoLoop)
-    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
+    assert isinstance(loop.loop_body[0], Assignment)
+    # 'loop.loop_body' is not a valid kernel because it contains an
+    # assignment to an array range.
     assert not nemo.NemoKern.match(loop.loop_body)
 
 
