@@ -169,7 +169,7 @@ class ArrayRange2LoopTrans(Transformation):
                 "".format(idx1, type(array1.children[idx1]).__name__))
         if not isinstance(array2.children[idx2], Range):
             raise TypeError(
-                "The child of the second array argument at the specified"
+                "The child of the second array argument at the specified "
                 "index ({0}) should be a Range node, but found '{1}'."
                 "".format(idx2, type(array2.children[idx2]).__name__))
 
@@ -373,3 +373,7 @@ class ArrayRange2LoopTrans(Transformation):
                             "".format(node.lhs.name, lhs_index, array.name,
                                       idx, str(node)))
                     break
+
+
+__all__ = [
+    'ArrayRange2LoopTrans']
