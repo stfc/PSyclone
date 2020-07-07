@@ -38,8 +38,9 @@
 !! 
 
 module read_only_verify_psy_data_mod
-    use, intrinsic :: iso_fortran_env, only : int64, int32
-        use field_mod, only : field_type
+    use, intrinsic :: iso_fortran_env, only : int64, int32, &
+                                              stderr=>Error_Unit
+    use field_mod, only : field_type
 
     implicit none
 
@@ -98,7 +99,9 @@ module read_only_verify_psy_data_mod
         procedure :: PreStart, PreEndDeclaration, PreEnd
         procedure :: PostStart, PostEnd
 
-        !> The generic interface for declaring a variable:
+        !> The generic interface for declaring a variable
+        !! (these functions are all empty since this is not
+        !! not required for read-only verification).
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
                                                  DeclareArray1dInt,   &
                                                  DeclareArray2dInt,   &
@@ -112,7 +115,9 @@ module read_only_verify_psy_data_mod
                                                  DeclareFieldVectorDouble
 
         !> The generic interface for providing the value of variables,
-        !! which in case of the NetCDF interface is written:                                               
+        !! which in case of the read-only verification either computes
+        !! the checksum (before a kernel), or compares a checksum (after
+        !! a kernel call).
         generic, public :: ProvideVariable => ChecksumScalarInt,    &
                                               ChecksumArray1dInt,   &
                                               ChecksumArray2dInt,   &
@@ -138,10 +143,10 @@ Contains
     !!            region.
     !! @param[in] kernel_name The name of the instrumented region.
     !! @param[in] num_pre_vars The number of variables that are declared and
-    !!            written before the instrumented region.
+    !!            checksum'ed before the instrumented region.
     !! @param[in] num_post_vars The number of variables that are also declared
-    !!            before an instrumented region of code, but are written after
-    !!            this region.
+    !!            before an instrumented region of code, but are checksum'ed
+    !!            after this region.
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
         implicit none
@@ -162,20 +167,20 @@ Contains
             else if (verbose=="2") then
                 this%verbosity = 2
             else
-                print *,"PSyData: invalid setting of PSYDATA_VERBOSE."
-                print *,"It must be '0', 1' or '2', but it is '", verbose,"'."
+                write(stderr, *) "PSyData: invalid setting of PSYDATA_VERBOSE."
+                write(stderr, *) "It must be '0', 1' or '2', but it is '", verbose,"'."
                 this%verbosity = 0
             endif
         endif
 
         if (num_pre_vars /= num_post_vars) then
-            print *,"PSYDATA: The same number of variables must be provided before"
-            print *,"and after the instrumented region. But the values are:"
-            print *,"Before: ", num_pre_vars, " after: ", num_post_vars
+            write(stderr, *) "PSYDATA: The same number of variables must be provided before"
+            write(stderr, *) "and after the instrumented region. But the values are:"
+            write(stderr, *) "Before: ", num_pre_vars, " after: ", num_post_vars
             stop
         endif
         if(this%verbosity>0) &
-            print *,"PSYDATA: checking ", module_name, " ", region_name
+            write(stderr, *) "PSYDATA: checking ", module_name, " ", region_name
 
         this%count_checksums = 0
         this%verify_checksums = .false.
@@ -190,12 +195,18 @@ Contains
     subroutine PreEndDeclaration(this)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
+        integer :: err
 
         ! During the declaration the number of checksums to be
         ! stored was counted, so allocate the array now (if it has
         ! not been allocated already in a previous call):
         if (.not. allocated(this%checksums)) then
-            allocate(this%checksums(this%count_checksums))
+            allocate(this%checksums(this%count_checksums), stat=err)
+            if(err/=0) then
+                write(stderr, *) "Could not allocate ", this%count_checksums, &
+                                 " integers, aborting."
+                stop
+            endif
         endif
         ! Reset the pointer to the next checksum index to use
         this%next_var_index = 1
@@ -235,8 +246,8 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         if(this%verbosity>0) &
-            print *,"PSYDATA: checked ", trim(this%module_name), &
-                    " ", trim(this%region_name)
+            write(stderr, *) "PSYDATA: checked ", trim(this%module_name), &
+                             " ", trim(this%region_name)
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
@@ -266,16 +277,16 @@ Contains
 
         if (this%verify_checksums) then
             if (value /= this%checksums(this%next_var_index)) then
-                print *,"--------------------------------------"
-                print *,"Integer variable ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr,*) "Integer variable ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 ! In case of integer variables, we can use the checksum as the
                 ! original value:
-                print *,"Original value: ", this%checksums(this%next_var_index)
-                print *,"New value:      ", value
-                print *,"--------------------------------------"
+                write(stderr,*) "Original value: ", this%checksums(this%next_var_index)
+                write(stderr,*) "New value:      ", value
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = value
@@ -284,7 +295,7 @@ Contains
     end subroutine ChecksumScalarInt
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an array of integer value.
+    !> This subroutine declares an array of integer values.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -316,14 +327,14 @@ Contains
         enddo
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
-                print *,"--------------------------------------"
-                print *,"Integer array ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "Integer array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", checksum
-                print *,"--------------------------------------"
+                write(stderr, *) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr, *) "New checksum:      ", checksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -332,7 +343,7 @@ Contains
     end subroutine ChecksumArray1dInt
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a 2d-array of integer value.
+    !> This subroutine declares a 2d-array of integer values.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -366,14 +377,14 @@ Contains
         enddo
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
-                print *,"--------------------------------------"
-                print *,"2d Integer array ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr,*) "2d Integer array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", checksum
-                print *,"--------------------------------------"
+                write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr,*) "New checksum:      ", checksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -382,7 +393,7 @@ Contains
     end subroutine ChecksumArray2dInt
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares an array of integer value.
+    !> This subroutine declares a 3d-array of integer values.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -396,7 +407,7 @@ Contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
-    !! (depending on this%verify_checksums) for an array of integer
+    !! (depending on this%verify_checksums) for a 3d-array of integer
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -418,14 +429,14 @@ Contains
         enddo
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
-                print *,"--------------------------------------"
-                print *,"3d Integer array ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr,*) "3d Integer array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", checksum
-                print *,"--------------------------------------"
+                write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr,*) "New checksum:      ", checksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -448,7 +459,7 @@ Contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
-    !! (depending on this%verify_checksums)
+    !! (depending on this%verify_checksums) for a scalar single precision value.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -461,7 +472,7 @@ Contains
         integer(kind=int64) :: chksum64
         integer(kind=int32) :: chksum32
 
-        ! Type-case from real to 32-bit int (same size, so
+        ! Type-cast from real to 32-bit int (same size, so
         ! no undefined bits in result)
         chksum32 = transfer(value, chksum32)
         ! Now assign to 64 bit, so we have a 64 bit checksum
@@ -473,14 +484,14 @@ Contains
                 ! Convert back to 32 bit, and then cast to real:
                 chksum32 = this%checksums(this%next_var_index)
                 orig_value = transfer(chksum32, orig_value)
-                print *,"--------------------------------------"
-                print *,"Real variable ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "Real variable ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original value: ", orig_value
-                print *,"New value:      ", value
-                print *,"--------------------------------------"
+                write(stderr, *) "Original value: ", orig_value
+                write(stderr, *) "New value:      ", value
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = chksum64
@@ -517,14 +528,14 @@ Contains
         checksum = ComputeChecksum1d(value)
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= checksum) then
-                print *,"--------------------------------------"
-                print *,"1d double array ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "1d double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", checksum
-                print *,"--------------------------------------"
+                write(stderr, *) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr, *) "New checksum:      ", checksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -561,14 +572,14 @@ Contains
         checksum = ComputeChecksum3d(value)
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= checksum) then
-                print *,"--------------------------------------"
-                print *,"3d double array ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "3d double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", checksum
-                print *,"--------------------------------------"
+                write(stderr, *) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr, *) "New checksum:      ", checksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -605,14 +616,14 @@ Contains
         checksum = ComputeChecksum4d(value)
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= checksum) then
-                print *,"--------------------------------------"
-                print *,"4d double array ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "4d double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", checksum
-                print *,"--------------------------------------"
+                write(stderr, *) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr, *) "New checksum:      ", checksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -621,7 +632,7 @@ Contains
     end subroutine ChecksumArray4dDouble
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar single precision value.
+    !> This subroutine declares a scalar double precision value.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -652,14 +663,14 @@ Contains
             if(this%checksums(this%next_var_index) /= cksum) then
                 ! Convert 64 bit integer back to 64 bit double precision:
                 orig_value = transfer(this%checksums(this%next_var_index), orig_value)
-                print *,"--------------------------------------"
-                print *,"Double precision variable ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "Double precision variable ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original value: ", orig_value
-                print *,"New value:      ", value
-                print *,"--------------------------------------"
+                write(stderr, *) "Original value: ", orig_value
+                write(stderr, *) "New value:      ", value
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum
@@ -675,7 +686,6 @@ Contains
     !! @param[in] value The value of the variable.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldDouble(this, name, value)
-!        use field_mod, only : field_type
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
@@ -704,14 +714,14 @@ Contains
         cksum = ComputeChecksum1d(value_proxy%data)
         if(this%verify_checksums) then
             if(this%checksums(this%next_var_index) /= cksum) then
-                print *,"--------------------------------------"
-                print *,"Double precision field ", name, " has been modified in ", &
+                write(stderr,*) "------------- PSyData -------------------------"
+                write(stderr, *) "Double precision field ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                print *,"Original checksum: ", this%checksums(this%next_var_index)
-                print *,"New checksum:      ", cksum
-                print *,"--------------------------------------"
+                write(stderr, *) "Original checksum: ", this%checksums(this%next_var_index)
+                write(stderr, *) "New checksum:      ", cksum
+                write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                print *,"PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSYDATA: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum
@@ -720,27 +730,26 @@ Contains
     end subroutine ChecksumFieldDouble
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a vector of double precision field based on
+    !> This subroutine declares a vector of double precision fields based on
     !! the LFRIc infrastructure type field_type.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     subroutine DeclareFieldVectorDouble(this, name, value)
-!        use field_mod, only : field_type
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
-        type(field_type), dimension(3), intent(in) :: value
+        type(field_type), dimension(:), intent(in) :: value
         this%count_checksums = this%count_checksums + size(value, 1)
     end subroutine DeclareFieldVectorDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine computes the checksums for a vector of fields based on
-    !! the LFRic infrastructure type field_type. Depending on state
-    !! (this%verify_checksum) it either stores the checksums (one for each
-    !! field of the vector), or compares them with previously computed
-    !! checksums.
+    !! the LFRic infrastructure type field_type. It uses ChecksumFieldDouble
+    !! to handle each individual field of the vector (i.e. storing or 
+    !! comparing the checksum). This way the read-only verification is done
+    !! separately for each field member of the vector.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
@@ -767,7 +776,7 @@ Contains
     end subroutine ChecksumFieldVectorDouble
 
     ! -------------------------------------------------------------------------
-    !> This function computes a 64-bit integer checksum for a 3d double
+    !> This function computes a 64-bit integer checksum for a 1d double
     !! precision Fortran array.
     function ComputeChecksum1d(field) result(checksum)
         implicit none
@@ -820,16 +829,5 @@ Contains
 
     ! -------------------------------------------------------------------------
     
-subroutine test(my_field)
-!    use field_mod, only : field_type
-    !use read_only_verify_psy_data_mod
-
-    type(field_type), intent(in) :: my_field(3)
-    type(read_only_verify_PSyDataType) :: psy_data_type
-
-    call psy_data_type%PreDeclareVariable("abc", my_field)
-    call psy_data_type%ProvideVariable("abc", my_field)
-end subroutine test
-
 end module read_only_verify_psy_data_mod
 

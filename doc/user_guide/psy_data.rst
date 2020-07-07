@@ -105,10 +105,10 @@ be printed at runtime, e.g.::
     --------------------------------------
 
 The transformation that adds read-only-verification to an application
-can be applied for any API. Here an example that searches for each
+can be applied for any API. Below is an example that searches for each
 loop in an invoke (which will always surround kernel calls) and applies the
 transformation to each one. This code has been successfully used as a
-global transformation with the LFRic gravity-wave miniapps::
+global transformation with the LFRic gravity-wave miniapp::
 
     def trans(psy):
         from psyclone.psyir.transformations import ReadOnlyVerifyTrans
@@ -130,8 +130,8 @@ and one for GOcean.
 Both libraries support the environment variable ``PSYDATA_VERBOSE``
 at runtime, which can be used to control how much output is generated
 by the read-only-verification library at runtime. If the
-variable is not specified or has the value '0', only changed checksums
-warnings will be printed. If it is set to '1', a message will be 
+variable is not specified or has the value '0', warnings will only
+be printed if checksums change. If it is set to '1', a message will be 
 printed before and after each kernel call that is checked. If the
 variable is set to '2', it will additionally print the name of each
 variable that is checked.
@@ -153,7 +153,7 @@ link in the infrastructure library anyway.
 
 .. note:
     It is the responsibility of the user to make sure that the infrastructure
-    files used during compilation of the Read-Only-Verification library is
+    files used during compilation of the Read-Only-Verification library are
     also used when linking the application. Otherwise strange and
     non-reproducible crashes might happen.
 
@@ -169,24 +169,25 @@ This will create a library called ``lib_read_only.a``.
 Read-Only-Verification Library for GOcean
 +++++++++++++++++++++++++++++++++++++++++
 This library is contained in ``lib/read_only/dl_esm_info`` and it
-must be compiled before linking any LFRic-based application that uses
+must be compiled before linking any GOcean-based application that uses
 read-only verification.  Compiling this library requires access to the
 Gocean infrastructure library
 (since it must implement a generic interface for e.g. the dl_esm_inf
 ``r2d_field`` class).
 
-The makefile uses the variable ``DL_DIR`` to point to the location where
-LFRic's ``field_mod`` has been compiled. It defaults to
+The makefile uses the variable ``INF_DIR`` to point to the location where
+dl_esm_inf's ``field_mod`` has been compiled. It defaults to
 ``../../../external/dl_esm_inf/finite_difference/src``,
-which is the location of the dl_esm_info version that is included with
-PSyclone. It can be changed to a user-specified location if required.
+which is the location of the dl_esm_info version that is
+included (as a git submodule) with PSyclone. It can be changed to a
+user-specified location if required.
 The ``dl_esm_inf`` library is not used in linking the verification library.
 The application which uses the read-only-verification library needs to
 link in the infrastructure library anyway.
 
 .. note:
     It is the responsibility of the user to make sure that the infrastructure
-    files used during compilation of the Read-Only-Verification library is
+    files used during compilation of the Read-Only-Verification library are
     also used when linking the application. Otherwise strange and
     non-reproducible crashes might happen.
 
@@ -195,7 +196,7 @@ the required variables:
 
 .. code-block:: shell
 
-    make DL_DIR=some_path F90=ifort F90FLAGS="--some-flag"
+    make INF_DIR=some_path F90=ifort F90FLAGS="--some-flag"
 
 This will create a library called ``lib_read_only.a``.
 An executable example for using the GOcean read-only-verification

@@ -39,16 +39,23 @@
 
 F90 ?= gfortran
 
-DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
+SHARED_DIR ?= ../../../external
+INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
+INF_INC = $(INF_DIR)/src
+INF_LIB = $(INF_DIR)/src/lib_fd.a
+
 
 F90FLAGS ?= 
-F90FLAGS += -I$(DL_DIR)
+F90FLAGS += -I$(INF_INC)
 LIB_NAME = lib_read_only.a
 
 default: $(LIB_NAME)
 
 $(LIB_NAME):	read_only.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
+# Compilation of read_only needs the .mod file from dl_esm_inf
+read_only.o: $(INF_LIB)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

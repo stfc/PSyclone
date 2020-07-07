@@ -38,6 +38,9 @@
 #TODO: #813 keeps track of adding enough files from LFRic to PSyclone to be
 #      able to compile this library without the need of external
 #      files (or #745, which will try to create a stand-alone example).
+
+# This directory points to an external, compiled version of the LFRic,
+# which is required to find the module files when compiling this library:
 LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
 
 F90 ?= gfortran
@@ -49,6 +52,12 @@ default: $(LIB_NAME)
 
 $(LIB_NAME):	read_only.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
+# Give a useful error message if field_mod cannot be found
+$(LFRIC_DIR)/field_mod.mod:
+	$(error "Can not find field_mod.mod in $(LFRIC_DIR).")
+
+read_only.o: $(LFRIC_DIR)/field_mod.mod
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
