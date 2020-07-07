@@ -31,9 +31,12 @@ include ../../common.mk
 
 GENERATED_FILES += alg.f90 psy.f90 *.o *.mod
 
-DL_DIR = ../../../external/dl_esm_inf/finite_difference/src
+SHARED_DIR ?= ../../../external
+INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
+INF_INC = $(INF_DIR)/src
+INF_LIB = $(INF_DIR)/src/lib_fd.a
 READ_ONLY_DIR = ../../../lib/read_only/dl_esm_inf
-F90FLAGS += -I$(DL_DIR)
+F90FLAGS += -I$(INF_INC)
 LIB_NAME = lib_read_only.a
 
 
@@ -50,25 +53,31 @@ all: transform compile
 
 transform: alg.f90
 
-compile: $(READ_ONLY_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
+compile: $(READ_ONLY_DIR)/$(LIB_NAME) $(INF_LIB) $(KERNELS) alg.o psy.o
 	$(F90)  $(KERNELS) alg.o psy.o -o $(EXEC)                   \
-	-L$(READ_ONLY_DIR) -l_read_only \
-	-L $(DL_DIR) -l_fd
+	-L$(READ_ONLY_DIR) -l_read_only $(INF_LIB)
 
+# The read-only library
 $(READ_ONLY_DIR)/$(LIB_NAME):
 	$(MAKE) -C $(READ_ONLY_DIR)
 
+# The dl_esm_inf library
+$(INF_LIB):
+	$(MAKE) -C $(INF_DIR) F90=$(F90)
+
+# Kernel compilation needs the .mod files from dl_esm_inf
+$(KERNELS): $(INF_LIB)
+
 alg.f90 psy.f90: test.x90 read_only_transform.py
-	psyclone -nodm -l -api "gocean1.0" -s ./read_only_transform.py\
-			 --config ../../../config/psyclone.cfg \
-		     -opsy psy.f90 -oalg alg.f90 test.x90
+	${PSYCLONE} -nodm -l -api "gocean1.0" -s ./read_only_transform.py \
+		        -opsy psy.f90 -oalg alg.f90 test.x90
 
 alg.o:	psy.o 
 
 psy.o:	$(KERNELS)
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(DL_DIR) -I $(READ_ONLY_DIR) -c $<
+	$(F90) $(F90FLAGS) -I $(READ_ONLY_DIR) -c $<
 
 allclean: clean
 	make -C $(READ_ONLY_DIR) clean

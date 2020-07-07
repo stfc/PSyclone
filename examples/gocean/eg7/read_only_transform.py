@@ -43,7 +43,8 @@ from __future__ import print_function
 
 def trans(psy):
     '''
-    Take the supplied psy object, and add kernel extraction code.
+    Take the supplied psy object, and add verification that read only
+    parameters are not modified.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
@@ -58,16 +59,15 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     _, _ = read_only_verify.apply(schedule.children,
-                         {"create_driver": True,
-                          "region_name": ("main", "init")})
+                                  {"region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
 
     # Enclose everything in a read_only_verify region
     newschedule, _ = read_only_verify.apply(schedule.children,
-                                   {"create_driver": True,
-                                    "region_name": ("main", "update")})
+                                            {"region_name": ("main",
+                                                             "update")})
 
     invoke.schedule = newschedule
     newschedule.view()
