@@ -76,21 +76,19 @@ def create_range(array_symbol, dim):
     return Range.create(lbound, ubound)
 
 
-def create_stepped_range(symbol_table):
+def create_stepped_range(symbol):
     '''Utility routine that creates and returns a Range Node that
-    specifies a range from "2" to "n" step "2" for the supplied dimension
-    (dim) in the array (array_symbol).
+    specifies a range from "2" to "symbol" step "2".
 
-    :param symbol_table: the symbol table holding the variable "n".
-    :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
+    :param symbol: the symbol representing the upper bound.
+    :type symbol: :py:class:`psyclone.psyir.symbol.Symbol`
 
-    :returns: a range node specifying a range from 2 to n with a step \
-        of 2 for the supplied array dimension.
+    :returns: a range node specifying a range from 2 to "symbol" with \
+        a step of 2 for the supplied array dimension.
     :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
     '''
     lbound = Literal("2", INTEGER_TYPE)
-    symbol = symbol_table.lookup("n")
     ubound = Reference(symbol)
     step = Literal("2", INTEGER_TYPE)
     return Range.create(lbound, ubound, step)
@@ -215,9 +213,9 @@ def create_array_y_slice_subset(symbol_table):
     '''
     array_symbol = DataSymbol("y3", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol,
-                        [Reference(symbol_table.lookup("n")),
-                         create_stepped_range(symbol_table)])
+    symbol_n = symbol_table.lookup("n")
+    return Array.create(array_symbol, [Reference(symbol_n),
+                                       create_stepped_range(symbol_n)])
 
 
 def create_expr(symbol_table):
@@ -238,13 +236,12 @@ def create_expr(symbol_table):
     '''
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
-    array_x = Array.create(array_symbol,
-                           [create_stepped_range(symbol_table)])
+    symbol_n = symbol_table.lookup("n")
+    array_x = Array.create(array_symbol, [create_stepped_range(symbol_n)])
     array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    array_z = Array.create(array_symbol,
-                           [Literal("1", INTEGER_TYPE),
-                            create_stepped_range(symbol_table)])
+    array_z = Array.create(array_symbol, [Literal("1", INTEGER_TYPE),
+                                          create_stepped_range(symbol_n)])
     array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
     array_a = Array.create(array_symbol, [Literal("1", INTEGER_TYPE)])
     symbol_table.add(array_symbol)

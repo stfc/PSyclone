@@ -169,8 +169,8 @@ class ArrayRange2LoopTrans(Transformation):
                 "".format(idx1, type(array1.children[idx1]).__name__))
         if not isinstance(array2.children[idx2], Range):
             raise TypeError(
-                "The child of the second array argument at the specified index "
-                "({0}) should be a Range node, but found '{1}'."
+                "The child of the second array argument at the specified"
+                "index ({0}) should be a Range node, but found '{1}'."
                 "".format(idx2, type(array2.children[idx2]).__name__))
 
         range1 = array1.children[idx1]
