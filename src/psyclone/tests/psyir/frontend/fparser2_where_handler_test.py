@@ -196,14 +196,11 @@ def test_array_notation_rank():
             "supported." in str(err.value))
 
 
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_where_symbol_clash(parser):
     ''' Check that we handle the case where the code we are processing
     already contains a symbol with the same name as one of the loop variables
     we want to introduce.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     reader = FortranStringReader("SUBROUTINE widx_array()\n"
                                  "LOGICAL :: widx1(3,3,3)\n"
@@ -220,37 +217,6 @@ def test_where_symbol_clash(parser):
     assert var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Check that we have a new symbol for the loop variable
     loop_var = sched.symbol_table.lookup("widx1_1")
-    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-
-    reader = FortranStringReader("module my_test\n"
-                                 "use some_module\n"
-                                 "implicit none\n"
-                                 "integer :: dummy\n"
-                                 "contains\n"
-                                 "subroutine widx1()\n"
-                                 "  logical, dimension(5,5,5) :: dry\n"
-                                 "  real, dimension(5,5,5) :: z1_st, ptsu\n"
-                                 "  real :: depth\n"
-                                 "where (dry(:, :, :))\n"
-                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                                 "end where\n"
-                                 "write (*,*) widx1_0\n"
-                                 "end subroutine widx1\n"
-                                 "end module my_test\n")
-    fparser2spec = parser(reader)
-    processor = Fparser2Reader()
-    sched = processor.generate_schedule("widx1", fparser2spec)
-    # Get the symbol table
-    sym_table = sched.scope.symbol_table
-    # The symbol from the codeblock (the write statement) should be in
-    # the SymbolTable
-    cblock_var = sym_table.lookup("widx1_0")
-    assert isinstance(cblock_var, Symbol)
-    loop_var = sym_table.lookup("widx1_1")
-    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    loop_var = sym_table.lookup("widx2")
-    assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    loop_var = sym_table.lookup("widx3")
     assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 

@@ -2363,26 +2363,10 @@ class Fparser2Reader(object):
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
-
+ 
         symbol_table = parent.scope.symbol_table
-
-        # Create a set of all of the symbol names in the fparser2 parse
-        # tree so that we can find any clashes. We go as far back up the tree
-        # as we can before searching for all instances of Fortran2003.Name.
-        # We can't just rely on looking in our symbol tables because there
-        # may be CodeBlocks that access symbols that are e.g. imported from
-        # modules without being explicitly named.
-        name_list = walk(node.get_root(), Fortran2003.Name)
-        for name_obj in name_list:
-            name = str(name_obj)
-            if name not in symbol_table:
-                # We need support for creating a unique symbol
-                # within a hierarchy of symbol tables. However, until we are
-                # generating code from the PSyIR Fortran backend
-                # (#435) this doesn't matter.
-                symbol_table.add(Symbol(name), check_ancestors=False)
-
         integer_type = default_integer_type()
+
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
