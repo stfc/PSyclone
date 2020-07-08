@@ -7086,7 +7086,18 @@ class DynKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.XXXX`
 
+        :raises GenerationError: if a kernel stub to create argument \
+                                 list and declarations for does not have \
+                                 "cells" as iteration space.
+
         '''
+        # Check iteration space before generating code
+        if self._iterates_over != "cells":
+            raise GenerationError(
+                "In the LFRic API, stub generation is only supported for "
+                "kernels that iterate over cells, but found '{0}' in "
+                "kernel '{1}'.".format(self._iterates_over, self._name))
+
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module

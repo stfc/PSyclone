@@ -61,6 +61,22 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
+def test_kernel_stub_invalid_iteration_space():
+    ''' Check that we raise an exception if an invalid iteration space
+    (not "cells") is found in the kernel metadata. '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_dofs_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("In the LFRic API, stub generation is only supported for "
+            "kernels that iterate over cells, but found 'dofs' in "
+            "kernel 'testkern_dofs_code'." in str(excinfo.value))
+
+
 def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''

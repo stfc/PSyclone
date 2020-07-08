@@ -55,17 +55,7 @@ module testkern_dofs_mod
 
 contains
 
-  subroutine testkern_dofs_code(fld1, fld2, fld3, fld4, &
-                                undf_w1, undf_w2, undf_w3)
-
-    implicit none
-
-    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
-    real(kind=r_def), intent(out), dimension(undf_w1) :: fld1
-    real(kind=r_def), intent(in),  dimension(undf_w2) :: fld2
-    real(kind=r_def), intent(in),  dimension(undf_w2) :: fld3
-    real(kind=r_def), intent(in),  dimension(undf_w3) :: fld4
-
+  subroutine testkern_dofs_code(a, b, c, d)
   end subroutine testkern_dofs_code
 
 end module testkern_dofs_mod
