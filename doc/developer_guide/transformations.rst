@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -246,3 +246,43 @@ task of ensuring that the correct data is written out by a model
 to the dl_esm_inf library since that has the information on whether
 field data is local or on a remote compute device.
 
+
+ArrayRange2LoopTrans
+====================
+
+The ArrayRange2LoopTrans transformation has the following known
+issues:
+
+1) code in the NEMO API remains unchanged after this transformation is
+   applied. This is the case for all transformations that manipulate
+   the PSyIR as the NEMO API currently manipulates and outputs the
+   underlying fparser2 tree. In the future the NEMO API will output
+   code from the PSyIR representation using the back-ends provided.
+
+2) if the indices of the ranges in different array accesses that are
+   going to be modified to use a loop index are not the same then the
+   transformation raises an exception. For example ``a(1:2) =
+   b(2:3)``. Issue #814 captures removing this limitation.
+
+3) at the moment, to test whether two loop ranges are the same, we
+   first check whether they both access the full bounds of the
+   array. If so we assume that they are the same (otherwise the code
+   will not run). If this is not the case then we check whether the
+   string versions of the ranges are the same. This approach supports
+   arbitrarily complex array ranges that are identical but if they
+   differ at all then the ranges are assumed to be different. For
+   example ``range(1:n+1:1)`` and ``range(1:1+n:1)`` are assumed to be
+   different. Some form of symbolic analyis might be useful to address
+   this. A less powerful alternative would be to support checking
+   whether two node hierarchies are the same by checking each level of
+   the hierarchy, with levels that support commutitivity checking each
+   option. This is similar to the approach taken in ``math_equal()`` in
+   the ``Node`` base-class.
+
+4) there is a test for non-elementwise operations on the rhs of an
+   assignment as it is not possible to turn this into an explicit
+   loop. At the moment, the type of data that a PSyIR Expression Node
+   returns can not be determined, so it is not possible to check
+   directly for a non-elementwise operation. Fixing this issue is the
+   subject of #685. For the moment the test just checks for MATMUL as
+   that is currently the only non-elementwise operation in the PSyiR.

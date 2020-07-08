@@ -222,7 +222,7 @@ def test_arraytype_invalid_shape():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, None)
-    assert ("ArrayType expected 'shape' argument to be of type list but "
+    assert ("ArrayType 'shape' must be of type list but "
             "found 'NoneType'." in str(excinfo.value))
 
 
