@@ -196,6 +196,16 @@ be called before or after ``MPI_Finalize``.
     of the user to decide if the initialisation and shutdown
     calls are unnecessary.
 
+Similarly, the PSyData API also includes two function calls that allow
+programmatic control of whether or not the underlying data-capture
+mechanism is active. If this functionality is required then these
+calls must be inserted manually into the program. They are intended to
+be used e.g. when profiling only a part of a program's execution or
+perhaps to switch on/off output of data for on-line visualisation. As
+with the initialisation and shutdown subroutines, any PSyData library
+should include implementations of these routines, even if they are
+empty.
+
 Init and Shutdown Functions
 +++++++++++++++++++++++++++
 .. method:: PREFIX_PSyDataInit()
@@ -217,6 +227,32 @@ Init and Shutdown Functions
         use profile_psy_data_mod, only : profile_PSyDataShutdown
         ...
         call profile_PSyDataShutdown()
+
+Start and Stop Functions
+++++++++++++++++++++++++
+.. method:: PREFIX_PSyDataStart()
+
+   Starts or enables the PSyData library so that subsequent calls to
+   the API cause data to be output. Example::
+
+       use profile_psy_data_mod, only: profile_PSyDataStart
+       ...
+       call profile_PSyDataStart()
+
+   May be called any number of times but must be after ``PSyDataInit()``
+   and before ``PSyDataShutdown()`` (if present).
+
+.. method:: PREFIX_PSyDataStop()
+
+   Stops or disables the PSyData library so that subsequent calls to
+   the PSyData API have no effect. Example::
+
+       use profile_psy_data_mod, only: profile_PSyDataStop
+       ...
+       call profile_PSyDataStop()
+
+   May be called any number of times but must be after ``PSyDataInit()``
+   and before ``PSyDataShutdown()`` (if present).
 
 .. _psy_data_type:
 
