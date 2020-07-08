@@ -143,7 +143,7 @@ def test_exp_loop_unrecognised_implicit(parser):
 
 
 @pytest.mark.xfail(reason="New loop Symbols not added to SymbolTable. To "
-                   "be replaced as part of #412.")
+                   "be replaced as part of #829.")
 def test_exp_loop_missing_spec(parser):
     '''Test that the ExplicitLoop transformation still works when the
     fparser2 AST is missing a Specification_Part for the routine.

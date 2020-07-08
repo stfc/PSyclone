@@ -89,7 +89,6 @@ class Operator2CodeTrans(Transformation):
             expected type.
         :raises TransformationError: if the symbol_table argument is not a \
             :py:class:`psyclone.psyir.symbols.SymbolTable`.
-        :raises TransformationError: if the API is not nemo.
         :raises TransformationError: if the Operation node does \
             not have an Assignment Node as an ancestor.
 
