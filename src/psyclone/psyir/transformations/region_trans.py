@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,8 @@
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
-'''This module contains the base class RegionTrans.
+'''This module contains the base class RegionTrans. All transformations which
+   act on a region of code (list of PSyIR nodes) sub-class this one.
 '''
 
 import abc
@@ -58,12 +59,12 @@ class RegionTrans(Transformation):
     the original AST, no node is duplicated, and that all nodes have
     the same parent. We also check that all nodes to be enclosed are
     valid for this transformation - this requires that the sub-class
-    populate the `valid_node_types` tuple.
+    populate the `excluded_node_types` tuple.
 
     '''
-    # The types of Node that we support within this region. Must be
+    # The types of Node that are excluded from within this region. Must be
     # populated by sub-class.
-    valid_node_types = ()
+    excluded_node_types = ()
 
     def get_node_list(self, nodes):
         '''This is a helper function for region based transformations.
@@ -169,10 +170,11 @@ class RegionTrans(Transformation):
                 flat_list = [item for item in child.walk(object, Kern)
                              if not isinstance(item, Schedule)]
                 for item in flat_list:
-                    if not isinstance(item, self.valid_node_types):
+                    if isinstance(item, self.excluded_node_types):
                         raise TransformationError(
                             "Nodes of type '{0}' cannot be enclosed by a {1} "
-                            "transformation".format(type(item), self.name))
+                            "transformation".format(type(item).__name__,
+                                                    self.name))
 
         # If we've been passed a list that contains one or more Schedules
         # then something is wrong. e.g. two Schedules that are both children

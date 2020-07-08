@@ -230,7 +230,7 @@ def test_no_code_block_kernels(parser):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
-    assert ("CodeBlock'>' cannot be enclosed by a ACCKernelsTrans "
+    assert ("'CodeBlock' cannot be enclosed by a ACCKernelsTrans "
             in str(err.value))
 
 
