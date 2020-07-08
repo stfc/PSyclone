@@ -51,6 +51,27 @@ from psyclone.psyGen import KernelSchedule
 from psyclone.errors import InternalError
 
 
+def create_hierarchy():
+    '''Utility routine that creates a symbol table hierarchy with a
+    symbol in each symbol table.
+
+    :returns: two symbol tables created in a hierachy.
+    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`, \
+        :py:class:`psyclone.psyir.symbols.SymbolTable`)
+
+    '''
+    schedule_symbol_table = SymbolTable()
+    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
+    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
+    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
+    container_symbol_table = SymbolTable()
+    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
+    container_symbol_table.add(symbol2, tag="symbol2_tag")
+    _ = Container.create("my_container", container_symbol_table,
+                         [schedule])
+    return (schedule_symbol_table, container_symbol_table)
+
+
 def test_instance():
     '''Test that a SymbolTable is created with the expected initial values
     and that it raises an exception if any arguments are invalid.
@@ -150,15 +171,7 @@ def test_new_symbol_5():
     (True).
 
     '''
-    schedule_symbol_table = SymbolTable()
-    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
-    schedule_symbol_table.add(symbol1)
-    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
-    container_symbol_table = SymbolTable()
-    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
-    container_symbol_table.add(symbol2)
-    _ = Container.create("my_container", container_symbol_table,
-                         [schedule])
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
 
     # A clash in this symbol table should return a unique symbol
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -220,15 +233,9 @@ def test_add_2():
     (True).
 
     '''
-    schedule_symbol_table = SymbolTable()
-    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
-    schedule_symbol_table.add(symbol1)
-    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
-    container_symbol_table = SymbolTable()
-    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
-    container_symbol_table.add(symbol2)
-    _ = Container.create("my_container", container_symbol_table,
-                         [schedule])
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    symbol1 = schedule_symbol_table.lookup("symbol1")
+    symbol2 = container_symbol_table.lookup("symbol2")
 
     # A clash in this symbol table should raise an exception
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -287,15 +294,8 @@ def test_add_with_tags_2():
     (True).
 
     '''
-    schedule_symbol_table = SymbolTable()
-    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
-    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
-    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
-    container_symbol_table = SymbolTable()
-    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
-    container_symbol_table.add(symbol2, tag="symbol2_tag")
-    _ = Container.create("my_container", container_symbol_table,
-                         [schedule])
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    symbol1 = schedule_symbol_table.lookup("symbol1")
     symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
 
     # A clash of tags in this symbol table should raise an exception
@@ -583,15 +583,9 @@ def test_lookup_4():
     (True).
 
     '''
-    schedule_symbol_table = SymbolTable()
-    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
-    schedule_symbol_table.add(symbol1)
-    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
-    container_symbol_table = SymbolTable()
-    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
-    container_symbol_table.add(symbol2)
-    _ = Container.create("my_container", container_symbol_table,
-                         [schedule])
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    symbol1 = schedule_symbol_table.lookup("symbol1")
+    symbol2 = container_symbol_table.lookup("symbol2")
 
     # raise an exception if the symbol is not found
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -670,15 +664,8 @@ def test_lookup_with_tag_3():
     (True).
 
     '''
-    schedule_symbol_table = SymbolTable()
-    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
-    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
-    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
-    container_symbol_table = SymbolTable()
-    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
-    container_symbol_table.add(symbol2, tag="symbol2_tag")
-    _ = Container.create("my_container", container_symbol_table,
-                         [schedule])
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    symbol2 = container_symbol_table.lookup("symbol2")
 
     # raise an exception if the tag is not found
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -1140,15 +1127,8 @@ def test_name_from_tag_2():
     (True).
 
     '''
-    schedule_symbol_table = SymbolTable()
-    symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
-    schedule_symbol_table.add(symbol1, tag="symbol1_tag")
-    schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
-    container_symbol_table = SymbolTable()
-    symbol2 = DataSymbol("symbol2", INTEGER_TYPE)
-    container_symbol_table.add(symbol2, tag="symbol2_tag")
-    _ = Container.create("my_container", container_symbol_table,
-                         [schedule])
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    symbol2 = container_symbol_table.lookup("symbol2")
 
     # The tag is in an ancestor symbol table. This will not be
     # found if check_ancestors=False
@@ -1159,8 +1139,6 @@ def test_name_from_tag_2():
         "symbol2_tag", check_ancestors=False)
     assert (schedule_symbol_table.lookup_with_tag(
         "symbol2_tag", check_ancestors=False).name is symbol_name)
-    del schedule_symbol_table._symbols[symbol_name]
-    del schedule_symbol_table._tags["symbol2_tag"]
 
 
 def test_all_symbols():
