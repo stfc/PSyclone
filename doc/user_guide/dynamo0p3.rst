@@ -772,16 +772,16 @@ then the permitted access modes depend on the type of data it is and
 the function space it is on. Valid values are given in the table
 below.
 
-======================  ============================  =========================
-Argument Type           Function Space                Access Type
-======================  ============================  =========================
-*GH_INTEGER*            *n/a*                         *GH_SUM (Built-ins only)*
-GH_REAL                 n/a                           GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous                 GH_WRITE, GH_READWRITE
-GH_FIELD                Continuous                    GH_INC
-GH_OPERATOR             Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
-GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
-======================  ============================  =========================
+======================  ===============================  =========================
+Argument Type           Function and/or Iteration Space  Access Type
+======================  ===============================  =========================
+*GH_INTEGER*            *n/a*                            *GH_SUM (Built-ins only)*
+GH_REAL                 n/a                              GH_SUM (Built-ins only)
+GH_FIELD                Discontinuous or 'dofs'          GH_WRITE, GH_READWRITE
+GH_FIELD                Continuous and 'cells'           GH_INC
+GH_OPERATOR             Any for both 'to' and 'from'     GH_WRITE, GH_READWRITE
+GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'     GH_WRITE, GH_READWRITE
+======================  ===============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
           scalar arguments. In practice this means that the only allowed
@@ -790,17 +790,18 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
           support integer reductions, integer scalar arguments are
           restricted to having read-only access.*
 
-.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
-          ``GH_READWRITE`` as its access pattern must be a discontinuous
-          function in the horizontal (see :ref:`dynamo0.3-function-space`
-          for list of discontinuous function spaces) and it will not
-          need colouring. If the field is described as being on any space,
-          there is currently no way to determine this from the metadata
-          (unless we can statically determine the space of the field
-          being passed in). At the moment this type of Kernel is always
-          treated as if it is continuous in the horizontal, even if it is
-          not (see rules for :ref:`user-supplied kernels
-          <dynamo0.3-user-kernel-rules>` above).
+A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or ``GH_READWRITE`` as
+its access pattern must either be on a horizontally discontinuous function
+space (see :ref:`dynamo0.3-function-space` for list of discontinuous
+function spaces) or its iteration space must be over DoFs (currently only
+supported for :ref:`built-ins <dynamo0.3-built-ins>` but not for
+user-supplied kernels). Such field will not require colouring in either of
+the above two cases. If a field is described as being on ``ANY_SPACE``,
+there is currently no way to determine its continuity this from the metadata
+(unless we can statically determine the space of the field being passed in).
+At the moment this type of a user-supplied Kernel is always treated as if
+it is continuous in the horizontal, even if it is not (see rules for
+:ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
 
 There is no restriction on the number and function spaces of other
 quantities that a general-purpose kernel can modify other than that it
