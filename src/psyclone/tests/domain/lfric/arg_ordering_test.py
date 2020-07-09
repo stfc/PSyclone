@@ -53,7 +53,7 @@ from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 TEST_API = "dynamo0.3"
 
 
-def test_unexpected_type_error(distmem):
+def test_unexpected_type_error(dist_mem):
     '''Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
     the KernCallArgList sub class.
@@ -63,9 +63,9 @@ def test_unexpected_type_error(distmem):
                              "1.0.1_single_named_invoke.f90")
     _, invoke_info = parse(full_path, api=TEST_API)
     psy = PSyFactory(TEST_API,
-                     distributed_memory=distmem).create(invoke_info)
+                     distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    if distmem:
+    if dist_mem:
         index = 3
     else:
         index = 0
