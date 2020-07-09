@@ -90,7 +90,7 @@ $(EXEC): $(KERNELS) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a alg.o psy.o
 	$$(nf-config --flibs)
 
 transform: test.x90 extract_transform.py
-	$(PSYCLONE) -nodm -l -api "gocean1.0" -s ./extract_transform.py\
+	$(PSYCLONE) -nodm -l all -api "gocean1.0" -s ./extract_transform.py\
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 psy.f90 alg.f90: transform
