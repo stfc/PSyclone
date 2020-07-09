@@ -995,7 +995,7 @@ def test_omp_region_invalid_node():
 
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply(new_sched.children)
-    assert ("ACCParallelDirective'>' cannot be enclosed by a "
+    assert ("ACCParallelDirective' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
 
     # Check that the test can be disabled with the appropriate option:
@@ -1610,7 +1610,7 @@ def test_acc_parallel_invalid_node():
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
         _, _ = accpara.apply(new_sched.children[0])
-    assert ("GOACCEnterDataDirective'>' cannot be enclosed by a "
+    assert ("'GOACCEnterDataDirective' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
 
 

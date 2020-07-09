@@ -49,6 +49,7 @@ from psyclone.psyir.nodes import ExtractNode, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.configuration import Config
 
 # API names
 DYNAMO_API = "dynamo0.3"
@@ -119,14 +120,12 @@ def test_distmem_error(monkeypatch):
     # Try applying Extract transformation to Node(s) containing HaloExchange
     # We have to disable distributed memory, otherwise an earlier test
     # will be triggered
-    from psyclone.configuration import Config
     config = Config.get()
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
-    assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
-            "cannot be enclosed by a LFRicExtractTrans "
-            "transformation") in str(excinfo.value)
+    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
     # This will set config.distributed_mem to True again.
@@ -141,9 +140,8 @@ def test_distmem_error(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
 
-    assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
-            "cannot be enclosed by a LFRicExtractTrans "
-            "transformation") in str(excinfo.value)
+    assert ("Nodes of type 'DynGlobalSum' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
 def test_repeat_extract():
@@ -160,10 +158,8 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
-    assert ("Nodes of type '<class "
-            "'psyclone.psyir.nodes.extract_node.ExtractNode'>' "
-            "cannot be enclosed by a LFRicExtractTrans "
-            "transformation") in str(excinfo.value)
+    assert ("Nodes of type 'ExtractNode' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
 def test_kern_builtin_no_loop():

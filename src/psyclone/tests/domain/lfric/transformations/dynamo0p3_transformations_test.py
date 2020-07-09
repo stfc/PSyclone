@@ -1386,8 +1386,8 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rtrans.apply(schedule.children)
-    assert "A halo exchange within a parallel region is not supported" \
-        in str(excinfo.value)
+    assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
+            "transformation" in str(excinfo.value))
 
 
 def test_module_inline(monkeypatch, annexed, dist_mem):
