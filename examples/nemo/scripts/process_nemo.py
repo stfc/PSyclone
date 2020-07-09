@@ -63,6 +63,7 @@ EXCLUDED_FILES = ["bdyini.f90",
                   "iceistate.f90",
                   "icethd_ent.f90", "icethd_zdf.f90",
                   "icethd_dh.f90", "iom.f90",
+                  "mppini.f90", # MPI code
                   "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
                   "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                   "obs_utils.f90",
@@ -102,7 +103,7 @@ if __name__ == "__main__":
             continue
         print("Processing {0}...".format(file_name))
         out_file = os.path.join(args.out_dir, file_name)
-        extra_args = ["-api", 'nemo', "-s", args.script_file,
+        extra_args = ["--limit", "-api", 'nemo', "-s", args.script_file,
                       "-oalg", "/dev/null",
                       "-opsy", out_file, ffile]
         try:
