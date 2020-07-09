@@ -118,19 +118,35 @@ module profile_psy_data_mod
   end interface cudaProfilerStop
 
   ! Only the routines making up the PSyclone profiling API are public
-  public profile_PSyDataInit, profile_PSyDataShutdown
+  public profile_PSyDataInit, profile_PSyDataShutdown, &
+       profile_PSyDataStart, profile_PSyDataStop
 
 contains
+
+  !> An optional initialisation subroutine. This is not used for the NVTX
+  !! library.
+  subroutine profile_PSyDataInit()
+    implicit none
+    return
+  end subroutine profile_PSyDataInit
 
   !> Enables profiling (if it is not already enabled). May be manually added
   !! to source code in order to limit the amount of profiling performed at
   !! run time. Requires that the application be linked with CUDA (-Mcuda flag
   !! to PGI).
-  subroutine profile_PSyDataInit()
+  subroutine profile_PSyDataStart()
     implicit none
     call cudaProfilerStart()
-    return
-  end subroutine profile_PSyDataInit
+  end subroutine profile_PSyDataStart
+
+  !> Turns off profiling. All subsequent calls to the profiling API
+  !! will have no effect. Use in combination with profile_PSyDataStart() to
+  !! limit the amount of profiling performed at runtime. Requires that the
+  !! application be linked with CUDA (-Mcuda flag to PGI).
+  subroutine profile_PSyDataStop()
+    implicit none
+    call cudaProfilerStop()
+  end subroutine profile_PSyDataStop
 
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.
@@ -189,13 +205,10 @@ contains
     
   end subroutine PostEnd
 
-  !> Turns off CUDA profiling. All subsequent calls to the profiling API
-  !! will have no effect. Use in combination with profilePSyDataInit() to
-  !! limit the amount of profiling performed at runtime. Requires that the
-  !! application be linked with CUDA (-Mcuda flag to PGI).
+  !> The finalise function would normally print the results. However, this
+  !> is unnecessary for the NVTX library so we do nothing.
   subroutine profile_PSyDataShutdown()
     implicit none
-    call cudaProfilerStop()
     return
   end subroutine profile_PSyDataShutdown
 
