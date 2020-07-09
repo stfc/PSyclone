@@ -206,6 +206,12 @@ with the initialisation and shutdown subroutines, any PSyData library
 should include implementations of these routines, even if they are
 empty.
 
+ .. note::
+    Currently only the NVIDIA profiling wrapper library implements
+    the Start and Stop routines. Wider support for all PSyData-based APIs
+    is the subject of issue #xxx.
+
+
 Init and Shutdown Functions
 +++++++++++++++++++++++++++
 .. method:: PREFIX_PSyDataInit()
@@ -232,27 +238,37 @@ Start and Stop Functions
 ++++++++++++++++++++++++
 .. method:: PREFIX_PSyDataStart()
 
+   Currently only implemented in the NVIDIA profiling wrapper.
+
    Starts or enables the PSyData library so that subsequent calls to
-   the API cause data to be output. Example::
+   the API cause data to be output. For instance, if we have a time-stepping
+   application where ``timestep`` holds the value of the current time step
+   then we could turn on profiling after the first 5 steps by doing::
 
        use profile_psy_data_mod, only: profile_PSyDataStart
        ...
-       call profile_PSyDataStart()
+       if(timestep == 6) call profile_PSyDataStart()
 
-   May be called any number of times but must be after ``PSyDataInit()``
-   and before ``PSyDataShutdown()`` (if present).
+   (Assuming that profiling was disabled at application start by the
+   runtime environment or by a call to ``profile_PSyDataStop`` - see below.)
+
+   This routine may be called any number of times but must be after
+   ``PSyDataInit()`` and before ``PSyDataShutdown()`` (if present).
 
 .. method:: PREFIX_PSyDataStop()
 
+   Currently only implemented in the NVIDIA profiling wrapper.
+
    Stops or disables the PSyData library so that subsequent calls to
-   the PSyData API have no effect. Example::
+   the PSyData API have no effect. Continuing the above time-stepping
+   example, we could turn off profiling after time step 10 by doing::
 
        use profile_psy_data_mod, only: profile_PSyDataStop
        ...
-       call profile_PSyDataStop()
+       if(timestep == 11) call profile_PSyDataStop()
 
-   May be called any number of times but must be after ``PSyDataInit()``
-   and before ``PSyDataShutdown()`` (if present).
+   This routine may be called any number of times but must be after
+   ``PSyDataInit()`` and before ``PSyDataShutdown()`` (if present).
 
 .. _psy_data_type:
 
