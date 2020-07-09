@@ -35,8 +35,11 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-'''This module implements a class that manages the argument for a kernel
-call using OpenACC. It especially adds all implicitly required parameters.
+'''This module implements a class that manages all of the data references
+that must be copied over to a GPU before executing the kernel. Ordering
+of the parameters does not matter apart from where we have members of
+derived types. In that case, the derived type itself must be specified
+first before any members.
 '''
 
 from psyclone.core.access_type import AccessType
@@ -66,10 +69,10 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # First provide the derived class
+        # First provide the derived derived-type object
         for idx in range(1, argvect.vector_size+1):
             self.append(argvect.proxy_name + "(" + str(idx) + ")")
-        # Then provide the actual fields that are in the derived class
+        # Then provide the actual fields that are in the derived-type object
         super(KernCallAccArgList, self).field_vector(argvect, var_accesses)
 
     def field(self, arg, var_accesses=None):
@@ -114,10 +117,9 @@ class KernCallAccArgList(KernCallArgList):
                                     self._kern, [1])
 
     def operator(self, arg, var_accesses=None):
-        '''Add the operator arguments to the argument list if
-        they have not already been added. OpenACC requires the
-        derived type and the dereferenced data to be
-        specified. If supplied it also stores this access in
+        '''Add the operator arguments if they have not already been
+        added. OpenACC requires the derived type and the dereferenced
+        data to be specified. If supplied it also stores this access in
         var_accesses.
 
         :param arg: the meta-data description of the operator.
@@ -155,7 +157,7 @@ class KernCallAccArgList(KernCallArgList):
         '''
         undf_name = function_space.undf_name
         self.append(undf_name)
-        # The base class only adds one dimension tothe list, while OpenACC
+        # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class
         map_name = function_space.map_name
         self.append(map_name)

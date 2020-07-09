@@ -43,7 +43,7 @@ from __future__ import print_function, absolute_import
 
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import ArgOrdering
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -475,16 +475,16 @@ class KernStubArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises GenerationError: if no kernel argument is supplied.
-        :raises GenerationError: if the supplied kernel argument is not a \
-                                 CMA operator.
+        :raises InternalError: if no kernel argument is supplied.
+        :raises InternalError: if the supplied kernel argument is not a \
+            CMA operator.
 
         '''
         if not operator:
-            raise GenerationError("Internal error: no CMA operator supplied.")
+            raise InternalError("No CMA operator supplied.")
         if operator.type != "gh_columnwise_operator":
-            raise GenerationError(
-                "Internal error: a CMA operator (gh_columnwise_operator) must "
+            raise InternalError(
+                "A CMA operator (gh_columnwise_operator) must "
                 "be supplied but got {0}".format(operator.type))
         super(KernStubArgList, self).indirection_dofmap(function_space,
                                                         operator,

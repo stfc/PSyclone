@@ -50,7 +50,13 @@ from psyclone.errors import GenerationError, InternalError
 class ArgOrdering(object):
     # pylint: disable=too-many-public-methods
     '''Base class capturing the arguments, type and ordering of data in
-    a Kernel call.
+    a Kernel call. This base class implements some functionality of a list
+    (extend and append functions), but not using list as a base class.
+    Reason is that many typical functions of a list make only sense to
+    be used after ``generate`` is called, which would then require a large
+    number of functions to be re-implemented. So instead the property
+    ``arglist`` checks that ``generate`` has been called and then provides
+    a list.
 
     :param kern: the kernel call object to use.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
@@ -63,6 +69,7 @@ class ArgOrdering(object):
 
     def append(self, var_name):
         '''Appends the specified variable name to the list of all arguments.
+
         :param str var_name: the name of the variable.
 
         '''
@@ -99,8 +106,8 @@ class ArgOrdering(object):
         '''
         if not self._generate_called:
             raise InternalError(
-                "Internal error. The argument list in {0}:"
-                "arglist() is empty. Has the generate() method been called?"
+                "Internal error. The argument list in {0} is empty. "
+                "Has the generate() method been called?"
                 .format(type(self).__name__))
         return self._arglist
 
@@ -120,7 +127,7 @@ class ArgOrdering(object):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises GenerationError: if the kernel arguments break the
+        :raises GenerationError: if the kernel arguments break the \
                                  rules for the LFRic API.
 
         '''

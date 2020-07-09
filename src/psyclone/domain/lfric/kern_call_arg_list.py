@@ -64,7 +64,7 @@ class KernCallArgList(ArgOrdering):
     NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
 
     def __init__(self, kern):
-        ArgOrdering.__init__(self, kern)
+        super(KernCallArgList, self).__init__(kern)
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
@@ -479,6 +479,9 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
+        :raises GenerationError: if the bcs kernel does not contain \
+            a field space as argument (but e.g. an operator).
+
         '''
         fspace = None
         for fspace in self._kern.arguments.unique_fss:
@@ -589,8 +592,7 @@ class KernCallArgList(ArgOrdering):
             method must be called first.
         :rtype: list of int.
 
-        :raises InternalError: if the generate() method has not been
-        called.
+        :raises InternalError: if the generate() method has not been called.
 
         '''
         if not self._generate_called:
@@ -604,7 +606,7 @@ class KernCallArgList(ArgOrdering):
         ''':return: the positions in the argument list of the variables that \
             pass the number of quadrature points. The number and type of \
             these will change depending on the type of quadrature. A list \
-            of dictionaries is returned with the quadrature directions \
+            of dictionaries is returned with the quadrature types \
             being the keys to the dictionaries and their position in the \
             argument list being the values. At the moment only XYoZ is \
             supported (which has horizontal and vertical quadrature \
