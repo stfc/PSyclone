@@ -2886,8 +2886,8 @@ class DynScalarArgs(DynCollection):
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
-    :raises InternalError: if an unrecognised type of scalar argument is \
-                           encountered.
+    :raises InternalError: if an unrecognised intrinsic type of the scalar \
+                           argument is encountered.
 
     '''
     def __init__(self, node):
@@ -2896,18 +2896,20 @@ class DynScalarArgs(DynCollection):
         # Create lists of real and integer scalar arguments
         self._real_scalar_names = {}
         self._int_scalar_names = {}
+        for intent in FORTRAN_INTENT_NAMES:
+            self._real_scalar_names[intent] = []
+            self._int_scalar_names[intent] = []
         if self._invoke:
-            real_scalars = self._invoke.unique_declns_by_intent("gh_real")
-            int_scalars = self._invoke.unique_declns_by_intent("gh_integer")
-            for intent in FORTRAN_INTENT_NAMES:
-                self._real_scalar_names[intent] = [arg.declaration_name for arg
-                                                   in real_scalars[intent]]
-                self._int_scalar_names[intent] = [arg.declaration_name for arg
-                                                  in int_scalars[intent]]
+            for scalar_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+                scalar_dict = self._invoke.unique_declns_by_intent(scalar_type)
+                for intent in FORTRAN_INTENT_NAMES:
+                    for arg in scalar_dict[intent]:
+                        declname = arg.declaration_name
+                        if arg.intrinsic_type == "real":
+                            self._real_scalar_names[intent].append(declname)
+                        if arg.intrinsic_type == "integer":
+                            self._int_scalar_names[intent].append(declname)
         else:
-            for intent in FORTRAN_INTENT_NAMES:
-                self._real_scalar_names[intent] = []
-                self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.is_scalar():
                     if arg.intrinsic_type == "real":
@@ -2916,9 +2918,8 @@ class DynScalarArgs(DynCollection):
                         self._int_scalar_names[arg.intent].append(arg.name)
                     else:
                         raise InternalError(
-                            "Scalar type '{0}' is in LFRicArgDescriptor."
-                            "VALID_SCALAR_NAMES but is not handled in "
-                            "DynScalarArgs".format(arg.type))
+                            "Unsupported scalar intrinsic type '{0}' found "
+                            "in DynScalarArgs.".format(arg.intrinsic_type))
 
     def _invoke_declarations(self, parent):
         '''

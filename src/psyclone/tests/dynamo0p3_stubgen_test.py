@@ -82,9 +82,9 @@ def test_kernel_stub_invalid_scalar_argument():
             in str(excinfo.value))
 
 
-def test_dynscalars_err(monkeypatch):
+def test_dynscalars_err():
     ''' Check that the DynScalarArgs constructor raises the expected error
-    if it encounters an unrecognised type of scalar. '''
+    if it encounters a type of scalar that is not handled in LFRic API. '''
     from psyclone.dynamo0p3 import DynScalarArgs
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
@@ -92,18 +92,13 @@ def test_dynscalars_err(monkeypatch):
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
+    # Sabotage the scalar argument to make it have an invalid intrinsic type.
     arg = kernel.arguments.args[1]
-    arg._type = "invalid-scalar-type"
-    # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_SCALAR_NAMES",
-        value=["gh_real", "gh_integer", "invalid-scalar-type"])
+    arg._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in LFRicArgDescriptor."
-            "VALID_SCALAR_NAMES but is not handled in DynScalarArgs"
-            in str(err.value))
+    assert ("Unsupported scalar intrinsic type 'invalid' found in "
+            "DynScalarArgs." in str(err.value))
 
 
 def test_kernel_stub_ind_dofmap_errors():
