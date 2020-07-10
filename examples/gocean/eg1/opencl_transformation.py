@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,40 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Authors: S. Siso, STFC Daresbury Lab
 
-'''Transformation module, containing all generic (API independent)
-transformations and base classes.
-'''
+''' Module providing a PSyclone transformation script that converts the
+Schedule of each Invoke to use OpenCL. '''
 
-from psyclone.psyir.transformations.extract_trans import ExtractTrans
-from psyclone.psyir.transformations.profile_trans import ProfileTrans
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
-from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
-    Abs2CodeTrans
-from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    Matmul2CodeTrans
-from psyclone.psyir.transformations.intrinsics.min2code_trans import \
-    Min2CodeTrans
-from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
-    Sign2CodeTrans
-from psyclone.psyir.transformations.arrayrange2loop_trans import \
-    ArrayRange2LoopTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ExtractTrans',
-           'ProfileTrans',
-           'PSyDataTrans',
-           'RegionTrans',
-           'Abs2CodeTrans',
-           'Matmul2CodeTrans',
-           'Min2CodeTrans',
-           'Sign2CodeTrans',
-           'TransformationError',
-           'ArrayRange2LoopTrans']
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Converts any global-variable
+    accesses into kernel arguments and then applies the OpenCL transformation
+    to the PSy layer.
+
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+    from psyclone.psyGen import TransInfo
+
+    # Get the necessary transformations
+    tinfo = TransInfo()
+    globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
+    cltrans = tinfo.get_trans_name('OCLTrans')
+
+    for invoke in psy.invokes.invoke_list:
+        print("Converting to OpenCL invoke: " + invoke.name)
+        schedule = invoke.schedule
+
+        # Skip invoke_2 as its kernels contains symbols declared outside of
+        # the subroutine scope. A fix to Issue #630 may solve this.
+        if invoke.name == "invoke_2":
+            continue
+
+        # Remove the globals from inside each kernel
+        for kern in schedule.kernels():
+            print("Remove glovals from kernel: " + kern.name)
+            globaltrans.apply(kern)
+
+        # Transform invoke to OpenCL
+        cltrans.apply(schedule)
+
+    return psy

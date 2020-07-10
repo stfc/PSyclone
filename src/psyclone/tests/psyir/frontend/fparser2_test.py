@@ -50,8 +50,7 @@ from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE, UnknownType, Symbol
-from psyclone.psyir.nodes import Loop
+    REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -938,6 +937,35 @@ def test_process_array_declarations():
     assert symbol.shape == [ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE]
 
+    # Extent given by variable with UnknownType
+    udim = DataSymbol("udim", UnknownType("integer :: udim"))
+    fake_parent.symbol_table.add(udim)
+    reader = FortranStringReader("integer :: l11(udim)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("l11")
+    assert symbol.name == "l11"
+    assert len(symbol.shape) == 1
+    # Extent symbol should be udim
+    assert symbol.shape[0].name == "udim"
+    assert symbol.shape[0] is udim
+    assert isinstance(symbol.shape[0].datatype, UnknownType)
+
+    # Extent given by variable with DeferredType
+    ddim = DataSymbol("ddim", DeferredType(),
+                      interface=UnresolvedInterface())
+    fake_parent.symbol_table.add(ddim)
+    reader = FortranStringReader("integer :: l12(ddim)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("l12")
+    assert symbol.name == "l12"
+    assert len(symbol.shape) == 1
+    # Extent symbol should now be ddim
+    assert symbol.shape[0].name == "ddim"
+    assert symbol.shape[0] is ddim
+    assert isinstance(symbol.shape[0].datatype, DeferredType)
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_not_supported_declarations():
@@ -1526,7 +1554,6 @@ def test_deferred_array_size():
 def test_unresolved_array_size():
     ''' Check that we handle the case where we do not find an explicit
     declaration of a symbol used in the definition of an array extent. '''
-    from psyclone.psyir.symbols import UnresolvedInterface
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, dimension(n) :: array3")
@@ -2688,22 +2715,6 @@ def test_handling_return_stmt():
     assert not new_node.children
 
 
-def test_handling_end_do_stmt(parser):
-    ''' Test that the fparser2 End_Do_Stmt is ignored.'''
-    reader = FortranStringReader('''
-      subroutine test()
-        integer :: i, a
-        do i=1,10
-            a=a+1
-        end do
-      end subroutine test
-        ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert len(result.children) == 1  # Just the loop (no end statement)
-
-
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
@@ -2718,48 +2729,6 @@ def test_handling_end_subroutine_stmt():
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2endsub])
     assert not fake_parent.children  # No new children created
-
-
-def test_do_construct(parser):
-    ''' Check that do loop constructs are converted to the expected
-    PSyIR node.
-
-    '''
-    reader = FortranStringReader('''
-      subroutine test()
-        integer :: i, sum
-        do i = 1, 10 , 2
-            sum = sum + i
-        end do
-      end subroutine test
-      ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert result.children[0]
-    new_loop = result.children[0]
-    assert isinstance(new_loop, Loop)
-    assert new_loop.variable.name == "i"
-    assert new_loop.start_expr.value == "1"
-    assert new_loop.stop_expr.value == "10"
-    assert new_loop.step_expr.value == "2"
-    assert len(new_loop.loop_body.children) == 1
-    assert isinstance(new_loop.loop_body[0], Assignment)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_do_construct_while():
-    ''' Check that do while constructs are placed in Codeblocks '''
-    reader = FortranStringReader('''
-        do while(a .gt. b)\n
-            c = c + 1\n
-        end do\n
-        ''')
-    fparser2while = Execution_Part.match(reader)[0][0]
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fparser2while])
-    assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 # (1/4) fparser2reader::nodes_to_code_block
@@ -2841,36 +2810,6 @@ def test_nodes_to_code_block_4():
         _ = Fparser2Reader.nodes_to_code_block(Directive(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_missing_loop_control(monkeypatch):
-    ''' Check that encountering a loop in the fparser parse tree that is
-    missing a Loop_Control element raises an InternalError. '''
-    from fparser.two.utils import walk
-    reader = FortranStringReader('''
-        do while(a .gt. b)\n
-            c = c + 1\n
-        end do\n
-        ''')
-    fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
-    processor = Fparser2Reader()
-
-    # We have to break the fparser2 parse tree in order to trigger the
-    # internal error
-    ctrl = walk(fparser2while.content[0].items, Fortran2003.Loop_Control)
-    # 'items' is a tuple and therefore immutable so make a new list
-    item_list = list(fparser2while.content[0].items)
-    # Create a new tuple for the items member without the Loop_Control
-    item_list.remove(ctrl[0])
-    fparser2while.content[0].items = tuple(item_list)
-    monkeypatch.setattr(fparser2while, "tostr", lambda: "<fparser2while>")
-
-    fake_parent = Schedule()
-    with pytest.raises(InternalError) as err:
-        processor.process_nodes(fake_parent, [fparser2while])
-    assert "Unrecognised form of DO loop - failed to find Loop_Control " \
-        "element in the node '<fparser2while>'." in str(err.value)
 
 
 def test_get_symbol_table():

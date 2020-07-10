@@ -325,15 +325,16 @@ class GOceanExtractNode(ExtractNode):
                 # local variable name
                 local_name = prop.fortran[last_percent+1:]
                 unique_name = rename_variable.get(local_name, local_name)
-                all_props[name] = GOceanConfig.make_property(unique_name,
-                                                             prop.type)
+                all_props[name] = GOceanConfig.make_property(
+                    unique_name, prop.type, prop.intrinsic_type)
 
         # 2) The property 'grid_data' is a reference to the data on the
         #    grid (i.e. the actual field) , and it is defined as "{0}%data".
         #    This just becomes {0} ('a_fld%data' in the original program
         #    becomes just 'a_fld', and 'a_fld' is declared to be a plain
         #    Fortran 2d-array)
-        all_props["go_grid_data"] = GOceanConfig.make_property("{0}", "array")
+        all_props["go_grid_data"] = GOceanConfig.make_property(
+            "{0}", "array", "real")
 
         # Each kernel caches the argument code, so we also
         # need to clear this cached data to make sure the new
