@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
-construct in the PSyIR. '''
+construct in the PSyIR fparser2 frontend. '''
 
 from __future__ import absolute_import
 

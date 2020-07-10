@@ -32,14 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 '''Module for the LFRic domain.
 '''
 
 from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.lfric import FunctionSpace
 
-__all__ = ['FunctionSpace']
+__all__ = [
+    'FunctionSpace',
+    'LFRicArgDescriptor']

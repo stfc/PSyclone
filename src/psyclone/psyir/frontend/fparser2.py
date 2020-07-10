@@ -470,6 +470,7 @@ class Fparser2Reader(object):
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
         ('real', UnaryOperation.Operator.REAL),
+        ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
@@ -900,20 +901,16 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        # Explicitly forbid symbols that we *know* are not
-                        # integer scalars. (We allow symbols of
-                        # Unknown/DeferredType.)
-                        if (isinstance(sym.datatype, ArrayType) or
-                                (isinstance(sym.datatype, ScalarType) and
-                                 sym.datatype.intrinsic !=
-                                 ScalarType.Intrinsic.INTEGER)):
+                        if isinstance(sym.datatype, (UnknownType,
+                                                     DeferredType)):
+                            # Allow symbols of Unknown/DeferredType.
+                            pass
+                        elif not (isinstance(sym.datatype, ScalarType) and
+                                  sym.datatype.intrinsic ==
+                                  ScalarType.Intrinsic.INTEGER):
+                            # It's not of Unknown/DeferredType and it's not an
+                            # integer scalar.
                             _unsupported_type_error(dimensions)
-                        if isinstance(sym.datatype,
-                                      (UnknownType, DeferredType)):
-                            # We didn't previously know the type of this symbol
-                            # but since it is being used to dimension an array
-                            # it must be an integer scalar.
-                            sym.datatype = default_integer_type()
                     except KeyError:
                         # We haven't seen this symbol before so create a new
                         # one with a deferred interface (since we don't
