@@ -2533,6 +2533,7 @@ class DynFields(DynCollection):
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
             intent = fld.intent
+            dtype = fld.intrinsic_type
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
@@ -2540,14 +2541,14 @@ class DynFields(DynCollection):
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
                     parent.add(
-                        DeclGen(parent, datatype="real",
-                                kind=api_config.default_kind["real"],
+                        DeclGen(parent, datatype=dtype,
+                                kind=api_config.default_kind[dtype],
                                 dimension=undf_name,
                                 intent=intent, entity_decls=[text]))
             else:
                 parent.add(
-                    DeclGen(parent, datatype="real",
-                            kind=api_config.default_kind["real"],
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
                             intent=fld.intent,
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
@@ -2932,17 +2933,19 @@ class DynScalarArgs(DynCollection):
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalar_names[intent]:
+                dtype = "real"
                 parent.add(
-                    DeclGen(parent, datatype="real",
-                            kind=api_config.default_kind["real"],
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
                             entity_decls=self._real_scalar_names[intent],
                             intent=intent))
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._int_scalar_names[intent]:
+                dtype = "integer"
                 parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
                             entity_decls=self._int_scalar_names[intent],
                             intent=intent))
 
@@ -2980,13 +2983,14 @@ class DynLMAOperators(DynCollection):
                                intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
+            dtype = arg.intrinsic_type
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[size]))
             ndf_name_to = arg.function_space_to.ndf_name
             ndf_name_from = arg.function_space_from.ndf_name
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            parent.add(DeclGen(parent, datatype=dtype,
+                               kind=api_config.default_kind[dtype],
                                dimension=",".join([ndf_name_to,
                                                    ndf_name_from, size]),
                                intent=arg.intent,
@@ -3069,6 +3073,8 @@ class DynCMAOperators(DynCollection):
                                 "arg": arg,
                                 "params": self.cma_same_fs_params}
                         self._cma_ops[arg.name]["intent"] = arg.intent
+                        self._cma_ops[arg.name]["datatype"] = \
+                            arg.intrinsic_type
                         # Keep a reference to the first CMA argument
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
@@ -3155,10 +3161,11 @@ class DynCMAOperators(DynCollection):
                                    intent="in"))
 
         for op_name in self._cma_ops:
-            # Declare the matrix itself
+            # Declare the operator matrix itself
             cma_name = self._symbol_table.name_from_tag(op_name+"_matrix")
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            dtype = self._cma_ops[op_name]["datatype"]
+            parent.add(DeclGen(parent, datatype=dtype,
+                               kind=api_config.default_kind[dtype],
                                pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             # Declare the associated integer parameters
@@ -3208,8 +3215,9 @@ class DynCMAOperators(DynCollection):
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            dtype = self._cma_ops[op_name]["datatype"]
+            parent.add(DeclGen(parent, datatype=dtype,
+                               kind=api_config.default_kind[dtype],
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
