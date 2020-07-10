@@ -31,8 +31,26 @@
 
 	13) #807 for #805. Put fparser2 bare DO constructs inside CodeBlocks.
 
-	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
+ 	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
 	required) and #730 (bring GOcean/eg5 up-to-date with latest dl_timer).
+
+	15) #811 for #783. Removes potential duplication of orientation
+	pointer declarations.
+
+	16) #808 for #800. Adds support in the PSyIR for the case when a
+	variable used to dimension an array has deferred or unknown type.
+
+	17) #822 for #820. Excludes return statements from profile and
+	directive regions. Also reworks the relevant code to exclude nodes
+	rather than include them which makes more sense as exclusion is
+	the exception.
+
+	18) #796 for #412. Adds a transformation to convert an assignment
+	to an array range into an explicit loop in the PSyIR.
+
+	19) #834 for #833. Adds the NINT intrinsic to the PSyIR and adds
+	support in fparser2reader for translating Fortran NINT into this
+	intrinsic.
 
 release 1.9.0 20th May 2020
 
