@@ -9025,24 +9025,25 @@ class DynKernelArguments(Arguments):
 
 
 class DynKernelArgument(KernelArgument):
-    ''' Provides information about individual Dynamo kernel call
-    arguments as specified by the kernel argument metadata. '''
+    '''
+    This class provides information about individual LFRic kernel call
+    arguments as specified by the kernel argument metadata.
+
+    :param kernel_args: object encapsulating all arguments to the \
+                        kernel call.
+    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+    :param arg_meta_data: information obtained from the meta-data for \
+                          this kernel argument.
+    :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+    :param arg_info: information on how this argument is specified in \
+                     the Algorithm layer.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param call: the kernel object with which this argument is associated.
+    :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    '''
 
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
-        '''
-        :param kernel_args: Object encapsulating all arguments to the
-                            kernel call
-        :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
-        :param arg_meta_data: Information obtained from the meta-data for
-                              this kernel argument
-        :type arg_meta_data: \
-            :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
-        :param arg_info: Information on how this argument is specified in the
-                         Algorithm layer
-        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param call: The kernel object with which this argument is associated
-        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
-        '''
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
@@ -9050,6 +9051,7 @@ class DynKernelArgument(KernelArgument):
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
+        self._intrinsic_type = arg_meta_data.data_type
         self._stencil = None
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
@@ -9082,22 +9084,26 @@ class DynKernelArgument(KernelArgument):
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
 
-    @property
-    def descriptor(self):
-        ''' return a descriptor object which contains Kernel
-        metadata about this argument '''
-        return self._arg
-
     def ref_name(self, function_space=None):
         '''
         Returns the name used to dereference this type of argument (depends
         on whether it is a field or operator and, if the latter, whether it
         is the to- or from-space that is specified).
 
-        :param function_space: the function space of this argument
+        :param function_space: the function space of this argument.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :return: the name used to dereference this argument
+
+        :returns: the name used to dereference this argument.
         :rtype: str
+
+        :raises GenerationError: if the supplied function space is not one \
+                                 of the function spaces associated with \
+                                 this argument.
+        :raises GenerationError: if the supplied function space is not being \
+                                 returned by either 'function_space_from' or \
+                                 'function_space_to'.
+        :raises GenerationError: if the argument type is not supported.
+
         '''
         if not function_space:
             if self.is_operator:
@@ -9115,9 +9121,9 @@ class DynKernelArgument(KernelArgument):
                     break
             if not found:
                 raise GenerationError(
-                    "DynKernelArgument:ref_name(fs). The supplied function "
+                    "DynKernelArgument.ref_name(fs): The supplied function "
                     "space (fs='{0}') is not one of the function spaces "
-                    "associated with this argument (fss='{1}')".format(
+                    "associated with this argument (fss={1}).".format(
                         function_space.orig_name,
                         self.function_space_names))
         if self._type in LFRicArgDescriptor.VALID_FIELD_NAMES:
@@ -9129,41 +9135,74 @@ class DynKernelArgument(KernelArgument):
                 return "fs_to"
             else:
                 raise GenerationError(
-                    "ref_name: Error, function space '{0}' is one of the "
-                    "gh_operator function spaces '{1}' but is not being "
-                    "returned by either function_space from '{2}' or "
-                    "function_space_to '{3}'".format(
+                    "DynKernelArgument.ref_name(fs): Function space '{0}' "
+                    "is one of the 'gh_operator' function spaces '{1}' but "
+                    "is not being returned by either function_space from "
+                    "'{2}' or function_space_to '{3}'.".format(
                         function_space.orig_name, self.function_spaces,
                         self.descriptor.function_space_from,
                         self.descriptor.function_space_to))
         else:
             raise GenerationError(
-                "ref_name: Error, unsupported arg type '{0}' found".
-                format(self._type))
+                "DynKernelArgument.ref_name(fs): Found unsupported argument "
+                "type '{0}'.".format(self._type))
+
+    @property
+    def descriptor(self):
+        '''
+        :returns: a descriptor object which contains Kernel metadata \
+                  about this argument.
+        :rtype: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+
+        '''
+        return self._arg
 
     @property
     def type(self):
-        ''' Returns the type of this argument. '''
+        '''
+        :returns: the API type of this argument.
+        :rtype: str
+
+        '''
         return self._type
 
+    @property
+    def intrinsic_type(self):
+        '''
+        :returns: the intrinsic Fortran type of this argument for scalars \
+                  or of the argument's data for fields and operators.
+        :rtype: str
+
+        '''
+        return self._intrinsic_type
+
     def is_scalar(self):
-        ''':return: whether this variable is a scalar variable or not.
-        :rtype: bool'''
+        '''
+        :returns: whether this argument is a scalar variable or not.
+        :rtype: bool
+
+        '''
         return self.type in LFRicArgDescriptor.VALID_SCALAR_NAMES
 
     @property
     def mesh(self):
         '''
         Getter for the mesh associated with this argument
-        :return: Mesh associated with argument (GH_FINE or GH_COARSE)
+
+        :returns: mesh associated with argument (GH_FINE or GH_COARSE).
         :rtype: str
+
         '''
         return self._mesh
 
     @property
     def vector_size(self):
-        ''' Returns the vector size of this argument as specified in
-        the Kernel metadata. '''
+        '''
+        :returns: the vector size of this argument as specified in \
+                  the Kernel metadata.
+        :rtype: str
+
+        '''
         return self._vector_size
 
     @property
@@ -9171,6 +9210,7 @@ class DynKernelArgument(KernelArgument):
         '''
         :returns: the proxy name for this argument.
         :rtype: str
+
         '''
         return self._name+"_proxy"
 
@@ -9180,6 +9220,7 @@ class DynKernelArgument(KernelArgument):
         :returns: the proxy name for this argument with the array \
                   dimensions added if required.
         :rtype: str
+
         '''
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
@@ -9187,8 +9228,12 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def declaration_name(self):
-        ''' Returns the name for this argument with the array
-        dimensions added if required. '''
+        '''
+        :returns: the name for this argument with the array dimensions \
+                  added if required.
+        :rtype: str
+
+        '''
         if self._vector_size > 1:
             return self._name+"("+str(self._vector_size)+")"
         return self._name
@@ -9200,6 +9245,7 @@ class DynKernelArgument(KernelArgument):
                   index which accesses the first element for a vector \
                   argument.
         :rtype: str
+
         '''
         if self._vector_size > 1:
             return self._name+"_proxy(1)"
@@ -9211,6 +9257,7 @@ class DynKernelArgument(KernelArgument):
         :returns: the name for this argument with an additional index \
                   which accesses the first element for a vector argument.
         :rtype: str
+
         '''
         if self._vector_size > 1:
             return self._name+"(1)"
@@ -9219,9 +9266,13 @@ class DynKernelArgument(KernelArgument):
     @property
     def function_space(self):
         '''
-        :return: the expected finite element function space for this
-                 argument as specified by the kernel argument metadata.
+        Returns the expected finite element function space for a kernel
+        argument as specified by the kernel argument metadata: a single
+        function space for a field and function_space_from for an operator.
+
+        :returns: function space for this argument.
         :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
         '''
         if self._type == "gh_operator":
             # We return the 'from' space for an operator argument
@@ -9230,27 +9281,46 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def function_space_to(self):
-        ''' Returns the 'to' function space of an operator '''
+        '''
+        :returns: the 'to' function space of an operator.
+        :rtype: str
+
+        '''
         return self._function_spaces[0]
 
     @property
     def function_space_from(self):
-        ''' Returns the 'from' function space of an operator '''
+        '''
+        :returns:  the 'from' function space of an operator.
+        :rtype: str
+
+        '''
         return self._function_spaces[1]
 
     @property
     def function_spaces(self):
-        ''' Returns the expected finite element function spaces for this
-        argument as a list as specified by the kernel argument
-        metadata. We have more than one function space when dealing
-        with operators. '''
+        '''
+        Returns the expected finite element function space for a kernel
+        argument as specified by the kernel argument metadata: a single
+        function space for a field and function_space_from for an operator.
+
+        :returns: function space for this argument.
+        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        '''
         return self._function_spaces
 
     @property
     def function_space_names(self):
-        ''' Returns a list of the names of the function spaces associated
+        '''
+        Returns a list of the names of the function spaces associated
         with this argument. We have more than one function space when
-        dealing with operators. '''
+        dealing with operators.
+
+        :returns: list of function space names for this argument.
+        :rtype: list of str
+
+        '''
         fs_names = []
         for fspace in self._function_spaces:
             if fspace:
@@ -9260,10 +9330,11 @@ class DynKernelArgument(KernelArgument):
     @property
     def intent(self):
         '''
-        Returns the Fortran intent of this argument.
+        Returns the Fortran intent of this argument as defined by the
+        valid access types for this API
 
-        :return: the expected Fortran intent for this argument as specified
-                 by the kernel argument metadata
+        :returns: the expected Fortran intent for this argument as \
+                  specified by the kernel argument metadata
         :rtype: str
         '''
         if self.access == AccessType.READ:
@@ -9284,36 +9355,51 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def discontinuous(self):
-        '''Returns True if this argument is known to be on a discontinuous
+        '''
+        Returns True if this argument is known to be on a discontinuous
         function space including any_discontinuous_space, otherwise
-        returns False.'''
+        returns False.
+
+        :returns: whether the argument is discontinuous.
+        :rtype: bool
+
+        '''
         if self.function_space.orig_name in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES:
             return True
         if self.function_space.orig_name in \
            FunctionSpace.VALID_ANY_SPACE_NAMES:
-            # we will eventually look this up based on our dependence
+            # We will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False
         return False
 
     @property
     def stencil(self):
-        '''Return stencil information about this kernel argument if it
-        exists. The information is returned as a DynStencil object.'''
+        '''
+        Returns stencil information about this kernel argument if it
+        exists. The information is returned as a DynStencil object.
+
+        :returns: stencil information for this argument.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynStencil`
+
+        '''
         return self._stencil
 
     @stencil.setter
     def stencil(self, value):
-        '''Set stencil information for this kernel argument. The information
-        should be provided as a DynStencil object. '''
+        '''
+        Sets stencil information for this kernel argument. The information
+        should be provided as a DynStencil object.
+
+        '''
         self._stencil = value
 
     @property
     def is_operator(self):
         '''
-        :return: True if this kernel argument represents an operator,
-                 False otherwise.
+        :returns: True if this kernel argument represents an operator, \
+                  False otherwise.
         :rtype: bool
         '''
         return self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
