@@ -219,7 +219,7 @@ def test_builtin_no_field_args():
 
 def test_builtin_operator_arg():
     ''' Check that we raise appropriate error if we encounter a built-in
-    that takes something other than a field or scalar argument '''
+    that takes something other than a field or scalar argument. '''
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
@@ -237,7 +237,7 @@ def test_builtin_operator_arg():
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
+            "must be one of ['gh_field', 'gh_integer', 'gh_real'] but " +
             "kernel " + test_builtin_name.lower() + " has an argument of "
             "type gh_operator" in str(excinfo.value))
 
