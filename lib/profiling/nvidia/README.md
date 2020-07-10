@@ -4,9 +4,14 @@ This is a wrapper library that maps the PSyclone profiling API to the
 NVIDIA Tools Extension library (NVTX). Unlike some of the other
 profiling tools, the use of this library does *not* require that calls
 to `profile_PSyDataInit()` and `profile_PSyDataShutdown()` be inserted
-into the application. However, they may be used in order to limit
+into the application.
+
+This wrapper supports the `profile_PSyDataStart()` and
+`profile_PSyDataStop()` API calls that may be used in order to limit
 the region of code that is profiled at runtime. If so, the application
-must be linked against CUDA (-Mcuda flag to the PGI compiler).
+must be linked against CUDA (-Mcuda flag to the PGI compiler). This
+functionality is often used in combination with disabling profiling
+at application startup (e.g. flag '--profile-from-start off' to nvprof).
 
 ## Dependencies
 

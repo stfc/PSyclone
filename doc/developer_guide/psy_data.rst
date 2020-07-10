@@ -209,7 +209,7 @@ empty.
  .. note::
     Currently only the NVIDIA profiling wrapper library implements
     the Start and Stop routines. Wider support for all PSyData-based APIs
-    is the subject of issue #xxx.
+    will be addressed in Issue #832.
 
 
 Init and Shutdown Functions
