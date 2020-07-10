@@ -80,7 +80,6 @@ EXCLUDED_FILES = ["bdyini.f90",
 
 if __name__ == "__main__":
     import argparse
-    from psyclone.generator import main
 
     PARSER = argparse.ArgumentParser(
         description="Process the specified NEMO source files "
@@ -109,27 +108,30 @@ if __name__ == "__main__":
         file_name = os.path.basename(ffile)
         out_file = os.path.join(ARGS.out_dir, file_name)
 
+        args = ["psyclone", "--limit", "-api", "nemo"]
         if file_name in EXCLUDED_FILES:
             if PROFILE_ALL:
                 print("Instrumenting {0} for profiling...".format(file_name))
-                extra_args = ["--limit", "-api", 'nemo', "-p", "invokes",
+                extra_args = ["-p", "invokes",
                               "-oalg", "/dev/null",
                               "-opsy", out_file, ffile]
             else:
                 continue
         else:
             print("Processing {0}...".format(file_name))
-            extra_args = ["--limit", "-api", 'nemo', "-s", ARGS.script_file,
+            extra_args = ["-s", ARGS.script_file,
                           "-oalg", "/dev/null",
                           "-opsy", out_file, ffile]
-        try:
-            main(extra_args)
-        except SystemExit as err:
+        # Since we're in Python we could call psyclone.generator.main()
+        # directly but PSyclone is not designed to be called repeatedly
+        # in that way and doesn't clear up state between invocations.
+        rtype = os.system(" ".join(args + extra_args))
+        if rtype != 0:
             print("Running PSyclone on {0} failed\n".format(ffile))
-            print("Error was:\n{0}".format(str(err)))
             if ARGS.exit_on_error:
                 sys.exit(1)
             FAILED_FILES.append(ffile)
+
     print("All done.")
     if FAILED_FILES:
         print("PSyclone failed for the following source files: {0}".
