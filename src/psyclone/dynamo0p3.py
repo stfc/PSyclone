@@ -566,7 +566,8 @@ class DynKernMetadata(KernelType):
             if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to a field on a read-only function space
-                if arg.is_field and arg.function_spaces[0] in \
+                if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES and \
+                   arg.function_spaces[0] in \
                    FunctionSpace.READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
                         "Found kernel metadata in '{0}' that specifies "
@@ -575,7 +576,8 @@ class DynKernMetadata(KernelType):
 
                 # We must not write to scalar arguments if it's not a
                 # built-in
-                if self.name not in BUILTIN_MAP and arg.is_scalar:
+                if self.name not in BUILTIN_MAP and \
+                   arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
                         "A user-supplied Dynamo 0.3 kernel must not "
                         "write/update a scalar argument but kernel {0} has "
@@ -654,7 +656,7 @@ class DynKernMetadata(KernelType):
         non_field_arg_types = set()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
-            if arg.is_field:
+            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 if arg.mesh:
                     # Argument has a mesh associated with it so this must
                     # be an inter-grid kernel
@@ -2597,7 +2599,7 @@ class LFRicRunTimeChecks(DynCollection):
         existing_checks = []
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
-                if not arg.is_field:
+                if not arg.is_field():
                     # This check is limited to fields
                     continue
                 fs_name = arg.function_space.orig_name
@@ -2677,7 +2679,7 @@ class LFRicRunTimeChecks(DynCollection):
         modified_fields = []
         for call in self._invoke.schedule.kernels():
             for arg in call.arguments.args:
-                if (arg.text and arg.is_field and
+                if (arg.text and arg.is_field() and
                         arg.access != AccessType.READ and
                         not [entry for entry in modified_fields if
                              entry[0].name == arg.name]):
@@ -2779,7 +2781,7 @@ class DynProxies(DynCollection):
         parent.add(CommentGen(parent, ""))
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
-            if arg.is_scalar:
+            if arg.is_scalar():
                 continue
             if arg.vector_size > 1:
                 # the range function below returns values from
@@ -2816,7 +2818,7 @@ class DynCellIterators(DynCollection):
             return
         first_var = None
         for var in self._invoke.psy_unique_vars:
-            if not var.is_scalar:
+            if not var.is_scalar():
                 first_var = var
                 break
         if not first_var:
@@ -2907,7 +2909,7 @@ class DynScalarArgs(DynCollection):
                 self._real_scalar_names[intent] = []
                 self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
-                if arg.is_scalar:
+                if arg.is_scalar():
                     if arg.intrinsic_type == "real":
                         self._real_scalar_names[arg.intent].append(arg.name)
                     elif arg.intrinsic_type == "integer":
@@ -3263,7 +3265,7 @@ class DynMeshes(object):
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if not var.is_scalar:
+            if not var.is_scalar():
                 self._first_var = var
                 break
 
@@ -6090,7 +6092,7 @@ class DynLoop(Loop):
                 self.set_upper_bound("ndofs")
         else:
             if Config.get().distributed_memory:
-                if self._field.is_operator:
+                if self._field.is_operator():
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("cell_halo", index=1)
@@ -6364,10 +6366,10 @@ class DynLoop(Loop):
                     "currently unsupported for kernels with stencil "
                     "accesses. Found '{0}'.".format(self._upper_bound_name))
             return self._upper_bound_name in ["cell_halo", "ncells"]
-        if arg.is_scalar:
+        if arg.is_scalar():
             # scalars do not have halos
             return False
-        if arg.is_operator:
+        if arg.is_operator():
             # operators do not have halos
             return False
         if arg.discontinuous and arg.access in \
@@ -7260,7 +7262,7 @@ class ArgOrdering(object):
         # has a stencil access then also call appropriate stencil
         # methods.
         for arg in self._kern.arguments.args:
-            if arg.is_field:
+            if arg.is_field():
                 if arg.vector_size > 1:
                     self.field_vector(arg)
                 else:
@@ -7280,7 +7282,7 @@ class ArgOrdering(object):
                 self.operator(arg)
             elif arg.type == "gh_columnwise_operator":
                 self.cma_operator(arg)
-            elif arg.is_scalar:
+            elif arg.is_scalar():
                 self.scalar(arg)
             else:
                 raise InternalError(
@@ -7854,7 +7856,7 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        if not farg.is_field:
+        if not farg.is_field():
             raise GenerationError(
                 "Expected an argument of {0} type from which to look-up "
                 "boundary dofs for kernel {1} but got '{2}'".
@@ -8201,7 +8203,7 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the argument is not a recognised scalar type.
 
         '''
-        if not arg.is_scalar:
+        if not arg.is_scalar():
             raise InternalError(
                 "Expected argument type to be one of {0} but got '{1}'".
                 format(LFRicArgDescriptor.VALID_SCALAR_NAMES, arg.type))
@@ -9071,7 +9073,7 @@ class DynKernelArgument(KernelArgument):
         fs1 = None
         fs2 = None
 
-        if self.is_operator:
+        if self.is_operator():
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
                                 self._kernel_args)
@@ -9111,7 +9113,7 @@ class DynKernelArgument(KernelArgument):
 
         '''
         if not function_space:
-            if self.is_operator:
+            if self.is_operator():
                 # For an operator we use the 'from' FS
                 function_space = self._function_spaces[1]
             else:
@@ -9131,9 +9133,9 @@ class DynKernelArgument(KernelArgument):
                     "associated with this argument (fss={1}).".format(
                         function_space.orig_name,
                         self.function_space_names))
-        if self.is_field:
+        if self.is_field():
             return "vspace"
-        if self.is_operator:
+        if self.is_operator():
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
             elif function_space.orig_name == self.descriptor.function_space_to:
@@ -9151,6 +9153,31 @@ class DynKernelArgument(KernelArgument):
             raise GenerationError(
                 "DynKernelArgument.ref_name(fs): Found unsupported argument "
                 "type '{0}'.".format(self._type))
+
+    def is_scalar(self):
+        '''
+        :returns: True if this kernel argument represents a scalar, \
+                  False otherwise.
+        :rtype: bool
+
+        '''
+        return self._type in LFRicArgDescriptor.VALID_SCALAR_NAMES
+
+    def is_field(self):
+        '''
+        :returns: True if this kernel argument represents a field, \
+                  False otherwise.
+        :rtype: bool
+        '''
+        return self._type in LFRicArgDescriptor.VALID_FIELD_NAMES
+
+    def is_operator(self):
+        '''
+        :returns: True if this kernel argument represents an operator, \
+                  False otherwise.
+        :rtype: bool
+        '''
+        return self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
 
     @property
     def descriptor(self):
@@ -9180,33 +9207,6 @@ class DynKernelArgument(KernelArgument):
 
         '''
         return self._intrinsic_type
-
-    def is_scalar(self):
-        '''
-        :returns: True if this kernel argument represents a scalar, \
-                  False otherwise.
-        :rtype: bool
-
-        '''
-        return self.type in LFRicArgDescriptor.VALID_SCALAR_NAMES
-
-    @property
-    def is_field(self):
-        '''
-        :returns: True if this kernel argument represents a field, \
-                  False otherwise.
-        :rtype: bool
-        '''
-        return self._type in LFRicArgDescriptor.VALID_FIELD_NAMES
-
-    @property
-    def is_operator(self):
-        '''
-        :returns: True if this kernel argument represents an operator, \
-                  False otherwise.
-        :rtype: bool
-        '''
-        return self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
 
     @property
     def mesh(self):
