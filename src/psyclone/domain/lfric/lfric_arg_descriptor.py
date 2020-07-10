@@ -516,7 +516,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalar data_type is determined by its metadata descriptor for
         # type as a first argument, however this will change to the second
-        # argument in issue #774
+        # argument in issue #774 (#TODO HERE: MAKE THIS INTO A METHOD)
         dtype = str(arg_type.args[0]).lower()
         self._data_type = dtype.lstrip("gh_")
 
@@ -535,13 +535,14 @@ class LFRicArgDescriptor(Descriptor):
                 "in '{2}'.".format(valid_reductions, api_specific_name,
                                    arg_type))
         # Reduction access is currently only valid for real scalar arguments
-        if self._type != "gh_real" and self._access_type in \
+        if self._data_type != "real" and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the LFRic API a reduction access '{0}' is only valid "
-                "with a real scalar argument, but '{1}' was found in '{2}'.".
-                format(self._access_type.api_specific_name(),
-                       self._type, arg_type))
+                "with a real scalar argument, but scalar '{1}' with '{2}' "
+                "data type was found in '{3}'.".
+                format(self._access_type.api_specific_name(), self._type,
+                       self._data_type, arg_type))
 
         # Scalars don't have vector size
         self._vector_size = 0

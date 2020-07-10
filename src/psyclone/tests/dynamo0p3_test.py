@@ -252,7 +252,8 @@ def test_ad_int_scalar_type_no_sum():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but 'gh_integer' was found" in str(excinfo.value))
+            "argument, but scalar 'gh_integer' with 'integer' data type "
+            in str(excinfo.value))
 
 
 def test_ad_field_validate_wrong_type():
