@@ -107,6 +107,7 @@ class LFRicArgDescriptor(Descriptor):
         self._arg_type = arg_type
         # Initialise properties
         self._type = None
+        self._data_type = None
         self._function_space_to = None
         self._function_space_from = None
         self._function_space = None
@@ -119,6 +120,7 @@ class LFRicArgDescriptor(Descriptor):
         self._function_space2 = None
         self._stencil = None
         self._mesh = None
+        self._nargs = 0
 
         # Check for correct type descriptor
         if arg_type.name != 'arg_type':
@@ -126,11 +128,12 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API each 'meta_arg' entry must be of type "
                 "'arg_type', but found '{0}'.".format(arg_type.name))
 
-        # We require at least 2 args
-        if len(arg_type.args) < 2:
+        # Check number of args (we require at least two)
+        self._nargs = len(arg_type.args)
+        if self._nargs < 2:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
-                "least 2 args, but found '{0}'.".format(len(arg_type.args)))
+                "least 2 args, but found '{0}'.".format(self._nargs))
 
         # Check the first argument descriptor. If it is a binary operator
         # then it has to be a field vector with an "*n" appended where "*"
@@ -292,21 +295,25 @@ class LFRicArgDescriptor(Descriptor):
                 format(arg_type.args[0]))
 
         # There must be at least 3 arguments
-        if len(arg_type.args) < 3:
+        if self._nargs < 3:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
                 "least 3 arguments if its first argument is of {0} type, "
                 "but found {1} in '{2}'.".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
-                       len(arg_type.args), arg_type))
+                       self._nargs, arg_type))
         # There must be at most 4 arguments
-        if len(arg_type.args) > 4:
+        if self._nargs > 4:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
                 "most 4 arguments if its first argument is of {0} type, "
                 "but found {1} in '{2}'.".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
-                       len(arg_type.args), arg_type))
+                       self._nargs, arg_type))
+
+        # Field data_type is "real" for now, but will be determined by
+        # metadata descriptor as the second argument in issue #817
+        self._data_type = "real"
 
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in \
@@ -322,7 +329,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # The optional 4th argument is either a stencil specification
         # or a mesh identifier (for inter-grid kernels)
-        if len(arg_type.args) == 4:
+        if self._nargs == 4:
             try:
                 if "stencil" in str(arg_type.args[3]):
                     self._stencil = get_stencil(
@@ -429,13 +436,17 @@ class LFRicArgDescriptor(Descriptor):
 
         # We expect 4 arguments with the 3rd and 4th each being a
         # function space
-        if len(arg_type.args) != 4:
+        if self._nargs != 4:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have 4 "
                 "arguments if its first argument is an operator (one "
                 "of {0}), but found {1} in '{2}'.".
                 format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
-                       len(arg_type.args), arg_type))
+                       self._nargs, arg_type))
+
+        # Operator data_type is "real" for now, but will be determined by
+        # metadata descriptor as the second argument in issue #817
+        self._data_type = "real"
 
         # Operator arguments need to have valid to- and from- function spaces
         if arg_type.args[2].name not in \
@@ -496,12 +507,18 @@ class LFRicArgDescriptor(Descriptor):
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
-        # There must be at least 2 arguments to describe a scalar
-        if len(arg_type.args) != 2:
+        # There must be 2 arguments to describe a scalar
+        if self._nargs != 2:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have 2 "
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
-                "found {0} in '{1}'.".format(len(arg_type.args), arg_type))
+                "found {0} in '{1}'.".format(self._nargs, arg_type))
+
+        # Scalar data_type is determined by its metadata descriptor for
+        # type as a first argument, however this will change to the second
+        # argument in issue #774
+        dtype = str(arg_type.args[0]).lower()
+        self._data_type = dtype.lstrip("gh_")
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
@@ -537,6 +554,15 @@ class LFRicArgDescriptor(Descriptor):
 
         '''
         return self._type
+
+    @property
+    def data_type(self):
+        '''
+        :returns: intrinsic Fortran (primitive) type of the argument data.
+        :rtype: str
+
+        '''
+        return self._data_type
 
     @property
     def function_space_to(self):
@@ -653,16 +679,18 @@ class LFRicArgDescriptor(Descriptor):
         if self._vector_size > 1:
             res += "*"+str(self._vector_size)
         res += os.linesep
-        res += "  access_descriptor[1]='{0}'"\
+        res += "  data_type[1]='{0}'".format(self._data_type)\
+               + os.linesep
+        res += "  access_descriptor[2]='{0}'"\
                .format(self._access_type.api_specific_name())\
                + os.linesep
         if self._type in LFRicArgDescriptor.VALID_FIELD_NAMES:
-            res += "  function_space[2]='{0}'".format(self._function_space1) \
+            res += "  function_space[3]='{0}'".format(self._function_space1) \
                    + os.linesep
         elif self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
-            res += "  function_space_to[2]='{0}'".\
+            res += "  function_space_to[3]='{0}'".\
                    format(self._function_space1) + os.linesep
-            res += "  function_space_from[3]='{0}'".\
+            res += "  function_space_from[4]='{0}'".\
                    format(self._function_space2) + os.linesep
         elif self._type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             pass  # we have nothing to add if we're a scalar

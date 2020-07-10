@@ -3509,6 +3509,18 @@ class Argument(object):
         return "field"
 
     @property
+    @abc.abstractmethod
+    def intrinsic_type(self):
+        '''
+        Abstract property for the intrinsic type of the argument with
+        specific implementations in different APIs.
+
+        :returns: the intrinsic type of this argument.
+        :rtype: str
+
+        '''
+
+    @property
     def call(self):
         ''' Return the call that this argument is associated with '''
         return self._call
