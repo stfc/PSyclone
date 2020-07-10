@@ -148,12 +148,14 @@ def test_arg_descriptor_vector():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w1'")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w1'")
     assert expected in field_descriptor_str
 
     # Check LFRicArgDescriptor argument properties
     assert field_descriptor.type == "gh_field"
+    assert field_descriptor.data_type == "real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -2534,6 +2536,7 @@ def test_stencil_metadata():
     # Check other LFRicArgDescriptor argument properties for a
     # field stencil argument
     assert stencil_descriptor_1.type == "gh_field"
+    assert stencil_descriptor_1.data_type == "real"
     assert stencil_descriptor_1.function_space == "w2"
     assert stencil_descriptor_1.function_spaces == ['w2']
     assert str(stencil_descriptor_1.access) == "READ"
@@ -2801,8 +2804,10 @@ def test_arg_ref_name_method_error1():
 
 def test_arg_ref_name_method_error2():
     ''' Tests that an internal error is raised in DynKernelArgument
-    when ref_name() is called when the argument type is not one of
-    gh_field or gh_operator'''
+    when ref_name() is called when the argument type is not a field
+    or an operator.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -2812,7 +2817,8 @@ def test_arg_ref_name_method_error2():
     first_argument._type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
-    assert 'ref_name: Error, unsupported arg type' in str(excinfo.value)
+    assert ("DynKernelArgument.ref_name(fs): Found unsupported argument "
+            "type 'gh_funky_instigator'" in str(excinfo.value))
 
 
 def test_arg_intent_error():
@@ -2902,12 +2908,14 @@ def test_arg_descriptor_fld():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w1'")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w1'")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert field_descriptor.type == "gh_field"
+    assert field_descriptor.data_type == "real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -2929,11 +2937,13 @@ def test_arg_descriptor_real_scalar():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_real'\n"
-        "  access_descriptor[1]='gh_read'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.type == "gh_real"
+    assert scalar_descriptor.data_type == "real"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
@@ -2955,11 +2965,13 @@ def test_arg_descriptor_int_scalar():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_integer'\n"
-        "  access_descriptor[1]='gh_read'\n")
+        "  data_type[1]='integer'\n"
+        "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.type == "gh_integer"
+    assert scalar_descriptor.data_type == "integer"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"

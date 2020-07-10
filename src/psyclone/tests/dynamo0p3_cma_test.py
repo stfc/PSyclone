@@ -103,15 +103,17 @@ def test_cma_mdata_assembly():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_write'\n"
+        "  function_space_to[3]='any_space_1'\n"
+        "  function_space_from[4]='any_space_2'\n")
 
     assert expected in cma_op_desc_str
     assert dkm._cma_operation == "assembly"
 
     # Check LFRicArgDescriptor argument properties
     assert cma_op_desc.type == "gh_columnwise_operator"
+    assert cma_op_desc.data_type == "real"
     assert cma_op_desc.function_space_to == "any_space_1"
     assert cma_op_desc.function_space_from == "any_space_2"
     assert cma_op_desc.function_space == "any_space_2"
@@ -249,9 +251,10 @@ def test_cma_mdata_assembly_diff_spaces():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='any_space_3'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='any_space_3'\n"
+        "  function_space_from[4]='any_space_2'\n")
     assert expected in dkm_str
     assert dkm._cma_operation == "assembly"
 
@@ -332,17 +335,19 @@ def test_cma_mdata_apply():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space[2]='any_space_2'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space[3]='any_space_2'\n")
 
     assert expected in dkm_str
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='any_space_1'\n"
+        "  function_space_from[4]='any_space_2'\n")
     assert expected in dkm_str
     assert dkm._cma_operation == "apply"
 
@@ -521,9 +526,10 @@ def test_cma_mdata_matrix_prod():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='any_space_1'\n"
+        "  function_space_from[4]='any_space_2'\n")
 
     assert expected in dkm_str
     assert dkm._cma_operation == "matrix-matrix"

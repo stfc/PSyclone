@@ -589,8 +589,9 @@ def test_arg_descriptor_vec_str():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w0'")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w0'")
     assert expected_output in result
 
 

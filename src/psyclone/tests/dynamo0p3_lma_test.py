@@ -210,13 +210,15 @@ def test_arg_descriptor_op():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='w2'\n"
-        "  function_space_from[3]='w2'\n")
+        "  data_type[1]='real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='w2'\n"
+        "  function_space_from[4]='w2'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert operator_descriptor.type == "gh_operator"
+    assert operator_descriptor.data_type == "real"
     assert operator_descriptor.function_space_to == "w2"
     assert operator_descriptor.function_space_from == "w2"
     assert operator_descriptor.function_space == "w2"
@@ -961,5 +963,5 @@ def test_stub_operator_different_spaces():
     assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
-    assert "function_space_to[2]='w3'" in result
-    assert "function_space_from[3]='any_discontinuous_space_2'" in result
+    assert "function_space_to[3]='w3'" in result
+    assert "function_space_from[4]='any_discontinuous_space_2'" in result
