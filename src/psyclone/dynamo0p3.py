@@ -2577,7 +2577,8 @@ class LFRicRunTimeChecks(DynCollection):
                               funcnames=["log_event", "LOG_LEVEL_ERROR"]))
 
     def _check_field_fs(self, parent):
-        '''Internal method that adds run-time checks to make sure that the
+        '''
+        Internal method that adds run-time checks to make sure that the
         field's function space is consistent with the appropriate
         kernel metadata function spaces.
 
@@ -2649,7 +2650,8 @@ class LFRicRunTimeChecks(DynCollection):
                 parent.add(if_then)
 
     def _check_field_ro(self, parent):
-        '''Internal method that adds runtime checks to make sure that if the
+        '''
+        Internal method that adds runtime checks to make sure that if the
         field is on a read-only function space then the associated
         kernel metadata does not specify that the field is modified.
 
@@ -2805,6 +2807,8 @@ class DynCellIterators(DynCollection):
                            iterators.
     :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.DynKern` or \
                           :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    : raises GenerationError: if an Invoke has no field or operator arguments.
     '''
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
@@ -2823,7 +2827,7 @@ class DynCellIterators(DynCollection):
                 break
         if not first_var:
             raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments")
+                "Cannot create an Invoke with no field/operator arguments.")
         self._first_var = first_var
 
     def _invoke_declarations(self, parent):
@@ -2957,6 +2961,7 @@ class DynScalarArgs(DynCollection):
         :param parent: node in the f2pygen AST representing the Kernel stub \
                        to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         self._invoke_declarations(parent)
 
@@ -6080,6 +6085,9 @@ class DynLoop(Loop):
 
         :param kern: Kernel object to use to populate state of Loop
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+        :raises GenerationError: for an unexpected function space.
+
         '''
         self._kern = kern
 
@@ -6359,60 +6367,66 @@ class DynLoop(Loop):
         return unique_fields
 
     def _halo_read_access(self, arg):
-        '''Determines whether the supplied argument has (or might have) its
+        '''
+        Determines whether the supplied argument has (or might have) its
         halo data read within this loop. Returns True if it does, or if
         it might and False if it definitely does not.
 
         :param arg: an argument contained within this loop
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :return: True if the argument reads, or might read from the \
-                 halo and False otherwise.
+
+        :returns: True if the argument reads, or might read from the \
+                  halo and False otherwise.
         :rtype: bool
+
+        :raises GenerationError: if an invalid upper loop bound name is \
+                                 provided for kernels with stencil access.
+        :raises InternalError: if an invalid combination of upper bound name \
+                               and argument access is not caught by checks.
 
         '''
         if arg.descriptor.stencil:
             if self._upper_bound_name not in ["cell_halo", "ncells"]:
                 raise GenerationError(
-                    "Loop bounds other than cell_halo and ncells are "
+                    "Loop bounds other than 'cell_halo' and 'ncells' are "
                     "currently unsupported for kernels with stencil "
                     "accesses. Found '{0}'.".format(self._upper_bound_name))
             return self._upper_bound_name in ["cell_halo", "ncells"]
         if arg.is_scalar():
-            # scalars do not have halos
+            # Scalars do not have halos
             return False
         if arg.is_operator():
-            # operators do not have halos
+            # Operators do not have halos
             return False
         if arg.discontinuous and arg.access in \
                 [AccessType.READ, AccessType.READWRITE]:
-            # there are no shared dofs so access to inner and ncells are
+            # There are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
         if arg.access in [AccessType.READ, AccessType.INC]:
-            # arg is either continuous or we don't know (any_space_x)
-            # and we need to assume it may be continuous for
-            # correctness
+            # Argument  is either continuous or we don't know (any_space_x)
+            # and we need to assume it may be continuous for correctness
             if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 # we read in the halo
                 return True
             if self._upper_bound_name in ["ncells", "nannexed"]:
-                # we read annexed dofs. Return False if we always
+                # We read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
                 return not Config.get()\
                                  .api_conf("dynamo0.3").compute_annexed_dofs
             if self._upper_bound_name in ["ndofs"]:
-                # argument does not read from the halo
+                # Argument does not read from the halo
                 return False
-            # nothing should get to here so raise an exception
-            raise GenerationError(
-                "Internal error in _halo_read_access. It should not be "
-                "possible to get to here. loop upper bound name is '{0}' "
-                "and arg '{1}' access is '{2}'.".format(
+            # Nothing should get to here so raise an exception
+            raise InternalError(
+                "DynLoop._halo_read_access(): It should not be possible to "
+                "get to here. Loop upper bound name is '{0}' and arg '{1}' "
+                "access is '{2}'.".format(
                     self._upper_bound_name, arg.name,
                     arg.access.api_specific_name()))
 
-        # access is neither a read nor an inc so does not need halo
+        # Access is neither a read nor an inc so does not need halo
         return False
 
     def _add_halo_exchange_code(self, halo_field, idx=None):
@@ -9060,7 +9074,6 @@ class DynKernelArgument(KernelArgument):
     :type call: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
-
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
@@ -9179,6 +9192,7 @@ class DynKernelArgument(KernelArgument):
         :returns: True if this kernel argument represents a field, \
                   False otherwise.
         :rtype: bool
+
         '''
         return self._type in LFRicArgDescriptor.VALID_FIELD_NAMES
 
@@ -9187,6 +9201,7 @@ class DynKernelArgument(KernelArgument):
         :returns: True if this kernel argument represents an operator, \
                   False otherwise.
         :rtype: bool
+
         '''
         return self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
 
@@ -9371,6 +9386,7 @@ class DynKernelArgument(KernelArgument):
         :returns: the expected Fortran intent for this argument as \
                   specified by the kernel argument metadata
         :rtype: str
+
         '''
         if self.access == AccessType.READ:
             return "in"

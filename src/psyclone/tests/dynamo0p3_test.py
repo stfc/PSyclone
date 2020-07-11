@@ -5464,7 +5464,7 @@ def test_unsupported_halo_read_access():
     # call our method
     with pytest.raises(GenerationError) as err:
         _ = loop._halo_read_access(stencil_arg)
-    assert ("Loop bounds other than cell_halo and ncells are currently "
+    assert ("Loop bounds other than 'cell_halo' and 'ncells' are currently "
             "unsupported for kernels with stencil accesses. Found "
             "'inner'." in str(err.value))
 
@@ -6481,7 +6481,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
 
 
 def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
-    '''When a continuous argument is read it may access the halo. The
+    ''' When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
     that this exception is raised correctly. We test separately for
@@ -6510,11 +6510,11 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     f2_arg = kernel.arguments.args[1]
     #
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = loop._halo_read_access(f2_arg)
-    assert ("Internal error in _halo_read_access. It should not be "
-            "possible to get to here. loop upper bound name is 'invalid' "
-            "and arg 'f2' access is 'gh_read'.") in str(excinfo.value)
+    assert ("DynLoop._halo_read_access(): It should not be possible to "
+            "get to here. Loop upper bound name is 'invalid' and arg "
+            "'f2' access is 'gh_read'.") in str(excinfo.value)
 
 
 def test_new_halo_exch_vect_field(monkeypatch):
@@ -6797,7 +6797,7 @@ def test_dyncelliterators_err(monkeypatch):
     monkeypatch.setattr(invoke, "_psy_unique_vars", [])
     with pytest.raises(GenerationError) as err:
         _ = DynCellIterators(invoke)
-    assert ("Cannot create an Invoke with no field/operator arguments"
+    assert ("Cannot create an Invoke with no field/operator arguments."
             in str(err.value))
 
 # tests for class kerncallarglist position methods
