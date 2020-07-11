@@ -2387,13 +2387,14 @@ class Kern(Statement):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified.
+        reductions, if specified. Note: this method is currently only supported
+        for LFRic API.
 
         :param parent: the Node in the AST to which to add new code.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str position: where to position the new code in the AST.
-        :raises GenerationError: if the variable to zero is not of type \
-                                 gh_real or gh_integer.
+
+        :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the \
                                  configuration file) is less than 1.
 
@@ -2403,28 +2404,25 @@ class Kern(Statement):
             position = ["auto"]
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        var_type = self._reduction_arg.type
-        if var_type == "gh_real":
-            data_type = "real"
-            data_value = "0.0"
-            kind_type = \
-                Config.get().api_conf("dynamo0.3").default_kind[data_type]
-            zero = "_".join([data_value, kind_type])
-        elif var_type == "gh_integer":
-            data_type = "integer"
-            data_value = "0"
-            kind_type = \
-                Config.get().api_conf("dynamo0.3").default_kind[data_type]
-            zero = "_".join([data_value, kind_type])
-        else:
+        var_arg = self._reduction_arg
+        # Check for a non-scalar argument
+        if not var_arg.is_scalar():
             raise GenerationError(
-                "zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer'] but found '{0}'".format(var_type))
-
+                "Kern.zero_reduction_variable() should be a scalar but "
+                "found '{0}'.".format(var_arg.type))
+        # Generate the reduction variable
+        var_data_type = var_arg.intrinsic_type
+        if var_data_type == "real":
+            data_value = "0.0"
+        if var_data_type == "integer":
+            data_value = "0"
+        kind_type = \
+            Config.get().api_conf("dynamo0.3").default_kind[var_data_type]
+        zero = "_".join([data_value, kind_type])
         parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
                    position=position)
         if self.reprod_reduction:
-            parent.add(DeclGen(parent, datatype=data_type,
+            parent.add(DeclGen(parent, datatype=var_data_type,
                                entity_decls=[local_var_name],
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
