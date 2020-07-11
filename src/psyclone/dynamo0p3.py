@@ -4896,28 +4896,38 @@ class DynInvokeSchedule(InvokeSchedule):
 class DynGlobalSum(GlobalSum):
     '''
     Dynamo specific global sum class which can be added to and
-    manipulated in, a schedule.
+    manipulated in a schedule.
 
     :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: the parent node of this node in the PSyIR
+    :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises GenerationError: if distributed memory is not enabled.
-    :raises GenerationError: if the scalar is not of type gh_real.
+    :raises InternalError: if the supplied argument is not a scalar.
+    :raises GenerationError: if the scalar is not of "real" intrinsic type.
+
     '''
     def __init__(self, scalar, parent=None):
+        # Check that distributed memory is enabled
         if not Config.get().distributed_memory:
-            raise GenerationError("It makes no sense to create a DynGlobalSum "
-                                  "object when dm=False")
-        # a list of scalar types that this class supports
-        self._supported_scalars = ["gh_real"]
-        if scalar.type not in self._supported_scalars:
             raise GenerationError(
-                "DynGlobalSum currently only supports '{0}', but found '{1}'. "
-                "Error found in Kernel '{2}', argument '{3}'".
-                format(self._supported_scalars, scalar.type,
-                       scalar.call.name, scalar.name))
+                "It makes no sense to create a DynGlobalSum object when "
+                "distributed memory is not enabled (dm=False).")
+        # Check that the global sum argument is indeed a scalar
+        if not scalar.is_scalar():
+            raise InternalError(
+                "DynGlobalSum.init(): A global sum argument should be "
+                "a scalar but found argument of type '{0}'.".
+                format(scalar.type))
+        # Check scalar intrinsic types that this class supports (only
+        # "real" for now)
+        if scalar.intrinsic_type != "real":
+            raise GenerationError(
+                "DynGlobalSum currently only supports real scalars, but "
+                "argument '{0}' in Kernel '{1}' has '{2}' intrinsic type.".
+                format(scalar.name, scalar.call.name, scalar.intrinsic_type))
+        # Initialise the parent class
         super(DynGlobalSum, self).__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
