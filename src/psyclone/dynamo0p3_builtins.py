@@ -163,9 +163,9 @@ class DynBuiltIn(BuiltIn):
             if arg.type not in VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
                     "In the Dynamo 0.3 API an argument to a built-in kernel "
-                    "must be one of {0} but kernel {1} has an argument of "
-                    "type {2}".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                      arg.type))
+                    "must be one of {0} but kernel '{1}' has an argument of "
+                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
+                                         arg.type))
         if write_count != 1:
             raise ParseError("A built-in kernel in the Dynamo 0.3 API must "
                              "have one and only one argument that is written "
