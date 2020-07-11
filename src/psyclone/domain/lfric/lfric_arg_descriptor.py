@@ -516,9 +516,8 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalar data_type is determined by its metadata descriptor for
         # type as a first argument, however this will change to the second
-        # argument in issue #774 (#TODO HERE: MAKE THIS INTO A METHOD)
-        dtype = str(arg_type.args[0]).lower()
-        self._data_type = dtype.lstrip("gh_")
+        # argument in issue #774
+        self._data_type = self._dtype_from_descr(arg_type.args[0])
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
@@ -546,6 +545,19 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalars don't have vector size
         self._vector_size = 0
+
+    def _dtype_from_descr(self, dtype_descriptor):
+        '''
+        :param dtype_descriptor: data_type argument metadata descriptor.
+        :type dtype_descriptor: :py:class:`psyclone.expression.FunctionVar`
+
+        :returns: the data type of this argument's data as determined from \
+                  the metadata descriptor.
+        :rtype: str
+
+        '''
+        dtype = str(dtype_descriptor).lower()
+        return dtype.lstrip("gh_")
 
     @property
     def type(self):
