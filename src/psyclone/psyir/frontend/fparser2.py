@@ -470,6 +470,7 @@ class Fparser2Reader(object):
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
         ('real', UnaryOperation.Operator.REAL),
+        ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
