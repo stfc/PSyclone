@@ -2369,7 +2369,7 @@ class Fparser2Reader(object):
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
- 
+
         symbol_table = parent.scope.symbol_table
         integer_type = default_integer_type()
 

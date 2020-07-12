@@ -46,8 +46,8 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
     Assignment, Literal, Reference, BinaryOperation, IfBlock
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import Symbol, DataSymbol, ArrayType, \
-    ScalarType, REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
+    REAL_TYPE, INTEGER_TYPE
 
 
 def process_where(code, fparser_cls):

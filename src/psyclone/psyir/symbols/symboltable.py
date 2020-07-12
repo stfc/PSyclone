@@ -98,7 +98,7 @@ class SymbolTable(object):
         is attached to. If there are duplicates we only return one of
         them (the one from the closest ancestor including self).
 
-        :returns:  Ordered dictionary of symbols indexed by symbol name.
+        :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -116,11 +116,11 @@ class SymbolTable(object):
     @property
     def _all_tags(self):
         '''Return tags from this symbol table and all symbol tables associated
-        with ancestors of the node thatthis symbol table is attached
+        with ancestors of the node that this symbol table is attached
         to. If there are duplicates we only return one of them (the
         one from the closest ancestor including self).
 
-        :returns:  Ordered dictionary of symbols indexed by tag.
+        :returns: ordered dictionary of symbols indexed by tag.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -464,7 +464,7 @@ class SymbolTable(object):
 
         :param str key: key to check for existance.
 
-        :returns: Whether the Symbol Table contains the given key.
+        :returns: whether the Symbol Table contains the given key.
         :rtype: bool
         '''
         return self._normalize(key.lower()) in self._symbols
@@ -629,7 +629,7 @@ class SymbolTable(object):
     @property
     def symbols_dict(self):
         '''
-        :returns:  Ordered dictionary of symbols indexed by symbol name.
+        :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -638,7 +638,7 @@ class SymbolTable(object):
     @property
     def tags_dict(self):
         '''
-        :returns:  Ordered dictionary of symbols indexed by tag.
+        :returns: ordered dictionary of symbols indexed by tag.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -647,7 +647,7 @@ class SymbolTable(object):
     @property
     def symbols(self):
         '''
-        :returns:  list of symbols.
+        :returns: list of symbols.
         :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return list(self._symbols.values())
@@ -655,7 +655,7 @@ class SymbolTable(object):
     @property
     def datasymbols(self):
         '''
-        :returns:  list of symbols representing data variables.
+        :returns: list of symbols representing data variables.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self._symbols.values() if
@@ -664,7 +664,7 @@ class SymbolTable(object):
     @property
     def local_datasymbols(self):
         '''
-        :returns:  List of symbols representing local variables.
+        :returns: list of symbols representing local variables.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self.datasymbols if sym.is_local]
@@ -672,7 +672,7 @@ class SymbolTable(object):
     @property
     def argument_datasymbols(self):
         '''
-        :returns:  List of symbols representing arguments.
+        :returns: list of symbols representing arguments.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self.datasymbols if sym.is_argument]
@@ -716,7 +716,7 @@ class SymbolTable(object):
     @property
     def iteration_indices(self):
         '''
-        :returns: List of symbols representing kernel iteration indices.
+        :returns: list of symbols representing kernel iteration indices.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises NotImplementedError: this method is abstract.
@@ -728,7 +728,7 @@ class SymbolTable(object):
     @property
     def data_arguments(self):
         '''
-        :returns: List of symbols representing kernel data arguments.
+        :returns: list of symbols representing kernel data arguments.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises NotImplementedError: this method is abstract.
