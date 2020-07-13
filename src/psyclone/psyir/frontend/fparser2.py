@@ -1068,7 +1068,9 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name)
-                parent.symbol_table.add(container)
+                # It is OK if a parent symbol table also has a
+                # reference to this module so do not check ancestors.
+                parent.symbol_table.add(container, check_ancestors=False)
             else:
                 new_container = False
                 container = parent.symbol_table.lookup(mod_name)
@@ -2369,37 +2371,13 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
-        # Since we don't have support for searching a hierarchy of symbol
-        # tables (#630), for now we simply add new symbols to the highest-level
-        # symbol table.
-        symbol_table = parent.root.symbol_table
-
-        # Create a set of all of the symbol names in the fparser2 parse
-        # tree so that we can find any clashes. We go as far back up the tree
-        # as we can before searching for all instances of Fortran2003.Name.
-        # We can't just rely on looking in our symbol tables because there
-        # may be CodeBlocks that access symbols that are e.g. imported from
-        # modules without being explicitly named.
-        name_list = walk(node.get_root(), Fortran2003.Name)
-        for name_obj in name_list:
-            name = str(name_obj)
-            if name not in symbol_table:
-                # TODO #630 some of these symbols will be put in the wrong
-                # symbol table. We need support for creating a unique symbol
-                # within a hierarchy of symbol tables. However, until we are
-                # generating code from the PSyIR Fortran backend
-                # (#435) this doesn't matter.
-                symbol_table.add(Symbol(name))
-
+        symbol_table = parent.scope.symbol_table
         integer_type = default_integer_type()
+
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            # TODO #630 this creation of a new symbol really needs to account
-            # for all of the symbols in the hierarchy of symbol tables. Since
-            # we don't yet have that functionality we just add everything to
-            # the top-level symbol table.
             loop_vars[idx-1] = symbol_table.new_symbol_name(
                 "widx{0}".format(idx))
 
