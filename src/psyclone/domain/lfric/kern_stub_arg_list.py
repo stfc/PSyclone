@@ -489,3 +489,8 @@ class KernStubArgList(ArgOrdering):
         super(KernStubArgList, self).indirection_dofmap(function_space,
                                                         operator,
                                                         var_accesses)
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["KernStubArgList"]

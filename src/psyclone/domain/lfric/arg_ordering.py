@@ -671,3 +671,8 @@ class ArgOrdering(object):
                 for var_name in refelem_args:
                     var_accesses.add_access(var_name, AccessType.READ,
                                             self._kern)
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["ArgOrdering"]

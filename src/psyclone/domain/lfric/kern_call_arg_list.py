@@ -667,3 +667,8 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access("cell", AccessType.READ, self._kern)
 
         return "cell"
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["KernCallArgList"]

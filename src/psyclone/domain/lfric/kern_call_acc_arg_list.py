@@ -166,3 +166,8 @@ class KernCallAccArgList(KernCallArgList):
                                     self._kern)
             var_accesses.add_access(map_name, AccessType.READ,
                                     self._kern)
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["KernCallAccArgList"]
