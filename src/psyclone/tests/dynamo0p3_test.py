@@ -6658,6 +6658,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
 
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
+        assert "CALL f2_proxy%halo_exchange" not in result
     else:
         assert "CALL f1_proxy%halo_exchange" in result
         assert "CALL f2_proxy%halo_exchange" in result

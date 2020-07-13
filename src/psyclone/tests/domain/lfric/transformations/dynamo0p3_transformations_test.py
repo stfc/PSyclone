@@ -619,9 +619,9 @@ def test_colouring_after_openmp(dist_mem, monkeypatch):
     ''' Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
     distributed memory is on or off.
-    Note: OpenMP parallel transformation can be applied on its own only on
+    Note: OpenMP parallel transformation can only be applied on its own for
     a discontinuous function space. However, colouring can be applied when
-    an argument has "INC" access and in LFRic API this is only possible
+    an argument has "INC" access and in the LFRic API this is only possible
     for fields on a continuous function space. Therefore we need to
     monkeypatch the function space of the loop argument to a continuous
     function space before applying colouring.
@@ -973,7 +973,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
         if dist_mem:
             index = 9
             # f, c and g halo exchanges between loops can be moved
-            # before 1st loop as they are not accessed in first loop
+            # before the 1st loop as they are not accessed in it
             for idx in range(index-3, index):
                 schedule, _ = mtrans.apply(schedule.children[idx+1],
                                            schedule.children[idx])
@@ -4790,11 +4790,12 @@ def test_rc_continuous_halo_remove():
     f3_inc_loop = schedule.children[4]
     f3_read_hex = schedule.children[7]
     f3_read_loop = schedule.children[9]
-    # f3 has "inc" access so there is a check for the halo exchange
-    # of depth 1, as well as two halo exchanges of depth 1 in code
-    # (one before f3_inc_loop and one before the f3_read_loop).
+    # f3 field has "inc" access so there is a check for the halo exchange
+    # of depth 1, as well as two halo exchanges for f3 of depth 1 in code,
+    # one before the f3_inc_loop and one before the f3_read_loop (there are
+    # three other halo exchanges, for f2, f1 and f4 fields, respectively).
     assert result.count("CALL f3_proxy%halo_exchange(depth=1") == 2
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+    assert result.count("IF (f3_proxy%is_dirty(depth=1)) THEN") == 1
     #
     # Applying redundant computation to equal depth on f3_inc_loop and
     # f3_read_loop does not remove the initial number of halo exchanges.

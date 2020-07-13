@@ -348,8 +348,9 @@ class LFRicArgDescriptor(Descriptor):
         # TODO in issue #471: The kernels that loop over DoFs (built-ins)
         # and are specified on 'ANY_SPACE_*' will have the same allowed
         # accesses as discontinuous fields as they do not need colouring
-        # when updating quantities in parallel. This temporary accesses
-        # for continuous fields will be removed there.
+        # when updating quantities in parallel. The logic associated with
+        # field_cont_accesses_tmp and fld_cont_acc_msg_tmp should be
+        # removed as part of #471.
         field_cont_accesses_tmp = field_cont_accesses + [AccessType.WRITE]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
@@ -371,8 +372,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check fields on continuous function spaces
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
-        # As said above, this temporary access for messages will be
-        # removed in #471
+        # Remove fld_cont_acc_msg_tmp as part of #471
         fld_cont_acc_msg_tmp = [rev_access_mapping[acc] for acc in
                                 field_cont_accesses_tmp]
         if self._function_space1.lower() in \
@@ -386,7 +386,8 @@ class LFRicArgDescriptor(Descriptor):
                        rev_access_mapping[self._access_type], arg_type))
         # As said above, allowed accesses for fields on ANY_SPACE depend on
         # type of looping. This will be refined in #471, however for now we
-        # use the temporary accesses for continuous spaces.
+        # use the temporary variables field_cont_accesses_tmp and
+        # fld_cont_acc_msg_tmp for continuous spaces.
         if self._function_space1.lower() in \
            FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type not in field_cont_accesses_tmp:
