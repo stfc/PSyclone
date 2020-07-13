@@ -470,6 +470,7 @@ class Fparser2Reader(object):
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
         ('real', UnaryOperation.Operator.REAL),
+        ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
@@ -900,9 +901,15 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if (sym.datatype.intrinsic !=
-                                ScalarType.Intrinsic.INTEGER or
-                                isinstance(sym.datatype, ArrayType)):
+                        if isinstance(sym.datatype, (UnknownType,
+                                                     DeferredType)):
+                            # Allow symbols of Unknown/DeferredType.
+                            pass
+                        elif not (isinstance(sym.datatype, ScalarType) and
+                                  sym.datatype.intrinsic ==
+                                  ScalarType.Intrinsic.INTEGER):
+                            # It's not of Unknown/DeferredType and it's not an
+                            # integer scalar.
                             _unsupported_type_error(dimensions)
                     except KeyError:
                         # We haven't seen this symbol before so create a new
