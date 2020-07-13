@@ -523,14 +523,14 @@ def create_schedule(code, routine_name, ast_processor=Fparser2Reader):
 
 # =============================================================================
 def get_ast(api, filename):
-    '''Returns the AST for a filename that is stored in the test files
-    for the specified API.
+    '''Returns the fparser1 parse tree for a filename that is stored in the
+    test files for the specified API.
 
     :param str api: the API to use, which determines the directory \
         where files are stored.
     :param str filename: the file name to parse.
 
-    :returns: the AST for the specified Fortran source file.
+    :returns: the parse tree for the specified Fortran source file.
     :rtype: :py:class:`fparser.api.BeginSource`
 
     '''

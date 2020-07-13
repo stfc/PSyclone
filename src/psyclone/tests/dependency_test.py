@@ -577,15 +577,22 @@ def test_lfric_stencils():
     assert "f2_stencil_dofmap: READ" in var_info
 
 
-def test_lfric_operator_different_spaces():
-    ''' Tests that implicit parameters for an operator with different to
-    and from spaces are created correctly.
+def test_lfric_various_basis():
+    ''' Tests that implicit parameters for various basis related
+    functionality work as expected.
 
     '''
     _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
                                 "dynamo0.3", idx=0)
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "orientation_w2: READ" in var_info
+    assert "basis_w3_qr: READ" in var_info
+    assert "diff_basis_w0_qr: READ" in var_info
+    assert "diff_basis_w2_qr: READ" in var_info
+    assert "np_xy_qr: READ" in var_info
+    assert "np_z_qr: READ" in var_info
+    assert "weights_xy_qr: READ" in var_info
+    assert "weights_z_qr: READ" in var_info
 
 
 def test_lfric_field_bc_kernel():
@@ -635,6 +642,28 @@ def test_lfric_stub_args():
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "field_1_w1: READ+WRITE" in var_info
+    assert "field_2_stencil_dofmap: READ" in var_info
+    assert "field_2_stencil_size: READ" in var_info
+    assert "field_2_w2: READ" in var_info
+    assert "field_3_direction: READ" in var_info
+    assert "field_3_stencil_dofmap: READ" in var_info
+    assert "field_3_stencil_size: READ" in var_info
+    assert "field_3_w2: READ" in var_info
+    assert "field_4_stencil_dofmap: READ" in var_info
+    assert "field_4_stencil_size: READ" in var_info
+    assert "field_4_w3: READ" in var_info
+    assert "map_w1: READ" in var_info
+    assert "map_w2: READ" in var_info
+    assert "map_w3: READ" in var_info
+    assert "ndf_w1: READ" in var_info
+    assert "ndf_w2: READ" in var_info
+    assert "ndf_w3: READ" in var_info
+    assert "nlayers: READ" in var_info
+    assert "undf_w1: READ" in var_info
+    assert "undf_w2: READ" in var_info
+    assert "undf_w3: READ" in var_info
 
 
 def test_lfric_stub_args2():
@@ -661,7 +690,6 @@ def test_lfric_stub_args2():
 
 def test_lfric_stub_args3():
     '''Check variable usage detection for cell position, operator
-    .
 
     '''
     from psyclone.dynamo0p3 import DynKernMetadata, DynKern
@@ -829,7 +857,8 @@ def test_lfric_acc():
     '''Check variable usage detection when OpenACC is used.
 
     '''
-    # Use the OpenACC transforms to create the required kernels
+    # Use the OpenACC transforms to enclose the kernels
+    # with OpenACC directives.
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
     from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
@@ -863,7 +892,8 @@ def test_lfric_acc_operator():
     a kernel that uses an operator.
 
     '''
-    # Use the OpenACC transforms to create the required kernels
+    # Use the OpenACC transforms to enclose the kernels
+    # with OpenACC directives.
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
     from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()

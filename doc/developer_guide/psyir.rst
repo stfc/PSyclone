@@ -289,12 +289,13 @@ Annotation         Node types         Origin
 `was_where`        `Loop`, `IfBlock`  Fortran `where` construct
 =================  =================  =================================
 
-.. note:: a `Loop` may currently only be given the `was_single_stmt` annotation
-	  if it also has the `was_where` annotation. (Thus indicating that
-	  this `Loop` originated from a WHERE *statement* in the original
-	  Fortran code.) Representing single-statement loops in Fortran is
-	  the subject of GitHub Issue
-	  `#412 <https://github.com/stfc/PSyclone/issues/412>`_.
+.. note:: a `Loop` may currently only be given the `was_single_stmt`
+	  annotation if it also has the `was_where` annotation. (Thus
+	  indicating that this `Loop` originated from a WHERE
+	  *statement* in the original Fortran code.) The PSyIR
+	  represents Fortran single-statement loops (often called
+	  array notation) as arrays with ranges in the appropriate
+	  indices.
 
 Ranges
 ------

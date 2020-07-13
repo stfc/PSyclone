@@ -2373,8 +2373,9 @@ class DynOrientations(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # TODO #783: Remove duplicates from the declaration list
         declns = [orient.name+"(:) => null()" for orient in self._orients]
+        # Remove duplicate orientation pointers by using OrderedDict
+        declns = list(OrderedDict.fromkeys(declns))
         if declns:
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -3709,7 +3710,7 @@ class DynBasisFunctions(DynCollection):
         basis function
 
         :param function_space: the function space the basis function is for
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: a Fortran variable name
         :rtype: str
 
@@ -3722,7 +3723,7 @@ class DynBasisFunctions(DynCollection):
         Get the size of the first dimension of a basis function.
 
         :param function_space: the function space the basis function is for
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: an integer length.
         :rtype: string
 
@@ -3753,7 +3754,7 @@ class DynBasisFunctions(DynCollection):
 
         :param function_space: the function space the diff-basis function \
                                is for.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: a Fortran variable name.
         :rtype: str
 
@@ -3768,7 +3769,7 @@ class DynBasisFunctions(DynCollection):
 
         :param function_space: the function space the diff-basis function \
                                is for.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: an integer length.
         :rtype: str
 
@@ -7045,7 +7046,7 @@ class DynKern(CodedKern):
         '''
         :return: the function spaces upon which basis/diff-basis functions \
                  are to be evaluated for this kernel.
-        :rtype: dict of (:py:class:`psyclone.dynamo0p3.FunctionSpace`, \
+        :rtype: dict of (:py:class:`psyclone.domain.lfric.FunctionSpace`, \
                 :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
                 the names of the target function spaces.
         '''
@@ -7630,7 +7631,7 @@ class DynKernelArguments(Arguments):
         :return: the first kernel argument that is on the named function \
                  space and the associated FunctionSpace object.
         :rtype: (:py:class:`psyclone.dynamo0p3.DynKernelArgument`,
-                 :py:class:`psyclone.dynamo0p3.FunctionSpace`)
+                 :py:class:`psyclone.domain.lfric.FunctionSpace`)
         :raises: FieldNotFoundError if no field or operator argument is found \
                  for the named function space.
         '''
@@ -7650,7 +7651,7 @@ class DynKernelArguments(Arguments):
         function space is used for comparison.
 
         :param func_space: The function space for which to find an argument.
-        :type func_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: the first kernel argument that is on the supplied function
                  space
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -7890,7 +7891,7 @@ class DynKernelArgument(KernelArgument):
         is the to- or from-space that is specified).
 
         :param function_space: the function space of this argument
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: the name used to dereference this argument
         :rtype: str
         '''
@@ -8016,7 +8017,7 @@ class DynKernelArgument(KernelArgument):
         '''
         :return: the expected finite element function space for this
                  argument as specified by the kernel argument metadata.
-        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :rtype: :py:class:`psyclone.domain.lfric.FunctionSpace`
         '''
         if self._type == "gh_operator":
             # We return the 'from' space for an operator argument

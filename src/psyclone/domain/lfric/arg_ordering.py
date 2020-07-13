@@ -50,7 +50,16 @@ from psyclone.errors import GenerationError, InternalError
 class ArgOrdering(object):
     # pylint: disable=too-many-public-methods
     '''Base class capturing the arguments, type and ordering of data in
-    a Kernel call.
+    a Kernel call. This base class implements some functionality of a list
+    (extend and append functions), but not using list as a base class.
+    Reason is that many typical functions of a list make only sense to
+    be used after ``generate`` is called, which would then require a large
+    number of functions to be re-implemented. So instead the property
+    ``arglist`` checks that ``generate`` has been called and then provides
+    a list.
+
+    :param kern: the kernel call object to use.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
     def __init__(self, kern):
@@ -58,22 +67,66 @@ class ArgOrdering(object):
         self._generate_called = False
         self._arglist = []
 
-    def append(self, var_name):
+    def append(self, var_name, var_accesses=None, var_access_name=None,
+               var_is_array=True, mode=AccessType.READ):
         '''Appends the specified variable name to the list of all arguments.
+        If var_accesses is given, it will also record the access to the
+        variable. The name of the variable accessed can be overwritten by
+        specifying var_access_name. By default it is assumed it is an array
+        access (which can be set explicitly with var_is_array), and access
+        mode is READ (which can be set with mode).
+
         :param str var_name: the name of the variable.
-E
+        :param var_accesses: optional class to store variable access \
+            information.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :param str var_access_name: optional name of the variable for \
+            which access information is stored (used e.g. when the \
+            actual argument is field_proxy, but the access is to be \
+            recorded for field).
+        :param bool var_is_array: optional argument to specify if the \
+            variable access is array (defaults to True).
+        :param mode: optional access mode (defaults to READ).
+        :type mode: :py:class:`psyclone.core.access_type.AccessType`
+
         '''
         self._arglist.append(var_name)
+        if var_accesses is not None:
+            # It's an array, so add an arbitrary index value for the
+            # stored indices (which is at this stage the only way to
+            # indicate an array access).
+            if var_is_array:
+                is_array = [1]
+            else:
+                is_array = None
 
-    def extend(self, list_var_name):
+            if var_access_name:
+                var_accesses.add_access(var_access_name, mode,
+                                        self._kern, is_array)
+            else:
+                var_accesses.add_access(var_name, mode,
+                                        self._kern, is_array)
+
+    def extend(self, list_var_name, var_accesses=None):
         '''Appends all variable names in the argument list to the list of
-        all arguments.
+        all arguments. If var_accesses is given, it will also record the
+        access to the variables. Any access will be recorded as a read-only
+        access to a scalar variable.
 
         :param list_var_name: the list with name of the variables to append.
         :type list_var_name: list of str.
+        :param var_accesses: optional class to store variable access \
+            information.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
         self._arglist.extend(list_var_name)
+        if var_accesses:
+            for var_name in list_var_name:
+                var_accesses.add_access(var_name, AccessType.READ,
+                                        self._kern)
 
     @property
     def num_args(self):
@@ -87,7 +140,7 @@ E
     def arglist(self):
         '''
         :return: the kernel argument list. The generate method must be \
-        called first.
+                 called first.
         :rtype: list of str.
 
         :raises InternalError: if the generate() method has not been \
@@ -96,8 +149,9 @@ E
         '''
         if not self._generate_called:
             raise InternalError(
-                "Internal error. The argument list in KernStubArgList:"
-                "arglist() is empty. Has the generate() method been called?")
+                "Internal error. The argument list in {0} is empty. "
+                "Has the generate() method been called?"
+                .format(type(self).__name__))
         return self._arglist
 
     def generate(self, var_accesses=None):
@@ -108,15 +162,16 @@ E
         that can be specialised by a child class for its particular need.
         If the optional argument var_accesses is supplied, this function
         will also add variable access information for each implicit argument
-        that is added. These accesses will be marked as read.
+        (i.e. that is not explicitly listed in kernel metadata) that is
+        added. These accesses will be marked as read.
 
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises GenerationError: if the kernel arguments break the
-                                 rules for the Dynamo 0.3 API.
+        :raises GenerationError: if the kernel arguments break the \
+            rules for the LFRic API.
 
         '''
         # Setting this first is important, since quite a few derived classes
@@ -267,16 +322,18 @@ E
         if self._kern.qr_required:
             self.quad_rule(var_accesses=var_accesses)
 
+    @abc.abstractmethod
     def cell_position(self, var_accesses=None):
-        '''Add cell position information
+        '''Add cell position information.
 
-        :raises NotImplementedError: because this is an abstract method
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.cell_position() must be implemented by "
-            "subclass")
 
+    @abc.abstractmethod
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
@@ -287,12 +344,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.cell_map() must be implemented by subclass")
 
+    @abc.abstractmethod
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
@@ -302,12 +356,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.mesh_height() must be implemented by subclass")
 
+    @abc.abstractmethod
     def mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
@@ -317,13 +368,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
-            "subclass")
 
+    @abc.abstractmethod
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
         list and optionally add them to the variable access
@@ -336,12 +383,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
-                                  "be implemented by subclass")
 
+    @abc.abstractmethod
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
@@ -354,13 +398,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field_vector() must be implemented by "
-            "subclass")
 
+    @abc.abstractmethod
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
         argument list. If supplied it also stores this access in var_accesses.
@@ -372,12 +412,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field() must be implemented by subclass")
 
+    @abc.abstractmethod
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
@@ -390,13 +427,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil_unknown_extent() must be implemented "
-            "by subclass")
 
+    @abc.abstractmethod
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown (i.e. it's being supplied
@@ -410,13 +443,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil_unknown_direction() must be "
-            "implemented by subclass")
 
+    @abc.abstractmethod
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
@@ -430,12 +459,9 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil() must be implemented by subclass")
 
+    @abc.abstractmethod
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments to the argument list. If supplied it
         also stores this access in var_accesses.
@@ -447,11 +473,7 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.operator() must be implemented by subclass")
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''Add the name associated with the scalar argument to the argument
@@ -473,10 +495,8 @@ E
                 "Expected argument type to be one of {0} but got '{1}'".
                 format(LFRicArgDescriptor.VALID_SCALAR_NAMES, scalar_arg.type))
 
-        self.append(scalar_arg.name)
-        if var_accesses is not None:
-            var_accesses.add_access(scalar_arg.name, AccessType.READ,
-                                    self._kern)
+        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                    var_is_array=False)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -484,7 +504,7 @@ E
 
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -493,63 +513,53 @@ E
         '''
         # There is currently one argument: "ndf"
         ndf_name = function_space.ndf_name
-        self.append(ndf_name)
-        if var_accesses is not None:
-            var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
+        self.append(ndf_name, var_accesses, var_is_array=False)
 
+    @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which the compulsory \
             arguments are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_compulsory_field() must be implemented "
-            "by subclass")
 
+    @abc.abstractmethod
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.
         If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which to add arguments
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_intergrid() must be implemented "
-            "by subclass")
 
+    @abc.abstractmethod
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
         argument list and optionally to the variable access information.
 
         :param function_space: the function space for which the basis \
                                function is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.basis() must be implemented by subclass")
 
+    @abc.abstractmethod
     def diff_basis(self, function_space, var_accesses=None):
         '''Add differential basis information for the function space to the
         argument list. If supplied it also stores this access in
@@ -557,17 +567,13 @@ E
 
         :param function_space: the function space for which the differential \
             basis functions are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.diff_basis() must be implemented by subclass")
 
     def orientation(self, function_space, var_accesses=None):
         '''Add orientation information for this function space to the
@@ -576,19 +582,16 @@ E
 
         :param function_space: the function space for which orientation \
             information is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        orientation_name = function_space.orientation_name
-        self.append(orientation_name)
-        if var_accesses is not None:
-            var_accesses.add_access(orientation_name, AccessType.READ,
-                                    self._kern, [1])
+        self.append(function_space.orientation_name, var_accesses)
 
+    @abc.abstractmethod
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
         also stores this access in var_accesses.
@@ -600,31 +603,22 @@ E
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
-            "subclass")
 
+    @abc.abstractmethod
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Supply necessary additional arguments for the kernel that
         applies boundary conditions to a LMA operator. If supplied it
         also stores this access in var_accesses.
 
         :param function_space: the function space of the operator.
-        :type function_space: :py:class:`psyclone.dynamo3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: because this is an abstract method
-
         '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
-            "subclass")
 
     @abc.abstractmethod
     def mesh_properties(self, var_accesses=None):
@@ -657,7 +651,7 @@ E
 
         :param function_space: the function space for which banded dofmap
             is added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -667,10 +661,7 @@ E
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        map_name = function_space.cbanded_map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+        self.append(function_space.cbanded_map_name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
@@ -679,7 +670,7 @@ E
 
         :param function_space: the function space for which the indirect \
             dofmap is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator (not used at the moment).
         :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
@@ -690,9 +681,7 @@ E
         '''
         # pylint: disable=unused-argument
         map_name = function_space.cma_indirection_map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+        self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):
         '''Add kernel arguments relating to properties of the reference
@@ -707,8 +696,14 @@ E
         if self._kern.reference_element.properties:
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
-            self._arglist.extend(refelem_args)
-            if var_accesses is not None:
-                for var_name in refelem_args:
-                    var_accesses.add_access(var_name, AccessType.READ,
-                                            self._kern)
+            self.extend(refelem_args, var_accesses)
+        #    self._arglist.extend(refelem_args)
+        #    if var_accesses is not None:
+        #        for var_name in refelem_args:
+        #            var_accesses.add_access(var_name, AccessType.READ,
+        #                                    self._kern)
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["ArgOrdering"]

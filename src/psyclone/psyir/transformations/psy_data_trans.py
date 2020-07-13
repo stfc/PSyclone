@@ -38,7 +38,7 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -80,7 +80,7 @@ class PSyDataTrans(RegionTrans):
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
     # TODO: #415 Support different classes of PSyData calls.
-    valid_node_types = (Node,)
+    excluded_node_types = (Return,)
 
     def __init__(self, node_class=PSyDataNode):
         super(PSyDataTrans, self).__init__()

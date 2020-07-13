@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors I. Kavcic, Met Office
+# Authors: I. Kavcic, Met Office.
+#          A. R. Porter, STFC Daresbury Laboratory.
 
 '''This module contains the base class for extracting extracting a region
 of an Invoke into a stand-alone application."
@@ -39,10 +40,11 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import ExtractNode, Schedule
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir import nodes
+from psyclone import psyGen
 
 
 class ExtractTrans(PSyDataTrans):
@@ -67,13 +69,11 @@ class ExtractTrans(PSyDataTrans):
         derived class
 
     '''
-    from psyclone.psyir import nodes
-    from psyclone import psyGen
-    # The types of node that this transformation can enclose
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, nodes.Literal, nodes.Reference)
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.ExtractNode,
+                           psyGen.HaloExchange, psyGen.GlobalSum)
 
-    def __init__(self, node_class=ExtractNode):
+    def __init__(self, node_class=nodes.ExtractNode):
         super(ExtractTrans, self).__init__(node_class=node_class)
 
     def __str__(self):
@@ -118,7 +118,7 @@ class ExtractTrans(PSyDataTrans):
                 "Error in {0}: Distributed memory is not supported."
                 .format(str(self.name)))
 
-        # Check constraints not covered by valid_node_types for
+        # Check constraints not covered by excluded_node_types for
         # individual Nodes in node_list.
         from psyclone.psyir.nodes import Loop
         from psyclone.psyGen import BuiltIn, Directive, Kern, \
@@ -139,7 +139,8 @@ class ExtractTrans(PSyDataTrans):
             # parent Directive when optimisations are applied, as this may
             # result in including the end Directive for extraction but
             # not the beginning.
-            if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
+            if isinstance(node, Loop) and isinstance(node.parent,
+                                                     nodes.Schedule) \
                and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
                     "Error in {0}: Extraction of a Loop without its parent "
