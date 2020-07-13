@@ -345,10 +345,12 @@ class LFRicArgDescriptor(Descriptor):
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
         field_cont_accesses = [AccessType.READ, AccessType.INC]
-        # TODO in issue #471: The kernels that loop over DoFs (built-ins)
-        # and are specified on 'ANY_SPACE_*' will have the same allowed
-        # accesses as discontinuous fields as they do not need colouring
-        # when updating quantities in parallel. The logic associated with
+        # TODO in issue #471: Kernels that loop over DoFs update each
+        # DoF independently, irrespective of whether the associated
+        # field is continuous or not. Therefore their allowed accesses
+        # are read, write and readwrite (which is the same as
+        # discontinuous fields that are accessed by kernels that
+        # iterate over cells). The logic associated with
         # field_cont_accesses_tmp and fld_cont_acc_msg_tmp should be
         # removed as part of #471.
         field_cont_accesses_tmp = field_cont_accesses + [AccessType.WRITE]
@@ -384,10 +386,11 @@ class LFRicArgDescriptor(Descriptor):
                 "'{2}' in '{3}'.".
                 format(self._function_space1.lower(), fld_cont_acc_msg,
                        rev_access_mapping[self._access_type], arg_type))
-        # As said above, allowed accesses for fields on ANY_SPACE depend on
-        # type of looping. This will be refined in #471, however for now we
-        # use the temporary variables field_cont_accesses_tmp and
-        # fld_cont_acc_msg_tmp for continuous spaces.
+        # As said above, the allowed accesses for fields on ANY_SPACE
+        # depend on the type of looping. This will be refined in #471,
+        # however for now we use the temporary variables
+        # field_cont_accesses_tmp and fld_cont_acc_msg_tmp for
+        # continuous spaces.
         if self._function_space1.lower() in \
            FunctionSpace.VALID_ANY_SPACE_NAMES \
            and self._access_type not in field_cont_accesses_tmp:

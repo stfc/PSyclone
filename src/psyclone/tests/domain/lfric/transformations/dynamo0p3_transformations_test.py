@@ -616,15 +616,15 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_colouring_after_openmp(dist_mem, monkeypatch):
-    ''' Test that we raise an error if the user attempts to colour a loop
+    '''Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
-    distributed memory is on or off.
-    Note: OpenMP parallel transformation can only be applied on its own for
-    a discontinuous function space. However, colouring can be applied when
-    an argument has "INC" access and in the LFRic API this is only possible
-    for fields on a continuous function space. Therefore we need to
-    monkeypatch the function space of the loop argument to a continuous
-    function space before applying colouring.
+    distributed memory is on or off.  Note: An OpenMP parallel
+    transformation can only be applied on its own for a discontinuous
+    function space. However, colouring can be applied when an argument
+    has "INC" access and in the LFRic API this is only possible for
+    fields on a continuous function space. Therefore we need to
+    monkeypatch the function space of the loop argument to a
+    continuous function space before applying colouring.
 
     '''
     _, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
@@ -4790,10 +4790,11 @@ def test_rc_continuous_halo_remove():
     f3_inc_loop = schedule.children[4]
     f3_read_hex = schedule.children[7]
     f3_read_loop = schedule.children[9]
-    # f3 field has "inc" access so there is a check for the halo exchange
-    # of depth 1, as well as two halo exchanges for f3 of depth 1 in code,
-    # one before the f3_inc_loop and one before the f3_read_loop (there are
-    # three other halo exchanges, for f2, f1 and f4 fields, respectively).
+    # field "f3" has "inc" access resulting in two halo exchanges of
+    # depth 1, one of which is conditional. One of these halo
+    # exchanges is placed before the f3_inc_loop and one is placed
+    # before the f3_read_loop (there are three other halo exchanges,
+    # one each for fields f1, f2 and f4).
     assert result.count("CALL f3_proxy%halo_exchange(depth=1") == 2
     assert result.count("IF (f3_proxy%is_dirty(depth=1)) THEN") == 1
     #
