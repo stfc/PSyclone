@@ -1210,7 +1210,7 @@ class Node(object):
                 try:
                     # If the reference matches a Symbol in this
                     # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(name)
+                    return symbol_table.lookup(name, check_ancestors=False)
                 except KeyError:
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable. Does this SymbolTable have any

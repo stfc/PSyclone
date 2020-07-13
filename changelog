@@ -52,6 +52,12 @@
 	support in fparser2reader for translating Fortran NINT into this
 	intrinsic.
 
+	20) #821 for #630. Extends symbol table functionality to allow
+	search of ancestor symbol tables.
+
+	21) #837 for #824: Introduce profile_PSyDataStart() and
+	profile_PSyDataStop() functions for NVTX profiling on NVIDIA.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
