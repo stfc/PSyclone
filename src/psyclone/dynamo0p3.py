@@ -36,11 +36,11 @@
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (Descriptor,
-    KernelType) and adding a new class (DynFuncDescriptor03) to
-    capture function descriptor metadata and 2) specialising the
-    required base classes in psyGen.py (PSy, Invokes, Invoke, InvokeSchedule,
-    Loop, Kern, Inf, Arguments and Argument). '''
+    specialising the required base classes in parser.py (KernelType) and
+    adding a new class (DynFuncDescriptor03) to capture function descriptor
+    metadata and 2) specialising the required base classes in psyGen.py
+    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
+    Argument). '''
 
 # Imports
 from __future__ import print_function, absolute_import

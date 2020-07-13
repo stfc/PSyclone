@@ -34,6 +34,7 @@
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
 # Modified R. W. Ford, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -1620,7 +1621,7 @@ def test_gokernelarguments_append():
            " var1, var2)" in generated_code
 
 
-def test_gokernelargument_type():
+def test_gokernelargument_type(monkeypatch):
     ''' Check the type property of the GOKernelArgument'''
     from psyclone.parse.algorithm import Arg
     from psyclone.parse.kernel import Descriptor
@@ -1638,8 +1639,9 @@ def test_gokernelargument_type():
     # If the descriptor does not have a type it defaults to 'scalar'
     assert argument.type == "scalar"
 
-    # Otherwise it return the descriptor type
-    argument._arg.type = "descriptor_type"  # Mock the descriptor type method
+    # Otherwise it returns the descriptor type
+    # Mock the descriptor type method
+    monkeypatch.setattr(argument._arg, "_type", "descriptor_type")
     assert argument.type == "descriptor_type"
 
 

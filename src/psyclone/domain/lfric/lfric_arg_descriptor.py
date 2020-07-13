@@ -203,7 +203,8 @@ class LFRicArgDescriptor(Descriptor):
         # Initialise the parent class
         super(LFRicArgDescriptor,
               self).__init__(self._access_type, self._function_space1,
-                             stencil=self._stencil, mesh=self._mesh)
+                             stencil=self._stencil, mesh=self._mesh,
+                             type=self._type)
 
     def _validate_vector_size(self, separator, arg_type):
         '''
@@ -558,15 +559,6 @@ class LFRicArgDescriptor(Descriptor):
         '''
         dtype = str(dtype_descriptor).lower()
         return dtype.lstrip("gh_")
-
-    @property
-    def type(self):
-        '''
-        :returns: the type of the argument (gh_field, gh_operator, ...).
-        :rtype: str
-
-        '''
-        return self._type
 
     @property
     def data_type(self):

@@ -34,6 +34,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
@@ -1549,10 +1550,16 @@ class GOKernelArgument(KernelArgument):
 
     @property
     def type(self):
-        ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer).
-            If it has no type it defaults to scalar.'''
-        if hasattr(self._arg, 'type'):
+        '''
+        Return the type of this kernel argument - whether it is a field,
+        a scalar or a grid_property (to be supplied by the PSy layer).
+        If it has no type it defaults to scalar.
+
+        :returns: the type of the argument.
+        :rtype: str
+
+        '''
+        if self._arg.type:
             return self._arg.type
         return "scalar"
 
@@ -1905,21 +1912,21 @@ class GOStencil():
 
 
 class GO1p0Descriptor(Descriptor):
-    '''Description of a GOcean 1.0 kernel argument, as obtained by
-        parsing the kernel meta-data
+    ''' Description of a GOcean 1.0 kernel argument, as obtained by
+    parsing the kernel meta-data.
+
+    :param str kernel_name: the name of the kernel metadata type \
+                            that contains this metadata.
+    :param kernel_arg: the relevant part of the parser's AST.
+    :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
+
+    :raises ParseError: if a kernel argument has an invalid grid-point type.
+    :raises ParseError: for an unrecognised grid property.
+    :raises ParseError: for an invalid number of arguments.
+    :raises ParseError: for an invalid access argument.
 
     '''
-
     def __init__(self, kernel_name, kernel_arg):
-        '''Test and extract the required kernel metadata
-
-        :param str kernel_name: the name of the kernel metadata type
-        that contains this metadata
-        :param kernel_arg: the relevant part of the parser's AST
-        :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
-
-        '''
-
         nargs = len(kernel_arg.args)
         stencil_info = None
 
@@ -1950,7 +1957,9 @@ class GO1p0Descriptor(Descriptor):
                                                   valid_func_spaces))
 
         elif nargs == 2:
-            # This kernel argument is a property of the grid
+            # This kernel argument is a property of the grid. The grid
+            # properties are special because they must be supplied by
+            # the PSy layer.
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
@@ -1985,29 +1994,27 @@ class GO1p0Descriptor(Descriptor):
                              format(kernel_name, access, valid_names))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access_type, funcspace, stencil_info)
+        super(GO1p0Descriptor,
+              self).__init__(access_type, funcspace, stencil=stencil_info,
+                             type=self._type)
 
     def __str__(self):
+        '''
+        :returns: string representation of the argument descriptor.
+        :rtype: str
+
+        '''
         return repr(self)
 
     @property
     def grid_prop(self):
-        ''' The name of the grid-property that this argument is to supply
-            to the kernel '''
-        return self._grid_prop
-
-    @property
-    def type(self):
-        ''' The type of this argument - whether it is a scalar, a field or
-        a grid-property. The latter are special because they must be
-        supplied by the PSy layer.
-
-        :return: The type of this argument, either 'field', 'scalar', or \
-            'grid_property'
+        '''
+        :returns: the name of the grid-property that this argument is to \
+                  supply to the kernel.
         :rtype: str
 
         '''
-        return self._type
+        return self._grid_prop
 
 
 class GOKernelType1p0(KernelType):
