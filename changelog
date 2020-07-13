@@ -48,6 +48,13 @@
 	18) #796 for #412. Adds a transformation to convert an assignment
 	to an array range into an explicit loop in the PSyIR.
 
+	19) #834 for #833. Adds the NINT intrinsic to the PSyIR and adds
+	support in fparser2reader for translating Fortran NINT into this
+	intrinsic.
+
+	20) #821 for #630. Extends symbol table functionality to allow
+	search of ancestor symbol tables.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

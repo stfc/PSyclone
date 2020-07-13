@@ -242,11 +242,6 @@ class DynLoop(Loop):
             tag = "cell_loop_idx"
             suggested_name = "cell"
 
-        # This will return the symbol table from the closest ancestor
-        # that contains one. However, the original symbol my be in a
-        # different symbol table and if this is the case we will end
-        # up declaring the variable twice. Issue #630 describes this
-        # problem.
         symtab = self.scope.symbol_table
         try:
             data_symbol = symtab.lookup_with_tag(tag)

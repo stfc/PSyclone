@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,47 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: S. Siso, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Laboratory
 
-''' Module providing a PSyclone transformation script that converts the
-Schedule of each Invoke to use OpenCL. '''
+''' Module containing pytest tests for the handling of the NINT intrinsic
+in the PSyIR. '''
+
+from __future__ import absolute_import
+
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
+TEST_CODE = '''
+ PROGRAM my_test
+  INTEGER :: irgb
+  REAL :: zchl, zekb(10, 10)
+
+  irgb = NINT(41 + 20. * LOG10(zchl) + 1.E-15)
+  irgb = irgb + NINT(zekb(1,1) + 4.5 + zchl)
+
+END PROGRAM my_test
+'''
 
 
-def trans(psy):
+def test_nint(parser):
+    ''' Basic test that the NINT intrinsic is recognised and represented
+    in the PSyIR.
+
     '''
-    Transformation routine for use with PSyclone. Converts any global-variable
-    accesses into kernel arguments and then applies the OpenCL transformation
-    to the PSy layer.
-
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
-
-    '''
-    from psyclone.psyGen import TransInfo
-
-    # Get the necessary transformations
-    tinfo = TransInfo()
-    globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
-    cltrans = tinfo.get_trans_name('OCLTrans')
-
-    for invoke in psy.invokes.invoke_list:
-        print("Converting to OpenCL invoke: " + invoke.name)
-        schedule = invoke.schedule
-
-        # Skip invoke_2 as its time_smooth_code kernel contains a
-        # module variable (alpha) which is not dealt with by the
-        # KernelGlobalsToArguments transformation, see issue #826.
-        if invoke.name == "invoke_2":
-            continue
-
-        # Remove the globals from inside each kernel
-        for kern in schedule.kernels():
-            print("Remove globals from kernel: " + kern.name)
-            globaltrans.apply(kern)
-
-        # Transform invoke to OpenCL
-        cltrans.apply(schedule)
-
-    return psy
+    from psyclone.psyir.nodes import Assignment, UnaryOperation, \
+        BinaryOperation
+    processor = Fparser2Reader()
+    reader = FortranStringReader(TEST_CODE)
+    ptree = parser(reader)
+    sched = processor.generate_schedule("my_test", ptree)
+    assert isinstance(sched[0], Assignment)
+    assert isinstance(sched[0].rhs, UnaryOperation)
+    assert sched[0].rhs.operator == UnaryOperation.Operator.NINT
+    assert isinstance(sched[0].rhs.children[0], BinaryOperation)
+    assert isinstance(sched[1], Assignment)
+    assert isinstance(sched[1].rhs, BinaryOperation)
+    assert isinstance(sched[1].rhs.children[1], UnaryOperation)
+    assert sched[1].rhs.children[1].operator == UnaryOperation.Operator.NINT
