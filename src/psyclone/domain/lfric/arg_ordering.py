@@ -67,23 +67,66 @@ class ArgOrdering(object):
         self._generate_called = False
         self._arglist = []
 
-    def append(self, var_name):
+    def append(self, var_name, var_accesses=None, var_access_name=None,
+               var_is_array=True, mode=AccessType.READ):
         '''Appends the specified variable name to the list of all arguments.
+        If var_accesses is given, it will also record the access to the
+        variable. The name of the variable accessed can be overwritten by
+        specifying var_access_name. By default it is assumed it is an array
+        access (which can be set explicitly with var_is_array), and access
+        mode is READ (which can be set with mode).
 
         :param str var_name: the name of the variable.
+        :param var_accesses: optional class to store variable access \
+            information.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :param str var_access_name: optional name of the variable for \
+            which access information is stored (used e.g. when the \
+            actual argument is field_proxy, but the access is to be \
+            recorded for field).
+        :param bool var_is_array: optional argument to specify if the \
+            variable access is array (defaults to True).
+        :param mode: optional access mode (defaults to READ).
+        :type mode: :py:class:`psyclone.core.access_type.AccessType`
 
         '''
         self._arglist.append(var_name)
+        if var_accesses is not None:
+            # It's an array, so add an arbitrary index value for the
+            # stored indices (which is at this stage the only way to
+            # indicate an array access).
+            if var_is_array:
+                is_array = [1]
+            else:
+                is_array = None
 
-    def extend(self, list_var_name):
+            if var_access_name:
+                var_accesses.add_access(var_access_name, mode,
+                                        self._kern, is_array)
+            else:
+                var_accesses.add_access(var_name, mode,
+                                        self._kern, is_array)
+
+    def extend(self, list_var_name, var_accesses=None):
         '''Appends all variable names in the argument list to the list of
-        all arguments.
+        all arguments. If var_accesses is given, it will also record the
+        access to the variables. Any access will be recorded as a read-only
+        access to a scalar variable.
 
         :param list_var_name: the list with name of the variables to append.
         :type list_var_name: list of str.
+        :param var_accesses: optional class to store variable access \
+            information.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
         self._arglist.extend(list_var_name)
+        if var_accesses:
+            for var_name in list_var_name:
+                var_accesses.add_access(var_name, AccessType.READ,
+                                        self._kern)
 
     @property
     def num_args(self):
@@ -452,10 +495,8 @@ class ArgOrdering(object):
                 "Expected argument type to be one of {0} but got '{1}'".
                 format(LFRicArgDescriptor.VALID_SCALAR_NAMES, scalar_arg.type))
 
-        self.append(scalar_arg.name)
-        if var_accesses is not None:
-            var_accesses.add_access(scalar_arg.name, scalar_arg.access,
-                                    self._kern)
+        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                    var_is_array=False)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -472,9 +513,7 @@ class ArgOrdering(object):
         '''
         # There is currently one argument: "ndf"
         ndf_name = function_space.ndf_name
-        self.append(ndf_name)
-        if var_accesses is not None:
-            var_accesses.add_access(ndf_name, AccessType.READ, self._kern)
+        self.append(ndf_name, var_accesses, var_is_array=False)
 
     @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -550,11 +589,7 @@ class ArgOrdering(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        orientation_name = function_space.orientation_name
-        self.append(orientation_name)
-        if var_accesses is not None:
-            var_accesses.add_access(orientation_name, AccessType.READ,
-                                    self._kern, [1])
+        self.append(function_space.orientation_name, var_accesses)
 
     @abc.abstractmethod
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -626,10 +661,7 @@ class ArgOrdering(object):
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        map_name = function_space.cbanded_map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+        self.append(function_space.cbanded_map_name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
@@ -649,9 +681,7 @@ class ArgOrdering(object):
         '''
         # pylint: disable=unused-argument
         map_name = function_space.cma_indirection_map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+        self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):
         '''Add kernel arguments relating to properties of the reference
@@ -666,11 +696,12 @@ class ArgOrdering(object):
         if self._kern.reference_element.properties:
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
-            self._arglist.extend(refelem_args)
-            if var_accesses is not None:
-                for var_name in refelem_args:
-                    var_accesses.add_access(var_name, AccessType.READ,
-                                            self._kern)
+            self.extend(refelem_args, var_accesses)
+        #    self._arglist.extend(refelem_args)
+        #    if var_accesses is not None:
+        #        for var_name in refelem_args:
+        #            var_accesses.add_access(var_name, AccessType.READ,
+        #                                    self._kern)
 
 
 # ============================================================================

@@ -42,7 +42,6 @@ derived types. In that case, the derived type itself must be specified
 first before any members.
 '''
 
-from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import KernCallArgList
 
 
@@ -111,10 +110,7 @@ class KernCallAccArgList(KernCallArgList):
         '''
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
-        self.append(var_name)
-        if var_accesses is not None:
-            var_accesses.add_access(var_name, AccessType.READ,
-                                    self._kern, [1])
+        self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments if they have not already been
@@ -133,10 +129,7 @@ class KernCallAccArgList(KernCallArgList):
         # In case of OpenACC we do not want to transfer the same
         # data to GPU twice.
         if arg.proxy_name_indexed not in self.arglist:
-            self.append(arg.proxy_name_indexed)
-            if var_accesses is not None:
-                var_accesses.add_access(arg.proxy_name_indexed,
-                                        AccessType.READ, self._kern)
+            self.append(arg.proxy_name_indexed, var_accesses)
             # This adds ncell_3d and local_stencil after the derived type:
             super(KernCallAccArgList, self).operator(arg, var_accesses)
 
@@ -155,17 +148,10 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        undf_name = function_space.undf_name
-        self.append(undf_name)
+        self.append(function_space.undf_name, var_accesses, var_is_array=False)
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class
-        map_name = function_space.map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(undf_name, AccessType.READ,
-                                    self._kern)
-            var_accesses.add_access(map_name, AccessType.READ,
-                                    self._kern)
+        self.append(function_space.map_name, var_accesses, var_is_array=False)
 
 
 # ============================================================================

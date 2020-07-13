@@ -41,7 +41,6 @@ for a kernel subroutine.
 
 from __future__ import print_function, absolute_import
 
-from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import ArgOrdering
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import SymbolTable
@@ -83,9 +82,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append("cell")
-        if var_accesses is not None:
-            var_accesses.add_access("cell", AccessType.READ, self._kern)
+        self.append("cell", var_accesses, var_is_array=False)
 
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
@@ -97,9 +94,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append("nlayers")
-        if var_accesses is not None:
-            var_accesses.add_access("nlayers", AccessType.READ, self._kern)
+        self.append("nlayers", var_accesses, var_is_array=False)
 
     def mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
@@ -111,9 +106,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append("ncell_2d")
-        if var_accesses is not None:
-            var_accesses.add_access("ncell_2d", AccessType.READ, self._kern)
+        self.append("ncell_2d", var_accesses, var_is_array=False)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
@@ -129,7 +122,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         # The CMA operator itself
-        self.append(arg.name)
+        self.append(arg.name, var_accesses, var_is_array=False)
         # Associated scalar parameters
         nrow = arg.name + "_nrow"
         _local_args = [nrow]
@@ -146,11 +139,7 @@ class KernStubArgList(ArgOrdering):
         gamma_m = arg.name + "_gamma_m"
         gamma_p = arg.name + "_gamma_p"
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
-        self.extend(_local_args)
-        if var_accesses is not None:
-            var_accesses.add_access(arg.name, AccessType.READ, self._kern)
-            for var_name in _local_args:
-                var_accesses.add_access(var_name, AccessType.READ, self._kern)
+        self.extend(_local_args, var_accesses)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -172,10 +161,7 @@ class KernStubArgList(ArgOrdering):
             text = (argvect.name + "_" +
                     argvect.function_space.mangled_name +
                     "_v" + str(idx))
-            self.append(text)
-            if var_accesses is not None:
-                # Each argument is array, so mark the array access:
-                var_accesses.add_access(text, AccessType.READ, self._kern, [1])
+            self.append(text, var_accesses)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -190,12 +176,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
-        self.append(text)
-        if var_accesses is not None:
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            var_accesses.add_access(text, arg.access, self._kern, [1])
+        self.append(text, var_accesses, mode=arg.access)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -212,9 +193,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
+        self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -231,9 +210,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.direction_name(self._stub_symtab, arg)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern)
+        self.append(name, var_accesses, var_is_array=False)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
@@ -251,9 +228,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
-        self.append(var_name)
-        if var_accesses is not None:
-            var_accesses.add_access(var_name, AccessType.READ, self._kern, [1])
+        self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments to the argument list. If supplied it
@@ -268,11 +243,8 @@ class KernStubArgList(ArgOrdering):
 
         '''
         size = arg.name + "_ncell_3d"
-        self.append(size)
-        self.append(arg.name)
-        if var_accesses is not None:
-            var_accesses.add_access(size, AccessType.READ, self._kern)
-            var_accesses.add_access(arg.name, AccessType.READ, self._kern)
+        self.append(size, var_accesses, var_is_array=False)
+        self.append(arg.name, var_accesses, var_is_array=False)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         ''' Provide compulsory arguments if there is a field on this
@@ -288,13 +260,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        undf_name = function_space.undf_name
-        self.append(undf_name)
-        map_name = function_space.map_name
-        self.append(map_name)
-        if var_accesses is not None:
-            var_accesses.add_access(undf_name, AccessType.READ, self._kern)
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+        self.append(function_space.undf_name, var_accesses, var_is_array=False)
+        self.append(function_space.map_name, var_accesses, var_is_array=False)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
@@ -323,10 +290,7 @@ class KernStubArgList(ArgOrdering):
                 # part of the shape name to "qr_".
                 basis_name = function_space.get_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self.append(basis_name)
-                if var_accesses is not None:
-                    var_accesses.add_access(basis_name, AccessType.READ,
-                                            self._kern)
+                self.append(basis_name, var_accesses)
 
             elif shape in VALID_EVALUATOR_SHAPES:
                 # Need a basis array for each target space upon which the basis
@@ -335,10 +299,7 @@ class KernStubArgList(ArgOrdering):
                 for _, target in self._kern.eval_targets.items():
                     basis_name = \
                         function_space.get_basis_name(on_space=target[0])
-                    self.append(basis_name)
-                    if var_accesses is not None:
-                        var_accesses.add_access(basis_name, AccessType.READ,
-                                                self._kern)
+                    self.append(basis_name, var_accesses)
             else:
                 raise InternalError(
                     "Unrecognised evaluator shape ('{0}'). Expected one of: "
@@ -370,10 +331,7 @@ class KernStubArgList(ArgOrdering):
                 # last part of the shape name to "qr_".
                 diff_basis_name = function_space.get_diff_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self.append(diff_basis_name)
-                if var_accesses is not None:
-                    var_accesses.add_access(diff_basis_name, AccessType.READ,
-                                            self._kern, [1])
+                self.append(diff_basis_name, var_accesses)
 
             elif shape in VALID_EVALUATOR_SHAPES:
                 # We need differential basis functions for an evaluator,
@@ -383,10 +341,7 @@ class KernStubArgList(ArgOrdering):
                 for _, target in self._kern.eval_targets.items():
                     diff_basis_name = function_space.get_diff_basis_name(
                         on_space=target[0])
-                    self.append(diff_basis_name)
-                    if var_accesses is not None:
-                        var_accesses.add_access(diff_basis_name,
-                                                AccessType.READ, self._kern)
+                    self.append(diff_basis_name, var_accesses)
             else:
                 raise InternalError("Unrecognised evaluator shape ('{0}'). "
                                     "Expected one of: {1}".format(
@@ -407,9 +362,7 @@ class KernStubArgList(ArgOrdering):
         '''
         arg = self._kern.arguments.get_arg_on_space(function_space)
         name = "boundary_dofs_"+arg.name
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
+        self.append(name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Supply necessary additional arguments for the kernel that
@@ -454,11 +407,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            if var_accesses is not None:
-                for var_name in rule.kernel_args:
-                    var_accesses.add_access(var_name, AccessType.READ,
-                                            self._kern)
-            self.extend(rule.kernel_args)
+            self.extend(rule.kernel_args, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
