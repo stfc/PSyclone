@@ -4336,11 +4336,8 @@ def test_rc_dofs_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
 
-    for field_name in ["f2"]:  # TODO: Check if correct?
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                ")".format(field_name)) in result
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
@@ -4363,11 +4360,10 @@ def test_rc_dofs_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
 
-    for field_name in ["f2"]:  # TODO: Check if correct?
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_halo_depth())".format(field_name)) in result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN"
+            in result)
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())"
+            in result)
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" not in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
@@ -4399,28 +4395,23 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check the f1 halo exchange is added and the f2 halo exchange is
-    # modified (#TODO: Correct after #138 is merged as f1 access in
-    # testkern_mod changes from "write" to "inc")
+    # Check that the f2 halo exchange is modified
     for field_name in ["f2"]:
         assert ("CALL {0}_proxy%halo_exchange(depth=3"
                 ")".format(field_name)) in result
-    # There is no need for a run-time is_dirty check for field f1 as
-    # we know that we need a halo exchange. We know this as f1 is
-    # modified in an earlier loop which leaves all of f1's halo
-    # dirty. As we know that we need the halo to be clean to depth 3
-    # we can be certain we need a halo exchange.
-    assert ("IF (f1_proxy%is_dirty(depth=3)) "
-            "THEN") not in result
     # There is a need for a run-time is_dirty check for field f2 as
     # this field is not modified in this invoke and therefore its halo
     # is in an unknown state before it is read
     assert ("IF (f2_proxy%is_dirty(depth=3)) "
             "THEN") in result
 
-    # Check the existing m1 and m2 halo exchanges (for the first
-    # un-modified loop) remain unchanged
-    for field_name in ["m1", "m2"]:
+    # Check that the existing halo exchanges (for the first un-modified
+    # loop) remain unchanged. These are on f1, m1 and m2 without annexed
+    # dofs and only on m1 and m2 with annexed dofs.
+    fld_hex_names = ["f1", "m1", "m2"]
+    if annexed:
+        fld_hex_names.remove("f1")
+    for field_name in fld_hex_names:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
@@ -4447,18 +4438,14 @@ def test_rc_dofs_no_depth_prev_dep():
     invoke.schedule = schedule
     result = str(psy.gen)
 
-    # Check the f1 halo exchange is added and the f2 halo exchange is
-    # modified (#TODO: Correct after #138 is merged as f1 access in
-    # testkern_mod changes from "write" to "inc")
+    # Check that the f2 halo exchange is modified
     for field_name in ["f2"]:
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
                 ")".format(field_name)) in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
-            "THEN") not in result
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
-    # Check the existing m1 and m2 halo exchanges remain unchanged
-    for field_name in ["m1", "m2"]:
+    # Check that the existing f1, m1 and m2 halo exchanges remain unchanged
+    for field_name in ["f1", "m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
