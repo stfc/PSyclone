@@ -357,11 +357,7 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
-        # TODO in issue #138: Allowed accesses for fields on continuous
-        # function spaces for the user-defined kernels that loop
-        # over cells should only be [AccessType.READ, AccessType.INC]
-        field_cont_accesses = [AccessType.READ, AccessType.INC,
-                               AccessType.WRITE]
+        field_cont_accesses = [AccessType.READ, AccessType.INC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
@@ -385,11 +381,9 @@ class LFRicArgDescriptor(Descriptor):
                        self._function_space1.lower(), arg_type))
 
         # Check accesses for fields that iterate over cells and are on
-        # continuous function spaces (including any space)
+        # continuous function spaces (including any_space)
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
-        # As said above, allowed accesses for fields on continuous function
-        # spaces is dealt with in #138
         if self._iterates_over == "cells" and \
            self._function_space1.lower() in \
                 (FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
