@@ -287,9 +287,6 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         result_symbol = result.symbol
 
         # Create new i and j loop iterators.
-        # Note that this approach risks declaring the same symbol
-        # names as a parent symbol table until issue #630 is
-        # addressed.
         symbol_table = node.scope.symbol_table
         i_loop_name = symbol_table.new_symbol_name("i")
         i_loop_symbol = DataSymbol(i_loop_name, INTEGER_TYPE)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,27 +31,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Author A. R. Porter, STFC Daresbury Laboratory
 
+''' Module containing pytest tests for the handling of the NINT intrinsic
+in the PSyIR. '''
 
+from __future__ import absolute_import
+
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
+TEST_CODE = '''
+ PROGRAM my_test
+  INTEGER :: irgb
+  REAL :: zchl, zekb(10, 10)
+
+  irgb = NINT(41 + 20. * LOG10(zchl) + 1.E-15)
+  irgb = irgb + NINT(zekb(1,1) + 4.5 + zchl)
+
+END PROGRAM my_test
 '''
-    A test module that provides a script to perform loop fusion on the
-    first two loops of an invoke called 'invoke_0'. This module does
-    not perform any error checking. It is used by the test system to
-    ensure that transformation scripts work correctly.
-'''
 
 
-def trans(psy):
-    ''' A test loop fusion transformation for use with the transformation
-    unit tests '''
-    from psyclone.transformations import LoopFuseTrans
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
-    transform = LoopFuseTrans()
-    schedule, _ = transform.apply(loop1, loop2)
-    invoke.schedule = schedule
-    return psy
+def test_nint(parser):
+    ''' Basic test that the NINT intrinsic is recognised and represented
+    in the PSyIR.
+
+    '''
+    from psyclone.psyir.nodes import Assignment, UnaryOperation, \
+        BinaryOperation
+    processor = Fparser2Reader()
+    reader = FortranStringReader(TEST_CODE)
+    ptree = parser(reader)
+    sched = processor.generate_schedule("my_test", ptree)
+    assert isinstance(sched[0], Assignment)
+    assert isinstance(sched[0].rhs, UnaryOperation)
+    assert sched[0].rhs.operator == UnaryOperation.Operator.NINT
+    assert isinstance(sched[0].rhs.children[0], BinaryOperation)
+    assert isinstance(sched[1], Assignment)
+    assert isinstance(sched[1].rhs, BinaryOperation)
+    assert isinstance(sched[1].rhs.children[1], UnaryOperation)
+    assert sched[1].rhs.children[1].operator == UnaryOperation.Operator.NINT
