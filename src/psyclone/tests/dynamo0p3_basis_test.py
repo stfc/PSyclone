@@ -102,7 +102,7 @@ def test_multi_updated_arg():
     if it writes to more than one argument. (This used to be rejected.) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the access of the read-only argument
-    code = CODE.replace("GH_READ", "GH_WRITE", 1)
+    code = CODE.replace("GH_READ", "GH_INC", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
     # Evaluator targets list remains unchanged

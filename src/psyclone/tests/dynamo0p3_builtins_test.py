@@ -2481,6 +2481,16 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n")
         if not annexed:
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+            f1_hex_code = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f1_proxy%halo_exchange(depth=1)\n"
+                "      END IF\n"
+                "      !\n")
+            output_dm_2 = output_dm_2.replace(
+                "      ! Call kernels and communication routines\n"
+                "      !\n", f1_hex_code)
         assert output_dm_2 in code
 
 
