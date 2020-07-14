@@ -372,8 +372,8 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
     assert ("LFRicArgDescriptor.__init__(): expected iteration "
-            "space over 'cells' or 'dofs' in the kernel "
-            "metadata ""but got 'colours'.")
+            "space over 'cells' or 'dofs' in the kernel metadata "
+            "but got 'colours'." in str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -3609,7 +3609,7 @@ def test_fs_discontinuous_and_inc_error():
 def test_fs_continuous_write_and_readwrite_cells_error():
     ''' Test that an error is raised if a continuous function space and
     'gh_write' or 'gh_readwrite' accesses are provided for the same field
-    in the metadata.
+    that iterates over cells in the metadata.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3623,7 +3623,7 @@ def test_fs_continuous_write_and_readwrite_cells_error():
         assert ("In the LFRic API, allowed accesses for a field that "
                 "iterates over cells and is on a continuous function "
                 "space ('any_space' or one of {0}) are ['gh_read', "
-                "'gh_inc', 'gh_write'], but found 'gh_readwrite' for '{1}'".
+                "'gh_inc'], but found 'gh_readwrite' for '{1}'".
                 format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES, fspace)
                 in str(excinfo.value))
 
@@ -3631,7 +3631,6 @@ def test_fs_continuous_write_and_readwrite_cells_error():
 def test_fs_anyspace_and_inc_dofs_error():
     ''' Test that an error is raised if 'any_space' and 'gh_inc' are
     provided for the same field that loops over DoFs in the metadata. '''
-    # TODO: Use testkern_not_cells and update logic!!!
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = CODE.replace("integer :: iterates_over = cells",
                             "integer :: iterates_over = dofs", 1)
@@ -3857,8 +3856,8 @@ def test_field_gh_sum_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("allowed accesses for a field that iterates over cells and is "
-            "on a continuous function space ('any_space' or one of {0}) are "
-            "['gh_read', 'gh_inc', 'gh_write'], but found 'gh_sum' for 'w2'".
+            "on a continuous function space ('any_space' or one of {0}) "
+            "are ['gh_read', 'gh_inc'], but found 'gh_sum' for 'w2'".
             format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES)
             in str(excinfo.value))
 
