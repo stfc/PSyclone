@@ -41,6 +41,7 @@ module testkern_dofs_mod
 
   implicit none
 
+  ! User-defined single kernel that operates on DoFs (currently not supported)
   type, extends(kernel_type) :: testkern_dofs_type
      type(arg_type), dimension(4) :: meta_args = &
           (/ arg_type(gh_field, gh_write, w1),   &

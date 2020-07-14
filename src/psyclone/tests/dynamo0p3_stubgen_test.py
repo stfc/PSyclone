@@ -65,7 +65,7 @@ def test_kernel_stub_invalid_iteration_space():
     ''' Check that we raise an exception if an invalid iteration space
     (not "cells") is found in the kernel metadata. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_dofs_mod.F90"),
+                                   "testkern_dofs_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

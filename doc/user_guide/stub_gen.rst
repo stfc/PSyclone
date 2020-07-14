@@ -412,7 +412,7 @@ supported in the stub generator.
     tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     tests/test_files/dynamo0p3/testkern_any_space_4_mod.f90
     tests/test_files/dynamo0p3/testkern_any_discontinuous_space_op_2_mod.f90
-    tests/test_files/dynamo0p3/testkern_dofs_mod.F90
+    tests/test_files/dynamo0p3/testkern_dofs_mod.f90
     tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     tests/test_files/dynamo0p3/testkern_short_name.F90
     tests/test_files/dynamo0p3/testkern_no_datatype.F90
@@ -430,7 +430,7 @@ appropriate errors. Two examples are below:
     > genkernelstub tests/test_files/dynamo0p3/testkern_no_datatype.F90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
-``testkern_dofs_mod.F90`` is an example of unsupported feature, as the
+``testkern_dofs_mod.f90`` is an example of unsupported feature, as the
 ``iterates_over`` metadata specifies ``dofs`` as the iteration space and
 this is currently only supported for :ref:`built-ins <dynamo0.3-built-ins>`.
 
