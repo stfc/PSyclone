@@ -6703,6 +6703,8 @@ class DynKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # Supported iteration spaces for this kernel (currently only "cells")
+        self._supported_iteration_spaces = ["cells"]
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7081,18 +7083,19 @@ class DynKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.XXXX`
 
-        :raises GenerationError: if a kernel stub to create argument \
-                                 list and declarations for does not have \
-                                 "cells" as iteration space.
+        :raises GenerationError: if a kernel stub does not have a supported \
+                                 iteration space (currently only "cells").
 
         '''
         # Check iteration space before generating code
-        if self._iterates_over != "cells":
+        if self._iterates_over not in self._supported_iteration_spaces:
             raise GenerationError(
-                "In the LFRic API, stub generation is only supported for "
-                "kernels that iterate over cells, but found '{0}' in "
-                "kernel '{1}'.".format(self._iterates_over, self._name))
+                "The LFRic API supports kernel stub generation for kernels "
+                "that have one of {0} as iteration space, but found '{1}' "
+                "in kernel '{2}'.".format(self._supported_iteration_spaces,
+                                          self._iterates_over, self._name))
 
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -7126,12 +7129,17 @@ class DynKern(CodedKern):
         return psy_module.root
 
     def gen_code(self, parent):
-        '''Generates dynamo version 0.3 specific psy code for a call to
-           the dynamo kernel instance.
+        '''
+        Generates LFRic (Dynamo 0.3) specific version of PSy layer code
+        for a call to the LFRic kernel instance.
 
         :param parent: an f2pygen object that will be the parent of \
                        f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if a kernel to generate the call for does \
+                                 not have a supported iteration space \
+                                 (currently only "cells").
         :raises GenerationError: if the loop goes beyond the level 1 \
                                  halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \
@@ -7139,6 +7147,15 @@ class DynKern(CodedKern):
                                  an OpenMP parallel region.
 
         '''
+        # Check iteration space before generating code
+        if self._iterates_over not in self._supported_iteration_spaces:
+            raise GenerationError(
+                "The LFRic API supports calls to kernels that have one of "
+                "{0} as iteration space, but found '{1}' in kernel '{2}'.".
+                format(self._supported_iteration_spaces, self._iterates_over,
+                       self._name))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",

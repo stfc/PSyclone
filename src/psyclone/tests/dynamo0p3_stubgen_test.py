@@ -62,8 +62,8 @@ def setup():
 
 
 def test_kernel_stub_invalid_iteration_space():
-    ''' Check that we raise an exception if an invalid iteration space
-    (not "cells") is found in the kernel metadata. '''
+    ''' Check that we raise an exception if we attempt to generate kernel
+    stub for a kernel with an unsupported iteration space. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_dofs_mod.f90"),
                       ignore_comments=False)
@@ -72,9 +72,9 @@ def test_kernel_stub_invalid_iteration_space():
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert ("In the LFRic API, stub generation is only supported for "
-            "kernels that iterate over cells, but found 'dofs' in "
-            "kernel 'testkern_dofs_code'." in str(excinfo.value))
+    assert ("The LFRic API supports kernel stub generation for kernels "
+            "that have one of ['cells'] as iteration space, but found "
+            "'dofs' in kernel 'testkern_dofs_code'." in str(excinfo.value))
 
 
 def test_kernel_stub_invalid_scalar_argument():

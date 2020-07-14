@@ -557,6 +557,21 @@ def test_unecessary_shape():
             in str(excinfo.value))
 
 
+def test_kernel_call_invalid_iteration_space():
+    ''' Check that we raise an exception if we attempt to generate kernel
+    call for a kernel with an unsupported iteration space.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.14_single_invoke_dofs.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("The LFRic API supports calls to kernels that have one of "
+            "['cells'] as iteration space, but found 'dofs' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
+
+
 def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.
