@@ -47,6 +47,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, \
 from psyclone.psyGen import GenerationError, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.core.access_info import VariablesAccessInfo
 
 
 def test_reference_bad_init():
@@ -482,3 +483,26 @@ def test_array_is_full_range():
     my_range = Range.create(lbound, ubound, one)
     array_reference = Array.create(symbol, [my_range])
     assert array_reference.is_full_range(0)
+
+
+def test_reference_accesses():
+    ''' Test that the reference_accesses method behaves as expected. '''
+
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    var_access_info = VariablesAccessInfo()
+    reference.reference_accesses(var_access_info)
+    assert (str(var_access_info)) == "test: READ"
+
+    # There is no dependence if the reference is the first argument to
+    # either lbound or ubound as that is simply looking up the array
+    # bounds. Therefore var_access_info should be empty.
+    one = Literal("1", INTEGER_TYPE)
+    array_symbol = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
+    array_ref = Reference(array_symbol)
+    array_access = Array.create(array_symbol, [one])
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, array_ref, one)
+    array_access.children[0] = Range.create(operator, one, one)
+    var_access_info = VariablesAccessInfo()
+    array_ref.reference_accesses(var_access_info)
+    assert str(var_access_info) == ""

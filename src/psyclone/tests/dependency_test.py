@@ -213,7 +213,6 @@ def test_do_loop(parser):
                                 "s: WRITE, t: READ"
 
 
-@pytest.mark.xfail(reason="Implicit loops are not supported. TODO #828")
 def test_nemo_implicit_loop(parser):
     ''' Check the handling of ImplicitLoops access information.
     '''
@@ -231,7 +230,8 @@ def test_nemo_implicit_loop(parser):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "jj: READ+WRITE, n: READ, a: READ"
+    assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
+            "s: WRITE, t: READ")
 
 
 @pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
