@@ -6,6 +6,13 @@ profiling tools, the use of this library does *not* require that calls
 to `profile_PSyDataInit()` and `profile_PSyDataShutdown()` be inserted
 into the application.
 
+This wrapper supports the `profile_PSyDataStart()` and
+`profile_PSyDataStop()` API calls that may be used in order to limit
+the region of code that is profiled at runtime. If so, the application
+must be linked against CUDA (-Mcuda flag to the PGI compiler). This
+functionality is often used in combination with disabling profiling
+at application startup (e.g. flag '--profile-from-start off' to nvprof).
+
 ## Dependencies
 
 NVTX is a part of the CUDA toolkit which may be freely downloaded from
@@ -30,7 +37,7 @@ as an include/module path, e.g. `-I/path/to/psyclone/lib/profiling/nvidia`.
 Finally, at the link stage the location of the wrapper *and* NVTX
 libraries must be provided, e.g.:
 
-    pgf90 <my object files> -L/path/to/psyclone/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
+    pgf90 <my object files> -Mcuda -L/path/to/psyclone/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
 
 where `<CUDA_LIB_DIR>` will depend upon your system but is likely to be
 something like `/apps/packages/cuda/10.0/lib64`.
