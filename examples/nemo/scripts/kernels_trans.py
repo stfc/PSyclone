@@ -113,7 +113,7 @@ NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
                       "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
-                      "glob_sum_full", "ptr_sj",
+                      "glob_sum_full", "ptr_sj", "ptr_sjk",
                       "interp1", "interp2", "interp3", "integ_spline"])
 
 
