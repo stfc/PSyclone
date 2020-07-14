@@ -110,7 +110,7 @@ $(NAME).%: $(KERNELS) psy_%.o alg.o
 alg.f90 psy.f90: transform
 
 transform: test.x90
-	${PSYCLONE} --profile invokes -l -api "gocean1.0" \
+	${PSYCLONE} --profile invokes -l all -api "gocean1.0" \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found

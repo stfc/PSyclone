@@ -72,7 +72,7 @@ dl_timer:
 transform: kernels managed_mem
 
 kernels:
-	${PSYCLONE} -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
+	${PSYCLONE} -l all -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
    ../code/tra_adv.F90
 
 managed_mem:
