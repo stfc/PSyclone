@@ -312,8 +312,9 @@ def test_single_node_dynamo0p3():
     output = """      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", "invoke_0_testkern""" \
-      """_type:testkern_code:r0", 14, 2)
+      """_type:testkern_code:r0", 15, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f1", f1)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
       CALL extract_psy_data%PreDeclareVariable("m1", m1)
       CALL extract_psy_data%PreDeclareVariable("m2", m2)
@@ -331,6 +332,7 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f1", f1)
       CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("m1", m1)
       CALL extract_psy_data%ProvideVariable("m2", m2)
@@ -378,8 +380,9 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 5, 3)
+      """"invoke_0:r0", 6, 3)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f3", f3)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
@@ -389,6 +392,7 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f3", f3)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
@@ -563,8 +567,9 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 5, 3)
+      """"invoke_0:r0", 6, 3)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f3", f3)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
@@ -574,6 +579,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f3", f3)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
