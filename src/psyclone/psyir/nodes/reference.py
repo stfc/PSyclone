@@ -125,7 +125,18 @@ class Reference(DataNode):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
         '''
+        from psyclone.psyir.nodes import Operation, BinaryOperation
+        if (self.parent and isinstance(self.parent, Operation) and \
+                self.parent.operator in [BinaryOperation.Operator.LBOUND,
+                                     BinaryOperation.Operator.UBOUND] and \
+                self.parent.children.index(self) == 0):
+            # This reference is the first argument to a lbound or
+            # ubound intrinsic. These intrinsics do not access this
+            # array elements, they determine its array
+            # bounds. Therefore there is no data dependence.
+            return
         var_accesses.add_access(self.name, AccessType.READ, self)
 
 

@@ -52,7 +52,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
-    from psyclone.nemo import NemoKern, NemoImplicitLoop
+    from psyclone.nemo import NemoKern # , NemoImplicitLoop
     API = "nemo"
     _, INVOKEINFO = parse("../code/traldf_iso.F90", api=API)
     PSY = PSyFactory(API).create(INVOKEINFO)
@@ -67,11 +67,25 @@ if __name__ == "__main__":
     TRANS_INFO = TransInfo()
     print(TRANS_INFO.list)
     OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
-    DO_TRANS = TRANS_INFO.get_trans_name('NemoExplicitLoopTrans')
-    # Transform each implicit loop to make the outermost loop explicit
-    for loop in SCHED.loops():
-        if isinstance(loop, NemoImplicitLoop):
-            _, _ = DO_TRANS.apply(loop)
+
+    # This example used to transform implicit loops so that the
+    # outermost loop range became an explicit loop. We are no longer
+    # able to do this in the NEMO API until it uses the Fortran back
+    # end - see #435 - (as the associated transformation works on the
+    # PSyIR not the fparser2 tree). Further a) the resulting loop from
+    # the transformation is a standard loop not a nemoloop and does
+    # not have a "loop type" so would not be picked up by the OpenMP
+    # transformation and b) the content of the loop is not a kernel so
+    # would again not be picked up by the OpenMP transformation.
+    #
+    # from psyclone.psyir.transformations import ArrayRange2LoopTrans
+    # from psyclone.psyir.nodes import Assignment
+    # DO_TRANS = ArrayRange2LoopTrans()
+    # # Transform each implicit loop to make the outermost loop explicit
+    # for assign in SCHED.walk(Assignment):
+    #     if assign.is_array_range:
+    #         DO_TRANS.apply(assign)
+
     for loop in SCHED.loops():
         # TODO loop.kernel method needs extending to cope with
         # multiple kernels

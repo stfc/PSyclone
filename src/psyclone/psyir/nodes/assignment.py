@@ -136,8 +136,8 @@ class Assignment(Statement):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
 
+        '''
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
         # is only one access to the variable!
