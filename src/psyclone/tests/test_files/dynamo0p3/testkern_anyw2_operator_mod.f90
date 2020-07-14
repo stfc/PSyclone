@@ -1,3 +1,4 @@
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017-2020, Science and Technology Facilities Council

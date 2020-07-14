@@ -120,7 +120,7 @@ class Container(Node):
 
         container = Container(name)
         container._symbol_table = symbol_table
-        symbol_table._schedule = container
+        symbol_table._node = container
         container.children = children
         for child in children:
             child.parent = container

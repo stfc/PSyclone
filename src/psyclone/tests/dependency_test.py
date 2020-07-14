@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
@@ -302,11 +303,12 @@ def test_goloop_partially():
 
 
 def test_dynamo():
-    '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
-    are reported based on the user's point of view, not the code actually
-    created by PSyclone, e.g. it shows a dependency on 'some_field', but not
-    on some_field_proxy etc. Also the dependency is at this stage taken
+    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+    accesses are reported based on the user's point of view, not the code
+    actually created by PSyclone, e.g. it shows a dependency on 'some_field',
+    but not on some_field_proxy etc. Also the dependency is at this stage taken
     from the kernel metadata, not the actual kernel usage.
+
     '''
     from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -318,7 +320,7 @@ def test_dynamo():
     schedule = invoke.schedule
 
     var_accesses = VariablesAccessInfo(schedule)
-    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: WRITE, "\
+    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "\
         "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "\
         "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "\
         "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
@@ -875,7 +877,7 @@ def test_lfric_acc():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: WRITE" in var_info
+    assert "f1: READ+WRITE" in var_info
     assert "f2: READ" in var_info
     assert "m1: READ" in var_info
     assert "m2: READ" in var_info

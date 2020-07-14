@@ -4102,7 +4102,7 @@ class KernelSchedule(Schedule):
 
         kern = KernelSchedule(name)
         kern._symbol_table = symbol_table
-        symbol_table._schedule = kern
+        symbol_table._node = kern
         for child in children:
             child.parent = kern
         kern.children = children
