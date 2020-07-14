@@ -257,7 +257,6 @@ def test_no_implicit_loop_in_kernel(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
     assert isinstance(loop.loop_body[0], Assignment)

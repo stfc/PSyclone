@@ -3474,8 +3474,9 @@ class ACCKernelsTrans(RegionTrans):
                 break
         else:
             # Branch executed if loop does not exit with a break
-            raise TransformationError("A kernels transformation must enclose "
-                                      "at least one loop but none were found.")
+            raise TransformationError(
+                "A kernels transformation must enclose at least one loop or "
+                "array range but none were found.")
 
 
 class ACCDataTrans(RegionTrans):
