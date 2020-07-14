@@ -877,7 +877,7 @@ def test_lfric_acc():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: WRITE" in var_info
+    assert "f1: READ+WRITE" in var_info
     assert "f2: READ" in var_info
     assert "m1: READ" in var_info
     assert "m2: READ" in var_info
