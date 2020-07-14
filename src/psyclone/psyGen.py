@@ -66,8 +66,8 @@ OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 # Names of internal scalar argument types
 MAPPING_SCALARS_LIST = ["iscalar", "rscalar"]
-# Mapping from domain-specific scalar-type names to internal scalar
-# types. Can be overridden in domain-specific modules.
+# Mapping from domain-specific scalar-type names to internal scalar types
+# that are used for reductions. Can be overridden in domain-specific modules.
 MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
 
 # Valid types of argument to a kernel call
@@ -142,19 +142,21 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     arg_types and with access in arg_accesses. If these are not set
     then return all arguments.
 
-    :param arg_list: List of kernel arguments to filter
-    :type arg_list: list of :py:class:`psyclone.parse.algorithm.Descriptor`
-    :param arg_types: List of argument types (e.g. "GH_FIELD")
+    :param arg_list: list of kernel arguments to filter.
+    :type arg_list: list of :py:class:`psyclone.parse.kernel.Descriptor`
+    :param arg_types: list of argument types (e.g. "GH_FIELD").
     :type arg_types: list of str
-    :param arg_accesses: List of access types that arguments must have
-    :type arg_accesses: List of \
-        :py:class:`psyclone.core.access_type.AccessType`.
-    :param arg_meshes: List of meshes that arguments must be on
+    :param arg_accesses: list of access types that arguments must have.
+    :type arg_accesses: list of \
+        :py:class:`psyclone.core.access_type.AccessType`
+    :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool is_literal: Whether or not to include literal arguments in \
+    :param bool is_literal: whether or not to include literal arguments in \
                             the returned list.
-    :returns: list of kernel arguments matching the requirements
-    :rtype: list of :py:class:`psyclone.parse.algorithm.Descriptor`
+
+    :returns: list of kernel arguments matching the requirements.
+    :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
+
     '''
     arguments = []
     for argument in arg_list:

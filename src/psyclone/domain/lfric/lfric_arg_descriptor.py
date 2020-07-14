@@ -101,6 +101,10 @@ class LFRicArgDescriptor(Descriptor):
     # using the mesh_arg=... meta-data element (for inter-grid kernels that
     # perform prolongation/restriction).
     VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
+
+    # LFRic names for valid scalar reductions
+    MAPPING_SCALARS_LIST = VALID_SCALAR_NAMES
+
     # ----------------------------------------------------------------------- #
 
     def __init__(self, arg_type):

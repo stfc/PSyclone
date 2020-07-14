@@ -134,10 +134,10 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # ---------- psyGen mappings ------------------------------------------------ #
-# Mappings used by non-API-Specific code in psyGen
-# psyGen ["iscalar", "rscalar"] translate to LFRic ["gh_integer", "gh_real"]
+# Mappings used for scalar reductions by non-API-Specific code in psyGen.
+# psyGen ["iscalar", "rscalar"] translate to LFRic scalar names.
 psyGen.MAPPING_SCALARS = dict(zip(psyGen.MAPPING_SCALARS_LIST,
-                                  LFRicArgDescriptor.VALID_SCALAR_NAMES))
+                                  LFRicArgDescriptor.MAPPING_SCALARS_LIST))
 # psyGen argument types translate to LFRic argument types
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
