@@ -37,8 +37,6 @@
 
 module profile_psy_data_mod
   type :: profile_PSyDataType
-     character(:), allocatable :: module_name
-     character(:), allocatable :: region_name
      integer                   :: timer_index
      logical                   :: registered = .false.
   contains
