@@ -1569,6 +1569,7 @@ class GOKernelArgument(KernelArgument):
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
 
+    @property
     def is_scalar(self):
         ''':return: whether this variable is a scalar variable or not.
         :rtype: bool'''
