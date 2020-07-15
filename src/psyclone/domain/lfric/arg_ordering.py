@@ -68,12 +68,11 @@ class ArgOrdering(object):
         self._arglist = []
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
-               var_is_array=True, mode=AccessType.READ):
+               mode=AccessType.READ):
         '''Appends the specified variable name to the list of all arguments.
         If var_accesses is given, it will also record the access to the
         variable. The name of the variable accessed can be overwritten by
-        specifying var_access_name. By default it is assumed it is an array
-        access (which can be set explicitly with var_is_array), and access
+        specifying var_access_name. By default it is assumed that access
         mode is READ (which can be set with mode).
 
         :param str var_name: the name of the variable.
@@ -85,28 +84,18 @@ class ArgOrdering(object):
             which access information is stored (used e.g. when the \
             actual argument is field_proxy, but the access is to be \
             recorded for field).
-        :param bool var_is_array: optional argument to specify if the \
-            variable access is array (defaults to True).
         :param mode: optional access mode (defaults to READ).
         :type mode: :py:class:`psyclone.core.access_type.AccessType`
 
         '''
         self._arglist.append(var_name)
         if var_accesses is not None:
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            if var_is_array:
-                is_array = [1]
-            else:
-                is_array = None
-
             if var_access_name:
                 var_accesses.add_access(var_access_name, mode,
-                                        self._kern, is_array)
+                                        self._kern)
             else:
                 var_accesses.add_access(var_name, mode,
-                                        self._kern, is_array)
+                                        self._kern)
 
     def extend(self, list_var_name, var_accesses=None):
         '''Appends all variable names in the argument list to the list of
@@ -495,8 +484,7 @@ class ArgOrdering(object):
                 "Expected argument type to be one of {0} but got '{1}'".
                 format(LFRicArgDescriptor.VALID_SCALAR_NAMES, scalar_arg.type))
 
-        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
-                    var_is_array=False)
+        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -513,7 +501,7 @@ class ArgOrdering(object):
         '''
         # There is currently one argument: "ndf"
         ndf_name = function_space.ndf_name
-        self.append(ndf_name, var_accesses, var_is_array=False)
+        self.append(ndf_name, var_accesses)
 
     @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):

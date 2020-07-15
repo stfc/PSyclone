@@ -101,17 +101,17 @@ class KernCallArgList(ArgOrdering):
         # Add the cell map to our argument list
         self.append("{0}(:,{1})".format(map_name,
                                         self._cell_ref_name(var_accesses)),
-                    var_accesses=var_accesses, var_is_array=False)
+                    var_accesses=var_accesses)
         print("YY", map_name)
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = symtab.name_from_tag(base_name)
-        self.append(ncellpercell, var_accesses, var_is_array=False)
+        self.append(ncellpercell, var_accesses)
         print("XX", ncellpercell)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
         ncell_fine = symtab.name_from_tag(base_name)
-        self.append(ncell_fine, var_accesses, var_is_array=False)
+        self.append(ncell_fine, var_accesses)
 
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
@@ -125,7 +125,7 @@ class KernCallArgList(ArgOrdering):
         '''
         nlayers_name = \
             self._kern.root.symbol_table.name_from_tag("nlayers")
-        self.append(nlayers_name, var_accesses, var_is_array=False)
+        self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
@@ -149,7 +149,7 @@ class KernCallArgList(ArgOrdering):
         '''
         ncell2d_name = \
             self._kern.root.symbol_table.name_from_tag("ncell_2d")
-        self.append(ncell2d_name, var_accesses, var_is_array=False)
+        self.append(ncell2d_name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
@@ -202,9 +202,8 @@ class KernCallArgList(ArgOrdering):
             self.append(text)
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
-            # Add an arbitrary index to mark this field as array.
             var_accesses.add_access(argvect.name, argvect.access,
-                                    self._kern, [1])
+                                    self._kern)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -296,9 +295,9 @@ class KernCallArgList(ArgOrdering):
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
         self.append(arg.proxy_name_indexed+"%ncell_3d", var_accesses,
-                    mode=AccessType.READ, var_is_array=False)
+                    mode=AccessType.READ)
         self.append(arg.proxy_name_indexed+"%local_stencil", var_accesses,
-                    mode=AccessType.WRITE, var_is_array=True)
+                    mode=AccessType.WRITE)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -332,7 +331,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         undf_name = function_space.undf_name
-        self.append(undf_name, var_accesses, var_is_array=False)
+        self.append(undf_name, var_accesses)
         map_name = function_space.map_name
         # We add the whole map variable,
         # not just the dimension that is used in the call
@@ -360,7 +359,7 @@ class KernCallArgList(ArgOrdering):
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
             undf_name = function_space.undf_name
-            self.append(undf_name, var_accesses, var_is_array=False)
+            self.append(undf_name, var_accesses)
             map_name = function_space.map_name
             self.append(map_name, var_accesses)
         else:

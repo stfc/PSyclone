@@ -148,10 +148,10 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append(function_space.undf_name, var_accesses, var_is_array=False)
+        self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class
-        self.append(function_space.map_name, var_accesses, var_is_array=False)
+        self.append(function_space.map_name, var_accesses)
 
 
 # ============================================================================

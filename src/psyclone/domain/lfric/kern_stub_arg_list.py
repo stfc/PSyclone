@@ -82,7 +82,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append("cell", var_accesses, var_is_array=False)
+        self.append("cell", var_accesses)
 
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
@@ -94,7 +94,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append("nlayers", var_accesses, var_is_array=False)
+        self.append("nlayers", var_accesses)
 
     def mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
@@ -106,7 +106,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append("ncell_2d", var_accesses, var_is_array=False)
+        self.append("ncell_2d", var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
@@ -122,7 +122,7 @@ class KernStubArgList(ArgOrdering):
 
         '''
         # The CMA operator itself
-        self.append(arg.name, var_accesses, var_is_array=False)
+        self.append(arg.name, var_accesses)
         # Associated scalar parameters
         nrow = arg.name + "_nrow"
         _local_args = [nrow]
@@ -210,7 +210,7 @@ class KernStubArgList(ArgOrdering):
         '''
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.direction_name(self._stub_symtab, arg)
-        self.append(name, var_accesses, var_is_array=False)
+        self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
@@ -243,8 +243,8 @@ class KernStubArgList(ArgOrdering):
 
         '''
         size = arg.name + "_ncell_3d"
-        self.append(size, var_accesses, var_is_array=False)
-        self.append(arg.name, var_accesses, var_is_array=False)
+        self.append(size, var_accesses)
+        self.append(arg.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         ''' Provide compulsory arguments if there is a field on this
@@ -260,8 +260,8 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append(function_space.undf_name, var_accesses, var_is_array=False)
-        self.append(function_space.map_name, var_accesses, var_is_array=False)
+        self.append(function_space.undf_name, var_accesses)
+        self.append(function_space.map_name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
