@@ -2408,7 +2408,7 @@ class Kern(Statement):
         local_var_name = self.local_reduction_name
         var_arg = self._reduction_arg
         # Check for a non-scalar argument
-        if not var_arg.is_scalar():
+        if not var_arg.is_scalar:
             raise GenerationError(
                 "Kern.zero_reduction_variable() should be a scalar but "
                 "found '{0}'.".format(var_arg.type))
@@ -3755,6 +3755,7 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
+    @property
     @abc.abstractmethod
     def is_scalar(self):
         ''':returns: whether this variable is a scalar variable or not.

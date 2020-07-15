@@ -981,7 +981,7 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
-            if arg.is_scalar():
+            if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
                     var_accesses.add_access(var_name, arg.access, self)
@@ -1100,7 +1100,7 @@ class GOKern(CodedKern):
                 # the pointers to device memory for grid properties in
                 # "<grid-prop-name>_device" which is a bit hacky but
                 # works for now.
-                if arg.is_scalar():
+                if arg.is_scalar:
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
@@ -1174,7 +1174,7 @@ class GOKern(CodedKern):
                                      arg_types=["field", "grid_property"])
 
         # Array grid properties are c_intptr_t
-        args = [x for x in grid_prop_args if not x.is_scalar()]
+        args = [x for x in grid_prop_args if not x.is_scalar]
         if args:
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                             intent="in", target=True,
@@ -1182,7 +1182,7 @@ class GOKern(CodedKern):
 
         # Scalar integer grid properties
         args = [x for x in grid_prop_args
-                if x.is_scalar() and x.intrinsic_type == "integer"]
+                if x.is_scalar and x.intrinsic_type == "integer"]
         if args:
             sub.add(DeclGen(sub, datatype="integer", intent="in",
                             target=True,
@@ -1190,7 +1190,7 @@ class GOKern(CodedKern):
 
         # Scalar real grid properties
         args = [x for x in grid_prop_args
-                if x.is_scalar() and x.intrinsic_type == "real"]
+                if x.is_scalar and x.intrinsic_type == "real"]
         if args:
             sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
                             target=True,
@@ -1246,7 +1246,7 @@ class GOKern(CodedKern):
         parent.add(CommentGen(parent, " Ensure field data is on device"))
         for arg in self._arguments.args:
             if arg.type == "field" or \
-               (arg.type == "grid_property" and not arg.is_scalar()):
+               (arg.type == "grid_property" and not arg.is_scalar):
                 api_config = Config.get().api_conf("gocean1.0")
                 if arg.type == "field":
                     # fields have a 'data_on_device' property for keeping
@@ -1602,7 +1602,7 @@ class GOKernelGridArgument(Argument):
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
         self._name = deref_name.split("%")[-1]
-        # Store the original property name for easy lookup in is_scalar()
+        # Store the original property name for easy lookup in is_scalar
         self._property_name = arg.grid_prop
 
         # This object always represents an argument that is a grid_property
@@ -1648,9 +1648,12 @@ class GOKernelGridArgument(Argument):
         api_config = Config.get().api_conf("gocean1.0")
         return api_config.grid_properties[self._property_name].intrinsic_type
 
+    @property
     def is_scalar(self):
-        ''':return: If this variable is a scalar variable or not.
-        :rtype: bool'''
+        '''
+        :returns: if this variable is a scalar variable or not.
+        :rtype: bool
+        '''
         # The constructor guarantees that _property_name is a valid key!
         api_config = Config.get().api_conf("gocean1.0")
         return api_config.grid_properties[self._property_name].type \
