@@ -384,11 +384,11 @@ class LFRicArgDescriptor(Descriptor):
         # continuous function spaces (including any_space)
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
-        if self._iterates_over == "cells" and \
-           (self._function_space1.lower() in
-            FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
-            FunctionSpace.VALID_ANY_SPACE_NAMES) and \
-           self._access_type not in field_cont_accesses:
+        fld_cont_spaces = FunctionSpace.CONTINUOUS_FUNCTION_SPACES + \
+            FunctionSpace.VALID_ANY_SPACE_NAMES
+        if (self._iterates_over == "cells" and
+                self._function_space1.lower() in fld_cont_spaces and
+                self._access_type not in field_cont_accesses):
             raise ParseError(
                 "In the LFRic API, allowed accesses for a field that "
                 "iterates over cells and is on a continuous function "
