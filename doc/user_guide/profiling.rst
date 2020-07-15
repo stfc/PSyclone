@@ -118,6 +118,15 @@ libraries that come with PSyclone:
     to the NVIDIA Tools Extension library (NVTX). This library is
     available from ``https://developer.nvidia.com/cuda-toolkit``.
 
+``lib/profiling/lfric``
+    This wrapper uses the timer functionality provided by LFRic.
+    This directory contains a slightly modified set of three
+    LFRic modules that allow to compile this library stand-alone
+    (i.e. no need to have an LFRic installation). By including all
+    compiled object files, this library can be used in other codes
+    than LFRic - a runnable example using an gocean code is
+    included in ``examples/gocean/eg5``.
+
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran

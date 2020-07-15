@@ -15,6 +15,7 @@ profile wrapper libraries:
 - simple_timing
 - dl_timer
 - drhook
+- lfric
 
 By default (``make`` without an argument) the ``template`` library will 
 be used, which just prints the name of the regions called.

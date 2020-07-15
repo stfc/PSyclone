@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2020, Australian Bureau of Meteorology
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,24 +32,30 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
 
-ALL_LIBS=template simple_timing dl_timer drhook nvidia lfric
+F90?=gfortran
+F90FLAGS?=-g
+F90FLAGS+=-DSTANDALONE_COMPILATION
 
-.PHONY: default all $(ALL_LIBS) clean
+LFRIC_OBJS = constants_mod.o timer_mod.o log_mod.o io_utility_mod.o
+OBJS = profile_psy_data_mod.o
 
-default: all
+name=profile_psy_data_mod
+libname=lib$(name).a
 
-all: $(ALL_LIBS)
+default: $(libname)
 
-# Invoke make in the corresponding subdirectory
-$(ALL_LIBS):
-		$(MAKE) -C $@
+$(libname): $(OBJS)
+	ar rs $(libname) $(name).o
+
+log_mod.o: constants_mod.o
+timer_mod.o: constants_mod.o log_mod.o
+$(OBJS): timer_mod.o
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+	rm -f $(libname) *.mod *.o
 
