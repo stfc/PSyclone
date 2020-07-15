@@ -50,7 +50,8 @@ from psyclone.errors import InternalError
 
 # pylint: disable=invalid-name
 
-
+# Code fragment for testing standard kernel setup with
+# a type-bound procedure.
 CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
@@ -67,6 +68,8 @@ CODE = (
 
     )
 
+# Code fragment for testing kernel which uses an interface
+# instead of a type-bound procedure
 CODE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
@@ -85,7 +88,8 @@ CODE_INTERFACE = (
 
     )
 
-
+# Code fragment for (failure) test for kernel with two
+# interfaces and no type-bound procedure.
 CODE_DOUBLE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
@@ -203,8 +207,8 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
 
 
 def test_get_kernel_interface_no_match():
-    ''' Tests for none when searching there is no interface
-        when searching a parse tree that does not contain an interface.'''
+    ''' Tests that get_kernel_interface() returns None when searching
+        a parse tree that does not contain an interface. '''
     module_parse_tree = parse(CODE)
     kernel_type_name = "no_interface_found"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
@@ -231,14 +235,15 @@ def test_get_kernel_interface_match_no_name():
 
 
 def test_get_kernel_interface_match_correct():
-    ''' Tests that the fucntion has correct return when searching for an
-        interface that defines more than one module procedure. '''
+    ''' Tests that the get_kernel_interface has correct return when searching
+        for an interface that defines more than one module procedure. '''
     module_parse_tree = parse(CODE_DOUBLE_PROCEDURE)
     kernel_type_name = "interface_procedures"
     meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
     assert meta1 == "test_code"
     assert meta2[0] == "sub_code"
     assert meta2[1] == "more_code"
+    assert len(meta2) == 2
 
 
 def test_two_module_procedures():
@@ -256,8 +261,8 @@ def test_get_kernel_interface_double_interface():
     kernel_type_name = "double_interface_kernel"
     with pytest.raises(ParseError) as excinfo:
         _, _ = get_kernel_interface(kernel_type_name, module_parse_tree)
-    assert "Kernel double_interface_kernel has more than one interface, "\
-           "this is forbidden in the LFRic API." \
+    assert "Module containing kernel double_interface_kernel has more than "\
+           "one interface, this is forbidden in the LFRic API."\
            in str(excinfo.value)
 
 

@@ -554,8 +554,8 @@ class KernelProcedure(object):
         elif bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        # add the name of the tbp to the list of strings to search for.
         else:
+            # add the name of the tbp to the list of strings to search for.
             subnames = [bname]
         # walk the AST to check the subroutine names exist.
         procedure_count = 0
@@ -641,11 +641,12 @@ def get_kernel_interface(name, ast):
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    :returns: Name of the interface block and the names of the module
-              procedures (lower case). Or None, None if there is no i
-              nterface or the interface has no nodule procedures.
-    :raises ParseError: if more than one interface is found.
+    :returns: Name of the interface block and the names of the module \
+              procedures (lower case). Or None, None if there is no \
+              interface or the interface has no nodule procedures.
     :rtype: : `str`, list of str`.
+
+    :raises ParseError: if more than one interface is found.
     '''
 
     iname = None
@@ -656,10 +657,10 @@ def get_kernel_interface(name, ast):
             # count the interfaces, then can be only one!
             count = count + 1
             if count >= 2:
-                raise ParseError("Kernel {0} has more than one interface, "
-                                 "this is forbidden in the LFRic API."
-                                 .format(name))
-            # Check the interfaces assigns module procedures.
+                raise ParseError("Module containing kernel {0} has more than "
+                                 "one interface, this is forbidden in the "
+                                 "LFRic API.".format(name))
+            # Check the interfaces assigns one or more module procedures.
             if statement.a.module_procedures:
                 iname = statement.name.lower()
                 # If implicit interface (no name) set to none as there is no

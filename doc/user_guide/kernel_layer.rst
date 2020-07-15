@@ -91,7 +91,8 @@ compilable. In addition, currently all APIs will contain information
 about the arguments in an array called ``meta_args``, a specification
 of what the kernel code iterates over in a variable called
 ``iterates_over`` and a reference to the kernel code as a type bound
-procedure.
+procedure. If no type-bound procedure is declared, an interface must be
+specified instead as a reference to the kernel code.
 
 ::
 
@@ -106,3 +107,7 @@ procedure.
       procedure ...
       ...
     end type integrate_one_kernel
+
+    interace ...
+      module procedure ...
+    end interface
