@@ -1,3 +1,4 @@
+# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2020, Science and Technology Facilities Council.
@@ -33,6 +34,7 @@
 # Author R. W. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
 
 
 '''
@@ -310,30 +312,30 @@ def test_script_null_trans_relative():
 
 
 def test_script_trans():
-    ''' checks that generator.py works correctly when a
+    ''' Checks that generator.py works correctly when a
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
-        example.'''
+        example.
+
+    '''
     from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
     root_path = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(root_path, "test_files", "dynamo0p3")
-    # first loop fuse explicitly (without using generator.py)
+    # First loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[3]
-    loop2 = schedule.children[4]
+    loop1 = schedule.children[4]
+    loop2 = schedule.children[5]
     trans = LoopFuseTrans()
-    schedule.view()
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
     generated_code_1 = psy.gen
-    schedule.view()
-    # second loop fuse using generator.py and a script
+    # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",
                                    script_name=os.path.join(
                                        base_path, "loop_fuse_trans.py"))

@@ -32,12 +32,12 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 
 program single_invoke_annexed
 
   ! Description: f1 and f2 are written to over cells and then read. f1
-  ! is on the w1 function space and f2 is on the w2 function space, so
+  ! is on the w0 function space and f2 is on the w2 function space, so
   ! both are continuous and therefore have annexed dofs. By default
   ! loops over cells write to the level 1 halo in order to ensure that
   ! annexed dofs are correct (clean). Therefore halo exchanges will
