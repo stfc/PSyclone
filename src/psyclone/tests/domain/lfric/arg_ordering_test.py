@@ -165,7 +165,7 @@ def test_kerncallarglist_args_error(dist_mem):
     with pytest.raises(InternalError) as excinfo:
         _ = create_arg_list.arglist
     assert (
-        "Internal error. The argument list in KernCallArgList "
+        "The argument list in KernCallArgList "
         "is empty. Has the generate() method been called?"
         ) in str(excinfo.value)
 
@@ -202,7 +202,7 @@ def test_kernstubarglist_arglist_error():
     with pytest.raises(InternalError) as excinfo:
         _ = create_arg_list.arglist
     assert (
-        "Internal error. The argument list in KernStubArgList is "
+        "The argument list in KernStubArgList is "
         "empty. Has the generate() method been "
         "called?") in str(excinfo.value)
 
