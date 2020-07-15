@@ -88,11 +88,6 @@ class DynBuiltInCallFactory(object):
     '''
 
     def __str__(self):
-        '''
-        :returns: information about this object.
-        :rtype: str
-
-        '''
         return "Factory for a call to a Dynamo built-in."
 
     @staticmethod
@@ -233,14 +228,11 @@ class DynBuiltIn(BuiltIn):
 
     def array_ref(self, fld_name):
         '''
-        Returns a string containing the array reference for a proxy with
-        the supplied name.
-
-        :returns: the array reference for a proxy field.
+        :returns: a string containing the array reference for a proxy \
+                  with the supplied name.
         :rtype: str
 
         '''
-
         return fld_name + "%data(" + self._idx_name + ")"
 
     @property
@@ -323,11 +315,6 @@ class DynXPlusYKern(DynBuiltIn):
     ''' Add one field to another and return the result as a third field '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Add fields"
 
     def gen_code(self, parent):
@@ -353,11 +340,6 @@ class DynIncXPlusYKern(DynBuiltIn):
     ''' Add the 2nd field to the first field and return it '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Increment field"
 
     def gen_code(self, parent):
@@ -383,11 +365,6 @@ class DynAXPlusYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: aX_plus_Y"
 
     def gen_code(self, parent):
@@ -416,11 +393,6 @@ class DynIncAXPlusYKern(DynBuiltIn):
     ''' X = a.X + Y where 'a' is a scalar and 'X' and 'Y' are fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: inc_aX_plus_Y"
 
     def gen_code(self, parent):
@@ -449,11 +421,6 @@ class DynIncXPlusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: inc_X_plus_bY"
 
     def gen_code(self, parent):
@@ -481,11 +448,6 @@ class DynAXPlusBYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: aX_plus_bY"
 
     def gen_code(self, parent):
@@ -518,11 +480,6 @@ class DynIncAXPlusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: inc_aX_plus_bY"
 
     def gen_code(self, parent):
@@ -558,11 +515,6 @@ class DynXMinusYKern(DynBuiltIn):
     third field '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Subtract fields"
 
     def gen_code(self, parent):
@@ -589,11 +541,6 @@ class DynIncXMinusYKern(DynBuiltIn):
     ''' Subtract the second field from the first field and return it '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Decrement field"
 
     def gen_code(self, parent):
@@ -619,11 +566,6 @@ class DynAXMinusYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: aX_minus_Y"
 
     def gen_code(self, parent):
@@ -653,11 +595,6 @@ class DynXMinusBYKern(DynBuiltIn):
     'Y' are fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: X_minus_bY"
 
     def gen_code(self, parent):
@@ -687,11 +624,6 @@ class DynIncXMinusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: inc_X_minus_bY"
 
     def gen_code(self, parent):
@@ -724,11 +656,6 @@ class DynXTimesYKern(DynBuiltIn):
     returned as a third field '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Multiply fields"
 
     def gen_code(self, parent):
@@ -755,11 +682,6 @@ class DynIncXTimesYKern(DynBuiltIn):
     ''' Multiply the first field by the second and return it '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Multiply field by another"
 
     def gen_code(self, parent):
@@ -784,11 +706,6 @@ class DynIncAXTimesYKern(DynBuiltIn):
     ''' X = a.X.Y where 'a' is a scalar and 'X' and 'Y' are fields '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: inc_aX_times_Y"
 
     def gen_code(self, parent):
@@ -821,11 +738,6 @@ class DynATimesXKern(DynBuiltIn):
     a second field (Y = a.X) '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Copy scaled field"
 
     def gen_code(self, parent):
@@ -851,11 +763,6 @@ class DynIncATimesXKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Scale a field"
 
     def gen_code(self, parent):
@@ -886,11 +793,6 @@ class DynXDividebyYKern(DynBuiltIn):
     a third field '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Divide fields"
 
     def gen_code(self, parent):
@@ -945,11 +847,6 @@ class DynIncXPowrealAKern(DynBuiltIn):
     ''' Raise a field to a real power and return it '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: raise a field to a real power"
 
     def gen_code(self, parent):
@@ -974,11 +871,6 @@ class DynIncXPowintNKern(DynBuiltIn):
     ''' Raise a field to an integer power and return it '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: raise a field to an integer power"
 
     def gen_code(self, parent):
@@ -1008,11 +900,6 @@ class DynSetvalCKern(DynBuiltIn):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Set field to a scalar value"
 
     def gen_code(self, parent):
@@ -1036,11 +923,6 @@ class DynSetvalXKern(DynBuiltIn):
     ''' Set a field equal to another field '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: Set a field equal to another field"
 
     def gen_code(self, parent):
@@ -1070,12 +952,6 @@ class DynXInnerproductYKern(DynBuiltIn):
     innprod = SUM( X(:)*Y(:) ) '''
 
     def __str__(self):
-
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: X_innerproduct_Y"
 
     def gen_code(self, parent):
@@ -1102,11 +978,6 @@ class DynXInnerproductXKern(DynBuiltIn):
     innprod = SUM( X(:)*X(:) ) '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: X_innerproduct_X"
 
     def gen_code(self, parent):
@@ -1136,11 +1007,6 @@ class DynSumXKern(DynBuiltIn):
     ''' Computes the sum of the elements of a field '''
 
     def __str__(self):
-        '''
-        :returns: information about this Built-in.
-        :rtype: str
-
-        '''
         return "Built-in: sum a field"
 
     def gen_code(self, parent):
