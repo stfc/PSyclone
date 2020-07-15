@@ -49,6 +49,7 @@ from psyclone.errors import GenerationError, InternalError
 
 class ArgOrdering(object):
     # pylint: disable=too-many-public-methods
+    # TODO: #845 Check that all implicit variables have the right type.
     '''Base class capturing the arguments, type and ordering of data in
     a Kernel call. This base class implements some functionality of a list
     (extend and append functions), but not using list as a base class.
@@ -97,11 +98,13 @@ class ArgOrdering(object):
                 var_accesses.add_access(var_name, mode,
                                         self._kern)
 
-    def extend(self, list_var_name, var_accesses=None):
+    def extend(self, list_var_name, var_accesses=None,
+               mode=AccessType.READ):
         '''Appends all variable names in the argument list to the list of
         all arguments. If var_accesses is given, it will also record the
-        access to the variables. Any access will be recorded as a read-only
-        access to a scalar variable.
+        access to the variables. By default any access will be recorded as a
+        read-only access, but this can be changed (for all variables
+        included) using mode.
 
         :param list_var_name: the list with name of the variables to append.
         :type list_var_name: list of str.
@@ -109,13 +112,14 @@ class ArgOrdering(object):
             information.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :param mode: optional access mode (defaults to READ).
+        :type mode: :py:class:`psyclone.core.access_type.AccessType`
 
         '''
         self._arglist.extend(list_var_name)
         if var_accesses:
             for var_name in list_var_name:
-                var_accesses.add_access(var_name, AccessType.READ,
-                                        self._kern)
+                var_accesses.add_access(var_name, mode, self._kern)
 
     @property
     def num_args(self):
@@ -138,7 +142,7 @@ class ArgOrdering(object):
         '''
         if not self._generate_called:
             raise InternalError(
-                "Internal error. The argument list in {0} is empty. "
+                "The argument list in {0} is empty. "
                 "Has the generate() method been called?"
                 .format(type(self).__name__))
         return self._arglist
@@ -685,11 +689,6 @@ class ArgOrdering(object):
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self.extend(refelem_args, var_accesses)
-        #    self._arglist.extend(refelem_args)
-        #    if var_accesses is not None:
-        #        for var_name in refelem_args:
-        #            var_accesses.add_access(var_name, AccessType.READ,
-        #                                    self._kern)
 
 
 # ============================================================================

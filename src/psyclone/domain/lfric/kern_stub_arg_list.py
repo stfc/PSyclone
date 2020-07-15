@@ -48,6 +48,7 @@ from psyclone.psyir.symbols import SymbolTable
 
 class KernStubArgList(ArgOrdering):
     # pylint: disable=too-many-public-methods
+    # TODO: #845 Check that all implicit variables have the right type.
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
     of the arguments is captured by the base class.

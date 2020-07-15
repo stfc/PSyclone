@@ -51,6 +51,7 @@ from psyclone.errors import GenerationError, InternalError
 
 class KernCallArgList(ArgOrdering):
     # pylint: disable=too-many-public-methods
+    # TODO: #845 Check that all implicit variables have the right type.
     '''Creates the argument list required to call kernel "kern" from the
     PSy-layer and captures the positions of the following arguments in
     the argument list: nlayers, number of quadrature points and number
@@ -102,12 +103,10 @@ class KernCallArgList(ArgOrdering):
         self.append("{0}(:,{1})".format(map_name,
                                         self._cell_ref_name(var_accesses)),
                     var_accesses=var_accesses)
-        print("YY", map_name)
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = symtab.name_from_tag(base_name)
         self.append(ncellpercell, var_accesses)
-        print("XX", ncellpercell)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
         ncell_fine = symtab.name_from_tag(base_name)
@@ -440,7 +439,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :raises GenerationError: if the bcs kernel does not contain \
-            a field space as argument (but e.g. an operator).
+            a field as argument (but e.g. an operator).
 
         '''
         fspace = None
