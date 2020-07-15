@@ -3601,7 +3601,7 @@ def test_stencil_read_only():
             str(excinfo.value))
 
 
-def test_fs_discontinuous_and_inc_error():
+def test_fs_discontinuous_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and 'gh_inc' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3621,7 +3621,7 @@ def test_fs_discontinuous_and_inc_error():
                 in str(excinfo.value))
 
 
-def test_fs_continuous_write_and_readwrite_cells_error():
+def test_fs_continuous_cells_write_or_readwrite_error():
     ''' Test that an error is raised if a continuous function space and
     'gh_write' or 'gh_readwrite' accesses are provided for the same field
     that iterates over cells in the metadata.
@@ -3629,21 +3629,47 @@ def test_fs_continuous_write_and_readwrite_cells_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
-        code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
-                            "arg_type(gh_field, gh_readwrite, " +
-                            fspace + ")", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
-        with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API, allowed accesses for a field that "
-                "iterates over cells and is on a continuous function "
-                "space ('any_space' or one of {0}) are ['gh_read', "
-                "'gh_inc'], but found 'gh_readwrite' for '{1}'".
-                format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES, fspace)
-                in str(excinfo.value))
+        for acc in ["gh_write", "gh_readwrite"]:
+            code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+                                "arg_type(gh_field, " + acc + ", " +
+                                fspace + ")", 1)
+            ast = fpapi.parse(code, ignore_comments=False)
+            with pytest.raises(ParseError) as excinfo:
+                _ = DynKernMetadata(ast, name="testkern_qr_type")
+            assert ("In the LFRic API, allowed accesses for a field that "
+                    "iterates over cells and is on a continuous function "
+                    "space ('any_space' or one of {0}) are ['gh_read', "
+                    "'gh_inc'], but found '{1}' for '{2}'".
+                    format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
+                           acc, fspace)
+                    in str(excinfo.value))
 
 
-def test_fs_anyspace_and_inc_dofs_error():
+def test_fs_anyspace_cells_write_or_readwrite_error():
+    ''' Test that an error is raised if 'any_space' and 'gh_write'
+    or 'gh_readwrite' accesses are provided for the same field
+    that iterates over cells in the metadata.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+        for acc in ["gh_write", "gh_readwrite"]:
+            code = CODE.replace("arg_type(gh_field, gh_read, w2)",
+                                "arg_type(gh_field, " + acc + ", " +
+                                fspace + ")", 1)
+            ast = fpapi.parse(code, ignore_comments=False)
+            with pytest.raises(ParseError) as excinfo:
+                _ = DynKernMetadata(ast, name="testkern_qr_type")
+            assert ("In the LFRic API, allowed accesses for a field that "
+                    "iterates over cells and is on a continuous function "
+                    "space ('any_space' or one of {0}) are ['gh_read', "
+                    "'gh_inc'], but found '{1}' for '{2}'".
+                    format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
+                           acc, fspace)
+                    in str(excinfo.value))
+
+
+def test_fs_anyspace_dofs_inc_error():
     ''' Test that an error is raised if 'any_space' and 'gh_inc' are
     provided for the same field that loops over DoFs in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)

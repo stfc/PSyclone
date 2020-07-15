@@ -385,9 +385,9 @@ class LFRicArgDescriptor(Descriptor):
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
         if self._iterates_over == "cells" and \
-           self._function_space1.lower() in \
-                (FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
-                 FunctionSpace.VALID_ANY_SPACE_NAMES) and \
+           (self._function_space1.lower() in
+            FunctionSpace.CONTINUOUS_FUNCTION_SPACES or
+            FunctionSpace.VALID_ANY_SPACE_NAMES) and \
            self._access_type not in field_cont_accesses:
             raise ParseError(
                 "In the LFRic API, allowed accesses for a field that "
