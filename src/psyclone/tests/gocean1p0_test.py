@@ -1247,7 +1247,7 @@ def test_find_grid_access(monkeypatch):
     # Now monkeypatch the type of each of the kernel arguments so that
     # none of them is a field
     for karg in kern.arguments._args:
-        monkeypatch.setattr(karg._arg, "_type", "broken")
+        monkeypatch.setattr(karg._arg, "_argument_type", "broken")
     # find_grid_access should now return None
     arg = kern.arguments.find_grid_access()
     assert arg is None
@@ -1274,7 +1274,8 @@ def test_raw_arg_list_error(monkeypatch):
             "have any arguments that are fields" in str(err.value))
     # Now monkeypatch one of the kernel arguments so that it has an
     # unrecognised type
-    monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
+    monkeypatch.setattr(kern.arguments._args[0]._arg, "_argument_type",
+                        "broken")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
@@ -1637,12 +1638,12 @@ def test_gokernelargument_type(monkeypatch):
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
     # If the descriptor does not have a type it defaults to 'scalar'
-    assert argument.type == "scalar"
+    assert argument.argument_type == "scalar"
 
     # Otherwise it returns the descriptor type
     # Mock the descriptor type method
-    monkeypatch.setattr(argument._arg, "_type", "descriptor_type")
-    assert argument.type == "descriptor_type"
+    monkeypatch.setattr(argument._arg, "_argument_type", "descriptor_type")
+    assert argument.argument_type == "descriptor_type"
 
 
 def test_gosymboltable_conformity_check():
