@@ -49,6 +49,7 @@ from psyclone.errors import GenerationError, InternalError
 
 class ArgOrdering(object):
     # pylint: disable=too-many-public-methods
+    # TODO: #845 Check that all implicit variables have the right type.
     '''Base class capturing the arguments, type and ordering of data in
     a Kernel call. This base class implements some functionality of a list
     (extend and append functions), but not using list as a base class.
@@ -68,12 +69,11 @@ class ArgOrdering(object):
         self._arglist = []
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
-               var_is_array=True, mode=AccessType.READ):
+               mode=AccessType.READ):
         '''Appends the specified variable name to the list of all arguments.
         If var_accesses is given, it will also record the access to the
         variable. The name of the variable accessed can be overwritten by
-        specifying var_access_name. By default it is assumed it is an array
-        access (which can be set explicitly with var_is_array), and access
+        specifying var_access_name. By default it is assumed that access
         mode is READ (which can be set with mode).
 
         :param str var_name: the name of the variable.
@@ -85,34 +85,26 @@ class ArgOrdering(object):
             which access information is stored (used e.g. when the \
             actual argument is field_proxy, but the access is to be \
             recorded for field).
-        :param bool var_is_array: optional argument to specify if the \
-            variable access is array (defaults to True).
         :param mode: optional access mode (defaults to READ).
         :type mode: :py:class:`psyclone.core.access_type.AccessType`
 
         '''
         self._arglist.append(var_name)
         if var_accesses is not None:
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            if var_is_array:
-                is_array = [1]
-            else:
-                is_array = None
-
             if var_access_name:
                 var_accesses.add_access(var_access_name, mode,
-                                        self._kern, is_array)
+                                        self._kern)
             else:
                 var_accesses.add_access(var_name, mode,
-                                        self._kern, is_array)
+                                        self._kern)
 
-    def extend(self, list_var_name, var_accesses=None):
+    def extend(self, list_var_name, var_accesses=None,
+               mode=AccessType.READ):
         '''Appends all variable names in the argument list to the list of
         all arguments. If var_accesses is given, it will also record the
-        access to the variables. Any access will be recorded as a read-only
-        access to a scalar variable.
+        access to the variables. By default any access will be recorded as a
+        read-only access, but this can be changed (for all variables
+        included) using mode.
 
         :param list_var_name: the list with name of the variables to append.
         :type list_var_name: list of str.
@@ -120,13 +112,14 @@ class ArgOrdering(object):
             information.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :param mode: optional access mode (defaults to READ).
+        :type mode: :py:class:`psyclone.core.access_type.AccessType`
 
         '''
         self._arglist.extend(list_var_name)
         if var_accesses:
             for var_name in list_var_name:
-                var_accesses.add_access(var_name, AccessType.READ,
-                                        self._kern)
+                var_accesses.add_access(var_name, mode, self._kern)
 
     @property
     def num_args(self):
@@ -149,7 +142,7 @@ class ArgOrdering(object):
         '''
         if not self._generate_called:
             raise InternalError(
-                "Internal error. The argument list in {0} is empty. "
+                "The argument list in {0} is empty. "
                 "Has the generate() method been called?"
                 .format(type(self).__name__))
         return self._arglist
@@ -495,8 +488,7 @@ class ArgOrdering(object):
                 "Expected argument type to be one of {0} but got '{1}'".
                 format(LFRicArgDescriptor.VALID_SCALAR_NAMES, scalar_arg.type))
 
-        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
-                    var_is_array=False)
+        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -513,7 +505,7 @@ class ArgOrdering(object):
         '''
         # There is currently one argument: "ndf"
         ndf_name = function_space.ndf_name
-        self.append(ndf_name, var_accesses, var_is_array=False)
+        self.append(ndf_name, var_accesses)
 
     @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -697,11 +689,6 @@ class ArgOrdering(object):
             from psyclone.dynamo0p3 import DynReferenceElement
             refelem_args = DynReferenceElement(self._kern).kern_args()
             self.extend(refelem_args, var_accesses)
-        #    self._arglist.extend(refelem_args)
-        #    if var_accesses is not None:
-        #        for var_name in refelem_args:
-        #            var_accesses.add_access(var_name, AccessType.READ,
-        #                                    self._kern)
 
 
 # ============================================================================

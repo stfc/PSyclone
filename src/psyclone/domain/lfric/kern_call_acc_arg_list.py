@@ -46,6 +46,7 @@ from psyclone.domain.lfric import KernCallArgList
 
 
 class KernCallAccArgList(KernCallArgList):
+    # TODO: #845 Check that all implicit variables have the right type.
     '''Kernel call arguments that need to be declared by OpenACC
     directives. KernCallArgList only needs to be specialised
     where modified, or additional, arguments are required.
@@ -68,7 +69,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # First provide the derived derived-type object
+        # First provide the derived-type object
         for idx in range(1, argvect.vector_size+1):
             self.append(argvect.proxy_name + "(" + str(idx) + ")")
         # Then provide the actual fields that are in the derived-type object
@@ -148,10 +149,10 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        self.append(function_space.undf_name, var_accesses, var_is_array=False)
+        self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class
-        self.append(function_space.map_name, var_accesses, var_is_array=False)
+        self.append(function_space.map_name, var_accesses)
 
 
 # ============================================================================
