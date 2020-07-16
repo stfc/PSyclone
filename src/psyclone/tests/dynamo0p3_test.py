@@ -154,7 +154,7 @@ def test_arg_descriptor_vector():
     assert expected in field_descriptor_str
 
     # Check LFRicArgDescriptor argument properties
-    assert field_descriptor.type == "gh_field"
+    assert field_descriptor.argument_type == "gh_field"
     assert field_descriptor.data_type == "real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
@@ -2091,7 +2091,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is an
     # operator rather than a field
-    monkeypatch.setattr(arg, "_type", value="gh_operator")
+    monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
     # We have to monkey-patch the arg.ref_name() function too as
     # otherwise the first monkey-patch causes it to break. Since
     # it is a function we have to patch it with a temporary
@@ -2544,7 +2544,7 @@ def test_stencil_metadata():
 
     # Check other LFRicArgDescriptor argument properties for a
     # field stencil argument
-    assert stencil_descriptor_1.type == "gh_field"
+    assert stencil_descriptor_1.argument_type == "gh_field"
     assert stencil_descriptor_1.data_type == "real"
     assert stencil_descriptor_1.function_space == "w2"
     assert stencil_descriptor_1.function_spaces == ['w2']
@@ -2731,7 +2731,7 @@ def test_arg_descriptor_funcs_method_error():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    field_descriptor._type = "gh_fire_starter"
+    field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_spaces
     assert ("LFRicArgDescriptor.function_spaces(), should not get "
@@ -2822,7 +2822,7 @@ def test_arg_ref_name_method_error2():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     first_argument = first_kernel.arguments.args[1]
-    first_argument._type = "gh_funky_instigator"
+    first_argument._argument_type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
     assert ("DynKernelArgument.ref_name(fs): Found unsupported argument "
@@ -2896,7 +2896,7 @@ def test_arg_descriptor_func_method_error():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    field_descriptor._type = "gh_fire_starter"
+    field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space
     assert ("LFRicArgDescriptor.function_space(), should not get "
@@ -2922,7 +2922,7 @@ def test_arg_descriptor_fld():
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert field_descriptor.type == "gh_field"
+    assert field_descriptor.argument_type == "gh_field"
     assert field_descriptor.data_type == "real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
@@ -2950,7 +2950,7 @@ def test_arg_descriptor_real_scalar():
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.type == "gh_real"
+    assert scalar_descriptor.argument_type == "gh_real"
     assert scalar_descriptor.data_type == "real"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
@@ -2978,7 +2978,7 @@ def test_arg_descriptor_int_scalar():
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.type == "gh_integer"
+    assert scalar_descriptor.argument_type == "gh_integer"
     assert scalar_descriptor.data_type == "integer"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
@@ -2999,7 +2999,7 @@ def test_arg_descriptor_str_error():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    field_descriptor._type = "gh_fire_starter"
+    field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = str(field_descriptor)
     assert ("LFRicArgDescriptor.__str__(), should not get to here." in
@@ -5600,7 +5600,7 @@ def test_multiple_updated_field_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if descriptor.type == "gh_field" and \
+        if descriptor.argument_type == "gh_field" and \
                 descriptor.access != AccessType.READ:
             count += 1
     assert count == 2
@@ -5617,8 +5617,8 @@ def test_multiple_updated_op_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if ((descriptor.type == "gh_field" or
-             descriptor.type == "gh_operator") and
+        if ((descriptor.argument_type == "gh_field" or
+             descriptor.argument_type == "gh_operator") and
                 descriptor.access != AccessType.READ):
             count += 1
     assert count == 2
@@ -5777,7 +5777,7 @@ def test_unexpected_type_error(dist_mem):
     loop = schedule.children[index]
     kernel = loop.loop_body[0]
     # Sabotage one of the arguments to make it have an invalid type.
-    kernel.arguments.args[0]._type = "invalid"
+    kernel.arguments.args[0]._argument_type = "invalid"
     # Now call KernCallArgList to raise an exception
     create_arg_list = KernCallArgList(kernel)
     with pytest.raises(InternalError) as excinfo:

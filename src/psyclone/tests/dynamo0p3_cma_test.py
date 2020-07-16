@@ -112,7 +112,7 @@ def test_cma_mdata_assembly():
     assert dkm._cma_operation == "assembly"
 
     # Check LFRicArgDescriptor argument properties
-    assert cma_op_desc.type == "gh_columnwise_operator"
+    assert cma_op_desc.argument_type == "gh_columnwise_operator"
     assert cma_op_desc.data_type == "real"
     assert cma_op_desc.function_space_to == "any_space_1"
     assert cma_op_desc.function_space_from == "any_space_2"
@@ -683,7 +683,7 @@ def test_cma_asm_cbanded_dofmap_error():
     # to trigger the error. So, we set the type of all the arguments
     # in the kernel cal to be CMA operators...
     for arg in calls[0].arguments.args:
-        arg._type = 'gh_columnwise_operator'
+        arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
@@ -867,7 +867,7 @@ def test_cma_apply_indirection_dofmap_error():
     # to trigger the error. So, we set the type of all the arguments
     # in the kernel cal to be CMA operators...
     for arg in calls[0].arguments.args:
-        arg._type = 'gh_columnwise_operator'
+        arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA "

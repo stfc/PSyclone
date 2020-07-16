@@ -217,7 +217,7 @@ def test_arg_descriptor_op():
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert operator_descriptor.type == "gh_operator"
+    assert operator_descriptor.argument_type == "gh_operator"
     assert operator_descriptor.data_type == "real"
     assert operator_descriptor.function_space_to == "w2"
     assert operator_descriptor.function_space_from == "w2"
@@ -756,7 +756,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
-    monkeypatch.setattr(arg, "_type", value="gh_field")
+    monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Expected a LMA operator from which to look-up boundary dofs "
@@ -786,7 +786,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
-    call.arguments.args[1]._type = "gh_field"
+    call.arguments.args[1]._argument_type = "gh_field"
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
