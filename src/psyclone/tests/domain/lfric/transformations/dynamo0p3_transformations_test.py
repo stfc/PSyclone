@@ -3686,30 +3686,31 @@ def test_reductions_reprod():
                                DynXInnerproductYKern))
 
 
-def test_list_multiple_reductions():
-    '''test that we produce correct reduction lists when there is more
+def test_list_multiple_reductions(dist_mem):
+    ''' Test that we produce correct reduction lists when there is more
     than one reduction in a OpenMP parallel directive. As only one
     reduction per OpenMP parallel region is currently supported we
     need to modify the internal representation after the
-    transformations have been performed to enable this test. '''
-    for distmem in [False, True]:
-        _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                               TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        omp_loop_directive = schedule[0].dir_body[0]
-        call = omp_loop_directive.dir_body[0].loop_body[0]
-        arg = call.arguments.args[2]
-        arg._type = "gh_real"
-        arg.descriptor._access = AccessType.SUM
-        result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:asum), reduction(+:f2)" in result
+    transformations have been performed to enable this test.
+
+    '''
+    _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
+                           TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    omp_loop_directive = schedule[0].dir_body[0]
+    call = omp_loop_directive.dir_body[0].loop_body[0]
+    arg = call.arguments.args[2]
+    arg._argument_type = "gh_real"
+    arg.descriptor._access = AccessType.SUM
+    result = omp_loop_directive._reduction_string()
+    assert ", reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

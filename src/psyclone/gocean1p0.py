@@ -1633,7 +1633,7 @@ class GOKernelGridArgument(Argument):
         return deref_name.format(fld_name)
 
     @property
-    def type(self):
+    def argument_type(self):
         ''' The type of this argument. We have this for compatibility with
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''

@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
 
 ''' Module containing tests for gocean1.0 specific config files.'''
 
@@ -274,12 +273,12 @@ def test_properties():
 
     new_prop = GOceanConfig.make_property("my_fortran", "array", "integer")
     assert new_prop.fortran == "my_fortran"
-    assert new_prop.argument_type == "array"
+    assert new_prop.type == "array"
     assert new_prop.intrinsic_type == "integer"
 
     new_prop = GOceanConfig.make_property("my_fortran", "scalar", "real")
     assert new_prop.fortran == "my_fortran"
-    assert new_prop.argument_type == "scalar"
+    assert new_prop.type == "scalar"
     assert new_prop.intrinsic_type == "real"
 
 

@@ -62,8 +62,8 @@ def setup():
 
 
 def test_kernel_stub_invalid_scalar_argument():
-    '''Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method'''
+    ''' Check that we raise an exception if an unexpected datatype is found
+    when using the KernStubArgList scalar method. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
@@ -72,7 +72,7 @@ def test_kernel_stub_invalid_scalar_argument():
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
     arg = kernel.arguments.args[1]
-    arg._type = "invalid"
+    arg._argument_type = "invalid"
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
@@ -296,13 +296,13 @@ end module dummy_mod
 
 def test_load_meta_wrong_type():
     ''' Test that the load_meta function raises an appropriate error
-    if the meta-data contains an un-recognised type '''
+    if the meta-data contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(INTENT, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     # Break the meta-data
-    metadata.arg_descriptors[0]._type = "gh_hedge"
+    metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     assert ("DynKern.load_meta() expected one of {0} but found "
