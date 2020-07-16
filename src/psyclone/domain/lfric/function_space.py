@@ -398,7 +398,7 @@ class FunctionSpace(object):
             for arg in arguments.args:
                 # First, test that arg is a field as some argument objects
                 # won't have function spaces, e.g. scalars
-                if arg.type == "gh_field" and \
+                if arg.argument_type == "gh_field" and \
                    arg.function_space.orig_name == self.orig_name:
                     return arg
         return None
@@ -420,7 +420,7 @@ class FunctionSpace(object):
             for arg in arguments.args:
                 # First, test that arg is a CMA op as some argument objects
                 # won't have function spaces, e.g. scalars
-                if arg.type == "gh_columnwise_operator" and \
+                if arg.argument_type == "gh_columnwise_operator" and \
                    self.orig_name in [arg.function_space_to.orig_name,
                                       arg.function_space_from.orig_name]:
                     return arg
