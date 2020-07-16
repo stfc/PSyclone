@@ -425,16 +425,17 @@ class Descriptor(object):
                          Defaults to None if the argument is not supplied.
     :param string mesh: which mesh this argument is on. Defaults to None \
                         if the argument is not supplied.
-    :param string type: the type of this argument. Defaults to None \
-                        if the argument is not supplied.
+    :param string argument_type: the type of this argument. Defaults to \
+                                 None if the argument is not supplied.
 
     '''
-    def __init__(self, access, space, stencil=None, mesh=None, type=None):
+    def __init__(self, access, space, stencil=None, mesh=None,
+                 argument_type=None):
         self._access = access
         self._space = space
         self._stencil = stencil
         self._mesh = mesh
-        self._type = type
+        self._argument_type = argument_type
 
     @property
     def access(self):
@@ -473,14 +474,14 @@ class Descriptor(object):
         return self._mesh
 
     @property
-    def type(self):
+    def argument_type(self):
         '''
         :returns: the type of the argument depending on the specific \
                   API (e.g. scalar, field, grid property, operator).
         :rtype: str or NoneType
 
         '''
-        return self._type
+        return self._argument_type
 
     def __repr__(self):
         '''

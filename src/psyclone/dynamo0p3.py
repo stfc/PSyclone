@@ -566,8 +566,8 @@ class DynKernMetadata(KernelType):
             if arg.access != AccessType.READ:
                 write_count += 1
                 # We must not write to a field on a read-only function space
-                if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES and \
-                   arg.function_spaces[0] in \
+                if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES \
+                   and arg.function_spaces[0] in \
                    FunctionSpace.READ_ONLY_FUNCTION_SPACES:
                     raise ParseError(
                         "Found kernel metadata in '{0}' that specifies "
@@ -577,13 +577,13 @@ class DynKernMetadata(KernelType):
                 # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
-                   arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+                   arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
                         "A user-supplied Dynamo 0.3 kernel must not "
                         "write/update a scalar argument but kernel {0} has "
                         "{1} with {2} access"
                         .format(self.name,
-                                arg.type,
+                                arg.argument_type,
                                 arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
@@ -656,7 +656,7 @@ class DynKernMetadata(KernelType):
         non_field_arg_types = set()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
-            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+            if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 if arg.mesh:
                     # Argument has a mesh associated with it so this must
                     # be an inter-grid kernel
@@ -671,7 +671,7 @@ class DynKernMetadata(KernelType):
             else:
                 # Inter-grid kernels are only permitted to have field args
                 # so collect a list of other types
-                non_field_arg_types.add(arg.type)
+                non_field_arg_types.add(arg.argument_type)
 
         mesh_list = mesh_dict.keys()
         if not mesh_list:
@@ -743,7 +743,7 @@ class DynKernMetadata(KernelType):
                     "Kernel {0} takes a CMA operator but has a "
                     "vector argument '{1}'. This is forbidden.".
                     format(self.name,
-                           arg.type+"*"+str(arg.vector_size)))
+                           arg.argument_type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
@@ -827,14 +827,15 @@ class DynKernMetadata(KernelType):
                 # that are written to so that we can produce a nice
                 # error message
                 for arg in write_args[:]:
-                    if arg.type == 'gh_columnwise_operator':
+                    if arg.argument_type == 'gh_columnwise_operator':
                         write_args.remove(arg)
                         break
                 raise ParseError(
                     "Kernel {0} writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
                     "allowed.".format(self.name,
-                                      [str(arg.type) for arg in write_args]))
+                                      [str(arg.argument_type) for arg
+                                       in write_args]))
             if len(cwise_ops) == 1:
 
                 # If this is a valid assembly kernel then we need at least one
@@ -864,7 +865,7 @@ class DynKernMetadata(KernelType):
                         "column-wise operators and scalars as arguments but "
                         "kernel {0} has: {1}.".
                         format(self.name,
-                               [str(arg.type) for arg in
+                               [str(arg.argument_type) for arg in
                                 self._arg_descriptors]))
                 return "matrix-matrix"
         else:
@@ -4730,7 +4731,7 @@ class DynInvoke(Invoke):
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
-                    if arg.text and arg.type == argument_type:
+                    if arg.text and arg.argument_type == argument_type:
                         if arg.proxy_declaration_name not in declarations:
                             declarations.append(arg.proxy_declaration_name)
         return declarations
@@ -4924,7 +4925,7 @@ class DynGlobalSum(GlobalSum):
             raise InternalError(
                 "DynGlobalSum.init(): A global sum argument should be "
                 "a scalar but found argument of type '{0}'.".
-                format(scalar.type))
+                format(scalar.argument_type))
         # Check scalar intrinsic types that this class supports (only
         # "real" for now)
         if scalar.intrinsic_type != "real":
@@ -6787,21 +6788,21 @@ class DynKern(CodedKern):
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
             pre = None
-            if descriptor.type.lower() == "gh_operator":
+            if descriptor.argument_type.lower() == "gh_operator":
                 pre = "op_"
-            elif descriptor.type.lower() == "gh_columnwise_operator":
+            elif descriptor.argument_type.lower() == "gh_columnwise_operator":
                 pre = "cma_op_"
-            elif descriptor.type.lower() == "gh_field":
+            elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.type.lower() == "gh_real":
+            elif descriptor.argument_type.lower() == "gh_real":
                 pre = "rscalar_"
-            elif descriptor.type.lower() == "gh_integer":
+            elif descriptor.argument_type.lower() == "gh_integer":
                 pre = "iscalar_"
             else:
                 raise GenerationError(
                     "DynKern.load_meta() expected one of {0} but found '{1}'".
                     format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
-                           descriptor.type))
+                           descriptor.argument_type))
             args.append(Arg("variable", pre+str(idx+1)))
 
             if descriptor.stencil:
@@ -7298,9 +7299,9 @@ class ArgOrdering(object):
                         self.stencil_unknown_direction(arg)
                     # stencil information that is always passed
                     self.stencil(arg)
-            elif arg.type == "gh_operator":
+            elif arg.argument_type == "gh_operator":
                 self.operator(arg)
-            elif arg.type == "gh_columnwise_operator":
+            elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg)
             elif arg.is_scalar:
                 self.scalar(arg)
@@ -7308,7 +7309,8 @@ class ArgOrdering(object):
                 raise InternalError(
                     "dynamo0p3.ArgOrdering.generate(): Unexpected "
                     "argument type. Expected one of {0} but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES, arg.type))
+                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                           arg.argument_type))
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
@@ -7364,11 +7366,11 @@ class ArgOrdering(object):
                     "(an LMA operator)".format(self._kern.name,
                                                len(self._kern.arguments.args)))
             op_arg = self._kern.arguments.args[0]
-            if op_arg.type != "gh_operator":
+            if op_arg.argument_type != "gh_operator":
                 raise GenerationError(
                     "Expected a LMA operator from which to look-up boundary "
                     "dofs but kernel {0} has argument {1}.".
-                    format(self._kern.name, op_arg.type))
+                    format(self._kern.name, op_arg.argument_type))
             if op_arg.access != AccessType.READWRITE:
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "
@@ -7881,7 +7883,7 @@ class KernCallArgList(ArgOrdering):
                 "Expected an argument of {0} type from which to look-up "
                 "boundary dofs for kernel {1} but got '{2}'".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
-                       self._kern.name, farg.type))
+                       self._kern.name, farg.argument_type))
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self._arglist.append(name)
@@ -8206,10 +8208,10 @@ class KernStubArgList(ArgOrdering):
         '''
         if not operator:
             raise GenerationError("Internal error: no CMA operator supplied.")
-        if operator.type != "gh_columnwise_operator":
+        if operator.argument_type != "gh_columnwise_operator":
             raise GenerationError(
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
-                "be supplied but got {0}".format(operator.type))
+                "be supplied but got {0}".format(operator.argument_type))
         map_name = function_space.cma_indirection_map_name
         self._arglist.append(map_name)
 
@@ -8226,7 +8228,8 @@ class KernStubArgList(ArgOrdering):
         if not arg.is_scalar:
             raise InternalError(
                 "Expected argument type to be one of {0} but got '{1}'".
-                format(LFRicArgDescriptor.VALID_SCALAR_NAMES, arg.type))
+                format(LFRicArgDescriptor.VALID_SCALAR_NAMES,
+                       arg.argument_type))
         self._arglist.append(arg.name)
 
     def fs_common(self, function_space):
@@ -8829,7 +8832,7 @@ class DynKernelArguments(Arguments):
         else:
             op_list = [op_type]
         for arg in self._args:
-            if arg.type in op_list:
+            if arg.argument_type in op_list:
                 return True
         return False
 
@@ -9076,7 +9079,7 @@ class DynKernelArgument(KernelArgument):
         # any-space function spaces.
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
-        self._type = arg_meta_data.type
+        self._argument_type = arg_meta_data.argument_type
         self._intrinsic_type = arg_meta_data.data_type
         self._stencil = None
         if arg_meta_data.mesh:
@@ -9171,7 +9174,7 @@ class DynKernelArgument(KernelArgument):
         else:
             raise GenerationError(
                 "DynKernelArgument.ref_name(fs): Found unsupported argument "
-                "type '{0}'.".format(self._type))
+                "type '{0}'.".format(self._argument_type))
 
     @property
     def is_scalar(self):
@@ -9181,7 +9184,7 @@ class DynKernelArgument(KernelArgument):
         :rtype: bool
 
         '''
-        return self._type in LFRicArgDescriptor.VALID_SCALAR_NAMES
+        return self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES
 
     @property
     def is_field(self):
@@ -9191,7 +9194,7 @@ class DynKernelArgument(KernelArgument):
         :rtype: bool
 
         '''
-        return self._type in LFRicArgDescriptor.VALID_FIELD_NAMES
+        return self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES
 
     @property
     def is_operator(self):
@@ -9201,7 +9204,7 @@ class DynKernelArgument(KernelArgument):
         :rtype: bool
 
         '''
-        return self._type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
+        return self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
 
     @property
     def descriptor(self):
@@ -9214,13 +9217,13 @@ class DynKernelArgument(KernelArgument):
         return self._arg
 
     @property
-    def type(self):
+    def argument_type(self):
         '''
         :returns: the API type of this argument.
         :rtype: str
 
         '''
-        return self._type
+        return self._argument_type
 
     @property
     def intrinsic_type(self):
@@ -9322,7 +9325,7 @@ class DynKernelArgument(KernelArgument):
         :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
 
         '''
-        if self._type == "gh_operator":
+        if self._argument_type == "gh_operator":
             # We return the 'from' space for an operator argument
             return self.function_space_from
         return self._function_spaces[0]

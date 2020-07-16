@@ -157,15 +157,15 @@ class DynBuiltIn(BuiltIn):
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.INC]:
                 write_count += 1
-            if arg.type == "gh_field":
+            if arg.argument_type == "gh_field":
                 field_count += 1
                 spaces.add(arg.function_space)
-            if arg.type not in VALID_BUILTIN_ARG_TYPES:
+            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
                     "In the Dynamo 0.3 API an argument to a built-in kernel "
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                         arg.type))
+                                         arg.argument_type))
         if write_count != 1:
             raise ParseError("A built-in kernel in the Dynamo 0.3 API must "
                              "have one and only one argument that is written "

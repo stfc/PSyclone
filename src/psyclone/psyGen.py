@@ -161,7 +161,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     arguments = []
     for argument in arg_list:
         if arg_types:
-            if argument.type.lower() not in arg_types:
+            if argument.argument_type.lower() not in arg_types:
                 continue
         if arg_accesses:
             if argument.access not in arg_accesses:
@@ -586,7 +586,7 @@ class Invoke(object):
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
-                        if arg.type == argument_type:
+                        if arg.argument_type == argument_type:
                             test_name = arg.declaration_name
                             if test_name not in declarations:
                                 declarations[test_name] = arg
@@ -1578,7 +1578,7 @@ class OMPDirective(Directive):
         result = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.type in MAPPING_SCALARS.values():
+                if arg.argument_type in MAPPING_SCALARS.values():
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -2411,7 +2411,7 @@ class Kern(Statement):
         if not var_arg.is_scalar:
             raise GenerationError(
                 "Kern.zero_reduction_variable() should be a scalar but "
-                "found '{0}'.".format(var_arg.type))
+                "found '{0}'.".format(var_arg.argument_type))
         # Generate the reduction variable
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
@@ -3501,11 +3501,17 @@ class Argument(object):
         self._access = value
 
     @property
-    def type(self):
-        '''Return the type of the argument. API's that do not have this
-        concept (such as gocean0.1 and dynamo0.1) can use this
-        baseclass version which just returns "field" in all
-        cases. API's with this concept can override this method '''
+    def argument_type(self):
+        '''
+        Returns the type of the argument. APIs that do not have this
+        concept (such as GOcean0.1 and Dynamo0.1) can use this
+        base class version which just returns "field" in all
+        cases. API's with this concept can override this method.
+
+        :returns: the API type of the kernel argument.
+        :rtype: str
+
+        '''
         return "field"
 
     @property
