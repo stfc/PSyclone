@@ -3487,6 +3487,10 @@ class Argument(object):
     def access(self):
         return self._access
 
+    @property
+    def vector_size(self):
+        return self._vector_size
+
     @access.setter
     def access(self, value):
         '''Set the access type for this argument.

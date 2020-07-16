@@ -54,7 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    KernelSchedule, AccessType, ACCEnterDataDirective
+    KernelSchedule, AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, Symbol
@@ -193,6 +193,11 @@ class GOInvoke(Invoke):
     def __init__(self, alg_invocation, idx, invokes):
         self._schedule = GOInvokeSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
+
+        if Config.get().distributed_memory:
+            # halo exchange calls
+            for loop in self.schedule.loops():
+                loop.create_halo_exchanges()
 
     @property
     def unique_args_arrays(self):
@@ -464,6 +469,96 @@ class GOLoop(Loop):
 
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
+
+    # -------------------------------------------------------------------------
+    def _halo_read_access(self, arg):
+        '''Determines whether the supplied argument has (or might have) its
+        halo data read within this loop. Returns True if it does, or if
+        it might and False if it definitely does not.
+
+        :param arg: an argument contained within this loop
+        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
+        :rtype: bool
+
+        '''
+        if arg.type != 'field':
+            return False
+        else:
+            return True
+
+    def unique_fields_with_halo_reads(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly. '''
+
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.kernels():
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
+    def create_halo_exchanges(self):
+        '''Add halo exchanges before this loop as required by fields within
+        this loop. To keep the logic simple we assume that any field
+        that accesses the halo will require a halo exchange and then
+        remove the halo exchange if this is not the case (when
+        previous writers perform sufficient redundant computation). It
+        is implemented this way as the halo exchange class determines
+        whether it is required or not so a halo exchange needs to
+        exist in order to find out. The appropriate logic is coded in
+        the _add_halo_exchange helper method. '''
+        for halo_field in self.unique_fields_with_halo_reads():
+            # for each unique field in this loop that has its halo
+            # read (including annexed dofs), find the previous update
+            # of this field
+            print(halo_field.name)
+            prev_arg_list = halo_field.backward_write_dependencies()
+            if not prev_arg_list:
+                # field has no previous dependence so create new halo
+                # exchange(s) as we don't know the state of the fields
+                # halo on entry to the invoke
+                self._add_halo_exchange(halo_field)
+            else:
+                # field has one or more previous dependencies
+                if len(prev_arg_list) > 1:
+                    # field has more than one previous dependencies so
+                    # should be a vector
+                    if halo_field.vector_size <= 1:
+                        raise GenerationError(
+                            "Error in create_halo_exchanges. Expecting field "
+                            "'{0}' to be a vector as it has multiple previous "
+                            "dependencies".format(halo_field.name))
+                    if len(prev_arg_list) != halo_field.vector_size:
+                        raise GenerationError(
+                            "Error in create_halo_exchanges. Expecting a "
+                            "dependence for each vector index for field '{0}' "
+                            "but the number of dependencies is '{1}' and the "
+                            "vector size is '{2}'.".format(
+                                halo_field.name, halo_field.vector_size,
+                                len(prev_arg_list)))
+                    for arg in prev_arg_list:
+                        if not isinstance(arg.call, HaloExchange):
+                            raise GenerationError(
+                                "Error in create_halo_exchanges. Expecting "
+                                "all dependent nodes to be halo exchanges")
+                prev_node = prev_arg_list[0].call
+                if not isinstance(prev_node, HaloExchange):
+                    # previous dependence is not a halo exchange so
+                    # call the add halo exchange logic which
+                    # determines whether a halo exchange is required
+                    # or not
+                    self._add_halo_exchange(halo_field)
+
+
+    def _add_halo_exchange(self, halo_field):
+        exchange = GOHaloExchange(halo_field, parent=self.parent)
+        self.parent.children.insert(self.position, exchange)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -2206,3 +2301,29 @@ class GOKernelSchedule(KernelSchedule):
     def __init__(self, name):
         super(GOKernelSchedule, self).__init__(name)
         self._symbol_table = GOSymbolTable(self)
+
+
+class GOHaloExchange(HaloExchange):
+    '''
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        super(GOHaloExchange, self).__init__(field, check_dirty,
+                                             vector_index, parent)
+        self._halo_exchange_name = "halo_exchange"
+
+    def gen_code(self, parent):
+        '''GOcean specific code generation for this class.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        from psyclone.f2pygen import CallGen, CommentGen
+        parent.add(
+            CallGen(
+                parent, name=self._field.name +
+                "%" + self._halo_exchange_name +
+                "(depth=1)"))
+        parent.add(CommentGen(parent, ""))
