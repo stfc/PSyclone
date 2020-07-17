@@ -358,9 +358,11 @@ def test_node_backward_dependence():
 
 
 def test_node_is_valid_location():
-    '''Test that the Node class is_valid_location method returns True if
+    ''' Test that the Node class is_valid_location method returns True if
     the new location does not break any data dependencies, otherwise it
-    returns False'''
+    returns False.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -379,7 +381,7 @@ def test_node_is_valid_location():
     assert "method must be one of" in str(excinfo.value)
     # 3: parents of node and new_node are not the same
     with pytest.raises(GenerationError) as excinfo:
-        anode.is_valid_location(schedule.children[3].children[0])
+        anode.is_valid_location(schedule.children[4].children[0])
     assert ("the node and the location do not have the same "
             "parent") in str(excinfo.value)
     # 4: positions are the same
@@ -452,8 +454,8 @@ def test_node_ancestor():
 
 
 def test_dag_names():
-    '''test that the dag_name method returns the correct value for the
-    node class and its specialisations'''
+    ''' Test that the dag_name method returns the correct value for the
+    node class and its specialisations. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -462,13 +464,13 @@ def test_dag_names():
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule_0"
-    assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
-    assert schedule.children[3].dag_name == "loop_4"
-    schedule.children[3].loop_type = "colour"
-    assert schedule.children[3].dag_name == "loop_[colour]_4"
-    schedule.children[3].loop_type = ""
-    assert (schedule.children[3].loop_body[0].dag_name ==
-            "kernel_testkern_code_9")
+    assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
+    assert schedule.children[4].dag_name == "loop_5"
+    schedule.children[4].loop_type = "colour"
+    assert schedule.children[4].dag_name == "loop_[colour]_5"
+    schedule.children[4].loop_type = ""
+    assert (schedule.children[4].loop_body[0].dag_name ==
+            "kernel_testkern_code_10")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")

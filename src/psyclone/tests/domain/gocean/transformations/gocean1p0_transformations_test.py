@@ -33,6 +33,7 @@
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
@@ -1485,7 +1486,7 @@ def test_go_loop_swap_errors():
     psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
                              "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
-        swap.apply(invoke.schedule.children[3])
+        swap.apply(invoke.schedule.children[4])
 
     assert re.search("Given node .* is not a GOLoop, "
                      "but an instance of .*DynLoop",

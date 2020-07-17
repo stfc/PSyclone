@@ -418,8 +418,6 @@ def test_transform_apply(lhs_create, rhs_create, expected, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-@pytest.mark.xfail(reason="issue #630. The generated loop indices should be "
-                   "different.")
 def test_transform_multi_apply(tmpdir):
     '''Check that the ArrayRange2Loop transformation can be used to create
     nested loops by calling it multiple times when an array has

@@ -282,6 +282,15 @@ Symbols and Symbol Tables
 Some PSyIR nodes have an associated Symbol Table
 (`psyclone.psyir.symbols.SymbolTable`) which keeps a record of the
 Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
+
+Symbol Tables can be nested (i.e. a node with an attached symbol table
+can be an ancestor or descendent of a node with an attached symbol
+table). If the same symbol name is used in a hierachy of symbol tables
+then the symbol within the symbol table attached to the closest
+ancestor node is in scope. By default, symbol tables are aware of
+other symbol tables and will return information about relevant symbols
+from all symbol tables.
+
 The ``SymbolTable`` has the following interface:
 
 .. autoclass:: psyclone.psyir.symbols.SymbolTable

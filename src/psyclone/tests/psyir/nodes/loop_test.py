@@ -185,7 +185,7 @@ def test_loop_gen_code():
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
 
     # Change step to 2
-    loop = psy.invokes.get('invoke_important_invoke').schedule[3]
+    loop = psy.invokes.get('invoke_important_invoke').schedule[4]
     loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE, parent=loop)
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end

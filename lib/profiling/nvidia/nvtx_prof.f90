@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,8 @@ module profile_psy_data_mod
 
   !> The derived type passed to us from the profiled application. Required for
   !! consistency with the PSyclone Profiling interface and used here to
-  !! prevent repeated string operations.
+  !! store the colour assigned to a region and to prevent repeated string
+  !! operations.
   type, public :: profile_PSyDataType
      !> Whether or not we've seen this region before
      logical :: initialised = .false.
@@ -102,8 +103,23 @@ module profile_psy_data_mod
      end subroutine nvtxRangePop
   end interface nvtxRangePop
 
+  ! Requires that the application be linked with CUDA (-Mcuda flag to
+  ! PGI)
+  interface cudaProfilerStart
+     subroutine cudaProfilerStart() bind(C, name='cudaProfilerStart')
+     end subroutine cudaProfilerStart
+  end interface cudaProfilerStart
+
+  ! Requires that the application be linked with CUDA (-Mcuda flag to
+  ! PGI)
+  interface cudaProfilerStop
+     subroutine cudaProfilerStop() bind(C, name='cudaProfilerStop')
+     end subroutine cudaProfilerStop
+  end interface cudaProfilerStop
+
   ! Only the routines making up the PSyclone profiling API are public
-  public profile_PSyDataInit, profile_PSyDataShutdown
+  public profile_PSyDataInit, profile_PSyDataShutdown, &
+       profile_PSyDataStart, profile_PSyDataStop
 
 contains
 
@@ -113,6 +129,24 @@ contains
     implicit none
     return
   end subroutine profile_PSyDataInit
+
+  !> Enables profiling (if it is not already enabled). May be manually added
+  !! to source code in order to limit the amount of profiling performed at
+  !! run time. Requires that the application be linked with CUDA (-Mcuda flag
+  !! to PGI).
+  subroutine profile_PSyDataStart()
+    implicit none
+    call cudaProfilerStart()
+  end subroutine profile_PSyDataStart
+
+  !> Turns off profiling. All subsequent calls to the profiling API
+  !! will have no effect. Use in combination with profile_PSyDataStart() to
+  !! limit the amount of profiling performed at runtime. Requires that the
+  !! application be linked with CUDA (-Mcuda flag to PGI).
+  subroutine profile_PSyDataStop()
+    implicit none
+    call cudaProfilerStop()
+  end subroutine profile_PSyDataStop
 
   !> Starts a profiling area. The module and region name can be used to create
   !! a unique name for each region.

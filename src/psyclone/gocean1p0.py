@@ -445,11 +445,6 @@ class GOLoop(Loop):
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
 
-        # This will return the symbol table from the closest ancestor
-        # that contains one. However, the original symbol my be in a
-        # different symbol table and if this is the case we will end
-        # up declaring the variable twice. Issue #630 describes this
-        # problem.
         symtab = self.scope.symbol_table
         try:
             data_symbol = symtab.lookup_with_tag(tag)
@@ -2252,8 +2247,8 @@ class GOSymbolTable(SymbolTable):
         '''
         # Get the kernel name if available for better error messages
         kname_str = ""
-        if self._schedule and isinstance(self._schedule, KernelSchedule):
-            kname_str = " for kernel '{0}'".format(self._schedule.name)
+        if self._node and isinstance(self._node, KernelSchedule):
+            kname_str = " for kernel '{0}'".format(self._node.name)
 
         # Check that there are at least 2 arguments
         if len(self.argument_list) < 2:

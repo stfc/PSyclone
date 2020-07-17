@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -719,7 +720,7 @@ def test_transform_errors(capsys):
 
 # -----------------------------------------------------------------------------
 def test_region():
-    '''Tests that the profiling transform works correctly when a region of
+    ''' Tests that the profiling transform works correctly when a region of
     code is specified that does not cover the full invoke and also
     contains multiple kernels.
 
@@ -729,7 +730,7 @@ def test_region():
     schedule = invoke.schedule
     prt = ProfileTrans()
     # Just halo exchanges.
-    _ = prt.apply(schedule[0:3])
+    _ = prt.apply(schedule[0:4])
     # Two loops.
     _ = prt.apply(schedule[1:3])
     result = str(invoke.gen())

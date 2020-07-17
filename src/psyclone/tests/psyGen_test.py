@@ -565,8 +565,8 @@ def test_ompdo_constructor():
 
 
 def test_ompdo_directive_class_node_str(dist_mem):
-    '''Tests the node_str method in the OMPDoDirective class. We create a
-    sub-class object then call this method from it '''
+    ''' Tests the node_str method in the OMPDoDirective class. We create a
+    sub-class object then call this method from it. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
@@ -586,7 +586,7 @@ def test_ompdo_directive_class_node_str(dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
 
     if dist_mem:
-        idx = 3
+        idx = 4
     else:
         idx = 0
 
@@ -594,7 +594,7 @@ def test_ompdo_directive_class_node_str(dist_mem):
     omp_parallel_loop = schedule.children[idx]
 
     for case in cases:
-        # call the OMPDirective node_str method
+        # Call the OMPDirective node_str method
         out = case["current_class"].node_str(omp_parallel_loop)
 
         directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
@@ -768,8 +768,8 @@ def test_reduction_var_error():
 
 
 def test_reduction_sum_error():
-    '''Check that we raise an exception if the reduction_sum_loop()
-    method is provided with an incorrect type of argument'''
+    ''' Check that we raise an exception if the reduction_sum_loop()
+    method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -782,7 +782,7 @@ def test_reduction_sum_error():
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)
         assert (
-            "unsupported reduction access 'gh_write' found in DynBuiltin:"
+            "unsupported reduction access 'gh_inc' found in DynBuiltin:"
             "reduction_sum_loop(). Expected one of '['gh_sum']"
             in str(err.value))
 
@@ -932,8 +932,8 @@ def test_argument_depends_on():
 
 
 def test_argument_find_argument():
-    '''Check that the find_argument method returns the first dependent
-    argument in a list of nodes, or None if none are found'''
+    ''' Check that the find_argument method returns the first dependent
+    argument in a list of nodes, or None if none are found. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         api="dynamo0.3")
@@ -962,12 +962,12 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) kern arg depends on halo arg
-    m2_read_arg = schedule.children[3].loop_body[0].arguments.args[4]
-    m2_halo_field = schedule.children[2].field
+    m2_read_arg = schedule.children[4].loop_body[0].arguments.args[4]
+    m2_halo_field = schedule.children[3].field
     result = m2_read_arg._find_argument(schedule.children)
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
-    result = m2_halo_field._find_argument([schedule.children[3].loop_body[0]])
+    result = m2_halo_field._find_argument([schedule.children[4].loop_body[0]])
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
@@ -1250,8 +1250,8 @@ def test_haloexchange_can_be_printed():
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    # We have to use the dynamo0.3 API as that's currently the only one
-    # that supports halo exchanges.
+    # We have to use the LFRic (Dynamo0.3) API as that's currently the only
+    # one that supports halo exchanges.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -1259,8 +1259,8 @@ def test_haloexchange_node_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
-    # to test is overidden in DynHaloExchange.
-    out = HaloExchange.node_str(schedule.children[1])
+    # to test is overridden in DynHaloExchange.
+    out = HaloExchange.node_str(schedule.children[2])
     colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
     assert (colored("HaloExchange", colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
@@ -1459,9 +1459,13 @@ def test_directive_backward_dependence():
 
 
 def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_list() method of OMPParallelDirective. '''
+    ''' Tests for the _get_private_list() method of OMPParallelDirective.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1485,7 +1489,7 @@ def test_directive_get_private(monkeypatch):
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
-    assert ("call 'testkern_code' has a local variable but its name is "
+    assert ("call 'testkern_w3_code' has a local variable but its name is "
             "not set" in str(err.value))
 
 
@@ -1528,14 +1532,18 @@ def test_openmp_pdo_dag_name():
 
 
 def test_omp_dag_names():
-    '''Test that we generate the correct dag names for omp parallel, omp
-    do, omp directive and directive nodes'''
+    ''' Test that we generate the correct dag names for omp parallel, omp
+    do, omp directive and directive nodes.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
+                                 "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
+    invoke = psy.invokes.get('invoke_0_testkern_w3_type')
     schedule = invoke.schedule
     from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
         OMPParallelTrans
@@ -1836,22 +1844,22 @@ def test_haloexchange_vector_index_depend():
 
 
 def test_find_write_arguments_for_write():
-    '''when backward_write_dependencies is called from an field argument
+    ''' When backward_write_dependencies is called from a field argument
     that does not read then we should return an empty list. This test
-    checks this functionality. We use the dynamo0p3 api to create the
-    required objects
+    checks this functionality. We use the LFRic (Dynamo0.3) API to create
+    the required objects.
 
     '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[3]
+    loop = schedule.children[13]
     kernel = loop.loop_body[0]
-    field_writer = kernel.arguments.args[1]
+    field_writer = kernel.arguments.args[7]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
 
@@ -2001,12 +2009,13 @@ def test_check_vect_hes_differ_wrong_argtype():
 
 
 def test_check_vec_hes_differ_diff_names():
-    '''when the check_vector_halos_differ method is called from a halo
+    ''' When the check_vector_halos_differ method is called from a halo
     exchange object the argument being passed should be a halo
     exchange with an argument having the same name as the local halo
     exchange argument name. If this is not the case an exception
     should be raised. This test checks that this exception is working
     correctly.
+
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -2016,16 +2025,16 @@ def test_check_vec_hes_differ_diff_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     halo_exchange = schedule.children[0]
-    # obtain another halo exchange object which has an argument with a
+    # Obtain another halo exchange object which has an argument with a
     # different name
     different_halo_exchange = schedule.children[1]
     with pytest.raises(GenerationError) as excinfo:
-        # pass halo exchange with different name to the method
+        # Pass halo exchange with different name to the method
         halo_exchange.check_vector_halos_differ(different_halo_exchange)
     assert (
         "the halo exchange object passed to "
         "HaloExchange.check_vector_halos_differ() has a "
-        "different field name 'm1' to self 'f2'" in str(excinfo.value))
+        "different field name 'f2' to self 'f1'" in str(excinfo.value))
 
 
 def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
