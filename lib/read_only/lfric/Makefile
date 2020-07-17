@@ -61,6 +61,9 @@ $(LFRIC_DIR)/field_mod.mod:
 
 read_only.o: $(LFRIC_DIR)/field_mod.mod psy_data_base.o
 
+%.f90:	%.jinja
+	../../process.py $< > $*.f90
+
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
