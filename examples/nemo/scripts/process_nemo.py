@@ -119,9 +119,11 @@ if __name__ == "__main__":
                 continue
         else:
             print("Processing {0}...".format(file_name))
-            extra_args = ["-s", ARGS.script_file,
-                          "-oalg", "/dev/null",
-                          "-opsy", out_file, ffile]
+            extra_args = []
+            if ARGS.script_file:
+                extra_args = ["-s", ARGS.script_file]
+            extra_args += ["-oalg", "/dev/null",
+                           "-opsy", out_file, ffile]
         # Since we're in Python we could call psyclone.generator.main()
         # directly but PSyclone is not designed to be called repeatedly
         # in that way and doesn't clear up state between invocations.
