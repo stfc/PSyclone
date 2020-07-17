@@ -742,6 +742,81 @@ class Fparser2Reader(object):
 
         return new_container
 
+    def generate_routine(self, parent, parse_tree):
+        '''
+        Create a Routine representing a program, subroutine or function.
+
+        :param parent:
+        :type parent:
+        :param parse_tree:
+        :type parse_tree:
+
+        '''
+        def first_type_match(nodelist, typekind):
+            '''
+            Returns the first instance of the specified type in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param type typekind: The fparse2 Type we are searching for.
+            '''
+            for node in nodelist:
+                if isinstance(node, typekind):
+                    return node
+            raise ValueError  # Type not found
+
+        # ARPDBG, at this point we want to create a Routine (node)
+        routine = self._create_schedule(name)
+
+        if not isinstance(parse_tree, (Fortran2003.Subroutine_Subprogram,
+                                       Fortran2003.Main_Program,
+                                       Fortran2003.Function_Subprogram)):
+            raise TypeError("ARPDBG")
+        subroutine = parse_tree
+        if isinstance(routine, Fortran2003.Function_Subprogram):
+            # TODO fparser/#225 Function_Stmt does not have a get_name()
+            # method. Once it does we can remove this branch.
+            routine_name = str(subroutine.children[0].children[1])
+        else:
+            routine_name = str(subroutine.children[0].get_name())
+
+        # Set pointer from schedule into fparser2 tree
+        # TODO #435 remove this line once fparser2 tree not needed
+        # pylint: disable=protected-access
+        new_schedule._ast = subroutine
+        # pylint: enable=protected-access
+
+        try:
+            sub_spec = first_type_match(subroutine.children,
+                                        Fortran2003.Specification_Part)
+            decl_list = sub_spec.children
+            # TODO this if test can be removed once fparser/#211 is fixed
+            # such that routine arguments are always contained in a
+            # Dummy_Arg_List, even if there's only one of them.
+            from fparser.two.Fortran2003 import Dummy_Arg_List
+            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
+               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
+                arg_list = subroutine.children[0].children[2].children
+            else:
+                # Routine has no arguments
+                arg_list = []
+        except ValueError:
+            # Subroutine without declarations, continue with empty lists.
+            decl_list = []
+            arg_list = []
+        finally:
+            self.process_declarations(new_schedule, decl_list, arg_list)
+
+        try:
+            sub_exec = first_type_match(subroutine.content,
+                                        Fortran2003.Execution_Part)
+        except ValueError:
+            pass
+        else:
+            self.process_nodes(new_schedule, sub_exec.content)
+
+        return new_schedule
+
     def generate_schedule(self, name, module_ast, container=None):
         '''Create a Schedule from the supplied fparser2 AST.
 

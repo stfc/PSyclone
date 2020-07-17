@@ -303,10 +303,21 @@ class NemoPSy(PSy):
         '''
         # Walk down our Schedule and update the underlying fparser2 AST
         # to account for any transformations
-        self.invokes.update()
-
+        # self.invokes.update()
         # Return the fparser2 AST
-        return self._ast
+        # return self._ast
+        from psyclone.psyir.backend.fortran import FortranWriter
+        fvisitor = FortranWriter()
+        if self._invokes._container:
+            result = fvisitor(self._invokes._container)
+        else:
+            # We have no container
+            if len(self._invokes.invoke_list) == 1:
+                result = fvisitor(self._invokes.invoke_list[0].schedule)
+            else:
+                raise InternalError("NemoPSy contains more than one invoke "
+                                    "but does not have a Container")
+        return result
 
 
 class NemoInvokeSchedule(InvokeSchedule):
