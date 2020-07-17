@@ -518,6 +518,7 @@ class GOLoop(Loop):
             # read (including annexed dofs), find the previous update
             # of this field
             print(halo_field.name)
+            #import pdb; pdb.set_trace()
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
@@ -559,6 +560,12 @@ class GOLoop(Loop):
     def _add_halo_exchange(self, halo_field):
         exchange = GOHaloExchange(halo_field, parent=self.parent)
         self.parent.children.insert(self.position, exchange)
+
+        # check whether this halo exchange has been placed
+        # here correctly and if not, remove it.
+        required, _ = exchange.required()
+        if not required:
+            exchange.parent.children.remove(exchange)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -2327,3 +2334,44 @@ class GOHaloExchange(HaloExchange):
                 "%" + self._halo_exchange_name +
                 "(depth=1)"))
         parent.add(CommentGen(parent, ""))
+
+    def required(self):
+        '''Determines whether this halo exchange is definitely required (True,
+        True), might be required (True, False) or is definitely not
+        required (False, *). The first return argument is used to
+        decide whether a halo exchange should exist. If it is True
+        then the halo is required or might be required. If it is False
+        then the halo exchange is definitely not required. The second
+        argument is used to specify whether we definitely know that it
+        is required or are not sure.
+
+        Whilst a halo exchange is generally only ever added if it is
+        required, or if it may be required, this situation can change
+        if redundant computation transformations are applied. The
+        first argument can be used to remove such halo exchanges if
+        required.
+
+        When the first argument is True, the second argument can be
+        used to see if we need to rely on the runtime (set_dirty and
+        set_clean calls) and therefore add a check_dirty() call around
+        the halo exchange or whether we definitely know that this halo
+        exchange is required.
+
+        This routine assumes that a stencil size provided via a
+        variable may take the value 0. If a variables value is
+        constrained to be 1, or more, then the logic for deciding
+        whether a halo exchange is definitely required should be
+        updated. Note, the routine would still be correct as is, it
+        would just return more unknown results than it should).
+
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
+        HaloExchange - True, or are not sure - False.
+        :rtype: (bool, bool)
+
+        '''
+        if not self.field.forward_read_dependencies():
+            return False, False
+        return True, True
