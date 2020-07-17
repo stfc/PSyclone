@@ -512,8 +512,6 @@ class GOLoop(Loop):
             # for each unique field in this loop that has its halo
             # read (including annexed dofs), find the previous update
             # of this field
-            print(halo_field.name)
-            #import pdb; pdb.set_trace()
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
