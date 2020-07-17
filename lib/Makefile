@@ -27,42 +27,22 @@
 #------------------------------------------------------------------------------
 # Authors: J. Henrichs, Australian Bureau of Meteorology
 
-
-# This Makefile picks up the compiler to use plus any flags from
-# environment variables. e.g.:
-# 
-# export F90=mpif90
-# export F90FLAGS="-O3"
-# export AR=ar
-#
-# It also uses nf-config to query for flags required for NetCDF compilation.
+# This Makefile just creates the Fortran base class from the
+# ninja template. The compile functionality it offers is only
+# meant for testing, each library should compile its own version
+# of the base class (with therefore consistent compiler settings).
 
 F90 ?= gfortran
-
-SHARED_DIR ?= ../../../external
-INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
-INF_INC = $(INF_DIR)/src
-INF_LIB = $(INF_DIR)/src/lib_fd.a
-
 F90FLAGS ?= 
-F90FLAGS += -I$(INF_INC)
-LIB_NAME = lib_read_only.a
 
-OBJS = read_only.o psy_data_base.o
+default:	psy_data_base.f90
+compile:	psy_data_base.o
 
-default: $(LIB_NAME)
-
-$(LIB_NAME):	$(OBJS)
-	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
-
-# Compilation of read_only needs the .mod file from dl_esm_inf
-read_only.o: $(INF_LIB) psy_data_base.o
+%.f90:	%.jinja
+	./process.py $< > $*.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-psy_data_base.f90: ../../psy_data_base.jinja
-	../../process.py $< > psy_data_base.f90
-
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.*
+	rm -f psy_data_base.f90

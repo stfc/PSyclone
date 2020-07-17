@@ -40,49 +40,31 @@
 module read_only_verify_psy_data_mod
     use, intrinsic :: iso_fortran_env, only : int64, int32, &
                                               stderr=>Error_Unit
+    use psy_data_base_mod, only : PSyDataBaseType
     implicit none
-
-    !> Maximum string length for module- and region-names
-    integer, parameter :: MAX_STRING_LENGTH = 512
 
     !> This is the data type that stores a checksum for each read-only
     !! variable. A static instance of this type is created for each
     !! instrumented region with PSyclone.
 
-    type, public:: read_only_verify_PSyDataType
+    type, extends(PSyDataBaseType), public:: read_only_verify_PSyDataType
         !> This field stores a 64-bit integer checksum for each
         !! variable.
         integer(kind=int64), dimension(:), allocatable :: checksums
 
-        !> The index of the variables as they are being declared
-        !! and as they are being written. This index is used
-        !! to get the variable id when writing data (which depends
-        !! on the fact that declaration is done in the same order
-        !! in which the values are provided).
-        integer :: next_var_index
-
-        !> This boolean flag switches from 'computing and storing checksum'
-        !! to 'verify checksum'.
+        !> This boolean flag keeps track of the state and switches
+        !! from 'computing and storing checksum' (before kernel) to
+        !! 'verify checksum' (after kernel).
         logical :: verify_checksums
 
-        !> Verbosity level for output at runtime. This is taken from the
-        !! PSYDATA_VERBOSE environment variable.
-        !! 0: Only errors will be written (PSYDATA_VERBOSE undefined)
-        !! 1: Additionally write the name of the confirmed kernel_name
-        !! 2: Also write the name of each tested variable
-        integer :: verbosity
-
-        !> Store the name of the module and region
-        character(MAX_STRING_LENGTH) :: module_name, region_name
-
     contains
-        ! The various procedures used
-        procedure :: DeclareScalarInt,    ChecksumScalarInt
-        procedure :: DeclareScalarReal,   ChecksumScalarReal
-        procedure :: DeclareScalarDouble, ChecksumScalarDouble
+        ! The various procedures used from this class
+        procedure :: ChecksumScalarInt
+        procedure :: ChecksumScalarReal
+        procedure :: ChecksumScalarDouble
         procedure :: DeclareFieldDouble,  ChecksumFieldDouble
-        procedure :: PreStart, PreEndDeclaration, PreEnd
-        procedure :: PostStart, PostEnd
+        procedure :: PreStart
+        procedure :: PostStart
 
         !> The generic interface for declaring a variable:
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
@@ -128,22 +110,8 @@ Contains
         character(1) :: verbose
         integer :: status
 
-        call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
-        this%verbosity=0
-        if (status==0) then
-            if(verbose=="0") then
-                this%verbosity = 0
-            else if (verbose=="1") then
-                this%verbosity = 1
-            else if (verbose=="2") then
-                this%verbosity = 2
-            else
-                write(stderr,*) "PSyData: invalid setting of PSYDATA_VERBOSE."
-                write(stderr,*) "It must be '0', 1' or '2', but it is '", verbose,"'."
-                this%verbosity = 0
-            endif
-        endif
-
+        call this%PSyDataBaseType%PreStart(module_name, region_name, &
+                                           num_pre_vars, num_post_vars)
         if (num_pre_vars /= num_post_vars) then
             write(stderr,*) "PSyData: The same number of variables must be provided before"
             write(stderr,*) "and after the instrumented region. But the values are:"
@@ -151,81 +119,31 @@ Contains
             call gocean_stop("Inconsistent parameters.")
         endif
 
-        if(this%verbosity>0) &
-            write(stderr,*) "PSyData: checking ", module_name, " ", region_name
-
         allocate(this%checksums(num_pre_vars+num_post_vars), stat=status)
         if(status/=0) then
-            write(stderr, *) "Could not allocate ", num_pre_vars+num_post_vars, &
+            write(stderr, *) "PSyData: Could not allocate ", &
+                             num_pre_vars+num_post_vars, &
                              " integers, aborting."
             call gocean_stop("Out of memory")
         endif
-        this%next_var_index = 1
         this%verify_checksums = .false.
-        this%module_name = module_name
-        this%region_name = region_name
     end subroutine PreStart
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine is called once all variables are declared. It makes
-    !! sure that the next variable index is starting at 1 again.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    subroutine PreEndDeclaration(this)
-        implicit none
-        class(read_only_verify_PSyDataType), intent(inout), target :: this
-        this%next_var_index = 1
-    end subroutine PreEndDeclaration
-    ! -------------------------------------------------------------------------
-    !> This subroutine is called after the value of all variables has been
-    !! provided (and declared). After this call the instrumented region will
-    !! be executed. Nothing is required to be done here.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    subroutine PreEnd(this)
-        implicit none
-        class(read_only_verify_PSyDataType), intent(inout), target :: this
-    end subroutine PreEnd
 
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
     !! region will be provided. This subroutine sets the 'verify_checksum'
     !! flag to true, causing all further checksum calls to verify that the
-    !! checksum has not changed. It also resets the next variable index to 1
-    !! again.
+    !! checksum has not changed. The base class resets the next variable index
+    !! to 1 again.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     subroutine PostStart(this)
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
+
+        call this%PSyDataBaseType%PostStart()
         this%verify_checksums = .true.
-        this%next_var_index = 1
     end subroutine PostStart
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
-    !! executed and all values of variables after the instrumented
-    !! region have been provided. No special functionality required here.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    subroutine PostEnd(this)
-        implicit none
-        class(read_only_verify_PSyDataType), intent(inout), target :: this
-
-        if(this%verbosity>0) &
-            write(stderr, *) "PSyData: checked ", trim(this%module_name), &
-                    " ", trim(this%region_name)
-    end subroutine PostEnd
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar integer value. It does nothing since
-    !! this is not required for read-only verification.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareScalarInt(this, name, value)
-        implicit none
-        class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        integer, intent(in) :: value
-    end subroutine DeclareScalarInt
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -259,18 +177,6 @@ Contains
         this%next_var_index = this%next_var_index + 1
     end subroutine ChecksumScalarInt
 
-    ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar single precision value. It does
-    !! nothing since this is not required for read-only verification.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareScalarReal(this, name, value)
-        implicit none
-        class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        real, intent(in) :: value
-    end subroutine DeclareScalarReal
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -313,19 +219,6 @@ Contains
         endif
         this%next_var_index = this%next_var_index + 1
     end subroutine ChecksumScalarReal
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar double precision value. It does
-    !! nothing since this is not required for read-only verification.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareScalarDouble(this, name, value)
-        implicit none
-        class(read_only_verify_PSyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, intent(in) :: value
-    end subroutine DeclareScalarDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
