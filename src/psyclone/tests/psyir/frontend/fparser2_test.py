@@ -2014,6 +2014,7 @@ def test_array_section():
 
     # Simple one-dimensional
     for code in ["a(:) = 0.0", "a(::) = 0.0"]:
+        import pdb; pdb.set_trace()
         array_reference = _array_create(code)
         _check_array(array_reference, ndims=1)
         _check_range(array_reference, dim=1)

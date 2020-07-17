@@ -160,7 +160,8 @@ def test_loop_navigation_properties():
 
 def test_loop_invalid_type():
     ''' Tests assigning an invalid type to a Loop object. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
     assert isinstance(loop, Loop)
