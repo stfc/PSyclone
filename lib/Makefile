@@ -35,8 +35,8 @@
 F90 ?= gfortran
 F90FLAGS ?= 
 
-default:	psy_data_base.f90
-compile:	psy_data_base.o
+default: psy_data_base.o
+process: psy_data_base.f90
 
 %.f90:	%.jinja
 	./process.py $< > $*.f90

@@ -4,6 +4,8 @@
 {{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
 {{ "! DO NOT MODIFY DIRECTLY                            " }}
 {{ "! ==================================================" }}
+
+{% set ALL_DIMS=[1, 2, 3, 4] %}   {# Support 1 to 4 dimensional arrays #}
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
@@ -71,8 +73,11 @@ module psy_data_base_mod
         contains
             procedure :: PreStart, PreEndDeclaration, PreEnd
             procedure :: PostStart, PostEnd
-            {% for type in ["Int", "Real", "Double" ] %}
-            procedure :: DeclareScalar{{type}}
+            {% for type in ["Int","Long", "Real", "Double" ] %}
+                procedure :: DeclareScalar{{type}}
+                {% for dim in ALL_DIMS %}
+                    procedure :: DeclareArray{{dim}}d{{type}}
+                {% endfor %}
             {% endfor %}
 
     end type PSyDataBaseType
@@ -215,6 +220,26 @@ contains
                             trim(this%module_name), " ",                &
                             trim(this%region_name), ": ", name
     end subroutine DeclareScalar{{type["name"]}}
-    {% endfor %}
+
+    {# Now create the declarations of all arrays #}
+    {% for dim in ALL_DIMS %}
+        {# Create the '(:,:...)' string - DIM-times
+           We repeat the string ":" DIM-times, convert the
+           resulting string into a list, which is then joined #}
+        {% set DIMENSION="("+(":"*dim)|list|join(",")+")" %}
+        ! -------------------------------------------------------------------------
+        !> This subroutine declares a {{dim}}d-array of {{type["type"]}} values.
+        !! @param[inout] this The instance of the PSyDataBaseType.
+        !! @param[in] name The name of the variable (string).
+        !! @param[in] value The value of the variable.
+        subroutine DeclareArray{{dim}}d{{type["name"]}}(this, name, value)
+            implicit none
+            class(PSyDataBaseType), intent(inout), target :: this
+            character(*), intent(in) :: name
+            {{type["type"]}}, dimension{{DIMENSION}}, intent(in) :: value
+            this%next_var_index = this%next_var_index + 1
+        end subroutine DeclareArray{{dim}}d{{type["name"]}}
+        {% endfor %}  {# for dim #}
+    {% endfor %}   {# for type in ... #}
 
 end module psy_data_base_mod
