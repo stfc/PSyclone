@@ -1379,7 +1379,8 @@ def test_module_inline_no_code(monkeypatch):
     schedule, _ = inline_trans.apply(kern_call)
     with pytest.raises(InternalError) as excinfo:
         _ = psy.gen
-    assert "No kernel code to inline for kernel {0}.".format(kern_call) \
+    assert "Have no fparser1 AST for kernel {0}." \
+        " Therefore cannot inline it.".format(kern_call) \
         in str(excinfo.value)
 
 

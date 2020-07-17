@@ -287,8 +287,8 @@ class PSy(object):
                     # raise an internal error if kernel_code is None
                     if kernel._kernel_code is None:
                         raise InternalError(
-                            "Have no fparser1 AST for kernel {0}"
-                            " therefore cannot inline it."
+                            "Have no fparser1 AST for kernel {0}."
+                            " Therefore cannot inline it."
                             .format(kernel))
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
