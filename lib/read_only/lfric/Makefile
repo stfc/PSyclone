@@ -59,7 +59,7 @@ $(LIB_NAME): $(OBJS)
 $(LFRIC_DIR)/field_mod.mod:
 	$(error "Can not find field_mod.mod in $(LFRIC_DIR).")
 
-read_only.o: $(LFRIC_DIR)/field_mod.mod psy_data_base.o
+read_only.o: $(LFRIC_DIR)/field_mod.mod psy_data_base.o read_only.f90
 
 %.f90:	%.jinja
 	../../process.py $< > $*.f90

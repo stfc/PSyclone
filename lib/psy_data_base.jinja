@@ -5,7 +5,21 @@
 {{ "! DO NOT MODIFY DIRECTLY                            " }}
 {{ "! ==================================================" }}
 
-{% set ALL_DIMS=[1, 2, 3, 4] %}   {# Support 1 to 4 dimensional arrays #}
+{# Support 1 to 4 dimensional arrays #}
+{% set ALL_DIMS = [1, 2, 3, 4] %}
+
+{# The types that are supported. The first entry of each tuple
+   is the name used when naming subroutines and in user messages.
+   The second entry is the Fortran declaration. The third entry
+   is the number of bits. There is slightly different code
+   required for 32 and 64 bit values (due to the fact that the
+   Fortran transfer(value, mould) leaves undefined bits when
+   mould is larger than value. #}
+
+{% set ALL_TYPES = [ ("Double", "double precision",    64),
+                     ("Real",   "real",                32),
+                     ("Int",    "integer(kind=int32)", 32) ] %}
+
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
@@ -73,10 +87,12 @@ module psy_data_base_mod
         contains
             procedure :: PreStart, PreEndDeclaration, PreEnd
             procedure :: PostStart, PostEnd
-            {% for type in ["Int","Long", "Real", "Double" ] %}
-                procedure :: DeclareScalar{{type}}
+            {% for name, type, bits in ALL_TYPES %}
+                procedure :: DeclareScalar{{name}}
+                procedure :: ProvideScalar{{name}}
                 {% for dim in ALL_DIMS %}
-                    procedure :: DeclareArray{{dim}}d{{type}}
+                    procedure :: DeclareArray{{dim}}d{{name}}
+                    procedure :: provideArray{{dim}}d{{name}}
                 {% endfor %}
             {% endfor %}
 
@@ -198,47 +214,82 @@ contains
     ! =========================================================================
     ! Jinja created code:
     ! =========================================================================
-    {% for type in [{"type":"integer(kind=int32)", "name":"Int"   } ,
-                    {"type":"integer(kind=int64)", "name":"Long"  } ,
-                    {"type":"real",                "name":"Real"  } ,
-                    {"type":"double precision",    "name":"Double"} ] %}
+    {% for name, type, bits in ALL_TYPES %}
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar {{type["type"]}} value. This
+    !> This subroutine declares a scalar {{type}} value. This
+    !! implementation only increases the next index, and prints
+    !! the name of the variable if verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareScalar{{name}}(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        {{type}}, intent(in) :: value
+
+        this%next_var_index = this%next_var_index+1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareScalar{{name}}: ", &
+                            trim(this%module_name), " ",                &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareScalar{{name}}
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine provides a scalar {{type}} value. This
     !! implementation only increases the next index.
     !! @param[inout] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareScalar{{type["name"]}}(this, name, value)
+    subroutine ProvideScalar{{name}}(this, name, value)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        {{type["type"]}}, intent(in) :: value
+        {{type}}, intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
-        if (this%verbosity>1) &
-            write(stderr,*) "PSyData: DeclareScalar{{type["name"]}}: ", &
-                            trim(this%module_name), " ",                &
-                            trim(this%region_name), ": ", name
-    end subroutine DeclareScalar{{type["name"]}}
+    end subroutine ProvideScalar{{name}}
 
-    {# Now create the declarations of all arrays #}
+    {# Now create the declarations of all array implementations #}
     {% for dim in ALL_DIMS %}
         {# Create the '(:,:...)' string - DIM-times
            We repeat the string ":" DIM-times, convert the
            resulting string into a list, which is then joined #}
         {% set DIMENSION="("+(":"*dim)|list|join(",")+")" %}
-        ! -------------------------------------------------------------------------
-        !> This subroutine declares a {{dim}}d-array of {{type["type"]}} values.
-        !! @param[inout] this The instance of the PSyDataBaseType.
-        !! @param[in] name The name of the variable (string).
-        !! @param[in] value The value of the variable.
-        subroutine DeclareArray{{dim}}d{{type["name"]}}(this, name, value)
-            implicit none
-            class(PSyDataBaseType), intent(inout), target :: this
-            character(*), intent(in) :: name
-            {{type["type"]}}, dimension{{DIMENSION}}, intent(in) :: value
-            this%next_var_index = this%next_var_index + 1
-        end subroutine DeclareArray{{dim}}d{{type["name"]}}
+    ! ---------------------------------------------------------------------
+    !> This subroutine handles a declaration of a {{dim}}d-array of
+    !! {{type}} values. This base implementation only increases
+    !! next_var_index and prints the name of the variable if
+    !! verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        {{type}}, dimension{{DIMENSION}}, intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareArray{{dim}}d{{name}}: ", &
+                            trim(this%module_name), " ",               &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareArray{{dim}}d{{name}}
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine handles a provide call for a {{dim}}d {{type}} array.
+    !! This base implementation only increases next_var_index.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        {{type}}, dimension{{DIMENSION}}, intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+    end subroutine ProvideArray{{dim}}d{{name}}
+
         {% endfor %}  {# for dim #}
     {% endfor %}   {# for type in ... #}
 
