@@ -22,6 +22,12 @@ by clicking the 'show' link next to the 'Build logs' heading.)
  
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb) demonstrates the generation of a DAG for the PSy layer of the previous example.
 
+# Tutorial #
+
+The PSyclone tutorial may be found in the tutorial directory. Since this takes
+the form of a series of Jupyter notebooks, it too may be launched on 
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/848_jupyter_tutorial?filepath=tutorial%2Fintroduction.ipynb).
+
 # Installation #
 
 If you are reading this then you have presumably not already installed
