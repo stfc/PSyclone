@@ -62,5 +62,5 @@ openacc:
 # The "--kernel-renaming single" parameter avoids generating duplicate
 # versions of OpenCL kernels called multiple times.
 opencl:
-	${PSYCLONE} -s ./opencl_transformation.py --kernel-renaming single \
+	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
 		-api gocean1.0 shallow_alg.f90
