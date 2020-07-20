@@ -158,7 +158,8 @@ def test_two_kernels(tmpdir, dist_mem):
             "    USE kind_params_mod\n"
             "    IMPLICIT NONE\n"
             "    CONTAINS\n"
-            "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)\n"
+            "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
+            "uold_fld)\n"
             "      USE time_smooth_mod, ONLY: time_smooth_code\n"
             "      USE compute_cu_mod, ONLY: compute_cu_code\n"
             "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
@@ -200,7 +201,8 @@ def test_two_kernels(tmpdir, dist_mem):
             "    USE kind_params_mod\n"
             "    IMPLICIT NONE\n"
             "    CONTAINS\n"
-            "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)\n"
+            "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
+            "uold_fld)\n"
             "      USE time_smooth_mod, ONLY: time_smooth_code\n"
             "      USE compute_cu_mod, ONLY: compute_cu_code\n"
             "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
@@ -408,7 +410,6 @@ def test_scalar_float_arg(tmpdir, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
-
 
     if dist_mem:
         # Scalar arguments do not insert halo exchanges
@@ -1136,7 +1137,8 @@ def test_goschedule_view(capsys, dist_mem):
             "UNDEFINED>]\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + sched + "[]\n"
-            "            0: " + loop + "[type='inner', field_space='go_every', "
+            "            0: " + loop +
+            "[type='inner', field_space='go_every', "
             "it_space='go_internal_pts']\n"
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
@@ -1145,7 +1147,8 @@ def test_goschedule_view(capsys, dist_mem):
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + sched + "[]\n"
-            "                    0: " + call + " time_smooth_code(u_fld,unew_fld,"
+            "                    0: " + call +
+            " time_smooth_code(u_fld,unew_fld,"
             "uold_fld) [module_inline=False]")
     assert expected_output in out
 

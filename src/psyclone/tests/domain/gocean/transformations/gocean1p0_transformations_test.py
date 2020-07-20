@@ -337,7 +337,8 @@ def test_omp_region_with_slice_change_order():
     ''' Test that the OpenMP transform does not allow to switch
     or duplicate child nodes.
     '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     code = str(psy.gen).replace("\n", "")
@@ -861,7 +862,8 @@ def test_go_omp_loop_applied_to_non_loop():
     ''' Test that we raise a TransformationError if we attempt
     to apply a GOcean OMP DO transformation to something that
     is not a loop '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
@@ -878,7 +880,8 @@ def test_go_omp_loop_applied_to_wrong_loop_type():
     ''' Test that we raise a TransformationError if we attempt to
     apply a GOcean OMP  DO transformation to a loop of
     the wrong type '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     # Manually break the loop-type of the first loop in order to
@@ -898,7 +901,8 @@ def test_go_omp_parallel_loop_applied_to_non_loop():
     ''' Test that we raise a TransformationError if we attempt to
     apply a GOcean OMP Parallel DO transformation to something that
     is not a loop '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -915,7 +919,8 @@ def test_go_omp_parallel_loop_applied_to_wrong_loop_type():
     ''' Test that we raise a TransformationError if we attempt to
     apply a GOcean OMP Parallel DO transformation to a loop of
     the wrong type '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     # Manually break the loop-type of the first loop in order to
@@ -935,7 +940,8 @@ def test_omp_parallel_do_inside_parallel_region():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel do within an OpenMP
     parallel region '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -960,7 +966,8 @@ def test_omp_parallel_region_inside_parallel_do():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel region within an OpenMP
     parallel do (with the latter applied first). '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -980,7 +987,8 @@ def test_omp_parallel_do_around_parallel_region():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel region around an OpenMP
     parallel do (with the latter applied second) '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -1004,7 +1012,8 @@ def test_omp_parallel_do_around_parallel_region():
 def test_omp_region_invalid_node():
     ''' Check that the OMPParallelTrans transformation rejects nodes
     of the wrong type. We use an OpenACC directive to trigger this error. '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -1025,7 +1034,8 @@ def test_omp_region_invalid_node():
 def test_omp_region_with_children_of_different_types(tmpdir):
     ''' Test that we can generate code if we have an
     OpenMP parallel region enclosing children of different types. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
@@ -1048,7 +1058,8 @@ def test_omp_region_with_children_of_different_types(tmpdir):
 def test_omp_schedule_default_static(tmpdir):
     ''' Test that if no OMP schedule is specified then we default
     to "static" '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
@@ -1074,7 +1085,8 @@ def test_omp_schedule_default_static(tmpdir):
 def test_omp_do_schedule_runtime(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "runtime" '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans(omp_schedule="runtime")
@@ -1099,7 +1111,8 @@ def test_omp_do_schedule_runtime(tmpdir):
 def test_omp_do_schedule_dynamic(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "dynamic" '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans(omp_schedule="dynamic")
@@ -1124,7 +1137,8 @@ def test_omp_do_schedule_dynamic(tmpdir):
 def test_omp_do_schedule_guided(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "guided" '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans(omp_schedule="guided")
@@ -1156,7 +1170,8 @@ def test_omp_schedule_guided_with_empty_chunk():
 def test_omp_schedule_guided_with_chunk(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "guided,n" where n is some chunk size'''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans(omp_schedule="guided,10")
@@ -1194,7 +1209,8 @@ def test_omp_schedule_auto_with_chunk():
 
 def test_module_noinline_default(tmpdir):
     ''' Test that by default there is no module inlining '''
-    psy, _ = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, _ = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                        dist_mem=False)
     gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
@@ -1208,7 +1224,8 @@ def test_module_inline(tmpdir):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module by directly setting inline to
     true for the specified kernel. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     kern_call.module_inline = True
@@ -1226,7 +1243,8 @@ def test_module_inline(tmpdir):
 def test_module_inline_with_transformation(tmpdir):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[1].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
@@ -1243,7 +1261,8 @@ def test_module_no_inline_with_transformation(tmpdir):
     ''' Test that we can switch off the inlining of a kernel routine
     into the PSy layer module using a transformation. Relies on the
     test_module_inline() test being successful to be a valid test. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     # directly switch on inlining
@@ -1270,7 +1289,8 @@ def test_module_no_inline_with_transformation(tmpdir):
 def test_transformation_inline_error_if_not_kernel():
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel'''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
@@ -1281,7 +1301,8 @@ def test_transformation_inline_error_if_not_kernel():
 def test_module_inline_with_sub_use(tmpdir):
     ''' Test that we can module inline a kernel subroutine which
     contains a use statement'''
-    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
@@ -1340,7 +1361,8 @@ def test_module_inline_warning_no_change():
     request is already what is happening. No warning is currently made
     as we have not added logging to the code but this test covers the
     clause '''
-    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.coded_kernels()[0]
     inline_trans = KernelModuleInlineTrans()
@@ -1582,7 +1604,8 @@ def test_acc_parallel_trans(tmpdir):
 def test_acc_incorrect_parallel_trans():
     '''Test that the acc transform can not be used to change
     the order of operations.'''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acct = ACCParallelTrans()
@@ -1605,7 +1628,8 @@ def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
     an OpenACC Data transformation to something that is not an
     InvokeSchedule. '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acct = ACCEnterDataTrans()
@@ -1619,7 +1643,8 @@ def test_acc_data_not_a_schedule():
 def test_acc_parallel_invalid_node():
     ''' Test that the OpenACC Parallel region transformation rejects
     unsupported node types. '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acct = ACCEnterDataTrans()
@@ -1638,7 +1663,8 @@ def test_acc_parallel_invalid_node():
 def test_acc_data_copyin(tmpdir):
     ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=False)
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
