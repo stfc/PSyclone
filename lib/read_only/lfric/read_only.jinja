@@ -306,6 +306,13 @@ Contains
     ! Jinja created code.
     ! =========================================================================
 
+{# Note that we create stand-alone functions for computing the checksums
+   of arrays. While most of these functions are indeed only called by one
+   subroutine and so the code could be inlined, it is useful to have these
+   stand-alone functions for the 'hand-crafted' subroutines like
+   ProvideFieldDouble (which uses ComputeChecksum1dDouble).
+#}
+
 {% for name, type, bits in ALL_TYPES %}
 
     ! =========================================================================
@@ -359,7 +366,7 @@ Contains
                 write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
-            this%checksums(this%next_var_index) = value
+            this%checksums(this%next_var_index) = checksum
         endif
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
     end subroutine ProvideScalar{{name}}
@@ -402,7 +409,7 @@ Contains
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
     end subroutine ProvideArray{{dim}}d{{name}}
 
-    {# Now declare the checksum computing helper functions #}
+    {# Now declare the checksum computing helper functions. #}
     {# Create list of variables: "i1,i2,i3,i4" #}
     {% set vars = "i"~range(1,dim+1)|join(",i") %}
     {% set indent = " "*3*dim %}

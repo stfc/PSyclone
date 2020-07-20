@@ -253,9 +253,8 @@ contains
     {# Now create the declarations of all array implementations #}
     {% for dim in ALL_DIMS %}
         {# Create the '(:,:...)' string - DIM-times
-           We repeat the string ":" DIM-times, convert the
-           resulting string into a list, which is then joined #}
-        {% set DIMENSION="("+(":"*dim)|list|join(",")+")" %}
+           We repeat the list [":"] DIM-times, which is then joined #}
+        {% set DIMENSION=([":"]*dim)|join(",") %}
     ! ---------------------------------------------------------------------
     !> This subroutine handles a declaration of a {{dim}}d-array of
     !! {{type}} values. This base implementation only increases
@@ -268,7 +267,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        {{type}}, dimension{{DIMENSION}}, intent(in) :: value
+        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray{{dim}}d{{name}}: ", &
@@ -286,7 +285,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        {{type}}, dimension{{DIMENSION}}, intent(in) :: value
+        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
     end subroutine ProvideArray{{dim}}d{{name}}
 

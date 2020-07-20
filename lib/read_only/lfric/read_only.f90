@@ -315,6 +315,7 @@ Contains
     ! =========================================================================
 
 
+
     ! =========================================================================
     ! Implementation for all double precision types
     ! =========================================================================
@@ -351,7 +352,7 @@ Contains
                 write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
-            this%checksums(this%next_var_index) = value
+            this%checksums(this%next_var_index) = checksum
         endif
         call this%PSyDataBaseType%ProvideScalarDouble(name, value)
     end subroutine ProvideScalarDouble
@@ -610,7 +611,7 @@ Contains
                 write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
-            this%checksums(this%next_var_index) = value
+            this%checksums(this%next_var_index) = checksum
         endif
         call this%PSyDataBaseType%ProvideScalarReal(name, value)
     end subroutine ProvideScalarReal
@@ -885,7 +886,7 @@ Contains
                 write(stderr,*) "PSYDATA: checked variable ", trim(name)
             endif
         else
-            this%checksums(this%next_var_index) = value
+            this%checksums(this%next_var_index) = checksum
         endif
         call this%PSyDataBaseType%ProvideScalarInt(name, value)
     end subroutine ProvideScalarInt
