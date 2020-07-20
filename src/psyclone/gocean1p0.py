@@ -471,76 +471,33 @@ class GOLoop(Loop):
         halo data read within this loop. Returns True if it does, or if
         it might and False if it definitely does not.
 
-        :param arg: an argument contained within this loop
-        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :param arg: an argument contained within this loop.
+        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+
         :return: True if the argument reads, or might read from the \
                  halo and False otherwise.
         :rtype: bool
 
         '''
-        if arg.type != 'field':
-            return False
-        else:
-            return True
-
-    def unique_fields_with_halo_reads(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. '''
-
-        unique_fields = []
-        unique_field_names = []
-
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if self._halo_read_access(arg):
-                    if arg.name not in unique_field_names:
-                        unique_field_names.append(arg.name)
-                        unique_fields.append(arg)
-        return unique_fields
+        return arg.type == 'field' and arg.access in \
+            [AccessType.READ, AccessType.READWRITE, AccessType.INC]
 
     def create_halo_exchanges(self):
         '''Add halo exchanges before this loop as required by fields within
-        this loop. To keep the logic simple we assume that any field
-        that accesses the halo will require a halo exchange and then
-        remove the halo exchange if this is not the case (when
-        previous writers perform sufficient redundant computation). It
-        is implemented this way as the halo exchange class determines
-        whether it is required or not so a halo exchange needs to
-        exist in order to find out. The appropriate logic is coded in
-        the _add_halo_exchange helper method. '''
+        this loop. The PSyIR insertion logic is coded in the _add_halo_exchange
+        helper method. '''
+
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that has its halo
-            # read (including annexed dofs), find the previous update
-            # of this field
+            # read, find the previous update of this field.
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
                 # exchange(s) as we don't know the state of the fields
                 # halo on entry to the invoke
+                # TODO 856: Request is_dirty flag for this HaloEx
                 self._add_halo_exchange(halo_field)
             else:
-                # field has one or more previous dependencies
-                if len(prev_arg_list) > 1:
-                    # field has more than one previous dependencies so
-                    # should be a vector
-                    if halo_field.vector_size <= 1:
-                        raise GenerationError(
-                            "Error in create_halo_exchanges. Expecting field "
-                            "'{0}' to be a vector as it has multiple previous "
-                            "dependencies".format(halo_field.name))
-                    if len(prev_arg_list) != halo_field.vector_size:
-                        raise GenerationError(
-                            "Error in create_halo_exchanges. Expecting a "
-                            "dependence for each vector index for field '{0}' "
-                            "but the number of dependencies is '{1}' and the "
-                            "vector size is '{2}'.".format(
-                                halo_field.name, halo_field.vector_size,
-                                len(prev_arg_list)))
-                    for arg in prev_arg_list:
-                        if not isinstance(arg.call, HaloExchange):
-                            raise GenerationError(
-                                "Error in create_halo_exchanges. Expecting "
-                                "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
                 if not isinstance(prev_node, HaloExchange):
                     # previous dependence is not a halo exchange so
@@ -549,16 +506,17 @@ class GOLoop(Loop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
-
     def _add_halo_exchange(self, halo_field):
+        '''An internal helper method to add the halo exchange call immediately
+        before this loop using the halo_field argument for the associated
+        field information.
+
+        :param halo_field: the argument requiring a halo exchange
+        :type halo_field: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+
+        '''
         exchange = GOHaloExchange(halo_field, parent=self.parent)
         self.parent.children.insert(self.position, exchange)
-
-        # check whether this halo exchange has been placed
-        # here correctly and if not, remove it.
-        required, _ = exchange.required()
-        if not required:
-            exchange.parent.children.remove(exchange)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -2304,12 +2262,24 @@ class GOKernelSchedule(KernelSchedule):
 
 
 class GOHaloExchange(HaloExchange):
+    '''GOcean specific halo exchange class which can be added to and
+    manipulated in a schedule.
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+    :param check_dirty: optional argument default True indicating \
+        whether this halo exchange should be subject to a run-time check \
+        for clean/dirty halos.
+    :type check_dirty: bool
+    :param parent: optional PSyIR parent node (default None) of this \
+        object
+    :type parent: :py:class:`psyclone.psyGen.node`
     '''
-    '''
-    def __init__(self, field, check_dirty=True,
-                 vector_index=None, parent=None):
-        super(GOHaloExchange, self).__init__(field, check_dirty,
-                                             vector_index, parent)
+    def __init__(self, field, check_dirty=True, parent=None):
+        super(GOHaloExchange, self).__init__(field, check_dirty=check_dirty,
+                                             parent=parent)
+
+        # Name of the HaloExchange method in the infrastructure.
         self._halo_exchange_name = "halo_exchange"
 
     def gen_code(self, parent):
@@ -2321,50 +2291,10 @@ class GOHaloExchange(HaloExchange):
 
         '''
         from psyclone.f2pygen import CallGen, CommentGen
+        # TODO 856: Wrap Halo call with a is_dirty flag when necessary
         parent.add(
             CallGen(
                 parent, name=self._field.name +
                 "%" + self._halo_exchange_name +
                 "(depth=1)"))
         parent.add(CommentGen(parent, ""))
-
-    def required(self):
-        '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not
-        required (False, *). The first return argument is used to
-        decide whether a halo exchange should exist. If it is True
-        then the halo is required or might be required. If it is False
-        then the halo exchange is definitely not required. The second
-        argument is used to specify whether we definitely know that it
-        is required or are not sure.
-
-        Whilst a halo exchange is generally only ever added if it is
-        required, or if it may be required, this situation can change
-        if redundant computation transformations are applied. The
-        first argument can be used to remove such halo exchanges if
-        required.
-
-        When the first argument is True, the second argument can be
-        used to see if we need to rely on the runtime (set_dirty and
-        set_clean calls) and therefore add a check_dirty() call around
-        the halo exchange or whether we definitely know that this halo
-        exchange is required.
-
-        This routine assumes that a stencil size provided via a
-        variable may take the value 0. If a variables value is
-        constrained to be 1, or more, then the logic for deciding
-        whether a halo exchange is definitely required should be
-        updated. Note, the routine would still be correct as is, it
-        would just return more unknown results than it should).
-
-        :return: Returns (x, y) where x specifies whether this halo \
-        exchange is (or might be) required - True, or is not required \
-        - False. If the first tuple item is True then the second \
-        argument specifies whether we definitely know that we need the \
-        HaloExchange - True, or are not sure - False.
-        :rtype: (bool, bool)
-
-        '''
-        if not self.field.forward_read_dependencies():
-            return False, False
-        return True, True

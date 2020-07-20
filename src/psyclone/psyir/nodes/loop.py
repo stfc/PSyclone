@@ -484,6 +484,21 @@ class Loop(Statement):
                             args.append(arg)
         return args
 
+    def unique_fields_with_halo_reads(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly. '''
+
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.kernels():
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
     def args_filter(self, arg_types=None, arg_accesses=None, unique=False):
         '''Return all arguments of type arg_types and arg_accesses. If these
         are not set then return all arguments. If unique is set to
