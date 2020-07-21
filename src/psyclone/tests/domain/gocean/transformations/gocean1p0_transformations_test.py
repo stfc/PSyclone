@@ -86,11 +86,10 @@ def test_const_loop_bounds_toggle(tmpdir):
                              API, idx=0)
     schedule = invoke.schedule
     cbtrans = GOConstLoopBoundsTrans()
-    return # FIXME
 
     # First check that the generated code doesn't use constant loop
     # bounds by default.
-    assert schedule._const_loop_bounds == False
+    assert schedule._const_loop_bounds is False
     gen = str(psy.gen)
     assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
     assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
@@ -101,6 +100,7 @@ def test_const_loop_bounds_toggle(tmpdir):
     newsched, _ = cbtrans.apply(schedule)
     gen = str(psy.gen)
 
+    assert schedule._const_loop_bounds is True
     assert "INTEGER istop, jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen

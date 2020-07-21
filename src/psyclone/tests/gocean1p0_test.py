@@ -1060,11 +1060,6 @@ def test_goschedule_view(capsys, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    invoke.schedule.view()
-
-    # The view method writes to stdout and this is captured by py.test
-    # by default. We have to query this captured output.
-    out, _ = capsys.readouterr()
 
     # Ensure we check for the correct (colour) control codes in the output
     isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1072,12 +1067,80 @@ def test_goschedule_view(capsys, dist_mem):
     call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    return
+    bop = colored("BinaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
+    haloex = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
     if dist_mem:
-        print(out)
-        expected_output = ""  # FIXME
+        # View without constant loop bounds and with distributed memory
+        invoke.schedule.view()
+
+        # The view method writes to stdout and this is captured by py.test
+        # by default. We have to query this captured output.
+        out, _ = capsys.readouterr()
+
+        expected_output = (
+            isched + "[invoke='invoke_0', Constant loop bounds=False]\n"
+            "    0: " + haloex + "[field='p_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "    1: " + haloex + "[field='u_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "    2: " + loop + "[type='outer', field_space='go_cu', "
+            "it_space='go_internal_pts']\n"
+            "        " + lit + "[value:'cu_fld%internal%ystart', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'cu_fld%internal%ystop', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sched + "[]\n"
+            "            0: " + loop + "[type='inner', field_space='go_cu', "
+            "it_space='go_internal_pts']\n"
+            "                " + lit + "[value:'cu_fld%internal%xstart', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + lit + "[value:'cu_fld%internal%xstop', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + sched + "[]\n"
+            "                    0: " + call +
+            " compute_cu_code(cu_fld,p_fld,u_fld) "
+            "[module_inline=False]\n"
+            "    3: " + haloex + "[field='unew_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "    4: " + haloex + "[field='uold_fld', type='None', depth=None, "
+            "check_dirty=False]\n" +
+            "    5: " + loop + "[type='outer', field_space='go_every', "
+            "it_space='go_internal_pts']\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + bop + "[operator:'SIZE']\n"
+            "            " + lit + "[value:'uold_fld%data', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "            " + lit + "[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sched + "[]\n"
+            "            0: " + loop + "[type='inner', field_space='go_every',"
+            " it_space='go_internal_pts']\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + bop + "[operator:'SIZE']\n"
+            "                    " + lit + "[value:'uold_fld%data', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                    " + lit + "[value:'1', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + sched + "[]\n"
+            "                    0: " + call +
+            " time_smooth_code(u_fld,unew_fld,"
+            "uold_fld) [module_inline=False]\n")
     else:
+        # View with constant loop bounds and without distributed memory
+        invoke.schedule._const_loop_bounds = True
+        invoke.schedule.view()
+
+        # The view method writes to stdout and this is captured by py.test
+        # by default. We have to query this captured output.
+        out, _ = capsys.readouterr()
+
         expected_output = (
             isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
             "    0: " + loop + "[type='outer', field_space='go_cu', "
@@ -1118,8 +1181,8 @@ def test_goschedule_view(capsys, dist_mem):
             "                " + sched + "[]\n"
             "                    0: " + call +
             " time_smooth_code(u_fld,unew_fld,"
-            "uold_fld) [module_inline=False]")
-    assert expected_output in out
+            "uold_fld) [module_inline=False]\n")
+    assert expected_output == out
 
 
 def test_goschedule_str(dist_mem):
@@ -1133,13 +1196,64 @@ def test_goschedule_str(dist_mem):
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    return
 
     if dist_mem:
-        print(str(schedule))
-        return
-        expected_sched = ""  # FIXME
+        # str without constant loop bounds and with distributed memory
+        sched_str = str(schedule)
+        expected_sched = (
+            "GOInvokeSchedule[invoke='invoke_0', Constant loop "
+            "bounds=False]:\n"
+            "HaloExchange[field='p_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "HaloExchange[field='u_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+            "Literal[value:'cu_fld%internal%ystart', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'cu_fld%internal%ystop', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+            "Literal[value:'cu_fld%internal%xstart', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'cu_fld%internal%xstop', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "kern call: compute_cu_code\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "HaloExchange[field='unew_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "HaloExchange[field='uold_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "BinaryOperation[operator:'SIZE']\n"
+            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "BinaryOperation[operator:'SIZE']\n"
+            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "kern call: time_smooth_code\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule")
     else:
+        # str with constant loop bounds and without distributed memory
+        schedule._const_loop_bounds = True
+        sched_str = str(schedule)
         expected_sched = (
             "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=True]:\n"
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
@@ -1172,56 +1286,8 @@ def test_goschedule_str(dist_mem):
             "End GOLoop\n"
             "End Schedule\n"
             "End GOLoop\n"
-            "End Schedule\n")
-    sched_str = str(schedule)
-    assert sched_str in expected_sched
-
-    # Switch-off constant loop bounds
-    schedule.const_loop_bounds = False
-    sched_str = str(schedule)
-
-    expected_sched = (
-        "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=False]:\n"
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'cu_fld%internal%ystart', Scalar<INTEGER, "
-        "UNDEFINED>]\n"
-        "Literal[value:'cu_fld%internal%ystop', Scalar<INTEGER, "
-        "UNDEFINED>]\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'cu_fld%internal%xstart', Scalar<INTEGER, "
-        "UNDEFINED>]\n"
-        "Literal[value:'cu_fld%internal%xstop', Scalar<INTEGER, "
-        "UNDEFINED>]\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "Schedule:\n"
-        "kern call: compute_cu_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
-        "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-        "Schedule:\n"
-        "kern call: time_smooth_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n")
-    assert sched_str in expected_sched
+            "End Schedule")
+    assert sched_str == expected_sched
 
 
 def test_gosched_ijstop():

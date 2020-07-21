@@ -2267,15 +2267,15 @@ class GOHaloExchange(HaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-    :param check_dirty: optional argument default True indicating \
-        whether this halo exchange should be subject to a run-time check \
-        for clean/dirty halos.
+    :param check_dirty: optional argument default False (contrary to its \
+        generic class - revisit in #856) indicating whether this halo \
+        exchange should be subject to a run-time check for clean/dirty halos.
     :type check_dirty: bool
     :param parent: optional PSyIR parent node (default None) of this \
         object
     :type parent: :py:class:`psyclone.psyGen.node`
     '''
-    def __init__(self, field, check_dirty=True, parent=None):
+    def __init__(self, field, check_dirty=False, parent=None):
         super(GOHaloExchange, self).__init__(field, check_dirty=check_dirty,
                                              parent=parent)
 
