@@ -195,7 +195,7 @@ class GOInvoke(Invoke):
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
-            # halo exchange calls
+            # Insert halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
 
@@ -343,10 +343,9 @@ class GOInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
                                 alg_calls, reserved_names)
 
-        # Configuration of this InvokeSchedule - we default to having
-        # constant loop bounds. If we end up having a long list
-        # of configuration member variables here we may want
-        # to create a a new ScheduleConfig object to manage them.
+        # The GOcean Constants Loops Bounds Optimization is implemented using
+        # a flag parameter. It defaults to False and can be turned on applying
+        # the GOConstLoopBoundsTrans transformation to this InvokeSchedule.
         self._const_loop_bounds = False
 
     def node_str(self, colour=True):
