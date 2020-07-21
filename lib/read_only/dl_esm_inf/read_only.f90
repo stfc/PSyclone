@@ -38,7 +38,8 @@
 !! 
 
 module read_only_verify_psy_data_mod
-    use, intrinsic :: iso_fortran_env, only : int64, int32, &
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
                                               stderr=>Error_Unit
     use psy_data_base_mod, only : PSyDataBaseType
     implicit none
@@ -189,8 +190,8 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, intent(in) :: value
-        real :: orig_value
+        real(kind=real32), intent(in) :: value
+        real(kind=real32) :: orig_value
         integer(kind=int64) :: chksum64
         integer(kind=int32) :: chksum32
 
@@ -231,8 +232,8 @@ Contains
         implicit none
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
-        double precision, intent(in) :: value
-        double precision             :: orig_value
+        real(kind=real64), intent(in) :: value
+        real(kind=real64)             :: orig_value
         integer(kind=int64):: cksum
 
         ! We can use the 'cast'ed 64-bit integer values directly as checksum

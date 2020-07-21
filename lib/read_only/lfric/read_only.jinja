@@ -16,8 +16,8 @@
    Fortran transfer(value, mould) leaves undefined bits when
    mould is larger than value. #}
 
-{% set ALL_TYPES = [ ("Double", "double precision",    64),
-                     ("Real",   "real",                32),
+{% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                     ("Real",   "real(kind=real32)",   32),
                      ("Int",    "integer(kind=int32)", 32) ] %}
 
 ! -----------------------------------------------------------------------------
@@ -60,7 +60,8 @@
 !! 
 
 module read_only_verify_psy_data_mod
-    use, intrinsic :: iso_fortran_env, only : int64, int32, &
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
                                               stderr=>Error_Unit
     use field_mod, only : field_type
     use psy_data_base_mod, only : PSyDataBaseType
