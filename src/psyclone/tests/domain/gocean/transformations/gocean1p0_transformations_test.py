@@ -86,9 +86,19 @@ def test_const_loop_bounds_toggle(tmpdir):
                              API, idx=0)
     schedule = invoke.schedule
     cbtrans = GOConstLoopBoundsTrans()
+    return # FIXME
 
-    # First check that the generated code uses constant loop
-    # bounds by default
+    # First check that the generated code doesn't use constant loop
+    # bounds by default.
+    assert schedule._const_loop_bounds == False
+    gen = str(psy.gen)
+    assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
+    assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
+    assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
+    assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+
+    # Next, check that applying the constant loop-bounds transformation.
+    newsched, _ = cbtrans.apply(schedule)
     gen = str(psy.gen)
 
     assert "INTEGER istop, jstop" in gen
@@ -98,10 +108,8 @@ def test_const_loop_bounds_toggle(tmpdir):
     assert "DO i=2,istop" in gen
 
     # Next, check that applying the constant loop-bounds
-    # transformation has no effect (in this case)
+    # transformation again, it has no effect (in this case)
     newsched, _ = cbtrans.apply(schedule)
-    invoke.schedule = newsched
-    # Store the generated code as a string
     gen = str(psy.gen)
 
     assert "INTEGER istop, jstop" in gen
@@ -204,6 +212,7 @@ def test_omp_parallel_loop(tmpdir):
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
     omp_sched, _ = omp.apply(schedule.children[0])
+    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": True})
 
     invoke.schedule = omp_sched
     gen = str(psy.gen)
@@ -1795,10 +1804,13 @@ def test_accloop(tmpdir):
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
@@ -1846,6 +1858,7 @@ def test_accloop(tmpdir):
 
 def test_acc_collapse(tmpdir):
     ''' Tests for the collapse clause to a loop directive '''
+    cbtrans = GOConstLoopBoundsTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -1853,6 +1866,8 @@ def test_acc_collapse(tmpdir):
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
     child = schedule.children[0]
 
     # Check that we reject non-integer collapse arguments
@@ -1897,10 +1912,12 @@ def test_acc_indep(tmpdir):
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
+    new_sched, _ = cbtrans.apply(schedule)
     new_sched, _ = acclpt.apply(schedule.children[0], {"independent": False})
     new_sched, _ = acclpt.apply(schedule.children[1], {"independent": True})
     new_sched, _ = accpara.apply(new_sched.children)
@@ -1920,9 +1937,11 @@ def test_acc_loop_seq():
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
+    cbtrans = GOConstLoopBoundsTrans()
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
+    new_sched, _ = cbtrans.apply(schedule)
     new_sched, _ = acclpt.apply(schedule.children[0], {"sequential": True})
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)

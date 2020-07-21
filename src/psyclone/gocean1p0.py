@@ -347,7 +347,7 @@ class GOInvokeSchedule(InvokeSchedule):
         # constant loop bounds. If we end up having a long list
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
-        self._const_loop_bounds = True
+        self._const_loop_bounds = False
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control

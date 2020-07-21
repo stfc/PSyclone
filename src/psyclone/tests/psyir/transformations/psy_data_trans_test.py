@@ -55,6 +55,8 @@ def test_psy_data_trans_basic(capsys):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
     assert "Insert a PSyData node" in str(data_trans)

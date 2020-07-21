@@ -99,6 +99,8 @@ def test_profile_basic(capsys):
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
+    # This test expects constant loop bounds
+    invoke.schedule._const_loop_bounds = True
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     assert isinstance(invoke.schedule[0], ProfileNode)
@@ -517,6 +519,8 @@ def test_transform(capsys):
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     assert str(prt) == "Insert a profile start and end call."
@@ -760,6 +764,8 @@ def test_omp_transform():
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()

@@ -89,18 +89,12 @@ def test_field(tmpdir, dist_mem):
             "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
             "      CALL p_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop+1\n"
+            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n"
             "        END DO\n"
@@ -119,14 +113,8 @@ def test_field(tmpdir, dist_mem):
             "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop+1\n"
+            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n"
             "        END DO\n"
@@ -134,7 +122,7 @@ def test_field(tmpdir, dist_mem):
             "    END SUBROUTINE invoke_0_compute_cu\n"
             "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -166,18 +154,12 @@ def test_two_kernels(tmpdir, dist_mem):
             "unew_fld, uold_fld\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
             "      CALL p_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop+1\n"
+            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n"
             "        END DO\n"
@@ -186,8 +168,8 @@ def test_two_kernels(tmpdir, dist_mem):
             "      !\n"
             "      CALL uold_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=1,jstop+1\n"
-            "        DO i=1,istop+1\n"
+            "      DO j=1,SIZE(uold_fld%data, 2)\n"
+            "        DO i=1,SIZE(uold_fld%data, 1)\n"
             "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
             "uold_fld%data)\n"
             "        END DO\n"
@@ -209,20 +191,14 @@ def test_two_kernels(tmpdir, dist_mem):
             "unew_fld, uold_fld\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop+1\n"
+            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n"
             "        END DO\n"
             "      END DO\n"
-            "      DO j=1,jstop+1\n"
-            "        DO i=1,istop+1\n"
+            "      DO j=1,SIZE(uold_fld%data, 2)\n"
+            "        DO i=1,SIZE(uold_fld%data, 1)\n"
             "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
             "uold_fld%data)\n"
             "        END DO\n"
@@ -230,7 +206,7 @@ def test_two_kernels(tmpdir, dist_mem):
             "    END SUBROUTINE invoke_0\n"
             "  END MODULE psy_single_invoke_two_kernels")
 
-    assert str(generated_code).find(expected_output) != -1
+    assert str(generated_code) == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -260,18 +236,12 @@ def test_grid_property(tmpdir, dist_mem):
             "d_fld\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
             "      CALL cu_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop-1\n"
+            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
             "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
             "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
             "        END DO\n"
@@ -280,8 +250,8 @@ def test_grid_property(tmpdir, dist_mem):
             "      !\n"
             "      CALL d_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop-1\n"
+            "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
+            "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
             "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
             "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
             "        END DO\n"
@@ -301,20 +271,14 @@ def test_grid_property(tmpdir, dist_mem):
             "d_fld\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop-1\n"
+            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
             "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
             "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
             "        END DO\n"
             "      END DO\n"
-            "      DO j=2,jstop\n"
-            "        DO i=2,istop-1\n"
+            "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
+            "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
             "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
             "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
             "        END DO\n"
@@ -322,7 +286,7 @@ def test_grid_property(tmpdir, dist_mem):
             "    END SUBROUTINE invoke_0\n"
             "  END MODULE psy_single_invoke_with_grid_props_test")
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -352,16 +316,10 @@ def test_scalar_int_arg(tmpdir, dist_mem):
             "      INTEGER, intent(inout) :: ncycle\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
             "      CALL ssh_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=1,jstop+1\n"
-            "        DO i=1,istop+1\n"
+            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
             "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
             "ssh_fld%grid%tmask)\n"
             "        END DO\n"
@@ -381,21 +339,15 @@ def test_scalar_int_arg(tmpdir, dist_mem):
             "      INTEGER, intent(inout) :: ncycle\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
-            "      DO j=1,jstop+1\n"
-            "        DO i=1,istop+1\n"
+            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
             "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
             "ssh_fld%grid%tmask)\n"
             "        END DO\n"
             "      END DO\n"
             "    END SUBROUTINE invoke_0_bc_ssh\n"
             "  END MODULE psy_single_invoke_scalar_int_test")
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -425,16 +377,10 @@ def test_scalar_float_arg(tmpdir, dist_mem):
             "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
             "      CALL ssh_fld%halo_exchange(depth=1)\n"
             "      !\n"
-            "      DO j=1,jstop+1\n"
-            "        DO i=1,istop+1\n"
+            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
             "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
             "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
             "        END DO\n"
@@ -454,21 +400,15 @@ def test_scalar_float_arg(tmpdir, dist_mem):
             "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
             "      INTEGER j\n"
             "      INTEGER i\n"
-            "      INTEGER istop, jstop\n"
-            "      !\n"
-            "      ! Look-up loop bounds\n"
-            "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
-            "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
-            "      !\n"
-            "      DO j=1,jstop+1\n"
-            "        DO i=1,istop+1\n"
+            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
             "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
             "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
             "        END DO\n"
             "      END DO\n"
             "    END SUBROUTINE invoke_0_bc_ssh\n"
             "  END MODULE psy_single_invoke_scalar_float_test")
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -484,6 +424,8 @@ def test_scalar_float_arg_from_module():
                                         "single_invoke_scalar_float_arg.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
 
     # Substitute 'a_scalar' with a global
     schedule = psy.invokes.invoke_list[0].schedule
@@ -536,6 +478,8 @@ def test_ne_offset_cf_points(tmpdir):
                                 "test14_ne_offset_cf_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -580,6 +524,8 @@ def test_ne_offset_ct_points(tmpdir):
                                 "test15_ne_offset_ct_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -623,6 +569,8 @@ def test_ne_offset_all_cu_points(tmpdir):
                                 "test16_ne_offset_cu_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -665,6 +613,8 @@ def test_ne_offset_all_cv_points(tmpdir):
                                 "test17_ne_offset_cv_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -707,6 +657,8 @@ def test_ne_offset_all_cf_points(tmpdir):
                                 "test18_ne_offset_cf_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -747,6 +699,8 @@ def test_sw_offset_cf_points(tmpdir):
                      "test19.1_sw_offset_cf_updated_one_invoke.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -790,6 +744,8 @@ def test_sw_offset_all_cf_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -833,6 +789,8 @@ def test_sw_offset_ct_points(tmpdir):
                                 "test20_sw_offset_ct_updated_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -877,6 +835,8 @@ def test_sw_offset_all_ct_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -921,6 +881,8 @@ def test_sw_offset_all_cu_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -964,6 +926,8 @@ def test_sw_offset_all_cv_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -1007,6 +971,8 @@ def test_offset_any_all_cu_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -1051,6 +1017,8 @@ def test_offset_any_all_points(tmpdir):
                                 "_one_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -1104,6 +1072,7 @@ def test_goschedule_view(capsys, dist_mem):
     call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    return
 
     if dist_mem:
         print(out)
@@ -1164,6 +1133,7 @@ def test_goschedule_str(dist_mem):
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    return
 
     if dist_mem:
         print(str(schedule))
@@ -1311,6 +1281,8 @@ def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
     gosched = GOInvokeSchedule([])
+    # This test expects constant loop bounds
+    gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -1644,6 +1616,8 @@ def test05p1_kernel_add_iteration_spaces():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
     expected_sched = (
         "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
         "Constant loop bounds=True]:\n"
