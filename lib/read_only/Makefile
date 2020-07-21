@@ -27,22 +27,27 @@
 #------------------------------------------------------------------------------
 # Authors: J. Henrichs, Australian Bureau of Meteorology
 
-# This Makefile just creates the Fortran base class from the
-# jinja template. The compile functionality it offers is only
-# meant for testing, each library should compile its own version
+# This Makefile just creates the Fortran base class for all read-only
+# wrappers from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
 F90 ?= gfortran
 F90FLAGS ?= 
 
-default: psy_data_base.o
-process: psy_data_base.f90
+default: read_only_base.o psy_data_base.o
+process: read_only_base.f90
 
 %.f90:	%.jinja
-	./process.py $< > $*.f90
+	../process.py $< > $*.f90
+
+psy_data_base.f90:	../psy_data_base.jinja
+	../process.py $< > psy_data_base.f90
+
+read_only_base.o: psy_data_base.o
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f psy_data_base.f90
+	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod

@@ -48,7 +48,7 @@ F90FLAGS ?= -O0 -g
 F90FLAGS += -I$(LFRIC_DIR)
 LIB_NAME = lib_read_only.a
 
-OBJS = read_only.o psy_data_base.o
+OBJS = read_only.o psy_data_base.o read_only_base.o
 
 default: $(LIB_NAME)
 
@@ -59,7 +59,10 @@ $(LIB_NAME): $(OBJS)
 $(LFRIC_DIR)/field_mod.mod:
 	$(error "Can not find field_mod.mod in $(LFRIC_DIR).")
 
-read_only.o: $(LFRIC_DIR)/field_mod.mod psy_data_base.o read_only.f90
+read_only.o: $(LFRIC_DIR)/field_mod.mod read_only.f90 \
+	psy_data_base.o read_only_base.f90
+
+read_only.o: read_only_base.o
 
 %.f90:	%.jinja
 	../../process.py $< > $*.f90
@@ -70,5 +73,8 @@ read_only.o: $(LFRIC_DIR)/field_mod.mod psy_data_base.o read_only.f90
 psy_data_base.f90: ../../psy_data_base.jinja
 	../../process.py $< > psy_data_base.f90
 
+read_only_base.f90: ../read_only_base.jinja
+	../../process.py $< > read_only_base.f90
+
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.*
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
