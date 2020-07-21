@@ -2290,7 +2290,10 @@ class GOHaloExchange(HaloExchange):
 
         '''
         from psyclone.f2pygen import CallGen, CommentGen
-        # TODO 856: Wrap Halo call with a is_dirty flag when necessary
+        # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
+
+        # Currently only stencils of depth 1 are accepted by this API,
+        # so the HaloExchange can also be hardcoded to depth 1.
         parent.add(
             CallGen(
                 parent, name=self._field.name +
