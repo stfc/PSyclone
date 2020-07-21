@@ -144,7 +144,7 @@ Contains
             write(stderr, *) "PSYDATA: The same number of variables must be provided before"
             write(stderr, *) "and after the instrumented region. But the values are:"
             write(stderr, *) "Before: ", num_pre_vars, " after: ", num_post_vars
-            stop
+            call this%Abort("PreStart: Inconsistent parameters")
         endif
 
         this%verify_checksums = .false.
@@ -168,7 +168,7 @@ Contains
                 write(stderr, *) "PSyData: Could not allocate ", &
                                  this%next_var_index-1,          &
                                  " integers, aborting."
-                stop
+                call this%Abort("Out of memory")
             endif
         endif
         call this%PSyDataBaseType%PreEndDeclaration()

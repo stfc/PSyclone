@@ -48,7 +48,7 @@ F90FLAGS ?=
 F90FLAGS += -I$(INF_INC)
 LIB_NAME = lib_read_only.a
 
-OBJS = read_only.o psy_data_base.o
+OBJS = read_only.o psy_data_base.o read_only_base.o
 
 default: $(LIB_NAME)
 
@@ -56,7 +56,7 @@ $(LIB_NAME):	$(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
 
 # Compilation of read_only needs the .mod file from dl_esm_inf
-read_only.o: $(INF_LIB) psy_data_base.o
+read_only.o: $(INF_LIB) psy_data_base.o read_only_base.o
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
@@ -64,5 +64,8 @@ read_only.o: $(INF_LIB) psy_data_base.o
 psy_data_base.f90: ../../psy_data_base.jinja
 	../../process.py $< > psy_data_base.f90
 
+read_only_base.f90: ../read_only_base.jinja
+	../../process.py $< > read_only_base.f90
+
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.*
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*

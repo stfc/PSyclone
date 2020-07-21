@@ -87,7 +87,7 @@ module psy_data_base_mod
 
         contains
             procedure :: PreStart, PreEndDeclaration, PreEnd
-            procedure :: PostStart, PostEnd
+            procedure :: PostStart, PostEnd, Abort
             {% for name, type, bits in ALL_TYPES %}
                 procedure :: DeclareScalar{{name}}
                 procedure :: ProvideScalar{{name}}
@@ -192,6 +192,18 @@ contains
             write(stderr, *) "PSyData: PostEnd ", trim(this%module_name), &
                     " ", trim(this%region_name)
     end subroutine PostEnd
+
+    ! -------------------------------------------------------------------------
+    !> Displays the message and aborts execution. This base implementation
+    !! just uses `stop`.
+    !! @param[in] message Error message to be displayed (string).
+    subroutine Abort(this, message)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*) :: message
+
+        stop message
+    end subroutine Abort
 
     ! -------------------------------------------------------------------------
     !> An optional initialisation subroutine.
