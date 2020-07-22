@@ -90,9 +90,8 @@ that it allows the metadata to be kept with the code and for it to be
 compilable. In addition, currently all APIs will contain information
 about the arguments in an array called ``meta_args``, a specification
 of what the kernel code iterates over in a variable called
-``iterates_over`` and a reference to the kernel code as a type-bound
-procedure.
-::
+``iterates_over`` and a reference to the kernel code itself as a
+type-bound procedure::
    
     type, extends(kernel_type) :: integrate_one_kernel 
       ... 
@@ -106,9 +105,8 @@ procedure.
       ... 
     end type integrate_one_kernel 
 
-If no type-bound procedure is declared and a named interface with
-module procedures will be included.     
-::
+If no type-bound procedure is declared then a named interface with
+module procedures must be included in the module::
 
     type, extends(kernel_type) :: integrate_one_kernel 
       ... 
@@ -116,12 +114,13 @@ module procedures will be included.
       ... 
       integer :: ITERATES_OVER = ... 
       ... 
-      contains 
-      ... 
-      procedure ... 
-      ... 
     end type integrate_one_kernel 
 
-    interace ... 
+    interface ...
       module procedure ... 
     end interface   
+
+These module procedures provide alternative implementations (using
+different precisions) of the kernel code. They are selected as
+appropriate by the Fortran compiler, depending on the precision of the
+fields being passed to them.
