@@ -5482,7 +5482,7 @@ def test_unsupported_halo_read_access():
 
 def test_dynglobalsum_unsupported_argument():
     ''' Check that an instance of the DynGlobalSum class raises an
-    exception if an unsupported argument type. '''
+    exception for an unsupported argument type. '''
     # Get an instance of a non-scalar argument
     _, invoke_info = parse(
         os.path.join(BASE_PATH,

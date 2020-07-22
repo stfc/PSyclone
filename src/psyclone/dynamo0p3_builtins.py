@@ -52,7 +52,7 @@ from psyclone.domain.lfric import LFRicArgDescriptor
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
 # The types of argument that are valid for built-in kernels in the
-# Dynamo 0.3 API
+# LFRic API
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
@@ -162,7 +162,7 @@ class DynBuiltIn(BuiltIn):
                 spaces.add(arg.function_space)
             if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    "In the Dynamo 0.3 API an argument to a built-in kernel "
+                    "In the LFRic API an argument to a built-in kernel "
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
                                          arg.argument_type))

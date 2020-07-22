@@ -416,7 +416,9 @@ def get_stencil(metadata, valid_types):
 
 
 class Descriptor(object):
-    ''' A description of how a kernel argument is accessed.
+    '''
+    A description of how a kernel argument is accessed, constructed from
+    the kernel metadata.
 
     :param str access: whether argument is read/write etc.
     :param str space: which function space/grid-point type argument is \
@@ -484,11 +486,6 @@ class Descriptor(object):
         return self._argument_type
 
     def __repr__(self):
-        '''
-        :returns: string representation of this class.
-        :rtype: str
-
-        '''
         return "Descriptor({0}, {1})".format(self.access, self.function_space)
 
 

@@ -66,8 +66,8 @@ OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 # Names of internal scalar argument types
 MAPPING_SCALARS_LIST = ["iscalar", "rscalar"]
-# Mapping from domain-specific scalar-type names to internal scalar types
-# that are used for reductions. Can be overridden in domain-specific modules.
+# Mapping from domain-specific scalar-type names to internal scalar
+# types. Can be overridden in domain-specific modules.
 MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
 
 # Valid types of argument to a kernel call

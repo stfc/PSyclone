@@ -2003,11 +2003,6 @@ class GO1p0Descriptor(Descriptor):
                              argument_type=self._argument_type)
 
     def __str__(self):
-        '''
-        :returns: string representation of the argument descriptor.
-        :rtype: str
-
-        '''
         return repr(self)
 
     @property
