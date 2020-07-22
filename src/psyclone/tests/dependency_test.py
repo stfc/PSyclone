@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
@@ -45,9 +46,10 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import KernCallAccArgList
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, get_ast
 
 # Constants
 API = "nemo"
@@ -301,11 +303,12 @@ def test_goloop_partially():
 
 
 def test_dynamo():
-    '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
-    are reported based on the user's point of view, not the code actually
-    created by PSyclone, e.g. it shows a dependency on 'some_field', but not
-    on some_field_proxy etc. Also the dependency is at this stage taken
+    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+    accesses are reported based on the user's point of view, not the code
+    actually created by PSyclone, e.g. it shows a dependency on 'some_field',
+    but not on some_field_proxy etc. Also the dependency is at this stage taken
     from the kernel metadata, not the actual kernel usage.
+
     '''
     from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -317,8 +320,10 @@ def test_dynamo():
     schedule = invoke.schedule
 
     var_accesses = VariablesAccessInfo(schedule)
-    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: WRITE, "\
-        "f2: READ, m1: READ, m2: READ"
+    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "\
+        "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "\
+        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "\
+        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
 
 
 def test_location(parser):
@@ -487,8 +492,9 @@ def test_math_equal(parser):
 @pytest.mark.xfail(reason="Limitation when using commutative law - #533")
 def test_math_equal_limitations(parser):
     '''Shows that the current math_equal implementation can not
-    detect that i+j+k and i+k+j are the same'''
+    detect that i+j+k and i+k+j are the same.
 
+    '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     reader = FortranStringReader('''program test_prog
@@ -505,3 +511,433 @@ def test_math_equal_limitations(parser):
     exp0 = schedule[0].rhs
     exp1 = schedule[1].rhs
     assert exp0.math_equal(exp1)
+
+
+def test_lfric_ref_element():
+    '''Test handling of variables if an LFRic's RefElement is used.
+
+    '''
+    _, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "normals_to_faces: READ" in var_info
+    assert "out_normals_to_faces: READ" in var_info
+    assert "nfaces_re: READ" in var_info
+
+
+def test_lfric_operator():
+    '''Check if implicit basis and differential basis variables are
+    handled correctly.
+
+    '''
+    _, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "basis_w0_on_w0: READ" in var_info
+    assert "diff_basis_w1_on_w0: READ" in var_info
+
+
+def test_lfric_cma():
+    '''Test that parameters related to CMA operators are handled
+    correctly in the variable usage analysis.
+
+    '''
+    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "ncell_2d: READ" in var_info
+    assert "cma_op1_alpha: READ" in var_info
+    assert "cma_op1_bandwidth: READ" in var_info
+    assert "cma_op1_beta: READ" in var_info
+    assert "cma_op1_gamma_m: READ" in var_info
+    assert "cma_op1_gamma_p: READ" in var_info
+    assert "cma_op1_matrix: WRITE" in var_info
+    assert "cma_op1_ncol: READ" in var_info
+    assert "cma_op1_nrow: READ," in var_info
+    assert "cbanded_map_adspc1_lma_op1: READ" in var_info
+    assert "cbanded_map_adspc2_lma_op1: READ" in var_info
+    assert "op1_proxy%local_stencil: WRITE" in var_info
+    assert "op1_proxy%ncell_3d: READ" in var_info
+
+
+def test_lfric_cma2():
+    '''Test that parameters related to CMA operators are handled
+    correctly in the variable usage analysis.
+
+    '''
+    _, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "cma_indirection_map_aspc1_field_a: READ" in var_info
+    assert "cma_indirection_map_aspc2_field_b: READ" in var_info
+
+
+def test_lfric_stencils():
+    '''Test that stencil parameters are correctly detected.
+
+    '''
+    _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f2_stencil_size: READ" in var_info
+    assert "f2_stencil_dofmap: READ" in var_info
+
+
+def test_lfric_various_basis():
+    ''' Tests that implicit parameters for various basis related
+    functionality work as expected.
+
+    '''
+    _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "orientation_w2: READ" in var_info
+    assert "basis_w3_qr: READ" in var_info
+    assert "diff_basis_w0_qr: READ" in var_info
+    assert "diff_basis_w2_qr: READ" in var_info
+    assert "np_xy_qr: READ" in var_info
+    assert "np_z_qr: READ" in var_info
+    assert "weights_xy_qr: READ" in var_info
+    assert "weights_z_qr: READ" in var_info
+
+
+def test_lfric_field_bc_kernel():
+    '''Tests that implicit parameters in case of a boundary_dofs
+    array fix are created correctly.
+
+    '''
+    _, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "boundary_dofs_a: READ" in var_info
+
+
+def test_lfric_stencil_xory_vector():
+    '''Test that the implicit parameters for a stencil access of type x
+    or y with a vector field are created.
+
+    '''
+    _, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f2_direction: READ" in var_info
+
+
+def test_lfric_operator_bc_kernel():
+    '''Tests that a kernel that applies boundary conditions to operators
+    detects the right implicit paramaters.
+
+    '''
+    _, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
+                                "dynamo0.3", idx=0)
+    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "boundary_dofs_op_a: READ" in var_info
+
+
+def test_lfric_stub_args():
+    '''Check that correct stub code is produced when there are multiple
+    stencils.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "field_1_w1: READ+WRITE" in var_info
+    assert "field_2_stencil_dofmap: READ" in var_info
+    assert "field_2_stencil_size: READ" in var_info
+    assert "field_2_w2: READ" in var_info
+    assert "field_3_direction: READ" in var_info
+    assert "field_3_stencil_dofmap: READ" in var_info
+    assert "field_3_stencil_size: READ" in var_info
+    assert "field_3_w2: READ" in var_info
+    assert "field_4_stencil_dofmap: READ" in var_info
+    assert "field_4_stencil_size: READ" in var_info
+    assert "field_4_w3: READ" in var_info
+    assert "map_w1: READ" in var_info
+    assert "map_w2: READ" in var_info
+    assert "map_w3: READ" in var_info
+    assert "ndf_w1: READ" in var_info
+    assert "ndf_w2: READ" in var_info
+    assert "ndf_w3: READ" in var_info
+    assert "nlayers: READ" in var_info
+    assert "undf_w1: READ" in var_info
+    assert "undf_w2: READ" in var_info
+    assert "undf_w3: READ" in var_info
+
+
+def test_lfric_stub_args2():
+    '''Check variable usage detection for scalars, basis_name, quad rule
+    and mesh properties.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "rscalar_1: READ" in var_info
+    assert "basis_w1_qr_face: READ" in var_info
+    assert "nfaces_qr_face: READ" in var_info
+    assert "np_xyz_qr_face: READ" in var_info
+    assert "weights_xyz_qr_face: READ" in var_info
+
+
+def test_lfric_stub_args3():
+    '''Check variable usage detection for cell position, operator
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "dummy_orientation_mod.f90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "cell: READ" in var_info
+    assert "op_2_ncell_3d: READ" in var_info
+    assert "op_2: READ" in var_info
+    assert "op_4_ncell_3d: READ" in var_info
+    assert "op_4: READ" in var_info
+    assert "orientation_w0: READ" in var_info
+    assert "orientation_w1: READ" in var_info
+    assert "orientation_w2: READ" in var_info
+    assert "orientation_w3: READ" in var_info
+
+
+def test_lfric_stub_boundary_dofs():
+    '''Check variable usage detection for boundary dofs.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    assert "boundary_dofs_field_1: READ" in str(var_accesses)
+
+
+def test_lfric_stub_field_vector():
+    '''Check variable usage detection field vectors.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "field_1_w0_v1: READ" in var_info
+    assert "field_1_w0_v2: READ" in var_info
+    assert "field_1_w0_v3: READ" in var_info
+    assert "field_2_w3_v1: READ" in var_info
+    assert "field_2_w3_v2: READ" in var_info
+    assert "field_2_w3_v3: READ" in var_info
+    assert "field_2_w3_v4: READ" in var_info
+
+
+def test_lfric_stub_basis():
+    '''Check variable usage detection of basis, diff-basis.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "basis_w1_on_w1: READ" in var_info
+    assert "diff_basis_w2_qr_face: READ" in var_info
+    assert "diff_basis_w2_on_w1: READ" in var_info
+    assert "basis_w3_on_w1: READ" in var_info
+    assert "diff_basis_w3_qr_face: READ" in var_info
+    assert "diff_basis_w3_on_w1: READ" in var_info
+
+
+def test_lfric_stub_cma_operators():
+    '''Check variable usage detection cma operators.
+    mesh_ncell2d, cma_operator
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    for num in ["1", "3", "5"]:
+        assert "ncell_2d: READ" in var_info
+        assert "cma_op_"+num+": READ" in var_info
+        assert "cma_op_"+num+"_nrow: READ" in var_info
+        assert "cma_op_"+num+"_ncol: READ" in var_info
+        assert "cma_op_"+num+"_bandwidth: READ" in var_info
+        assert "cma_op_"+num+"_alpha: READ" in var_info
+        assert "cma_op_"+num+"_beta: READ" in var_info
+        assert "cma_op_"+num+"_gamma_m: READ" in var_info
+        assert "cma_op_"+num+"_gamma_p: READ" in var_info
+
+
+def test_lfric_stub_banded_dofmap():
+    '''Check variable usage detection for banded dofmaps.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "cbanded_map_adspc1_op_1: READ" in var_info
+    assert "cbanded_map_adspc2_op_1: READ" in var_info
+
+
+def test_lfric_stub_indirection_dofmap():
+    '''Check variable usage detection in indirection dofmap.
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "cma_indirection_map_aspc1_field_1: READ" in var_info
+    assert "cma_indirection_map_aspc2_field_2: READ" in var_info
+
+
+def test_lfric_stub_boundary_dofmap():
+    '''Check variable usage detection in boundary_dofs array fix
+    for operators.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    assert "boundary_dofs_op_1: READ" in str(var_accesses)
+
+
+def test_lfric_acc():
+    '''Check variable usage detection when OpenACC is used.
+
+    '''
+    # Use the OpenACC transforms to enclose the kernels
+    # with OpenACC directives.
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
+    from psyclone.psyGen import CodedKern
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
+                           name="invoke_0_testkern_type", dist_mem=False)
+    sched = invoke.schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+
+    # Find the first kernel:
+    kern = invoke.schedule.walk(CodedKern)[0]
+    create_acc_arg_list = KernCallAccArgList(kern)
+    var_accesses = VariablesAccessInfo()
+    create_acc_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "f1: READ+WRITE" in var_info
+    assert "f2: READ" in var_info
+    assert "m1: READ" in var_info
+    assert "m2: READ" in var_info
+    assert "undf_w1: READ" in var_info
+    assert "map_w1: READ" in var_info
+    assert "undf_w2: READ" in var_info
+    assert "map_w2: READ" in var_info
+    assert "undf_w3: READ" in var_info
+    assert "map_w3: READ" in var_info
+
+
+def test_lfric_acc_operator():
+    '''Check variable usage detection when OpenACC is used with
+    a kernel that uses an operator.
+
+    '''
+    # Use the OpenACC transforms to enclose the kernels
+    # with OpenACC directives.
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
+    from psyclone.psyGen import CodedKern
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
+                           idx=0, dist_mem=False)
+    sched = invoke.schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+
+    # Find the first kernel:
+    kern = invoke.schedule.walk(CodedKern)[0]
+    create_acc_arg_list = KernCallAccArgList(kern)
+    var_accesses = VariablesAccessInfo()
+    create_acc_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "lma_op1_proxy%ncell_3d: READ" in var_info
+    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
+
+
+def test_lfric_stencil():
+    '''Check variable usage detection when OpenACC is used with a
+    kernel that uses a stencil.
+
+    '''
+    # Use the OpenACC transforms to create the required kernels
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
+    from psyclone.psyGen import CodedKern
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
+                           idx=0, dist_mem=False)
+    sched = invoke.schedule
+    _ = acc_par_trans.apply(sched.children)
+    _ = acc_enter_trans.apply(sched)
+
+    # Find the first kernel:
+    kern = invoke.schedule.walk(CodedKern)[0]
+    create_acc_arg_list = KernCallAccArgList(kern)
+    var_accesses = VariablesAccessInfo()
+    create_acc_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "f1: READ+WRITE" in var_info
+    assert "f2: READ" in var_info
+    assert "f2_stencil_dofmap: READ" in var_info

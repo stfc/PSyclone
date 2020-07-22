@@ -34,6 +34,7 @@
 module testkern_ref_elem_all_faces_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 

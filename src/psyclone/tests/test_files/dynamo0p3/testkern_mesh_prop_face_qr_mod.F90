@@ -30,11 +30,13 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Laboratory
+! Modified: I. Kavcic, Met Office
 
 !> Test kernel requiring both face quadrature and the adjacent faces in the mesh.
 module testkern_mesh_prop_face_qr_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 

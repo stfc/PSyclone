@@ -30,19 +30,23 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab.
+! Modified: I. Kavcic, Met Office.
 
 module testkern_qr_faces_mod
+
+  use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
   
   type, extends(kernel_type) :: testkern_qr_faces_type
      type(arg_type), dimension(4) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_inc,  w1), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w3)  &
+          (/ arg_type(gh_field, gh_inc,  w1),       &
+             arg_type(gh_field, gh_read, w2),       &
+             arg_type(gh_field, gh_read, w2),       &
+             arg_type(gh_field, gh_read, w3)        &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -62,15 +66,21 @@ contains
                                     undf_w2, map_w2, diff_basis_w2, ndf_w3,    &
                                     undf_w3, map_w3, basis_w3, diff_basis_w3,  &
                                     nfaces, nqp, wqp)
-    use constants_mod, only: r_def, i_def
-    
+
     implicit none
     
-    integer(kind=i_def) :: nlayers, ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, &
-                           undf_w3, nqp, nfaces
+    integer(kind=i_def) :: nlayers, nqp, nfaces
+    integer(kind=i_def) :: ndf_w1, undf_w1, &
+                           ndf_w2, undf_w2, &
+                           ndf_w3, undf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
+    real(kind=r_def), intent(inout), dimension(undf_w1) :: f1
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: f2
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: f3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: f4
     real(kind=r_def), dimension(nqp,nfaces) :: wqp
     real(kind=r_def), dimension(3,ndf_w1,nqp,nfaces) :: basis_w1
     real(kind=r_def), dimension(3,ndf_w2,nqp,nfaces) :: diff_basis_w2

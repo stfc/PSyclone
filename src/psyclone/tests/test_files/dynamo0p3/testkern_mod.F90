@@ -30,34 +30,53 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module testkern_mod
+
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field,gh_write,w1),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w2),     &
-             arg_type(gh_field,gh_read, w3)      &
+          (/ arg_type(gh_real,  gh_read),        &
+             arg_type(gh_field, gh_inc,  w1),    &
+             arg_type(gh_field, gh_read, w2),    &
+             arg_type(gh_field, gh_read, w2),    &
+             arg_type(gh_field, gh_read, w3)     &
            /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type
+
 contains
 
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
+  subroutine testkern_code(nlayers, ascalar,        &
+                           fld1, fld2, fld3, fld4,  &
+                           ndf_w1, undf_w1, map_w1, &
+                           ndf_w2, undf_w2, map_w2, &
                            ndf_w3, undf_w3, map_w3)
-    integer, intent(in) :: nlayers
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(:), intent(out) :: fld1
-    real(kind=r_def), dimension(:), intent(in) :: fld2, fld3, fld4
-    integer, intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:), intent(in) :: map_w1, map_w2, map_w3
+    real(kind=r_def), intent(out), dimension(undf_w1) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
+    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld3
+    real(kind=r_def), intent(in), dimension(undf_w3)  :: fld4
 
   end subroutine testkern_code
+
 end module testkern_mod

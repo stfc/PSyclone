@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,20 +30,26 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program qr_field_array
 
-  use testkern_qr, only: testkern_qr_type
-  implicit none
-  type(field_type)      :: f0, f1, f2, f3, f4
-  type(quadrature_type) :: qr0(2,2), qr1(2,2)
-  real    :: ascal
-  integer :: i, j, k(2), l
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use testkern_qr,         only: testkern_qr_type
 
-  call invoke(                                            &
-       testkern_qr_type(f1,f2,f3,ascal,f4,l,qr0(i,j)),    &
-       testkern_qr_type(f1,f2,f3,ascal,f4,l,qr0(i,j+1)),  &
-       testkern_qr_type(f1,f2,f3,ascal,f4,l,qr1(i,k(l))), &
-       testkern_qr_type(f0,f2,f3,ascal,f4,l,qr0(i,j)) )
+  implicit none
+
+  type(field_type)           :: f0, f1, f2, f3, f4
+  type(quadrature_xyoz_type) :: qr0(2,2), qr1(2,2)
+  real(r_def)                :: ascal
+  integer(i_def)             :: i, j, k(2), l
+
+  call invoke(                                                  &
+       testkern_qr_type(f1, f2, f3, ascal, f4, l, qr0(i,j)),    &
+       testkern_qr_type(f1, f2, f3, ascal, f4, l, qr0(i,j+1)),  &
+       testkern_qr_type(f1, f2, f3, ascal, f4, l, qr1(i,k(l))), &
+       testkern_qr_type(f0, f2, f3, ascal, f4, l, qr0(i,j)) )
 
 end program qr_field_array

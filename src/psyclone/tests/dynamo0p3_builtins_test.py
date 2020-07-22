@@ -2479,6 +2479,16 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n")
         if not annexed:
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+            f1_hex_code = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f1_proxy%halo_exchange(depth=1)\n"
+                "      END IF\n"
+                "      !\n")
+            output_dm_2 = output_dm_2.replace(
+                "      ! Call kernels and communication routines\n"
+                "      !\n", f1_hex_code)
         assert output_dm_2 in code
 
 
@@ -2581,7 +2591,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
 def test_scalar_int_builtin_error(monkeypatch):
     ''' Test that specifying incorrect meta-data for built-in such that it
     claims to perform a reduction into an integer variable raises the
-    expected error '''
+    expected error. '''
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
@@ -2589,7 +2599,7 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
-    assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
+    assert ("In the LFRic API a reduction access 'gh_sum' is "
             "only valid with a real scalar argument, but 'gh_integer' "
             "was found" in str(excinfo.value))
 

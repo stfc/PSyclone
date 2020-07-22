@@ -92,16 +92,12 @@ At the moment, root nodes (e.g. `InvokeSchedules`, `KernelSchedules`
 and `Containers`) have a symbol table which contains the symbols used by their
 descendant nodes.
 
-
-.. note:: Some symbols are still hardwired as strings inside some of the PSyIR
-    nodes, but there are issues raised to replace these.
-
 The `new_symbol_name` method is provided to avoid name clashes when defining
 a new symbol in the symbol table.
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
 
-However, if this variable needs to be retrieved later on, one must keep track
+However, if this symbol needs to be retrieved later on, one must keep track
 of the symbol or the returned name. As this is not always feasible when
 accessed from different routines, there is also the option to provide a tag to
 uniquely identify the symbol internally (the tag is not displayed in the
@@ -135,6 +131,38 @@ properties, when needed.
 .. warning:: The `name_from_tag` method should not be used for new
     code as the method will be deprecated in favour of a finer control
     of when variables are defined and used.
+
+By default the `new_symbol_name`, `add`, `lookup`, `lookup_with_tag`,
+and `name_from_tag` methods in a symbol table will also take into
+account the symbols in any ancestor symbol tables. Ancestor symbol
+tables are symbol tables attached to nodes that are ancestors of the
+node that the current symbol table is attached to. This functionality
+is controllable via the optional `check_ancestors` argument. This
+functionality is supported by the `all_symbols` and `all_tags`
+properties.
+
+Sibling symbol tables are currently not checked. The argument for
+doing this is that a symbol in a sibling scope should not be visible
+in the current scope so can be ignored. However, it may turn out to
+make sense to check both in some circumstances. One result of this is
+that names and tags do not need to be unique in the symbol table
+hierarchy (just with their ancestor symbols). It makes sense for
+symbol names to not be unique in a hierarchy as names can be re-used
+within different scopes. However this may not be true for all names
+and it may even make sense to have a separate global symbol table in
+the future, as well as the existing nested ones. It is less clear
+whether tags should be unique or not.
+
+All other methods act only on symbols in the local symbol table. In
+particular `__contains__`, `remove`, `get_unresolved_data_symbols`,
+`symbols`, `datasymbols`, `local_datasymbols`, `argument_datasymbols`,
+`global_symbols`, `precision_datasymbols` and `containersymbols`. It
+is currently not clear whether this is the best solution and it is
+possible that these should reflect a global view. One issue is that
+the `__contains__` method has no mechanism to pass a `check_ancestors`
+optional argument. This would probably require a separate `setter` and
+`getter` to specify whether to check ancestors or not.
+
 
 Dependence Analysis
 ===================

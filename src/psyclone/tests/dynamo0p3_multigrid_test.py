@@ -47,6 +47,8 @@ import pytest
 import fparser
 
 from fparser import api as fpapi
+from psyclone.errors import InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -123,7 +125,7 @@ def test_invalid_mesh_specifier():
 
 def test_all_args_same_mesh_error():
     ''' Check that we reject a kernel if all arguments are specified
-    as being on the same mesh (coarse or fine) '''
+    as being on the same mesh (coarse or fine). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Both on fine mesh
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_FINE", 1)
@@ -132,18 +134,18 @@ def test_all_args_same_mesh_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types (['gh_coarse', "
-            "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_fine']" in str(excinfo.value))
+            "one field argument on each of the mesh types ({0}). However, "
+            "kernel restrict_kernel_type has arguments only on ['gh_fine']".
+            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types (['gh_coarse', "
-            "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_coarse']" in str(excinfo.value))
+            "one field argument on each of the mesh types ({0}). However, "
+            "kernel restrict_kernel_type has arguments only on ['gh_coarse']".
+            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():
@@ -228,17 +230,21 @@ def test_field_vector():
 
 def test_two_grid_types(monkeypatch):
     ''' Check that PSyclone raises an error if the number of grid types
-    supported for inter-grid kernels is not two '''
-    from psyclone import dynamo0p3
-    # Change VALID_MESH_TYPES so that it contains three values
-    monkeypatch.setattr(dynamo0p3, "VALID_MESH_TYPES",
-                        value=["gh_coarse", "gh_fine", "gh_medium"])
+    supported for inter-grid kernels is not two. '''
+    # Change LFRicArgDescriptor.VALID_MESH_TYPES so that it contains
+    # three values
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_MESH_TYPES",
+        value=["gh_coarse", "gh_fine", "gh_medium"])
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
     name = "restrict_kernel_type"
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(InternalError) as err:
         _ = DynKernMetadata(ast, name=name)
-    assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err.value)
+    assert ("The implementation of inter-grid support in the LFRic "
+            "API assumes there are exactly two mesh types but "
+            "LFRicArgDescriptor.VALID_MESH_TYPES contains 3: "
+            "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
 
 
 def test_field_prolong(tmpdir):
@@ -605,7 +611,7 @@ def test_prolong_with_gp_error():
     from psyclone.errors import GenerationError
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory(API).create(invoke_info)
-    assert ("no other kernel types but kernels 'testkern_code_w2_only' in "
+    assert ("no other kernel types but kernels 'testkern_w2_only_code' in "
             "invoke 'invoke_0' are not inter-grid" in str(err.value))
 
 

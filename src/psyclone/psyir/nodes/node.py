@@ -66,7 +66,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Literal": "yellow",
                        "Return": "yellow",
                        "CodeBlock": "red",
-                       "Container": "green"}
+                       "Container": "green",
+                       "Call": "cyan"}
 
 
 # Default indentation string
@@ -93,6 +94,24 @@ except ImportError:
         :rtype: string
         '''
         return text
+
+
+def _graphviz_digraph_class():
+    '''
+    Wrapper that returns the graphviz Digraph type if graphviz is installed
+    and None otherwise.
+
+    :returns: the graphviz Digraph type or None.
+    :rtype: :py:class:`graphviz.Digraph` or NoneType.
+
+    '''
+    try:
+        import graphviz as gv
+        return gv.Digraph
+    except ImportError:
+        # TODO #11 add a warning to a log file here
+        # silently return if graphviz bindings are not installed
+        return None
 
 
 class ChildrenList(list):
@@ -430,21 +449,34 @@ class Node(object):
         return self._annotations
 
     def dag(self, file_name='dag', file_format='svg'):
-        '''Create a dag of this node and its children.'''
+        '''
+        Create a dag of this node and its children, write it to file and
+        return the graph object.
+
+        :param str file_name: name of the file to create.
+        :param str file_format: format of the file to create. (Must be one \
+                                recognised by Graphviz.)
+
+        :returns: the graph object or None (if the graphviz bindings are not \
+                  installed).
+        :rtype: :py:class:`graphviz.Digraph` or NoneType
+
+        :raises GenerationError: if the specified file format is not \
+                                 recognised by Graphviz.
+
+        '''
+        digraph = _graphviz_digraph_class()
+        if digraph is None:
+            return None
         try:
-            import graphviz as gv
-        except ImportError:
-            # TODO: #11 add a warning to a log file here
-            # silently return if graphviz bindings are not installed
-            return
-        try:
-            graph = gv.Digraph(format=file_format)
+            graph = digraph(format=file_format)
         except ValueError:
             raise GenerationError(
                 "unsupported graphviz file format '{0}' provided".
                 format(file_format))
         self.dag_gen(graph)
         graph.render(filename=file_name)
+        return graph
 
     def dag_gen(self, graph):
         '''Output my node's graph (dag) information and call any
@@ -1077,21 +1109,28 @@ class Node(object):
             sched.ast = ast
         return sched
 
-    def find_symbol_table(self):
-        '''
-        :returns: the symbol table attached to the nearest ancestor \
-            node (including self).
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    @property
+    def scope(self):
+        '''Schedule and Container nodes allow symbols to be scoped via an
+        attached symbol table. This property returns the closest
+        ancestor Schedule or Container node including self.
 
-        :raises InternalError: if no symbol table is found.
+        :returns: the closest ancestor Schedule or Container node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        :raises InternalError: if there is no Schedule or Container \
+            ancestor.
 
         '''
+        from psyclone.psyir.nodes import Schedule, Container
         current = self
-        while current and not hasattr(current, "symbol_table"):
+        while current:
+            if isinstance(current, (Container, Schedule)):
+                return current
             current = current.parent
-        if current:
-            return current.symbol_table
-        raise InternalError("Symbol table not found in any ancestor nodes.")
+        raise InternalError(
+            "Unable to find the scope of node '{0}' as none of its ancestors "
+            "are Container or Schedule nodes.".format(self))
 
     def find_or_create_symbol(self, name, scope_limit=None):
         '''Returns the symbol with the name 'name' from a symbol table
@@ -1171,7 +1210,7 @@ class Node(object):
                 try:
                     # If the reference matches a Symbol in this
                     # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(name)
+                    return symbol_table.lookup(name, check_ancestors=False)
                 except KeyError:
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable. Does this SymbolTable have any

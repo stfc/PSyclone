@@ -281,7 +281,7 @@ class GOInvoke(Invoke):
 
         # get the list of global symbols used in the invoke
         global_names = [sym.name for sym in
-                        self.schedule.symbol_table.global_datasymbols]
+                        self.schedule.symbol_table.global_symbols]
 
         # add the subroutine argument declarations for real scalars which
         # are not global symbols
@@ -430,13 +430,24 @@ class GOLoop(Loop):
         # available when we're determining which vars should be OpenMP
         # PRIVATE (which is done *before* code generation is performed)
         if self.loop_type == "inner":
-            self._variable_name = "i"
+            tag = "inner_loop_idx"
+            suggested_name = "i"
         elif self.loop_type == "outer":
-            self._variable_name = "j"
+            tag = "outer_loop_idx"
+            suggested_name = "j"
         else:
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+
+        symtab = self.scope.symbol_table
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(suggested_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -1168,10 +1179,19 @@ class GOKern(CodedKern):
                             intent="in", target=True,
                             entity_decls=[arg.name for arg in args]))
 
-        # Scalar grid properties are all integers
-        args = [x for x in grid_prop_args if x.is_scalar()]
+        # Scalar integer grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar() and x.intrinsic_type == "integer"]
         if args:
             sub.add(DeclGen(sub, datatype="integer", intent="in",
+                            target=True,
+                            entity_decls=[arg.name for arg in args]))
+
+        # Scalar real grid properties
+        args = [x for x in grid_prop_args
+                if x.is_scalar() and x.intrinsic_type == "real"]
+        if args:
+            sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
                             target=True,
                             entity_decls=[arg.name for arg in args]))
 
@@ -1236,7 +1256,7 @@ class GOKern(CodedKern):
                         .fortran.format(arg.name)
                 else:
                     # grid properties do not have such an attribute (because
-                    # they are just arrays) so we check whether the device
+                    # they are just pointers) so we check whether the device
                     # pointer is NULL.
                     device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
                                                                arg.name)
@@ -1610,6 +1630,16 @@ class GOKernelGridArgument(Argument):
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''
         return self._type
+
+    @property
+    def intrinsic_type(self):
+        '''
+        :returns: the intrinsic_type of this argument.
+        :rtype: str
+
+        '''
+        api_config = Config.get().api_conf("gocean1.0")
+        return api_config.grid_properties[self._property_name].intrinsic_type
 
     def is_scalar(self):
         ''':return: If this variable is a scalar variable or not.
@@ -2115,8 +2145,8 @@ class GOSymbolTable(SymbolTable):
         '''
         # Get the kernel name if available for better error messages
         kname_str = ""
-        if self._schedule and isinstance(self._schedule, KernelSchedule):
-            kname_str = " for kernel '{0}'".format(self._schedule.name)
+        if self._node and isinstance(self._node, KernelSchedule):
+            kname_str = " for kernel '{0}'".format(self._node.name)
 
         # Check that there are at least 2 arguments
         if len(self.argument_list) < 2:

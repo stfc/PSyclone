@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
@@ -43,6 +44,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
+from psyclone.domain.lfric import FunctionSpace
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -100,7 +102,7 @@ def test_multi_updated_arg():
     if it writes to more than one argument. (This used to be rejected.) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the access of the read-only argument
-    code = CODE.replace("GH_READ", "GH_WRITE", 1)
+    code = CODE.replace("GH_READ", "GH_INC", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
     # Evaluator targets list remains unchanged
@@ -192,7 +194,7 @@ def test_single_kern_eval(tmpdir):
     # First, check the declarations
     expected_decl = (
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
-        "      USE testkern_eval, ONLY: testkern_eval_code\n"
+        "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      TYPE(field_type), intent(in) :: f0, f1\n"
         "      INTEGER(KIND=i_def) cell\n"
@@ -652,7 +654,7 @@ def test_qr_plus_eval(tmpdir):
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
-        "      USE testkern_eval, ONLY: testkern_eval_code\n"
+        "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -1210,9 +1212,9 @@ def test_2eval_1qr_2fs(tmpdir):
     assert gen_code.count(
         "REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
         "diff_basis_w1_on_w1(:,:,:), basis_w2_on_w0(:,:,:), "
-        "diff_basis_w3_on_w0(:,:,:), basis_w1_qr_data(:,:,:,:), "
-        "diff_basis_w2_qr_data(:,:,:,:), basis_w3_qr_data(:,:,:,:), "
-        "diff_basis_w3_qr_data(:,:,:,:)\n") == 1
+        "diff_basis_w3_on_w0(:,:,:), basis_w1_qr(:,:,:,:), "
+        "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
+        "diff_basis_w3_qr(:,:,:,:)\n") == 1
 
     # 1st kernel requires diff basis on W1, evaluated at W0 and W1
     # 2nd kernel requires diff basis on W3, evaluated at W0
@@ -1269,18 +1271,17 @@ def test_2eval_1qr_2fs(tmpdir):
     # 3rd kernel requires XYoZ quadrature: basis on W1, diff basis on W2 and
     # basis+diff basis on W3.
     assert gen_code.count(
-        "      CALL qr_data%compute_function(DIFF_BASIS, f2_proxy%vspace, "
-        "diff_dim_w2, ndf_w2, diff_basis_w2_qr_data)\n") == 1
+        "      CALL qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
+        "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n") == 1
     assert gen_code.count(
-        "      CALL qr_data%compute_function(DIFF_BASIS, m2_proxy%vspace, "
-        "diff_dim_w3, ndf_w3, diff_basis_w3_qr_data)\n") == 1
+        "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+        "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n") == 1
 
     assert ("      DO cell=1,f0_proxy%vspace%get_ncell()\n"
             "        !\n"
             "        CALL testkern_eval_2fs_code(nlayers, f0_proxy%data, "
-            "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, "
-            "undf_w1, map_w1(:,cell), diff_basis_w1_on_w0, "
-            "diff_basis_w1_on_w1)\n"
+            "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1,"
+            " map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
             "      END DO\n"
             "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
             "        !\n"
@@ -1293,17 +1294,16 @@ def test_2eval_1qr_2fs(tmpdir):
             "        !\n"
             "        CALL testkern_qr_code(nlayers, f1_proxy%data, "
             "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, "
-            "undf_w1, map_w1(:,cell), basis_w1_qr_data, ndf_w2, undf_w2, "
-            "map_w2(:,cell), diff_basis_w2_qr_data, ndf_w3, undf_w3, "
-            "map_w3(:,cell), basis_w3_qr_data, diff_basis_w3_qr_data, "
-            "np_xy_qr_data, np_z_qr_data, weights_xy_qr_data, "
-            "weights_z_qr_data)\n"
+            "undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
+            "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
+            "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xy_qr, "
+            "np_z_qr, weights_xy_qr, weights_z_qr)\n"
             "      END DO\n" in gen_code)
 
     assert gen_code.count(
-        "DEALLOCATE (basis_w1_qr_data, basis_w2_on_w0, basis_w3_qr_data, "
-        "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, "
-        "diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
+        "DEALLOCATE (basis_w1_qr, basis_w2_on_w0, basis_w3_qr, "
+        "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr, "
+        "diff_basis_w3_on_w0, diff_basis_w3_qr)\n") == 1
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1497,7 +1497,6 @@ def test_basis_unsupported_space():
     unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This information will be passed from the
     PSy layer to the kernels (see issue #461). '''
-    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1506,8 +1505,8 @@ def test_basis_unsupported_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unsupported space for basis function, expecting one of " +
-            str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
-            in str(excinfo.value))
+            str(FunctionSpace.VALID_FUNCTION_SPACES) + " but found " +
+            "'any_space_1'" in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                            "any_discontinuous_space_5")
@@ -1960,7 +1959,6 @@ def test_diff_basis_unsupp_space():
     and any_discontinuous_space_*) in kernel stub generation.
     This information will be passed from the PSy layer to the
     kernels (see issue #461). '''
-    from psyclone.dynamo0p3 import VALID_FUNCTION_SPACES
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1969,8 +1967,8 @@ def test_diff_basis_unsupp_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unsupported space for differential basis function, expecting one "
-            "of " + str(VALID_FUNCTION_SPACES) + " but found 'any_space_1'"
-            in str(excinfo.value))
+            "of " + str(FunctionSpace.VALID_FUNCTION_SPACES) + " but found "
+            "'any_space_1'" in str(excinfo.value))
     # Test any_discontinuous_space_*
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                                 "any_discontinuous_space_5")

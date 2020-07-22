@@ -33,6 +33,7 @@
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
@@ -994,7 +995,7 @@ def test_omp_region_invalid_node():
 
     with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply(new_sched.children)
-    assert ("ACCParallelDirective'>' cannot be enclosed by a "
+    assert ("ACCParallelDirective' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
 
     # Check that the test can be disabled with the appropriate option:
@@ -1465,7 +1466,7 @@ def test_go_loop_swap_errors():
     psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
                              "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
-        swap.apply(invoke.schedule.children[3])
+        swap.apply(invoke.schedule.children[4])
 
     assert re.search("Given node .* is not a GOLoop, "
                      "but an instance of .*DynLoop",
@@ -1609,7 +1610,7 @@ def test_acc_parallel_invalid_node():
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
         _, _ = accpara.apply(new_sched.children[0])
-    assert ("GOACCEnterDataDirective'>' cannot be enclosed by a "
+    assert ("'GOACCEnterDataDirective' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
 
 

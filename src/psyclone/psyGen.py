@@ -41,6 +41,7 @@
     particular API and implementation. '''
 
 from __future__ import print_function, absolute_import
+from collections import OrderedDict
 import abc
 import six
 from fparser.two import Fortran2003
@@ -64,9 +65,11 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
-# Names of types of scalar variable
-MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-
+# Names of internal scalar argument types
+MAPPING_SCALARS_LIST = ["iscalar", "rscalar"]
+# Mapping from domain-specific scalar-type names to internal scalar
+# types. Can be overridden in domain-specific modules.
+MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
 
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
@@ -552,41 +555,50 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, datatype, access=None):
-        ''' Returns a list of all required declarations for the
-        specified datatype. If access is supplied (e.g. "write") then
-        only declarations with that access are returned.
-        :param string datatype: The type of the kernel argument for the \
-                                particular API for which the intent is \
-                                required
-        :param access: Optional AccessType that the declaration should have.
-        :returns: List of all declared names.
-        :rtype: A list of strings.
-        :raises: GenerationError if an invalid datatype is given.
-        :raises: InternalError if an invalid access is specified.
+    def unique_declarations(self, argument_type, access=None):
         '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
-                "unique_declarations called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
+        Returns a list of all required declarations for the specified
+        API argument type. If access is supplied (e.g. "write") then
+        only declarations with that access are returned.
+
+        :param str argument_type: the type of the kernel argument for \
+                                  the particular API for which the intent \
+                                  is required.
+        :param access: optional AccessType that the declaration should have.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
+
+        :returns: a list of all declared kernel arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
+
+        :raises InternalError: if an invalid argument type is given.
+        :raises InternalError: if an invalid access is specified.
+
+        '''
+        if argument_type not in VALID_ARG_TYPE_NAMES:
+            raise InternalError(
+                "Invoke.unique_declarations() called with an invalid argument "
+                "type. Expected one of {0} but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), argument_type))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "unique_declarations called with an invalid access type. "
-                "Type is {0} instead of AccessType".
-                format(type(access)))
+                "Invoke.unique_declarations() called with an invalid access "
+                "type. Type is '{0}' instead of AccessType".
+                format(str(access)))
 
-        declarations = []
+        # Initialise dictionary of kernel arguments to get the
+        # argument list from
+        declarations = OrderedDict()
+        # Find unique kernel arguments using their declaration names
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
-                        if arg.type == datatype:
+                        if arg.type == argument_type:
                             test_name = arg.declaration_name
                             if test_name not in declarations:
-                                declarations.append(test_name)
-        return declarations
+                                declarations[test_name] = arg
+        return list(declarations.values())
 
     def first_access(self, arg_name):
         ''' Returns the first argument with the specified name passed to
@@ -599,56 +611,28 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, datatype):
+    def unique_declns_by_intent(self, argument_type):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string datatype: the type of the kernel argument for the \
-                                particular API for which the intent is \
-                                required
+        :param str argument_type: the type of the kernel argument for the \
+                                  particular API for which the intent is \
+                                  required.
+
         :returns: dictionary containing 'intent' keys holding the kernel \
-                  argument intent and declarations of all kernel arguments \
-                  for each type of intent
-        :rtype: dict
-        :raises GenerationError: if the kernel argument is not a valid \
-                                 datatype for the particular API.
+                  arguments as values for each type of intent.
+        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
+
+        :raises InternalError: if the kernel argument is not a valid \
+                               argument type for the particular API.
 
         '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
-                "unique_declns_by_intent called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
-
-        # Get the lists of all kernel arguments that are accessed as
-        # inc (shared update), write, read and readwrite (independent
-        # update). A single argument may be accessed in different ways
-        # by different kernels.
-        inc_args = self.unique_declarations(datatype, access=AccessType.INC)
-        write_args = self.unique_declarations(datatype,
-                                              access=AccessType.WRITE)
-        read_args = self.unique_declarations(datatype, access=AccessType.READ)
-        readwrite_args = self.unique_declarations(datatype,
-                                                  AccessType.READWRITE)
-        sum_args = self.unique_declarations(datatype, access=AccessType.SUM)
-        # sum_args behave as if they are write_args from
-        # the PSy-layer's perspective.
-        write_args += sum_args
-        # readwrite_args behave in the same way as inc_args
-        # from the perspective of first access and intents
-        inc_args += readwrite_args
-        # Rationalise our lists so that any fields that are updated
-        # (have inc or readwrite access) do not appear in the list
-        # of those that are only written to
-        for arg in write_args[:]:
-            if arg in inc_args:
-                write_args.remove(arg)
-        # Fields that are only ever read by any kernel that
-        # accesses them
-        for arg in read_args[:]:
-            if arg in write_args or arg in inc_args:
-                read_args.remove(arg)
+        if argument_type not in VALID_ARG_TYPE_NAMES:
+            raise InternalError(
+                "Invoke.unique_declns_by_intent() called with an invalid "
+                "argument type. Expected one of {0} but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), argument_type))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -656,38 +640,35 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for name in inc_args:
-            # For every arg that is updated ('inc'd' or readwritten)
-            # by at least one kernel, identify the type of the first
-            # access. If it is 'write' then the arg is only
-            # intent(out), otherwise it is intent(inout)
-            first_arg = self.first_access(name)
-            if first_arg.access != AccessType.WRITE:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
+        for arg in self.unique_declarations(argument_type):
+            first_arg = self.first_access(arg.declaration_name)
+            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+                # If the first access is a write then the intent is
+                # out irrespective of any other accesses. Note,
+                # sum_args behave as if they are write_args from the
+                # PSy-layer's perspective.
+                declns["out"].append(arg)
+                continue
+            # if all accesses are read, then the intent is in,
+            # otherwise the intent is inout (as we have already
+            # dealt with intent out).
+            read_only = True
+            for call in self.schedule.kernels():
+                for tmp_arg in call.arguments.args:
+                    if tmp_arg.text is not None and \
+                       tmp_arg.declaration_name == arg.declaration_name:
+                        if tmp_arg.access != AccessType.READ:
+                            # readwrite_args behave in the
+                            # same way as inc_args from the
+                            # perspective of intents
+                            read_only = False
+                            break
+                if not read_only:
+                    break
+            if read_only:
+                declns["in"].append(arg)
             else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        for name in write_args:
-            # For every argument that is written to by at least one kernel,
-            # identify the type of the first access - if it is read
-            # or inc'd before it is written then it must have intent(inout).
-            # However, we deal with inc and readwrite args separately so we
-            # do not consider those here.
-            first_arg = self.first_access(name)
-            if first_arg.access == AccessType.READ:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
-            else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        for name in read_args:
-            # Anything we have left must be declared as intent(in)
-            if name not in declns["in"]:
-                declns["in"].append(name)
-
+                declns["inout"].append(arg)
         return declns
 
     def gen(self):
@@ -908,7 +889,7 @@ class InvokeSchedule(Schedule):
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
         module_map = {}
-        for globalvar in self.symbol_table.global_datasymbols:
+        for globalvar in self.symbol_table.global_symbols:
             module_name = globalvar.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(globalvar.name)
@@ -4131,7 +4112,7 @@ class KernelSchedule(Schedule):
 
         kern = KernelSchedule(name)
         kern._symbol_table = symbol_table
-        symbol_table._schedule = kern
+        symbol_table._node = kern
         for child in children:
             child.parent = kern
         kern.children = children

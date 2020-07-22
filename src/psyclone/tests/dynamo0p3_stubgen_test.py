@@ -43,7 +43,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
@@ -60,32 +61,10 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
-def test_kernel_stub_invalid_scalar_argument():
-    '''Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
-    arg = kernel.arguments.args[1]
-    arg._type = "invalid"
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(InternalError) as excinfo:
-        create_arg_list.scalar(arg)
-    assert (
-        "Expected argument type to be one of '['gh_real', "
-        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
-
-
 def test_dynscalars_err(monkeypatch):
     ''' Check that the DynScalarArgs constructor raises the expected error
     if it encounters an unrecognised type of scalar. '''
     from psyclone.dynamo0p3 import DynScalarArgs
-    from psyclone import dynamo0p3
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
@@ -96,76 +75,14 @@ def test_dynscalars_err(monkeypatch):
     arg = kernel.arguments.args[1]
     arg._type = "invalid-scalar-type"
     # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(dynamo0p3, "GH_VALID_SCALAR_NAMES",
-                        ["gh_real", "gh_integer", "invalid-scalar-type"])
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_SCALAR_NAMES",
+        value=["gh_real", "gh_integer", "invalid-scalar-type"])
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
-            "but not handled" in str(err.value))
-
-
-def test_kernel_stub_ind_dofmap_errors():
-    '''Check that we raise the expected exceptions if the wrong arguments
-    are supplied to KernelStubArgList.indirection_dofmap() '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    # First call it without an argument object
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3")
-    assert "no CMA operator supplied" in str(excinfo.value)
-    # Second, call it with an argument object but one that is not
-    # an operator
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
-    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
-
-
-def test_kernstubarglist_arglist_error():
-    '''Check that we raise an exception if we call the arglist method in
-    kernstubarglist without first calling the generate method'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = create_arg_list.arglist
-    assert (
-        "Internal error. The argument list in KernStubArgList:arglist() is "
-        "empty. Has the generate() method been "
-        "called?") in str(excinfo.value)
-
-
-def test_kernstubarglist_eval_shape_error():
-    ''' Check that we raise the expected exception if we call the basis() or
-    diff_basis() methods and one of the kernel's evaluator shapes is
-    invalid. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_faces_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    create_arg_list = KernStubArgList(kernel)
-    # Break the list of qr rules
-    kernel.eval_shapes.insert(0, "broken")
-    with pytest.raises(InternalError) as err:
-        create_arg_list.basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
-    with pytest.raises(InternalError) as err:
-        create_arg_list.diff_basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
+    assert ("Scalar type 'invalid-scalar-type' is in LFRicArgDescriptor."
+            "VALID_SCALAR_NAMES but is not handled in DynScalarArgs"
+            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -195,14 +112,14 @@ SIMPLE = (
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
     "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
-    " field_1_w1\n"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+    "field_1_w1\n"
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
 
 
 def test_stub_generate_working():
-    ''' check that the stub generate produces the expected output '''
+    ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "simple.f90"),
                       api=TEST_API)
     assert SIMPLE in str(result)
@@ -229,7 +146,7 @@ SIMPLE_WITH_SCALARS = (
     "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
     "      INTEGER(KIND=i_def), intent(in) :: iscalar_3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) ::"
     " field_2_w1\n"
     "    END SUBROUTINE simple_with_scalars_code\n"
     "  END MODULE simple_with_scalars_mod")
@@ -308,7 +225,9 @@ def test_load_meta_wrong_type():
     metadata.arg_descriptors[0]._type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
-    assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
+    assert ("DynKern.load_meta() expected one of {0} but found "
+            "'gh_hedge'".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_intent():
@@ -575,15 +494,15 @@ def test_vectors():
 
 
 def test_arg_descriptor_vec_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have a vector quantity '''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected when we have a vector quantity. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(VECTORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_inc'\n"
         "  function_space[2]='w0'")
@@ -605,7 +524,7 @@ ORIENTATION_OUTPUT = (
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER(KIND=i_def), intent(in) :: "
     "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
     "field_1_w0\n"
     "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
     "field_3_w2\n"

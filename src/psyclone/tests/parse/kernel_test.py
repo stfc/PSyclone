@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified: C.M. Maynard, Met Office / University of Reading
+# Modified I. Kavcic, Met Office
+# Modified C.M. Maynard, Met Office / University of Reading
 
 '''A module to perform pytest unit tests on the parse/kernel.py
 file. Some tests for this file are in parse_test.py. This file adds
@@ -56,7 +57,7 @@ CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
     "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "          (/ arg_type(gh_field, gh_inc, w1) /)\n"
     "     integer :: iterates_over = cells\n"
     "   contains\n"
     "     procedure, nopass :: code => test_code\n"
