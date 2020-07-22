@@ -50,6 +50,11 @@ LIB_NAME = lib_read_only.a
 
 OBJS = read_only.o psy_data_base.o read_only_base.o
 
+# The arguments for the jinja templates. GOcean only needs
+# 2 dimensional arrays.
+PROCESS_ARGS = -prefix=read_only_verification -types=int,real,double \
+		       -dims=2
+
 default: $(LIB_NAME)
 
 $(LIB_NAME):	$(OBJS)
@@ -62,10 +67,10 @@ read_only.o: $(INF_LIB) psy_data_base.o read_only_base.o
 	$(F90) $(F90FLAGS) -c $<
 
 psy_data_base.f90: ../../psy_data_base.jinja
-	../../process.py $< > psy_data_base.f90
+	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja
-	../../process.py $< > read_only_base.f90
+	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*

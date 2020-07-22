@@ -5,8 +5,10 @@
 {{ "! DO NOT MODIFY DIRECTLY                            " }}
 {{ "! ==================================================" }}
 
-{# Support 1 to 4 dimensional arrays #}
-{% set ALL_DIMS = [1, 2, 3, 4] %}
+{% if ALL_DIMS is not defined %}
+   {# Support 1 to 4 dimensional arrays if not specified #}
+   {% set ALL_DIMS = [1, 2, 3, 4] %}
+{% endif %}
 
 {# The types that are supported. The first entry of each tuple
    is the name used when naming subroutines and in user messages.
@@ -16,9 +18,11 @@
    Fortran transfer(value, mould) leaves undefined bits when
    mould is larger than value. #}
 
-{% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                     ("Real",   "real(kind=real32)",   32),
-                     ("Int",    "integer(kind=int32)", 32) ] %}
+{% if ALL_TYPES is not defined %}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                        ("Real",   "real(kind=real32)",   32),
+                        ("Int",    "integer(kind=int32)", 32) ] %}
+{% endif %}
 
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
@@ -89,11 +93,12 @@ module psy_data_base_mod
             procedure :: PreStart, PreEndDeclaration, PreEnd
             procedure :: PostStart, PostEnd, Abort
             {% for name, type, bits in ALL_TYPES %}
-                procedure :: DeclareScalar{{name}}
-                procedure :: ProvideScalar{{name}}
+            procedure :: DeclareScalar{{name}}
+            procedure :: ProvideScalar{{name}}
                 {% for dim in ALL_DIMS %}
-                    procedure :: DeclareArray{{dim}}d{{name}}
-                    procedure :: provideArray{{dim}}d{{name}}
+                {# This indentation makes it easier to read the output #}
+                procedure :: DeclareArray{{dim}}d{{name}}
+                procedure :: provideArray{{dim}}d{{name}}
                 {% endfor %}
             {% endfor %}
 

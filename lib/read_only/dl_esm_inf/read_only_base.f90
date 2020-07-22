@@ -71,21 +71,21 @@ module read_only_base_mod
         procedure :: PreStart, PreEndDeclaration
         procedure :: PostStart
 
-        procedure :: ProvideScalarDouble
-        procedure :: ProvideArray1dDouble
-        procedure :: ProvideArray2dDouble
-        procedure :: ProvideArray3dDouble
-        procedure :: ProvideArray4dDouble
-        procedure :: ProvideScalarReal
-        procedure :: ProvideArray1dReal
-        procedure :: ProvideArray2dReal
-        procedure :: ProvideArray3dReal
-        procedure :: ProvideArray4dReal
         procedure :: ProvideScalarInt
         procedure :: ProvideArray1dInt
         procedure :: ProvideArray2dInt
         procedure :: ProvideArray3dInt
         procedure :: ProvideArray4dInt
+        procedure :: ProvideScalarReal
+        procedure :: ProvideArray1dReal
+        procedure :: ProvideArray2dReal
+        procedure :: ProvideArray3dReal
+        procedure :: ProvideArray4dReal
+        procedure :: ProvideScalarDouble
+        procedure :: ProvideArray1dDouble
+        procedure :: ProvideArray2dDouble
+        procedure :: ProvideArray3dDouble
+        procedure :: ProvideArray4dDouble
 
     end type ReadOnlyBaseType
 
@@ -93,18 +93,18 @@ module read_only_base_mod
     ! Generic interface for all ComputeChecksum functions
     interface ComputeChecksum
       module procedure &
-        ComputeChecksum1dDouble, &
-        ComputeChecksum2dDouble, &
-        ComputeChecksum3dDouble, &
-        ComputeChecksum4dDouble, &
+        ComputeChecksum1dInt, &
+        ComputeChecksum2dInt, &
+        ComputeChecksum3dInt, &
+        ComputeChecksum4dInt, &
         ComputeChecksum1dReal, &
         ComputeChecksum2dReal, &
         ComputeChecksum3dReal, &
         ComputeChecksum4dReal, &
-        ComputeChecksum1dInt, &
-        ComputeChecksum2dInt, &
-        ComputeChecksum3dInt, &
-        ComputeChecksum4dInt
+        ComputeChecksum1dDouble, &
+        ComputeChecksum2dDouble, &
+        ComputeChecksum3dDouble, &
+        ComputeChecksum4dDouble
     end interface ComputeChecksum
 
     public ComputeChecksum
@@ -193,34 +193,39 @@ Contains
 
 
     ! =========================================================================
-    ! Implementation for all real(kind=real64) types
+    ! Implementation for all integer(kind=int32) types
     ! =========================================================================
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
-    !! (depending on this%verify_checksums) for a single Double.
+    !! (depending on this%verify_checksums) for a single Int.
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideScalarDouble(this, name, value)
+    subroutine ProvideScalarInt(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real(kind=real64), intent(in)     :: value
+        integer(kind=int32), intent(in)     :: value
 
-        real(kind=real64)            :: orig_value
+        integer(kind=int32)            :: orig_value
         integer(kind=int64) :: checksum, int_64
 
+        integer(kind=int32) :: int_32
 
-        checksum = transfer(value, int_64)
+        ! `transfer` leaves undefined bits in a 64-bit value
+        ! so assign to 32-bit, then assign to 64-bit to have all bits defined
+        int_32 = transfer(value, int_32)
+        checksum = int_32
 
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "real(kind=real64) variable ", name, " has been modified in ", &
+                write(stderr,*) "integer(kind=int32) variable ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 ! We can recreate the original value which is stored as
                 ! 64-bit integer as the checksum:
-                orig_value = transfer(this%checksums(this%next_var_index), orig_value)
+                int_32 = this%checksums(this%next_var_index)
+                orig_value = transfer(int_32, orig_value)
                 write(stderr,*) "Original value: ", orig_value
                 write(stderr,*) "New value:      ", value
                 write(stderr,*) "------------- PSyData -------------------------"
@@ -230,8 +235,8 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideScalarDouble(name, value)
-    end subroutine ProvideScalarDouble
+        call this%PSyDataBaseType%ProvideScalarInt(name, value)
+    end subroutine ProvideScalarInt
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -239,11 +244,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray1dDouble(this, name, value)
+    subroutine ProvideArray1dInt(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real(kind=real64), dimension(:), intent(in) :: value
+        integer(kind=int32), dimension(:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -251,7 +256,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "1d Double array ", name, " has been modified in ", &
+                write(stderr,*) "1d Int array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -262,26 +267,30 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray1dDouble(name, value)
-    end subroutine ProvideArray1dDouble
+        call this%PSyDataBaseType%ProvideArray1dInt(name, value)
+    end subroutine ProvideArray1dInt
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 1d
-    !! real(kind=real64) Fortran array.
-    function ComputeChecksum1dDouble(field) result(checksum)
+    !! integer(kind=int32) Fortran array.
+    function ComputeChecksum1dInt(field) result(checksum)
         implicit none
-        real(kind=real64), dimension(:) :: field
+        integer(kind=int32), dimension(:) :: field
 
         integer :: i1
+        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
         do i1=1, size(field, 1)
-           int_64 = transfer(field(i1), checksum)
+           ! transfer leaves undefined bits in a 64-bit target
+           ! so we transfer to 32-bits and then assign to 64-bit
+           int_32 = transfer(field(i1), int_32)
+           int_64 = int_32
            checksum = checksum + int_64
         enddo
-    end function ComputeChecksum1dDouble
+    end function ComputeChecksum1dInt
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -289,11 +298,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray2dDouble(this, name, value)
+    subroutine ProvideArray2dInt(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real(kind=real64), dimension(:,:), intent(in) :: value
+        integer(kind=int32), dimension(:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -301,7 +310,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "2d Double array ", name, " has been modified in ", &
+                write(stderr,*) "2d Int array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -312,28 +321,32 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray2dDouble(name, value)
-    end subroutine ProvideArray2dDouble
+        call this%PSyDataBaseType%ProvideArray2dInt(name, value)
+    end subroutine ProvideArray2dInt
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 2d
-    !! real(kind=real64) Fortran array.
-    function ComputeChecksum2dDouble(field) result(checksum)
+    !! integer(kind=int32) Fortran array.
+    function ComputeChecksum2dInt(field) result(checksum)
         implicit none
-        real(kind=real64), dimension(:,:) :: field
+        integer(kind=int32), dimension(:,:) :: field
 
         integer :: i1,i2
+        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
         do i2=1, size(field, 2)
            do i1=1, size(field, 1)
-              int_64 = transfer(field(i1,i2), checksum)
+              ! transfer leaves undefined bits in a 64-bit target
+              ! so we transfer to 32-bits and then assign to 64-bit
+              int_32 = transfer(field(i1,i2), int_32)
+              int_64 = int_32
               checksum = checksum + int_64
            enddo
         enddo
-    end function ComputeChecksum2dDouble
+    end function ComputeChecksum2dInt
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -341,11 +354,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray3dDouble(this, name, value)
+    subroutine ProvideArray3dInt(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real(kind=real64), dimension(:,:,:), intent(in) :: value
+        integer(kind=int32), dimension(:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -353,7 +366,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "3d Double array ", name, " has been modified in ", &
+                write(stderr,*) "3d Int array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -364,30 +377,34 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray3dDouble(name, value)
-    end subroutine ProvideArray3dDouble
+        call this%PSyDataBaseType%ProvideArray3dInt(name, value)
+    end subroutine ProvideArray3dInt
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 3d
-    !! real(kind=real64) Fortran array.
-    function ComputeChecksum3dDouble(field) result(checksum)
+    !! integer(kind=int32) Fortran array.
+    function ComputeChecksum3dInt(field) result(checksum)
         implicit none
-        real(kind=real64), dimension(:,:,:) :: field
+        integer(kind=int32), dimension(:,:,:) :: field
 
         integer :: i1,i2,i3
+        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
         do i3=1, size(field, 3)
            do i2=1, size(field, 2)
               do i1=1, size(field, 1)
-                 int_64 = transfer(field(i1,i2,i3), checksum)
+                 ! transfer leaves undefined bits in a 64-bit target
+                 ! so we transfer to 32-bits and then assign to 64-bit
+                 int_32 = transfer(field(i1,i2,i3), int_32)
+                 int_64 = int_32
                  checksum = checksum + int_64
               enddo
            enddo
         enddo
-    end function ComputeChecksum3dDouble
+    end function ComputeChecksum3dInt
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -395,11 +412,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray4dDouble(this, name, value)
+    subroutine ProvideArray4dInt(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real(kind=real64), dimension(:,:,:,:), intent(in) :: value
+        integer(kind=int32), dimension(:,:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -407,7 +424,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "4d Double array ", name, " has been modified in ", &
+                write(stderr,*) "4d Int array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -418,18 +435,19 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray4dDouble(name, value)
-    end subroutine ProvideArray4dDouble
+        call this%PSyDataBaseType%ProvideArray4dInt(name, value)
+    end subroutine ProvideArray4dInt
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 4d
-    !! real(kind=real64) Fortran array.
-    function ComputeChecksum4dDouble(field) result(checksum)
+    !! integer(kind=int32) Fortran array.
+    function ComputeChecksum4dInt(field) result(checksum)
         implicit none
-        real(kind=real64), dimension(:,:,:,:) :: field
+        integer(kind=int32), dimension(:,:,:,:) :: field
 
         integer :: i1,i2,i3,i4
+        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
@@ -437,13 +455,16 @@ Contains
            do i3=1, size(field, 3)
               do i2=1, size(field, 2)
                  do i1=1, size(field, 1)
-                    int_64 = transfer(field(i1,i2,i3,i4), checksum)
+                    ! transfer leaves undefined bits in a 64-bit target
+                    ! so we transfer to 32-bits and then assign to 64-bit
+                    int_32 = transfer(field(i1,i2,i3,i4), int_32)
+                    int_64 = int_32
                     checksum = checksum + int_64
                  enddo
               enddo
            enddo
         enddo
-    end function ComputeChecksum4dDouble
+    end function ComputeChecksum4dInt
 
    
     ! =========================================================================
@@ -722,39 +743,34 @@ Contains
 
    
     ! =========================================================================
-    ! Implementation for all integer(kind=int32) types
+    ! Implementation for all real(kind=real64) types
     ! =========================================================================
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
-    !! (depending on this%verify_checksums) for a single Int.
+    !! (depending on this%verify_checksums) for a single Double.
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideScalarInt(this, name, value)
+    subroutine ProvideScalarDouble(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        integer(kind=int32), intent(in)     :: value
+        real(kind=real64), intent(in)     :: value
 
-        integer(kind=int32)            :: orig_value
+        real(kind=real64)            :: orig_value
         integer(kind=int64) :: checksum, int_64
 
-        integer(kind=int32) :: int_32
 
-        ! `transfer` leaves undefined bits in a 64-bit value
-        ! so assign to 32-bit, then assign to 64-bit to have all bits defined
-        int_32 = transfer(value, int_32)
-        checksum = int_32
+        checksum = transfer(value, int_64)
 
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "integer(kind=int32) variable ", name, " has been modified in ", &
+                write(stderr,*) "real(kind=real64) variable ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 ! We can recreate the original value which is stored as
                 ! 64-bit integer as the checksum:
-                int_32 = this%checksums(this%next_var_index)
-                orig_value = transfer(int_32, orig_value)
+                orig_value = transfer(this%checksums(this%next_var_index), orig_value)
                 write(stderr,*) "Original value: ", orig_value
                 write(stderr,*) "New value:      ", value
                 write(stderr,*) "------------- PSyData -------------------------"
@@ -764,8 +780,8 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideScalarInt(name, value)
-    end subroutine ProvideScalarInt
+        call this%PSyDataBaseType%ProvideScalarDouble(name, value)
+    end subroutine ProvideScalarDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -773,11 +789,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray1dInt(this, name, value)
+    subroutine ProvideArray1dDouble(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        integer(kind=int32), dimension(:), intent(in) :: value
+        real(kind=real64), dimension(:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -785,7 +801,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "1d Int array ", name, " has been modified in ", &
+                write(stderr,*) "1d Double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -796,30 +812,26 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray1dInt(name, value)
-    end subroutine ProvideArray1dInt
+        call this%PSyDataBaseType%ProvideArray1dDouble(name, value)
+    end subroutine ProvideArray1dDouble
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 1d
-    !! integer(kind=int32) Fortran array.
-    function ComputeChecksum1dInt(field) result(checksum)
+    !! real(kind=real64) Fortran array.
+    function ComputeChecksum1dDouble(field) result(checksum)
         implicit none
-        integer(kind=int32), dimension(:) :: field
+        real(kind=real64), dimension(:) :: field
 
         integer :: i1
-        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
         do i1=1, size(field, 1)
-           ! transfer leaves undefined bits in a 64-bit target
-           ! so we transfer to 32-bits and then assign to 64-bit
-           int_32 = transfer(field(i1), int_32)
-           int_64 = int_32
+           int_64 = transfer(field(i1), checksum)
            checksum = checksum + int_64
         enddo
-    end function ComputeChecksum1dInt
+    end function ComputeChecksum1dDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -827,11 +839,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray2dInt(this, name, value)
+    subroutine ProvideArray2dDouble(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        integer(kind=int32), dimension(:,:), intent(in) :: value
+        real(kind=real64), dimension(:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -839,7 +851,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "2d Int array ", name, " has been modified in ", &
+                write(stderr,*) "2d Double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -850,32 +862,28 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray2dInt(name, value)
-    end subroutine ProvideArray2dInt
+        call this%PSyDataBaseType%ProvideArray2dDouble(name, value)
+    end subroutine ProvideArray2dDouble
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 2d
-    !! integer(kind=int32) Fortran array.
-    function ComputeChecksum2dInt(field) result(checksum)
+    !! real(kind=real64) Fortran array.
+    function ComputeChecksum2dDouble(field) result(checksum)
         implicit none
-        integer(kind=int32), dimension(:,:) :: field
+        real(kind=real64), dimension(:,:) :: field
 
         integer :: i1,i2
-        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
         do i2=1, size(field, 2)
            do i1=1, size(field, 1)
-              ! transfer leaves undefined bits in a 64-bit target
-              ! so we transfer to 32-bits and then assign to 64-bit
-              int_32 = transfer(field(i1,i2), int_32)
-              int_64 = int_32
+              int_64 = transfer(field(i1,i2), checksum)
               checksum = checksum + int_64
            enddo
         enddo
-    end function ComputeChecksum2dInt
+    end function ComputeChecksum2dDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -883,11 +891,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray3dInt(this, name, value)
+    subroutine ProvideArray3dDouble(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        integer(kind=int32), dimension(:,:,:), intent(in) :: value
+        real(kind=real64), dimension(:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -895,7 +903,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "3d Int array ", name, " has been modified in ", &
+                write(stderr,*) "3d Double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -906,34 +914,30 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray3dInt(name, value)
-    end subroutine ProvideArray3dInt
+        call this%PSyDataBaseType%ProvideArray3dDouble(name, value)
+    end subroutine ProvideArray3dDouble
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 3d
-    !! integer(kind=int32) Fortran array.
-    function ComputeChecksum3dInt(field) result(checksum)
+    !! real(kind=real64) Fortran array.
+    function ComputeChecksum3dDouble(field) result(checksum)
         implicit none
-        integer(kind=int32), dimension(:,:,:) :: field
+        real(kind=real64), dimension(:,:,:) :: field
 
         integer :: i1,i2,i3
-        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
         do i3=1, size(field, 3)
            do i2=1, size(field, 2)
               do i1=1, size(field, 1)
-                 ! transfer leaves undefined bits in a 64-bit target
-                 ! so we transfer to 32-bits and then assign to 64-bit
-                 int_32 = transfer(field(i1,i2,i3), int_32)
-                 int_64 = int_32
+                 int_64 = transfer(field(i1,i2,i3), checksum)
                  checksum = checksum + int_64
               enddo
            enddo
         enddo
-    end function ComputeChecksum3dInt
+    end function ComputeChecksum3dDouble
 
     ! -------------------------------------------------------------------------
     !> This subroutine either computes a checksum or compares a checksum
@@ -941,11 +945,11 @@ Contains
     !! @param[inout] this The instance of the ReadOnlyBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideArray4dInt(this, name, value)
+    subroutine ProvideArray4dDouble(this, name, value)
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        integer(kind=int32), dimension(:,:,:,:), intent(in) :: value
+        real(kind=real64), dimension(:,:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
 
@@ -953,7 +957,7 @@ Contains
         if (this%verify_checksums) then
             if (checksum /= this%checksums(this%next_var_index)) then
                 write(stderr,*) "------------- PSyData -------------------------"
-                write(stderr,*) "4d Int array ", name, " has been modified in ", &
+                write(stderr,*) "4d Double array ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
                 write(stderr,*) "Original checksum: ", this%checksums(this%next_var_index)
                 write(stderr,*) "New checksum:      ", checksum
@@ -964,19 +968,18 @@ Contains
         else
             this%checksums(this%next_var_index) = checksum
         endif
-        call this%PSyDataBaseType%ProvideArray4dInt(name, value)
-    end subroutine ProvideArray4dInt
+        call this%PSyDataBaseType%ProvideArray4dDouble(name, value)
+    end subroutine ProvideArray4dDouble
 
 
     ! -------------------------------------------------------------------------
     !> This function computes a 64-bit integer checksum for a 4d
-    !! integer(kind=int32) Fortran array.
-    function ComputeChecksum4dInt(field) result(checksum)
+    !! real(kind=real64) Fortran array.
+    function ComputeChecksum4dDouble(field) result(checksum)
         implicit none
-        integer(kind=int32), dimension(:,:,:,:) :: field
+        real(kind=real64), dimension(:,:,:,:) :: field
 
         integer :: i1,i2,i3,i4
-        integer(kind=int32) :: int_32
         integer(kind=int64) :: checksum, int_64
 
         checksum = 0
@@ -984,16 +987,13 @@ Contains
            do i3=1, size(field, 3)
               do i2=1, size(field, 2)
                  do i1=1, size(field, 1)
-                    ! transfer leaves undefined bits in a 64-bit target
-                    ! so we transfer to 32-bits and then assign to 64-bit
-                    int_32 = transfer(field(i1,i2,i3,i4), int_32)
-                    int_64 = int_32
+                    int_64 = transfer(field(i1,i2,i3,i4), checksum)
                     checksum = checksum + int_64
                  enddo
               enddo
            enddo
         enddo
-    end function ComputeChecksum4dInt
+    end function ComputeChecksum4dDouble
 
       
     ! -------------------------------------------------------------------------

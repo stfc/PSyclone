@@ -42,7 +42,8 @@
 # This directory points to an external, compiled version of the LFRic,
 # which is required to find the module files when compiling this library:
 LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
-
+PROCESS_ARGS = -prefix=read_only_verification -types=real,int,double \
+		       -dims=1,2,3,4
 F90 ?= gfortran
 F90FLAGS ?= -O0 -g
 F90FLAGS += -I$(LFRIC_DIR)
@@ -65,16 +66,16 @@ read_only.o: $(LFRIC_DIR)/field_mod.mod read_only.f90 \
 read_only.o: read_only_base.o
 
 %.f90:	%.jinja
-	../../process.py $< > $*.f90
+	../../process.py $(PROCESS_ARGS) $< > $*.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 psy_data_base.f90: ../../psy_data_base.jinja
-	../../process.py $< > psy_data_base.f90
+	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja
-	../../process.py $< > read_only_base.f90
+	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*

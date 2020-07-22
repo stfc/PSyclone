@@ -42,7 +42,8 @@
 ! Authors J. Henrichs, Bureau of Meteorology
 
 module psy_data_base_mod
-    use, intrinsic :: iso_fortran_env, only : int64, int32, &
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
                                               stderr=>Error_Unit
     implicit none
 
@@ -72,37 +73,37 @@ module psy_data_base_mod
 
         contains
             procedure :: PreStart, PreEndDeclaration, PreEnd
-            procedure :: PostStart, PostEnd
-                procedure :: DeclareScalarDouble
-                procedure :: ProvideScalarDouble
-                    procedure :: DeclareArray1dDouble
-                    procedure :: provideArray1dDouble
-                    procedure :: DeclareArray2dDouble
-                    procedure :: provideArray2dDouble
-                    procedure :: DeclareArray3dDouble
-                    procedure :: provideArray3dDouble
-                    procedure :: DeclareArray4dDouble
-                    procedure :: provideArray4dDouble
-                procedure :: DeclareScalarReal
-                procedure :: ProvideScalarReal
-                    procedure :: DeclareArray1dReal
-                    procedure :: provideArray1dReal
-                    procedure :: DeclareArray2dReal
-                    procedure :: provideArray2dReal
-                    procedure :: DeclareArray3dReal
-                    procedure :: provideArray3dReal
-                    procedure :: DeclareArray4dReal
-                    procedure :: provideArray4dReal
-                procedure :: DeclareScalarInt
-                procedure :: ProvideScalarInt
-                    procedure :: DeclareArray1dInt
-                    procedure :: provideArray1dInt
-                    procedure :: DeclareArray2dInt
-                    procedure :: provideArray2dInt
-                    procedure :: DeclareArray3dInt
-                    procedure :: provideArray3dInt
-                    procedure :: DeclareArray4dInt
-                    procedure :: provideArray4dInt
+            procedure :: PostStart, PostEnd, Abort
+            procedure :: DeclareScalarReal
+            procedure :: ProvideScalarReal
+                procedure :: DeclareArray1dReal
+                procedure :: provideArray1dReal
+                procedure :: DeclareArray2dReal
+                procedure :: provideArray2dReal
+                procedure :: DeclareArray3dReal
+                procedure :: provideArray3dReal
+                procedure :: DeclareArray4dReal
+                procedure :: provideArray4dReal
+            procedure :: DeclareScalarInt
+            procedure :: ProvideScalarInt
+                procedure :: DeclareArray1dInt
+                procedure :: provideArray1dInt
+                procedure :: DeclareArray2dInt
+                procedure :: provideArray2dInt
+                procedure :: DeclareArray3dInt
+                procedure :: provideArray3dInt
+                procedure :: DeclareArray4dInt
+                procedure :: provideArray4dInt
+            procedure :: DeclareScalarDouble
+            procedure :: ProvideScalarDouble
+                procedure :: DeclareArray1dDouble
+                procedure :: provideArray1dDouble
+                procedure :: DeclareArray2dDouble
+                procedure :: provideArray2dDouble
+                procedure :: DeclareArray3dDouble
+                procedure :: provideArray3dDouble
+                procedure :: DeclareArray4dDouble
+                procedure :: provideArray4dDouble
 
     end type PSyDataBaseType
 
@@ -201,6 +202,18 @@ contains
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
+    !> Displays the message and aborts execution. This base implementation
+    !! just uses `stop`.
+    !! @param[in] message Error message to be displayed (string).
+    subroutine Abort(this, message)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*) :: message
+
+        stop message
+    end subroutine Abort
+
+    ! -------------------------------------------------------------------------
     !> An optional initialisation subroutine.
     subroutine PSyDataInit()
       implicit none
@@ -223,178 +236,7 @@ contains
     ! Jinja created code:
     ! =========================================================================
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar double precision value. This
-    !! implementation only increases the next index, and prints
-    !! the name of the variable if verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareScalarDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, intent(in) :: value
-
-        this%next_var_index = this%next_var_index+1
-        if (this%verbosity>1) &
-            write(stderr,*) "PSyData: DeclareScalarDouble: ", &
-                            trim(this%module_name), " ",                &
-                            trim(this%region_name), ": ", name
-    end subroutine DeclareScalarDouble
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine provides a scalar double precision value. This
-    !! implementation only increases the next index.
-    !! @param[inout] this The instance of the PSyDataBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine ProvideScalarDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, intent(in) :: value
-
-        this%next_var_index = this%next_var_index+1
-    end subroutine ProvideScalarDouble
-
-    ! ---------------------------------------------------------------------
-    !> This subroutine handles a declaration of a 1d-array of
-    !! double precision values. This base implementation only increases
-    !! next_var_index and prints the name of the variable if
-    !! verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareArray1dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-        if (this%verbosity>1) &
-            write(stderr,*) "PSyData: DeclareArray1dDouble: ", &
-                            trim(this%module_name), " ",               &
-                            trim(this%region_name), ": ", name
-    end subroutine DeclareArray1dDouble
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 1d double precision array.
-    !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine ProvideArray1dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-    end subroutine ProvideArray1dDouble
-
-    ! ---------------------------------------------------------------------
-    !> This subroutine handles a declaration of a 2d-array of
-    !! double precision values. This base implementation only increases
-    !! next_var_index and prints the name of the variable if
-    !! verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareArray2dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-        if (this%verbosity>1) &
-            write(stderr,*) "PSyData: DeclareArray2dDouble: ", &
-                            trim(this%module_name), " ",               &
-                            trim(this%region_name), ": ", name
-    end subroutine DeclareArray2dDouble
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 2d double precision array.
-    !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine ProvideArray2dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-    end subroutine ProvideArray2dDouble
-
-    ! ---------------------------------------------------------------------
-    !> This subroutine handles a declaration of a 3d-array of
-    !! double precision values. This base implementation only increases
-    !! next_var_index and prints the name of the variable if
-    !! verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareArray3dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:,:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-        if (this%verbosity>1) &
-            write(stderr,*) "PSyData: DeclareArray3dDouble: ", &
-                            trim(this%module_name), " ",               &
-                            trim(this%region_name), ": ", name
-    end subroutine DeclareArray3dDouble
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 3d double precision array.
-    !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine ProvideArray3dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:,:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-    end subroutine ProvideArray3dDouble
-
-    ! ---------------------------------------------------------------------
-    !> This subroutine handles a declaration of a 4d-array of
-    !! double precision values. This base implementation only increases
-    !! next_var_index and prints the name of the variable if
-    !! verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine DeclareArray4dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:,:,:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-        if (this%verbosity>1) &
-            write(stderr,*) "PSyData: DeclareArray4dDouble: ", &
-                            trim(this%module_name), " ",               &
-                            trim(this%region_name), ": ", name
-    end subroutine DeclareArray4dDouble
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 4d double precision array.
-    !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[in] value The value of the variable.
-    subroutine ProvideArray4dDouble(this, name, value)
-        implicit none
-        class(PSyDataBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:,:,:), intent(in) :: value
-        this%next_var_index = this%next_var_index + 1
-    end subroutine ProvideArray4dDouble
-
-      ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar real value. This
+    !> This subroutine declares a scalar real(kind=real32) value. This
     !! implementation only increases the next index, and prints
     !! the name of the variable if verbose output is requested.
     !! @param[inout] this The instance of the PSyDataBaseType.
@@ -404,7 +246,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, intent(in) :: value
+        real(kind=real32), intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
         if (this%verbosity>1) &
@@ -414,7 +256,7 @@ contains
     end subroutine DeclareScalarReal
 
     ! -------------------------------------------------------------------------
-    !> This subroutine provides a scalar real value. This
+    !> This subroutine provides a scalar real(kind=real32) value. This
     !! implementation only increases the next index.
     !! @param[inout] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
@@ -423,14 +265,14 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, intent(in) :: value
+        real(kind=real32), intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
     end subroutine ProvideScalarReal
 
     ! ---------------------------------------------------------------------
     !> This subroutine handles a declaration of a 1d-array of
-    !! real values. This base implementation only increases
+    !! real(kind=real32) values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
     !! @param[inout] this The instance of the PSyDataBaseType.
@@ -440,7 +282,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:), intent(in) :: value
+        real(kind=real32), dimension(:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray1dReal: ", &
@@ -449,7 +291,7 @@ contains
     end subroutine DeclareArray1dReal
 
     ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 1d real array.
+    !> This subroutine handles a provide call for a 1d real(kind=real32) array.
     !! This base implementation only increases next_var_index.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -458,13 +300,13 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:), intent(in) :: value
+        real(kind=real32), dimension(:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
     end subroutine ProvideArray1dReal
 
     ! ---------------------------------------------------------------------
     !> This subroutine handles a declaration of a 2d-array of
-    !! real values. This base implementation only increases
+    !! real(kind=real32) values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
     !! @param[inout] this The instance of the PSyDataBaseType.
@@ -474,7 +316,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:,:), intent(in) :: value
+        real(kind=real32), dimension(:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray2dReal: ", &
@@ -483,7 +325,7 @@ contains
     end subroutine DeclareArray2dReal
 
     ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 2d real array.
+    !> This subroutine handles a provide call for a 2d real(kind=real32) array.
     !! This base implementation only increases next_var_index.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -492,13 +334,13 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:,:), intent(in) :: value
+        real(kind=real32), dimension(:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
     end subroutine ProvideArray2dReal
 
     ! ---------------------------------------------------------------------
     !> This subroutine handles a declaration of a 3d-array of
-    !! real values. This base implementation only increases
+    !! real(kind=real32) values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
     !! @param[inout] this The instance of the PSyDataBaseType.
@@ -508,7 +350,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:,:,:), intent(in) :: value
+        real(kind=real32), dimension(:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray3dReal: ", &
@@ -517,7 +359,7 @@ contains
     end subroutine DeclareArray3dReal
 
     ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 3d real array.
+    !> This subroutine handles a provide call for a 3d real(kind=real32) array.
     !! This base implementation only increases next_var_index.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -526,13 +368,13 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:,:,:), intent(in) :: value
+        real(kind=real32), dimension(:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
     end subroutine ProvideArray3dReal
 
     ! ---------------------------------------------------------------------
     !> This subroutine handles a declaration of a 4d-array of
-    !! real values. This base implementation only increases
+    !! real(kind=real32) values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
     !! @param[inout] this The instance of the PSyDataBaseType.
@@ -542,7 +384,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:,:,:,:), intent(in) :: value
+        real(kind=real32), dimension(:,:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray4dReal: ", &
@@ -551,7 +393,7 @@ contains
     end subroutine DeclareArray4dReal
 
     ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a 4d real array.
+    !> This subroutine handles a provide call for a 4d real(kind=real32) array.
     !! This base implementation only increases next_var_index.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
@@ -560,7 +402,7 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
-        real, dimension(:,:,:,:), intent(in) :: value
+        real(kind=real32), dimension(:,:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
     end subroutine ProvideArray4dReal
 
@@ -734,6 +576,177 @@ contains
         integer(kind=int32), dimension(:,:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
     end subroutine ProvideArray4dInt
+
+      ! -------------------------------------------------------------------------
+    !> This subroutine declares a scalar real(kind=real64) value. This
+    !! implementation only increases the next index, and prints
+    !! the name of the variable if verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareScalarDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), intent(in) :: value
+
+        this%next_var_index = this%next_var_index+1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareScalarDouble: ", &
+                            trim(this%module_name), " ",                &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareScalarDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine provides a scalar real(kind=real64) value. This
+    !! implementation only increases the next index.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideScalarDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), intent(in) :: value
+
+        this%next_var_index = this%next_var_index+1
+    end subroutine ProvideScalarDouble
+
+    ! ---------------------------------------------------------------------
+    !> This subroutine handles a declaration of a 1d-array of
+    !! real(kind=real64) values. This base implementation only increases
+    !! next_var_index and prints the name of the variable if
+    !! verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray1dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareArray1dDouble: ", &
+                            trim(this%module_name), " ",               &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareArray1dDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine handles a provide call for a 1d real(kind=real64) array.
+    !! This base implementation only increases next_var_index.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray1dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+    end subroutine ProvideArray1dDouble
+
+    ! ---------------------------------------------------------------------
+    !> This subroutine handles a declaration of a 2d-array of
+    !! real(kind=real64) values. This base implementation only increases
+    !! next_var_index and prints the name of the variable if
+    !! verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray2dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:,:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareArray2dDouble: ", &
+                            trim(this%module_name), " ",               &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareArray2dDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine handles a provide call for a 2d real(kind=real64) array.
+    !! This base implementation only increases next_var_index.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray2dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:,:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+    end subroutine ProvideArray2dDouble
+
+    ! ---------------------------------------------------------------------
+    !> This subroutine handles a declaration of a 3d-array of
+    !! real(kind=real64) values. This base implementation only increases
+    !! next_var_index and prints the name of the variable if
+    !! verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray3dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:,:,:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareArray3dDouble: ", &
+                            trim(this%module_name), " ",               &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareArray3dDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine handles a provide call for a 3d real(kind=real64) array.
+    !! This base implementation only increases next_var_index.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray3dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:,:,:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+    end subroutine ProvideArray3dDouble
+
+    ! ---------------------------------------------------------------------
+    !> This subroutine handles a declaration of a 4d-array of
+    !! real(kind=real64) values. This base implementation only increases
+    !! next_var_index and prints the name of the variable if
+    !! verbose output is requested.
+    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareArray4dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:,:,:,:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+        if (this%verbosity>1) &
+            write(stderr,*) "PSyData: DeclareArray4dDouble: ", &
+                            trim(this%module_name), " ",               &
+                            trim(this%region_name), ": ", name
+    end subroutine DeclareArray4dDouble
+
+    ! -------------------------------------------------------------------------
+    !> This subroutine handles a provide call for a 4d real(kind=real64) array.
+    !! This base implementation only increases next_var_index.
+    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray4dDouble(this, name, value)
+        implicit none
+        class(PSyDataBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        real(kind=real64), dimension(:,:,:,:), intent(in) :: value
+        this%next_var_index = this%next_var_index + 1
+    end subroutine ProvideArray4dDouble
 
      
 end module psy_data_base_mod

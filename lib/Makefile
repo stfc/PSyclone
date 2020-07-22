@@ -38,7 +38,7 @@ F90FLAGS ?=
 default: psy_data_base.o
 process: psy_data_base.f90
 
-%.f90:	%.jinja
+%.f90:	%.jinja process.py
 	./process.py $< > $*.f90
 
 %.o: %.f90
