@@ -68,6 +68,7 @@ README.gource  	    | Information on how to generate a gource video from the rep
 README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
 src/psyclone   	    | The python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
+tutorial/           | Tutorial using Jupyter notebooks
 
 # Status #
 
