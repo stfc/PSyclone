@@ -132,8 +132,9 @@ CODE_DOUBLE_PROCEDURE = (
     )
 
 
-@pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE])
-def get_code_fragment(request):
+@pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE],
+                name="get_code_fragment")
+def get_code_fragment_fixture(request):
     '''Fixture for testing two code versions'''
     return request.param
 

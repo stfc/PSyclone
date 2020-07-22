@@ -277,7 +277,8 @@ class PSy(object):
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
             inlining. Avoid inlining the same kernel more than once.
-            :raises: InternalError if kernel_code (fparser1 AST of kernel) is None.
+            :raises: InternalError if kernel_code (fparser1 AST of kernel)
+                is None.
         '''
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
