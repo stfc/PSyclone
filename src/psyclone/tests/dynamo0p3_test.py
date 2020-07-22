@@ -166,15 +166,15 @@ def test_arg_descriptor_vector():
 
 def test_ad_scalar_validate_wrong_type():
     ''' Test that an error is raised if something other than a scalar
-    is passed to the LFRicArgDescriptor._validate_scalar() method. '''
+    is passed to the LFRicArgDescriptor._init_scalar() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not a scalar
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_scalar(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_scalar(): expecting a scalar "
+        LFRicArgDescriptor(wrong_arg)._init_scalar(wrong_arg)
+    assert ("LFRicArgDescriptor._init_scalar(): expecting a scalar "
             "argument but got an argument of type 'gh_operator'." in
             str(excinfo.value))
 
@@ -258,15 +258,15 @@ def test_ad_int_scalar_type_no_sum():
 
 def test_ad_field_validate_wrong_type():
     ''' Test that an error is raised if something other than a field
-    is passed to the LFRicArgDescriptor._validate_field() method. '''
+    is passed to the LFRicArgDescriptor._init_field() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not a field
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_field(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_field(): expecting a field "
+        LFRicArgDescriptor(wrong_arg)._init_field(wrong_arg)
+    assert ("LFRicArgDescriptor._init_field(): expecting a field "
             "argument but got an argument of type 'gh_real'" in
             str(excinfo.value))
 

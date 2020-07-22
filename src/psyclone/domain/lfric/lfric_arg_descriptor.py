@@ -187,15 +187,15 @@ class LFRicArgDescriptor(Descriptor):
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             # Validate field arguments
-            self._validate_field(arg_type)
+            self._init_field(arg_type)
 
         elif self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             # Validate operator arguments
-            self._validate_operator(arg_type)
+            self._init_operator(arg_type)
 
         elif self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             # Validate scalar arguments
-            self._validate_scalar(arg_type)
+            self._init_scalar(arg_type)
 
         else:
             # We should never get to here if the checks are tight enough
@@ -267,10 +267,10 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[0]))
 
-    def _validate_field(self, arg_type):
+    def _init_field(self, arg_type):
         '''
         Validates metadata descriptors for field arguments and
-        populates argument properties accordingly.
+        initialises field argument properties accordingly.
 
         :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
@@ -295,7 +295,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._validate_field(): expecting a field "
+                "LFRicArgDescriptor._init_field(): expecting a field "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
@@ -420,10 +420,10 @@ class LFRicArgDescriptor(Descriptor):
                 format(rev_access_mapping[AccessType.READ],
                        rev_access_mapping[self._access_type], arg_type))
 
-    def _validate_operator(self, arg_type):
+    def _init_operator(self, arg_type):
         '''
         Validates metadata descriptors for operator arguments and
-        populates argument properties accordingly.
+        initialises operator argument properties accordingly.
 
         :param arg_type: LFRic API operator argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
@@ -441,7 +441,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than an operator is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._validate_operator(): expecting an "
+                "LFRicArgDescriptor._init_operator(): expecting an "
                 "operator argument but got an argument of type '{0}'.".
                 format(self._argument_type))
 
@@ -494,10 +494,10 @@ class LFRicArgDescriptor(Descriptor):
                 format(op_acc_msg, rev_access_mapping[self._access_type],
                        arg_type))
 
-    def _validate_scalar(self, arg_type):
+    def _init_scalar(self, arg_type):
         '''
         Validates metadata descriptors for scalar arguments and
-        populates argument properties accordingly.
+        initialises scalar argument properties accordingly.
 
         :param arg_type: LFRic API scalar argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
@@ -514,7 +514,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._validate_scalar(): expecting a scalar "
+                "LFRicArgDescriptor._init_scalar(): expecting a scalar "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 

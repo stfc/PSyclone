@@ -170,15 +170,15 @@ def test_no_vector_operator():
 
 def test_ad_op_type_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
-    is passed to the LFRicArgDescriptor._validate_operator() method. '''
+    is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not an operator
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_operator(): expecting an "
+        LFRicArgDescriptor(wrong_arg)._init_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._init_operator(): expecting an "
             "operator argument but got an argument of type 'gh_field'."
             in str(excinfo.value))
 
