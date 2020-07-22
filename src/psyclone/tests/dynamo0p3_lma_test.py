@@ -325,7 +325,7 @@ def test_fsdesc_fs_not_in_argdesc():
 
 
 def test_operator(tmpdir):
-    ''' Tests that a LMA operator is implemented correctly in the PSy
+    ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
@@ -759,7 +759,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Expected a LMA operator from which to look-up boundary dofs "
+    assert ("Expected an LMA operator from which to look-up boundary dofs "
             "but kernel enforce_operator_bc_code has argument gh_field") \
         in str(excinfo.value)
 

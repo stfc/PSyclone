@@ -85,7 +85,7 @@ class LFRicArgDescriptor(Descriptor):
 
     # Supported API argument data types (real and integer for now) (the check
     # for data type metadata being one of the valid types will be introduced
-    # in #774)
+    # in #774).
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
 
     # Supported LFRic API stencil types and directions
@@ -106,7 +106,6 @@ class LFRicArgDescriptor(Descriptor):
     # using the mesh_arg=... meta-data element (for inter-grid kernels that
     # perform prolongation/restriction).
     VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
-
     # ----------------------------------------------------------------------- #
 
     def __init__(self, arg_type):

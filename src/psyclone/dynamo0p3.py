@@ -5768,7 +5768,7 @@ def halo_check_arg(field, access_types):
             "'{2}'".format(field.name, api_strings,
                            field.access.api_specific_name()))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
-    if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
+    if not (isinstance(call, (DynBuiltIn, DynKern))):
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be from a call but "
             "found {1}".format(field.name, type(call)))
@@ -8039,7 +8039,7 @@ class DynKernelArgument(KernelArgument):
 
         try:
             self._intrinsic_type = MAPPING_DATA_TYPES[
-                 self.descriptor.data_type]
+                self.descriptor.data_type]
         except KeyError:
             raise InternalError(
                 "DynKernelArgument.intrinsic_type: Found unsupported data "
