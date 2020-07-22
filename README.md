@@ -26,7 +26,7 @@ by clicking the 'show' link next to the 'Build logs' heading.)
 
 The PSyclone tutorial may be found in the tutorial directory. Since this takes
 the form of a series of Jupyter notebooks, it too may be launched on 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/848_jupyter_tutorial?filepath=tutorial%2Fintroduction.ipynb).
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fintroduction.ipynb).
 
 # Installation #
 
