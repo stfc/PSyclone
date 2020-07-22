@@ -2930,9 +2930,6 @@ class DynScalarArgs(DynCollection):
             scalar_args = self._invoke.unique_declns_by_intent(
                 LFRicArgDescriptor.VALID_SCALAR_NAMES)
         else:
-            for intent in FORTRAN_INTENT_NAMES:
-                self._real_scalar_names[intent] = []
-                self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.is_scalar:
                     scalar_args[arg.intent].append(arg)

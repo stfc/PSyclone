@@ -85,7 +85,7 @@ class LFRicArgDescriptor(Descriptor):
 
     # Supported API argument data types (real and integer for now) (the check
     # for data type metadata being one of the valid types will be introduced
-    # in #774).
+    # in #774 and #817).
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
 
     # Supported LFRic API stencil types and directions
@@ -647,7 +647,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             return [self.function_space]
         if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
-            # return to before from to maintain expected ordering
+            # Return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
         if self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             return []
@@ -698,14 +698,14 @@ class LFRicArgDescriptor(Descriptor):
             res += "  function_space_from[4]='{0}'".\
                    format(self._function_space2) + os.linesep
         elif self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
-            pass  # we have nothing to add if we're a scalar
-        else:  # we should never get to here
+            pass  # We have nothing to add if we're a scalar
+        else:  # We should never get to here
             raise InternalError("LFRicArgDescriptor.__str__(), should not "
                                 "get to here.")
         return res
 
 
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for. (See https://psyclone-ref.readthedocs.io)
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = [
     'LFRicArgDescriptor']

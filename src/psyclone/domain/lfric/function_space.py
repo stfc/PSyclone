@@ -396,9 +396,9 @@ class FunctionSpace(object):
         '''
         if self.mangled_name in arguments.unique_fs_names:
             for arg in arguments.args:
-                # First, test that arg is a field as some argument objects
-                # won't have function spaces, e.g. scalars
-                if arg.argument_type == "gh_field" and \
+                # First, test that argument is a field as some argument
+                # objects won't have function spaces, e.g. scalars
+                if arg.is_field and \
                    arg.function_space.orig_name == self.orig_name:
                     return arg
         return None
