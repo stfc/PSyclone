@@ -547,15 +547,15 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, argument_type, access=None):
+    def unique_declarations(self, argument_types, access=None):
         '''
         Returns a list of all required declarations for the specified
-        API argument type. If access is supplied (e.g. "write") then
+        API argument types. If access is supplied (e.g. "write") then
         only declarations with that access are returned.
 
-        :param str argument_type: the type of the kernel argument for \
-                                  the particular API for which the intent \
-                                  is required.
+        :param argument_types: the types of the kernel argument for the \
+                               particular API.
+        :type argument_types: list of str
         :param access: optional AccessType that the declaration should have.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
 
@@ -566,11 +566,12 @@ class Invoke(object):
         :raises InternalError: if an invalid access is specified.
 
         '''
-        if argument_type not in VALID_ARG_TYPE_NAMES:
-            raise InternalError(
-                "Invoke.unique_declarations() called with an invalid argument "
-                "type. Expected one of {0} but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), argument_type))
+        for argtype in argument_types:
+            if argtype not in VALID_ARG_TYPE_NAMES:
+                raise InternalError(
+                    "Invoke.unique_declarations() called with an invalid "
+                    "argument type. Expected one of {0} but found '{1}'".
+                    format(str(VALID_ARG_TYPE_NAMES), argtype))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
@@ -586,7 +587,7 @@ class Invoke(object):
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
-                        if arg.argument_type == argument_type:
+                        if arg.argument_type in argument_types:
                             test_name = arg.declaration_name
                             if test_name not in declarations:
                                 declarations[test_name] = arg
@@ -603,14 +604,14 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, argument_type):
+    def unique_declns_by_intent(self, argument_types):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param str argument_type: the type of the kernel argument for the \
-                                  particular API for which the intent is \
-                                  required.
+        :param argument_types: the types of the kernel argument for the \
+                               particular API for which the intent is required.
+        :type argument_types: list of str
 
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
@@ -620,11 +621,12 @@ class Invoke(object):
                                argument type for the particular API.
 
         '''
-        if argument_type not in VALID_ARG_TYPE_NAMES:
-            raise InternalError(
-                "Invoke.unique_declns_by_intent() called with an invalid "
-                "argument type. Expected one of {0} but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), argument_type))
+        for argtype in argument_types:
+            if argtype not in VALID_ARG_TYPE_NAMES:
+                raise InternalError(
+                    "Invoke.unique_declns_by_intent() called with an invalid "
+                    "argument type. Expected one of {0} but found '{1}'".
+                    format(str(VALID_ARG_TYPE_NAMES), argtype))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -632,7 +634,7 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in self.unique_declarations(argument_type):
+        for arg in self.unique_declarations(argument_types):
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is

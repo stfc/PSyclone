@@ -82,35 +82,6 @@ def test_kernel_stub_invalid_scalar_argument():
             in str(excinfo.value))
 
 
-def test_dynscalars_err(monkeypatch):
-    ''' Check that the DynScalarArgs constructor raises the expected error
-    if it encounters a type of scalar that is not handled in LFRic API. '''
-    import psyclone.dynamo0p3
-    from psyclone.dynamo0p3 import DynScalarArgs
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid intrinsic type.
-    arg = kernel.arguments.args[1]
-    # Now try to trip the error by making the initial test think that
-    # 'GH_INVALID' is actually a valid value for a for mapping from descriptor
-    # 'data_type' to argument 'intrinsic_type'.
-    invalid_map = psyclone.dynamo0p3.MAPPING_DATA_TYPES
-    invalid_map.update({"gh_invalid": "invalid"})
-    monkeypatch.setattr(
-        target=psyclone.dynamo0p3, name="MAPPING_DATA_TYPES",
-        value=invalid_map)
-    monkeypatch.setattr(target=arg.descriptor, name="_data_type",
-                        value="gh_invalid")
-    with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(kernel)
-    assert ("Unsupported scalar intrinsic type 'invalid' found in "
-            "DynScalarArgs." in str(err.value))
-
-
 def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''

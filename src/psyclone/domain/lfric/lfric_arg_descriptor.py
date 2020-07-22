@@ -83,8 +83,9 @@ class LFRicArgDescriptor(Descriptor):
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \
         VALID_SCALAR_NAMES
 
-    # Supported API argument data types (real and integer for now) (the check for
-    # data type metadata being one of the valid types will be introduced in #774)
+    # Supported API argument data types (real and integer for now) (the check
+    # for data type metadata being one of the valid types will be introduced
+    # in #774)
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
 
     # Supported LFRic API stencil types and directions
@@ -105,9 +106,6 @@ class LFRicArgDescriptor(Descriptor):
     # using the mesh_arg=... meta-data element (for inter-grid kernels that
     # perform prolongation/restriction).
     VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
-
-    # LFRic names for valid scalar reductions
-    MAPPING_SCALARS_LIST = VALID_SCALAR_NAMES
 
     # ----------------------------------------------------------------------- #
 
