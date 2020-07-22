@@ -7868,7 +7868,7 @@ class DynKernelArgument(KernelArgument):
     :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
     :param arg_meta_data: information obtained from the meta-data for \
                           this kernel argument.
-    :type arg_meta_data: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+    :type arg_meta_data: :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
     :param arg_info: information on how this argument is specified in \
                      the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
@@ -8158,7 +8158,7 @@ class DynKernelArgument(KernelArgument):
         function_space_to and function_space_from for an operator.
 
         :returns: function space(s) for this argument.
-        :rtype: list of :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :rtype: list of :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         '''
         return self._function_spaces
