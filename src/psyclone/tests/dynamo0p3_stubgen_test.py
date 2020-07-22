@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the Dynamo 0.3 kernel-stub generator using pytest. '''
 
@@ -43,8 +44,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
@@ -59,91 +60,6 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-
-
-def test_kernel_stub_invalid_scalar_argument():
-    ''' Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
-    arg = kernel.arguments.args[1]
-    arg._argument_type = "invalid"
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(InternalError) as excinfo:
-        create_arg_list.scalar(arg)
-    assert ("Expected argument type to be one of {0} but got "
-            "'invalid'".format(LFRicArgDescriptor.VALID_SCALAR_NAMES)
-            in str(excinfo.value))
-
-
-def test_kernel_stub_ind_dofmap_errors():
-    '''Check that we raise the expected exceptions if the wrong arguments
-    are supplied to KernelStubArgList.indirection_dofmap() '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    # First call it without an argument object
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3")
-    assert "no CMA operator supplied" in str(excinfo.value)
-    # Second, call it with an argument object but one that is not
-    # an operator
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
-    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
-
-
-def test_kernstubarglist_arglist_error():
-    '''Check that we raise an exception if we call the arglist method in
-    kernstubarglist without first calling the generate method'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = create_arg_list.arglist
-    assert (
-        "Internal error. The argument list in KernStubArgList:arglist() is "
-        "empty. Has the generate() method been "
-        "called?") in str(excinfo.value)
-
-
-def test_kernstubarglist_eval_shape_error():
-    ''' Check that we raise the expected exception if we call the basis() or
-    diff_basis() methods and one of the kernel's evaluator shapes is
-    invalid. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_faces_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    create_arg_list = KernStubArgList(kernel)
-    # Break the list of qr rules
-    kernel.eval_shapes.insert(0, "broken")
-    with pytest.raises(InternalError) as err:
-        create_arg_list.basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
-    with pytest.raises(InternalError) as err:
-        create_arg_list.diff_basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -255,7 +171,7 @@ def test_stub_generate_with_scalar_sums():
         "gh_sum access" in str(err.value))
 
 
-# fields : intent
+# Fields : intent
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -323,7 +239,7 @@ def test_intent():
     assert output in str(generated_code)
 
 
-# fields : spaces
+# Fields : spaces
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -506,7 +422,7 @@ def test_any_spaces():
     assert output in generated_code
 
 
-# fields : vectors
+# Fields : vectors
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -571,7 +487,7 @@ def test_arg_descriptor_vec_str():
     assert expected_output in result
 
 
-# orientation : spaces
+# Orientation : spaces
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "

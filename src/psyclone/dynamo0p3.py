@@ -54,13 +54,15 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
+                                   KernCallArgList, KernStubArgList,
+                                   LFRicArgDescriptor)
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    Arguments, KernelArgument, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, CodedKern, ACCEnterDataDirective
+from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
+                             Arguments, KernelArgument, HaloExchange,
+                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
+                             CodedKern, ACCEnterDataDirective)
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
@@ -1594,13 +1596,18 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             self._symbol_table.name_from_tag(prop.name.lower())
 
-    def kern_args(self, stub=False):
+    def kern_args(self, stub=False, var_accesses=None):
         '''
         Provides the list of kernel arguments associated with the mesh
-        properties that the kernel requires.
+        properties that the kernel requires. Optionally adds variable
+        access information if var_accesses is given.
 
         :param bool stub: whether or not we are generating code for a \
                           kernel stub.
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :returns: the kernel arguments associated with the mesh properties.
         :rtype: list of str
@@ -1629,9 +1636,16 @@ class LFRicMeshProperties(DynCollection):
                     OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                     in self._kernel.reference_element.properties)
                 if not has_nfaces:
-                    arg_list.append(
-                        self._symbol_table.name_from_tag("nfaces_re_h"))
+                    name = self._symbol_table.name_from_tag("nfaces_re_h")
+                    arg_list.append(name)
+                    if var_accesses is not None:
+                        var_accesses.add_access(name, AccessType.READ,
+                                                self._kernel)
+
                 adj_face = self._symbol_table.name_from_tag("adjacent_face")
+                if var_accesses is not None:
+                    var_accesses.add_access(adj_face, AccessType.READ,
+                                            self._kernel, [1])
                 if not stub:
                     # This is a kernel call from within an invoke
                     adj_face += "(:,cell)"
@@ -2916,6 +2930,9 @@ class DynScalarArgs(DynCollection):
             scalar_args = self._invoke.unique_declns_by_intent(
                 LFRicArgDescriptor.VALID_SCALAR_NAMES)
         else:
+            for intent in FORTRAN_INTENT_NAMES:
+                self._real_scalar_names[intent] = []
+                self._int_scalar_names[intent] = []
             for arg in self._calls[0].arguments.args:
                 if arg.is_scalar:
                     scalar_args[arg.intent].append(arg)
@@ -3713,7 +3730,7 @@ class DynBasisFunctions(DynCollection):
         basis function
 
         :param function_space: the function space the basis function is for
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: a Fortran variable name
         :rtype: str
 
@@ -3726,7 +3743,7 @@ class DynBasisFunctions(DynCollection):
         Get the size of the first dimension of a basis function.
 
         :param function_space: the function space the basis function is for
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: an integer length.
         :rtype: string
 
@@ -3757,7 +3774,7 @@ class DynBasisFunctions(DynCollection):
 
         :param function_space: the function space the diff-basis function \
                                is for.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: a Fortran variable name.
         :rtype: str
 
@@ -3772,7 +3789,7 @@ class DynBasisFunctions(DynCollection):
 
         :param function_space: the function space the diff-basis function \
                                is for.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: an integer length.
         :rtype: str
 
@@ -6746,19 +6763,17 @@ class DynKern(CodedKern):
         '''Get all variable access information. All accesses are marked
         according to the kernel metadata
 
-        :param var_accesses: VariablesAccessInfo instance that stores the\
+        :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
-        for arg in self.arguments.args:
-            if arg.is_scalar:
-                var_accesses.add_access(arg.name, arg.access, self)
-            else:
-                # It's an array, so add an arbitrary index value for the
-                # stored indices (which is at this stage the only way to
-                # indicate an array access).
-                var_accesses.add_access(arg.name, arg.access, self, [1])
+
+        # Use the KernelCallArgList class, which can also provide variable
+        # access information:
+        create_arg_list = KernCallArgList(self)
+        create_arg_list.generate(var_accesses)
+
         super(DynKern, self).reference_accesses(var_accesses)
         # Set the current location index to the next location, since after
         # this kernel a new statement starts.
@@ -7068,7 +7083,7 @@ class DynKern(CodedKern):
         '''
         :return: the function spaces upon which basis/diff-basis functions \
                  are to be evaluated for this kernel.
-        :rtype: dict of (:py:class:`psyclone.dynamo0p3.FunctionSpace`, \
+        :rtype: dict of (:py:class:`psyclone.domain.lfric.FunctionSpace`, \
                 :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
                 the names of the target function spaces.
         '''
@@ -7239,1137 +7254,6 @@ class DynKern(CodedKern):
             parent.add(CommentGen(parent, ""))
 
         super(DynKern, self).gen_code(parent)
-
-
-class ArgOrdering(object):
-    '''Base class capturing the arguments, type and ordering of data in
-    a Kernel call.'''
-    def __init__(self, kern):
-        self._kern = kern
-        self._generate_called = False
-
-    def generate(self):
-        '''
-        Specifies which arguments appear in an argument list, their type
-        and their ordering. Calls methods for each type of argument
-        that can be specialised by a child class for its particular need.
-
-        :raises GenerationError: if the kernel arguments break the
-                                 rules for the Dynamo 0.3 API.
-        '''
-        self._generate_called = True
-        if self._kern.arguments.has_operator():
-            # All operator types require the cell index to be provided
-            self.cell_position()
-        # Pass the number of layers in the mesh unless this kernel is
-        # applying a CMA operator or doing a CMA matrix-matrix calculation
-        if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
-            self.mesh_height()
-        # Pass the number of cells in the mesh if this kernel has a
-        # LMA operator argument
-        # TODO this code should replace the code that currently includes
-        # this quantity for *every* operator it encounters.
-        # if self._kern.arguments.has_operator(op_type="gh_operator"):
-        #     self.mesh_ncell3d()
-        # Pass the number of columns in the mesh if this kernel has a CMA
-        # operator argument
-        if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
-            self.mesh_ncell2d()
-
-        if self._kern.is_intergrid:
-            # Inter-grid kernels require special arguments
-            # The cell-map for the current column providing the mapping from
-            # the coarse to the fine mesh.
-            self.cell_map()
-
-        # For each argument in the order they are specified in the
-        # kernel metadata, call particular methods depending on what
-        # type of argument we find (field, field vector, operator or
-        # scalar). If the argument is a field or field vector and also
-        # has a stencil access then also call appropriate stencil
-        # methods.
-        for arg in self._kern.arguments.args:
-            if arg.is_field:
-                if arg.vector_size > 1:
-                    self.field_vector(arg)
-                else:
-                    self.field(arg)
-                if arg.descriptor.stencil:
-                    if not arg.descriptor.stencil['extent']:
-                        # stencil extent is not provided in the
-                        # metadata so must be passed
-                        self.stencil_unknown_extent(arg)
-                    if arg.descriptor.stencil['type'] == "xory1d":
-                        # if "xory1d is specified then the actual
-                        # direction must be passed
-                        self.stencil_unknown_direction(arg)
-                    # stencil information that is always passed
-                    self.stencil(arg)
-            elif arg.argument_type == "gh_operator":
-                self.operator(arg)
-            elif arg.argument_type == "gh_columnwise_operator":
-                self.cma_operator(arg)
-            elif arg.is_scalar:
-                self.scalar(arg)
-            else:
-                raise InternalError(
-                    "dynamo0p3.ArgOrdering.generate(): Unexpected "
-                    "argument type. Expected one of {0} but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
-                           arg.argument_type))
-        # For each function space (in the order they appear in the
-        # metadata arguments)
-        for unique_fs in self._kern.arguments.unique_fss:
-            # Provide arguments common to LMA operators and fields on
-            # a space *unless* this is an inter-grid or CMA
-            # matrix-matrix kernel
-            if self._kern.cma_operation not in ["matrix-matrix"] and \
-               not self._kern.is_intergrid:
-                self.fs_common(unique_fs)
-            # Provide additional arguments if there is a
-            # field on this space
-            if unique_fs.field_on_space(self._kern.arguments):
-                if self._kern.is_intergrid:
-                    self.fs_intergrid(unique_fs)
-                else:
-                    self.fs_compulsory_field(unique_fs)
-            cma_op = unique_fs.cma_on_space(self._kern.arguments)
-            if cma_op:
-                if self._kern.cma_operation == "assembly":
-                    # CMA-assembly requires banded dofmaps
-                    self.banded_dofmap(unique_fs)
-                elif self._kern.cma_operation == "apply":
-                    # Applying a CMA operator requires indirection dofmaps
-                    self.indirection_dofmap(unique_fs, operator=cma_op)
-
-            # Provide any optional arguments. These arguments are
-            # associated with the keyword arguments (basis function,
-            # differential basis function and orientation) for a
-            # function space.
-            if self._kern.fs_descriptors.exists(unique_fs):
-                descriptors = self._kern.fs_descriptors
-                descriptor = descriptors.get_descriptor(unique_fs)
-                if descriptor.requires_basis:
-                    self.basis(unique_fs)
-                if descriptor.requires_diff_basis:
-                    self.diff_basis(unique_fs)
-                if descriptor.requires_orientation:
-                    self.orientation(unique_fs)
-            # Fix for boundary_dofs array to the boundary condition
-            # kernel (enforce_bc_kernel) arguments
-            if self._kern.name.lower() == "enforce_bc_code" and \
-               unique_fs.orig_name.lower() == "any_space_1":
-                self.field_bcs_kernel(unique_fs)
-
-        # Add boundary dofs array to the operator boundary condition
-        # kernel (enforce_operator_bc_kernel) arguments
-        if self._kern.name.lower() == "enforce_operator_bc_code":
-            # Sanity checks - this kernel should only have a single LMA
-            # operator as argument
-            if len(self._kern.arguments.args) > 1:
-                raise GenerationError(
-                    "Kernel {0} has {1} arguments when it should only have 1 "
-                    "(an LMA operator)".format(self._kern.name,
-                                               len(self._kern.arguments.args)))
-            op_arg = self._kern.arguments.args[0]
-            if op_arg.argument_type != "gh_operator":
-                raise GenerationError(
-                    "Expected a LMA operator from which to look-up boundary "
-                    "dofs but kernel {0} has argument {1}.".
-                    format(self._kern.name, op_arg.argument_type))
-            if op_arg.access != AccessType.READWRITE:
-                raise GenerationError(
-                    "Kernel {0} is recognised as a kernel which applies "
-                    "boundary conditions to an operator. However its operator "
-                    "argument has access {1} rather than gh_readwrite.".
-                    format(self._kern.name, op_arg.access.api_specific_name()))
-            self.operator_bcs_kernel(op_arg.function_space_to)
-
-        # Reference-element properties
-        if self._kern.reference_element:
-            self.ref_element_properties()
-
-        # Mesh properties
-        if self._kern.mesh:
-            self.mesh_properties()
-
-        # Provide qr arguments if required
-        if self._kern.qr_required:
-            self.quad_rule()
-
-    def cell_position(self):
-        '''
-        Add cell position information
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.cell_position() must be implemented by "
-            "subclass")
-
-    def cell_map(self):
-        '''
-        Add cell-map information (for inter-grid kernels)
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.cell_map() must be implemented by subclass")
-
-    def mesh_height(self):
-        '''
-        Add height information (i.e. no. of layers)
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.mesh_height() must be implemented by subclass")
-
-    def mesh_ncell2d(self):
-        '''
-        Add the number of columns in the mesh
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
-            "subclass")
-
-    def cma_operator(self, arg):
-        '''
-        Add information on the CMA operator
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
-                                  "be implemented by subclass")
-
-    def field_vector(self, arg):
-        '''
-        Add field-vector information for this field-vector argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field_vector() must be implemented by "
-            "subclass")
-
-    def field(self, arg):
-        '''
-        Add field information for this field argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field() must be implemented by subclass")
-
-    def stencil_unknown_extent(self, arg):
-        '''
-        Add stencil extent information for this stencil argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil_unknown_extent() must be implemented "
-            "by subclass")
-
-    def stencil_unknown_direction(self, arg):
-        '''
-        Add stencil direction information for this stencil argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil_unknown_direction() must be "
-            "implemented by subclass")
-
-    def stencil(self, arg):
-        '''
-        Add stencil information for this stencil argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.stencil() must be implemented by subclass")
-
-    def operator(self, arg):
-        '''
-        Add operator information for this operator argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.operator() must be implemented by subclass")
-
-    def scalar(self, arg):
-        '''
-        Add scalar information for this scalar argument
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.scalar() must be implemented by subclass")
-
-    def fs_common(self, function_space):
-        '''
-        Add information common to LMA operators and fields for this
-        function space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_common() must be implemented by "
-            "subclass")
-
-    def fs_compulsory_field(self, function_space):
-        '''
-        Add compulsory information for this function space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.fs_compulsory_field() must be implemented "
-            "by subclass")
-
-    def basis(self, function_space):
-        '''
-        Add basis function information for this function space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.basis() must be implemented by subclass")
-
-    def diff_basis(self, function_space):
-        '''
-        Add differential basis function information for this function
-        space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.diff_basis() must be implemented by subclass")
-
-    def orientation(self, function_space):
-        '''
-        Add orientation information for this function space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.orientation() must be implemented by subclass")
-
-    def field_bcs_kernel(self, function_space):
-        '''
-        Add boundary condition information for a field on this function
-        space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
-            "subclass")
-
-    def operator_bcs_kernel(self, function_space):
-        '''
-        Add boundary condition information for an operator on this function
-        space
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError(
-            "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
-            "subclass")
-
-    def ref_element_properties(self):
-        ''' Add kernel arguments relating to properties of the reference
-        element. '''
-        if self._kern.reference_element.properties:
-            refelem_args = DynReferenceElement(self._kern).kern_args()
-            self._arglist.extend(refelem_args)
-
-    @abc.abstractmethod
-    def mesh_properties(self):
-        ''' Provide the kernel arguments required for the mesh properties
-        specified in the kernel metadata. '''
-
-    @abc.abstractmethod
-    def quad_rule(self):
-        ''' Add kernel arguments required for quadrature. '''
-
-    def banded_dofmap(self, function_space):
-        '''
-        Add banded dofmap (required for CMA operator assembly)
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
-                                  " be implemented by subclass")
-
-    def indirection_dofmap(self, function_space, operator=None):
-        '''
-        Add indirection dofmap required when applying a CMA operator
-
-        :raises NotImplementedError: because this is an abstract method
-        '''
-        raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
-                                  "must be implemented by subclass")
-
-
-class KernCallArgList(ArgOrdering):
-    '''Creates the argument list required to call kernel "kern" from the
-    PSy-layer and captures the positions of the following arguments in
-    the argument list: nlayers, number of quadrature points and number
-    of degrees of freedom. The ordering and type of arguments is
-    captured by the base class.
-
-    :param kern: The kernel that is being called.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-
-    '''
-    NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
-
-    def __init__(self, kern):
-        ArgOrdering.__init__(self, kern)
-        self._arglist = []
-        self._nlayers_positions = []
-        self._nqp_positions = []
-        self._ndf_positions = []
-
-    def cell_position(self):
-        ''' add a cell argument to the argument list'''
-        self._arglist.append(self._cell_ref_name)
-
-    def cell_map(self):
-        ''' Add cell-map and related cell counts to the argument list '''
-        symtab = self._kern.root.symbol_table
-        cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
-        carg = cargs[0]
-        fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
-        farg = fargs[0]
-        base_name = "cell_map_" + carg.name
-        map_name = symtab.name_from_tag(base_name)
-        # Add the cell map to our argument list
-        self._arglist.append("{0}(:,{1})".format(map_name,
-                                                 self._cell_ref_name))
-        # No. of fine cells per coarse cell
-        base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
-        ncellpercell = symtab.name_from_tag(base_name)
-        self._arglist.append(ncellpercell)
-        # No. of columns in the fine mesh
-        base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = symtab.name_from_tag(base_name)
-        self._arglist.append(ncell_fine)
-
-    def mesh_height(self):
-        ''' add mesh height (nlayers) to the argument list'''
-        nlayers_name = \
-            self._kern.root.symbol_table.name_from_tag("nlayers")
-        self._arglist.append(nlayers_name)
-        self._nlayers_positions.append(len(self._arglist))
-
-    # TODO uncomment this method when ensuring we only pass ncell3d once
-    # to any given kernel.
-    # def mesh_ncell3d(self):
-    #     ''' Add the number of cells in the full 3D mesh to the argument
-    #     list '''
-    #     ncell3d_name = self._name_space_manager.create_name(
-    #         root_name="ncell_3d", context="PSyVars", label="ncell3d")
-    #     self._arglist.append(ncell3d_name)
-
-    def mesh_ncell2d(self):
-        ''' Add the number of columns in the mesh to the argument list '''
-        ncell2d_name = \
-            self._kern.root.symbol_table.name_from_tag("ncell_2d")
-        self._arglist.append(ncell2d_name)
-
-    def field_vector(self, argvect):
-        '''add the field vector associated with the argument 'argvect' to the
-        argument list '''
-        # the range function below returns values from
-        # 1 to the vector size which is what we
-        # require in our Fortran code
-        for idx in range(1, argvect.vector_size+1):
-            text = argvect.proxy_name + "(" + str(idx) + ")%data"
-            self._arglist.append(text)
-
-    def field(self, arg):
-        '''add the field array associated with the argument 'arg' to the
-        argument list'''
-        text = arg.proxy_name + "%data"
-        self._arglist.append(text)
-
-    def stencil_unknown_extent(self, arg):
-        '''
-        Add stencil information to the argument list associated with the
-        argument 'arg' if the extent is unknown.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        # The extent is not specified in the metadata so pass the value in
-        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
-        self._arglist.append(name)
-
-    def stencil_unknown_direction(self, arg):
-        '''
-        Add stencil information to the argument list associated with the
-        argument 'arg' if the direction is unknown (i.e. it's being supplied
-        in a variable).
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.varname
-        self._arglist.append(name)
-
-    def stencil(self, arg):
-        '''
-        Add general stencil information associated with the argument 'arg'
-        to the argument list.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        # add in stencil dofmap
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
-        name = var_name + "(:,:," + self._cell_ref_name + ")"
-        self._arglist.append(name)
-
-    def operator(self, arg):
-        ''' add the operator arguments to the argument list '''
-        # TODO we should only be including ncell_3d once in the argument
-        # list but this adds it for every operator
-        self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
-        self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
-
-    def cma_operator(self, arg):
-        '''
-        Add the CMA operator and associated scalars to the argument
-        list.
-
-        :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        components = ["matrix"]
-        if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
-            components += DynCMAOperators.cma_diff_fs_params
-        else:
-            components += DynCMAOperators.cma_same_fs_params
-        for component in components:
-            self._arglist.append(
-                self._kern.root.symbol_table.name_from_tag(
-                    arg.name + "_" + component))
-
-    def scalar(self, scalar_arg):
-        '''add the name associated with the scalar argument to the argument
-        list'''
-        self._arglist.append(scalar_arg.name)
-
-    def fs_common(self, function_space):
-        '''add function-space related arguments common to LMA operators and
-        fields'''
-        # There is currently one argument: "ndf"
-        ndf_name = function_space.ndf_name
-        self._arglist.append(ndf_name)
-        self._ndf_positions.append(
-            KernCallArgList.NdfInfo(position=len(self._arglist),
-                                    function_space=function_space.orig_name))
-
-    def fs_compulsory_field(self, function_space):
-        '''add compulsory arguments to the argument list, when there is a
-        field on this function space'''
-        undf_name = function_space.undf_name
-        self._arglist.append(undf_name)
-        map_name = function_space.map_name
-        self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
-
-    def fs_intergrid(self, function_space):
-        '''
-        Add function-space related arguments for an intergrid kernel
-
-        :param function_space: the function space for which to add arguments
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        '''
-        # Is this FS associated with the coarse or fine mesh? (All fields
-        # on a given mesh must be on the same FS.)
-        arg = self._kern.arguments.get_arg_on_space(function_space)
-        if arg.mesh == "gh_fine":
-            # For the fine mesh, we need ndf, undf and the *whole*
-            # dofmap
-            self.fs_common(function_space)
-            undf_name = function_space.undf_name
-            self._arglist.append(undf_name)
-            map_name = function_space.map_name
-            self._arglist.append(map_name)
-        else:
-            # For the coarse mesh we only need undf and the dofmap for
-            # the current column
-            self.fs_compulsory_field(function_space)
-
-    def basis(self, function_space):
-        '''
-        Add basis function information for this function space to the
-        argument list.
-
-        :param function_space: the function space for which the basis \
-                               function is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
-        '''
-        for rule in self._kern.qr_rules.values():
-            basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            self._arglist.append(basis_name)
-
-        if "gh_evaluator" in self._kern.eval_shapes:
-            # We are dealing with an evaluator and therefore need as many
-            # basis functions as there are target function spaces.
-            for fs_name in self._kern.eval_targets:
-                # The associated FunctionSpace object is the first item in
-                # the tuple dict entry associated with the name of the target
-                # function space
-                fspace = self._kern.eval_targets[fs_name][0]
-                basis_name = function_space.get_basis_name(on_space=fspace)
-                self._arglist.append(basis_name)
-
-    def diff_basis(self, function_space):
-        '''
-        Add differential basis information for the function space to the
-        argument list.
-
-        :param function_space: the function space for which the differential \
-                               basis functions are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
-        '''
-        for rule in self._kern.qr_rules.values():
-            diff_basis_name = function_space.get_diff_basis_name(
-                qr_var=rule.psy_name)
-            self._arglist.append(diff_basis_name)
-
-        if "gh_evaluator" in self._kern.eval_shapes:
-            # We are dealing with an evaluator and therefore need as many
-            # basis functions as there are target function spaces.
-            for fs_name in self._kern.eval_targets:
-                # The associated FunctionSpace object is the first item in
-                # the tuple dict entry associated with the name of the target
-                # function space
-                fspace = self._kern.eval_targets[fs_name][0]
-                diff_basis_name = function_space.get_diff_basis_name(
-                    on_space=fspace)
-                self._arglist.append(diff_basis_name)
-
-    def orientation(self, function_space):
-        '''add orientation information for this function space to the
-        argument list'''
-        orientation_name = function_space.orientation_name
-        self._arglist.append(orientation_name)
-
-    def field_bcs_kernel(self, function_space):
-        '''
-        Implement the boundary_dofs array fix for a field.
-
-        :param function_space: unused argument.
-        '''
-        fspace = None
-        for fspace in self._kern.arguments.unique_fss:
-            if fspace.orig_name == "any_space_1":
-                break
-        farg = self._kern.arguments.get_arg_on_space(fspace)
-        # Sanity check - expect the enforce_bc_code kernel to only have
-        # a field argument.
-        if not farg.is_field:
-            raise GenerationError(
-                "Expected an argument of {0} type from which to look-up "
-                "boundary dofs for kernel {1} but got '{2}'".
-                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
-                       self._kern.name, farg.argument_type))
-        base_name = "boundary_dofs_" + farg.name
-        name = self._kern.root.symbol_table.name_from_tag(base_name)
-        self._arglist.append(name)
-
-    def operator_bcs_kernel(self, _):
-        '''
-        Supply necessary additional arguments for the kernel that
-        applies boundary conditions to a LMA operator. 2nd (unused)
-        argument is for consistency with base class.
-
-        '''
-        # This kernel has only a single LMA operator as argument.
-        # Checks for this are performed in ArgOrdering.generate()
-        op_arg = self._kern.arguments.args[0]
-        base_name = "boundary_dofs_"+op_arg.name
-        name = self._kern.root.symbol_table.name_from_tag(base_name)
-        self._arglist.append(name)
-
-    def mesh_properties(self):
-        ''' Provide the kernel arguments required for the mesh properties
-        specified in the kernel metadata.
-
-        '''
-        if self._kern.mesh.properties:
-            self._arglist.extend(
-                LFRicMeshProperties(self._kern).kern_args(stub=False))
-
-    def quad_rule(self):
-        ''' Add quadrature-related information to the kernel argument list.
-        Adds the necessary arguments to the self._arglist list.
-
-        '''
-        # The QR shapes that this routine supports
-        supported_qr_shapes = ["gh_quadrature_xyoz", "gh_quadrature_edge",
-                               "gh_quadrature_face"]
-
-        for shape, rule in self._kern.qr_rules.items():
-
-            if shape == "gh_quadrature_xyoz":
-                # XYoZ quadrature requires the number of quadrature points in
-                # the horizontal and in the vertical.
-                self._nqp_positions.append(
-                    {"horizontal": len(self._arglist) + 1,
-                     "vertical": len(self._arglist) + 2})
-                self._arglist.extend(rule.kernel_args)
-            elif shape == "gh_quadrature_edge":
-                # TODO #705 support transformations supplying the number of
-                # quadrature points for edge quadrature.
-                self._arglist.extend(rule.kernel_args)
-            elif shape == "gh_quadrature_face":
-                # TODO #705 support transformations supplying the number of
-                # quadrature points for face quadrature.
-                self._arglist.extend(rule.kernel_args)
-            else:
-                raise NotImplementedError(
-                    "quad_rule: no support implemented for quadrature with a "
-                    "shape of '{0}'. Supported shapes are: {1}.".format(
-                        shape, supported_qr_shapes))
-
-    def banded_dofmap(self, function_space):
-        ''' Add banded dofmap (required for CMA operator assembly) '''
-        # Note that the necessary ndf values will already have been added
-        # to the argument list as they are mandatory for every function
-        # space that appears in the meta-data.
-        self._arglist.append(function_space.cbanded_map_name)
-
-    def indirection_dofmap(self, function_space, operator=None):
-        ''' Add indirection dofmap required when applying a CMA operator '''
-        self._arglist.append(function_space.cma_indirection_map_name)
-
-    @property
-    def nlayers_positions(self):
-        '''
-        :return: the position(s) in the argument list of the \
-        variable(s) that passes the number of layers. The generate \
-        method must be called first.
-        :rtype: list of int.
-
-        :raises InternalError: if the generate() method has not been
-        called.
-
-        '''
-        if not self._generate_called:
-            raise InternalError(
-                "KernCallArgList: the generate() method should be called "
-                "before the nlayers_positions() method")
-        return self._nlayers_positions
-
-    @property
-    def nqp_positions(self):
-        '''
-        :return: the positions in the argument list of the variables that \
-        pass the number of quadrature points. The number and type of \
-        these will change depending on the type of quadrature. A list \
-        of dictionaries is returned with the quadrature directions \
-        being the keys to the dictionaries and their position in the \
-        argument list being the values. At the moment only XYoZ is \
-        supported (which has horizontal and vertical quadrature \
-        points). The generate method must be called first.
-        :rtype: [{str: int, ...}]
-
-        :raises InternalError: if the generate() method has not been \
-        called.
-
-        '''
-        if not self._generate_called:
-            raise InternalError(
-                "KernCallArgList: the generate() method should be called "
-                "before the nqp_positions() method")
-        return self._nqp_positions
-
-    @property
-    def ndf_positions(self):
-        '''
-        :return: the position(s) in the argument list and the function \
-        space(s) associated with the variable(s) that pass(es) the \
-        number of degrees of freedom for the function space. The \
-        generate method must be called first.
-        :rtype: list of namedtuple (position=int, function_space=str).
-
-        :raises InternalError: if the generate() method has not been \
-        called.
-
-        '''
-        if not self._generate_called:
-            raise InternalError(
-                "KernCallArgList: the generate() method should be called "
-                "before the ndf_positions() method")
-        return self._ndf_positions
-
-    @property
-    def arglist(self):
-        '''
-        :return: the kernel argument list. The generate method must be \
-        called first.
-        :rtype: list of str.
-
-        :raises InternalError: if the generate() method has not been \
-        called.
-
-        '''
-        if not self._generate_called:
-            raise InternalError(
-                "KernCallArgList: the generate() method should be called "
-                "before the arglist() method")
-        return self._arglist
-
-    @property
-    def _cell_ref_name(self):
-        '''
-        Utility routine which determines whether to return the cell value
-        or the colourmap lookup value.
-
-        :returns: the Fortran code needed to access the current cell index.
-        :rtype: str
-        '''
-        if self._kern.is_coloured():
-            return self._kern.colourmap + "(colour, cell)"
-        return "cell"
-
-
-class KernStubArgList(ArgOrdering):
-    '''Creates the argument list required to create and declare the
-    required arguments for a kernel subroutine.  The ordering and type
-    of the arguments is captured by the base class.
-
-    :param kern: Kernel for which to create argument list.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-
-    :raises NotImplementedError: if the kernel is inter-grid.
-    :raises NotImplementedError: if the kernel requires properties of the \
-                                 reference element.
-    '''
-    def __init__(self, kern):
-        # We don't yet support inter-grid kernels (Issue #162)
-        if kern.is_intergrid:
-            raise NotImplementedError(
-                "Kernel {0} is an inter-grid kernel and stub generation "
-                "is not yet supported for inter-grid kernels".
-                format(kern.name))
-        self._first_arg = True
-        self._first_arg_decl = None
-        ArgOrdering.__init__(self, kern)
-        # TODO 719 The stub_symtab is not connected to other parts of the
-        # Stub generation. Also the symboltable already has an
-        # argument_list that may be able to replace the _arglist below.
-        self._arglist = []
-        self._stub_symtab = SymbolTable()
-
-    def cell_position(self):
-        ''' Add cell position to the argument list. '''
-        self._arglist.append("cell")
-
-    def mesh_height(self):
-        ''' Add mesh height (nlayers) to the argument list. '''
-        self._arglist.append("nlayers")
-
-    def mesh_ncell2d(self):
-        ''' Add the number of columns in the mesh to the argument list. '''
-        self._arglist.append("ncell_2d")
-
-    def field_vector(self, argvect):
-        '''Add the field vector associated with the argument 'argvect' to the
-        argument list.
-
-        :param argvect: the corresponding kernel argument.
-        :type argvect:  :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        '''
-        # the range function below returns values from
-        # 1 to the vector size which is what we
-        # require in our Fortran code
-        for idx in range(1, argvect.vector_size+1):
-            text = (argvect.name + "_" +
-                    argvect.function_space.mangled_name +
-                    "_v" + str(idx))
-            if self._first_arg:
-                self._first_arg = False
-            self._arglist.append(text)
-
-    def field(self, arg):
-        '''
-        Add the field associated with the argument 'arg' to the argument list.
-
-        :param arg: the kernel argument (field).
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        '''
-        text = arg.name + "_" + arg.function_space.mangled_name
-        self._arglist.append(text)
-
-    def stencil_unknown_extent(self, arg):
-        '''
-        Add stencil information associated with a kernel argument if the
-        extent is unknown.
-
-        :param arg: the meta-data description of the kernel argument with \
-                    which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        '''
-        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
-        self._arglist.append(name)
-
-    def stencil_unknown_direction(self, arg):
-        '''
-        Add stencil information associated with the argument 'arg' if the
-        direction is unknown.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        self._arglist.append(DynStencils.direction_name(
-            self._stub_symtab, arg))
-
-    def stencil(self, arg):
-        '''
-        Add general stencil information associated with a kernel argument.
-
-        :param arg: the meta-data description of the kernel argument with \
-                    which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        '''
-        self._arglist.append(DynStencils.dofmap_name(self._stub_symtab, arg))
-
-    def operator(self, arg):
-        ''' add the operator arguments to the argument list '''
-        size = arg.name + "_ncell_3d"
-        self._arglist.append(size)
-        # If this is the first argument in the kernel then keep a
-        # note so that we can put subsequent declarations in the
-        # correct location
-        if self._first_arg:
-            self._first_arg = False
-        text = arg.name
-        self._arglist.append(text)
-
-    def cma_operator(self, arg):
-        ''' add the CMA operator arguments to the argument list '''
-        # The CMA operator itself
-        self._arglist.append(arg.name)
-        # Associated scalar parameters
-        nrow = arg.name + "_nrow"
-        _local_args = [nrow]
-        if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
-            # If the to- and from-spaces are different then so are ncol and
-            # nrow so we pass both of them. If they are the same then we
-            # could pass either but choose to pass nrow and not ncol.
-            ncol = arg.name + "_ncol"
-            _local_args.append(ncol)
-        bandwidth = arg.name + "_bandwidth"
-        alpha = arg.name + "_alpha"
-        beta = arg.name + "_beta"
-        gamma_m = arg.name + "_gamma_m"
-        gamma_p = arg.name + "_gamma_p"
-        _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
-        self._arglist += _local_args
-
-        if self._first_arg:
-            self._first_arg = False
-
-    def banded_dofmap(self, function_space):
-        ''' Declare the banded dofmap required for a CMA operator
-        that maps to/from the specified function space '''
-        dofmap = function_space.cbanded_map_name
-        self._arglist.append(dofmap)
-
-    def indirection_dofmap(self, function_space, operator=None):
-        '''
-        Declare the indirection dofmaps required when applying a
-        CMA operator.
-
-        :param function_space: the function space for which the dofmap \
-                               is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :param operator: the CMA operator for which the dofmap is required.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        :raises GenerationError: if no kernel argument is supplied.
-        :raises GenerationError: if the supplied kernel argument is not a \
-                                 CMA operator.
-
-        '''
-        if not operator:
-            raise GenerationError("Internal error: no CMA operator supplied.")
-        if operator.argument_type != "gh_columnwise_operator":
-            raise GenerationError(
-                "Internal error: a CMA operator (gh_columnwise_operator) must "
-                "be supplied but got {0}".format(operator.argument_type))
-        map_name = function_space.cma_indirection_map_name
-        self._arglist.append(map_name)
-
-    def scalar(self, arg):
-        '''
-        Add the name associated with the scalar argument to the argument list.
-
-        :param arg: the kernel argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        :raises InternalError: if the argument is not a recognised scalar type.
-
-        '''
-        if not arg.is_scalar:
-            raise InternalError(
-                "Expected argument type to be one of {0} but got '{1}'".
-                format(LFRicArgDescriptor.VALID_SCALAR_NAMES,
-                       arg.argument_type))
-        self._arglist.append(arg.name)
-
-    def fs_common(self, function_space):
-        ''' Provide arguments common to LMA operators and
-        fields on a space. There is one: "ndf". '''
-        ndf_name = function_space.ndf_name
-        self._arglist.append(ndf_name)
-
-    def fs_compulsory_field(self, function_space):
-        ''' Provide compulsory arguments if there is a field on this
-        function space'''
-        undf_name = function_space.undf_name
-        self._arglist.append(undf_name)
-        map_name = function_space.map_name
-        self._arglist.append(map_name)
-
-    def basis(self, function_space):
-        '''
-        Add the necessary declarations for basis function(s) on the supplied
-        function space. There can be more than one if this is an evaluator
-        and/or multiple 'gh_shape's have been requested in the kernel metadata.
-
-        :param function_space: the function space for which to provide \
-                               the basis functions
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
-        :raises InternalError: if the evaluator shape is not recognised.
-
-        '''
-        for shape in self._kern.eval_shapes:
-            if shape in VALID_QUADRATURE_SHAPES:
-                # A kernel stub won't have a name for the corresponding
-                # quadrature argument so we create one by appending the last
-                # part of the shape name to "qr_".
-                basis_name = function_space.get_basis_name(
-                    qr_var="qr_"+shape.split("_")[-1])
-                self._arglist.append(basis_name)
-            elif shape in VALID_EVALUATOR_SHAPES:
-                # Need a basis array for each target space upon which the basis
-                # functions have been evaluated. _kern.eval_targets is a dict
-                # where the values are 2-tuples of (FunctionSpace, argument).
-                for _, target in self._kern.eval_targets.items():
-                    basis_name = \
-                        function_space.get_basis_name(on_space=target[0])
-                    self._arglist.append(basis_name)
-            else:
-                raise InternalError(
-                    "Unrecognised evaluator shape ('{0}'). Expected one of: "
-                    "{1}".format(shape, VALID_EVALUATOR_SHAPES))
-
-    def diff_basis(self, function_space):
-        '''
-        Provide the necessary declarations for the differential basis function
-        on the supplied function space.
-
-        :param function_space: the function space for which to provide the \
-                               differential basis function
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
-        :raises InternalError: if the evaluator shape is not recognised.
-
-        '''
-        for shape in self._kern.eval_shapes:
-            if shape in VALID_QUADRATURE_SHAPES:
-                # We need differential basis functions for quadrature. A
-                # kernel stub won't have a name for the corresponding
-                # quadrature argument so we create one by appending the
-                # last part of the shape name to "qr_".
-                diff_basis_name = function_space.get_diff_basis_name(
-                    qr_var="qr_"+shape.split("_")[-1])
-                self._arglist.append(diff_basis_name)
-
-            elif shape in VALID_EVALUATOR_SHAPES:
-                # We need differential basis functions for an evaluator,
-                # potentially for multiple target spaces. _kern.eval_targets is
-                # a dict where the values are 2-tuples of
-                # (FunctionSpace, argument).
-                for _, target in self._kern.eval_targets.items():
-                    diff_basis_name = function_space.get_diff_basis_name(
-                        on_space=target[0])
-                    self._arglist.append(diff_basis_name)
-            else:
-                raise InternalError("Unrecognised evaluator shape ('{0}'). "
-                                    "Expected one of: {1}".format(
-                                        shape, VALID_EVALUATOR_SHAPES))
-
-    def orientation(self, function_space):
-        '''
-        Provide orientation information for the function space.
-
-        :param function_space: the function space for which orientation \
-                               is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
-        '''
-        orientation_name = function_space.orientation_name
-        self._arglist.append(orientation_name)
-
-    def field_bcs_kernel(self, function_space):
-        ''' implement the boundary_dofs array fix for fields '''
-        arg = self._kern.arguments.get_arg_on_space(function_space)
-        self._arglist.append("boundary_dofs_"+arg.name)
-
-    def operator_bcs_kernel(self, function_space):
-        ''' Implement the boundary_dofs array fix for operators. This is the
-        same as for fields with the function space set to the 'to' space of
-        the operator. '''
-        self.field_bcs_kernel(function_space)
-
-    def mesh_properties(self):
-        ''' Provide the kernel arguments required for the mesh properties
-        specified in the kernel metadata.
-
-        '''
-        if self._kern.mesh.properties:
-            self._arglist.extend(
-                LFRicMeshProperties(self._kern).kern_args(stub=True))
-
-    def quad_rule(self):
-        ''' Provide quadrature information for this kernel stub (necessary
-        arguments). '''
-        for rule in self._kern.qr_rules.values():
-            self._arglist.extend(rule.kernel_args)
-
-    @property
-    def arglist(self):
-        '''return the kernel argument list. The generate function must be
-        called first'''
-        if not self._arglist:
-            raise GenerationError(
-                "Internal error. The argument list in KernStubArgList:"
-                "arglist() is empty. Has the generate() method been called?")
-        return self._arglist
-
 
 # class DinoWriters(ArgOrdering):
 #    def __init__(self, kern, parent=None, position=None):
@@ -8784,7 +7668,7 @@ class DynKernelArguments(Arguments):
         :return: the first kernel argument that is on the named function \
                  space and the associated FunctionSpace object.
         :rtype: (:py:class:`psyclone.dynamo0p3.DynKernelArgument`,
-                 :py:class:`psyclone.dynamo0p3.FunctionSpace`)
+                 :py:class:`psyclone.domain.lfric.FunctionSpace`)
         :raises: FieldNotFoundError if no field or operator argument is found \
                  for the named function space.
         '''
@@ -8804,7 +7688,7 @@ class DynKernelArguments(Arguments):
         function space is used for comparison.
 
         :param func_space: The function space for which to find an argument.
-        :type func_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: the first kernel argument that is on the supplied function
                  space
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -8937,6 +7821,7 @@ class DynKernelArguments(Arguments):
         :returns: a list of all of the actual arguments to the \
                   kernel call.
         :rtype: list of str.
+
         '''
         create_arg_list = KernCallArgList(self._parent_call)
         create_arg_list.generate()
@@ -8952,94 +7837,6 @@ class DynKernelArguments(Arguments):
         :rtype: list of str
 
         '''
-        class KernCallAccArgList(KernCallArgList):
-            '''
-            Kernel call arguments that need to be declared by OpenACC
-            directives. KernCallArgList only needs to be specialised
-            where modified, or additional, arguments are required.
-            Scalars are apparently not required but it is valid in
-            OpenACC to include them and requires less specialisation
-            to keep them in.
-
-            '''
-            def field_vector(self, argvect):
-                '''
-                Add the field vector associated with the argument 'argvect' to
-                the argument list. OpenACC requires the field and the
-                dereferenced data to be specified.
-
-                :param argvect: the kernel argument (vector field).
-                :type argvect:  :py:class:`psyclone.dynamo0p3.\
-                                DynKernelArgument`
-
-                '''
-                for idx in range(1, argvect.vector_size+1):
-                    text1 = argvect.proxy_name + "(" + str(idx) + ")"
-                    self._arglist.append(text1)
-                    text2 = text1 + "%data"
-                    self._arglist.append(text2)
-
-            def field(self, arg):
-                '''
-                Add the field associated with the argument 'arg' to
-                the argument list. OpenACC requires the field and the
-                dereferenced data to be specified.
-
-                :param arg: the kernel argument (field).
-                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-                '''
-                text1 = arg.proxy_name
-                self._arglist.append(text1)
-                text2 = text1 + "%data"
-                self._arglist.append(text2)
-
-            def stencil(self, arg):
-                '''
-                Add the stencil dofmap associated with this kernel
-                argument. OpenACC requires the full dofmap to be
-                specified.
-
-                :param arg: the meta-data description of the kernel \
-                argument with which the stencil is associated.
-                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-                '''
-                self._arglist.append(DynStencils.dofmap_name(
-                    self._kern.root.symbol_table, arg))
-
-            def operator(self, arg):
-                '''
-                Add the operator arguments to the argument list if
-                they have not already been added. OpenACC requires the
-                derived type and the dereferenced data to be
-                specified.
-
-                :param arg: the meta-data description of the operator.
-                :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-                '''
-                if arg.proxy_name_indexed not in self._arglist:
-                    self._arglist.append(arg.proxy_name_indexed)
-                    self._arglist.append(arg.proxy_name_indexed + "%ncell_3d")
-                    self._arglist.append(arg.proxy_name_indexed +
-                                         "%local_stencil")
-
-            def fs_compulsory_field(self, function_space):
-                '''
-                Add compulsory arguments associated with this function space to
-                the list. OpenACC requires the full function-space map
-                to be specified.
-
-                :param arg: the current functionspace.
-                :type arg: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
-                '''
-                undf_name = function_space.undf_name
-                self._arglist.append(undf_name)
-                map_name = function_space.map_name
-                self._arglist.append(map_name)
-
         create_acc_arg_list = KernCallAccArgList(self._parent_call)
         create_acc_arg_list.generate()
         return create_acc_arg_list.arglist
@@ -9126,8 +7923,8 @@ class DynKernelArgument(KernelArgument):
         on whether it is a field or operator and, if the latter, whether it
         is the to- or from-space that is specified).
 
-        :param function_space: the function space of this argument.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param function_space: the function space of this argument
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         :returns: the name used to dereference this argument.
         :rtype: str
@@ -9215,7 +8012,7 @@ class DynKernelArgument(KernelArgument):
         '''
         :returns: a descriptor object which contains Kernel metadata \
                   about this argument.
-        :rtype: :py:class:`psyclone.dynamo0p3.LFRicArgDescriptor`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
         '''
         return self._arg
 
@@ -9254,7 +8051,7 @@ class DynKernelArgument(KernelArgument):
     @property
     def mesh(self):
         '''
-        :returns: mesh associated with argument (GH_FINE or GH_COARSE).
+        :returns: mesh associated with argument ('GH_FINE' or 'GH_COARSE').
         :rtype: str
         '''
         return self._mesh
@@ -9329,8 +8126,7 @@ class DynKernelArgument(KernelArgument):
         function space for a field and function_space_from for an operator.
 
         :returns: function space for this argument.
-        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-
+        :rtype: :py:class:`psyclone.domain.lfric.FunctionSpace`
         '''
         if self._argument_type == "gh_operator":
             # We return the 'from' space for an operator argument
@@ -9497,7 +8293,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
-    'FunctionSpace',
     'DynFuncDescriptor03',
     'DynKernMetadata',
     'DynamoPSy',
@@ -9528,9 +8323,6 @@ __all__ = [
     'HaloReadAccess',
     'DynLoop',
     'DynKern',
-    'ArgOrdering',
-    'KernCallArgList',
-    'KernStubArgList',
     'FSDescriptor',
     'FSDescriptors',
     'DynStencil',
