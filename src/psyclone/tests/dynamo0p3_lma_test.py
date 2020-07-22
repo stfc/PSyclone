@@ -210,7 +210,7 @@ def test_arg_descriptor_op():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n"
         "  function_space_to[3]='w2'\n"
         "  function_space_from[4]='w2'\n")
@@ -218,7 +218,7 @@ def test_arg_descriptor_op():
 
     # Check LFRicArgDescriptor argument properties
     assert operator_descriptor.argument_type == "gh_operator"
-    assert operator_descriptor.data_type == "real"
+    assert operator_descriptor.data_type == "gh_real"
     assert operator_descriptor.function_space_to == "w2"
     assert operator_descriptor.function_space_from == "w2"
     assert operator_descriptor.function_space == "w2"

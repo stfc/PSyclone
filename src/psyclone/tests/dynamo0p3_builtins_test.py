@@ -237,7 +237,7 @@ def test_builtin_operator_arg():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
+    assert ("In the LFRic API an argument to a built-in kernel "
             "must be one of {0} but kernel '{1}' has an argument of "
             "type 'gh_operator'.".
             format(VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
@@ -2603,7 +2603,7 @@ def test_scalar_int_builtin_error(monkeypatch):
                      api=API)
     assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
             "with a real scalar argument, but scalar 'gh_integer' with "
-            "'integer' data type was found" in str(excinfo.value))
+            "'gh_integer' data type was found" in str(excinfo.value))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

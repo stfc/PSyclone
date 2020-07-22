@@ -103,7 +103,7 @@ def test_cma_mdata_assembly():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_write'\n"
         "  function_space_to[3]='any_space_1'\n"
         "  function_space_from[4]='any_space_2'\n")
@@ -113,7 +113,7 @@ def test_cma_mdata_assembly():
 
     # Check LFRicArgDescriptor argument properties
     assert cma_op_desc.argument_type == "gh_columnwise_operator"
-    assert cma_op_desc.data_type == "real"
+    assert cma_op_desc.data_type == "gh_real"
     assert cma_op_desc.function_space_to == "any_space_1"
     assert cma_op_desc.function_space_from == "any_space_2"
     assert cma_op_desc.function_space == "any_space_2"
@@ -251,7 +251,7 @@ def test_cma_mdata_assembly_diff_spaces():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n"
         "  function_space_to[3]='any_space_3'\n"
         "  function_space_from[4]='any_space_2'\n")
@@ -335,7 +335,7 @@ def test_cma_mdata_apply():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n"
         "  function_space[3]='any_space_2'\n")
 
@@ -344,7 +344,7 @@ def test_cma_mdata_apply():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n"
         "  function_space_to[3]='any_space_1'\n"
         "  function_space_from[4]='any_space_2'\n")
@@ -526,7 +526,7 @@ def test_cma_mdata_matrix_prod():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n"
         "  function_space_to[3]='any_space_1'\n"
         "  function_space_from[4]='any_space_2'\n")

@@ -148,14 +148,14 @@ def test_arg_descriptor_vector():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_inc'\n"
         "  function_space[3]='w1'")
     assert expected in field_descriptor_str
 
     # Check LFRicArgDescriptor argument properties
     assert field_descriptor.argument_type == "gh_field"
-    assert field_descriptor.data_type == "real"
+    assert field_descriptor.data_type == "gh_real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -252,7 +252,7 @@ def test_ad_int_scalar_type_no_sum():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but scalar 'gh_integer' with 'integer' data type "
+            "argument, but scalar 'gh_integer' with 'gh_integer' data type "
             in str(excinfo.value))
 
 
@@ -2545,7 +2545,7 @@ def test_stencil_metadata():
     # Check other LFRicArgDescriptor argument properties for a
     # field stencil argument
     assert stencil_descriptor_1.argument_type == "gh_field"
-    assert stencil_descriptor_1.data_type == "real"
+    assert stencil_descriptor_1.data_type == "gh_real"
     assert stencil_descriptor_1.function_space == "w2"
     assert stencil_descriptor_1.function_spaces == ['w2']
     assert str(stencil_descriptor_1.access) == "READ"
@@ -2848,6 +2848,33 @@ def test_arg_intent_error():
             "'gh_not_an_intent'" in str(excinfo.value))
 
 
+def test_arg_intrinsic_type_error(monkeypatch):
+    ''' Tests that an internal error is raised in creating argument
+    'intrinsic_type' property when an invalid 'data_type' property is
+    passed from the LFRicArgDescriptor class.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[0]
+    # Mess with the internal state of this argument's intrinsic type
+    monkeypatch.setattr(first_argument.descriptor, "_data_type",
+                        value="gh_unreal")
+    expected_descriptor = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_real'\n"
+        "  data_type[1]='gh_unreal'\n"
+        "  access_descriptor[2]='gh_read'\n")
+    with pytest.raises(InternalError) as excinfo:
+        _ = first_argument.intrinsic_type()
+    assert ("DynKernelArgument.intrinsic_type: Found unsupported data "
+            "type 'gh_unreal' in the kernel argument descriptor '{0}'.".
+            format(expected_descriptor) in str(excinfo.value))
+
+
 @pytest.mark.skipif(
     sys.version_info > (3,),
     reason="Deepcopy of function_space not working in Python 3")
@@ -2916,14 +2943,14 @@ def test_arg_descriptor_fld():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_inc'\n"
         "  function_space[3]='w1'")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert field_descriptor.argument_type == "gh_field"
-    assert field_descriptor.data_type == "real"
+    assert field_descriptor.data_type == "gh_real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -2945,13 +2972,13 @@ def test_arg_descriptor_real_scalar():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_real'\n"
-        "  data_type[1]='real'\n"
+        "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.argument_type == "gh_real"
-    assert scalar_descriptor.data_type == "real"
+    assert scalar_descriptor.data_type == "gh_real"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
@@ -2973,13 +3000,13 @@ def test_arg_descriptor_int_scalar():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_integer'\n"
-        "  data_type[1]='integer'\n"
+        "  data_type[1]='gh_integer'\n"
         "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert scalar_descriptor.argument_type == "gh_integer"
-    assert scalar_descriptor.data_type == "integer"
+    assert scalar_descriptor.data_type == "gh_integer"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"

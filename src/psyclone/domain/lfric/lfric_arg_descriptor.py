@@ -83,6 +83,10 @@ class LFRicArgDescriptor(Descriptor):
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \
         VALID_SCALAR_NAMES
 
+    # Supported API argument data types (real and integer for now) (the check for
+    # data type metadata being one of the valid types will be introduced in #774)
+    VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
+
     # Supported LFRic API stencil types and directions
     VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
     # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -316,9 +320,9 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        self._nargs, arg_type))
 
-        # Field data_type is "real" for now, but will be determined by
+        # Field data_type is "gh_real" for now, but will be determined by
         # metadata descriptor as the second argument in issue #817
-        self._data_type = "real"
+        self._data_type = LFRicArgDescriptor.VALID_ARG_DATA_TYPES[0]
 
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in \
@@ -455,9 +459,9 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
                        self._nargs, arg_type))
 
-        # Operator data_type is "real" for now, but will be determined by
+        # Operator data_type is "gh_real" for now, but will be determined by
         # metadata descriptor as the second argument in issue #817
-        self._data_type = "real"
+        self._data_type = LFRicArgDescriptor.VALID_ARG_DATA_TYPES[0]
 
         # Operator arguments need to have valid to- and from- function spaces
         if arg_type.args[2].name not in \
@@ -528,7 +532,7 @@ class LFRicArgDescriptor(Descriptor):
         # Scalar data_type is determined by its metadata descriptor for
         # type as a first argument, however this will change to the second
         # argument in issue #774
-        self._data_type = self._dtype_from_descr(arg_type.args[0])
+        self._data_type = arg_type.args[0].name
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
@@ -545,7 +549,7 @@ class LFRicArgDescriptor(Descriptor):
                 "in '{2}'.".format(valid_reductions, api_specific_name,
                                    arg_type))
         # Reduction access is currently only valid for real scalar arguments
-        if self._data_type != "real" and self._access_type in \
+        if self._data_type != "gh_real" and self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the LFRic API a reduction access '{0}' is only valid "
@@ -556,19 +560,6 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalars don't have vector size
         self._vector_size = 0
-
-    def _dtype_from_descr(self, dtype_descriptor):
-        '''
-        :param dtype_descriptor: data_type argument metadata descriptor.
-        :type dtype_descriptor: :py:class:`psyclone.expression.FunctionVar`
-
-        :returns: the data type of this argument's data as determined from \
-                  the metadata descriptor.
-        :rtype: str
-
-        '''
-        dtype = str(dtype_descriptor).lower()
-        return dtype.lstrip("gh_")
 
     @property
     def data_type(self):

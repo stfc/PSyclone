@@ -93,6 +93,10 @@ QUADRATURE_TYPE_MAP = {
 # ---------- Fortran datatypes ---------------------------------------------- #
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
+# ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
+MAPPING_DATA_TYPES = dict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                              SUPPORTED_FORTRAN_DATATYPES[0:2]))
+
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's
 # halo. It is useful to group these together as we often need to
@@ -9082,7 +9086,7 @@ class DynKernelArgument(KernelArgument):
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._argument_type = arg_meta_data.argument_type
-        self._intrinsic_type = arg_meta_data.data_type
+        self._intrinsic_type = None
         self._stencil = None
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
@@ -9229,7 +9233,21 @@ class DynKernelArgument(KernelArgument):
         :returns: the intrinsic Fortran type of this argument for scalars \
                   or of the argument's data for fields and operators.
         :rtype: str
+
+        :raises InternalError: for an unsupported metadata for descriptor \
+                               data type.
+
         '''
+
+        try:
+            self._intrinsic_type = MAPPING_DATA_TYPES[
+                 self.descriptor.data_type]
+        except KeyError:
+            raise InternalError(
+                "DynKernelArgument.intrinsic_type: Found unsupported data "
+                "type '{0}' in the kernel argument descriptor '{1}'.".
+                format(self.descriptor.data_type, self.descriptor))
+
         return self._intrinsic_type
 
     @property
