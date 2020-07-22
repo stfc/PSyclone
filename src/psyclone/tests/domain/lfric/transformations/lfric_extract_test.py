@@ -312,18 +312,40 @@ def test_single_node_dynamo0p3():
     output = """      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", "invoke_0_testkern""" \
-      """_type:testkern_code:r0", 4, 2)
+      """_type:testkern_code:r0", 15, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f1", f1)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
       CALL extract_psy_data%PreDeclareVariable("m1", m1)
       CALL extract_psy_data%PreDeclareVariable("m2", m2)
+      CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
+      CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
+      CALL extract_psy_data%PreDeclareVariable("map_w3", map_w3)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w1", ndf_w1)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w3", ndf_w3)
+      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("undf_w1", undf_w1)
+      CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
+      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f1", f1)
       CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("m1", m1)
       CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
+      CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
+      CALL extract_psy_data%ProvideVariable("map_w3", map_w3)
+      CALL extract_psy_data%ProvideVariable("ndf_w1", ndf_w1)
+      CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%ProvideVariable("ndf_w3", ndf_w3)
+      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("undf_w1", undf_w1)
+      CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
+      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
@@ -339,22 +361,6 @@ def test_single_node_dynamo0p3():
       !
       ! ExtractEnd"""
     assert output in code
-
-    # TODO #646
-    # At this stage not all required parameters are passed via PSyData.
-    # This is an excerpt of missing lines, which will cause this test to x-fail
-    not_yet_working = ['CALL extract_psy_data%ProvideVariable("nlayers", '
-                       'nlayers)',
-                       'CALL extract_psy_data%ProvideVariable("m1_proxy", '
-                       'm1_proxy)',
-                       'CALL extract_psy_data%ProvideVariable("ndf_w1", '
-                       'ndf_w1)',
-                       'CALL extract_psy_data%ProvideVariable("undf_w1", '
-                       'undf_w1)']
-    for line in not_yet_working:
-        if line not in code:
-            pytest.xfail("#646 LFRic extraction not fully supported yet.")
-    assert False, "X-failing test suddenly working: #646 LFRic extraction."
 
 
 def test_node_list_dynamo0p3():
@@ -374,13 +380,23 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 1, 3)
+      """"invoke_0:r0", 6, 3)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f3", f3)
+      CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f3", f3)
+      CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
+      CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=1,undf_aspc1_f5
         f5_proxy%data(df) = 0.0
@@ -402,24 +418,8 @@ def test_node_list_dynamo0p3():
       ! ExtractEnd"""
     assert output in code
 
-    # TODO #646
-    # At this stage not all required parameters are passed via PSyData.
-    # This is an excerpt of missing lines, which will cause this test to x-fail
-    not_yet_working = ['CALL extract_psy_data%ProvideVariable("nlayers", '
-                       'nlayers)',
-                       'CALL extract_psy_data%ProvideVariable("ndf_w2", '
-                       'ndf_w2)',
-                       'CALL extract_psy_data%ProvideVariable("undf_w2", '
-                       'undf_w2)',
-                       'CALL extract_psy_data%ProvideVariable("map_w2", '
-                       'map_w2)']
-    for line in not_yet_working:
-        if line not in code:
-            pytest.xfail("#646 LFRic extraction not fully supported yet.")
-    assert False, "X-failing test suddenly working: #646 LFRic extraction."
 
-@pytest.mark.xfail(reason="Builtins not working (#637) and not all "
-                          "parameters saved (#646)")
+@pytest.mark.xfail(reason="Builtins not working (#637)")
 def test_dynamo0p3_builtin():
     ''' Tests the handling of builtins.
 
@@ -432,8 +432,6 @@ def test_dynamo0p3_builtin():
     schedule, _ = etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
 
-    # Note that this code was manually created (see #646), and might need
-    # adjustment to how the missing variables are actually stored.
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
@@ -539,17 +537,17 @@ def test_extract_single_builtin_dynamo0p3():
       ! ExtractEnd"""
     assert output in code_omp
 
-    # TODO #646
-    # At this stage not all required parameters are passed via PSyData.
-    # This is an excerpt of missing lines, which will cause this test to x-fail
+    # TODO #637 (no builtin support)
+    # Builtins are not yet support, so some arguments are missing. This
+    # is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL extract_psy_data%ProvideVariable("f1", f1)',
                        'CALL extract_psy_data%ProvideVariable("f2", f2)']
     for line in not_yet_working:
         if line not in code:
-            pytest.xfail("#646 LFRic extraction not fully supported yet.")
+            pytest.xfail("#637 LFRic builtins are not supported yet.")
         if line not in code_omp:
-            pytest.xfail("#646 LFRic extraction not fully supported yet.")
-    assert False, "X-failing test suddenly working: #646 lfric extraction."
+            pytest.xfail("#637 LFRic builtins are not supported yet.")
+    assert False, "X-failing test suddenly working: #637 lfric builtins."
 
 
 def test_extract_kernel_and_builtin_dynamo0p3():
@@ -569,13 +567,23 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 1, 3)
+      """"invoke_0:r0", 6, 3)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f3", f3)
+      CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f3", f3)
+      CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
+      CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=1,undf_aspc1_f2
         f2_proxy%data(df) = 0.0
@@ -598,21 +606,15 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # TODO #646 (LFRic not fully supported) and #637 (no builtin support)
+    # TODO #637 (no builtin support)
     # This is an excerpt of missing lines, which will cause this test to x-fail
     not_yet_working = ['CALL extract_psy_data%PreDeclareVariable("f2_post", '
                        'f2)',
-                       'CALL extract_psy_data%ProvideVariable("f2_post", f2)',
-                       'CALL extract_psy_data%ProvideVariable("nlayers", '
-                       'nlayers)',
-                       'CALL extract_psy_data%ProvideVariable("ndf_w2", '
-                       'ndf_w2)',
-                       'CALL extract_psy_data%ProvideVariable("undf_w2", '
-                       'undf_w2)']
+                       'CALL extract_psy_data%ProvideVariable("f2_post", f2)']
     for line in not_yet_working:
         if line not in code:
-            pytest.xfail("#646 LFRic extraction not fully supported yet.")
-    assert False, "X-failing test suddenly working: #646 LFRic extraction."
+            pytest.xfail("#637 LFRic builtin not supported yet.")
+    assert False, "X-failing test suddenly working: #637 LFRic builtin."
 
 
 def test_extract_colouring_omp_dynamo0p3():
@@ -658,23 +660,67 @@ def test_extract_colouring_omp_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("multikernel_invokes_7_psy", """
-              """"invoke_0:ru_code:r0", 6, 3)
+              """"invoke_0:ru_code:r0", 26, 3)
       CALL extract_psy_data%PreDeclareVariable("a", a)
       CALL extract_psy_data%PreDeclareVariable("b", b)
+      CALL extract_psy_data%PreDeclareVariable("basis_w0_qr", basis_w0_qr)
+      CALL extract_psy_data%PreDeclareVariable("basis_w2_qr", basis_w2_qr)
+      CALL extract_psy_data%PreDeclareVariable("basis_w3_qr", basis_w3_qr)
       CALL extract_psy_data%PreDeclareVariable("c", c)
+      CALL extract_psy_data%PreDeclareVariable("cmap", cmap)
+      CALL extract_psy_data%PreDeclareVariable("diff_basis_w0_qr", """
+              """diff_basis_w0_qr)
+      CALL extract_psy_data%PreDeclareVariable("diff_basis_w2_qr", """
+              """diff_basis_w2_qr)
       CALL extract_psy_data%PreDeclareVariable("e", e)
       CALL extract_psy_data%PreDeclareVariable("istp", istp)
+      CALL extract_psy_data%PreDeclareVariable("map_w0", map_w0)
+      CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
+      CALL extract_psy_data%PreDeclareVariable("map_w3", map_w3)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w0", ndf_w0)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%PreDeclareVariable("ndf_w3", ndf_w3)
+      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("np_xy_qr", np_xy_qr)
+      CALL extract_psy_data%PreDeclareVariable("np_z_qr", np_z_qr)
       CALL extract_psy_data%PreDeclareVariable("rdt", rdt)
+      CALL extract_psy_data%PreDeclareVariable("undf_w0", undf_w0)
+      CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
+      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%PreDeclareVariable("weights_xy_qr", weights_xy_qr)
+      CALL extract_psy_data%PreDeclareVariable("weights_z_qr", weights_z_qr)
       CALL extract_psy_data%PreDeclareVariable("b_post", b)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("colour_post", colour)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("a", a)
       CALL extract_psy_data%ProvideVariable("b", b)
+      CALL extract_psy_data%ProvideVariable("basis_w0_qr", basis_w0_qr)
+      CALL extract_psy_data%ProvideVariable("basis_w2_qr", basis_w2_qr)
+      CALL extract_psy_data%ProvideVariable("basis_w3_qr", basis_w3_qr)
       CALL extract_psy_data%ProvideVariable("c", c)
+      CALL extract_psy_data%ProvideVariable("cmap", cmap)
+      CALL extract_psy_data%ProvideVariable("diff_basis_w0_qr", """
+              """diff_basis_w0_qr)
+      CALL extract_psy_data%ProvideVariable("diff_basis_w2_qr", """
+              """diff_basis_w2_qr)
       CALL extract_psy_data%ProvideVariable("e", e)
       CALL extract_psy_data%ProvideVariable("istp", istp)
+      CALL extract_psy_data%ProvideVariable("map_w0", map_w0)
+      CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
+      CALL extract_psy_data%ProvideVariable("map_w3", map_w3)
+      CALL extract_psy_data%ProvideVariable("ndf_w0", ndf_w0)
+      CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
+      CALL extract_psy_data%ProvideVariable("ndf_w3", ndf_w3)
+      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("np_xy_qr", np_xy_qr)
+      CALL extract_psy_data%ProvideVariable("np_z_qr", np_z_qr)
       CALL extract_psy_data%ProvideVariable("rdt", rdt)
+      CALL extract_psy_data%ProvideVariable("undf_w0", undf_w0)
+      CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
+      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%ProvideVariable("weights_xy_qr", weights_xy_qr)
+      CALL extract_psy_data%ProvideVariable("weights_z_qr", weights_z_qr)
       CALL extract_psy_data%PreEnd
       DO colour=1,ncolour
         !$omp parallel do default(shared), private(cell), schedule(static)
@@ -702,19 +748,3 @@ def test_extract_colouring_omp_dynamo0p3():
 
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # TODO #646
-    # At this stage not all required parameters are passed via PSyData.
-    # This is an excerpt of missing lines, which will cause this test to x-fail
-    not_yet_working = ['CALL extract_psy_data%ProvideVariable("nlayers", '
-                       'nlayers)',
-                       'CALL extract_psy_data%ProvideVariable("ndf_w2", '
-                       'ndf_w2)',
-                       'CALL extract_psy_data%ProvideVariable("undf_w2", '
-                       'undf_w2)',
-                       'CALL extract_psy_data%ProvideVariable("weights_z_qr", '
-                       'weights_z_qr)']
-    for line in not_yet_working:
-        if line not in code:
-            pytest.xfail("#646 LFRic extraction not fully supported yet.")
-    assert False, "X-failing test suddenly working: #646 LFRic extraction."
