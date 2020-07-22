@@ -2388,7 +2388,7 @@ def test_loopfuse():
     assert len(kern_idxs) == 2
     # both kernel calls are within the loop
     for kern_id in kern_idxs:
-        assert kern_id > do_idx and kern_id < enddo_idx
+        assert enddo_idx > kern_id > do_idx
 
 
 def test_kern_colourmap(monkeypatch):
@@ -5718,83 +5718,6 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         assert output in generated_code
 
 
-def test_unexpected_type_error(dist_mem):
-    ''' Check that we raise an exception if an unexpected argument type is
-    found when running the ArgOrdering generate method. As it is abstract we
-    use the KernCallArgList sub class.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.0.1_single_named_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.loop_body[0]
-    # Sabotage one of the arguments to make it have an invalid type.
-    kernel.arguments.args[0]._type = "invalid"
-    # Now call KernCallArgList to raise an exception
-    create_arg_list = KernCallArgList(kernel)
-    with pytest.raises(InternalError) as excinfo:
-        create_arg_list.generate()
-    assert (
-        "dynamo0p3.ArgOrdering.generate(): Unexpected argument "
-        "type. Expected one of {0} but found 'invalid'".
-        format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
-        in str(excinfo.value))
-
-
-def test_argordering_exceptions(dist_mem):
-    ''' Check that we raise an exception if the abstract methods are called
-    in an instance of the ArgOrdering class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.0.1_single_named_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.loop_body[0]
-    from psyclone.dynamo0p3 import ArgOrdering
-    create_arg_list = ArgOrdering(kernel)
-    for method in [create_arg_list.cell_map,
-                   create_arg_list.cell_position,
-                   create_arg_list.mesh_height,
-                   create_arg_list.mesh_ncell2d]:
-        with pytest.raises(NotImplementedError):
-            method()
-    for method in [create_arg_list.field_vector,
-                   create_arg_list.field,
-                   create_arg_list.stencil_unknown_extent,
-                   create_arg_list.stencil_unknown_direction,
-                   create_arg_list.stencil,
-                   create_arg_list.operator,
-                   create_arg_list.scalar,
-                   create_arg_list.fs_common,
-                   create_arg_list.fs_compulsory_field,
-                   create_arg_list.basis,
-                   create_arg_list.diff_basis,
-                   create_arg_list.orientation,
-                   create_arg_list.field_bcs_kernel,
-                   create_arg_list.operator_bcs_kernel,
-                   create_arg_list.banded_dofmap,
-                   create_arg_list.indirection_dofmap,
-                   create_arg_list.cma_operator]:
-        with pytest.raises(NotImplementedError):
-            method(None)
-
-
 def test_kernel_args_has_op():
     ''' Check that we raise an exception if the arg. type supplied to
     DynKernelArguments.has_operator() is not a valid operator. '''
@@ -5808,54 +5731,6 @@ def test_kernel_args_has_op():
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
     assert "'op_type' must be a valid operator type" in str(excinfo.value)
-
-
-def test_kerncallarglist_args_error(dist_mem):
-    ''' Check that we raise an exception if we call the methods that return
-    information in KernCallArgList without first calling the generate
-    method.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.0.1_single_named_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        loop = schedule.children[4]
-    else:
-        loop = schedule.children[0]
-    create_arg_list = KernCallArgList(loop.loop_body[0])
-
-    # nlayers_positions method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.nlayers_positions
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the nlayers_positions() method") in str(excinfo.value)
-
-    # nqp_positions method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.nqp_positions
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the nqp_positions() method") in str(excinfo.value)
-
-    # ndf_positions method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.ndf_positions
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the ndf_positions() method") in str(excinfo.value)
-
-    # arglist method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.arglist
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the arglist() method") in str(excinfo.value)
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
@@ -6875,10 +6750,11 @@ def test_dynkernelarguments_acc_args_2():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy(1)', 'f1_proxy(1)%data', 'f1_proxy(2)',
-        'f1_proxy(2)%data', 'f1_proxy(3)', 'f1_proxy(3)%data', 'f2_proxy(1)',
-        'f2_proxy(1)%data', 'f2_proxy(2)', 'f2_proxy(2)%data', 'f2_proxy(3)',
-        'f2_proxy(3)%data', 'ndf_w3', 'undf_w3', 'map_w3']
+        'nlayers', 'f1_proxy(1)', 'f1_proxy(2)', 'f1_proxy(3)',
+        'f1_proxy(1)%data', 'f1_proxy(2)%data', 'f1_proxy(3)%data',
+        'f2_proxy(1)', 'f2_proxy(2)', 'f2_proxy(3)',
+        'f2_proxy(1)%data', 'f2_proxy(2)%data', 'f2_proxy(3)%data',
+        'ndf_w3', 'undf_w3', 'map_w3']
 
 
 # (3/4) Method acc_args
@@ -6916,8 +6792,8 @@ def test_dynkernelarguments_acc_args_4():
     acc_args = kern_args.acc_args
     assert acc_args == [
         'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
-        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(1)%data',
-        'coord_proxy(2)', 'coord_proxy(2)%data', 'coord_proxy(3)',
+        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(2)',
+        'coord_proxy(3)', 'coord_proxy(1)%data', 'coord_proxy(2)%data',
         'coord_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
