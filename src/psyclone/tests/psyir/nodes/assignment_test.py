@@ -40,9 +40,9 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Assignment, Reference, Literal
+from psyclone.psyir.nodes import Assignment, Reference, Literal, Array, Range
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE
+    INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -129,3 +129,32 @@ def test_assignment_children_validation():
         assignment.children.append(Literal("0.0", REAL_SINGLE_TYPE))
     assert ("Item 'Literal' can't be child 2 of 'Assignment'. The valid format"
             " is: 'DataNode, DataNode'.") in str(excinfo.value)
+
+
+def test_is_array_range():
+    '''test that the is_array_range method behaves as expected, returning
+    true if the LHS of the assignment is an array range access and
+    false otherwise.
+
+    '''
+    one = Literal("1.0", REAL_TYPE)
+    int_one = Literal("1", INTEGER_TYPE)
+    var = DataSymbol("x", REAL_TYPE)
+    reference = Reference(var)
+
+    # lhs is not an array
+    assignment = Assignment.create(reference, one)
+    assert assignment.is_array_range == False
+
+    # lhs is an array reference but has no range
+    array_type = ArrayType(REAL_TYPE, [10,10])
+    symbol = DataSymbol("x", array_type)
+    array_ref = Array(symbol, [1,3])
+    assignment = Assignment.create(array_ref, one)
+    assert assignment.is_array_range == False
+
+    # lhs is an array reference with a range
+    my_range = Range.create(int_one, int_one, int_one)
+    array_ref = Array.create(symbol, [my_range, int_one])
+    assignment = Assignment.create(array_ref, one)
+    assert assignment.is_array_range == True

@@ -45,7 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.nodes import Assignment, CodeBlock
 
 # Constants
 API = "nemo"
@@ -117,7 +117,7 @@ def test_do_while():
     ''' Check that do-while loops are put into CodeBlocks. Eventually we
     will need to recognise them as Nodes in the Schedule in their
     own right. '''
-    from psyclone.psyir.nodes import CodeBlock
+
     _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
     sched = invoke_info.schedule
     # Do while loops are not currently handled and thus are put into
@@ -187,7 +187,6 @@ def test_fn_call_no_kernel(parser):
 def test_codeblock_no_kernel(parser, monkeypatch):
     ''' Check that we don't create a kernel if the loop body contains a
     CodeBlock. '''
-    from psyclone.psyir.nodes import CodeBlock
     reader = FortranStringReader("program fake_kern\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"

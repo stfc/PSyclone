@@ -133,8 +133,8 @@ class Reference(DataNode):
                                      BinaryOperation.Operator.UBOUND] and \
                 self.parent.children.index(self) == 0):
             # This reference is the first argument to a lbound or
-            # ubound intrinsic. These intrinsics do not access this
-            # array elements, they determine its array
+            # ubound intrinsic. These intrinsics do not access the
+            # array elements, they determine the array
             # bounds. Therefore there is no data dependence.
             return
         var_accesses.add_access(self.name, AccessType.READ, self)

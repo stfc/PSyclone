@@ -3469,8 +3469,8 @@ class ACCKernelsTrans(RegionTrans):
         # Check that we have at least one loop or array range within
         # the proposed region
         for node in node_list:
-            if ([assign for assign in node.walk(Assignment)
-                 if assign.is_array_range] or node.walk(Loop)):
+            if (any(assign for assign in node.walk(Assignment)
+                    if assign.is_array_range) or node.walk(Loop)):
                 break
         else:
             # Branch executed if loop does not exit with a break

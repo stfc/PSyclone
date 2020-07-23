@@ -214,8 +214,10 @@ def test_do_loop(parser):
                                 "s: WRITE, t: READ"
 
 
-def test_nemo_implicit_loop(parser):
-    ''' Check the handling of ImplicitLoops access information.
+def test_nemo_array_range(parser):
+    '''Check the handling of the access information for Fortran
+    array notation (captured using Ranges in the PSyiR).
+
     '''
     reader = FortranStringReader('''program test_prog
                                  integer :: jj, n

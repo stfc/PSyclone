@@ -196,6 +196,6 @@ class Assignment(Statement):
         from psyclone.psyir.nodes import Array, Range
         if not isinstance(self.lhs, Array):
             return False
-        if not [dim for dim in self.lhs.children if isinstance(dim, Range)]:
-            return False
-        return True
+        if any(dim for dim in self.lhs.children if isinstance(dim, Range)):
+            return True
+        return False
