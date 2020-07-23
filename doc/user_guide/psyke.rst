@@ -86,13 +86,19 @@ node then creates the actual code, as in the following LFRic example::
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
       CALL extract_psy_data%PreDeclareVariable("m1", m1)
       CALL extract_psy_data%PreDeclareVariable("m2", m2)
-      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
+      ...
+      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("a", a)
       CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("m1", m1)
       CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
+      ...
+      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)      
       CALL extract_psy_data%PreEnd
       DO cell=1,f1_proxy%vspace%get_ncell()
         !
@@ -107,11 +113,6 @@ node then creates the actual code, as in the following LFRic example::
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
-
-.. note::
-    At this stage the LFRic API is not fully supported, as can be seen
-    by missing paramters like ``nlayers``, ``ndf_w1``, ... This is
-    tracked in issue #646.
 
 The PSyData API relies on generic Fortran interfaces to provide the 
 field-type-specific implementations of the ``ProvideVariable`` for different
@@ -330,8 +331,10 @@ The generated code is now:
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
+      ...
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      ...
       CALL extract_psy_data%PreEnd
       !
       !$omp parallel do default(shared), private(df), schedule(static)
