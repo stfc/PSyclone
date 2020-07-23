@@ -86,9 +86,15 @@ def test_read_only_basic(capsys):
     new_sched, _ = read_only.apply(invoke.schedule[0].loop_body[0])
     new_sched.view()
     result, _ = capsys.readouterr()
-    assert """Schedule[]
-            0: ReadOnlyVerify[]
-                Schedule[]""" in result
+
+    # Create the coloured text (if required)
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    read_node = colored("ReadOnlyVerify",
+                        SCHEDULE_COLOUR_MAP["ReadOnlyVerify"])
+    sched_node = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    assert """{0}[]
+            0: {1}[]
+                {0}[]""".format(sched_node, read_node) in result
 
     read_node = new_sched[0].loop_body[0]
     assert read_node.dag_name == "read_only_verify_0"
