@@ -68,6 +68,10 @@
 	24) #825 for #646. Extends the dependency analysis so that it
 	works for all 'implicit' arguments passed to LFRic kernels.
 
+	25) #799 for #757. Extends kernel metadata such that multiple
+	implementations (in different precisions) of a single kerneli
+	may now be specified through an interface block.
+	
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
