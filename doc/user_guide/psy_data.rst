@@ -109,7 +109,8 @@ be printed at runtime, e.g.::
     --------------------------------------
 
 The transformation that adds read-only-verification to an application
-can be applied for any API. Below is an example that searches for each
+can be applied for both the LFRic and GOcean API - no API-specific
+transformations are required. Below is an example that searches for each
 loop in an invoke (which will always surround kernel calls) and applies the
 transformation to each one. This code has been successfully used as a
 global transformation with the LFRic gravity-wave miniapp::
