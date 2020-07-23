@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic,    Met Office
+#          C.M. Maynard, Met Office / University of Reading
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -278,12 +279,21 @@ class PSy(object):
 
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
-            inlining. Avoid inlining the same kernel more than once. '''
+            inlining. Avoid inlining the same kernel more than once.
+            :raises: InternalError if kernel_code (fparser1 AST of kernel)
+                is None.
+        '''
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
             for kernel in schedule.walk(CodedKern):
                 if kernel.module_inline:
+                    # raise an internal error if kernel_code is None
+                    if kernel._kernel_code is None:
+                        raise InternalError(
+                            "Have no fparser1 AST for kernel {0}."
+                            " Therefore cannot inline it."
+                            .format(kernel))
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
                         module.add_raw_subroutine(kernel._kernel_code)
