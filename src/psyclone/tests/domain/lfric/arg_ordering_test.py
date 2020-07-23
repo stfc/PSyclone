@@ -41,8 +41,8 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor)
+from psyclone.domain.lfric import (KernCallArgList,
+                                   KernStubArgList, LFRicArgDescriptor)
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse

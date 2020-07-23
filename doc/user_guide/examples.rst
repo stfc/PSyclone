@@ -196,7 +196,9 @@ It uses the dl_esm_inf-specific read-only-verification library
 The makefile in this example will link with the compiled 
 read-only-verification library. You can execute the created
 binary and it will print two warnings about modified
-read-only variables::
+read-only variables:
+
+.. code-block:: none
 
     --------------------------------------
     Double precision field b_fld has been modified in main : update

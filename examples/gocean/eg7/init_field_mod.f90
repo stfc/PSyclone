@@ -31,6 +31,9 @@
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
 
+!> This is a simple GOcean kernel that assigns a constant value
+!! to all elements of a field.
+
 module init_field_mod
   use kind_params_mod
   use kernel_mod

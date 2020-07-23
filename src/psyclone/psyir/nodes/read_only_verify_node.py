@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,8 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 class ReadOnlyVerifyNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
-    code read-only-verification using the ReadOnlyVerifyTrans transformation.
-    By applying the transformation the Nodes marked for extraction become
+    read-only-verification. By applying the ReadOnlyVerifyTrans
+    transformation, the Nodes marked for extraction become
     children of (the Schedule of) an ReadOnlyVerifyNode.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
@@ -61,7 +61,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
+    :type options: dict of string:values or NoneType
 
     '''
     def __init__(self, ast=None, children=None, parent=None, options=None):
@@ -69,26 +69,15 @@ class ReadOnlyVerifyNode(PSyDataNode):
             my_options = options.copy()
         else:
             my_options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "extract" class.
+
+        # If there is no value no value passed to the constructor, default
+        # to the "read_only_verify" prefix.
         my_options["prefix"] = my_options.get("prefix", "read_only_verify")
         super(ReadOnlyVerifyNode, self).__init__(ast=ast, children=children,
                                                  parent=parent,
                                                  options=my_options)
         self._text_name = "ReadOnlyVerify"
         self._colour_key = "ReadOnlyVerify"
-
-        # Define a postfix that will be added to variable that are
-        # modified to make sure the names can be distinguished between pre-
-        # and post-variables (i.e. here input and output). A variable
-        # "myvar" will be stored as "myvar" with its input value, and
-        # "myvar_post" with its output value.
-        self._post_name = "_readonlyverify"
-
-        # Store the list of input- and output-variables, so that a driver
-        # generator can get the list of variables that are written.
-        self._input_list = []
-        self._output_list = []
 
     @property
     def read_only_verify_body(self):
@@ -113,25 +102,23 @@ class ReadOnlyVerifyNode(PSyDataNode):
         '''
         This function is called after the variables to be extracted
         have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
+        This default function does not do anything for read-only
+        verification.
         '''
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
-        Generates the code required for extraction of one or more Nodes.
-        It uses the PSyData API (via the base class PSyDataNode) to create
-        the required callbacks that will allow a library to write the
-        kernel data to a file.
+        Generates the code required for read-only verification of one or
+        more Nodes. It uses the PSyData API (via the base class PSyDataNode)
+        to create the required callbacks that will allow a library to
+        validate that read-only data is not modified.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
         '''
 
-        # Determine the variables to write:
+        # Determine the variables to validate:
         from psyclone.core.access_info import VariablesAccessInfo
         variables_info = VariablesAccessInfo(self)
         read_only = []
@@ -155,3 +142,8 @@ class ReadOnlyVerifyNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyEnd"))
         parent.add(CommentGen(parent, ""))
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["ReadOnlyVerifyNode"]

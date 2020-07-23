@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,16 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
+
+!> This module contains a simple 'update' kernel that
+!! overwrites a read-only declared field and a scalar
+!! read-only value. This is done by computing the address
+!! differences between an array and the value to be
+!! overwritten, then using out-of-bounds array accesses
+!! to change the values of parameters that are `intent(in)`.
+!! Be warned, very hacky code to trigger the problem!
+!! If array-bounds-checking is enabled these accesses will
+!! be flagged.
 
 module update_field_mod
   use kind_params_mod

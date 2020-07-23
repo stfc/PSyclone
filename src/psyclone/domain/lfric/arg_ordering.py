@@ -164,7 +164,7 @@ class ArgOrdering(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :raises GenerationError: if the kernel arguments break the \
-            rules for the LFRic API.
+                                 rules for the LFRic API.
 
         '''
         # Setting this first is important, since quite a few derived classes
