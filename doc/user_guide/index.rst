@@ -69,6 +69,7 @@ PSyclone User Guide
 
     introduction
     getting_going
+    tutorial
     examples
     system_specific_setup
 
