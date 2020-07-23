@@ -38,12 +38,9 @@
 Tutorial
 ========
 
-PSyclone provides a tutorial which uses Jupyter notebooks.
-
-This tutorial can be launched with Binder on `MyBinder
-<https://mybinder.org/>`_.  This is most easily done by launching the
-tutorial directly:
-`https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fintroduction.ipynb`_.
+PSyclone provides a tutorial which uses Jupyter notebooks. This can be
+launched from a browser using binder:
+`<https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fintroduction.ipynb/>`_.
 
 If PSyclone is installed on your system then you can run the tutorial
 locally. First find the tutorial. If you have installed PSyclone using
