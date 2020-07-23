@@ -319,7 +319,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Field data_type is "gh_real" for now, but will be determined by
         # metadata descriptor as the second argument in issue #817
-        self._data_type = LFRicArgDescriptor.VALID_ARG_DATA_TYPES[0]
+        self._data_type = "gh_real"
 
         # The 3rd argument must be a valid function space name
         if arg_type.args[2].name not in \
@@ -458,7 +458,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Operator data_type is "gh_real" for now, but will be determined by
         # metadata descriptor as the second argument in issue #817
-        self._data_type = LFRicArgDescriptor.VALID_ARG_DATA_TYPES[0]
+        self._data_type = "gh_real"
 
         # Operator arguments need to have valid to- and from- function spaces
         if arg_type.args[2].name not in \

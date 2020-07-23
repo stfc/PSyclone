@@ -2939,8 +2939,13 @@ class DynScalarArgs(DynCollection):
                 declname = arg.declaration_name
                 if arg.intrinsic_type == "real":
                     self._real_scalar_names[intent].append(declname)
-                if arg.intrinsic_type == "integer":
+                elif arg.intrinsic_type == "integer":
                     self._int_scalar_names[intent].append(declname)
+                else:
+                    raise InternalError(
+                        "DynScalarArgs.__init__(): Found an unsupported "
+                        "intrinsic type '{0}' for the scalar argument '{1}'.".
+                        format(arg.intrinsic_type, declname))
 
     def _invoke_declarations(self, parent):
         '''
@@ -7872,6 +7877,9 @@ class DynKernelArgument(KernelArgument):
     :param call: the kernel object with which this argument is associated.
     :type call: :py:class:`psyclone.dynamo0p3.DynKern`
 
+    :raises InternalError: for an unsupported metadata in the argument \
+                           descriptor data type.
+
     '''
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
@@ -7907,6 +7915,18 @@ class DynKernelArgument(KernelArgument):
                 fs1 = FunctionSpace(arg_meta_data.function_space,
                                     self._kernel_args)
         self._function_spaces = [fs1, fs2]
+
+        # Set the argument's intrinsic type from its descriptor's
+        # data type and check if an invalid data type is passed from
+        # the argument descriptor.
+        try:
+            self._intrinsic_type = MAPPING_DATA_TYPES[
+                self.descriptor.data_type]
+        except KeyError:
+            raise InternalError(
+                "DynKernelArgument.__init__(): Found unsupported data "
+                "type '{0}' in the kernel argument descriptor '{1}'.".
+                format(self.descriptor.data_type, self.descriptor))
 
         # Addressing issue #753 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
@@ -8028,21 +8048,7 @@ class DynKernelArgument(KernelArgument):
         :returns: the intrinsic Fortran type of this argument for scalars \
                   or of the argument's data for fields and operators.
         :rtype: str
-
-        :raises InternalError: for an unsupported metadata for descriptor \
-                               data type.
-
         '''
-
-        try:
-            self._intrinsic_type = MAPPING_DATA_TYPES[
-                self.descriptor.data_type]
-        except KeyError:
-            raise InternalError(
-                "DynKernelArgument.intrinsic_type: Found unsupported data "
-                "type '{0}' in the kernel argument descriptor '{1}'.".
-                format(self.descriptor.data_type, self.descriptor))
-
         return self._intrinsic_type
 
     @property

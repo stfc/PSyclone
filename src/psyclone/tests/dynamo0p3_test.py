@@ -1468,6 +1468,30 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
+def test_dynscalars_call_err():
+    ''' Check that the DynScalarArgs constructor raises the expected
+    internal error if it encounters an unrecognised intrinsic type of
+    scalar when generating a kernel call.
+
+    '''
+    from psyclone.dynamo0p3 import DynScalarArgs
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    first_argument = first_kernel.arguments.args[0]
+    first_argument._intrinsic_type = "double-type"
+    with pytest.raises(InternalError) as err:
+        _ = DynScalarArgs(first_kernel)
+    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic "
+            "type 'double-type' for the scalar argument 'a'."
+            in str(err.value))
+
+
 def test_vector_field(tmpdir):
     ''' Tests that a vector field is declared correctly in the PSy
     layer. '''
@@ -2849,29 +2873,28 @@ def test_arg_intent_error():
             "'gh_not_an_intent'" in str(excinfo.value))
 
 
-def test_arg_intrinsic_type_error(monkeypatch):
+def test_arg_intrinsic_type_error():
     ''' Tests that an internal error is raised in creating argument
     'intrinsic_type' property when an invalid 'data_type' property is
     passed from the LFRicArgDescriptor class.
 
     '''
+    from psyclone.dynamo0p3 import DynKernelArguments
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.coded_kernels()[0]
-    first_argument = first_kernel.arguments.args[0]
-    # Mess with the internal state of this argument's intrinsic type
-    monkeypatch.setattr(first_argument.descriptor, "_data_type",
-                        value="gh_unreal")
+    call = invoke_info.calls[0].kcalls[0]
+    kernel_metadata = call.ktype
+    # Mess with the internal state of this argument descriptor
+    # data type to trigger the internal error for intrinsic type
+    kernel_metadata._arg_descriptors[0]._data_type = "gh_unreal"
     expected_descriptor = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_real'\n"
         "  data_type[1]='gh_unreal'\n"
         "  access_descriptor[2]='gh_read'\n")
     with pytest.raises(InternalError) as excinfo:
-        _ = first_argument.intrinsic_type()
-    assert ("DynKernelArgument.intrinsic_type: Found unsupported data "
+        _ = DynKernelArguments(call, None)
+    assert ("DynKernelArgument.__init__(): Found unsupported data "
             "type 'gh_unreal' in the kernel argument descriptor '{0}'.".
             format(expected_descriptor) in str(excinfo.value))
 

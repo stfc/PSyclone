@@ -46,7 +46,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
 
@@ -60,6 +60,29 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+
+
+def test_dynscalars_stub_err():
+    ''' Check that the DynScalarArgs constructor raises the expected
+    internal error if it encounters an unrecognised intrinsic type of
+    scalar when generating a kernel stub.
+
+    '''
+    from psyclone.dynamo0p3 import DynScalarArgs
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_one_int_scalar_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    arg = kernel.arguments.args[1]
+    arg._intrinsic_type = "invalid-scalar-type"
+    with pytest.raises(InternalError) as err:
+        _ = DynScalarArgs(kernel)
+    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
+            "'invalid-scalar-type' for the scalar argument 'iscalar_2'."
+            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
