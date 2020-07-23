@@ -572,21 +572,24 @@ class Invoke(object):
         :returns: a list of all declared kernel arguments.
         :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises InternalError: if an invalid argument type is given.
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
         :raises InternalError: if an invalid access is specified.
 
         '''
-        for argtype in argument_types:
-            if argtype not in VALID_ARG_TYPE_NAMES:
-                raise InternalError(
-                    "Invoke.unique_declarations() called with an invalid "
-                    "argument type. Expected one of {0} but found '{1}'".
-                    format(str(VALID_ARG_TYPE_NAMES), argtype))
+        # First check for invalid argument types and invalid access
+        invalid_args = [argtype for argtype in argument_types if
+                        argtype not in VALID_ARG_TYPE_NAMES]
+        if invalid_args:
+            raise InternalError(
+                "Invoke.unique_declarations() called with at least one "
+                "invalid argument type. Expected one of {0} but found {1}.".
+                format(str(VALID_ARG_TYPE_NAMES), str(invalid_args)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
                 "Invoke.unique_declarations() called with an invalid access "
-                "type. Type is '{0}' instead of AccessType".
+                "type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
 
         # Initialise dictionary of kernel arguments to get the
@@ -627,16 +630,18 @@ class Invoke(object):
                   arguments as values for each type of intent.
         :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises InternalError: if the kernel argument is not a valid \
-                               argument type for the particular API.
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
 
         '''
-        for argtype in argument_types:
-            if argtype not in VALID_ARG_TYPE_NAMES:
-                raise InternalError(
-                    "Invoke.unique_declns_by_intent() called with an invalid "
-                    "argument type. Expected one of {0} but found '{1}'".
-                    format(str(VALID_ARG_TYPE_NAMES), argtype))
+        # First check for invalid argument types
+        invalid_args = [argtype for argtype in argument_types if
+                        argtype not in VALID_ARG_TYPE_NAMES]
+        if invalid_args:
+            raise InternalError(
+                "Invoke.unique_declns_by_intent() called with at least one "
+                "invalid argument type. Expected one of {0} but found {1}.".
+                format(str(VALID_ARG_TYPE_NAMES), str(invalid_args)))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent

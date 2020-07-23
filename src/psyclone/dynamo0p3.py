@@ -4732,26 +4732,28 @@ class DynInvoke(Invoke):
                   specified argument type.
         :rtype: list of str
 
-        :raises InternalError: if the supplied argument type is invalid.
+        :raises InternalError: if the supplied argument types are invalid.
         :raises InternalError: if an invalid access is specified, i.e. \
                                not of type AccessType.
 
         '''
-        for argtype in argument_types:
-            if argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES:
-                raise InternalError(
-                    "DynInvoke.unique_proxy_declarations() called with an "
-                    "invalid argument type. Expected one of {0} but found "
-                    "'{1}'".
-                    format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
-                           argtype))
+        # First check for invalid argument types and invalid access
+        invalid_args = [argtype for argtype in argument_types if
+                        argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES]
+        if invalid_args:
+            raise InternalError(
+                "DynInvoke.unique_proxy_declarations() called with at least "
+                "one invalid argument type. Expected one of {0} but found {1}."
+                .format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
+                        str(invalid_args)))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
                 "DynInvoke.unique_proxy_declarations() called with an invalid "
-                "access type. Expected one of {0} but found '{1}'".
+                "access type. Expected one of {0} but found '{1}'.".
                 format(valid_names, access))
+        # Create declarations list
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:

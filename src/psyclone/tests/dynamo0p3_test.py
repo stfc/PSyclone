@@ -1740,15 +1740,15 @@ def test_op_any_discontinuous_space_2(tmpdir):
 
 def test_invoke_uniq_declns():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid argument type. '''
+    called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations(["not_a_type"])
-    assert ("Invoke.unique_declarations() called with an invalid argument "
-            "type. Expected one of {0} but found 'not_a_type'".
+    assert ("Invoke.unique_declarations() called with at least one invalid "
+            "argument type. Expected one of {0} but found ['not_a_type'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
@@ -1764,7 +1764,8 @@ def test_invoke_uniq_declns_invalid_access():
         psy.invokes.invoke_list[0].unique_declarations(["gh_field"],
                                                        access="invalid_acc")
     assert ("Invoke.unique_declarations() called with an invalid access "
-            "type. Type is 'invalid_acc'" in str(excinfo.value))
+            "type. Type is 'invalid_acc' instead of AccessType."
+            in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
@@ -1818,10 +1819,10 @@ def test_invoke_uniq_proxy_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
-    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
-            "argument type. Expected one of {0} but found 'not_a_type'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
-            str(excinfo.value))
+    assert ("DynInvoke.unique_proxy_declarations() called with at least "
+            "one invalid argument type. Expected one of {0} but found "
+            "['not_a_type'].".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_uniq_proxy_declns_invalid_access():
@@ -1838,7 +1839,7 @@ def test_uniq_proxy_declns_invalid_access():
             ["gh_field"],
             access="invalid_acc")
     assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
-            "access type. Expected one of {0} but found 'invalid_acc'".
+            "access type. Expected one of {0} but found 'invalid_acc'.".
             format(valid_access_names) in str(excinfo.value))
 
 
@@ -1857,15 +1858,15 @@ def test_dyninvoke_first_access():
 
 def test_dyninvoke_uniq_declns_inv_type():
     ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid argument type. '''
+    is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
-    assert ("Invoke.unique_declns_by_intent() called with an invalid "
-            "argument type. Expected one of {0} but found 'gh_invalid'".
+    assert ("Invoke.unique_declns_by_intent() called with at least one invalid"
+            " argument type. Expected one of {0} but found ['gh_invalid'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
