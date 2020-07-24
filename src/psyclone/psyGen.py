@@ -578,13 +578,12 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types and invalid access
-        invalid_args = [argtype for argtype in argument_types if
-                        argtype not in VALID_ARG_TYPE_NAMES]
-        if invalid_args:
+        if any(argtype not in VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declarations() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(invalid_args)))
+                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
@@ -635,13 +634,12 @@ class Invoke(object):
 
         '''
         # First check for invalid argument types
-        invalid_args = [argtype for argtype in argument_types if
-                        argtype not in VALID_ARG_TYPE_NAMES]
-        if invalid_args:
+        if any(argtype not in VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(invalid_args)))
+                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent

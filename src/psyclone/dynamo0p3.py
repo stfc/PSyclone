@@ -2913,6 +2913,8 @@ class DynScalarArgs(DynCollection):
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
+    :raises InternalError: for an unsupported argument intrinsic type.
+
     '''
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
@@ -2944,8 +2946,10 @@ class DynScalarArgs(DynCollection):
                 else:
                     raise InternalError(
                         "DynScalarArgs.__init__(): Found an unsupported "
-                        "intrinsic type '{0}' for the scalar argument '{1}'.".
-                        format(arg.intrinsic_type, declname))
+                        "intrinsic type '{0}' for the scalar argument "
+                        "'{1}'. Supported types are {2}.".
+                        format(arg.intrinsic_type, declname,
+                               list(MAPPING_DATA_TYPES.values())))
 
     def _invoke_declarations(self, parent):
         '''
@@ -4738,14 +4742,13 @@ class DynInvoke(Invoke):
 
         '''
         # First check for invalid argument types and invalid access
-        invalid_args = [argtype for argtype in argument_types if
-                        argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES]
-        if invalid_args:
+        if any(argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
             raise InternalError(
                 "DynInvoke.unique_proxy_declarations() called with at least "
                 "one invalid argument type. Expected one of {0} but found {1}."
                 .format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
-                        str(invalid_args)))
+                        str(argument_types)))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
@@ -5772,7 +5775,7 @@ def halo_check_arg(field, access_types):
             "'{2}'".format(field.name, api_strings,
                            field.access.api_specific_name()))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
-    if not (isinstance(call, (DynBuiltIn, DynKern))):
+    if not isinstance(call, (DynBuiltIn, DynKern)):
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be from a call but "
             "found {1}".format(field.name, type(call)))
@@ -7891,7 +7894,6 @@ class DynKernelArgument(KernelArgument):
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._argument_type = arg_meta_data.argument_type
-        self._intrinsic_type = None
         self._stencil = None
         if arg_meta_data.mesh:
             self._mesh = arg_meta_data.mesh.lower()
