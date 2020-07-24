@@ -72,6 +72,9 @@
 	implementations (in different precisions) of a single kerneli
 	may now be specified through an interface block.
 	
+        26) #854 for #848. Adds a tutorial in the form of Jupyter
+        notebooks. Covers fparser2, the NEMO API and PSyIR navigation.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
