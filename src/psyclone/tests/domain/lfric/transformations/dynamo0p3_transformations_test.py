@@ -1398,7 +1398,7 @@ def test_module_inline_no_code(monkeypatch):
        there is no code to inline.
     '''
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0")
+                             name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     kern_call = schedule.children[8].loop_body[0]
     monkeypatch.setattr(kern_call, "_kernel_code", None)
