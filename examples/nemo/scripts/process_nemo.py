@@ -92,6 +92,8 @@ if __name__ == "__main__":
                         "files")
     PARSER.add_argument('-s', dest='script_file',
                         help="PSyclone transformation script")
+    PARSER.add_argument('-p', dest='profile_script_file',
+                        help="PSyclone profiling transformation script")
     PARSER.add_argument('-x', dest='exit_on_error', action='store_true',
                         help="eXit immediately if PSyclone fails")
     ARGS = PARSER.parse_args()
@@ -110,9 +112,9 @@ if __name__ == "__main__":
 
         args = ["psyclone", "--limit", "-api", "nemo"]
         if file_name in EXCLUDED_FILES:
-            if PROFILE_ALL:
+            if ARGS.profile_script_file:
                 print("Instrumenting {0} for profiling...".format(file_name))
-                extra_args = ["-p", "invokes",
+                extra_args = ["-s", ARGS.profile_script_file,
                               "-oalg", "/dev/null",
                               "-opsy", out_file, ffile]
             else:
