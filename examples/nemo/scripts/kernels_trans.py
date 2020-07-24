@@ -114,7 +114,12 @@ NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
                       "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
                       "glob_sum_full", "ptr_sj", "ptr_sjk",
-                      "interp1", "interp2", "interp3", "integ_spline"])
+                      "interp1", "interp2", "interp3", "integ_spline",
+                      "t_imp"])
+
+# TODO maintain list of known statement functions and the routines
+# that contain them.
+STATEMENT_FUNCTIONS = {}
 
 
 class ExcludeSettings(object):
