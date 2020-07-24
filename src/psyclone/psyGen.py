@@ -263,24 +263,35 @@ class PSy(object):
 
     @property
     def invokes(self):
+        ''':returns: the list of invokes.
+        :rtype: :py:class:`psyclone.psyGen.Invokes` or derived class
+        '''
         return self._invokes
 
     @property
     def name(self):
+        ''':returns: The name of the PSy object.
+        :rtype: str
+        '''
         return "psy_"+self._name
 
     @property
     @abc.abstractmethod
     def gen(self):
         '''Abstract base class for code generation function.
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
+        :return: Root node of generated Fortran AST
+        :rtype: :py:class:`psyir.nodes.Node`
         '''
 
     def inline(self, module):
-        ''' inline all kernel subroutines into the module that are marked for
-            inlining. Avoid inlining the same kernel more than once.
-            :raises: InternalError if kernel_code (fparser1 AST of kernel)
+        '''Inline all kernel subroutines into the module that are marked for
+        inlining. Avoid inlining the same kernel more than once.
+
+        :param module: the module to which the kernel is added for inlining.
+        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
                 is None.
         '''
         inlined_kernel_names = []
