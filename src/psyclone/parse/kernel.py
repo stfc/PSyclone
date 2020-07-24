@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: L. Mitchell Imperial College
 #          R. W. Ford and A. R. Porter STFC Daresbury Lab
-# Modified: C.M. Maynard, Met Office / University of Reading
+# Modified: C.M. Maynard, Met Office / University of Reading,
+#           I. Kavcic, Met Office
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -416,22 +417,28 @@ def get_stencil(metadata, valid_types):
 
 
 class Descriptor(object):
-    '''A description of how a kernel argument is accessed
+    '''
+    A description of how a kernel argument is accessed, constructed from
+    the kernel metadata.
 
     :param str access: whether argument is read/write etc.
     :param str space: which function space/grid-point type argument is \
-    on
-    :param dict stencil: type of stencil access for this \
-    argument. Defaults to None if the argument is not supplied.
-    :param string mesh: which mesh this argument is on. Defaults to \
-    None if the argument is not supplied.
+                      on.
+    :param dict stencil: type of stencil access for this argument. \
+                         Defaults to None if the argument is not supplied.
+    :param str mesh: which mesh this argument is on. Defaults to None \
+                     if the argument is not supplied.
+    :param str argument_type: the type of this argument. Defaults to \
+                              None if the argument is not supplied.
 
     '''
-    def __init__(self, access, space, stencil=None, mesh=None):
+    def __init__(self, access, space, stencil=None, mesh=None,
+                 argument_type=None):
         self._access = access
         self._space = space
         self._stencil = stencil
         self._mesh = mesh
+        self._argument_type = argument_type
 
     @property
     def access(self):
@@ -468,6 +475,16 @@ class Descriptor(object):
 
         '''
         return self._mesh
+
+    @property
+    def argument_type(self):
+        '''
+        :returns: the type of the argument depending on the specific \
+                  API (e.g. scalar, field, grid property, operator).
+        :rtype: str or NoneType
+
+        '''
+        return self._argument_type
 
     def __repr__(self):
         return "Descriptor({0}, {1})".format(self.access, self.function_space)

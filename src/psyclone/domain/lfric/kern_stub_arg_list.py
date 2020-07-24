@@ -432,10 +432,10 @@ class KernStubArgList(ArgOrdering):
         '''
         if not operator:
             raise InternalError("No CMA operator supplied.")
-        if operator.type != "gh_columnwise_operator":
+        if operator.argument_type != "gh_columnwise_operator":
             raise InternalError(
                 "A CMA operator (gh_columnwise_operator) must "
-                "be supplied but got {0}".format(operator.type))
+                "be supplied but got {0}".format(operator.argument_type))
         super(KernStubArgList, self).indirection_dofmap(function_space,
                                                         operator,
                                                         var_accesses)
