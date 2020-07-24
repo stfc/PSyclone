@@ -367,7 +367,7 @@ def main(args):
         alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
-                            line_length=args.limit,
+                            line_length=False, #args.limit,
                             distributed_memory=args.dist_mem,
                             kern_out_path=kern_out_path,
                             kern_naming=args.kernel_renaming)
