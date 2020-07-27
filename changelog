@@ -68,6 +68,16 @@
 	24) #825 for #646. Extends the dependency analysis so that it
 	works for all 'implicit' arguments passed to LFRic kernels.
 
+	25) #799 for #757. Extends kernel metadata such that multiple
+	implementations (in different precisions) of a single kerneli
+	may now be specified through an interface block.
+	
+        26) #854 for #848. Adds a tutorial in the form of Jupyter
+        notebooks. Covers fparser2, the NEMO API and PSyIR navigation.
+
+        27) #839 for #836. Improves the separation between the metadata
+        parsing and type information in the LFRic API.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

@@ -203,7 +203,7 @@ class ArgOrdering(object):
         # methods.
 
         for arg in self._kern.arguments.args:
-            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+            if arg.is_field:
                 if arg.vector_size > 1:
                     self.field_vector(arg, var_accesses=var_accesses)
                 else:
@@ -221,17 +221,18 @@ class ArgOrdering(object):
                                                        var_accesses)
                     # stencil information that is always passed
                     self.stencil(arg, var_accesses=var_accesses)
-            elif arg.type == "gh_operator":
+            elif arg.argument_type == "gh_operator":
                 self.operator(arg, var_accesses=var_accesses)
-            elif arg.type == "gh_columnwise_operator":
+            elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
+            elif arg.is_scalar:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
                     "ArgOrdering.generate(): Unexpected argument type found. "
                     "Expected one of '{0}' but found '{1}'".
-                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES, arg.type))
+                    format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
+                           arg.argument_type))
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
@@ -289,11 +290,11 @@ class ArgOrdering(object):
                     "(an LMA operator)".format(self._kern.name,
                                                len(self._kern.arguments.args)))
             op_arg = self._kern.arguments.args[0]
-            if op_arg.type != "gh_operator":
+            if op_arg.argument_type != "gh_operator":
                 raise GenerationError(
-                    "Expected a LMA operator from which to look-up boundary "
+                    "Expected an LMA operator from which to look-up boundary "
                     "dofs but kernel {0} has argument {1}.".
-                    format(self._kern.name, op_arg.type))
+                    format(self._kern.name, op_arg.argument_type))
             if op_arg.access != AccessType.READWRITE:
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "
@@ -483,10 +484,11 @@ class ArgOrdering(object):
         :raises InternalError: if the argument is not a recognised scalar type.
 
         '''
-        if not scalar_arg.is_scalar():
+        if not scalar_arg.is_scalar:
             raise InternalError(
                 "Expected argument type to be one of {0} but got '{1}'".
-                format(LFRicArgDescriptor.VALID_SCALAR_NAMES, scalar_arg.type))
+                format(LFRicArgDescriptor.VALID_SCALAR_NAMES,
+                       scalar_arg.argument_type))
 
         self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
 

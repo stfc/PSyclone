@@ -45,14 +45,16 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
+from psyclone.domain.lfric import LFRicArgDescriptor
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
 # The types of argument that are valid for built-in kernels in the
-# Dynamo 0.3 API
-VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real", "gh_integer"]
+# LFRic API
+VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
+    LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 
 # Function to return the built-in operations that we support for this API.
@@ -155,15 +157,15 @@ class DynBuiltIn(BuiltIn):
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.INC]:
                 write_count += 1
-            if arg.type == "gh_field":
+            if arg.argument_type == "gh_field":
                 field_count += 1
                 spaces.add(arg.function_space)
-            if arg.type not in VALID_BUILTIN_ARG_TYPES:
+            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    "In the Dynamo 0.3 API an argument to a built-in kernel "
-                    "must be one of {0} but kernel {1} has an argument of "
-                    "type {2}".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                      arg.type))
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must be one of {0} but kernel '{1}' has an argument of "
+                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
+                                         arg.argument_type))
         if write_count != 1:
             raise ParseError("A built-in kernel in the Dynamo 0.3 API must "
                              "have one and only one argument that is written "
