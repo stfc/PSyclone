@@ -35,7 +35,8 @@
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel read-only-verification to
-the invokes.
+the invokes. This then creates code that, at runtime, verifies that
+all read-only entities passed to the kernel have not been modified.
 '''
 
 from __future__ import print_function
@@ -43,8 +44,8 @@ from __future__ import print_function
 
 def trans(psy):
     '''
-    Take the supplied psy object, and add verification that read only
-    parameters are not modified.
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
@@ -58,6 +59,10 @@ def trans(psy):
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
+
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
     _, _ = read_only_verify.apply(schedule.children,
                                   {"region_name": ("main", "init")})
 

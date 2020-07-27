@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ def test_extract_trans():
 
 # -----------------------------------------------------------------------------
 def test_malformed_extract_node(monkeypatch):
-    ''' Check that we raise the expected error if an ReadOnlyVerifyNode does
+    ''' Check that we raise the expected error if a ReadOnlyVerifyNode does
     not have a single Schedule node as its child. '''
     read_node = ReadOnlyVerifyNode()
     monkeypatch.setattr(read_node, "_children", [])
@@ -77,7 +77,7 @@ def test_malformed_extract_node(monkeypatch):
 
 
 # -----------------------------------------------------------------------------
-def test_read_only_basic():
+def test_read_only_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -85,6 +85,16 @@ def test_read_only_basic():
     read_only = ReadOnlyVerifyTrans()
     new_sched, _ = read_only.apply(invoke.schedule[0].loop_body[0])
     new_sched.view()
+    result, _ = capsys.readouterr()
+
+    # Create the coloured text (if required)
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    read_node = colored("ReadOnlyVerify",
+                        SCHEDULE_COLOUR_MAP["ReadOnlyVerify"])
+    sched_node = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    assert """{0}[]
+            0: {1}[]
+                {0}[]""".format(sched_node, read_node) in result
 
     read_node = new_sched[0].loop_body[0]
     assert read_node.dag_name == "read_only_verify_0"
@@ -124,6 +134,5 @@ def test_invalid_apply():
     with pytest.raises(TransformationError) as err:
         _, _ = read_only.apply(invoke.schedule[0].dir_body[0].loop_body[0],
                                options={"region_name": ("a", "b")})
-    print(str(err.value))
     assert "Extraction of Nodes enclosed within a thread-parallel region " \
            "is not allowed." in str(err.value)
