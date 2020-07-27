@@ -77,7 +77,6 @@ is linked the above code will actually look like this::
     While adding the class prefix to the name of the instance variable
     is not necessary, it helps improves the readability of the created code.
 
-
 The list of valid class prefixes is specified in the configuration file. It
 can be extended by the user to support additional classes::
 
@@ -549,6 +548,233 @@ module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
 as described under ``gen_code()`` above (see also :ref:`user_guide:psyke_netcdf`).
+
+.. _psydata_base_class:
+
+PSyData Base Class
+-------------------
+PSyclone provides a base class for all PSyData wrapper libraries. The
+base class is independent of the API, but it can provide implementations for
+scalars and arrays for all native Fortran types that are required by the
+API-specific implementation. The base class needs not to be used, but it
+provides useful functionality:
+
+Verbosity:
+    It will check the ``PSYDATA_VERBOSE`` environment flag. If it exists, it
+    must have a value of either 0 (no messages), 1 (some messages, typically
+    only ``PSyDataStart`` and ``PSyDataEnd``), or 2 (detailed messages,
+    depending on wrapper library). All other values will return in a warning
+    message to be printed (and verbosity will be disabled). The verbosity level
+    is available as ``this%verbosity``.
+
+Module- and region-name handling:
+    The modules stores the module name in ``this%module_name``, and the region
+    name as ``this%region_name``.
+
+Variable Index:
+    It automatically sets ``this%next_var_index`` to 1 in ``PSyDataPreStart``
+    ``PSyDataPreEndDeclaration`` and ``PostStart``. This variable will also
+    be increased by one for each call to a Declare- or Provide-subroutine.
+    This variable can be used to have a reproducible index for declaring and
+    providing a variable (and it also counts the number of declared variables,
+    which can be used in e.g. ``PSyDataPreEndDeclaration`` to allocate arrays).
+
+Jinja support:
+    The base class is creating using the template language jinja. It is therefore
+    easy to automatically create the base functions for the arguments actually
+    required by the wrapper library. See :ref:`jinja` for details.
+
+.. _jinja:
+
+Jinja Support in the Base Class
++++++++++++++++++++++++++++++++
+The base class is contained in ``lib/psy_data_base.jinja``. It is processed with the
+script ``process.py``, which will print the processed file to stdout. The
+Makefile will automatically create the file ``psy_data_base.f90`` from the jinja
+template and compile it. For convenience if jinja is not installed on a system,
+a processed version of ``psy_data_base.f90`` is included in ``lib``. If you use
+the base class in a wrapper library, you have to process the template in your
+library directory with additional parameters to specify the required types
+and the prefix. Besides the name of the template file to process the
+``process.py`` script takes the following parameters:
+
+-types:
+    A comma-separated list of Fortran basic types (no spaces allowed).
+    Supported are the names:
+
+    ``real``:
+        32-bit floating point value
+    ``double``:
+        64-bit floating point value
+    ``int``:
+        32-bit integer value
+    ``long``:
+        64-bit integer value
+
+    Default value is ``real,double,int``.
+
+-dims:
+    A comma-separated list of dimensions (no spaced allowed). Default
+    value is ``1,2,3,4``.
+
+-prefix:
+    The prefix to use for the PSyData type and functions. Default is
+    emtpy (i.e. no prefix). If you specify a prefix, you have to
+    add the ``_`` between the prefix and name explicitly.
+
+For each specified type name the jinja template will create methods called
+``DeclareScalar{{type}}`` and ``ProvideScalar{{type}}`` for handling
+scalar parameters. For array parameters, the functions
+``DeclareArray{{dim}}d{{type}}`` and ``ProvideArray{{dim}}d{{type}}``
+will be created for each type and each specified number of dimensions.
+
+Below example of using the ``process.py`` script in a Makefile for a read-only
+verification library (taken from ``lib/read_only/lfric``):
+
+.. code-block:: Makefile
+
+    PROCESS_ARGS = -prefix=read_only_verification -types=real,int,double \
+                   -dims=1,2,3,4
+
+    psy_data_base.f90: ../../psy_data_base.jinja
+        ../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+This will create the processed file ``psy_data_base.f90`` in the directory
+of the library (which has the advantage that you will be using consistent
+compiler settings in your library, and consistent parameter specifying
+the required types and dimensions). You still need to declare all these
+automatic functions in your generic interface for the various functions.
+It is recommended to use a jinja template as well. The `process.py``
+script provides the following two variables for a template (based on
+its parameters of course). The ``ALL_TYPES`` value are based on the
+``-type`` parameter, ``process.py`` adds the details including number
+of bits automatically. While number of bits is not used in the base class,
+the read-only-verification base class (see
+:ref:`psydata_read_only_base_class`) uses it. If more types are required,
+they can ``be defined`` in ``process.py``. If the additional types need
+different number of bits and are required in a read-only library, the
+read-only-verification base class needs to be adjusted as well.
+
+.. code-block:: jinja
+
+    {% if ALL_DIMS is not defined %}
+       {# Support 1 to 4 dimensional arrays if not specified #}
+       {% set ALL_DIMS = [1, 2, 3, 4] %}
+    {% endif %}
+
+    {# The types that are supported. The first entry of each tuple
+       is the name used when naming subroutines and in user messages.
+       The second entry is the Fortran declaration. The third entry
+       is the number of bits. There is slightly different code
+       required for 32 and 64 bit values (due to the fact that the
+       Fortran transfer(value, mould) function leaves undefined bits
+       when mould is larger than value.) #}
+
+    {% if ALL_TYPES is not defined %}
+       {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                            ("Real",   "real(kind=real32)",   32),
+                            ("Int",    "integer(kind=int32)", 32) ] %}
+    {% endif %}
+    ...
+    {% for name, type, bits in ALL_TYPES %}
+    subroutine DeclareScalar{{name}}(this, name, value)
+        {{type}}, intent(in) :: value
+    ...
+
+      {# Now create the declarations of all array implementations #}
+      {% for dim in ALL_DIMS %}
+        {# Create the '(:,:...)' string - DIM-times
+           We repeat the list [":"] DIM-times, which is then joined #}
+        {% set DIMENSION=([":"]*dim)|join(",") %}
+    ! ---------------------------------------------------------------------
+    subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
+        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
+      {% endfor %}
+    {% endfor %}
+
+The extract below shows how the base class is used in ``lib/read_only/lfric``.
+The ``FieldDouble`` and ``FieldVectorDouble`` related functions are explicitly
+coded in the library, the rest is taken from the base class:
+
+.. code-block:: jinja
+
+    procedure :: DeclareFieldDouble,  ProvideFieldDouble
+    procedure :: DeclareFieldVectorDouble,  ProvideFieldVectorDouble
+
+    {# Collect the various procedures for the same generic interface #}
+    {# ------------------------------------------------------------- #}
+    {% set all_declares=[] %}
+    {% set all_provides=[] %}
+    {% for name, type, bits in ALL_TYPES %}
+      {{ all_declares.append("DeclareScalar"~name) or "" -}}
+      {{ all_provides.append("ProvideScalar"~name) or "" -}}
+      {% for dim in ALL_DIMS %}
+        {{ all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
+        {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" -}}
+      {% endfor %}
+    {% endfor %}
+
+    {% set indent="            " %}
+    generic, public :: PreDeclareVariable => &
+        DeclareFieldDouble, &
+        DeclareFieldVectorDouble, &
+        {{all_declares|join(", &\n"+indent) }}
+
+    generic, public :: ProvideVariable => &
+        ProvideFieldDouble,       &
+        ProvideFieldVectorDouble, &
+        {{all_provides|join(", &\n"+indent) }}
+
+.. note:
+    Using ``or ""`` in the jinja statements avoids that ``None`` is
+    added to the files (which would be the output of e.g. the append
+    instruction). The ``-`` before the closing ``}}`` prevents this
+    line from creating any white-spaces. As a result of this the
+    processed file will not have unusual empty lines or indentation.
+
+
+.. _psydata_read_only_base_class:
+
+PSyData Read-Only-Verification Base Class
+-----------------------------------------
+The ReadOnlyVerification transformation uses the PSyData API
+to compute and store a checksum of each read-only parameter
+to a subroutine before the call, and verify that this checksum
+is not changed after the subroutine call. Since the API-specific
+instances share a significant part of code (all functions for
+the non API-specific Fortran types, e.g. scalar values and plain
+Fortran arrays), a common base class is implemented for these,
+based on the PSyData Base class (see :ref:`psydata_base_class`).
+This base class is provided as a jinja template as well (see
+:ref:`jinja`), taking the same parameters, which makes it easy
+to make sure the PSyDataBaseClass and ReadOnly base classes are
+created with the same settings.
+
+This Read-Only-Verification base class uses the PSyData base
+class. It uses the Declaration functions to count how many variables
+will be provided. In ``PreEndDeclaration`` a checksum array will be
+allocated.
+
+.. note::
+    The ``PreStart`` function gets the number of variables as
+    parameters. The decision not to use this value for allocating
+    the array is that the LFRic read-only implementation stores
+    several checksum for one variable of a certain type (VectorField).
+    The ``DeclareVariable`` functions for VectorFields counts the
+    right number of checksums required.
+
+This base class uses the information about the number of bits for
+the data types to implement the checksum functions. One complication
+is that the Fortran ``transfer`` function results in undefined bits
+when transferring e.g. a 32-bit value into a 64-bit variable.
+Therefore any 32-bit value is first transferred to a 32-bit integer value,
+which is then assigned to the 64-bit integer value, which is added to
+the overall checksum value.
+
+The two API-specific ReadOnlyVerification libraries are both based
+on this base class. They only implement the checksum functions
+for the API-specific types - Field and VectorFields in LFRic, and
+Field in GOcean.
 
 .. _profiling:
 

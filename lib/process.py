@@ -31,7 +31,8 @@ args = parser.parse_args()
 # to the tuple that is required for the jinja templates:
 TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
              "double": ("Double", "real(kind=real64)", 64),
-             "int": ("Int", "integer(kind=int32)", 32)}
+             "int": ("Int", "integer(kind=int32)", 32),
+             "long": ("Long", "integer(kind=int64)", 64)}
 
 # ---------------------------------------------------------
 # Check type information:

@@ -70,11 +70,6 @@ module read_only_verify_psy_data_mod
         generic, public :: PreDeclareVariable => &
             DeclareFieldDouble, &
             DeclareFieldVectorDouble, &
-            DeclareScalarDouble, &
-            DeclareArray1dDouble, &
-            DeclareArray2dDouble, &
-            DeclareArray3dDouble, &
-            DeclareArray4dDouble, &
             DeclareScalarReal, &
             DeclareArray1dReal, &
             DeclareArray2dReal, &
@@ -84,7 +79,12 @@ module read_only_verify_psy_data_mod
             DeclareArray1dInt, &
             DeclareArray2dInt, &
             DeclareArray3dInt, &
-            DeclareArray4dInt
+            DeclareArray4dInt, &
+            DeclareScalarDouble, &
+            DeclareArray1dDouble, &
+            DeclareArray2dDouble, &
+            DeclareArray3dDouble, &
+            DeclareArray4dDouble
 
         !> The generic interface for providing the value of variables,
         !! which in case of the read-only verification either computes
@@ -93,11 +93,6 @@ module read_only_verify_psy_data_mod
         generic, public :: ProvideVariable => &
             ProvideFieldDouble,       &
             ProvideFieldVectorDouble, &
-            ProvideScalarDouble, &
-            ProvideArray1dDouble, &
-            ProvideArray2dDouble, &
-            ProvideArray3dDouble, &
-            ProvideArray4dDouble, &
             ProvideScalarReal, &
             ProvideArray1dReal, &
             ProvideArray2dReal, &
@@ -107,7 +102,12 @@ module read_only_verify_psy_data_mod
             ProvideArray1dInt, &
             ProvideArray2dInt, &
             ProvideArray3dInt, &
-            ProvideArray4dInt
+            ProvideArray4dInt, &
+            ProvideScalarDouble, &
+            ProvideArray1dDouble, &
+            ProvideArray2dDouble, &
+            ProvideArray3dDouble, &
+            ProvideArray4dDouble
                                               
     end type read_only_verify_PSyDataType
 

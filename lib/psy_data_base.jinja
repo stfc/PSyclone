@@ -15,8 +15,8 @@
    The second entry is the Fortran declaration. The third entry
    is the number of bits. There is slightly different code
    required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) leaves undefined bits when
-   mould is larger than value. #}
+   Fortran transfer(value, mould) function leaves undefined bits
+   when mould is larger than value.) #}
 
 {% if ALL_TYPES is not defined %}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
@@ -98,7 +98,7 @@ module psy_data_base_mod
                 {% for dim in ALL_DIMS %}
                 {# This indentation makes it easier to read the output #}
                 procedure :: DeclareArray{{dim}}d{{name}}
-                procedure :: provideArray{{dim}}d{{name}}
+                procedure :: ProvideArray{{dim}}d{{name}}
                 {% endfor %}
             {% endfor %}
 
