@@ -292,9 +292,9 @@ def test_goloop_partially():
     assert isinstance(do_loop, Loop)
 
     # The third argument is GO_GRID_X_MAX_INDEX, which is scalar
-    assert do_loop.args[2].is_scalar()
+    assert do_loop.args[2].is_scalar
     # The fourth argument is GO_GRID_MASK_T, which is an array
-    assert not do_loop.args[3].is_scalar()
+    assert not do_loop.args[3].is_scalar
 
     var_accesses = VariablesAccessInfo(do_loop)
     assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
