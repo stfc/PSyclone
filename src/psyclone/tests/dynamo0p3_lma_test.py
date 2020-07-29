@@ -170,7 +170,7 @@ def test_no_vector_operator():
 
 def test_ad_op_type_validate_wrong_type():
     ''' Test that an error is raised if something other than an operator
-    is passed to the LFRicArgDescriptor._validate_operator() method. '''
+    is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -178,8 +178,8 @@ def test_ad_op_type_validate_wrong_type():
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata._iterates_over)._validate_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_operator(): expecting an "
+            wrong_arg, metadata._iterates_over)._init_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._init_operator(): expecting an "
             "operator argument but got an argument of type 'gh_field'."
             in str(excinfo.value))
 
@@ -211,13 +211,15 @@ def test_arg_descriptor_op():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='w2'\n"
-        "  function_space_from[3]='w2'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='w2'\n"
+        "  function_space_from[4]='w2'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert operator_descriptor.type == "gh_operator"
+    assert operator_descriptor.argument_type == "gh_operator"
+    assert operator_descriptor.data_type == "gh_real"
     assert operator_descriptor.function_space_to == "w2"
     assert operator_descriptor.function_space_from == "w2"
     assert operator_descriptor.function_space == "w2"
@@ -324,7 +326,7 @@ def test_fsdesc_fs_not_in_argdesc():
 
 
 def test_operator(tmpdir):
-    ''' Tests that a LMA operator is implemented correctly in the PSy
+    ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
@@ -755,10 +757,10 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
-    monkeypatch.setattr(arg, "_type", value="gh_field")
+    monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Expected a LMA operator from which to look-up boundary dofs "
+    assert ("Expected an LMA operator from which to look-up boundary dofs "
             "but kernel enforce_operator_bc_code has argument gh_field") \
         in str(excinfo.value)
 
@@ -785,7 +787,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
-    call.arguments.args[1]._type = "gh_field"
+    call.arguments.args[1]._argument_type = "gh_field"
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
@@ -962,5 +964,5 @@ def test_stub_operator_different_spaces():
     assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
-    assert "function_space_to[2]='w3'" in result
-    assert "function_space_from[3]='any_discontinuous_space_2'" in result
+    assert "function_space_to[3]='w3'" in result
+    assert "function_space_from[4]='any_discontinuous_space_2'" in result

@@ -2604,9 +2604,9 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
-    assert ("In the LFRic API a reduction access 'gh_sum' is "
-            "only valid with a real scalar argument, but 'gh_integer' "
-            "was found" in str(excinfo.value))
+    assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
+            "with a real scalar argument, but scalar 'gh_integer' with "
+            "'gh_integer' data type was found" in str(excinfo.value))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

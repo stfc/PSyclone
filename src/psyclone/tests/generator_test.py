@@ -704,6 +704,11 @@ def test_main_kern_output_dir(tmpdir):
     # the configuration object
     assert Config.get().kernel_output_dir == str(tmpdir)
 
+    # If no kernel_output_dir is set, it should default to the
+    # current directory
+    Config.get().kernel_output_dir = None
+    assert Config.get().kernel_output_dir == str(os.getcwd())
+
 
 def test_invalid_kern_naming():
     ''' Check that we raise the expected error if an invalid kernel-renaming

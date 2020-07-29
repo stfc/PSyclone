@@ -52,7 +52,7 @@ from psyclone.domain.lfric import LFRicArgDescriptor
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
 # The types of argument that are valid for built-in kernels in the
-# Dynamo 0.3 API
+# LFRic API
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
@@ -201,15 +201,15 @@ class DynBuiltIn(BuiltIn):
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.READWRITE]:
                 write_count += 1
-            if arg.type in LFRicArgDescriptor.VALID_FIELD_NAMES:
+            if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
-            if arg.type not in VALID_BUILTIN_ARG_TYPES:
+            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
                     "In the LFRic API an argument to a built-in kernel "
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                         arg.type))
+                                         arg.argument_type))
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "
