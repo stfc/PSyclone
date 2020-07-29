@@ -54,7 +54,7 @@ TEST_API = "dynamo0.3"
 
 
 def test_unexpected_type_error(dist_mem):
-    '''Check that we raise an exception if an unexpected datatype is found
+    ''' Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
     the KernCallArgList sub class.
 
@@ -71,8 +71,8 @@ def test_unexpected_type_error(dist_mem):
         index = 0
     loop = schedule.children[index]
     kernel = loop.loop_body[0]
-    # sabotage one of the arguments to make it have an invalid type.
-    kernel.arguments.args[0]._type = "invalid"
+    # Sabotage one of the arguments to make it have an invalid type.
+    kernel.arguments.args[0]._argument_type = "invalid"
     # Now call KernCallArgList to raise an exception
     create_arg_list = KernCallArgList(kernel)
     with pytest.raises(GenerationError) as excinfo:
@@ -85,8 +85,8 @@ def test_unexpected_type_error(dist_mem):
 
 
 def test_kernel_stub_invalid_scalar_argument():
-    '''Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method'''
+    ''' Check that we raise an exception if an unexpected datatype is found
+    when using the KernStubArgList scalar method. '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = DynKernMetadata(ast)
@@ -94,7 +94,7 @@ def test_kernel_stub_invalid_scalar_argument():
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
     arg = kernel.arguments.args[1]
-    arg._type = "invalid"
+    arg._argument_type = "invalid"
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:

@@ -449,12 +449,12 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        if farg.type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
+        if not farg.is_field:
             raise GenerationError(
                 "Expected an argument of {0} type from which to look-up "
                 "boundary dofs for kernel {1} but got '{2}'".
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
-                       self._kern.name, farg.type))
+                       self._kern.name, farg.argument_type))
 
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
