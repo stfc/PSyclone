@@ -1,8 +1,9 @@
 
 module profile_psy_data_mod
-  type :: profile_PSyDataType
-      character(:), allocatable :: module_name
-      character(:), allocatable :: region_name
+
+    use psy_data_base_mod, only : PSyDataBaseType
+
+  type,extends(PSyDataBaseType) :: profile_PSyDataType
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
@@ -45,10 +46,15 @@ contains
     if ( .not. has_been_initialised ) then
        call profile_PSyDataInit()
     endif
+
+    call this%PSyDataBaseType%PreStart(module_name, region_name, 0, 0)
+    if (num_pre_vars /= 0 .or. num_post_vars /= 0) then
+        print *,"[PSyData] Profile interface got ", num_pre_vars, num_post_vars
+        print *,"          as number of variables, but should only get 0."
+        call this%Abort("Invalid number of variables")
+    endif
     print *, "PreStart called for module '", module_name,  &
          "' region '", region_name, "'"
-    this%module_name = module_name
-    this%region_name = region_name
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
