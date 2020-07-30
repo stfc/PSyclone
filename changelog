@@ -78,7 +78,7 @@
         27) #839 for #836. Improves the separation between the metadata
         parsing and type information in the LFRic API.
 
-	38) #862 for #860. Fixes error when building documentation using
+	28) #862 for #860. Fixes error when building documentation using
 	windows filesystems (removes symbolic links).
 
 release 1.9.0 20th May 2020
