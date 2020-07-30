@@ -270,7 +270,7 @@ class PSy(object):
 
     @property
     def name(self):
-        ''':returns: The name of the PSy object.
+        ''':returns: the name of the PSy object.
         :rtype: str
         '''
         return "psy_"+self._name
@@ -280,8 +280,8 @@ class PSy(object):
     def gen(self):
         '''Abstract base class for code generation function.
 
-        :return: Root node of generated Fortran AST
-        :rtype: :py:class:`psyir.nodes.Node`
+        :returns: root node of generated Fortran AST.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
 
     def inline(self, module):
