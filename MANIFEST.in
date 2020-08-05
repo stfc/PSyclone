@@ -41,3 +41,4 @@ recursive-include doc *.py *.rst Makefile
 include src/psyclone/parse/dynamo0p3_builtins_mod.f90
 include config/*.cfg
 recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
+recursive-include tutorial *.ipynb

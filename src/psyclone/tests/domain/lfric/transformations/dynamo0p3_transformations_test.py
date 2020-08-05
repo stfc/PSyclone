@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic,    Met Office
+#          C.M. Maynard, Met Office / University of Reading
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -1388,6 +1389,26 @@ def test_omp_par_and_halo_exchange_error():
         schedule, _ = rtrans.apply(schedule.children)
     assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
             "transformation" in str(excinfo.value))
+
+
+def test_module_inline_no_code(monkeypatch):
+    '''Tests that if a kernel doesn't have a code AST set
+       _kernel_code = None, for example when an interface is
+       used, the inline transformation produces an error as
+       there is no code to inline.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
+                             name="invoke_0", dist_mem=True)
+    schedule = invoke.schedule
+    kern_call = schedule.children[8].loop_body[0]
+    monkeypatch.setattr(kern_call, "_kernel_code", None)
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    with pytest.raises(InternalError) as excinfo:
+        _ = psy.gen
+    assert "Have no fparser1 AST for kernel {0}." \
+        " Therefore cannot inline it.".format(kern_call) \
+        in str(excinfo.value)
 
 
 def test_module_inline(monkeypatch, annexed, dist_mem):
@@ -3686,30 +3707,31 @@ def test_reductions_reprod():
                                DynXInnerproductYKern))
 
 
-def test_list_multiple_reductions():
-    '''test that we produce correct reduction lists when there is more
+def test_list_multiple_reductions(dist_mem):
+    ''' Test that we produce correct reduction lists when there is more
     than one reduction in a OpenMP parallel directive. As only one
     reduction per OpenMP parallel region is currently supported we
     need to modify the internal representation after the
-    transformations have been performed to enable this test. '''
-    for distmem in [False, True]:
-        _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                               TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        omp_loop_directive = schedule[0].dir_body[0]
-        call = omp_loop_directive.dir_body[0].loop_body[0]
-        arg = call.arguments.args[2]
-        arg._type = "gh_real"
-        arg.descriptor._access = AccessType.SUM
-        result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:asum), reduction(+:f2)" in result
+    transformations have been performed to enable this test.
+
+    '''
+    _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
+                           TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    omp_loop_directive = schedule[0].dir_body[0]
+    call = omp_loop_directive.dir_body[0].loop_body[0]
+    arg = call.arguments.args[2]
+    arg._argument_type = "gh_real"
+    arg.descriptor._access = AccessType.SUM
+    result = omp_loop_directive._reduction_string()
+    assert ", reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

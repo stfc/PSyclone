@@ -237,7 +237,7 @@ constructing the list of arguments for a kernel (or kernel stub). The
 ``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
 this:
 
-.. autoclass:: psyclone.dynamo0p3.ArgOrdering
+.. autoclass:: psyclone.domain.lfric.ArgOrdering
     :members:
     :private-members:
     :noindex:
