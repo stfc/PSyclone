@@ -50,6 +50,12 @@ module psy_data_base_mod
     !> Maximum string length for module- and region-names
     integer, parameter :: MAX_STRING_LENGTH = 512
 
+    !> If this section is enabled or not. Controlled by the two
+    !! static functions PSyDataStart and PSyDataStop. Note that
+    !! none of the functions here use this value at all, it is up
+    !! to the derived classes to implement the start/stop functionality.
+    logical :: is_enabled = .true.
+
     !> This is a useful base class for PSyData wrapper libraries.
     !! It is not required to use this as a base, but it provides
     !! useful functionality.
@@ -148,11 +154,14 @@ contains
             endif
         endif
 
-        if(this%verbosity>0) &
-            write(stderr,*) "PSyData: PreStart ", module_name, " ", region_name
         this%next_var_index = 1
         this%module_name = module_name
         this%region_name = region_name
+
+        if (.not. is_enabled) return
+
+        if(this%verbosity>0) &
+            write(stderr,*) "PSyData: PreStart ", module_name, " ", region_name
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
@@ -196,6 +205,8 @@ contains
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
 
+        if (.not. is_enabled) return
+
         if(this%verbosity>0) &
             write(stderr, *) "PSyData: PostEnd ", trim(this%module_name), &
                     " ", trim(this%region_name)
@@ -221,15 +232,24 @@ contains
     end subroutine PSyDataInit
 
     ! -------------------------------------------------------------------------
+    !> An optional initialisation subroutine.
+    subroutine PSyDataShutdown()
+      implicit none
+      return
+    end subroutine PSyDataShutdown
+
+    ! -------------------------------------------------------------------------
     !> Enables PSyData handling (if it is not already enabled).
     subroutine PSyDataStart()
       implicit none
+      is_enabled = .true.
     end subroutine PSyDataStart
 
     ! -------------------------------------------------------------------------
     !> Disables PSyData handling.
     subroutine PSyDataStop()
       implicit none
+      is_enabled = .false.
     end subroutine PSyDataStop
 
     ! =========================================================================
@@ -249,6 +269,9 @@ contains
         real(kind=real32), intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareScalarReal: ", &
                             trim(this%module_name), " ",                &
@@ -284,6 +307,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real32), dimension(:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray1dReal: ", &
                             trim(this%module_name), " ",               &
@@ -318,6 +344,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real32), dimension(:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray2dReal: ", &
                             trim(this%module_name), " ",               &
@@ -352,6 +381,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real32), dimension(:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray3dReal: ", &
                             trim(this%module_name), " ",               &
@@ -386,6 +418,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real32), dimension(:,:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray4dReal: ", &
                             trim(this%module_name), " ",               &
@@ -420,6 +455,9 @@ contains
         integer(kind=int32), intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareScalarInt: ", &
                             trim(this%module_name), " ",                &
@@ -455,6 +493,9 @@ contains
         character(*), intent(in) :: name
         integer(kind=int32), dimension(:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray1dInt: ", &
                             trim(this%module_name), " ",               &
@@ -489,6 +530,9 @@ contains
         character(*), intent(in) :: name
         integer(kind=int32), dimension(:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray2dInt: ", &
                             trim(this%module_name), " ",               &
@@ -523,6 +567,9 @@ contains
         character(*), intent(in) :: name
         integer(kind=int32), dimension(:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray3dInt: ", &
                             trim(this%module_name), " ",               &
@@ -557,6 +604,9 @@ contains
         character(*), intent(in) :: name
         integer(kind=int32), dimension(:,:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray4dInt: ", &
                             trim(this%module_name), " ",               &
@@ -591,6 +641,9 @@ contains
         real(kind=real64), intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareScalarDouble: ", &
                             trim(this%module_name), " ",                &
@@ -626,6 +679,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real64), dimension(:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray1dDouble: ", &
                             trim(this%module_name), " ",               &
@@ -660,6 +716,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real64), dimension(:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray2dDouble: ", &
                             trim(this%module_name), " ",               &
@@ -694,6 +753,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real64), dimension(:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray3dDouble: ", &
                             trim(this%module_name), " ",               &
@@ -728,6 +790,9 @@ contains
         character(*), intent(in) :: name
         real(kind=real64), dimension(:,:,:,:), intent(in) :: value
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
+
         if (this%verbosity>1) &
             write(stderr,*) "PSyData: DeclareArray4dDouble: ", &
                             trim(this%module_name), " ",               &

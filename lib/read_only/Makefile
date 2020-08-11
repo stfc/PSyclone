@@ -35,6 +35,9 @@
 F90 ?= gfortran
 F90FLAGS ?= 
 
+PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
+		       -dims=2
+
 default: read_only_base.o psy_data_base.o
 process: read_only_base.f90
 
@@ -42,7 +45,7 @@ process: read_only_base.f90
 	../process.py $< > $*.f90
 
 psy_data_base.f90:	../psy_data_base.jinja
-	../process.py $< > psy_data_base.f90
+	../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.o: psy_data_base.o
 

@@ -49,7 +49,10 @@ module read_only_base_mod
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr=>Error_Unit
-    use psy_data_base_mod, only : PSyDataBaseType
+    use psy_data_base_mod, only : PSyDataBaseType, &
+        read_only_verify_PSyDataShutdown, &
+        read_only_verify_PSyDataInit, is_enabled, &
+        read_only_verify_PSyDataStart, read_only_verify_PSyDataStop
 
     implicit none
 
@@ -135,6 +138,10 @@ Contains
         integer :: status
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
+        this%verify_checksums = .false.
+
+        if (.not. is_enabled) return
+
         if (num_pre_vars /= num_post_vars) then
             write(stderr, *) "PSYDATA: The same number of variables must be provided before"
             write(stderr, *) "and after the instrumented region. But the values are:"
@@ -142,7 +149,6 @@ Contains
             call this%Abort("PreStart: Inconsistent parameters")
         endif
 
-        this%verify_checksums = .false.
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
@@ -153,6 +159,8 @@ Contains
         implicit none
         class(ReadOnlyBaseType), intent(inout), target :: this
         integer :: err
+
+        if (.not. is_enabled) return
 
         ! During the declaration the number of checksums to be
         ! stored was counted in next_var_index, so allocate the array
@@ -212,6 +220,8 @@ Contains
 
         integer(kind=int32) :: int_32
 
+        if (.not. is_enabled) return
+
         ! `transfer` leaves undefined bits in a 64-bit value
         ! so assign to 32-bit, then assign to 64-bit to have all bits defined
         int_32 = transfer(value, int_32)
@@ -251,6 +261,8 @@ Contains
         integer(kind=int32), dimension(:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -305,6 +317,8 @@ Contains
         integer(kind=int32), dimension(:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -361,6 +375,8 @@ Contains
         integer(kind=int32), dimension(:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -419,6 +435,8 @@ Contains
         integer(kind=int32), dimension(:,:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -487,6 +505,8 @@ Contains
 
         integer(kind=int32) :: int_32
 
+        if (.not. is_enabled) return
+
         ! `transfer` leaves undefined bits in a 64-bit value
         ! so assign to 32-bit, then assign to 64-bit to have all bits defined
         int_32 = transfer(value, int_32)
@@ -526,6 +546,8 @@ Contains
         real(kind=real32), dimension(:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -580,6 +602,8 @@ Contains
         real(kind=real32), dimension(:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -636,6 +660,8 @@ Contains
         real(kind=real32), dimension(:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -694,6 +720,8 @@ Contains
         real(kind=real32), dimension(:,:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -761,6 +789,8 @@ Contains
         integer(kind=int64) :: checksum, int_64
 
 
+        if (.not. is_enabled) return
+
         checksum = transfer(value, int_64)
 
         if (this%verify_checksums) then
@@ -796,6 +826,8 @@ Contains
         real(kind=real64), dimension(:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -846,6 +878,8 @@ Contains
         real(kind=real64), dimension(:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -898,6 +932,8 @@ Contains
         real(kind=real64), dimension(:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then
@@ -952,6 +988,8 @@ Contains
         real(kind=real64), dimension(:,:,:,:), intent(in) :: value
         integer(kind=int64) :: checksum
         integer :: i, j
+
+        if (.not. is_enabled) return
 
         checksum = ComputeChecksum(value)
         if (this%verify_checksums) then

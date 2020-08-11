@@ -42,7 +42,7 @@
 # This directory points to an external, compiled version of the LFRic,
 # which is required to find the module files when compiling this library:
 LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
-PROCESS_ARGS = -prefix=read_only_verification -types=real,int,double \
+PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
 F90 ?= gfortran
 F90FLAGS ?= -O0 -g
