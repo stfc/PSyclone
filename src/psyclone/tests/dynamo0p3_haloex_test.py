@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''This module tests the Dynamo 0.3 API-specific halo exchange
-implementation for gh_inc dependencies using pytest. '''
+'''This module tests the LFRic API-specific halo exchange
+   implementation. '''
 
 from __future__ import absolute_import
 import os
@@ -421,3 +421,31 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]
     check(haloex, "mesh%get_halo_depth()")
+
+    
+
+def test_setval_x_then_user(tmpdir, monkeypatch):
+    ''' Check that the correct halo exchanges are added if redundant
+    computation is enabled for a built-in kernel called before a
+    user-supplied kernel. '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.3_setval_X_before_user_kern.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    first_invoke = psy.invokes.invoke_list[0]
+    # Since (redundant) computation over annexed dofs is enabled, there
+    # should be no halo exchange before the first (builtin) kernel call
+    assert isinstance(first_invoke.schedule[0], DynLoop)
+    first_invoke.schedule.view()
+    # Now transform the first loop to perform redundant computation out to
+    # the level-1 halo
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    schedule, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    schedule.view()
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
