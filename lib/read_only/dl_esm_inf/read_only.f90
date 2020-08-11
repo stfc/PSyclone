@@ -42,13 +42,14 @@ module read_only_verify_psy_data_mod
                                               real32, real64, &
                                               stderr=>Error_Unit
 
-    use read_onlY_base_mod, only : ReadOnlyBaseType
+    use read_only_base_mod, only : ReadOnlyBaseType, read_only_verify_PSyDataInit, &
+                 read_only_verify_PSyDataShutdown, is_enabled, &
+                 read_only_verify_PSyDataStart, read_only_verify_PSyDataStop
     implicit none
 
     !> This is the data type that stores a checksum for each read-only
     !! variable. A static instance of this type is created for each
     !! instrumented region with PSyclone.
-
     type, extends(ReadOnlyBaseType), public:: read_only_verify_PSyDataType
 
     contains
@@ -121,6 +122,8 @@ Contains
         integer(kind=int64):: cksum
 
         this%next_var_index = this%next_var_index + 1
+
+        if (.not. is_enabled) return
 
         cksum = ComputeChecksum(value%data)
         if(this%verify_checksums) then

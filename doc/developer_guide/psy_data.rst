@@ -179,7 +179,6 @@ This section describes the actual PSyData API in detail. It contains
 all functions, data types and methods that need to be implemented for
 a wrapper library.
 
-
 The PSyData API includes two function calls that allow initialisation and
 shut down of a wrapper library. These two calls must be inserted
 manually into the program, and their location might depend on 
@@ -208,9 +207,10 @@ should include implementations of these routines, even if they are
 empty.
 
  .. note::
-    Currently only the NVIDIA profiling wrapper library implements
-    the Start and Stop routines. Wider support for all PSyData-based APIs
-    will be addressed in Issue #832.
+    Currently only the NVIDIA profiling wrapper library and all
+    read-only-verification libraries implement the Start and Stop
+    routines. Wider support for all PSyData-based APIs will be addressed
+    in Issue #832.
 
 
 Init and Shutdown Functions
@@ -234,6 +234,8 @@ Init and Shutdown Functions
         use profile_psy_data_mod, only : profile_PSyDataShutdown
         ...
         call profile_PSyDataShutdown()
+
+.. _psydata_start_stop_functions:
 
 Start and Stop Functions
 ++++++++++++++++++++++++
@@ -567,7 +569,7 @@ Verbosity:
     message to be printed (and verbosity will be disabled). The verbosity level
     is available as ``this%verbosity``.
 
-Module- and region-name handling:
+Module- and Region-Name Handling:
     The modules stores the module name in ``this%module_name``, and the region
     name as ``this%region_name``.
 
@@ -579,28 +581,41 @@ Variable Index:
     providing a variable (and it also counts the number of declared variables,
     which can be used in e.g. ``PSyDataPreEndDeclaration`` to allocate arrays).
 
-Jinja support:
-    The base class is creating using the template language jinja. It is therefore
-    easy to automatically create the base functions for the arguments actually
-    required by the wrapper library. See :ref:`jinja` for details.
+Start/Stop Handling:
+    The base class maintains a module variable ``is_enabled``. This is set
+    to true at startup, and gets enabled and disabled by calling the module
+    functions ``PREFIX_PSyDataStart()`` and ``PREFIX_PSyDataStop()``
+    (see :ref:`psydata_start_stop_functions`).
+    It is up to the derived classes to actually use this setting. It is of
+    course also possible to ignore ``is_enabled`` and use a different
+    mechanism (e.g. the NVIDIA profiling wrapper library calls corresponding
+    start and stop functions in the NVIDIA profiler).
+
+Jinja Support:
+    The base class is creating using the template language jinja. It is
+    therefore easy to automatically create the base functions for the
+    argument types actually required by the wrapper library. See
+    :ref:`jinja` for details.
+
 
 .. _jinja:
 
 Jinja Support in the Base Class
 +++++++++++++++++++++++++++++++
-The base class is contained in ``lib/psy_data_base.jinja``. It is processed with the
-script ``process.py``, which will print the processed file to stdout. The
-Makefile will automatically create the file ``psy_data_base.f90`` from the jinja
-template and compile it. For convenience if jinja is not installed on a system,
-a processed version of ``psy_data_base.f90`` is included in ``lib``. If you use
-the base class in a wrapper library, you have to process the template in your
-library directory with additional parameters to specify the required types
-and the prefix. Besides the name of the template file to process the
-``process.py`` script takes the following parameters:
+The base class is contained in ``lib/psy_data_base.jinja``. It is processed
+with the script ``process.py``, which will print the processed file to
+stdout. The ``Makefile`` will automatically create the file
+``psy_data_base.f90`` from the jinja template and compile it. For convenience
+if jinja is not installed on a system, a processed version of
+``psy_data_base.f90`` is included in ``lib``. If you use the base class in
+a wrapper library, you have to process the template in your library directory
+with additional parameters to specify the required types and the prefix.
+Besides the name of the template file to process the ``process.py`` script
+takes the following parameters:
 
 -types:
     A comma-separated list of Fortran basic types (no spaces allowed).
-    Supported are the names:
+    Supported are the type names:
 
     ``real``:
         32-bit floating point value
@@ -628,8 +643,8 @@ scalar parameters. For array parameters, the functions
 ``DeclareArray{{dim}}d{{type}}`` and ``ProvideArray{{dim}}d{{type}}``
 will be created for each type and each specified number of dimensions.
 
-Below example of using the ``process.py`` script in a Makefile for a read-only
-verification library (taken from ``lib/read_only/lfric``):
+Below an example of using the ``process.py`` script in a Makefile for a read-only
+verification library (taken from ``lib/read_only/lfric/Makefile``):
 
 .. code-block:: Makefile
 
@@ -644,14 +659,17 @@ of the library (which has the advantage that you will be using consistent
 compiler settings in your library, and consistent parameter specifying
 the required types and dimensions). You still need to declare all these
 automatic functions in your generic interface for the various functions.
-It is recommended to use a jinja template as well. The `process.py``
-script provides the following two variables for a template (based on
-its parameters of course). The ``ALL_TYPES`` value are based on the
-``-type`` parameter, ``process.py`` adds the details including number
-of bits automatically. While number of bits is not used in the base class,
+It is recommended to use a jinja template as well.
+
+The ``process.py`` script provides the two variables for a template
+(based on its parameters of course): ``ALL_DIMS`` stores the list of 
+required dimensions, and ``ALL_TYPES`` stores the type information
+requested when invoking ``process.py``. ``ALL_TYPES`` is a three-tuple
+that includes the name to use, the Fortran data type, and number of
+bits for the data type. While number of bits is not used in the base class,
 the read-only-verification base class (see
 :ref:`psydata_read_only_base_class`) uses it. If more types are required,
-they can ``be defined`` in ``process.py``. If the additional types need
+they can be defined in ``process.py``. If the additional types need
 different number of bits and are required in a read-only library, the
 read-only-verification base class needs to be adjusted as well.
 
@@ -732,6 +750,43 @@ coded in the library, the rest is taken from the base class:
     line from creating any white-spaces. As a result of this the
     processed file will not have unusual empty lines or indentation.
 
+
+Static Functions in the Base Class
+++++++++++++++++++++++++++++++++++
+The base class provides the four static functions defined in the API (see
+:ref:`psy_data_api`). The subroutines ``PREFIX_PSyDataInit()`` and
+``PREFIX_PSyDataShutdown()`` are empty, and ``PREFIX_PSyDataStart()`` and
+``PREFIX_PSyDataStop()`` function just change the module variable
+``is_enabled`` (which can then be used by a wrapper library to enable
+or disable its functionality).
+
+If you don't need specific functionality for these functions, you
+can just declare them in your wrapper library::
+
+    module MyProfileWrapperLibrary
+      use psydata_base_mod, only : profile_PSyDataInit, profilePSyDataShutdown, &
+                                   profile_PSyDataStart, profile_PSyDataStop
+
+If you need to partially change the behaviour of these functions,
+you have to rename them in your ``use`` statement, and then call the renamed
+base class function like this::
+
+    module MyProfileWrapperLibrary
+    ...
+    contains
+
+    subroutine profile_PSyDataStart()
+      use psydata_base_mod, only : base_PSyDataStart => profile_PSyDataStart
+      ! Do something
+      call basePSyDataStart()
+      ! Do something else
+    end subroutine profile_PSyDataStart
+
+.. note:
+    The ``PSyDataBase`` class will use the prefix that you have specified
+    in jinja for naming the static functions. So alternatively you could
+    also specify a different prefix when processing the base jinja file,
+    and use this name.
 
 .. _psydata_read_only_base_class:
 

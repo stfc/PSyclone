@@ -50,7 +50,7 @@ module read_only_verify_psy_data_mod
                                               real32, real64, &
                                               stderr=>Error_Unit
     use field_mod, only : field_type
-    use read_only_base_mod, only : ReadOnlyBaseType
+    use read_only_base_mod, only : ReadOnlyBaseType, is_enabled
 
     implicit none
 
@@ -146,6 +146,8 @@ Contains
         type(field_proxy_type) :: value_proxy
         integer(kind=int64):: cksum
 
+        if (.not. is_enabled) return
+
         value_proxy = value%get_proxy()
         cksum = ComputeChecksum(value_proxy%data)
         ! We could call ProvideArray1DDouble here, but would get a
@@ -202,6 +204,8 @@ Contains
         integer :: i
         ! Enough for a 6 digit number plus '()'
         character(8) :: index_string
+
+        if (.not. is_enabled) return
 
         ! Provide each member of the vector as a normal field. This way
         ! the checksum will be computed for each member individually.

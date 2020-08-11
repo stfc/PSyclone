@@ -52,7 +52,7 @@ OBJS = read_only.o psy_data_base.o read_only_base.o
 
 # The arguments for the jinja templates. GOcean only needs
 # 2 dimensional arrays.
-PROCESS_ARGS = -prefix=read_only_verification -types=int,real,double \
+PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
 
 default: $(LIB_NAME)
