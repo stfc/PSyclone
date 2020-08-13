@@ -1,9 +1,10 @@
 
 module profile_psy_data_mod
 
-    use psy_data_base_mod, only : PSyDataBaseType
+    use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
+                                  profile_PSyDataStop, is_enabled
 
-  type,extends(PSyDataBaseType) :: profile_PSyDataType
+  type, extends(PSyDataBaseType) :: profile_PSyDataType
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
@@ -19,7 +20,11 @@ contains
   !> from ProfileStart.
   subroutine profile_PSyDataInit()
     implicit none
-    print *,"profile_PSyDataInit called"
+    if (is_enabled) then
+        print *,"profile_PSyDataInit called"
+    else
+        print *,"profile_PSyDataInit called, but profiling is disabled"
+    endif
     has_been_initialised = .true.
   end subroutine profile_PSyDataInit
 
@@ -53,8 +58,13 @@ contains
         print *,"          as number of variables, but should only get 0."
         call this%Abort("Invalid number of variables")
     endif
-    print *, "PreStart called for module '", module_name,  &
-         "' region '", region_name, "'"
+    if (is_enabled) then
+        print *, "PreStart called for module '", module_name,  &
+                 "' region '", region_name, "'"
+    else
+        print *, "PreStart called for module '", module_name,  &
+                 "' region '", region_name, "', but profiling is disabled"
+    endif
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
@@ -66,8 +76,13 @@ contains
     implicit none
     class(profile_PSyDataType), intent(inout), target :: this
     
-    print *,"PostEnd called for module '", this%module_name, &
-         "' region '", this%region_name, "'"
+    if (is_enabled) then
+        print *,"PostEnd called for module '", trim(this%module_name), &
+                "' region '", trim(this%region_name), "'"
+    else
+        print *,"PostEnd called for module '", trim(this%module_name), &
+                "' region '", trim(this%region_name), "', but profiling is disabled"
+    endif
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
