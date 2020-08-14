@@ -70,7 +70,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
         else:
             my_options = {}
 
-        # If there is no value no value passed to the constructor, default
+        # If there is no value passed to the constructor, default
         # to the "read_only_verify" prefix.
         my_options["prefix"] = my_options.get("prefix", "read_only_verify")
         super(ReadOnlyVerifyNode, self).__init__(ast=ast, children=children,
@@ -100,7 +100,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
 
     def update_vars_and_postname(self):
         '''
-        This function is called after the variables to be extracted
+        This function is called after the variables to be verified
         have been stored in self._input_list and self._output_list.
         This default function does not do anything for read-only
         verification.
