@@ -97,10 +97,12 @@ profile                 All libraries related to profiling tools like DrHook,
                         :ref:`user_guide:profiling` for details.
 extract                 For libraries used for kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
+read_only_verify        Use a checksum to verify that variables that are 
+                        read-only are not modified in a subroutine.
 ======================= =======================================================
 
 In the following documentation the string ``PREFIX_`` is used
-to indicate the class prefix used (e.g. ``profile`` or ``extract``).
+to indicate the class prefix used (e.g. ``profile``).
 
 .. note:: 
     The transformations for profiling or kernel extraction allow
@@ -280,8 +282,9 @@ used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
 (see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`user_guide:psyke_netcdf` for
-a detailed description) or any of the profiling wrapper libraries
-(all contained in ``lib/profiling``).
+a detailed description), any of the profiling wrapper libraries
+(all contained in ``lib/profiling``) or the read_only wrappers
+(in ``lib/read_only``).
 
 .. method:: PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)
 
