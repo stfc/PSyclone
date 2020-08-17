@@ -569,7 +569,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
 
 @pytest.mark.parametrize("limit", ['all', 'output'])
 def test_main_fort_line_length(capsys, limit):
-    '''Tests that the fortran line length object works correctly. Without
+    '''Tests that the Fortran line length object works correctly. Without
     the -l option one of the generated psy-layer lines would be longer
     than 132 characters. Since it is in the output code, both the 'all' and
    'output' options should cause the limit to be applied. '''
@@ -578,8 +578,20 @@ def test_main_fort_line_length(capsys, limit):
                              "10.3_operator_different_spaces.f90"))
     main([filename, '-api', 'dynamo0.3', '-l', limit])
     output, _ = capsys.readouterr()
-    for line in output.split('\n'):
-        assert len(line) <= 132
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+
+@pytest.mark.parametrize("limit", [[], ['-l', 'off']])
+def test_main_fort_line_length_off(capsys, limit):
+    '''Tests that the Fortran line-length limiting is off by default and is
+    also disabled by `-l off`. One of the generated psy-layer lines should be
+    longer than 132 characters. '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'dynamo0.3'] + limit)
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
 
 
 def test_main_fort_line_length_output_only(capsys):

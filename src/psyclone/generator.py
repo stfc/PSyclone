@@ -285,9 +285,9 @@ def main(args):
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
         help='limit the Fortran line length to 132 characters (default '
-        '\'%(default)s\'). Use \'on\' to apply limit to both input and output '
-        'Fortran. Use \'output\' to apply line-length limit to output Fortran '
-        'only.')
+        '\'%(default)s\'). Use \'all\' to apply limit to both input and '
+        'output Fortran. Use \'output\' to apply line-length limit to output '
+        'Fortran only.')
     parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
         help='generate distributed memory code')
@@ -401,7 +401,7 @@ def main(args):
         print("Stacktrace ...", file=sys.stderr)
         traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
         sys.exit(1)
-    if args.limit != 'none':
+    if args.limit != 'off':
         # Limit the line length of the output Fortran to ensure it conforms
         # to the 132 characters mandated by the standard.
         fll = FortLineLength()
