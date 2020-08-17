@@ -228,7 +228,7 @@ Line length is not an issue for many compilers as they
 allow compiler flags to be set which allow lines longer than the
 Fortran standard. However this is not the case for all compilers.
 
-When the either the ``-l all`` or ``-l output`` option is specified to
+When either the ``-l all`` or ``-l output`` option is specified to
 the ``psyclone`` script, the output will be line wrapped so that the
 output lines are always within the 132 character limit.
 

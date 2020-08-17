@@ -23,7 +23,10 @@ Executing this will output 1) the PSyclone invokes found in the code,
 Schedule view of the code after adding OpenACC Kernels directives, 4)
 PSyclone's Schedule view of the code after adding OpenACC Kernels and
 Data directives, and 5) the transformed Fortran code with the OpenACC
-directives added.
+directives added. Note that some of the lines in this Fortran code will
+exceed the 132-character limit. This may be remedied by supplying the
+`-l all` flag to PSyclone (as is done in the Makefile).
+
 
 Running PSyclone with the kernels_managed_mem_trans.py script will
 produce similar output but the Schedule will no longer contain Data

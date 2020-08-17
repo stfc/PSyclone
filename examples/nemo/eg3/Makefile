@@ -71,12 +71,15 @@ dl_timer:
 
 transform: kernels managed_mem
 
+# Need `-l all` to ensure line-lengths in generated code are less than the
+# standard-mandated 132 chars
 kernels:
 	${PSYCLONE} -l all -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
    ../code/tra_adv.F90
 
 managed_mem:
-	${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
+	${PSYCLONE} -l all -api "nemo" -s ./kernels_managed_mem_trans.py \
+   ../code/tra_adv.F90
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels
