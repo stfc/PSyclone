@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -40,18 +39,16 @@
 #     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
-# If you are using the dl_timer, you can also use:
-#     export DL_TIMER_ROOT=../../../../apeg-dl_timer
-# Similarly for DrHook:
-#     export DRHOOK_DIR=../../../../drhook
+# The read-only wrapper library:
+#     export READ_ONLY_DIR = ../../../lib/read_only/dl_esm_inf
 
 include ../../common.mk
 
 # Reset the default goal to be 'compile', i.e. to include compilation
 .DEFAULT_GOAL:=
-DEFAULT: compile
+default: compile
 
-GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
+GENERATED_FILES += *.o *.mod read_only_test alg.f90 psy.f90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -59,75 +56,49 @@ SHARED_DIR ?= ../../../external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
+READ_ONLY_DIR = ../../../lib/read_only/dl_esm_inf
+F90FLAGS += -I$(INF_INC) -I $(READ_ONLY_DIR) 
+LIB_NAME = lib_read_only.a
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
 
 # The name of the executable
-NAME=profile_test
+NAME = read_only_test
 
-.PHONY: default template simple_timing drhook dl_timer
+.PHONY: default $(READ_ONLY_DIR)/$(LIB_NAME)
 
-compile: template
-all: template simple_timing drhook dl_timer
-
-template: PROFILE_DIR?=../../../lib/profiling/template
-template: PROFILE_LINK=-ldummy
-template: ../../../lib/profiling/template/libdummy.a $(NAME).template
-
-# Build the template profiling library
-../../../lib/profiling/template/libdummy.a:
-	${MAKE} -C ../../../lib/profiling/template
-
-simple_timing: PROFILE_DIR?=../../../lib/profiling/simple_timing
-simple_timing: PROFILE_LINK=-lsimple_timing
-simple_timing: $(NAME).simple_timing
-
-# Needs to additionally link with drhook library. As default
-# assume it is installed 'next' to PSyclone
-drhook: DRHOOK_DIR?=../../../../drhook
-drhook: PROFILE_DIR=../../../lib/profiling/drhook
-drhook: PROFILE_LINK=-ldrhook_psy -L $(DRHOOK_DIR)/build/lib -ldrhook
-drhook: $(NAME).drhook
-
-# Needs to compile with openmp and link in apeg-dl_timer library. As
-# default assume apeg-dl_timer is installed 'next' to PSyclone.
-dl_timer: DL_TIMER_ROOT?=../../../../apeg-dl_timer
-dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
-dl_timer: PROFILE_LINK=-ldl_timer -L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp
-dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
-dl_timer: $(NAME).dl_timer
-
-# Generic rule. It temporarily compiles a profile-wrapper-specific version
-# of psy (psy_template.o, psy_drhook.o, ...), which 'make' then deletes
-# automatically as an intermediate file. You can uncomment the following line
-# in order to preserve temporary files:
-#.SECONDARY:
-
-$(NAME).%: $(KERNELS) psy_%.o alg.o
-	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) $(INF_LIB)
+all: transform compile
+compile: transform $(NAME)
 
 alg.f90 psy.f90: transform
 
-transform: test.x90
-	${PSYCLONE} --profile invokes -api "gocean1.0" \
-		     -opsy psy.f90 -oalg alg.f90 test.x90
+transform: test.x90 read_only_transform.py
+	${PSYCLONE} -nodm -l -api "gocean1.0" -s ./read_only_transform.py \
+				-opsy psy.f90 -oalg alg.f90 test.x90
 
-# Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB)
+$(NAME): $(INF_LIB) $(READ_ONLY_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
+	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	-L$(READ_ONLY_DIR) -l_read_only $(INF_LIB)
+
+# The read-only library
+$(READ_ONLY_DIR)/$(LIB_NAME):
+	$(MAKE) -C $(READ_ONLY_DIR)
 
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
 
-# Special rule to create psy_LIBNAME.o for each wrapper library (required
-# since PSyDataType will differ from one wrapper library to the next)
-psy_%.o: psy.f90 $(KERNELS)
-	$(F90) -o $@ $(F90FLAGS) -I $(INF_INC) -I $(PROFILE_DIR) -c $<
+# Kernel compilation needs the .mod files from dl_esm_inf
+$(KERNELS): $(INF_LIB)
+
+alg.o:	psy.o
+
+psy.o:	$(KERNELS)
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(INF_INC) -I $(PROFILE_DIR) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
-	${MAKE} -C ../../../lib/profiling/template clean
+	$(MAKE) -C $(READ_ONLY_DIR) clean
 	$(MAKE) -C $(INF_DIR) clean
