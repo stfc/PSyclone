@@ -198,7 +198,7 @@ is shown below:
     type, extends(kernel_type) :: simple_type
       type(arg_type), dimension(1) :: meta_args = &
            (/ arg_type(gh_field, gh_inc, w1) /)
-      integer :: iterates_over = cells
+      integer :: operates_on = cell_column
     contains
       procedure, nopass :: code => simple_code
     end type simple_type
@@ -314,7 +314,7 @@ Kernel, excluding the subroutine body, is given below.
          func_type(W3, GH_BASIS),                                        &
          func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: ru_code
@@ -329,13 +329,11 @@ Kernel, excluding the subroutine body, is given below.
 
   end module ru_kernel_mod
 
-If we run the kernel stub generator on this example:
-::
+If we run the kernel stub generator on this example::
 
   > genkernelstub tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
-we obtain the following output:
-::
+we obtain the following output::
 
    MODULE ru_mod
     IMPLICIT NONE

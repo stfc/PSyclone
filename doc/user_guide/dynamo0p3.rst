@@ -566,8 +566,9 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the Dynamo0.3 API kernel
-metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
-4) 'meta_mesh', 5) 'gh_shape', 6) 'iterates_over' and 7) 'procedure'::
+metadata, 1) 'meta_args_', 2) 'meta_funcs_', 3) 'meta_reference_element_',
+4) 'meta_mesh_', 5) 'gh_shape' (`gh_shape and gh_evaluator_targets`_),
+6) 'operates_on_' and 7) 'procedure_'::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
@@ -575,7 +576,7 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     type(mesh_data_type) :: meta_mesh(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
-    integer :: iterates_over = cells
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: my_kernel_code
   end type
@@ -1157,7 +1158,7 @@ following kernel metadata::
              func_type(w1, gh_basis)                  &
           /)
       integer :: gh_shape = gh_quadrature_XYoZ
-      integer :: iterates_over = cells
+      integer :: operates_on = cell_column
     contains
       procedure, nopass :: code => testkern_operator_code
     end type testkern_operator_type
@@ -1296,15 +1297,28 @@ Note that it is an error for kernel metadata to specify a value for
 It is also an error to specify ``gh_evaluator_targets`` if the kernel
 does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 
-iterates over
-#############
+.. _lfric-operates-on:
 
-The fourth type of metadata provided is ``ITERATES_OVER``. This
+operates_on
+###########
+
+The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
-is iterating over the specified entity. For user-supplied kernels this
-currently only has one valid value which is ``CELLS``.
+is supplied with the specified entity. For user-supplied kernels this
+currently only has one valid value which is ``CELL_COLUMN``. i.e. the
+kernel expects to be passed the data for a single
+column of cells for each field or operator argument.
+The possible values for ``OPERATES_ON`` and their interpretation is
+summarised in the following table:
 
-Procedure
+===========  =========================================================
+operates_on  Data passed for each field/operator argument
+===========  =========================================================
+cell_column  Single column of cells
+dof          Single dof
+===========  =========================================================
+
+procedure
 #########
 
 The fifth and final type of metadata is ``procedure`` metadata. This
@@ -1522,7 +1536,7 @@ evaluator then its metadata might be::
              arg_type(gh_field*3,  gh_read,  w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_evaluator
    contains
      procedure, nopass :: code => testkern_operator_code
@@ -1548,7 +1562,7 @@ If instead, ``gh_evaluator_targets`` is specified in the metadata::
              arg_type(gh_field*3,  gh_read,  w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_evaluator
      integer :: gh_evaluator_targets(2) = (/W0, W1/)
    contains
@@ -1571,7 +1585,7 @@ and quadrature::
              arg_type(gh_field*3,  gh_read,  w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape(2) = (/ gh_evaluator, gh_quadrature_face /)
    contains
      procedure, nopass :: code => testkern_operator_code
@@ -1595,7 +1609,7 @@ reference element::
              arg_type(gh_field*3, gh_read, w0) /)
      type(reference_element_data_type) :: meta_reference_element(1) =  &
           (/ reference_element_data_type(normals_to_horizontal_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_operator_code
   end type testkern_operator_type
@@ -1880,7 +1894,7 @@ following four rules:
 3) Kernel arguments must be either fields or scalars.
 
 4) All field arguments to a given Built-in must be on the same
-   function space. This is because all current Built-ins iterate over
+   function space. This is because all current Built-ins operate on
    DoFs and therefore all fields should have the same number. It also
    means that we can determine the number of DoFs uniquely when a
    scalar is written to.
@@ -2446,7 +2460,7 @@ Configuration
 Annexed DoFs
 ++++++++++++
 
-When a kernel iterates over DoFs (rather than cells) for a continuous
+When a kernel operates on DoFs (rather than cell columns) for a continuous
 field using distributed memory (see the :ref:`distributed_memory`
 Section), then PSyclone need only ensure that DoFs owned by a
 processor are computed. However, for continuous fields, shared DoFs at
@@ -2456,7 +2470,7 @@ processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
-When a kernel that iterates over cells needs to read a continuous
+When a kernel that operates on a cell column needs to read a continuous
 field then the annexed DoFs must be up-to-date on all processors. If
 they are not then a halo exchange must be added. Currently PSyclone
 defaults, for kernels which iterate over DoFs, to iterating over only
