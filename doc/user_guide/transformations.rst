@@ -306,6 +306,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ReadOnlyVerifyTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
       :noindex:

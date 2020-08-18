@@ -34,6 +34,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
@@ -206,7 +207,7 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.kernels():
             for arg in call.arguments.args:
-                if arg.type == 'field' and arg.name not in result:
+                if arg.argument_type == 'field' and arg.name not in result:
                     result.append(arg.name)
         return result
 
@@ -478,7 +479,7 @@ class GOLoop(Loop):
         :rtype: bool
 
         '''
-        return arg.type == 'field' and arg.access in \
+        return arg.argument_type == 'field' and arg.access in \
             [AccessType.READ, AccessType.READWRITE, AccessType.INC]
 
     def create_halo_exchanges(self):
@@ -1029,7 +1030,7 @@ class GOKern(CodedKern):
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
         for arg in self.arguments.args:
-            if arg.type == "grid_property":
+            if arg.argument_type == "grid_property":
                 if not field_for_grid_property:
                     field_for_grid_property = \
                         self._arguments.find_grid_access()
@@ -1037,7 +1038,7 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
-            if arg.is_scalar():
+            if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
                     var_accesses.add_access(var_name, arg.access, self)
@@ -1147,16 +1148,16 @@ class GOKern(CodedKern):
         # Then we set the kernel arguments
         arguments = [kernel]
         for arg in self._arguments.args:
-            if arg.type == "scalar":
+            if arg.argument_type == "scalar":
                 arguments.append(arg.name)
-            elif arg.type == "field":
+            elif arg.argument_type == "field":
                 arguments.append(arg.name + "%device_ptr")
-            elif arg.type == "grid_property":
+            elif arg.argument_type == "grid_property":
                 # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
                 # the pointers to device memory for grid properties in
                 # "<grid-prop-name>_device" which is a bit hacky but
                 # works for now.
-                if arg.is_scalar():
+                if arg.is_scalar:
                     arguments.append(arg.dereference(garg.name))
                 else:
                     arguments.append(garg.name+"%grid%"+arg.name+"_device")
@@ -1230,7 +1231,7 @@ class GOKern(CodedKern):
                                      arg_types=["field", "grid_property"])
 
         # Array grid properties are c_intptr_t
-        args = [x for x in grid_prop_args if not x.is_scalar()]
+        args = [x for x in grid_prop_args if not x.is_scalar]
         if args:
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                             intent="in", target=True,
@@ -1238,7 +1239,7 @@ class GOKern(CodedKern):
 
         # Scalar integer grid properties
         args = [x for x in grid_prop_args
-                if x.is_scalar() and x.intrinsic_type == "integer"]
+                if x.is_scalar and x.intrinsic_type == "integer"]
         if args:
             sub.add(DeclGen(sub, datatype="integer", intent="in",
                             target=True,
@@ -1246,7 +1247,7 @@ class GOKern(CodedKern):
 
         # Scalar real grid properties
         args = [x for x in grid_prop_args
-                if x.is_scalar() and x.intrinsic_type == "real"]
+                if x.is_scalar and x.intrinsic_type == "real"]
         if args:
             sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
                             target=True,
@@ -1301,10 +1302,10 @@ class GOKern(CodedKern):
                           funcnames=["create_rw_buffer"]))
         parent.add(CommentGen(parent, " Ensure field data is on device"))
         for arg in self._arguments.args:
-            if arg.type == "field" or \
-               (arg.type == "grid_property" and not arg.is_scalar()):
+            if arg.argument_type == "field" or \
+               (arg.argument_type == "grid_property" and not arg.is_scalar):
                 api_config = Config.get().api_conf("gocean1.0")
-                if arg.type == "field":
+                if arg.argument_type == "field":
                     # fields have a 'data_on_device' property for keeping
                     # track of whether they are on the device
                     condition = ".NOT. {0}%data_on_device".format(arg.name)
@@ -1354,7 +1355,7 @@ class GOKern(CodedKern):
                               "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
                               "C_LOC({4}))".format(qlist, device_buff,
                                                    nbytes, host_buff, wevent)))
-                if arg.type == "field":
+                if arg.argument_type == "field":
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%data_on_device".format(arg.name),
                         rhs=".true."))
@@ -1414,18 +1415,18 @@ class GOKernelArguments(Arguments):
         # Loop over the kernel arguments obtained from the meta data
         for (idx, arg) in enumerate(call.ktype.arg_descriptors):
             # arg is a GO1p0Descriptor object
-            if arg.type == "grid_property":
+            if arg.argument_type == "grid_property":
                 # This is an argument supplied by the psy layer
                 self._args.append(GOKernelGridArgument(arg))
-            elif arg.type == "scalar" or arg.type == "field":
+            elif arg.argument_type == "scalar" or arg.argument_type == "field":
                 # This is a kernel argument supplied by the Algorithm layer
                 self._args.append(GOKernelArgument(arg, call.args[idx],
                                                    parent_call))
             else:
                 raise ParseError("Invalid kernel argument type. Found '{0}' "
                                  "but must be one of {1}".
-                                 format(arg.type, ["grid_property", "scalar",
-                                                   "field"]))
+                                 format(arg.argument_type,
+                                        ["grid_property", "scalar", "field"]))
         self._dofs = []
 
     def raw_arg_list(self):
@@ -1451,17 +1452,17 @@ class GOKernelArguments(Arguments):
         arguments = ["i", "j"]
         for arg in self._args:
 
-            if arg.type == "scalar":
+            if arg.argument_type == "scalar":
                 # Scalar arguments require no de-referencing
                 arguments.append(arg.name)
-            elif arg.type == "field":
+            elif arg.argument_type == "field":
                 # Field objects are Fortran derived-types
                 api_config = Config.get().api_conf("gocean1.0")
                 # TODO: #676 go_grid_data is actually a field property
                 data = api_config.grid_properties["go_grid_data"].fortran\
                     .format(arg.name)
                 arguments.append(data)
-            elif arg.type == "grid_property":
+            elif arg.argument_type == "grid_property":
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object.
                 # We use the most suitable field as chosen above.
@@ -1475,7 +1476,7 @@ class GOKernelArguments(Arguments):
                 raise InternalError("Kernel {0}, argument {1} has "
                                     "unrecognised type: '{2}'".
                                     format(self._parent_call.name, arg.name,
-                                           arg.type))
+                                           arg.argument_type))
         self._raw_arg_list = arguments
         return self._raw_arg_list
 
@@ -1494,7 +1495,7 @@ class GOKernelArguments(Arguments):
         for access in [AccessType.READ, AccessType.READWRITE,
                        AccessType.WRITE]:
             for arg in self._args:
-                if arg.type == "field" and arg.access == access:
+                if arg.argument_type == "field" and arg.access == access:
                     return arg
         # We failed to find any kernel argument which could be used
         # to access the grid properties. This will only be a problem
@@ -1532,13 +1533,13 @@ class GOKernelArguments(Arguments):
         data_fmt = api_config.grid_properties["go_grid_data"].fortran
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
         for arg in self._args:
-            if arg.type == "scalar":
+            if arg.argument_type == "scalar":
                 arg_list.append(arg.name)
-            elif arg.type == "field" and arg != grid_fld:
+            elif arg.argument_type == "field" and arg != grid_fld:
                 # The remote device will need the reference to the field
                 # object *and* the reference to the array within that object.
                 arg_list.extend([arg.name, data_fmt.format(arg.name)])
-            elif arg.type == "grid_property":
+            elif arg.argument_type == "grid_property":
                 if grid_ptr not in arg_list:
                     # This kernel needs a grid property and therefore the
                     # pointer to the grid object must be copied to the device.
@@ -1605,12 +1606,18 @@ class GOKernelArgument(KernelArgument):
         KernelArgument.__init__(self, arg, arg_info, call)
 
     @property
-    def type(self):
-        ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer).
-            If it has no type it defaults to scalar.'''
-        if hasattr(self._arg, 'type'):
-            return self._arg.type
+    def argument_type(self):
+        '''
+        Return the type of this kernel argument - whether it is a field,
+        a scalar or a grid_property (to be supplied by the PSy layer).
+        If it has no type it defaults to scalar.
+
+        :returns: the type of the argument.
+        :rtype: str
+
+        '''
+        if self._arg.argument_type:
+            return self._arg.argument_type
         return "scalar"
 
     @property
@@ -1619,10 +1626,11 @@ class GOKernelArgument(KernelArgument):
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
 
+    @property
     def is_scalar(self):
         ''':return: whether this variable is a scalar variable or not.
         :rtype: bool'''
-        return self.type == "scalar"
+        return self.argument_type == "scalar"
 
 
 class GOKernelGridArgument(Argument):
@@ -1652,11 +1660,11 @@ class GOKernelGridArgument(Argument):
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
         self._name = deref_name.split("%")[-1]
-        # Store the original property name for easy lookup in is_scalar()
+        # Store the original property name for easy lookup in is_scalar
         self._property_name = arg.grid_prop
 
         # This object always represents an argument that is a grid_property
-        self._type = "grid_property"
+        self._argument_type = "grid_property"
 
     @property
     def name(self):
@@ -1682,11 +1690,11 @@ class GOKernelGridArgument(Argument):
         return deref_name.format(fld_name)
 
     @property
-    def type(self):
+    def argument_type(self):
         ''' The type of this argument. We have this for compatibility with
             GOKernelArgument objects since, for this class, it will always be
             "grid_property". '''
-        return self._type
+        return self._argument_type
 
     @property
     def intrinsic_type(self):
@@ -1698,9 +1706,12 @@ class GOKernelGridArgument(Argument):
         api_config = Config.get().api_conf("gocean1.0")
         return api_config.grid_properties[self._property_name].intrinsic_type
 
+    @property
     def is_scalar(self):
-        ''':return: If this variable is a scalar variable or not.
-        :rtype: bool'''
+        '''
+        :returns: if this variable is a scalar variable or not.
+        :rtype: bool
+        '''
         # The constructor guarantees that _property_name is a valid key!
         api_config = Config.get().api_conf("gocean1.0")
         return api_config.grid_properties[self._property_name].type \
@@ -1962,21 +1973,21 @@ class GOStencil():
 
 
 class GO1p0Descriptor(Descriptor):
-    '''Description of a GOcean 1.0 kernel argument, as obtained by
-        parsing the kernel meta-data
+    ''' Description of a GOcean 1.0 kernel argument, as obtained by
+    parsing the kernel meta-data.
+
+    :param str kernel_name: the name of the kernel metadata type \
+                            that contains this metadata.
+    :param kernel_arg: the relevant part of the parser's AST.
+    :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
+
+    :raises ParseError: if a kernel argument has an invalid grid-point type.
+    :raises ParseError: for an unrecognised grid property.
+    :raises ParseError: for an invalid number of arguments.
+    :raises ParseError: for an invalid access argument.
 
     '''
-
     def __init__(self, kernel_name, kernel_arg):
-        '''Test and extract the required kernel metadata
-
-        :param str kernel_name: the name of the kernel metadata type
-        that contains this metadata
-        :param kernel_arg: the relevant part of the parser's AST
-        :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
-
-        '''
-
         nargs = len(kernel_arg.args)
         stencil_info = None
 
@@ -1997,9 +2008,9 @@ class GO1p0Descriptor(Descriptor):
 
             self._grid_prop = ""
             if funcspace.lower() in VALID_FIELD_GRID_TYPES:
-                self._type = "field"
+                self._argument_type = "field"
             elif funcspace.lower() in VALID_SCALAR_TYPES:
-                self._type = "scalar"
+                self._argument_type = "scalar"
             else:
                 raise ParseError("Meta-data error in kernel {0}: argument "
                                  "grid-point type is '{1}' but must be one "
@@ -2007,13 +2018,15 @@ class GO1p0Descriptor(Descriptor):
                                                   valid_func_spaces))
 
         elif nargs == 2:
-            # This kernel argument is a property of the grid
+            # This kernel argument is a property of the grid. The grid
+            # properties are special because they must be supplied by
+            # the PSy layer.
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
 
             self._grid_prop = grid_var
-            self._type = "grid_property"
+            self._argument_type = "grid_property"
             api_config = Config.get().api_conf("gocean1.0")
 
             if grid_var.lower() not in api_config.grid_properties:
@@ -2042,29 +2055,22 @@ class GO1p0Descriptor(Descriptor):
                              format(kernel_name, access, valid_names))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access_type, funcspace, stencil_info)
+        super(GO1p0Descriptor,
+              self).__init__(access_type, funcspace, stencil=stencil_info,
+                             argument_type=self._argument_type)
 
     def __str__(self):
         return repr(self)
 
     @property
     def grid_prop(self):
-        ''' The name of the grid-property that this argument is to supply
-            to the kernel '''
-        return self._grid_prop
-
-    @property
-    def type(self):
-        ''' The type of this argument - whether it is a scalar, a field or
-        a grid-property. The latter are special because they must be
-        supplied by the PSy layer.
-
-        :return: The type of this argument, either 'field', 'scalar', or \
-            'grid_property'
+        '''
+        :returns: the name of the grid-property that this argument is to \
+                  supply to the kernel.
         :rtype: str
 
         '''
-        return self._type
+        return self._grid_prop
 
 
 class GOKernelType1p0(KernelType):
@@ -2123,7 +2129,7 @@ class GOKernelType1p0(KernelType):
             # Keep track of whether this kernel requires any
             # grid properties
             have_grid_prop = (have_grid_prop or
-                              (new_arg.type == "grid_property"))
+                              (new_arg.argument_type == "grid_property"))
             self._arg_descriptors.append(new_arg)
 
         # If this kernel expects a grid property then check that it
@@ -2132,7 +2138,7 @@ class GOKernelType1p0(KernelType):
         if have_grid_prop:
             have_fld = False
             for arg in self.arg_descriptors:
-                if arg.type == "field":
+                if arg.argument_type == "field":
                     have_fld = True
                     break
             if not have_fld:
@@ -2150,7 +2156,7 @@ class GOKernelType1p0(KernelType):
             expects the Algorithm layer to provide '''
         count = 0
         for arg in self.arg_descriptors:
-            if arg.type != "grid_property":
+            if arg.argument_type != "grid_property":
                 count += 1
         return count
 

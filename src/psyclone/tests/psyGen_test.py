@@ -750,8 +750,8 @@ def test_args_filter2():
 
 
 def test_reduction_var_error():
-    '''Check that we raise an exception if the zero_reduction_variable()
-    method is provided with an incorrect type of argument'''
+    ''' Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -763,8 +763,8 @@ def test_reduction_var_error():
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
-        assert ("zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer']") in str(err.value)
+        assert ("Kern.zero_reduction_variable() should be a scalar but "
+                "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_sum_error():

@@ -53,9 +53,6 @@ DEFAULT: compile
 
 GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
 
-F90 ?= gfortran
-F90FLAGS ?=
-
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= ../../../external
@@ -63,7 +60,10 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 
+# The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
+
+# The name of the executable
 NAME=profile_test
 
 .PHONY: default template simple_timing drhook dl_timer

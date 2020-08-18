@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic Met Office,
-#          C. M. Maynard, Met Office/University of Reading.
+#          C. M. Maynard, Met Office/University of Reading,
+#          J. Henrichs, Bureau of Meteorology.
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -148,12 +149,14 @@ def test_arg_descriptor_vector():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w1'")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w1'")
     assert expected in field_descriptor_str
 
     # Check LFRicArgDescriptor argument properties
-    assert field_descriptor.type == "gh_field"
+    assert field_descriptor.argument_type == "gh_field"
+    assert field_descriptor.data_type == "gh_real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -164,15 +167,15 @@ def test_arg_descriptor_vector():
 
 def test_ad_scalar_validate_wrong_type():
     ''' Test that an error is raised if something other than a scalar
-    is passed to the LFRicArgDescriptor._validate_scalar() method. '''
+    is passed to the LFRicArgDescriptor._init_scalar() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not a scalar
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_scalar(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_scalar(): expecting a scalar "
+        LFRicArgDescriptor(wrong_arg)._init_scalar(wrong_arg)
+    assert ("LFRicArgDescriptor._init_scalar(): expecting a scalar "
             "argument but got an argument of type 'gh_operator'." in
             str(excinfo.value))
 
@@ -250,20 +253,21 @@ def test_ad_int_scalar_type_no_sum():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but 'gh_integer' was found" in str(excinfo.value))
+            "argument, but scalar 'gh_integer' with 'gh_integer' data type "
+            in str(excinfo.value))
 
 
 def test_ad_field_validate_wrong_type():
     ''' Test that an error is raised if something other than a field
-    is passed to the LFRicArgDescriptor._validate_field() method. '''
+    is passed to the LFRicArgDescriptor._init_field() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not a field
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_field(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_field(): expecting a field "
+        LFRicArgDescriptor(wrong_arg)._init_field(wrong_arg)
+    assert ("LFRicArgDescriptor._init_field(): expecting a field "
             "argument but got an argument of type 'gh_real'" in
             str(excinfo.value))
 
@@ -1464,6 +1468,30 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
+def test_dynscalars_call_err():
+    ''' Check that the DynScalarArgs constructor raises the expected
+    internal error if it encounters an unrecognised intrinsic type of
+    scalar when generating a kernel call.
+
+    '''
+    from psyclone.dynamo0p3 import DynScalarArgs
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    first_argument = first_kernel.arguments.args[0]
+    first_argument._intrinsic_type = "double-type"
+    with pytest.raises(InternalError) as err:
+        _ = DynScalarArgs(first_kernel)
+    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic "
+            "type 'double-type' for the scalar argument 'a'. Supported "
+            "types are ['real', 'integer']." in str(err.value))
+
+
 def test_vector_field(tmpdir):
     ''' Tests that a vector field is declared correctly in the PSy
     layer. '''
@@ -1712,15 +1740,15 @@ def test_op_any_discontinuous_space_2(tmpdir):
 
 def test_invoke_uniq_declns():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid argument type. '''
+    called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declarations("not_a_type")
-    assert ("Invoke.unique_declarations() called with an invalid argument "
-            "type. Expected one of {0} but found 'not_a_type'".
+        psy.invokes.invoke_list[0].unique_declarations(["not_a_type"])
+    assert ("Invoke.unique_declarations() called with at least one invalid "
+            "argument type. Expected one of {0} but found ['not_a_type'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
@@ -1733,10 +1761,11 @@ def test_invoke_uniq_declns_invalid_access():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declarations("gh_field",
+        psy.invokes.invoke_list[0].unique_declarations(["gh_field"],
                                                        access="invalid_acc")
     assert ("Invoke.unique_declarations() called with an invalid access "
-            "type. Type is 'invalid_acc'" in str(excinfo.value))
+            "type. Type is 'invalid_acc' instead of AccessType."
+            in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
@@ -1750,11 +1779,11 @@ def test_invoke_uniq_declns_valid_access():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_read_args = psy.invokes.invoke_list[0]\
-        .unique_declarations("gh_field", access=AccessType.READ)
+        .unique_declarations(["gh_field"], access=AccessType.READ)
     fields_read = [arg.declaration_name for arg in fields_read_args]
     assert fields_read == ["f2", "m1", "m2"]
     fields_incremented_args = psy.invokes.invoke_list[0]\
-        .unique_declarations("gh_field", access=AccessType.INC)
+        .unique_declarations(["gh_field"], access=AccessType.INC)
     fields_incremented = [arg.declaration_name for arg in
                           fields_incremented_args]
     assert fields_incremented == ["f1"]
@@ -1765,7 +1794,7 @@ def test_invoke_uniq_declns_valid_access():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_written_args = psy.invokes.invoke_list[0]\
-        .unique_declarations("gh_field", access=AccessType.WRITE)
+        .unique_declarations(["gh_field"], access=AccessType.WRITE)
     fields_written = [arg.declaration_name for arg in fields_written_args]
     assert fields_written == ["f1(3)"]
 
@@ -1775,7 +1804,7 @@ def test_invoke_uniq_declns_valid_access():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     fields_readwritten_args = psy.invokes.invoke_list[0]\
-        .unique_declarations("gh_field", access=AccessType.READWRITE)
+        .unique_declarations(["gh_field"], access=AccessType.READWRITE)
     fields_readwritten = [arg.declaration_name for arg in
                           fields_readwritten_args]
     assert fields_readwritten == ["f1"]
@@ -1789,11 +1818,11 @@ def test_invoke_uniq_proxy_declns():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
-    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
-            "argument type. Expected one of {0} but found 'not_a_type'".
-            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
-            str(excinfo.value))
+        psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
+    assert ("DynInvoke.unique_proxy_declarations() called with at least "
+            "one invalid argument type. Expected one of {0} but found "
+            "['not_a_type'].".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_uniq_proxy_declns_invalid_access():
@@ -1807,10 +1836,10 @@ def test_uniq_proxy_declns_invalid_access():
     valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
-            "gh_field",
+            ["gh_field"],
             access="invalid_acc")
     assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
-            "access type. Expected one of {0} but found 'invalid_acc'".
+            "access type. Expected one of {0} but found 'invalid_acc'.".
             format(valid_access_names) in str(excinfo.value))
 
 
@@ -1829,15 +1858,15 @@ def test_dyninvoke_first_access():
 
 def test_dyninvoke_uniq_declns_inv_type():
     ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid argument type. '''
+    is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
-    assert ("Invoke.unique_declns_by_intent() called with an invalid "
-            "argument type. Expected one of {0} but found 'gh_invalid'".
+        psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
+    assert ("Invoke.unique_declns_by_intent() called with at least one invalid"
+            " argument type. Expected one of {0} but found ['gh_invalid'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
 
@@ -1849,7 +1878,7 @@ def test_dyninvoke_uniq_declns_intent_fields():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_field"])
     args_inout = [arg.declaration_name for arg in args['inout']]
     assert args_inout == ['f1']
     assert args['out'] == []
@@ -1864,7 +1893,7 @@ def test_dyninvoke_uniq_declns_intent_real():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_real"])
     assert args['inout'] == []
     assert args['out'] == []
     args_in = [arg.declaration_name for arg in args['in']]
@@ -1878,7 +1907,7 @@ def test_dyninvoke_uniq_declns_intent_int():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_integer"])
     assert args['inout'] == []
     assert args['out'] == []
     args_in = [arg.declaration_name for arg in args['in']]
@@ -1892,7 +1921,7 @@ def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
                                         "4.4_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_operator"])
     assert args['inout'] == []
     args_out = [arg.declaration_name for arg in args['out']]
     assert args_out == ['op']
@@ -1909,7 +1938,7 @@ def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0]\
-        .unique_declns_by_intent("gh_columnwise_operator")
+        .unique_declns_by_intent(["gh_columnwise_operator"])
     args_out = [arg.declaration_name for arg in args['out']]
     assert args_out == ['cma_op1']
     args_inout = [arg.declaration_name for arg in args['inout']]
@@ -2088,7 +2117,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is an
     # operator rather than a field
-    monkeypatch.setattr(arg, "_type", value="gh_operator")
+    monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
     # We have to monkey-patch the arg.ref_name() function too as
     # otherwise the first monkey-patch causes it to break. Since
     # it is a function we have to patch it with a temporary
@@ -2388,7 +2417,7 @@ def test_loopfuse():
     assert len(kern_idxs) == 2
     # both kernel calls are within the loop
     for kern_id in kern_idxs:
-        assert kern_id > do_idx and kern_id < enddo_idx
+        assert enddo_idx > kern_id > do_idx
 
 
 def test_kern_colourmap(monkeypatch):
@@ -2541,7 +2570,8 @@ def test_stencil_metadata():
 
     # Check other LFRicArgDescriptor argument properties for a
     # field stencil argument
-    assert stencil_descriptor_1.type == "gh_field"
+    assert stencil_descriptor_1.argument_type == "gh_field"
+    assert stencil_descriptor_1.data_type == "gh_real"
     assert stencil_descriptor_1.function_space == "w2"
     assert stencil_descriptor_1.function_spaces == ['w2']
     assert str(stencil_descriptor_1.access) == "READ"
@@ -2727,7 +2757,7 @@ def test_arg_descriptor_funcs_method_error():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    field_descriptor._type = "gh_fire_starter"
+    field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_spaces
     assert ("LFRicArgDescriptor.function_spaces(), should not get "
@@ -2808,18 +2838,21 @@ def test_arg_ref_name_method_error1():
 
 def test_arg_ref_name_method_error2():
     ''' Tests that an internal error is raised in DynKernelArgument
-    when ref_name() is called when the argument type is not one of
-    gh_field or gh_operator'''
+    when ref_name() is called when the argument type is not a field
+    or an operator.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     first_argument = first_kernel.arguments.args[1]
-    first_argument._type = "gh_funky_instigator"
+    first_argument._argument_type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
-    assert 'ref_name: Error, unsupported arg type' in str(excinfo.value)
+    assert ("DynKernelArgument.ref_name(fs): Found unsupported argument "
+            "type 'gh_funky_instigator'" in str(excinfo.value))
 
 
 def test_arg_intent_error():
@@ -2839,6 +2872,32 @@ def test_arg_intent_error():
     assert ("Expecting argument access to be one of 'gh_read, gh_write, "
             "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
             "'gh_not_an_intent'" in str(excinfo.value))
+
+
+def test_arg_intrinsic_type_error():
+    ''' Tests that an internal error is raised in creating argument
+    'intrinsic_type' property when an invalid 'data_type' property is
+    passed from the LFRicArgDescriptor class.
+
+    '''
+    from psyclone.dynamo0p3 import DynKernelArguments
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    call = invoke_info.calls[0].kcalls[0]
+    kernel_metadata = call.ktype
+    # Mess with the internal state of this argument descriptor
+    # data type to trigger the internal error for intrinsic type
+    kernel_metadata._arg_descriptors[0]._data_type = "gh_unreal"
+    expected_descriptor = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_real'\n"
+        "  data_type[1]='gh_unreal'\n"
+        "  access_descriptor[2]='gh_read'\n")
+    with pytest.raises(InternalError) as excinfo:
+        _ = DynKernelArguments(call, None)
+    assert ("DynKernelArgument.__init__(): Found unsupported data "
+            "type 'gh_unreal' in the kernel argument descriptor '{0}'.".
+            format(expected_descriptor) in str(excinfo.value))
 
 
 @pytest.mark.skipif(
@@ -2889,7 +2948,7 @@ def test_arg_descriptor_func_method_error():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    field_descriptor._type = "gh_fire_starter"
+    field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space
     assert ("LFRicArgDescriptor.function_space(), should not get "
@@ -2909,12 +2968,14 @@ def test_arg_descriptor_fld():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w1'")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w1'")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert field_descriptor.type == "gh_field"
+    assert field_descriptor.argument_type == "gh_field"
+    assert field_descriptor.data_type == "gh_real"
     assert field_descriptor.function_space == "w1"
     assert field_descriptor.function_spaces == ['w1']
     assert str(field_descriptor.access) == "INC"
@@ -2936,11 +2997,13 @@ def test_arg_descriptor_real_scalar():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_real'\n"
-        "  access_descriptor[1]='gh_read'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.type == "gh_real"
+    assert scalar_descriptor.argument_type == "gh_real"
+    assert scalar_descriptor.data_type == "gh_real"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
@@ -2962,11 +3025,13 @@ def test_arg_descriptor_int_scalar():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_integer'\n"
-        "  access_descriptor[1]='gh_read'\n")
+        "  data_type[1]='gh_integer'\n"
+        "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.type == "gh_integer"
+    assert scalar_descriptor.argument_type == "gh_integer"
+    assert scalar_descriptor.data_type == "gh_integer"
     assert scalar_descriptor.function_space is None
     assert scalar_descriptor.function_spaces == []
     assert str(scalar_descriptor.access) == "READ"
@@ -2986,7 +3051,7 @@ def test_arg_descriptor_str_error():
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
-    field_descriptor._type = "gh_fire_starter"
+    field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = str(field_descriptor)
     assert ("LFRicArgDescriptor.__str__(), should not get to here." in
@@ -5462,16 +5527,37 @@ def test_unsupported_halo_read_access():
     # call our method
     with pytest.raises(GenerationError) as err:
         _ = loop._halo_read_access(stencil_arg)
-    assert ("Loop bounds other than cell_halo and ncells are currently "
+    assert ("Loop bounds other than 'cell_halo' and 'ncells' are currently "
             "unsupported for kernels with stencil accesses. Found "
             "'inner'." in str(err.value))
 
 
+def test_dynglobalsum_unsupported_argument():
+    ''' Check that an instance of the DynGlobalSum class raises an
+    exception for an unsupported argument type. '''
+    # Get an instance of a non-scalar argument
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.1_single_invoke_1_int_scalar.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[4]
+    kernel = loop.loop_body[0]
+    argument = kernel.arguments.args[0]
+    with pytest.raises(InternalError) as err:
+        _ = DynGlobalSum(argument)
+    assert ("DynGlobalSum.init(): A global sum argument should be a scalar "
+            "but found argument of type 'gh_field'." in str(err.value))
+
+
 def test_dynglobalsum_unsupported_scalar():
     ''' Check that an instance of the DynGlobalSum class raises an
-    exception if an unsupported scalar type is provided when
-    dm=True. '''
-    # get an instance of an integer scalar
+    exception if an unsupported scalar type is provided when distributed
+    memory is enabled (dm=True).
+
+    '''
+    # Get an instance of an integer scalar
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.6.1_single_invoke_1_int_scalar.f90"),
@@ -5483,14 +5569,18 @@ def test_dynglobalsum_unsupported_scalar():
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
-    assert ("DynGlobalSum currently only supports '['gh_real']'"
-            in str(err.value))
+    assert ("DynGlobalSum currently only supports real scalars, but "
+            "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
+            "has 'integer' intrinsic type." in str(err.value))
 
 
 def test_dynglobalsum_nodm_error():
-    '''Check that an instance of the DynGlobalSum class raises an
-    exception if it is instantiated when dm=False'''
-    # get an instance of a real scalar
+    ''' Check that an instance of the DynGlobalSum class raises an
+    exception if it is instantiated with no distributed memory enabled
+    (dm=False).
+
+    '''
+    # Get an instance of a real scalar
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.9_single_invoke_2_real_scalars.f90"),
@@ -5503,7 +5593,8 @@ def test_dynglobalsum_nodm_error():
     with pytest.raises(GenerationError) as err:
         _ = DynGlobalSum(argument)
     assert ("It makes no sense to create a DynGlobalSum object when "
-            "dm=False") in str(err.value)
+            "distributed memory is not enabled (dm=False)."
+            in str(err.value))
 
 
 def test_no_updated_args():
@@ -5561,7 +5652,7 @@ def test_multiple_updated_field_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if descriptor.type == "gh_field" and \
+        if descriptor.argument_type == "gh_field" and \
                 descriptor.access != AccessType.READ:
             count += 1
     assert count == 2
@@ -5578,8 +5669,8 @@ def test_multiple_updated_op_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if ((descriptor.type == "gh_field" or
-             descriptor.type == "gh_operator") and
+        if ((descriptor.argument_type == "gh_field" or
+             descriptor.argument_type == "gh_operator") and
                 descriptor.access != AccessType.READ):
             count += 1
     assert count == 2
@@ -5718,83 +5809,6 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         assert output in generated_code
 
 
-def test_unexpected_type_error(dist_mem):
-    ''' Check that we raise an exception if an unexpected argument type is
-    found when running the ArgOrdering generate method. As it is abstract we
-    use the KernCallArgList sub class.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.0.1_single_named_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.loop_body[0]
-    # Sabotage one of the arguments to make it have an invalid type.
-    kernel.arguments.args[0]._type = "invalid"
-    # Now call KernCallArgList to raise an exception
-    create_arg_list = KernCallArgList(kernel)
-    with pytest.raises(InternalError) as excinfo:
-        create_arg_list.generate()
-    assert (
-        "dynamo0p3.ArgOrdering.generate(): Unexpected argument "
-        "type. Expected one of {0} but found 'invalid'".
-        format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
-        in str(excinfo.value))
-
-
-def test_argordering_exceptions(dist_mem):
-    ''' Check that we raise an exception if the abstract methods are called
-    in an instance of the ArgOrdering class. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.0.1_single_named_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.loop_body[0]
-    from psyclone.dynamo0p3 import ArgOrdering
-    create_arg_list = ArgOrdering(kernel)
-    for method in [create_arg_list.cell_map,
-                   create_arg_list.cell_position,
-                   create_arg_list.mesh_height,
-                   create_arg_list.mesh_ncell2d]:
-        with pytest.raises(NotImplementedError):
-            method()
-    for method in [create_arg_list.field_vector,
-                   create_arg_list.field,
-                   create_arg_list.stencil_unknown_extent,
-                   create_arg_list.stencil_unknown_direction,
-                   create_arg_list.stencil,
-                   create_arg_list.operator,
-                   create_arg_list.scalar,
-                   create_arg_list.fs_common,
-                   create_arg_list.fs_compulsory_field,
-                   create_arg_list.basis,
-                   create_arg_list.diff_basis,
-                   create_arg_list.orientation,
-                   create_arg_list.field_bcs_kernel,
-                   create_arg_list.operator_bcs_kernel,
-                   create_arg_list.banded_dofmap,
-                   create_arg_list.indirection_dofmap,
-                   create_arg_list.cma_operator]:
-        with pytest.raises(NotImplementedError):
-            method(None)
-
-
 def test_kernel_args_has_op():
     ''' Check that we raise an exception if the arg. type supplied to
     DynKernelArguments.has_operator() is not a valid operator. '''
@@ -5808,54 +5822,6 @@ def test_kernel_args_has_op():
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
     assert "'op_type' must be a valid operator type" in str(excinfo.value)
-
-
-def test_kerncallarglist_args_error(dist_mem):
-    ''' Check that we raise an exception if we call the methods that return
-    information in KernCallArgList without first calling the generate
-    method.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.0.1_single_named_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if dist_mem:
-        loop = schedule.children[4]
-    else:
-        loop = schedule.children[0]
-    create_arg_list = KernCallArgList(loop.loop_body[0])
-
-    # nlayers_positions method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.nlayers_positions
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the nlayers_positions() method") in str(excinfo.value)
-
-    # nqp_positions method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.nqp_positions
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the nqp_positions() method") in str(excinfo.value)
-
-    # ndf_positions method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.ndf_positions
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the ndf_positions() method") in str(excinfo.value)
-
-    # arglist method
-    with pytest.raises(InternalError) as excinfo:
-        _ = create_arg_list.arglist
-    assert (
-        "KernCallArgList: the generate() method should be called before "
-        "the arglist() method") in str(excinfo.value)
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
@@ -6460,7 +6426,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
 
 
 def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
-    '''When a continuous argument is read it may access the halo. The
+    ''' When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
     that this exception is raised correctly. We test separately for
@@ -6489,11 +6455,11 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
     f2_arg = kernel.arguments.args[1]
     #
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = loop._halo_read_access(f2_arg)
-    assert ("Internal error in _halo_read_access. It should not be "
-            "possible to get to here. loop upper bound name is 'invalid' "
-            "and arg 'f2' access is 'gh_read'.") in str(excinfo.value)
+    assert ("DynLoop._halo_read_access(): It should not be possible to "
+            "get to here. Loop upper bound name is 'invalid' and arg "
+            "'f2' access is 'gh_read'.") in str(excinfo.value)
 
 
 def test_new_halo_exch_vect_field(monkeypatch):
@@ -6779,7 +6745,7 @@ def test_dyncelliterators_err(monkeypatch):
     monkeypatch.setattr(invoke, "_psy_unique_vars", [])
     with pytest.raises(GenerationError) as err:
         _ = DynCellIterators(invoke)
-    assert ("Cannot create an Invoke with no field/operator arguments"
+    assert ("Cannot create an Invoke with no field/operator arguments."
             in str(err.value))
 
 # tests for class kerncallarglist position methods
@@ -6875,10 +6841,11 @@ def test_dynkernelarguments_acc_args_2():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy(1)', 'f1_proxy(1)%data', 'f1_proxy(2)',
-        'f1_proxy(2)%data', 'f1_proxy(3)', 'f1_proxy(3)%data', 'f2_proxy(1)',
-        'f2_proxy(1)%data', 'f2_proxy(2)', 'f2_proxy(2)%data', 'f2_proxy(3)',
-        'f2_proxy(3)%data', 'ndf_w3', 'undf_w3', 'map_w3']
+        'nlayers', 'f1_proxy(1)', 'f1_proxy(2)', 'f1_proxy(3)',
+        'f1_proxy(1)%data', 'f1_proxy(2)%data', 'f1_proxy(3)%data',
+        'f2_proxy(1)', 'f2_proxy(2)', 'f2_proxy(3)',
+        'f2_proxy(1)%data', 'f2_proxy(2)%data', 'f2_proxy(3)%data',
+        'ndf_w3', 'undf_w3', 'map_w3']
 
 
 # (3/4) Method acc_args
@@ -6916,8 +6883,8 @@ def test_dynkernelarguments_acc_args_4():
     acc_args = kern_args.acc_args
     assert acc_args == [
         'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
-        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(1)%data',
-        'coord_proxy(2)', 'coord_proxy(2)%data', 'coord_proxy(3)',
+        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(2)',
+        'coord_proxy(3)', 'coord_proxy(1)%data', 'coord_proxy(2)%data',
         'coord_proxy(3)%data', 'a', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']

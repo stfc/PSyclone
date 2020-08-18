@@ -219,7 +219,8 @@ def test_builtin_no_field_args():
 
 def test_builtin_operator_arg():
     ''' Check that we raise appropriate error if we encounter a built-in
-    that takes something other than a field or scalar argument '''
+    that takes something other than a field or scalar argument. '''
+    from psyclone.dynamo0p3_builtins import VALID_BUILTIN_ARG_TYPES
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
@@ -236,10 +237,11 @@ def test_builtin_operator_arg():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
-            "kernel " + test_builtin_name.lower() + " has an argument of "
-            "type gh_operator" in str(excinfo.value))
+    assert ("In the LFRic API an argument to a built-in kernel "
+            "must be one of {0} but kernel '{1}' has an argument of "
+            "type 'gh_operator'.".
+            format(VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
+            in str(excinfo.value))
 
 
 def test_builtin_args_not_same_space():
@@ -2599,9 +2601,9 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
-    assert ("In the LFRic API a reduction access 'gh_sum' is "
-            "only valid with a real scalar argument, but 'gh_integer' "
-            "was found" in str(excinfo.value))
+    assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
+            "with a real scalar argument, but scalar 'gh_integer' with "
+            "'gh_integer' data type was found" in str(excinfo.value))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

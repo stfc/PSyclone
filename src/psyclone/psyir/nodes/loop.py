@@ -477,7 +477,7 @@ class Loop(Statement):
         args = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.type.lower() == arg_type:
+                if arg.argument_type.lower() == arg_type:
                     if arg.access != AccessType.READ:
                         if arg.name not in arg_names:
                             arg_names.append(arg.name)
