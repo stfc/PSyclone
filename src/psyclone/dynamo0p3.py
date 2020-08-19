@@ -54,6 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric.api_constants import USER_KERNEL_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor)
@@ -135,7 +136,7 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                            + HALO_ACCESS_LOOP_BOUNDS)
 
 
-# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
+# Valid LFRic loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
@@ -6766,8 +6767,6 @@ class DynKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
-        # Supported iteration spaces for this kernel (currently only "cells")
-        self._supported_iteration_spaces = ["cells"]
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -7142,19 +7141,19 @@ class DynKern(CodedKern):
         Create the fparser1 AST for a kernel stub.
 
         :returns: root of fparser1 AST for the stub routine.
-        :rtype: :py:class:`fparser.one.XXXX`
+        :rtype: :py:class:`fparser.one.block_statements.Module`
 
-        :raises GenerationError: if a kernel stub does not have a supported \
-                                 iteration space (currently only "cells").
+        :raises InternalError: if a kernel stub does not have a supported \
+                               iteration space (currently only "cells").
 
         '''
         # Check iteration space before generating code
-        if self._iterates_over not in self._supported_iteration_spaces:
-            raise GenerationError(
-                "The LFRic API supports kernel stub generation for kernels "
-                "that have one of {0} as iteration space, but found '{1}' "
-                "in kernel '{2}'.".format(self._supported_iteration_spaces,
-                                          self._iterates_over, self._name))
+        if self._iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise InternalError(
+                "DynKern.gen_stub(): Expected one of {0} as iteration "
+                "space but found '{1}' in kernel '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self._iterates_over,
+                       self._name))
 
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
@@ -7191,16 +7190,15 @@ class DynKern(CodedKern):
 
     def gen_code(self, parent):
         '''
-        Generates LFRic (Dynamo 0.3) specific version of PSy layer code
-        for a call to the LFRic kernel instance.
+        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
+        to this user-supplied LFRic kernel.
 
         :param parent: an f2pygen object that will be the parent of \
                        f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
-        :raises GenerationError: if a kernel to generate the call for does \
-                                 not have a supported iteration space \
-                                 (currently only "cells").
+        :raises GenerationError: if this kernel does not have a supported \
+                                 iteration space (currently only "cells").
         :raises GenerationError: if the loop goes beyond the level 1 \
                                  halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \
@@ -7209,12 +7207,13 @@ class DynKern(CodedKern):
 
         '''
         # Check iteration space before generating code
-        if self._iterates_over not in self._supported_iteration_spaces:
+        if self._iterates_over not in USER_KERNEL_ITERATION_SPACES:
             raise GenerationError(
-                "The LFRic API supports calls to kernels that have one of "
-                "{0} as iteration space, but found '{1}' in kernel '{2}'.".
-                format(self._supported_iteration_spaces, self._iterates_over,
-                       self._name))
+                "The LFRic API supports calls to user-supplied kernels "
+                "that have one of {0} as iteration space, but kernel '{1}' "
+                "has an iteration space of '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self._name,
+                       self._iterates_over))
 
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 '''A python script and python function to generate an empty kernel
     subroutine with the required arguments and datatypes (which we
@@ -45,6 +46,7 @@ import sys
 import traceback
 
 import fparser
+from psyclone.domain.lfric.api_constants import USER_KERNEL_ITERATION_SPACES
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
@@ -54,47 +56,64 @@ from psyclone.line_length import FortLineLength
 
 def generate(filename, api=""):
 
-    '''Generates an empty kernel subroutine with the required arguments
-       and datatypes (which we call a stub) when presented with Kernel
-       Metadata. This is useful for Kernel developers to make sure
-       they are using the correct arguments in the correct order.  The
-       Kernel Metadata must be presented in the standard Kernel
-       format.
+    '''
+    Generates an empty kernel subroutine with the required arguments
+    and datatypes (which we call a stub) when presented with Kernel
+    Metadata. This is useful for Kernel developers to make sure
+    they are using the correct arguments in the correct order.  The
+    Kernel Metadata must be presented in the standard Kernel
+    format.
 
-       :param str filename: The name of the file for which to create a \
-               kernel stub for.
-       :param str api: The name of the API for which to create a kernel \
-              stub. Must be one of the supported stub APIs.
+    :param str filename: the name of the file for which to create a \
+                         kernel stub for.
+    :param str api: the name of the API for which to create a kernel \
+                    stub. Must be one of the supported stub APIs.
 
-       :raise GenerationError: if an invalid stub API is specified.
-       :raise IOError: if filename does not specify a file.
-       :raise ParseError: if the given file could not be parsed.
+    :returns: root of fparser1 AST for the stub routine.
+    :rtype: :py:class:`fparser.one.block_statements.Module`
+
+    :raises GenerationError: if an invalid stub API is specified.
+    :raises IOError: if filename does not specify a file.
+    :raises ParseError: if the given file could not be parsed.
+    :raises GenerationError: if a kernel stub does not have a supported \
+                             iteration space (currently only "cells").
+
     '''
     if api == "":
         api = Config.get().default_stub_api
     if api not in Config.get().supported_stub_apis:
-        print("Unsupported API '{0}' specified. Supported API's are {1}.".
-              format(api, Config.get().supported_stub_apis))
         raise GenerationError(
-            "generate: Unsupported API '{0}' specified. Supported types are "
-            "{1}.".format(api, Config.get().supported_stub_apis))
+            "Kernel stub generator: Unsupported API '{0}' specified. "
+            "Supported APIs are {1}.".
+            format(api, Config.get().supported_stub_apis))
 
     if not os.path.isfile(filename):
-        raise IOError("file '{0}' not found".format(filename))
+        raise IOError("Kernel stub generator: File '{0}' not found.".
+                      format(filename))
 
-    # drop cache
+    # Drop cache
     fparser.one.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable(fparser.logging.CRITICAL)
     try:
         ast = fparser.api.parse(filename, ignore_comments=False)
 
     except (fparser.common.utils.AnalyzeError, AttributeError) as error:
-        raise ParseError("Code appears to be invalid Fortran: " +
-                         str(error))
+        raise ParseError("Kernel stub generator: Code appears to be invalid "
+                         "Fortran: {0}.".format(str(error)))
 
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
+
+    # Check kernel iteration space before generating code
+    if (api == "dynamo0.3" and kernel._iterates_over not in
+            USER_KERNEL_ITERATION_SPACES):
+        raise GenerationError(
+            "The LFRic API kernel stub generator supports kernels that have "
+            "one of {0} as iteration space, but found '{1}' in kernel '{2}'.".
+            format(USER_KERNEL_ITERATION_SPACES, kernel._iterates_over,
+                   kernel._name))
+
     return kernel.gen_stub
 
 

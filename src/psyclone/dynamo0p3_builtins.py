@@ -44,8 +44,9 @@ from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
-from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
+from psyclone.domain.lfric.api_constants import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -60,17 +61,18 @@ VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
 # Function to return the built-in operations that we support for this API.
 # The meta-data describing these kernels is in dynamo0p3_builtins_mod.f90.
 # The built-in operations F90 capitalised names are dictionary keys and need
-# to be converted to lower case for invoke generation purpose.
+# to be converted to lower case for invoke-generation purpose.
 def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     '''
     Convert the names of the supported built-in operations to lowercase
-    for comparison and invoke generation purpose.
+    for comparison and invoke-generation purpose.
 
     :param builtin_map_capitalised_dict: a dictionary of built-in names.
     :type builtin_map_capitalised_dict: dict of str
 
-    :returns: a dictionary of lowercase built-in names.
-    :rtype: str
+    :returns: a dictionary of lowercase Fortran built-in names as keys \
+              and case-sensitive Python built-in names as values.
+    :rtype: dict of str
 
     '''
     builtin_map_dict = {}
@@ -99,10 +101,12 @@ class DynBuiltInCallFactory(object):
         :param call: details of the call to this built-in in the \
                      Algorithm layer.
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
-        :param parent: the schedule instance to create the built-in call for.
+        :param parent: the schedule instance to which the built-in call \
+                       belongs.
         :type parent: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`
 
-        :raises ParseError: for an unrecognised built-in call name.
+        :raises ParseError: if the name of the function being called is \
+                            not a recognised built-in.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -117,7 +121,7 @@ class DynBuiltInCallFactory(object):
 
         # Create the loop over DoFs
         dofloop = DynLoop(parent=parent,
-                          loop_type="dofs")
+                          loop_type=BUILTIN_ITERATION_SPACES[0])
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -188,7 +192,7 @@ class DynBuiltIn(BuiltIn):
 
         '''
         # Check that our assumption that we're looping over DoFs is valid
-        if self.iterates_over != "dofs":
+        if self.iterates_over not in BUILTIN_ITERATION_SPACES:
             raise ParseError(
                 "In the LFRic API built-in calls must iterate over "
                 "DoFs but found '{0}' for {1}.".
@@ -198,6 +202,8 @@ class DynBuiltIn(BuiltIn):
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
         for arg in self.arg_descriptors:
+            # Built-ins update fields DoF by DoF and therefore can have
+            # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
                               AccessType.READWRITE]:
                 write_count += 1
@@ -228,8 +234,7 @@ class DynBuiltIn(BuiltIn):
 
     def array_ref(self, fld_name):
         '''
-        :returns: a string containing the array reference for a proxy \
-                  with the supplied name.
+        :returns: the array reference for a proxy with the supplied name.
         :rtype: str
 
         '''

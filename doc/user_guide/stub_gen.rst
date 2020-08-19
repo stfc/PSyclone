@@ -430,9 +430,9 @@ appropriate errors. Two examples are below:
     > genkernelstub tests/test_files/dynamo0p3/testkern_no_datatype.F90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
-``testkern_dofs_mod.f90`` is an example of unsupported feature, as the
-``iterates_over`` metadata specifies ``dofs`` as the iteration space and
-this is currently only supported for :ref:`built-ins <dynamo0.3-built-ins>`.
+``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
+``iterates_over`` metadata specifies ``dofs``. Currently only kernels with
+``iterates_over=CELLS`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`
