@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,49 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''Transformation module, containing all generic (API independent)
-transformations and base classes.
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel read-only-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all read-only entities passed to the kernel have not been modified.
 '''
 
-from psyclone.psyir.transformations.extract_trans import ExtractTrans
-from psyclone.psyir.transformations.profile_trans import ProfileTrans
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
-from psyclone.psyir.transformations.read_only_verify_trans \
-    import ReadOnlyVerifyTrans
-from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
-    Abs2CodeTrans
-from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    Matmul2CodeTrans
-from psyclone.psyir.transformations.intrinsics.min2code_trans import \
-    Min2CodeTrans
-from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
-    Sign2CodeTrans
-from psyclone.psyir.transformations.arrayrange2loop_trans import \
-    ArrayRange2LoopTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
+from __future__ import print_function
 
-__all__ = ['ExtractTrans',
-           'ProfileTrans',
-           'PSyDataTrans',
-           'ReadOnlyVerifyTrans',
-           'RegionTrans',
-           'Abs2CodeTrans',
-           'Matmul2CodeTrans',
-           'Min2CodeTrans',
-           'Sign2CodeTrans',
-           'TransformationError',
-           'ArrayRange2LoopTrans']
+
+def trans(psy):
+    '''
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
+
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    '''
+    from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+    read_only_verify = ReadOnlyVerifyTrans()
+
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
+    _, _ = read_only_verify.apply(schedule.children,
+                                  {"region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
+
+    # Enclose everything in a read_only_verify region
+    newschedule, _ = read_only_verify.apply(schedule.children,
+                                            {"region_name": ("main",
+                                                             "update")})
+
+    invoke.schedule = newschedule
+    newschedule.view()
+    return psy
