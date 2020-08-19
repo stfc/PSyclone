@@ -1304,10 +1304,10 @@ operates_on
 
 The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
-is supplied with the specified entity. For user-supplied kernels this
-currently only has one valid value which is ``CELL_COLUMN``. i.e. the
-kernel expects to be passed the data for a single
-column of cells for each field or operator argument.
+is supplied with the specified data for each field/operator argument.
+For user-supplied kernels this currently only has one valid value
+which is ``CELL_COLUMN``. i.e. the kernel expects to be passed the
+data for a single column of cells for each field or operator argument.
 The possible values for ``OPERATES_ON`` and their interpretation is
 summarised in the following table:
 
@@ -1315,7 +1315,7 @@ summarised in the following table:
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
-dof          Single dof
+dof          Single dof (currently :ref:`built-ins` only)
 ===========  =========================================================
 
 procedure
