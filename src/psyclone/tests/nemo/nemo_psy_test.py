@@ -40,12 +40,13 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import Assignment, CodeBlock
+from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 # Constants
 API = "nemo"
@@ -266,7 +267,6 @@ def test_no_implicit_loop_in_kernel(parser):
 
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     sched_str = str(sched)
@@ -317,7 +317,6 @@ def test_schedule_view(capsys):
 
 def test_kern_inside_if():
     ''' Check that we identify kernels when they are within an if block. '''
-    from psyclone.psyir.nodes import IfBlock
     _, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     sched = invoke_info.schedule
     kerns = sched.coded_kernels()

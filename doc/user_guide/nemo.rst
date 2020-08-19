@@ -104,14 +104,6 @@ shape of every array in such expressions must be specified, e.g.::
 PSyclone therefore also recognises the loops implied by this
 notation.
 
-It has been found by CMCC and Intel that the Intel compiler is better
-able to OpenMP-parallelise explicit loops.  Therefore, PSyclone
-provides a transformation to allow the user to convert implicit loops
-into explicit loop nests (see :ref:`nemo-transformations`). However,
-as with all compiler-specific optimisations, whether or not this
-transformation is beneficial will depend on the precise details of the
-compiler being used.
-
 Note, not all uses of Fortran array notation in NEMO imply a loop. For
 instance::
 
@@ -161,37 +153,6 @@ Internal Representation of it::
             Loop[type='lat',field_space='None',it_space='None']
                 Loop[type='lon',field_space='None',it_space='None']
                     CodedKern[]
-
-.. _nemo-transformations:
-
-Transformations
----------------
-
-This section describes the transformations that are specific to the
-NEMO API. For an overview of transformations in general see
-:ref:`transformations`.
-
-
-.. autoclass:: psyclone.transformations.NemoExplicitLoopTrans
-   :members:
-   :noindex:
-
-The type of the loop being transformed is inferred from the position
-of the colon(s) in the array subscripts. Since NEMO uses `(ji,jj,jk)`
-index ordering (longitude, latitude, levels) this means that loop
-types are determined according to the following table:
-
-===========  ===============  ===========
-Array index  Loop type        Loop limits
-===========  ===============  ===========
-1            Longitude        1, jpi
-2            Latitude         1, jpj
-3            Vertical levels  1, jpk
-===========  ===============  ===========
-
-If this transformation encounters an implicit loop in an array index
-other than 1-3 then currently PSyclone will raise an error.
-
 
 .. _limitations:
 

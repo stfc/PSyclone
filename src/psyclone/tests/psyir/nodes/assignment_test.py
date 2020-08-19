@@ -46,12 +46,11 @@ from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 
 def test_assignment_node_str():
     ''' Check the node_str method of the Assignment class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
     assignment = Assignment()
     coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
     assert coloredtext+"[]" in assignment.node_str()
@@ -144,17 +143,17 @@ def test_is_array_range():
 
     # lhs is not an array
     assignment = Assignment.create(reference, one)
-    assert assignment.is_array_range == False
+    assert not assignment.is_array_range
 
     # lhs is an array reference but has no range
-    array_type = ArrayType(REAL_TYPE, [10,10])
+    array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("x", array_type)
-    array_ref = Array(symbol, [1,3])
+    array_ref = Array(symbol, [1, 3])
     assignment = Assignment.create(array_ref, one)
-    assert assignment.is_array_range == False
+    assert not assignment.is_array_range
 
     # lhs is an array reference with a range
     my_range = Range.create(int_one, int_one, int_one)
     array_ref = Array.create(symbol, [my_range, int_one])
     assignment = Assignment.create(array_ref, one)
-    assert assignment.is_array_range == True
+    assert assignment.is_array_range

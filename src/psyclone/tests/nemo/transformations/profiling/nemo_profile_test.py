@@ -507,7 +507,7 @@ def test_profiling_var_clash(parser):
         _ = psy.gen
     assert ("Cannot add PSyData calls to 'my_test' because it already "
             "contains symbols that potentially clash with the variables "
-            "we will "in str(err.value))
+            "we will " in str(err.value))
 
 
 def test_only_profile():
