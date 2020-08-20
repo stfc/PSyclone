@@ -187,14 +187,9 @@ can be found in the API-specific sections).
     :members: apply
     :noindex:
 
-.. note:: The ArrayRange2LoopTrans will have no effect in the NEMO
-          API. This is because the NEMO API currently uses a
-          specialised node (NemoImplicitLoop) to capture implicit
-          loops so no ArrayRange's are produced. The NemoImplicitLoop
-          node will be removed in the near future. However, even when
-          the node is removed this transformation will still have no
-          effect until the NEMO API is updated to use the PSyIR
-          back-ends to generate code (see #435).
+.. note:: The ArrayRange2LoopTrans will have no effect when using the
+          NEMO API until it is updated to use the PSyIR back-ends to
+          generate code (see #435).
   
 ####
 
