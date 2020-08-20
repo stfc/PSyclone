@@ -54,7 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric.api_constants import USER_KERNEL_ITERATION_SPACES
+from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor)
@@ -139,6 +139,11 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 # Valid LFRic loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
+
+# Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
+USER_KERNEL_ITERATION_SPACES = ["cells"]
+VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
+    BUILTIN_ITERATION_SPACES
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen.

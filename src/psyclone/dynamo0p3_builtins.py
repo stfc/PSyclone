@@ -44,9 +44,7 @@ from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric.api_constants import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -56,6 +54,9 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 # LFRic API
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
+
+# Valid LFRic iteration spaces for built-in kernels
+BUILTIN_ITERATION_SPACES = ["dofs"]
 
 
 # Function to return the built-in operations that we support for this API.
@@ -120,6 +121,7 @@ class DynBuiltInCallFactory(object):
         builtin = BUILTIN_MAP[call.func_name]()
 
         # Create the loop over DoFs
+        from psyclone.dynamo0p3 import DynLoop
         dofloop = DynLoop(parent=parent,
                           loop_type=BUILTIN_ITERATION_SPACES[0])
 
@@ -166,7 +168,7 @@ class DynBuiltIn(BuiltIn):
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         '''
-        from psyclone.dynamo0p3 import FSDescriptors
+        from psyclone.dynamo0p3 import FSDescriptors, DynKernelArguments
         self._parent = parent  # Needed on the DynKernelArguments() below
         BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
         self.arg_descriptors = call.ktype.arg_descriptors

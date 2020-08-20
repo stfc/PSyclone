@@ -47,7 +47,6 @@ from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric.api_constants import VALID_ITERATION_SPACES
 from psyclone.domain.lfric import FunctionSpace
 from psyclone.errors import InternalError
 
@@ -193,6 +192,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Check for the allowed iteration spaces from the parsed kernel
         # metadata
+        from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
         if iterates_over not in VALID_ITERATION_SPACES:
             raise InternalError(
                 "LFRicArgDescriptor.__init__(): expected one of {0} "
