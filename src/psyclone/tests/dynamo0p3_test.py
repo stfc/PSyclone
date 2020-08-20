@@ -268,7 +268,8 @@ def test_ad_field_validate_wrong_type():
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata._iterates_over)._init_field(wrong_arg)
+            wrong_arg, metadata._iterates_over)._init_field(
+                wrong_arg, metadata._iterates_over)
     assert ("LFRicArgDescriptor._init_field(): expecting a field "
             "argument but got an argument of type 'gh_real'" in
             str(excinfo.value))
@@ -375,9 +376,9 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
-    assert ("LFRicArgDescriptor.__init__(): expected iteration "
-            "space over 'cells' or 'dofs' in the kernel metadata "
-            "but got 'colours'." in str(excinfo.value))
+    assert ("LFRicArgDescriptor.__init__(): expected one of "
+            "['cells', 'dofs'] iteration spaces in the kernel "
+            "metadata but got 'colours'." in str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -571,9 +572,10 @@ def test_kernel_call_invalid_iteration_space():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("The LFRic API supports calls to kernels that have one of "
-            "['cells'] as iteration space, but found 'dofs' in kernel "
-            "'testkern_dofs_code'." in str(excinfo.value))
+    assert ("The LFRic API supports calls to user-supplied kernels that "
+            "have one of ['cells'] as iteration space, but kernel "
+            "'testkern_dofs_code' has an iteration space of 'dofs'."
+            in str(excinfo.value))
 
 
 def test_field(tmpdir):
@@ -2506,14 +2508,14 @@ def test_named_psy_routine(dist_mem, tmpdir):
     # Name should be all lower-case and with spaces replaced by underscores
     assert "SUBROUTINE invoke_important_invoke" in gen_code
 
-# tests for dynamo0.3 stub generator
+# Tests for dynamo0.3 stub generator
 
 
-def test_stub_non_existant_filename():
-    ''' fail if the file does not exist '''
+def test_stub_non_existent_filename():
+    ''' Fail if the file does not exist '''
     with pytest.raises(IOError) as excinfo:
-        generate("non_existant_file.f90", api=TEST_API)
-    assert "file 'non_existant_file.f90' not found" in str(excinfo.value)
+        generate("non_existent_file.f90", api=TEST_API)
+    assert "File 'non_existent_file.f90' not found" in str(excinfo.value)
 
 
 def test_stub_invalid_api():
@@ -3678,11 +3680,9 @@ def test_fs_discontinuous_inc_error():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("In the LFRic API, allowed accesses for a field that "
-                "iterates over DoFs or that iterates over cells and is on a "
-                "discontinuous function space ('any_discontinuous_space' or "
-                "one of {0}) are ['gh_read', 'gh_write', 'gh_readwrite'], "
-                "but found 'gh_inc' for '{1}'".
-                format(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES, fspace)
+                "iterates over cells and is on a discontinuous function "
+                "space are ['gh_read', 'gh_write', 'gh_readwrite'], but "
+                "found 'gh_inc' for '{0}'".format(fspace)
                 in str(excinfo.value))
 
 
@@ -3703,11 +3703,8 @@ def test_fs_continuous_cells_write_or_readwrite_error():
                 _ = DynKernMetadata(ast, name="testkern_qr_type")
             assert ("In the LFRic API, allowed accesses for a field that "
                     "iterates over cells and is on a continuous function "
-                    "space ('any_space' or one of {0}) are ['gh_read', "
-                    "'gh_inc'], but found '{1}' for '{2}'".
-                    format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
-                           acc, fspace)
-                    in str(excinfo.value))
+                    "space are ['gh_read', 'gh_inc'], but found '{0}' for "
+                    "'{1}'".format(acc, fspace) in str(excinfo.value))
 
 
 def test_fs_anyspace_cells_write_or_readwrite_error():
@@ -3727,11 +3724,8 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
                 _ = DynKernMetadata(ast, name="testkern_qr_type")
             assert ("In the LFRic API, allowed accesses for a field that "
                     "iterates over cells and is on a continuous function "
-                    "space ('any_space' or one of {0}) are ['gh_read', "
-                    "'gh_inc'], but found '{1}' for '{2}'".
-                    format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES,
-                           acc, fspace)
-                    in str(excinfo.value))
+                    "space are ['gh_read', 'gh_inc'], but found '{0}' for "
+                    "'{1}'".format(acc, fspace) in str(excinfo.value))
 
 
 def test_fs_anyspace_dofs_inc_error():
@@ -3748,12 +3742,9 @@ def test_fs_anyspace_dofs_inc_error():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("In the LFRic API, allowed accesses for a field that "
-                "iterates over DoFs or that iterates over cells and is on a "
-                "discontinuous function space ('any_discontinuous_space' or "
-                "one of {0}) are ['gh_read', 'gh_write', 'gh_readwrite'], "
-                "but found 'gh_inc' for '{1}'".
-                format(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES, fspace)
-                in str(excinfo.value))
+                "iterates over DoFs are ['gh_read', 'gh_write', "
+                "'gh_readwrite'], but found 'gh_inc' for '{0}'".
+                format(fspace) in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
@@ -3962,10 +3953,8 @@ def test_field_gh_sum_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("allowed accesses for a field that iterates over cells and is "
-            "on a continuous function space ('any_space' or one of {0}) "
-            "are ['gh_read', 'gh_inc'], but found 'gh_sum' for 'w2'".
-            format(FunctionSpace.CONTINUOUS_FUNCTION_SPACES)
-            in str(excinfo.value))
+            "on a continuous function space are ['gh_read', 'gh_inc'], but "
+            "found 'gh_sum' for 'w2'" in str(excinfo.value))
 
 
 def test_operator_gh_sum_invalid():

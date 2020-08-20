@@ -542,12 +542,12 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
-    '''Tests that we get the expected output and the code exits with an
+    ''' Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
-    function.'''
+    function. '''
     # sabotage the code so one of our constant lists is now an int
-    from psyclone.domain.lfric import FunctionSpace
-    monkeypatch.setattr(FunctionSpace, "CONTINUOUS_FUNCTION_SPACES",
+    from psyclone.domain.lfric import LFRicArgDescriptor
+    monkeypatch.setattr(LFRicArgDescriptor, "VALID_ARG_TYPE_NAMES",
                         value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",

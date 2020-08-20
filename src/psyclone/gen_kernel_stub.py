@@ -46,8 +46,8 @@ import sys
 import traceback
 
 import fparser
-from psyclone.domain.lfric.api_constants import USER_KERNEL_ITERATION_SPACES
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, \
+    USER_KERNEL_ITERATION_SPACES
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config

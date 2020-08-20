@@ -71,11 +71,11 @@ def test_kernel_stub_invalid_iteration_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
-    assert ("The LFRic API supports kernel stub generation for kernels "
-            "that have one of ['cells'] as iteration space, but found "
-            "'dofs' in kernel 'testkern_dofs_code'." in str(excinfo.value))
+    assert ("DynKern.gen_stub(): Expected one of ['cells'] as iteration "
+            "space but found 'dofs' in kernel 'testkern_dofs_code'."
+            in str(excinfo.value))
 
 
 def test_dynscalars_stub_err():
