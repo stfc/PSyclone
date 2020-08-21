@@ -45,6 +45,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.f2pygen import AssignGen
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -333,7 +334,6 @@ class DynXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We add each element of f2 to the corresponding element of f1
         # and store the result in f3.
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -358,7 +358,6 @@ class DynIncXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We add each element of f1 to the corresponding element of f2
         # and store the result back in f1.
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -383,7 +382,6 @@ class DynAXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (3rd arg) by a scalar
         # (2nd arg), add it to the corresponding
         # element of a second field (4th arg)  and write the value to the
@@ -411,7 +409,6 @@ class DynIncAXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (2nd arg) by a scalar
         # (1st arg), add it to the corresponding element of a
         # second field (3rd arg) and write the value back into
@@ -439,7 +436,6 @@ class DynIncXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
         # add it to the corresponding element of a first field f1 (1st arg)
         # and write the value back into the element of field f1.
@@ -466,7 +462,6 @@ class DynAXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (3rd arg) by the first
         # scalar (2nd arg), add it to the product of the corresponding
         # element of a second field (5th arg) with the second scalar
@@ -498,7 +493,6 @@ class DynIncAXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (2nd arg) by the first scalar
         # (1st arg), add it to the product of the corresponding element of
         # a second field (4th arg) with the second scalar (4rd arg) and
@@ -533,7 +527,6 @@ class DynXMinusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
         # of f1 and store the result in f3.
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -559,7 +552,6 @@ class DynIncXMinusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We subtract each element of f1 from the corresponding element of f2
         # and store the result back in f1.
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -584,7 +576,6 @@ class DynAXMinusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f1 (3rd arg) by a scalar
         # (2nd arg), subtract it from the corresponding
         # element of a second field (4th arg)  and write the value to the
@@ -613,7 +604,6 @@ class DynXMinusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f2 (4th arg) by a scalar
         # (3rd arg), subtract it from the corresponding element of a
         # first field f1 (2nd arg) and write the value to the
@@ -642,7 +632,6 @@ class DynIncXMinusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
         # subtract it fom  the corresponding element of a first field f1
         # (1st arg) and write the value back into the element of field f1.
@@ -674,7 +663,6 @@ class DynXTimesYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
         # of f1 and store the result in f3.
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -700,7 +688,6 @@ class DynIncXTimesYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply each element of f1 by the corresponding element of
         # f2 and store the result back in f1.
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -724,7 +711,6 @@ class DynIncAXTimesYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply a scalar (1st arg) by a DoF-wise product of fields
         # f1 (2nd arg) and f2 (3rd arg) and write the value back into
         # the element of field f1.
@@ -756,7 +742,6 @@ class DynATimesXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We multiply each element of f1 by the scalar argument and
         # store the result in f2.
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -781,7 +766,6 @@ class DynIncATimesXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # In this case we're multiplying each element of a field by the
         # supplied scalar value.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
@@ -811,7 +795,6 @@ class DynXDividebyYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
         # f2 and store the result in f3.
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -836,7 +819,6 @@ class DynIncXDividebyYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
         # f2 and store the result back in f1.
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -865,7 +847,6 @@ class DynIncXPowrealAKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # In this case we're raising each element of a field to a
         # supplied real scalar value.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
@@ -889,7 +870,6 @@ class DynIncXPowintNKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # In this case we're raising each element of a field to a
         # supplied integer scalar value.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
@@ -918,7 +898,6 @@ class DynSetvalCKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # In this case we're assigning a single scalar value to all
         # elements of a field.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
@@ -941,7 +920,6 @@ class DynSetvalXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We copy one element of field X (second arg) to the
         # corresponding element of field Y (first arg).
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -970,7 +948,6 @@ class DynXInnerproductYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
@@ -996,7 +973,6 @@ class DynXInnerproductXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
@@ -1025,7 +1001,6 @@ class DynSumXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        from psyclone.f2pygen import AssignGen
         # Sum all the elements of a field. The variable holding the
         # sum is initialised to zero in the psy layer.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
