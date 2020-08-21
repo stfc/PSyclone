@@ -459,8 +459,8 @@ def _process_routine_symbols(module_ast, symbol_table,
     :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
     :param symbol_table: the SymbolTable to which to add the symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-    :param default_visibility: the default visibility that all symbols in \
-                               this module have.
+    :param default_visibility: the default visibility that applies to all \
+            symbols without an explicit visibility specification.
     :type default_visibility: :py:class:`psyclone.symbols.Symbol.Visibility`
     :param visibility_map: dict of symbol names with explicit visibilities.
     :type visibility_map: dict with symbol names as keys and visibilities as \

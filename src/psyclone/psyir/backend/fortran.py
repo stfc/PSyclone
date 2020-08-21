@@ -497,15 +497,15 @@ class FortranWriter(PSyIRVisitor):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool args_allowed: if False then one or more argument
-        declarations in symbol_table will cause this method to raise
-        an exception. Defaults to True.
+        :param bool args_allowed: if False then one or more argument \
+                declarations in symbol_table will cause this method to raise
+                an exception. Defaults to True.
 
         :returns: the Fortran declarations as a string.
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            and it does not have a GlobalInterface interface as this \
+            which does not have a GlobalInterface or LocalInterface as this \
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
                               argument declarations exist in symbol_table.
@@ -559,7 +559,7 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 4: Access statements for routine symbols
+        # 4: Accessibility statements for routine symbols
         declarations += self.gen_routine_access_stmts(symbol_table)
 
         return declarations
