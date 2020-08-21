@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, SymbolTable, RoutineSymbol, \
-    GlobalInterface
+    LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -468,12 +468,13 @@ class FortranWriter(PSyIRVisitor):
         '''
         declarations = ""
 
-        if not all([isinstance(symbol.interface, GlobalInterface)
+        if not all([isinstance(symbol.interface, (LocalInterface,
+                                                  GlobalInterface))
                     for symbol in symbol_table.symbols
                     if isinstance(symbol, RoutineSymbol)]):
             raise VisitorError(
-                "Routine symbols without a global interface are unsupported "
-                "by the Fortran back-end.")
+                "Routine symbols without a global or local interface are not "
+                "supported by the Fortran back-end.")
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
@@ -510,8 +511,32 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
+        # 4: Access statements for routine symbols
+        declarations += self.gen_routine_access_stmts(symbol_table)
+
         return declarations
 
+    def gen_routine_access_stmts(self, symbol_table):
+        '''
+        '''
+        public_routines = []
+        private_routines = []
+        for symbol in symbol_table.symbols:
+            if isinstance(symbol, RoutineSymbol):
+                if symbol.visibility == Symbol.Visibility.PUBLIC:
+                    public_routines.append(symbol.name)
+                elif symbol.visibility == Symbol.Visibility.PRIVATE:
+                    private_routines.append(symbol.name)
+                else:
+                    raise InternalError("hohohoho")
+        result = ""
+        if public_routines:
+            result += ("{0}public :: ".format(self._nindent) +
+                       " ".join(public_routines) + "\n")
+        if private_routines:
+            result += ("{0}private :: ".format(self._nindent) +
+                       " ".join(private_routines) + "\n")
+ 
     def container_node(self, node):
         '''This method is called when a Container instance is found in
         the PSyIR tree.

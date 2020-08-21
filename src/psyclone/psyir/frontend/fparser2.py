@@ -471,7 +471,10 @@ def _process_routine_symbols(module_ast, symbol_table,
     for routine in routines:
         name = str(routine.children[0].children[1])
         vis = visibility_map.get(name, default_visibility)
-        rsymbol = RoutineSymbol(name, visibility=vis)
+        # This routine is defined within this scoping unit and therefore has a
+        # local interface.
+        rsymbol = RoutineSymbol(name, visibility=vis,
+                                interface=LocalInterface())
         symbol_table.add(rsymbol)
 
 
@@ -766,7 +769,9 @@ class Fparser2Reader(object):
         # determine the default accessibility of symbols as well as identifying
         # those that are explicitly declared as public or private.
         (default_visibility, visibility_map) = self._parse_access_statements(
-            modules[0])
+            module)
+
+        new_container.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
@@ -1066,8 +1071,7 @@ class Fparser2Reader(object):
         for name in explicit_private:
             visibility_map[name] = Symbol.Visibility.PRIVATE
         
-        return (default_visibility, visibility_map) #list(explicit_public),
-#                list(explicit_private))
+        return (default_visibility, visibility_map)
 
     @staticmethod
     def _process_use_stmts(parent, nodes):
@@ -1181,8 +1185,9 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-    def _process_decln(self, parent, decl, default_visibility,
-                       visibility_map):
+    def _process_decln(self, parent, decl,
+                       default_visibility=Symbol.Visibility.PUBLIC,
+                       visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the symbol table
@@ -1399,11 +1404,14 @@ class Fparser2Reader(object):
 
             sym_name = str(name).lower()
 
-            if decln_access_spec is None:
-                # There was no access-spec on the LHS of the decln
-                visibility = visibility_map.get(sym_name, default_visibility)
-            else:
+            if decln_access_spec:
                 visibility = decln_access_spec
+            else:
+                # There was no access-spec on the LHS of the decln
+                if visibility_map is not None:
+                    visibility = visibility_map.get(sym_name, default_visibility)
+                else:
+                    visibility = default_visibility
 
             if entity_shape:
                 # array
@@ -1435,7 +1443,8 @@ class Fparser2Reader(object):
                 sym.interface = interface
 
     def process_declarations(self, parent, nodes, arg_list,
-                             default_visibility, visibility_map):
+                             default_visibility=Symbol.Visibility.PUBLIC,
+                             visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node.
@@ -1498,24 +1507,25 @@ class Fparser2Reader(object):
                 # Restore the fparser2 parse tree
                 decl.children[2].items = tuple(orig_children)
 
-        # Check for symbols named in an access statement but not explicitly
-        # declared. These must then refer to symbols that have been brought
-        # into scope by an unqualified use statement. As we have no idea
-        # whether they represent data or a routine we use the Symbol base
-        # class.
-        for name, vis in visibility_map.items():
-            if name not in parent.symbol_table:
-                # TODO 736 Ideally we would use parent.find_or_create_symbol()
-                # here since that checks that there is a possible source for
-                # this previously-unseen symbol. However, we cannot yet do this
-                # because we don't capture symbols for routine names so
-                # that, e.g.:
-                #   module my_mod
-                #     public my_routine
-                #   contains
-                #     subroutine my_routine()
-                # would cause us to raise an exception.
-                parent.symbol_table.add(Symbol(name, visibility=vis))
+        if visibility_map is not None:
+            # Check for symbols named in an access statement but not explicitly
+            # declared. These must then refer to symbols that have been brought
+            # into scope by an unqualified use statement. As we have no idea
+            # whether they represent data or a routine we use the Symbol base
+            # class.
+            for name, vis in visibility_map.items():
+                if name not in parent.symbol_table:
+                    # TODO 736 Ideally we would use parent.find_or_create_symbol()
+                    # here since that checks that there is a possible source for
+                    # this previously-unseen symbol. However, we cannot yet do this
+                    # because we don't capture symbols for routine names so
+                    # that, e.g.:
+                    #   module my_mod
+                    #     public my_routine
+                    #   contains
+                    #     subroutine my_routine()
+                    # would cause us to raise an exception.
+                    parent.symbol_table.add(Symbol(name, visibility=vis))
 
         try:
             arg_symbols = []

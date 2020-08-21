@@ -48,9 +48,10 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     Array, Container, Literal, Range
 from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
-    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
-    REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface
+from psyclone.psyir.symbols import (
+    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
+    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
+    REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -408,7 +409,9 @@ def test_generate_schedule_empty_subroutine(parser):
     assert len(container.children) == 1
     assert container.children[0] is schedule
     assert container.name == "dummy_mod"
-    assert not container.symbol_table.symbols
+    assert len(container.symbol_table.symbols) == 1
+    assert isinstance(container.symbol_table.symbols[0], RoutineSymbol)
+    assert container.symbol_table.symbols[0].name == "dummy_code"
 
     # Test that we get an error for a nonexistant subroutine name
     with pytest.raises(GenerationError) as error:
@@ -440,9 +443,11 @@ def test_generate_schedule_module_decls(parser):
     schedule = processor.generate_schedule("dummy_code", ast)
     symbol_table = schedule.parent.symbol_table
     assert isinstance(symbol_table, SymbolTable)
-    assert len(symbol_table.symbols) == 2
+    # Two variables and one subroutine
+    assert len(symbol_table.symbols) == 3
     assert symbol_table.lookup("scalar1")
     assert symbol_table.lookup("array1")
+    assert symbol_table.lookup("dummy_code")
 
 
 def test_generate_schedule_dummy_subroutine(parser):
@@ -963,7 +968,6 @@ def test_process_not_supported_declarations():
 def test_default_public_container(parser):
     ''' Test when all symbols default to public within a module and some
     are explicitly listed as being private. '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -973,21 +977,20 @@ def test_default_public_container(parser):
         "integer :: var3\n"
         "private var3\n"
         "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "var1" in fake_parent.symbol_table
-    assert (fake_parent.symbol_table.lookup("var1").visibility ==
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    assert "var1" in container.symbol_table
+    assert (container.symbol_table.lookup("var1").visibility ==
             Symbol.Visibility.PRIVATE)
-    assert (fake_parent.symbol_table.lookup("var2").visibility ==
+    assert (container.symbol_table.lookup("var2").visibility ==
             Symbol.Visibility.PUBLIC)
-    assert (fake_parent.symbol_table.lookup("var3").visibility ==
+    assert (container.symbol_table.lookup("var3").visibility ==
             Symbol.Visibility.PRIVATE)
 
 
 def test_default_private_container(parser):
     ''' Test that symbols get the correct visibilities when the Fortran
     specifies that the default is private within a module. '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -997,21 +1000,20 @@ def test_default_private_container(parser):
         "integer :: var3\n"
         "public var3\n"
         "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "var1" in fake_parent.symbol_table
-    assert (fake_parent.symbol_table.lookup("var1").visibility ==
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    assert "var1" in container.symbol_table
+    assert (container.symbol_table.lookup("var1").visibility ==
             Symbol.Visibility.PUBLIC)
-    assert (fake_parent.symbol_table.lookup("var2").visibility ==
+    assert (container.symbol_table.lookup("var2").visibility ==
             Symbol.Visibility.PRIVATE)
-    assert (fake_parent.symbol_table.lookup("var3").visibility ==
+    assert (container.symbol_table.lookup("var3").visibility ==
             Symbol.Visibility.PUBLIC)
 
 
 def test_access_stmt_undeclared_symbol(parser):
     ''' Check that we create a Symbol if a name appears in an access statement
     but is not explicitly declared. '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -1021,9 +1023,9 @@ def test_access_stmt_undeclared_symbol(parser):
         "public var3, var4\n"
         "private var5\n"
         "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    sym_table = fake_parent.symbol_table
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    sym_table = container.symbol_table
     assert "var3" in sym_table
     assert sym_table.lookup("var3").visibility == Symbol.Visibility.PUBLIC
     assert "var4" in sym_table
@@ -1079,7 +1081,6 @@ def test_access_stmt_no_unqualified_use_error(parser):
 def test_access_stmt_routine_name(parser):
     ''' Check that we create a Symbol for something named in an access
     statement that is not a variable. '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -1089,15 +1090,14 @@ def test_access_stmt_routine_name(parser):
         "  subroutine my_routine()\n"
         "  end subroutine my_routine\n"
         "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "my_routine" in fake_parent.symbol_table
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    assert "my_routine" in container.symbol_table
 
 
 def test_public_private_symbol_error(parser):
     ''' Check that we raise the expected error when a symbol is listed as
     being both PUBLIC and PRIVATE. (fparser2 doesn't check for this.) '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -1105,9 +1105,9 @@ def test_public_private_symbol_error(parser):
         "public var3\n"
         "private var4, var3\n"
         "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
+    fparser2spec = parser(reader)
     with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.generate_container(fparser2spec)
     assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
             "and PRIVATE" in str(err.value))
 
@@ -1115,7 +1115,6 @@ def test_public_private_symbol_error(parser):
 def test_multiple_access_stmt_error(parser):
     ''' Check that we raise the expected error when we encounter multiple
     access statements. (fparser2 doesn't check for this.) '''
-    fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -1123,16 +1122,11 @@ def test_multiple_access_stmt_error(parser):
         "public var3\n"
         "private\n"
         "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
+    fparser2spec = parser(reader)
     with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.generate_container(fparser2spec)
     assert ("Module 'modulename' contains more than one access statement with"
             in str(err.value))
-    # Break the parse tree so that we can't find the enclosing module
-    fparser2spec.parent = None
-    with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Found multiple access statements with omitted" in str(err.value)
 
 
 def test_broken_access_spec(parser):

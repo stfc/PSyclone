@@ -39,7 +39,7 @@
 ''' This module contains the Container node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, Symbol
 from psyclone.errors import GenerationError
 
 
@@ -64,6 +64,8 @@ class Container(Node):
         super(Container, self).__init__(parent=parent)
         self._name = name
         self._symbol_table = SymbolTable(self)
+        # The default visibility of symbols declared within this Container
+        self._default_visibility = None
 
     @staticmethod
     def _validate_child(position, child):
@@ -82,7 +84,8 @@ class Container(Node):
         return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
 
     @staticmethod
-    def create(name, symbol_table, children):
+    def create(name, symbol_table, children,
+               default_visibility=Symbol.Visibility.PUBLIC):
         '''Create a Container instance given a name, a symbol table and a
         list of child nodes.
 
@@ -124,6 +127,7 @@ class Container(Node):
         container.children = children
         for child in children:
             child.parent = container
+        container.default_visibility = default_visibility
         return container
 
     @property
@@ -152,6 +156,22 @@ class Container(Node):
 
         '''
         return self._symbol_table
+
+    @property
+    def default_visibility(self):
+        '''
+        '''
+        return self._default_visibility
+
+    @default_visibility.setter
+    def default_visibility(self, value):
+        '''
+        '''
+        if not isinstance(value, Symbol.Visibility):
+            raise TypeError(
+                "default_visibility must be of type `psyir.symbol.Visibility` "
+                "but got {0}".format(type(value).__name__))
+        self._default_visibility = value
 
     def node_str(self, colour=True):
         '''

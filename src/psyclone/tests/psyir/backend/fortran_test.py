@@ -612,8 +612,8 @@ def test_gen_decls_routine(fort_writer):
     with pytest.raises(VisitorError) as info:
         _ = fort_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbols without a global interface are unsupported by the "
-        "Fortran back-end." in str(info.value))
+        "Routine symbols without a global or local interface are not supported"
+        " by the Fortran back-end." in str(info.value))
 
 
 def test_fw_exception(fort_writer):
@@ -677,7 +677,8 @@ def test_fw_container_2(fort_writer):
         "module test\n"
         "  use test2_mod, only : a, b\n"
         "  real :: c\n"
-        "  real :: d\n\n"
+        "  real :: d\n"
+        "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
         "  end subroutine tmp\n\n"
@@ -706,8 +707,7 @@ def test_fw_container_3(fort_writer, monkeypatch):
         "end module test")
     schedule = create_schedule(code, "tmp")
     container = schedule.root
-    symbol = container.symbol_table.symbols[0]
-    assert symbol.name == "a"
+    symbol = container.symbol_table.lookup("a")
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:
