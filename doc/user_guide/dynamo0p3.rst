@@ -243,7 +243,7 @@ invoke would look something like::
       qr_face = quadrature_face_type(nqp_exact, ..., rule)
       call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
-		                                    qr_xyoz, qr_face))
+                                                    qr_xyoz, qr_face))
 
 These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
@@ -765,23 +765,25 @@ Valid Access Modes
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
 (``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
-``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this is
-specified in metadata using ``GH_READ``. At least one kernel argument
-must be listed as being modified. When data is *modified* in a Kernel
-then the permitted access modes depend on the type of data it is and
-the function space it is on. Valid values are given in the table
-below.
+``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
+is specified in metadata using ``GH_READ``. At least one kernel
+argument must be listed as being modified. When data is *modified* in a
+user-supplied Kernel then the permitted access modes depend on the type
+of data it is and the function space it is on (such Kernel has ``cells``
+as its iteration space, see :ref:`iteration space metadata
+<dynamo0.3-user-kernel-iterates-over>`). Valid access mode values are given
+in the table below.
 
-======================  ===============================  =========================
-Argument Type           Function and/or Iteration Space  Access Type
-======================  ===============================  =========================
-*GH_INTEGER*            *n/a*                            *GH_SUM (Built-ins only)*
-GH_REAL                 n/a                              GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous or 'dofs'          GH_WRITE, GH_READWRITE
-GH_FIELD                Continuous and 'cells'           GH_INC
-GH_OPERATOR             Any for both 'to' and 'from'     GH_WRITE, GH_READWRITE
-GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'     GH_WRITE, GH_READWRITE
-======================  ===============================  =========================
+======================  ============================  =========================
+Argument Type           Function Space                Access Type
+======================  ============================  =========================
+*GH_INTEGER*            *n/a*                         *GH_SUM (Built-ins only)*
+GH_REAL                 n/a                           GH_SUM (Built-ins only)
+GH_FIELD                Discontinuous                 GH_WRITE, GH_READWRITE
+GH_FIELD                Continuous                    GH_INC
+GH_OPERATOR             Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
+GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
+======================  ============================  =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
           scalar arguments. In practice this means that the only allowed
@@ -791,17 +793,24 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'     GH_WRITE, GH_READWRITE
           restricted to having read-only access.*
 
 A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or ``GH_READWRITE`` as
-its access pattern must either be on a horizontally discontinuous function
-space (see :ref:`dynamo0.3-function-space` for list of discontinuous
-function spaces) or its iteration space must be over DoFs (currently only
-supported for :ref:`built-ins <dynamo0.3-built-ins>` but not for
-user-supplied kernels). Such field will not require colouring in either of
-the above two cases. If a field is described as being on ``ANY_SPACE``,
-there is currently no way to determine its continuity this from the metadata
-(unless we can statically determine the space of the field being passed in).
-At the moment this type of a user-supplied Kernel is always treated as if
-it is continuous in the horizontal, even if it is not (see rules for
-:ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
+its access pattern must either
+
+* Be on a horizontally discontinuous function space (see
+  :ref:`dynamo0.3-function-space` for list of discontinuous function
+  spaces); or
+
+* Have DoFs as its iteration space (this is currently only supported
+  for :ref:`Built-Ins <dynamo0.3-built-ins>` but not for the user-supplied
+  Kernels).
+
+Such field will not require colouring in either of the above two cases.
+
+If a field is described as being on ``ANY_SPACE``, there is currently no
+way to determine its continuity from the metadata (unless we can statically
+determine the space of the field being passed in). At the moment this type
+of a user-supplied Kernel is always treated as if it is continuous in the
+horizontal, even if it is not (see rules for :ref:`user-supplied kernels
+<dynamo0.3-user-kernel-rules>` above).
 
 There is no restriction on the number and function spaces of other
 quantities that a general-purpose kernel can modify other than that it
@@ -1297,7 +1306,9 @@ Note that it is an error for kernel metadata to specify a value for
 It is also an error to specify ``gh_evaluator_targets`` if the kernel
 does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 
-iterates over
+.. _dynamo0.3-user-kernel-iterates-over:
+
+iterates_over
 #############
 
 The fourth type of metadata provided is ``ITERATES_OVER``. This
@@ -1870,21 +1881,46 @@ The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo0.3 API, calls to
 Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. Dynamo0.3 Built-ins must conform to the
-following four rules:
+following rules:
 
 1) Built-in kernels must have one and only one modified (i.e. written
    to) argument.
 
-2) There must be at least one field in the argument list. This is so
+2) The iteration space of a Built-in kernel must be over DoFs
+   (``iterates_over = DOFS`` metadata).
+
+3) There must be at least one field in the argument list. This is so
    that we know the number of DoFs to iterate over.
 
-3) Kernel arguments must be either fields or scalars.
+4) Kernel arguments must be either fields or scalars.
 
-4) All field arguments to a given Built-in must be on the same
+5) All field arguments to a given Built-in must be on the same
    function space. This is because all current Built-ins iterate over
    DoFs and therefore all fields should have the same number. It also
    means that we can determine the number of DoFs uniquely when a
    scalar is written to.
+
+Below is an example of metadata for a Built-in kernel (specifically
+``X_plus_Y`` Built-In)::
+
+  type, public, extends(kernel_type) :: X_plus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: X_plus_Y_code
+  end type X_plus_Y
+
+This example also illustrates some of the allowed accesses for Built-In
+kernels (i.e. the kernels that have DoFs as iteration space). As outlined
+in the :ref:`Valid Access Modes <dynamo0.3-valid-access>` section, the
+allowed accesses for fields in such kernels are ``GH_READ``, ``GH_WRITE``
+and ``GH_READWRITE`` (the last one is for a field whose values are updated
+and not simply written to).
 
 The Built-ins supported for the Dynamo0.3 API are listed in the related
 subsections, grouped by the mathematical operation they perform. For clarity,
