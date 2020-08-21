@@ -51,10 +51,11 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType, RoutineSymbol
+    DeferredType, RoutineSymbol, Symbol
 from psyclone.psyGen import KernelSchedule
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 
 
@@ -616,6 +617,33 @@ def test_gen_decls_routine(fort_writer):
         " by the Fortran back-end." in str(info.value))
 
 
+def test_gen_routine_access_stmts(fort_writer):
+    '''
+    Tests for the gen_routine_access_stmts method of FortranWriter.
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(RoutineSymbol("my_sub1",
+                                   visibility=Symbol.Visibility.PUBLIC))
+    code = fort_writer.gen_routine_access_stmts(symbol_table)
+    assert "public :: my_sub1" in code
+    sub2 = RoutineSymbol("my_sub2", visibility=Symbol.Visibility.PRIVATE)
+    symbol_table.add(sub2)
+    code = fort_writer.gen_routine_access_stmts(symbol_table)
+    assert "public :: my_sub1\nprivate :: my_sub2\n" in code
+    # Check that the interface of the symbol does not matter
+    symbol_table.add(
+        RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
+                      interface=GlobalInterface(ContainerSymbol("some_mod"))))
+    code = fort_writer.gen_routine_access_stmts(symbol_table)
+    assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
+    # Break the visibility of the second symbol
+    sub2._visibility = "broken"
+    with pytest.raises(InternalError) as err:
+        fort_writer.gen_routine_access_stmts(symbol_table)
+    assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
+            in str(err.value))
+
+
 def test_fw_exception(fort_writer):
     '''Check the FortranWriter class instance raises an exception if an
     unsupported PSyIR node is found.
@@ -677,7 +705,7 @@ def test_fw_container_2(fort_writer):
         "module test\n"
         "  use test2_mod, only : a, b\n"
         "  real :: c\n"
-        "  real :: d\n"
+        "  real :: d\n\n"
         "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"

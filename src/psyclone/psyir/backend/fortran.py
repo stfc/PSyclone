@@ -51,6 +51,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.errors import InternalError
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -443,6 +444,53 @@ class FortranWriter(PSyIRVisitor):
         result += "\n"
         return result
 
+    def gen_routine_access_stmts(self, symbol_table):
+        '''
+        Creates the accessibility statements (R518) for any routine symbols
+        in the supplied symbol table.
+
+        :param symbol_table: the symbol table for which to generate \
+                             accessibility statements.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: the accessibility statements for any routine symbols.
+        :rtype: str
+
+        :raises InternalError: if a Routine symbol with an unrecognised \
+                               visibility is encountered.
+        '''
+        public_routines = []
+        private_routines = []
+        for symbol in symbol_table.symbols:
+            if isinstance(symbol, RoutineSymbol):
+                # It doesn't matter whether this symbol has a local or global
+                # interface - its accessibility in *this* context is determined
+                # by the local accessibility statements. e.g. if we are
+                # dealing with the declarations in a given module which itself
+                # uses a public symbol from some other module, the
+                # accessibility of that symbol is determined by the
+                # accessibility statements in the current module.
+                if symbol.visibility == Symbol.Visibility.PUBLIC:
+                    public_routines.append(symbol.name)
+                elif symbol.visibility == Symbol.Visibility.PRIVATE:
+                    private_routines.append(symbol.name)
+                else:
+                    raise InternalError(
+                        "Unrecognised visibility ('{0}') found for symbol "
+                        "'{1}'. Should be either 'Symbol.Visibility.PUBLIC' "
+                        "or 'Symbol.Visibility.PRIVATE'.".format(
+                            str(symbol.visibility), symbol.name))
+        result = "\n"
+        if public_routines:
+            result += ("{0}public :: ".format(self._nindent) +
+                       ", ".join(public_routines) + "\n")
+        if private_routines:
+            result += ("{0}private :: ".format(self._nindent) +
+                       ", ".join(private_routines) + "\n")
+        if len(result) > 1:
+            return result
+        return ""
+
     def gen_decls(self, symbol_table, args_allowed=True):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
@@ -516,27 +564,6 @@ class FortranWriter(PSyIRVisitor):
 
         return declarations
 
-    def gen_routine_access_stmts(self, symbol_table):
-        '''
-        '''
-        public_routines = []
-        private_routines = []
-        for symbol in symbol_table.symbols:
-            if isinstance(symbol, RoutineSymbol):
-                if symbol.visibility == Symbol.Visibility.PUBLIC:
-                    public_routines.append(symbol.name)
-                elif symbol.visibility == Symbol.Visibility.PRIVATE:
-                    private_routines.append(symbol.name)
-                else:
-                    raise InternalError("hohohoho")
-        result = ""
-        if public_routines:
-            result += ("{0}public :: ".format(self._nindent) +
-                       " ".join(public_routines) + "\n")
-        if private_routines:
-            result += ("{0}private :: ".format(self._nindent) +
-                       " ".join(private_routines) + "\n")
- 
     def container_node(self, node):
         '''This method is called when a Container instance is found in
         the PSyIR tree.
