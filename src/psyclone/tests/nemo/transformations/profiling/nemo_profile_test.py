@@ -445,6 +445,7 @@ def test_profiling_mod_use_clash(parser):
                                       "program the_clash\n"
                                       "  use profile_psy_data_mod, only: "
                                       "some_var\n"
+                                      "  real :: my_array(20,10)\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program the_clash\n")
     PTRANS.apply(schedule.children[0])
@@ -506,7 +507,7 @@ def test_profiling_var_clash(parser):
         _ = psy.gen
     assert ("Cannot add PSyData calls to 'my_test' because it already "
             "contains symbols that potentially clash with the variables "
-            "we will "in str(err.value))
+            "we will " in str(err.value))
 
 
 def test_only_profile():

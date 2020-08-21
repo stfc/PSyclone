@@ -90,6 +90,7 @@ class AccessInfo(object):
 
         :raises InternalError: if the variable originally does not have\
             READ access.
+
         '''
         if self._access_type != AccessType.READ:
             raise InternalError("Trying to change variable to 'WRITE' "
