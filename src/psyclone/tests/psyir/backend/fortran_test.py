@@ -1405,24 +1405,6 @@ def test_fw_nemokern(fort_writer, parser):
         "    enddo\n" in result)
 
 
-def test_fw_nemoimplicitloop(fort_writer, parser):
-    '''Check that the FortranWriter class nemoimplicitloop accepts the
-    NemoImplicitLoop node and prints the expected code.
-
-    '''
-    from psyclone.nemo import NemoImplicitLoop
-    code = (
-        "program test\n"
-        "  real a(10,10,10)\n"
-        "  a(:,:,:)=0.0\n"
-        "end program test\n")
-    schedule = get_nemo_schedule(parser, code)
-    implicit_loop = schedule[0]
-    assert isinstance(implicit_loop, NemoImplicitLoop)
-    result = fort_writer(schedule)
-    assert "a(:, :, :) = 0.0\n" in result
-
-
 def test_fw_query_intrinsics(fort_writer):
     ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
     intrinsic calls. '''
