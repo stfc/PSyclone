@@ -993,24 +993,6 @@ class FortranWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def nemoimplicitloop_node(self, node):
-        '''Fortran implicit loops are currently captured in the PSyIR as a
-        NemoImplicitLoop node. This is a temporary solution while the
-        best way to capture their behaviour is decided. This method
-        outputs the Fortran representation of such a loop by simply
-        using the original Fortran ast (i.e. acting in a similar way
-        to a code block). As it is a temporary solution we don't
-        bother fixing the _ast internal access.
-
-        :param node: a NemoImplicitLoop PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.NemoImplicitLoop`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        return "{0}{1}\n".format(self._nindent, str(node.ast))
-
     def ompdirective_node(self, node):
         '''This method is called when an OMPDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and

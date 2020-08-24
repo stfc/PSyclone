@@ -136,8 +136,8 @@ class Assignment(Statement):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
 
+        '''
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
         # is only one access to the variable!
@@ -183,3 +183,17 @@ class Assignment(Statement):
         self.rhs.reference_accesses(var_accesses)
         var_accesses.merge(accesses_left)
         var_accesses.next_location()
+
+    @property
+    def is_array_range(self):
+        '''
+        returns: True if the lhs of the assignment is an array with at \
+            least one of its dimensions being a range and False \
+            otherwise.
+        rtype: bool
+
+        '''
+        from psyclone.psyir.nodes import Array, Range
+        if not isinstance(self.lhs, Array):
+            return False
+        return any(dim for dim in self.lhs.children if isinstance(dim, Range))
