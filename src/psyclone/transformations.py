@@ -1230,7 +1230,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         if node.field_space.orig_name not in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type is not 'colour' and node.has_inc_arg():
+            if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
                     "argument with INC access. Colouring is required.".
@@ -1333,7 +1333,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if node.loop_type is not 'colour' and node.has_inc_arg():
+        if node.loop_type != 'colour' and node.has_inc_arg():
             raise TransformationError(
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
