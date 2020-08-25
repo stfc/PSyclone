@@ -53,17 +53,20 @@ module argument_mod
   integer, public, parameter :: GH_FIELD               = 1
   integer, public, parameter :: GH_OPERATOR            = 2
   integer, public, parameter :: GH_COLUMNWISE_OPERATOR = 3
-  integer, public, parameter :: GH_REAL                = 4
-  integer, public, parameter :: GH_INTEGER             = 5
+  integer, public, parameter :: GH_SCALAR              = 4
+
+  ! Primitive Fortran types of argument data
+  integer, public, parameter :: GH_REAL    = 11
+  integer, public, parameter :: GH_INTEGER = 12
 
   ! Access descriptors
-  integer, public, parameter :: GH_READ      = 11
-  integer, public, parameter :: GH_WRITE     = 12
-  integer, public, parameter :: GH_READWRITE = 13
-  integer, public, parameter :: GH_INC       = 14
-  integer, public, parameter :: GH_SUM       = 15
-  integer, public, parameter :: GH_MIN       = 16
-  integer, public, parameter :: GH_MAX       = 17
+  integer, public, parameter :: GH_READ      = 21
+  integer, public, parameter :: GH_WRITE     = 22
+  integer, public, parameter :: GH_READWRITE = 23
+  integer, public, parameter :: GH_INC       = 24
+  integer, public, parameter :: GH_SUM       = 25
+  integer, public, parameter :: GH_MIN       = 26
+  integer, public, parameter :: GH_MAX       = 27
 
   ! General function space IDs. Distinct IDs required as we may
   ! have groups of fields that must be on the same space within
