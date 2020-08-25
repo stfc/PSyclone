@@ -461,7 +461,8 @@ def _process_routine_symbols(module_ast, symbol_table,
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param default_visibility: the default visibility that applies to all \
             symbols without an explicit visibility specification.
-    :type default_visibility: :py:class:`psyclone.symbols.Symbol.Visibility`
+    :type default_visibility: \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
     :param visibility_map: dict of symbol names with explicit visibilities.
     :type visibility_map: dict with symbol names as keys and visibilities as \
                           values
@@ -770,8 +771,6 @@ class Fparser2Reader(object):
         # those that are explicitly declared as public or private.
         (default_visibility, visibility_map) = self._parse_access_statements(
             module)
-
-        new_container.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
@@ -1409,7 +1408,8 @@ class Fparser2Reader(object):
             else:
                 # There was no access-spec on the LHS of the decln
                 if visibility_map is not None:
-                    visibility = visibility_map.get(sym_name, default_visibility)
+                    visibility = visibility_map.get(sym_name,
+                                                    default_visibility)
                 else:
                     visibility = default_visibility
 
@@ -1455,10 +1455,14 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
-        :param default_visibility:
-        :type default_visibility:
-        :param visibility_map:
-        :type visibility_map:
+        :param default_visibility: the visibility of a symbol which does not \
+                        have an explicit accessibility specification.
+        :type default_visibility: \
+                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol names to explicit
+                        visibilities.
+        :type visibility_map: dict with str keys and values of type \
+                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
@@ -1510,23 +1514,13 @@ class Fparser2Reader(object):
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
             # declared. These must then refer to symbols that have been brought
-            # into scope by an unqualified use statement. As we have no idea
-            # whether they represent data or a routine we use the Symbol base
-            # class.
+            # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    # TODO 736 Ideally we would use parent.find_or_create_symbol()
-                    # here since that checks that there is a possible source for
-                    # this previously-unseen symbol. However, we cannot yet do this
-                    # because we don't capture symbols for routine names so
-                    # that, e.g.:
-                    #   module my_mod
-                    #     public my_routine
-                    #   contains
-                    #     subroutine my_routine()
-                    # would cause us to raise an exception.
-                    parent.symbol_table.add(Symbol(name, visibility=vis))
-
+                    # TODO find_or_create_symbol() always creates a DataSymbol
+                    # currently.
+                    sym = parent.find_or_create_symbol(name)
+                    sym.visibility = vis
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.

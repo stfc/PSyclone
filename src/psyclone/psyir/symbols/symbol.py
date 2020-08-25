@@ -260,6 +260,22 @@ class Symbol(object):
         '''
         return self._visibility
 
+    @visibility.setter
+    def visibility(self, value):
+        '''
+        :param value: the visibility to assign to this symbol.
+        :type value: :py:class:`psyclone.psyir.symbol.Symbol.Visibility`
+
+        :raises TypeError: if the supplied value is not an instance of \
+                           Symbol.Visibility.
+        '''
+        if not isinstance(value, Symbol.Visibility):
+            raise TypeError(
+                "symbol visibility must be of type 'psyclone.psyir.symbol."
+                "Symbol.Visibility' but got '{0}'".format(
+                    type(value).__name__))
+        self._visibility = value
+
     @property
     def interface(self):
         '''
