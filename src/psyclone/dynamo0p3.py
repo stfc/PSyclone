@@ -6810,8 +6810,13 @@ class DynKern(CodedKern):
 
         :param ktype: the kernel meta-data object produced by the parser
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+
+        :raises InternalError: for an invalid data type of a scalar argument.
+        :raises GenerationError: if an invalid descriptor argument type is \
+                                 found in the kernel.
+
         '''
-        # create a name for each argument
+        # Create a name for each argument
         from psyclone.parse.algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
@@ -6843,11 +6848,11 @@ class DynKern(CodedKern):
 
             if descriptor.stencil:
                 if not descriptor.stencil["extent"]:
-                    # stencil size (in cells) is passed in
+                    # Stencil size (in cells) is passed in
                     args.append(Arg("variable",
                                     pre+str(idx+1)+"_stencil_size"))
                 if descriptor.stencil["type"] == "xory1d":
-                    # direction is passed in
+                    # Direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
 
         # Initialise basis/diff basis so we can test whether quadrature

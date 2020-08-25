@@ -67,10 +67,10 @@ class LFRicArgDescriptor(Descriptor):
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if an argument type is not one of LFRic API \
                         valid argument types.
+    :raises ParseError: if a 'meta_arg' entry has fewer than 3 args.
     :raises ParseError: if the third 'meta_arg' entry is not a valid \
                         access descriptor (second for fields and operators, \
                         will be updated in issue #817).
-    :raises ParseError: if a 'meta_arg' entry has fewer than 3 args.
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
 
