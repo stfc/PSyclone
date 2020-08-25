@@ -184,6 +184,17 @@ class LFRicArgDescriptor(Descriptor):
             self._data_type = arg_type.args[1].name
             self._offset = 1
 
+        # Check number of args (in general and also for scalar arguments).
+        # We require at least three (two for old-style metadata).
+        # TODO in issue #874: Remove offset and restore this check below
+        # the first check for the correct 'arg_type' descriptor name.
+        self._nargs = len(arg_type.args)
+        min_nargs = 2 + self._offset
+        if self._nargs < min_nargs:
+            raise ParseError(
+                "In the LFRic API each 'meta_arg' entry must have at least "
+                "{0} args, but found {1}.".format(min_nargs, self._nargs))
+
         # The 3rd arg for scalars and 2nd arg for fields and operators is an
         # access descriptor (issue #817 will make the access descriptor a 3rd
         # argument for the fields and operators, too). Permitted accesses for
@@ -199,18 +210,9 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 "In the LFRic API the {0}nd/rd argument of a 'meta_arg' entry "
                 "must be a valid access descriptor (one of {1}), but found "
-                "'{2}' in '{3}'.".format(prop_ind, valid_names,
-                                         arg_type.args[1].name, arg_type))
-
-        # Check number of args. We require at least three (two for old-style
-        # metadata). TODO in issue #874: Remove offset and restore this test
-        # below the first check for the correct 'arg_type' descriptor name.
-        self._nargs = len(arg_type.args)
-        min_nargs = 2 + self._offset
-        if self._nargs < min_nargs:
-            raise ParseError(
-                "In the LFRic API each 'meta_arg' entry must have at least "
-                "{0} args, but found {1}.".format(min_nargs, self._nargs))
+                "'{2}' in '{3}'.".
+                format(prop_ind, valid_names, arg_type.args[prop_ind].name,
+                       arg_type))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
