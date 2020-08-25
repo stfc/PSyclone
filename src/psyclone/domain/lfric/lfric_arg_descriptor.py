@@ -87,8 +87,8 @@ class LFRicArgDescriptor(Descriptor):
         VALID_SCALAR_NAMES
 
     # Supported API argument data types (real and integer for now) (the check
-    # for data type metadata being one of the valid types will be introduced
-    # in #774 and #817).
+    # for data type metadata being one of the valid types for fields and
+    # operators will be introduced in #817).
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
     VALID_SCALAR_DATA_TYPES = VALID_ARG_DATA_TYPES
 

@@ -69,7 +69,7 @@ module testkern_cma
              arg_type(gh_columnwise_operator, gh_write, any_space_1,   &
                       any_space_2),                                    &
              arg_type(gh_field, gh_read, any_space_1),                 &
-             arg_type(gh_real, gh_read)                                &
+             arg_type(gh_scalar, gh_real, gh_read)                     &
            /)
      integer :: iterates_over = cells
    contains
@@ -135,7 +135,7 @@ def test_cma_mdata_validate_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._init_operator(wrong_arg)
     assert ("LFRicArgDescriptor._init_operator(): expecting an operator "
-            "argument but got an argument of type 'gh_real'." in
+            "argument but got an argument of type 'gh_scalar'." in
             str(excinfo.value))
 
 
@@ -499,7 +499,7 @@ module testkern_cma_matrix_matrix
   type, extends(kernel_type) :: testkern_cma_type
   type(arg_type) :: meta_args(4) = (/                                        &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_REAL,                GH_READ),                            &
+       arg_type(GH_SCALAR,              GH_REAL,  GH_READ),                  &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)  &
        /)
@@ -575,7 +575,7 @@ def test_cma_mdata_matrix_no_scalar_arg():
     that has no scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
-        "arg_type(GH_REAL,                GH_READ)",
+        "arg_type(GH_SCALAR,              GH_REAL,  GH_READ)",
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)",
         1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -590,7 +590,7 @@ def test_cma_mdata_matrix_2_scalar_args():
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2)",
-        "arg_type(GH_REAL,                GH_READ)",
+        "arg_type(GH_SCALAR,              GH_REAL,  GH_READ)",
         1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
