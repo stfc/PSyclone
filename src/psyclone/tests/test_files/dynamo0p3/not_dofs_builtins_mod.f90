@@ -31,9 +31,10 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 !
-!> @brief Meta-data for the Dynamo 0.3 built-in operations.
+!> @brief Meta-data for the LFRic built-in operations.
 !> @details This meta-data is broken for testing purposes
 module dynamo0p3_builtins_mod
 

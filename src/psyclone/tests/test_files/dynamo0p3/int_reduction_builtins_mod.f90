@@ -31,9 +31,10 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 !
-!> @brief Incorrect meta-data for the Dynamo 0.3 built-in operations.
+!> @brief Incorrect meta-data for the LFRic built-in operations.
 module dynamo0p3_builtins_mod
   !> Fake built-in that purports to do a reduction into an integer scalar
   type, public, extends(kernel_type) :: X_innerproduct_Y
