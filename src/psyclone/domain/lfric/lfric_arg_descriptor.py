@@ -79,7 +79,7 @@ class LFRicArgDescriptor(Descriptor):
     # ---------- LFRicArgDescriptor class constants  ------------------------ #
     # Supported LFRic API argument types (scalars, fields, operators)
     # TODO in #874: Remove support for the old-style scalar metadata
-    # (["gh_integer", "gh_real"]).
+    #               (["gh_integer", "gh_real"]).
     VALID_SCALAR_NAMES = ["gh_scalar", "gh_real", "gh_integer"]
     VALID_FIELD_NAMES = ["gh_field"]
     VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
@@ -172,10 +172,11 @@ class LFRicArgDescriptor(Descriptor):
         if separator:
             self._validate_vector_size(separator, arg_type)
 
-        # The 2nd arg for scalars is the Fortran primitive type of their data
-        # (issue #817 will introduce this for fields and operators, too).
+        # The 2nd arg for scalars (1st for the old-style scalar metadata)
+        # is the Fortran primitive type of their data (issue #817 will
+        # introduce this for fields and operators, too).
         # Note: Here we also set internal "offset" argument required to
-        # support the old and the current argument metadata style
+        #       support the old and the current argument metadata style.
         # TODO in #874: Remove support for the old-style metadata and
         #               raise a ParseError if the 2nd argument is not
         #               a valid data type.
@@ -187,7 +188,8 @@ class LFRicArgDescriptor(Descriptor):
         # Check number of args (in general and also for scalar arguments).
         # We require at least three (two for old-style metadata).
         # TODO in issue #874: Remove offset and restore this check below
-        # the first check for the correct 'arg_type' descriptor name.
+        #                     the first check for the correct 'arg_type'
+        #                     descriptor name.
         self._nargs = len(arg_type.args)
         min_nargs = 2 + self._offset
         if self._nargs < min_nargs:
@@ -211,7 +213,7 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API the {0}nd/rd argument of a 'meta_arg' entry "
                 "must be a valid access descriptor (one of {1}), but found "
                 "'{2}' in '{3}'.".
-                format(prop_ind, valid_names, arg_type.args[prop_ind].name,
+                format(prop_ind+1, valid_names, arg_type.args[prop_ind].name,
                        arg_type))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
@@ -230,7 +232,7 @@ class LFRicArgDescriptor(Descriptor):
         else:
             # We should never get to here if the checks are tight enough
             raise InternalError(
-                "LFRicArgDescriptor.__init__(): failed argument validation "
+                "LFRicArgDescriptor.__init__(): Failed argument validation "
                 "for the 'meta_arg' entry '{0}', should not get to here.".
                 format(arg_type))
 
@@ -325,7 +327,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): expecting a field "
+                "LFRicArgDescriptor._init_field(): Expected a field "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
@@ -471,7 +473,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than an operator is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_operator(): expecting an "
+                "LFRicArgDescriptor._init_operator(): Expected an "
                 "operator argument but got an argument of type '{0}'.".
                 format(self._argument_type))
 
@@ -535,7 +537,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if argument type other than a scalar is \
                                passed in.
         :raises ParseError: if there are not exactly 3 metadata arguments.
-        :raises ParseError: if a scalar argument has an invalid data type.
+        :raises InternalError: if a scalar argument has an invalid data type.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
         :raises ParseError: if a scalar argument that is not a real \
@@ -545,12 +547,12 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_scalar(): expecting a scalar "
+                "LFRicArgDescriptor._init_scalar(): Expected a scalar "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
-        # There must be 3 argument descriptors to describe a scalar
-        # (TODO in #874: Remove support for the old-style 2 descriptors).
+        # There must be 3 argument descriptors to describe a scalar.
+        # TODO in #874: Remove support for the old-style 2 descriptors.
         min_scalar_nargs = 2 + self._offset
         if self._nargs != min_scalar_nargs:
             raise ParseError(
@@ -559,18 +561,24 @@ class LFRicArgDescriptor(Descriptor):
                 "found {1} in '{2}'.".
                 format(min_scalar_nargs, self._nargs, arg_type))
 
-        # Scalar data_type is determined by its metadata descriptor for type
-        if self._offset == 1:
-            self._data_type = arg_type.args[1].name
-        if self._offset == 0:
+        # Check whether an invalid data type for a scalar argument is passed
+        # in. Valid data types for scalars are valid data types in LFRic API.
+        # TODO in #874: Remove the support for old-style scalar metadata that
+        #               assigns the data type from the scalar name (the 1st
+        #               argument).
+        #               Note: The main check for the valid scalar data types
+        #               will be ParseError in the class constructor and this
+        #               scalar init method only needs to check for
+        #               InternalError.
+        if not self._data_type and self._offset == 0:
             self._data_type = arg_type.args[0].name
         if (self._data_type not in
                 LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES):
-            raise ParseError(
-                "In the LFRic API scalar arguments must have one of {0} "
-                "as their data type, but found '{1}' in '{2}'.".
+            raise InternalError(
+                "LFRicArgDescriptor._init_scalar(): Expected one of {0} "
+                "as the data type but got '{1}'.".
                 format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
-                       self._data_type, arg_type))
+                       self._data_type))
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
@@ -623,8 +631,9 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             return self._function_space1
         raise InternalError(
-            "In the LFRic API 'function_space_to' only makes sense "
-            "for one of {0}, but this is a '{1}'.".
+            "LFRicArgDescriptor.function_space_to(): In the LFRic API "
+            "'function_space_to' only makes sense for one of {0}, but "
+            "this is a '{1}'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
                    self._argument_type))
 
@@ -643,8 +652,9 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             return self._function_space2
         raise InternalError(
-            "In the LFRic API 'function_space_from' only makes sense "
-            "for one of {0}, but this is a '{1}'.".
+            "LFRicArgDescriptor.function_space_from(): In the LFRic API "
+            "'function_space_from' only makes sense for one of {0}, but "
+            "this is a '{1}'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
                    self._argument_type))
 

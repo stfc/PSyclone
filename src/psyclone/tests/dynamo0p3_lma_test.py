@@ -178,7 +178,7 @@ def test_ad_op_type_validate_wrong_type():
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._init_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._init_operator(): expecting an "
+    assert ("LFRicArgDescriptor._init_operator(): Expected an "
             "operator argument but got an argument of type 'gh_field'."
             in str(excinfo.value))
 

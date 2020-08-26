@@ -134,7 +134,7 @@ def test_cma_mdata_validate_wrong_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(wrong_arg)._init_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._init_operator(): expecting an operator "
+    assert ("LFRicArgDescriptor._init_operator(): Expected an operator "
             "argument but got an argument of type 'gh_scalar'." in
             str(excinfo.value))
 
