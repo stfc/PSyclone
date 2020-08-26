@@ -123,8 +123,7 @@ Scalar
 ++++++
 
 In the Dynamo0.3 API a scalar is a single-valued variable that can be
-either real or integer. Real scalars are identified with ``GH_REAL``
-and integer scalars are identified with ``GH_INTEGER`` metadata.
+either real or integer. Scalars are identified with ``GH_SCALAR`` metadata.
 
 .. _dynamo0.3-field:
 
@@ -616,10 +615,9 @@ Argument-metadata (metadata contained within the brackets of an
 **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a real scalar (``GH_REAL``), an integer scalar
-(``GH_INTEGER``), a field (``GH_FIELD``) or an operator (either
-``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR`` for CMA). This
-information is mandatory.
+being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or
+an operator (either ``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR``
+for CMA). This information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
 fields (see the :ref:`dynamo0.3-field-vector` section for more
@@ -632,7 +630,7 @@ fourth is an operator. The third entry is a field vector of size 3.
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL, ...),                                         &
+       arg_type(GH_SCALAR, GH_REAL, ...),                              &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
@@ -675,7 +673,7 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
 For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL,  GH_SUM),                                     &
+       arg_type(GH_SCALAR, GH_REAL, GH_SUM),                           &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -684,10 +682,10 @@ For example::
 .. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to real
-          scalars (``GH_REAL``) as the LFRic infrastructure does not
-          yet support integer reductions.
+          scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure does
+          not yet support integer reductions.
 
-For a scalar the argument metadata contains only these two entries.
+For a scalar the argument metadata contains only these tree entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -1129,7 +1127,7 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.::
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-        arg_type(GH_REAL, GH_READ) /)
+        arg_type(GH_SCALAR, GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in metadata for CMA
           kernels does not affect the process of identifying the type of
@@ -1147,14 +1145,14 @@ this metadata should be omitted.) Consider the
 following kernel metadata::
 
     type, extends(kernel_type) :: testkern_operator_type
-      type(arg_type), dimension(3) :: meta_args =     &
-          (/ arg_type(gh_operator, gh_write, w0, w0), &
-             arg_type(gh_field*3,  gh_read,  w1),     &
-             arg_type(gh_integer,  gh_read)           &
+      type(arg_type), dimension(3) :: meta_args =                 &
+          (/ arg_type(gh_operator,             gh_write, w0, w0), &
+             arg_type(gh_field*3,              gh_read,  w1),     &
+             arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
-      type(func_type) :: meta_funcs(2) =              &
-          (/ func_type(w0, gh_basis, gh_diff_basis)   &
-             func_type(w1, gh_basis)                  &
+      type(func_type) :: meta_funcs(2) =                          &
+          (/ func_type(w0, gh_basis, gh_diff_basis)               &
+             func_type(w1, gh_basis)                              &
           /)
       integer :: gh_shape = gh_quadrature_XYoZ
       integer :: iterates_over = cells
