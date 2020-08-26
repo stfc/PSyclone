@@ -556,7 +556,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         # 5) Check for reductions
         from psyclone.psyGen import MAPPING_SCALARS
         from psyclone.core.access_type import AccessType
-        arg_types = MAPPING_SCALARS.values()
+        arg_types = MAPPING_SCALARS
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)

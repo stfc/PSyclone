@@ -65,11 +65,9 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
-# Names of internal scalar argument types
-MAPPING_SCALARS_LIST = ["rscalar", "iscalar"]
-# Mapping from domain-specific scalar-type names to internal scalar
-# types. Can be overridden in domain-specific modules.
-MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
+# Names of internal scalar argument types. Can be overridden in
+# domain-specific modules.
+MAPPING_SCALARS = ["rscalar", "iscalar"]
 
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
@@ -1604,7 +1602,7 @@ class OMPDirective(Directive):
         result = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.argument_type in MAPPING_SCALARS.values():
+                if arg.argument_type in MAPPING_SCALARS:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -2333,7 +2331,7 @@ class Kern(Statement):
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
         args = args_filter(arguments.args,
-                           arg_types=MAPPING_SCALARS.values(),
+                           arg_types=MAPPING_SCALARS,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True
