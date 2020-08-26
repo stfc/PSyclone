@@ -734,7 +734,7 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
     # arg_types
-    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    args = loop.args_filter(arg_types=["gh_operator", "gh_scalar"])
     expected_output = ["mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
