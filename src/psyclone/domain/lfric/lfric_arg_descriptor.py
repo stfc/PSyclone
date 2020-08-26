@@ -80,7 +80,7 @@ class LFRicArgDescriptor(Descriptor):
     # Supported LFRic API argument types (scalars, fields, operators)
     # TODO in #874: Remove support for the old-style scalar metadata
     # (["gh_integer", "gh_real"]).
-    VALID_SCALAR_NAMES = ["gh_scalar", "gh_integer", "gh_real"]
+    VALID_SCALAR_NAMES = ["gh_scalar", "gh_real", "gh_integer"]
     VALID_FIELD_NAMES = ["gh_field"]
     VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \

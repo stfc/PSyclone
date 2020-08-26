@@ -2602,7 +2602,7 @@ def test_scalar_int_builtin_error(monkeypatch):
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
     assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
-            "with a real scalar argument, but scalar 'gh_integer' with "
+            "with a real scalar argument, but scalar 'gh_scalar' with "
             "'gh_integer' data type was found" in str(excinfo.value))
 
 

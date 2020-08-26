@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 !
 !> @brief Broken meta-data for the LFRic built-in operations.
 !> @details This meta-data is purely to provide PSyclone with a

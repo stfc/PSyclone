@@ -66,7 +66,7 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 # Names of internal scalar argument types
-MAPPING_SCALARS_LIST = ["iscalar", "rscalar"]
+MAPPING_SCALARS_LIST = ["rscalar", "iscalar"]
 # Mapping from domain-specific scalar-type names to internal scalar
 # types. Can be overridden in domain-specific modules.
 MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
@@ -2330,7 +2330,7 @@ class Kern(Statement):
 
         self._arg_descriptors = None
 
-        # initialise any reduction information
+        # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
         args = args_filter(arguments.args,
                            arg_types=MAPPING_SCALARS.values(),
