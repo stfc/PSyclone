@@ -444,7 +444,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     # the level-1 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
     schedule, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
-    schedule.view()
+    # RF TEST THAT THE HEX HAS MOVED
     code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

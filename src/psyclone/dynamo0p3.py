@@ -5159,7 +5159,7 @@ class DynHaloExchange(HaloExchange):
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
 
-    def _compute_halo_read_depth_info(self):
+    def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
         create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
@@ -5172,12 +5172,12 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get our halo information
-        halo_info_list = self._compute_halo_read_info()
+        halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
         depth_info_list = _create_depth_list(halo_info_list)
         return depth_info_list
 
-    def _compute_halo_read_info(self):
+    def _compute_halo_read_info(self, ignore_hex_dep=False):
         '''Dynamically computes all halo read dependencies and returns the
         required halo information (i.e. halo depth and stencil type) in a
         list of HaloReadAccess objects
@@ -5187,6 +5187,9 @@ class DynHaloExchange(HaloExchange):
 
         '''
         read_dependencies = self.field.forward_read_dependencies()
+        if ignore_hex_dep:
+            # RF Should sanity check that there is one dep and it is the last of the dependencies?
+            read_dependencies = [dep for dep in read_dependencies if not isinstance(dep.call, DynHaloExchange)]
         if not read_dependencies:
             raise GenerationError(
                 "Internal logic error. There should be at least one read "
@@ -5216,7 +5219,7 @@ class DynHaloExchange(HaloExchange):
                 "'{0}'".format(str(len(write_dependencies))))
         return HaloWriteAccess(write_dependencies[0])
 
-    def required(self):
+    def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required (True,
         True), might be required (True, False) or is definitely not
         required (False, *). The first return argument is used to
@@ -5254,7 +5257,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get *aggregated* information about halo reads
-        required_clean_info = self._compute_halo_read_depth_info()
+        required_clean_info = self._compute_halo_read_depth_info(ignore_hex_dep)
         # get information about the halo write
         clean_info = self._compute_halo_write_info()
 
@@ -5825,7 +5828,8 @@ class HaloWriteAccess(HaloDepth):
 
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
-        # no test required here as all calls exist within a loop
+
+        # No test required here as all calls exist within a loop
         loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
@@ -5923,6 +5927,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
+
         loop = call.parent.parent
 
         # For GH_INC we accumulate contributions into the field being
@@ -6480,11 +6485,26 @@ class DynLoop(Loop):
                                    vector_index=idx)
         self.parent.children.insert(self.position,
                                     exchange)
-        # check whether this halo exchange has been placed
-        # here correctly and if not, remove it.
-        required, _ = exchange.required()
+
+        # Is this halo exchange required (ignoring any subsequent halo
+        # exchange dependence)?
+        required, _ = exchange.required(ignore_hex_dep=True)
         if not required:
             exchange.parent.children.remove(exchange)
+        else:
+            # The halo exchange we have added may be replacing an
+            # existing one. If so, the one being replaced must be
+            # removed.
+            field = exchange.field
+            nodes = field._call.following()
+            results = field._find_write_arguments(nodes)
+            if len(results) > 1:
+                raise Exception("Only one write dependence expected")
+            if results:
+                result = results[0]
+                if isinstance(result.call, HaloExchange):
+                    exchange = result.call
+                    exchange.parent.children.remove(exchange)
 
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add (a) halo exchange call(s) immediately
@@ -6513,6 +6533,7 @@ class DynLoop(Loop):
         # loop for any fields in the loop that require a halo exchange
         # and don't already have one
         self.create_halo_exchanges()
+
         # Now remove any existing halo exchanges that are no longer
         # required. This is done by removing halo exchanges after this
         # loop where a field in this loop previously had a forward
@@ -6540,7 +6561,11 @@ class DynLoop(Loop):
         is implemented this way as the halo exchange class determines
         whether it is required or not so a halo exchange needs to
         exist in order to find out. The appropriate logic is coded in
-        the _add_halo_exchange helper method. '''
+        the _add_halo_exchange helper method. In some cases a new halo
+        exchange will replace an existing one. In this situation this
+        routine removes the old one.
+
+        '''
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that has its halo
             # read (including annexed dofs), find the previous update
