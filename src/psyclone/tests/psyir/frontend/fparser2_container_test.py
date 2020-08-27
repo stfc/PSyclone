@@ -40,11 +40,11 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import RoutineSymbol, SymbolError
+from psyclone.psyir.symbols import Symbol, RoutineSymbol, SymbolError
+from psyclone.psyGen import KernelSchedule
 
 
 def test_generate_container(parser):
@@ -134,3 +134,167 @@ def test_access_stmt_no_unqualified_use_error(parser):
         processor.generate_container(fparser2spec)
     assert ("module 'modulename': 'var3' is listed in an accessibility "
             "statement as being" in str(err.value))
+
+
+def test_default_public_container(parser):
+    ''' Test when all symbols default to public within a module and some
+    are explicitly listed as being private. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "public\n"
+        "integer, private :: var1\n"
+        "integer :: var2\n"
+        "integer :: var3\n"
+        "private var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    assert "var1" in container.symbol_table
+    assert (container.symbol_table.lookup("var1").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (container.symbol_table.lookup("var2").visibility ==
+            Symbol.Visibility.PUBLIC)
+    assert (container.symbol_table.lookup("var3").visibility ==
+            Symbol.Visibility.PRIVATE)
+
+
+def test_default_private_container(parser):
+    ''' Test that symbols get the correct visibilities when the Fortran
+    specifies that the default is private within a module. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "integer, public :: var1\n"
+        "integer :: var2\n"
+        "integer :: var3\n"
+        "public var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    assert "var1" in container.symbol_table
+    assert (container.symbol_table.lookup("var1").visibility ==
+            Symbol.Visibility.PUBLIC)
+    assert (container.symbol_table.lookup("var2").visibility ==
+            Symbol.Visibility.PRIVATE)
+    assert (container.symbol_table.lookup("var3").visibility ==
+            Symbol.Visibility.PUBLIC)
+
+
+def test_access_stmt_undeclared_symbol(parser):
+    ''' Check that we create a Symbol if a name appears in an access statement
+    but is not explicitly declared. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public var3, var4\n"
+        "private var5\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    sym_table = container.symbol_table
+    assert "var3" in sym_table
+    assert sym_table.lookup("var3").visibility == Symbol.Visibility.PUBLIC
+    assert "var4" in sym_table
+    var4 = sym_table.lookup("var4")
+    assert isinstance(var4, Symbol)
+    assert var4.visibility == Symbol.Visibility.PUBLIC
+    var5 = sym_table.lookup("var5")
+    assert isinstance(var5, Symbol)
+    assert var5.visibility == Symbol.Visibility.PRIVATE
+
+
+def test_parse_access_statements_invalid(parser):
+    ''' Tests for the _parse_access_statements() method when an
+    invalid parse tree is encountered. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public var3, var4\n"
+        "end module modulename")
+    fparser2spec = parser(reader).children[0].children[1]
+    # Break the parse tree created by fparser2
+    fparser2spec.children[1].items = ('not-private', None)
+    with pytest.raises(InternalError) as err:
+        processor._parse_access_statements([fparser2spec])
+    assert ("Failed to process 'not-private'. Found an accessibility "
+            "attribute of 'not-private' but expected either 'public' or "
+            "'private'" in str(err.value))
+
+
+def test_access_stmt_routine_name(parser):
+    ''' Check that we create a Symbol for something named in an access
+    statement that is not a variable. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public my_routine\n"
+        "contains\n"
+        "  subroutine my_routine()\n"
+        "  end subroutine my_routine\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    sym = container.symbol_table.lookup("my_routine")
+    assert isinstance(sym, RoutineSymbol)
+    assert sym.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_public_private_symbol_error(parser):
+    ''' Check that we raise the expected error when a symbol is listed as
+    being both PUBLIC and PRIVATE. (fparser2 doesn't check for this.) '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "private var4, var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    with pytest.raises(GenerationError) as err:
+        processor.generate_container(fparser2spec)
+    assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
+            "and PRIVATE" in str(err.value))
+
+
+def test_multiple_access_stmt_error(parser):
+    ''' Check that we raise the expected error when we encounter multiple
+    access statements. (fparser2 doesn't check for this.) '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "public var3\n"
+        "private\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    with pytest.raises(GenerationError) as err:
+        processor.generate_container(fparser2spec)
+    assert ("Module 'modulename' contains more than one access statement with"
+            in str(err.value))
+
+
+def test_broken_access_spec(parser):
+    ''' Check that we raise the expected InternalError if the parse tree for
+    an access-spec on a variable declaration is broken. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "integer, private :: var3\n"
+        "end module modulename\n")
+    fparser2spec = parser(reader).children[0].children[1]
+    # Break the parse tree
+    access_spec = fparser2spec.children[0].children[1].children[0]
+    access_spec.string = "not-private"
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)

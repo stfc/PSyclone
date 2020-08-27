@@ -1449,7 +1449,7 @@ class Fparser2Reader(object):
                 sym.interface = interface
 
     def process_declarations(self, parent, nodes, arg_list,
-                             default_visibility=Symbol.Visibility.PUBLIC,
+                             default_visibility=Symbol.DEFAULT_VISIBILITY,
                              visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into

@@ -498,7 +498,7 @@ class FortranWriter(PSyIRVisitor):
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param bool args_allowed: if False then one or more argument \
-                declarations in symbol_table will cause this method to raise
+                declarations in symbol_table will cause this method to raise \
                 an exception. Defaults to True.
 
         :returns: the Fortran declarations as a string.

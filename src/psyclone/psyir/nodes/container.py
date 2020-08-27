@@ -39,7 +39,7 @@
 ''' This module contains the Container node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import SymbolTable, Symbol
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.errors import GenerationError
 
 
