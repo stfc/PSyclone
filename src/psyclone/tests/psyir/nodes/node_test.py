@@ -735,6 +735,13 @@ def test_find_or_create_symbol():
             "find_or_create_symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
+    # find_or_create_symbol method with invalid visability
+    with pytest.raises(TypeError) as excinfo:
+        _ = alpha.find_or_create_symbol(alpha.name, visibility="hello")
+    assert ("visibility argument 'hello' provided to the find_or_create_symbol"
+            " method should be of `Symbol.Visibility` type but instead is: "
+            "'str'" in str(excinfo.value))
+
 
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new

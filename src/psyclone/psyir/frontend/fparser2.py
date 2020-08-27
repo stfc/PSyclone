@@ -1523,11 +1523,14 @@ class Fparser2Reader(object):
             # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    # TODO find_or_create_symbol() always creates a DataSymbol
-                    # currently.
+                    # TODO #876 find_or_create_symbol() always creates a
+                    # DataSymbol if no matching symbol already exists and there
+                    # is at least one possible Container from which it may be
+                    # imported. This will be wrong if the symbol is actually
+                    # the name of a routine.
                     try:
-                        sym = parent.find_or_create_symbol(name)
-                        sym.visibility = vis
+                        sym = parent.find_or_create_symbol(name,
+                                                           visibility=vis)
                     except SymbolError:
                         # Improve the error message with context-specific info
                         raise SymbolError(

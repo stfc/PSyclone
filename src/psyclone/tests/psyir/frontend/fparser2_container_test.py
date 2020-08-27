@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols import RoutineSymbol, SymbolError
 
 
 def test_generate_container(parser):
