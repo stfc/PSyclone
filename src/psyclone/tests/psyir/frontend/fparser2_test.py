@@ -966,35 +966,40 @@ def test_process_not_supported_declarations():
         in str(err.value)
 
 
-@pytest.mark.xfail(reason="#858 generate_schedule raises an exception if it "
-                   "encounters a symbol which is already present in the "
-                   "Container symbol table.")
-def test_routine_called_before_definition(parser):
-    ''' Check that generate_schedule() correctly handles code that references
-    a symbol (routine) with module scope. '''
+def test_module_function_symbol(parser):
+    ''' Check that the frontend correctly creates a new, local symbol for
+    a Function's return value. '''
+    dummy_module = '''
+    module dummy_mod
+        use mod1
+    contains
+        subroutine dummy_code(f1, f2)
+            real(wp), dimension(:,:), intent(in)  :: f1
+            real(wp), dimension(:,:), intent(out)  :: f2
+            f2 = f1 + modvar1(1)
+        end subroutine dummy_code
+        function modvar1(arg)
+            integer :: arg
+            real :: modvar1
+            modvar1 = 0.0
+        end function modvar1
+    end module dummy_mod
+    '''
+    reader = FortranStringReader(dummy_module)
+    ast = parser(reader)
     processor = Fparser2Reader()
-    reader = FortranStringReader(
-        "module modulename\n"
-        "use some_mod\n"
-        "private\n"
-        "integer :: var3\n"
-        "contains\n"
-        "subroutine my_sub()\n"
-        "  integer :: val\n"
-        "  val = my_func(1)\n"
-        "end subroutine my_sub\n"
-        "function my_func(arg)\n"
-        "  integer :: arg\n"
-        "  integer :: my_func\n"
-        "  my_func = arg + 2\n"
-        "end function my_func\n"
-        "end module modulename")
-    fparser2spec = parser(reader)
-    container = processor.generate_container(fparser2spec)
-    func = container.symbol_table.lookup("my_func")
-    assert isinstance(func, RoutineSymbol)
-    _ = processor.generate_schedule("my_func", fparser2spec,
-                                    container=container)
+    container = processor.generate_container(ast)
+    # This will result in a symbol named "modvar1" being put into
+    # the Container
+    _ = processor.generate_schedule("dummy_code", ast, container)
+    sym = container.symbol_table.lookup("modvar1")
+    assert isinstance(sym, Symbol)
+    # This should result in a new, *local* symbol named "modvar1"
+    sched = processor.generate_schedule("modvar1", ast, container)
+    # Check that the resulting Schedule has a local symbol
+    sym = sched.scope.symbol_table.lookup("modvar1", check_ancestors=False)
+    assert isinstance(sym, DataSymbol)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_process_save_attribute_declarations(parser):

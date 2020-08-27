@@ -1436,7 +1436,9 @@ class Fparser2Reader(object):
                 except ValueError:
                     # Error setting initial value
                     raise NotImplementedError()
-                parent.symbol_table.add(sym)
+                # We don't want to check ancestor symbol tables as we're
+                # currently processing a *local* variable declaration.
+                parent.symbol_table.add(sym, check_ancestors=False)
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.
