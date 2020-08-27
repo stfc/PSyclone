@@ -30,8 +30,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke
 
@@ -48,7 +48,7 @@ program single_invoke
   call invoke(                                &
        ! f1 write w1, f2 read w2, m1 read w2, m2 read w3
        testkern_type(ginger, f1, f2, m1, m2), &
-       ! f1 inc, f2 read
+       ! f1 readwrite, f2 read
        inc_aX_plus_Y(0.5_r_def, f1, f2)       &
           )
 

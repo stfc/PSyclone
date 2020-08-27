@@ -124,7 +124,7 @@ def test_cma_mdata_assembly():
     assert cma_op_desc.vector_size == 1
 
 
-def test_cma_mdata_validate_wrong_type():
+def test_cma_mdata_init_wrong_type():
     ''' Test that an error is raised if something other than an operator
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
@@ -134,7 +134,7 @@ def test_cma_mdata_validate_wrong_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata._iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
     assert ("LFRicArgDescriptor._init_operator(): expecting an operator "
             "argument but got an argument of type 'gh_real'." in
             str(excinfo.value))
@@ -396,7 +396,7 @@ def test_cma_mdata_apply_no_read_fld():
     ''' Check that we raise the expected error if there is no read-only
     field arg to a kernel that applies a CMA operator.'''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Make the read-only field gh_write instead
+    # Make the read-only field gh_inc instead
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2), ",
         "arg_type(GH_FIELD,    GH_INC, ANY_SPACE_2), ", 1)

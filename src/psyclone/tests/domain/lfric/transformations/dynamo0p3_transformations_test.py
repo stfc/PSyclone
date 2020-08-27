@@ -4342,7 +4342,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
 
 
 def test_rc_dofs_depth():
-    ''' Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
@@ -4366,7 +4366,7 @@ def test_rc_dofs_depth():
 
 
 def test_rc_dofs_no_depth():
-    ''' Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo fields have
@@ -4392,7 +4392,7 @@ def test_rc_dofs_no_depth():
 
 
 def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
-    ''' Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
@@ -4418,9 +4418,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Check that the f2 halo exchange is modified
-    for field_name in ["f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                ")".format(field_name)) in result
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     # There is a need for a run-time is_dirty check for field f2 as
     # this field is not modified in this invoke and therefore its halo
     # is in an unknown state before it is read
@@ -4444,7 +4442,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
 
 
 def test_rc_dofs_no_depth_prev_dep():
-    ''' Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo
@@ -4461,9 +4459,7 @@ def test_rc_dofs_no_depth_prev_dep():
     result = str(psy.gen)
 
     # Check that the f2 halo exchange is modified
-    for field_name in ["f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
-                ")".format(field_name)) in result
+    assert "CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())" in result
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     # Check that the existing f1, m1 and m2 halo exchanges remain unchanged

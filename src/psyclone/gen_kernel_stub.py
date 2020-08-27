@@ -69,7 +69,7 @@ def generate(filename, api=""):
     :param str api: the name of the API for which to create a kernel \
                     stub. Must be one of the supported stub APIs.
 
-    :returns: root of fparser1 AST for the stub routine.
+    :returns: root of fparser1 parse tree for the stub routine.
     :rtype: :py:class:`fparser.one.block_statements.Module`
 
     :raises GenerationError: if an invalid stub API is specified.
@@ -106,13 +106,13 @@ def generate(filename, api=""):
     kernel.load_meta(metadata)
 
     # Check kernel iteration space before generating code
-    if (api == "dynamo0.3" and kernel._iterates_over not in
+    if (api == "dynamo0.3" and kernel.iterates_over not in
             USER_KERNEL_ITERATION_SPACES):
         raise GenerationError(
             "The LFRic API kernel stub generator supports kernels that have "
             "one of {0} as iteration space, but found '{1}' in kernel '{2}'.".
-            format(USER_KERNEL_ITERATION_SPACES, kernel._iterates_over,
-                   kernel._name))
+            format(USER_KERNEL_ITERATION_SPACES, kernel.iterates_over,
+                   kernel.name))
 
     return kernel.gen_stub
 

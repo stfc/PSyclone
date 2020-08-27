@@ -165,7 +165,7 @@ def test_arg_descriptor_vector():
     assert field_descriptor.vector_size == 3
 
 
-def test_ad_scalar_validate_wrong_type():
+def test_ad_scalar_init_wrong_type():
     ''' Test that an error is raised if something other than a scalar
     is passed to the LFRicArgDescriptor._init_scalar() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -175,7 +175,7 @@ def test_ad_scalar_validate_wrong_type():
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata._iterates_over)._init_scalar(wrong_arg)
+            wrong_arg, metadata.iterates_over)._init_scalar(wrong_arg)
     assert ("LFRicArgDescriptor._init_scalar(): expecting a scalar "
             "argument but got an argument of type 'gh_operator'." in
             str(excinfo.value))
@@ -258,7 +258,7 @@ def test_ad_int_scalar_type_no_sum():
             in str(excinfo.value))
 
 
-def test_ad_field_validate_wrong_type():
+def test_ad_field_init_wrong_type():
     ''' Test that an error is raised if something other than a field
     is passed to the LFRicArgDescriptor._init_field() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -268,11 +268,31 @@ def test_ad_field_validate_wrong_type():
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata._iterates_over)._init_field(
-                wrong_arg, metadata._iterates_over)
-    assert ("LFRicArgDescriptor._init_field(): expecting a field "
+            wrong_arg, metadata.iterates_over)._init_field(
+                wrong_arg, metadata.iterates_over)
+    assert ("LFRicArgDescriptor._init_field(): Expected a field "
             "argument but got an argument of type 'gh_real'" in
             str(excinfo.value))
+
+
+def test_ad_field_init_wrong_iteration_space():
+    ''' Test that an error is raised if a wrong iteration
+    space (other than ['cells', 'dofs']) is passed to the
+    LFRicArgDescriptor._init_field() method.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_arg = metadata._inits[1]
+    # Set a wrong iteration space
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(
+            field_arg, metadata.iterates_over)._init_field(
+                field_arg, "ncolours")
+    assert ("LFRicArgDescriptor._init_field(): Invalid iteration "
+            "space 'ncolours' in the kernel metadata (expected "
+            "one of ['cells', 'dofs'])." in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():
@@ -376,7 +396,7 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
-    assert ("LFRicArgDescriptor.__init__(): expected one of "
+    assert ("LFRicArgDescriptor.__init__(): Expected one of "
             "['cells', 'dofs'] iteration spaces in the kernel "
             "metadata but got 'colours'." in str(excinfo.value))
 
@@ -2508,7 +2528,7 @@ def test_named_psy_routine(dist_mem, tmpdir):
     # Name should be all lower-case and with spaces replaced by underscores
     assert "SUBROUTINE invoke_important_invoke" in gen_code
 
-# Tests for dynamo0.3 stub generator
+# Tests for LFRic stub generator
 
 
 def test_stub_non_existent_filename():
@@ -3255,7 +3275,7 @@ def test_arg_descriptor_init_error(monkeypatch):
         value=LFRicArgDescriptor.VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
-        _ = LFRicArgDescriptor(arg_type, metadata._iterates_over)
+        _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
     assert ("LFRicArgDescriptor.__init__(): failed argument validation for "
             "the 'meta_arg' entry 'arg_type(GH_INVALID, gh_read)', should "
             "not get to here." in str(excinfo.value))
@@ -3679,17 +3699,17 @@ def test_fs_discontinuous_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API, allowed accesses for a field that "
-                "iterates over cells and is on a discontinuous function "
-                "space are ['gh_read', 'gh_write', 'gh_readwrite'], but "
-                "found 'gh_inc' for '{0}'".format(fspace)
-                in str(excinfo.value))
+        assert ("In the LFRic API, allowed accesses for fields on "
+                "discontinuous function spaces that are arguments to "
+                "kernels that iterate over cells are ['gh_read', "
+                "'gh_write', 'gh_readwrite'], but found 'gh_inc' for "
+                "'{0}'".format(fspace) in str(excinfo.value))
 
 
 def test_fs_continuous_cells_write_or_readwrite_error():
-    ''' Test that an error is raised if a continuous function space and
-    'gh_write' or 'gh_readwrite' accesses are provided for the same field
-    that iterates over cells in the metadata.
+    ''' Test that an error is raised if a field on a continuous
+    function space is specified as having an access of 'gh_write'
+    or 'gh_readwrite' in kernel metadata.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3701,16 +3721,17 @@ def test_fs_continuous_cells_write_or_readwrite_error():
             ast = fpapi.parse(code, ignore_comments=False)
             with pytest.raises(ParseError) as excinfo:
                 _ = DynKernMetadata(ast, name="testkern_qr_type")
-            assert ("In the LFRic API, allowed accesses for a field that "
-                    "iterates over cells and is on a continuous function "
-                    "space are ['gh_read', 'gh_inc'], but found '{0}' for "
-                    "'{1}'".format(acc, fspace) in str(excinfo.value))
+            assert ("In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that iterate over cells are ['gh_read', "
+                    "'gh_inc'], but found '{0}' for '{1}'".
+                    format(acc, fspace) in str(excinfo.value))
 
 
 def test_fs_anyspace_cells_write_or_readwrite_error():
-    ''' Test that an error is raised if 'any_space' and 'gh_write'
-    or 'gh_readwrite' accesses are provided for the same field
-    that iterates over cells in the metadata.
+    ''' Test that an error is raised if a field that is on 'any_space' "
+    "(and therefore may be continuous) is specified as having 'gh_write' "
+    "or 'gh_readwrite' access in the metadata.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3722,15 +3743,16 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
             ast = fpapi.parse(code, ignore_comments=False)
             with pytest.raises(ParseError) as excinfo:
                 _ = DynKernMetadata(ast, name="testkern_qr_type")
-            assert ("In the LFRic API, allowed accesses for a field that "
-                    "iterates over cells and is on a continuous function "
-                    "space are ['gh_read', 'gh_inc'], but found '{0}' for "
-                    "'{1}'".format(acc, fspace) in str(excinfo.value))
+            assert ("In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that iterate over cells are ['gh_read', "
+                    "'gh_inc'], but found '{0}' for '{1}'".
+                    format(acc, fspace) in str(excinfo.value))
 
 
 def test_fs_anyspace_dofs_inc_error():
-    ''' Test that an error is raised if 'any_space' and 'gh_inc' are
-    provided for the same field that loops over DoFs in the metadata. '''
+    ''' Test that an error is raised if a field on 'any_space' with
+    'gh_inc' access is specified for a kernel that iterates over DoFs. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = CODE.replace("integer :: iterates_over = cells",
                             "integer :: iterates_over = dofs", 1)
@@ -3741,8 +3763,8 @@ def test_fs_anyspace_dofs_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("In the LFRic API, allowed accesses for a field that "
-                "iterates over DoFs are ['gh_read', 'gh_write', "
+        assert ("In the LFRic API, allowed field accesses for a kernel "
+                "that iterates over DoFs are ['gh_read', 'gh_write', "
                 "'gh_readwrite'], but found 'gh_inc' for '{0}'".
                 format(fspace) in str(excinfo.value))
 
@@ -3952,8 +3974,9 @@ def test_field_gh_sum_invalid():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("allowed accesses for a field that iterates over cells and is "
-            "on a continuous function space are ['gh_read', 'gh_inc'], but "
+    assert ("In the LFRic API, allowed accesses for fields on "
+            "continuous function spaces that are arguments to kernels "
+            "that iterate over cells are ['gh_read', 'gh_inc'], but "
             "found 'gh_sum' for 'w2'" in str(excinfo.value))
 
 

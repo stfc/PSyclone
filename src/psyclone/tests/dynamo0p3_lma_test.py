@@ -168,7 +168,7 @@ def test_no_vector_operator():
             str(excinfo.value))
 
 
-def test_ad_op_type_validate_wrong_type():
+def test_ad_op_type_init_wrong_type():
     ''' Test that an error is raised if something other than an operator
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -178,7 +178,7 @@ def test_ad_op_type_validate_wrong_type():
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata._iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
     assert ("LFRicArgDescriptor._init_operator(): expecting an "
             "operator argument but got an argument of type 'gh_field'."
             in str(excinfo.value))

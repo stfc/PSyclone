@@ -466,7 +466,7 @@ class DynKernMetadata(KernelType):
         self._arg_descriptors = []
         for arg_type in self._inits:
             self._arg_descriptors.append(
-                LFRicArgDescriptor(arg_type, self._iterates_over))
+                LFRicArgDescriptor(arg_type, self.iterates_over))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -7153,11 +7153,11 @@ class DynKern(CodedKern):
 
         '''
         # Check iteration space before generating code
-        if self._iterates_over not in USER_KERNEL_ITERATION_SPACES:
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
             raise InternalError(
                 "DynKern.gen_stub(): Expected one of {0} as iteration "
                 "space but found '{1}' in kernel '{2}'.".
-                format(USER_KERNEL_ITERATION_SPACES, self._iterates_over,
+                format(USER_KERNEL_ITERATION_SPACES, self.iterates_over,
                        self._name))
 
         # Get configuration for valid argument kinds
@@ -7212,13 +7212,13 @@ class DynKern(CodedKern):
 
         '''
         # Check iteration space before generating code
-        if self._iterates_over not in USER_KERNEL_ITERATION_SPACES:
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
             raise GenerationError(
                 "The LFRic API supports calls to user-supplied kernels "
                 "that have one of {0} as iteration space, but kernel '{1}' "
                 "has an iteration space of '{2}'.".
                 format(USER_KERNEL_ITERATION_SPACES, self._name,
-                       self._iterates_over))
+                       self.iterates_over))
 
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")

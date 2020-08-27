@@ -195,7 +195,7 @@ class LFRicArgDescriptor(Descriptor):
         from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
         if iterates_over not in VALID_ITERATION_SPACES:
             raise InternalError(
-                "LFRicArgDescriptor.__init__(): expected one of {0} "
+                "LFRicArgDescriptor.__init__(): Expected one of {0} "
                 "iteration spaces in the kernel metadata but got "
                 "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
 
@@ -301,21 +301,24 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the optional 4th argument is not a stencil \
                             specification or a mesh identifier (for \
                             inter-grid kernels).
-        :raises ParseError: if a field that iterates over DoFs does not have \
-                            a valid access (one of [READ, WRITE, READWRITE]).
+        :raises ParseError: if a field passed to a kernel that iterates \
+                            over DoFs does not have a valid access \
+                            (one of [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a discontinuous function space \
-                            that iterates over cells does not have a valid \
-                            access (one of [READ, WRITE, READWRITE]).
+                            passed to a kernel that iterates over cells \
+                            does not have a valid access (one of \
+                            [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a continuous function space \
-                            that iterates over cells does not have a valid \
-                            access (one of [READ, INC]).
+                            passed to a kernel that iterates over cells \
+                            does not have a valid access (one of [READ, INC]).
+        :raises InternalError: if an invalid iteration space is passed in.
         :raises ParseError: if a field with a stencil access is not read-only.
 
         '''
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): expecting a field "
+                "LFRicArgDescriptor._init_field(): Expected a field "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
@@ -380,33 +383,36 @@ class LFRicArgDescriptor(Descriptor):
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
-        # Create a list of allowed accesses for error messages
+        # Create a list of allowed accesses for use in error messages
         fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
                             field_disc_accesses]
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
+        # Joint lists of valid function spaces for continuous fields
+        fld_cont_spaces = (FunctionSpace.CONTINUOUS_FUNCTION_SPACES +
+                           FunctionSpace.VALID_ANY_SPACE_NAMES)
 
-        # Check accesses for fields that iterate over DoFs
-        if (iterates_over == "dofs" and
-                self._access_type not in field_disc_accesses):
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field that iterates "
-                "over DoFs are {0}, but found '{1}' for '{2}' in '{3}'.".
-                format(fld_disc_acc_msg, rev_access_mapping[self._access_type],
-                       self._function_space1.lower(), arg_type))
-
-        # Check accesses for fields that iterate over cells
-        fld_cont_spaces = FunctionSpace.CONTINUOUS_FUNCTION_SPACES + \
-            FunctionSpace.VALID_ANY_SPACE_NAMES
-        if iterates_over == "cells":
+        # Check accesses for kernels that iterate over DoFs
+        if iterates_over == "dofs":
+            if self._access_type not in field_disc_accesses:
+                raise ParseError(
+                    "In the LFRic API, allowed field accesses for a "
+                    "kernel that iterates over DoFs are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_disc_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+        # Check accesses for kernels that iterate over cells
+        elif iterates_over == "cells":
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     FunctionSpace.VALID_DISCONTINUOUS_NAMES and
                     self._access_type not in field_disc_accesses):
                 raise ParseError(
-                    "In the LFRic API, allowed accesses for a field that "
-                    "iterates over cells and is on a discontinuous function "
-                    "space are {0}, but found '{1}' for '{2}' in '{3}'.".
+                    "In the LFRic API, allowed accesses for fields on "
+                    "discontinuous function spaces that are arguments to "
+                    "kernels that iterate over cells are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
@@ -414,12 +420,20 @@ class LFRicArgDescriptor(Descriptor):
             if (self._function_space1.lower() in fld_cont_spaces and
                     self._access_type not in field_cont_accesses):
                 raise ParseError(
-                    "In the LFRic API, allowed accesses for a field that "
-                    "iterates over cells and is on a continuous function "
-                    "space are {0}, but found '{1}' for '{2}' in '{3}'.".
+                    "In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that iterate over cells are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
                     format(fld_cont_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
+        # Raise an InternalError for an invalid iteration space
+        else:
+            from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
+            raise InternalError(
+                "LFRicArgDescriptor._init_field(): Invalid iteration "
+                "space '{0}' in the kernel metadata (expected one of {1}).".
+                format(iterates_over, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:
