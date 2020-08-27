@@ -779,8 +779,14 @@ class Fparser2Reader(object):
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
-                self.process_declarations(new_container, child.children, [],
-                                          default_visibility, visibility_map)
+                try:
+                    self.process_declarations(new_container, child.children,
+                                              [], default_visibility,
+                                              visibility_map)
+                except SymbolError as err:
+                    raise SymbolError(
+                        "Error when generating Container for module '{0}': "
+                        "{1}".format(mod_name, err.args[0]))
                 break
 
         return new_container
@@ -1519,8 +1525,16 @@ class Fparser2Reader(object):
                 if name not in parent.symbol_table:
                     # TODO find_or_create_symbol() always creates a DataSymbol
                     # currently.
-                    sym = parent.find_or_create_symbol(name)
-                    sym.visibility = vis
+                    try:
+                        sym = parent.find_or_create_symbol(name)
+                        sym.visibility = vis
+                    except SymbolError:
+                        # Improve the error message with context-specific info
+                        raise SymbolError(
+                            "'{0}' is listed in an accessibility statement as "
+                            "being '{1}' but failed to find a declaration or "
+                            "possible import (use) of this symbol.".format(
+                                name, vis))
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.

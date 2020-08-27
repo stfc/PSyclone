@@ -1058,26 +1058,6 @@ def test_parse_access_statements_invalid(parser):
             "'private'" in str(err.value))
 
 
-@pytest.mark.xfail(reason="#736 we cannot yet be sure that the symbol is "
-                   "undeclared as it may be the name of a subroutine")
-def test_access_stmt_no_unqualified_use_error(parser):
-    ''' Check that we raise the expected error if an undeclared symbol is
-    listed in an access statement and there are no unqualified use
-    statements to bring it into scope. '''
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
-        "module modulename\n"
-        "private\n"
-        "public var3\n"
-        "end module modulename")
-    fparser2spec = parser(reader).children[0].children[1]
-    with pytest.raises(GenerationError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("'var3' is listed in a PUBLIC statement but cannot find an "
-            "associated" in str(err.value))
-
-
 def test_access_stmt_routine_name(parser):
     ''' Check that we create a Symbol for something named in an access
     statement that is not a variable. '''

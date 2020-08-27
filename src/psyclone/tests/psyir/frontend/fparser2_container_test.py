@@ -117,3 +117,20 @@ def test_generate_container_routine_names(parser):
     sub = container.symbol_table.lookup("my_sub")
     assert isinstance(sub, RoutineSymbol)
 
+
+def test_access_stmt_no_unqualified_use_error(parser):
+    ''' Check that we raise the expected error if an undeclared symbol is
+    listed in an access statement and there are no unqualified use
+    statements to bring it into scope. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "private\n"
+        "integer :: flag\n"
+        "public var3\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    with pytest.raises(SymbolError) as err:
+        processor.generate_container(fparser2spec)
+    assert ("module 'modulename': 'var3' is listed in an accessibility "
+            "statement as being" in str(err.value))
