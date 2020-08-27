@@ -1037,6 +1037,37 @@ def test_access_stmt_undeclared_symbol(parser):
     assert var5.visibility == Symbol.Visibility.PRIVATE
 
 
+@pytest.mark.xfail(reason="#858 generate_schedule raises an exception if it "
+                   "encounters a symbol which is already present in the "
+                   "Container symbol table.")
+def test_routine_called_before_definition(parser):
+    ''' Check that generate_schedule() correctly handles code that references
+    a symbol (routine) with module scope. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "contains\n"
+        "subroutine my_sub()\n"
+        "  integer :: val\n"
+        "  val = my_func(1)\n"
+        "end subroutine my_sub\n"
+        "function my_func(arg)\n"
+        "  integer :: arg\n"
+        "  integer :: my_func\n"
+        "  my_func = arg + 2\n"
+        "end function my_func\n"
+        "end module modulename")
+    fparser2spec = parser(reader)
+    container = processor.generate_container(fparser2spec)
+    func = container.symbol_table.lookup("my_func")
+    assert isinstance(func, RoutineSymbol)
+    sched = processor.generate_schedule("my_func", fparser2spec,
+                                        container=container)
+
+
 def test_parse_access_statements_invalid(parser):
     ''' Tests for the _parse_access_statements() method when an
     invalid parse tree is encountered. '''
@@ -1072,7 +1103,9 @@ def test_access_stmt_routine_name(parser):
         "end module modulename")
     fparser2spec = parser(reader)
     container = processor.generate_container(fparser2spec)
-    assert "my_routine" in container.symbol_table
+    sym = container.symbol_table.lookup("my_routine")
+    assert isinstance(sym, RoutineSymbol)
+    assert sym.visibility == Symbol.Visibility.PUBLIC
 
 
 def test_public_private_symbol_error(parser):
