@@ -41,7 +41,7 @@ import os
 import pytest
 
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import Config
@@ -457,3 +457,103 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+# Tests for DynHaloExchange
+# Tests for _compute_halo_read_info() within DynHaloExchange
+def test_compute_halo_read_info_read_dep(monkeypatch):
+    '''Check that _compute_halo_read_info() in DynHaloExchange raises the
+    expected exception when there is more than one read dependence
+    associated with a halo exchange in the read dependence list. This
+    should never happen as the access to a halo exchange is readwrite,
+    therefore the first access will stop any further accesses (due to
+    the write). Also check that the expected exception is raised when
+    there is a read dependence associated with a halo exchange but it
+    is not the last entry in the list. Again this should never happen
+    as the access to a halo exchange is readwrite.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    hex_f1 = schedule[1]
+    # Modify the adjacent halo exchange to reference field f1 and
+    # make the access read-only. This stops the dependence from being
+    # the last on the list.
+    schedule[2].field._name = "f1"
+    from psyclone.core.access_info import AccessType
+    schedule[2].field.access = AccessType.READ
+    with pytest.raises(GenerationError) as info:
+        hex_f1._compute_halo_read_info(ignore_hex_dep=True)
+    assert ("If there is a read dependency associated with a halo exchange "
+            "in the list of read dependencies then it should be the last "
+            "one in the list." in str(info.value))
+
+    # Now modify a 3rd halo exchange to reference field f1 making more
+    # than one dependency associated with a halo exchange.
+    schedule[3].field._name = "f1"
+    with pytest.raises(GenerationError) as info:
+        hex_f1._compute_halo_read_info(ignore_hex_dep=True)
+    assert ("There should only ever be at most one read dependency associated "
+            "with a halo exchange in the read dependency list, but found 2 "
+            "for field f1." in str(info.value))
+
+
+def test_compute_halo_read_info_async(monkeypatch):
+    '''Check that _compute_halo_read_info() in DynHaloExchange raises the
+    expected exception when there is a read dependence associated with
+    an asynchronous halo exchange in the read dependence list.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    hex_f1 = schedule[1]
+
+    schedule[2].field._name = "f1"
+    from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
+    async_hex = Dynamo0p3AsyncHaloExchangeTrans()
+    async_hex.apply(schedule[2])
+    with pytest.raises(GenerationError) as info:
+        hex_f1._compute_halo_read_info(ignore_hex_dep=True)
+    assert ("Please perform redundant computation transformations "
+            "before asynchronous halo exchange transformations.")
+
+
+# Tests for DynLoop
+# Tests for _add_halo_exchange_code() within DynLoop
+def test_add_halo_exchange_code_nreader(monkeypatch):
+    '''Check that _add_halo_exchange_code() in DynLoop raises the expected
+    exception when there is more than one read dependence associated
+    with a halo exchange in the read dependence list.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[0]
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    schedule, _ = rtrans.apply(loop, options={"depth": 1})
+    f1_field = schedule[0].field
+    del schedule.children[0]
+    schedule[1].field._name = "f1"
+    schedule[2].field._name = "f1"
+    with pytest.raises(GenerationError) as info:
+        loop._add_halo_exchange_code(f1_field)
+    assert ("When replacing a halo exchange with another one for field f1, "
+            "a subsequent dependent halo exchange was found. This should "
+            "never happen." in str(info.value))

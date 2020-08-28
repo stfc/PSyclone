@@ -5198,6 +5198,17 @@ class DynHaloExchange(HaloExchange):
         :return: a list containing halo information for each read dependency
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
 
+        :raises GenerationError: if there is more than one read \
+        dependency associated with a halo exchange.
+        :raises GenerationError: if there is a read dependency \
+        associated with a halo exchange and it is not the last entry \
+        in the read dependency list.
+
+        :raises GenerationError: if there is a read dependency \
+        associated with an asynchronous halo exchange.
+
+        :raises GenerationError: if no read dependencies are found.
+
         '''
         read_dependencies = self.field.forward_read_dependencies()
         hex_deps = [dep for dep in read_dependencies
@@ -5206,26 +5217,35 @@ class DynHaloExchange(HaloExchange):
             # There is a field accessed by a halo exchange that is
             # a read dependence. As ignore_hex_dep is True this should
             # be ignored so this is removed from the list.
-            # For sanity, check there is only one field accessed by a
+            if any(dep for dep in hex_deps
+                   if isinstance(dep.call, (DynHaloExchangeStart,
+                                            DynHaloExchangeEnd))):
+                raise GenerationError(
+                    "Please perform redundant computation transformations "
+                    "before asynchronous halo exchange transformations.")
+
+            # There can only be one field accessed by a
             # halo exchange that is a read dependence.
             if not len(hex_deps) == 1:
                 raise GenerationError(
-                    "There should only ever be one halo exchange in a list of "
-                    "read dependencies, but found {0} for field {1}"
+                    "There should only ever be at most one read dependency "
+                    "associated with a halo exchange in the read dependency "
+                    "list, but found {0} for field {1}."
                     "".format(len(hex_deps), self.field.name))
             # For sanity, check that the field accessed by the halo
             # exchange is the last dependence in the list.
             if not isinstance(read_dependencies[-1].call, DynHaloExchange):
                 raise GenerationError(
-                    "If there is a halo exchange in a list of read "
-                    "dependencies then it should be the last one in the list")
+                    "If there is a read dependency associated with a halo "
+                    "exchange in the list of read dependencies then it should "
+                    "be the last one in the list.")
             # Remove the last entry in the list (the field accessed by
             # the halo exchange).
             del read_dependencies[-1]
         if not read_dependencies:
             raise GenerationError(
                 "Internal logic error. There should be at least one read "
-                "dependence for a halo exchange")
+                "dependence for a halo exchange.")
         return [HaloReadAccess(read_dependency) for read_dependency
                 in read_dependencies]
 
@@ -5869,7 +5889,7 @@ class HaloWriteAccess(HaloDepth):
 
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
-        # No test required here as all calls exist within a loop
+        # no test required here as all calls exist within a loop
 
         loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
@@ -6519,6 +6539,9 @@ class DynLoop(Loop):
         there is one and None if not. Defaults to None.
         :type index: int or None
 
+        :raises GenerationError: if there are two forward write \
+        dependencies and they are both associated with halo exchanges.
+
         '''
         exchange = DynHaloExchange(halo_field,
                                    parent=self.parent,
@@ -6534,22 +6557,24 @@ class DynLoop(Loop):
         else:
             # The halo exchange we have added may be replacing an
             # existing one. If so, the one being replaced will be the
-            # first write dependence encountered and must be removed.
-            field = exchange.field
-            results = field.forward_write_dependencies()
+            # first and only write dependence encountered and must be
+            # removed.
+            results = exchange.field.forward_write_dependencies()
             if results:
                 first_dep_call = results[0].call
                 if isinstance(first_dep_call, HaloExchange):
-                    if len(results) > 1 and isinstance(results[1].call,
-                                                       HaloExchange):
-                        # Sanity check. If the first dependence is a
-                        # field accessed within a halo exchange then
-                        # the subsequent one must not be.
+                    # Sanity check. If the first dependence is a field
+                    # accessed within a halo exchange then the
+                    # subsequent one must not be.
+                    next_results = results[0].forward_write_dependencies()
+                    if next_results and any(tmp for tmp in next_results
+                                            if isinstance(tmp.call,
+                                                          HaloExchange)):
                         raise GenerationError(
                             "When replacing a halo exchange with another one "
                             "for field {0}, a subsequent dependent halo "
                             "exchange was found. This should never happen."
-                            "".format(field.name))
+                            "".format(exchange.field.name))
                     first_dep_call.parent.children.remove(first_dep_call)
 
     def _add_halo_exchange(self, halo_field):
