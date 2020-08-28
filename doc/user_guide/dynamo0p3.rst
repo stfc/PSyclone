@@ -776,19 +776,26 @@ as its iteration space, see :ref:`iteration space metadata
 <dynamo0.3-user-kernel-iterates-over>`). Valid access mode values are
 given in the table below.
 
-======================  ============================  ==================
-Argument Type           Function Space                Access Type
-======================  ============================  ==================
-GH_INTEGER              n/a                           GH_READ
-GH_REAL                 n/a                           GH_READ
-GH_FIELD                Discontinuous                 GH_READ, GH_WRITE,
-                                                      GH_READWRITE
-GH_FIELD                Continuous                    GH_READ, GH_INC
-GH_OPERATOR             Any for both 'to' and 'from'  GH_READ, GH_WRITE,
-                                                      GH_READWRITE
-GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_READ, GH_WRITE,
-                                                      GH_READWRITE
-======================  ============================  ==================
+.. tabularcolumns:: |l|l|l|
+
++------------------------+------------------------------+--------------------+
+| Argument Type          | Function Space               | Access Type        |
++========================+==============================+====================+
+| GH_INTEGER             | n/a                          | GH_READ            |
++------------------------+------------------------------+--------------------+
+| GH_REAL                | n/a                          | GH_READ            |
++------------------------+------------------------------+--------------------+
+| GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
+|                        |                              | GH_READWRITE       |
++------------------------+------------------------------+--------------------+
+| GH_FIELD               | Continuous                   | GH_READ, GH_INC    |
++------------------------+------------------------------+--------------------+
+| GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
+|                        |                              | GH_READWRITE       |
++------------------------+------------------------------+--------------------+
+| GH_COLUMNWISE_OPERATOR | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
+|                        |                              | GH_READWRITE       |
++------------------------+------------------------------+--------------------+
 
 As mentioned above, only :ref:`Built-ins <dynamo0.3-built-ins>` may
 modify scalar arguments. In practice this means that the only allowed
@@ -1948,20 +1955,24 @@ the iteration space.
 .. _dynamo0.3-built-ins-valid-access:
 
 Valid Access Modes
-^^^^^^^^^^^^^^^^^^
+##################
 
 The allowed accesses for arguments in Built-in
 kernels are a bit different than for the
 :ref:`user-defined Kernels <dynamo0.3-kernel-valid-access>` and
 are listed in the table below.
 
-=============  ==============  ===============================
-Argument Type  Function Space  Access Type
-=============  ==============  ===============================
-GH_INTEGER     n/a             GH_READ, *GH_SUM*
-GH_REAL        n/a             GH_READ, GH_SUM
-GH_FIELD       ANY_SPACE_n     GH_READ, GH_WRITE, GH_READWRITE
-=============  ==============  ===============================
+.. tabularcolumns:: |l|l|l|
+
++---------------+----------------+---------------------------------+
+| Argument Type | Function Space | Access Type                     |
++===============+================+=================================+
+| GH_INTEGER    | n/a            | GH_READ, *GH_SUM*               |
++---------------+----------------+---------------------------------+
+| GH_REAL       | n/a            | GH_READ, GH_SUM                 |
++---------------+----------------+---------------------------------+
+| GH_FIELD      | ANY_SPACE_n    | GH_READ, GH_WRITE, GH_READWRITE |
++---------------+----------------+---------------------------------+
 
 .. note:: *Since the LFRic infrastructure does not currently support
           integer reductions, integer scalar arguments in Built-ins
