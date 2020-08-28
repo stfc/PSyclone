@@ -422,7 +422,6 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     haloex = schedule.children[haloidx]
     check(haloex, "mesh%get_halo_depth()")
 
-    
 
 def test_setval_x_then_user(tmpdir, monkeypatch):
     ''' Check that the correct halo exchanges are added if redundant
@@ -430,22 +429,31 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     user-supplied kernel. '''
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.3_setval_X_before_user_kern.f90"),
-                           api=API)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
 
     first_invoke = psy.invokes.invoke_list[0]
     # Since (redundant) computation over annexed dofs is enabled, there
     # should be no halo exchange before the first (builtin) kernel call
     assert isinstance(first_invoke.schedule[0], DynLoop)
-    first_invoke.schedule.view()
+    # There should be a halo exchange for field f1 before the second
+    # kernel call
+    assert isinstance(first_invoke.schedule[1], DynHaloExchange)
+    assert first_invoke.schedule[1].field.name == "f1"
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
     schedule, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
-    # RF TEST THAT THE HEX HAS MOVED
+    # There should now be a halo exchange for f1 before the first
+    # (builtin) kernel call
+    assert isinstance(first_invoke.schedule[0], DynHaloExchange)
+    assert first_invoke.schedule[0].field.name == "f1"
+    assert isinstance(first_invoke.schedule[1], DynLoop)
+    # There should only be one halo exchange for field f1
+    assert len([node for node in first_invoke.schedule.children
+                if isinstance(node, DynHaloExchange)
+                and node.field.name == "f1"]) == 1
     code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-

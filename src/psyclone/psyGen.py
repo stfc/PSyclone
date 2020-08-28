@@ -3575,6 +3575,23 @@ class Argument(object):
         nodes = self._call.preceding(reverse=True)
         return self._find_argument(nodes)
 
+    def forward_write_dependencies(self, ignore_halos=False):
+        '''Returns a list of following write arguments that this argument has
+        dependencies with. The arguments may exist in a call, a
+        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
+        none are found then return an empty list. If self is not a
+        reader then return an empty list.
+
+        :param: ignore_halos: An optional, default `False`, boolean flag
+        :type: ignore_halos: bool
+        :returns: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes = self._call.following()
+        results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
+        return results
+
     def backward_write_dependencies(self, ignore_halos=False):
         '''Returns a list of previous write arguments that this argument has
         dependencies with. The arguments may exist in a call, a
