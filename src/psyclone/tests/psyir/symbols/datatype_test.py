@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownType, DataSymbol
+    ArrayType, UnknownType, DataSymbol, StructureType
 from psyclone.errors import InternalError
 
 
@@ -306,3 +306,11 @@ def test_unknown_type():
     utype = UnknownType(decl)
     assert str(utype) == "UnknownType('" + decl + "')"
     assert utype.declaration == decl
+
+
+# StructureType tests
+
+def test_structure_type():
+    ''' Check that we can create a StructureType object. '''
+    stype = StructureType()
+    assert str(stype) == "Structure<>"

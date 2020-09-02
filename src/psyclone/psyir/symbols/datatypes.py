@@ -346,6 +346,32 @@ class ArrayType(DataType):
             self._datatype, ", ".join(dims)))
 
 
+class StructureType(DataType):
+    '''
+    Describes a 'structure' or 'derived' datatype that is itself composed
+    of a list of other datatypes.
+
+    :param components: the datatypes making up this datatype.
+    :type components: list of :py:class:`psyclone.psyir.symbols.DataType`
+
+    '''
+    def __init__(self, components=None):
+        if components:
+            if not isinstance(components, list):
+                raise TypeError("Expected a list (of DataTypes) but got: "
+                                "'{0}'".format(type(components).__name__))
+            if not all(isinstance(comp, DataType) for comp in components):
+                raise TypeError("Expected a list of DataTypes but got: {0}".
+                                format(components))
+            self._types = components[:]
+        else:
+            # The constituents of this structure are not yet known
+            self._types = []
+
+    def __str__(self):
+        return "Structure<>"
+
+
 # Create common scalar datatypes
 REAL_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
                        ScalarType.Precision.UNDEFINED)
@@ -374,3 +400,7 @@ TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
                       ScalarType.Intrinsic.CHARACTER: str,
                       ScalarType.Intrinsic.BOOLEAN: bool,
                       ScalarType.Intrinsic.REAL: float}
+
+
+# For automatic documentation generation
+__all__ = [UnknownType, DeferredType, ScalarType, ArrayType, StructureType]
