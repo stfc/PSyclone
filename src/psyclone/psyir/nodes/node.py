@@ -39,7 +39,7 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, DataSymbol
 from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
@@ -1133,7 +1133,8 @@ class Node(object):
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
-    def find_or_create_symbol(self, name, scope_limit=None):
+    def find_or_create_symbol(self, name, scope_limit=None,
+                              symbol_type=DataSymbol):
         '''Returns the symbol with the name 'name' from a symbol table
         associated with this node or one of its ancestors.  If the symbol
         is not found and there are no ContainerSymbols with wildcard imports
@@ -1163,8 +1164,8 @@ class Node(object):
             no ContainerSymbols from which it might be brought into scope.
 
         '''
-        from psyclone.psyir.symbols import DataSymbol, UnresolvedInterface, \
-            DeferredType
+        from psyclone.psyir.symbols import UnresolvedInterface, \
+            DeferredType, Symbol
         if scope_limit:
             # Validate the supplied scope_limit
             if not isinstance(scope_limit, Node):
@@ -1209,9 +1210,15 @@ class Node(object):
                 symbol_table = test_node.symbol_table
 
                 try:
-                    # If the reference matches a Symbol in this
-                    # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(name, check_ancestors=False)
+                    # If the reference matches a Symbol of the correct type
+                    # in this SymbolTable then return the Symbol.
+                    sym = symbol_table.lookup(name, check_ancestors=False)
+                    if type(sym) == Symbol or isinstance(sym, symbol_type):
+                        return sym, symbol_table
+                    raise SymbolError(
+                        "Search for a {0} named '{1}' found a {2} "
+                        "instead.".format(symbol_type.__name__, name,
+                                          type(sym).__name__))
                 except KeyError:
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable. Does this SymbolTable have any
@@ -1235,10 +1242,10 @@ class Node(object):
             # it may be being brought into scope. Therefore create a DataSymbol
             # of unknown type and deferred interface and add it to the most
             # local SymbolTable.
-            symbol = DataSymbol(name, DeferredType(),
-                                interface=UnresolvedInterface())
+            symbol = symbol_type(name, DeferredType(),
+                                 interface=UnresolvedInterface())
             first_symbol_table.add(symbol)
-            return symbol
+            return symbol, first_symbol_table
 
         # All requested Nodes have been checked but there has been no
         # match and there are no wildcard imports so raise an exception.
