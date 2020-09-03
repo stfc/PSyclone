@@ -60,9 +60,16 @@ class SymbolTable(object):
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
+    :param parent: parent SymbolTable or None. Used when a SymbolTable is \
+        directly nested within another SymbolTable (as is the case for the \
+        definition of a structure type).
+    :type parent: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :raises TypeError: if node argument is not a Schedule or a Container.
+    :raises TypeError: if parent argument is not a SymbolTable.
 
     '''
-    def __init__(self, node=None):
+    def __init__(self, node=None, parent=None):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -79,6 +86,9 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
+        if parent and not isinstance(parent, SymbolTable):
+            raise TypeError("TODO")
+        self._parent_symbol_table = parent
 
     @property
     def node(self):
@@ -90,6 +100,21 @@ class SymbolTable(object):
 
         '''
         return self._node
+
+    @property
+    def parent(self):
+        '''
+        :returns: the parent SymbolTable of the current SymbolTable.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+        '''
+        # If this table is directly nested within another then that table
+        # takes precedence.
+        if self._parent_symbol_table:
+            return self._parent_symbol_table
+        # Otherwise we move up the Node hierarchy
+        if self.node and self.node.parent:
+            return self.node.parent.scope.symbol_table
+        return None
 
     @property
     def _all_symbols(self):
@@ -104,9 +129,8 @@ class SymbolTable(object):
         '''
         all_symbols = OrderedDict(self._symbols)
         current = self
-        while current.node and current.node.parent:
-            # Use node.parent to get out of the current scope
-            current = current.node.parent.scope.symbol_table
+        while current.parent:
+            current = current.parent
             for symbol_name in current.symbols_dict:
                 if symbol_name not in all_symbols:
                     all_symbols[symbol_name] = current.symbols_dict[
@@ -126,9 +150,8 @@ class SymbolTable(object):
         '''
         all_tags = OrderedDict(self._tags)
         current = self
-        while current.node and current.node.parent:
-            # Use node.parent to get out of the current scope
-            current = current.node.parent.scope.symbol_table
+        while current.parent:
+            current = current.parent
             for tag in current.tags_dict:
                 if tag not in all_tags:
                     all_tags[tag] = current.tags_dict[tag]
@@ -150,6 +173,7 @@ class SymbolTable(object):
         new_st._argument_list = copy(self._argument_list)
         new_st._tags = copy(self._tags)
         new_st._node = self.node
+        new_st._parent_symbol_table = self._parent_symbol_table
         return new_st
 
     @staticmethod
@@ -500,7 +524,7 @@ class SymbolTable(object):
                 symbol.interface.container_symbol is csymbol]
 
     def remove(self, symbol):
-        ''' Remove the supplied ContainerSymbol from the Symbol Table.
+        ''' Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
         Support for removing other types of Symbol will be added as required.
 
         :param symbol: the container symbol to remove.
@@ -513,9 +537,10 @@ class SymbolTable(object):
         :raises InternalError: if the supplied symbol is not the same as the \
                                entry with that name in this SymbolTable.
         '''
-        if not isinstance(symbol, ContainerSymbol):
-            raise TypeError("remove() expects a ContainerSymbol object but "
-                            "got: '{0}'".format(type(symbol).__name__))
+        if not (isinstance(symbol, ContainerSymbol) or type(symbol) == Symbol):
+            raise TypeError("remove() expects a ContainerSymbol or Symbol "
+                            "object but got: '{0}'".format(
+                                type(symbol).__name__))
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
@@ -528,7 +553,8 @@ class SymbolTable(object):
                 "remove() method.".format(symbol.name))
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
-        if self.imported_symbols(symbol):
+        if (isinstance(symbol, ContainerSymbol) and
+                self.imported_symbols(symbol)):
             raise ValueError(
                 "Cannot remove ContainerSymbol '{0}' because symbols "
                 "{1} are imported from it - remove them first.".format(

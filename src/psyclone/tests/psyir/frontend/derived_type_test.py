@@ -75,20 +75,48 @@ def test_missing_derived_type():
     # the definition of 'my_type' can be brought into scope.
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert "hohohoh" in str(err.value)
+    assert "No Symbol found for name 'my_type'" in str(err.value)
+
+
+@pytest.mark.xfail(reason="Needs support for RoutineSymbols added in #872")
+def test_name_clash_derived_type(f2008_parser):
+    ''' Check that the fronted raises an error if it encounters a reference
+    to a derived type that clashes with another symbol. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("module my_mod\n"
+                                 "  type :: my_type\n"
+                                 "    integer :: flag\n"
+                                 "  end type my_type\n"
+                                 "contains\n"
+                                 "  subroutine my_type()\n"
+                                 "    integer :: flag2\n"
+                                 "  end subroutine my_type\n"
+                                 "end module my_mod\n")
+    fparser2spec = f2008_parser(reader)
+    # This should raise an error because there's no Container from which
+    # the definition of 'my_type' can be brought into scope.
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("Search for a TypeSymbol named 'my_type' found a RoutineSymbol "
+            "instead" in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_parse_derived_type():
+@pytest.mark.parametrize("use_stmt", ["use grid_mod, only: grid_type",
+                                      "use grid_mod"])
+def test_parse_derived_type(use_stmt):
     ''' Check that the fronted correctly creates a TypeSymbol of type
     StructureType from the declaration of a derived type. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader("type :: my_type\n"
+    reader = FortranStringReader("{0}\n"
+                                 "type :: my_type\n"
                                  "  integer :: flag\n"
                                  "  type(grid_type) :: grid\n"
-                                 "end type my_type\n")
+                                 "end type my_type\n".format(use_stmt))
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")

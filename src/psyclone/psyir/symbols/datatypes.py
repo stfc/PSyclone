@@ -349,30 +349,30 @@ class ArrayType(DataType):
 class StructureType(DataType):
     '''
     Describes a 'structure' or 'derived' datatype that is itself composed
-    of a list of other datatypes.
+    of a table of symbols.
 
     :param str name: the name of this type.
-    :param components: the datatypes making up this datatype.
-    :type components: list of :py:class:`psyclone.psyir.symbols.DataType`
+    :param symbol_table: symbol table for the constituents of this datatype.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolType`
+
+    :raises TypeError: if symbol_table is not None and is not a SymbolTable.
 
     '''
-    def __init__(self, name, components=None):
+    def __init__(self, name, symbol_table=None, parent=None):
         from psyclone.psyir.symbols.symboltable import SymbolTable
-        self._symbol_table = SymbolTable()
-        if components:
-            if not isinstance(components, list):
-                raise TypeError("Expected a list (of DataTypes) but got: "
-                                "'{0}'".format(type(components).__name__))
-            if not all(isinstance(comp, DataType) for comp in components):
-                raise TypeError("Expected a list of DataTypes but got: {0}".
-                                format(components))
-            self._types = components[:]
+
+        self._name = name.lower()
+
+        if symbol_table:
+            if not isinstance(symbol_table, SymbolTable):
+                raise TypeError("Expected a SymbolTable object but got: "
+                                "'{0}'".format(type(symbol_table).__name__))
+            self._symbol_table = symbol_table
         else:
-            # The constituents of this structure are not yet known
-            self._types = []
+            self._symbol_table = SymbolTable(parent=parent)
 
     def __str__(self):
-        return "Structure<>"
+        return "Structure<{0}>".format(self.name)
 
     @property
     def symbol_table(self):
