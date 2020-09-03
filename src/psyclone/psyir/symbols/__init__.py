@@ -42,6 +42,7 @@ from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
+from psyclone.psyir.symbols.typesymbol import TypeSymbol
 from psyclone.psyir.symbols.symboltable import SymbolTable
 from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
     ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
@@ -79,4 +80,5 @@ __all__ = ['TYPE_MAP_TO_PYTHON',
            'BOOLEAN_TYPE',
            'CHARACTER_TYPE',
            'DeferredType',
-           'RoutineSymbol']
+           'RoutineSymbol',
+           'TypeSymbol']

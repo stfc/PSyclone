@@ -39,9 +39,12 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import SymbolError, DeferredType
-from fparser.common.readfortran import FortranStringReader
+from psyclone.psyGen import KernelSchedule
+from psyclone.psyir.symbols import (SymbolError, DeferredType, StructureType,
+                                    TypeSymbol, DataSymbol, ScalarType)
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two.Fortran2003 import Specification_Part
+from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -73,3 +76,27 @@ def test_missing_derived_type():
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert "hohohoh" in str(err.value)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_parse_derived_type():
+    ''' Check that the fronted correctly creates a TypeSymbol of type
+    StructureType from the declaration of a derived type. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type :: my_type\n"
+                                 "  integer :: flag\n"
+                                 "  type(grid_type) :: grid\n"
+                                 "end type my_type\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("my_type")
+    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym.datatype, StructureType)
+    flag_sym = sym.datatype.symbol_table.lookup("flag")
+    assert isinstance(flag_sym, DataSymbol)
+    assert isinstance(flag_sym.datatype, ScalarType)
+    grid_sym = sym.datatype.symbol_table.lookup("grid")
+    assert isinstance(grid_sym, DataSymbol)
+    assert isinstance(grid_sym.datatype, DeferredType)

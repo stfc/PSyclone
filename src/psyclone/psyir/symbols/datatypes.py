@@ -351,11 +351,14 @@ class StructureType(DataType):
     Describes a 'structure' or 'derived' datatype that is itself composed
     of a list of other datatypes.
 
+    :param str name: the name of this type.
     :param components: the datatypes making up this datatype.
     :type components: list of :py:class:`psyclone.psyir.symbols.DataType`
 
     '''
-    def __init__(self, components=None):
+    def __init__(self, name, components=None):
+        from psyclone.psyir.symbols.symboltable import SymbolTable
+        self._symbol_table = SymbolTable()
         if components:
             if not isinstance(components, list):
                 raise TypeError("Expected a list (of DataTypes) but got: "
@@ -370,6 +373,13 @@ class StructureType(DataType):
 
     def __str__(self):
         return "Structure<>"
+
+    @property
+    def symbol_table(self):
+        '''
+        TODO
+        '''
+        return self._symbol_table
 
 
 # Create common scalar datatypes
