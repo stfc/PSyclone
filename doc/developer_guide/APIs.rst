@@ -698,6 +698,80 @@ determined by the halo exchange itself at code generation time. The
 reason for deferring this information is that it can change as
 transformations are applied.
 
+Halo Exchanges and Loop transformations
++++++++++++++++++++++++++++++++++++++++
+
+When a transformation (such as redundant computation) is applied to a
+loop containing a kernel, it can affect the surrounding halo
+exchanges. Consider the following example:
+
+::
+    0: Loop[type='dofs', upper_bound='nannexed']
+        0: BuiltIn setval_x(f2,f1)
+    1: HaloExchange[field='f1', check_dirty=True]
+    2: Loop[type='cells', upper_bound='cell_halo(1)']
+        0: CodedKern testkern_code(f2,f1)
+
+A potential halo exchange for field ``f1`` is required as the
+``testkern_code`` kernel reads field ``f1`` in its level 1 halo.
+
+If we transform the code so that the ``setval_c`` kernel computes
+redundantly to the level 1 halo:
+
+::
+    0: HaloExchange[field='f1', check_dirty=True]
+    1: Loop[type='dofs', upper_bound='dof_halo(1)']
+        0: BuiltIn setval_x(f2,f1)
+    2: Loop[type='cells', upper_bound='cell_halo(1)']
+        0: CodedKern testkern_code(f2,f1)
+
+then a potential halo exchange for field `f1` is now required before
+the ``setval_c`` kernel and the halo exchange before the
+``testkern_code`` kernel is not required (as it is covered by the
+first halo exchange.
+
+After such a transformation is applied then halo exchanges are managed
+by checking whether 1) any fields in the modified kernel now
+require a halo exchange before the kernel and adding any if
+so and 2) any existing halo exchanges after the loop that were
+required due to fields being modified in the loop are then checked to
+see if they are still required and are removed if not. Performing
+these 2 steps maintains halo exchange correctness and continues to
+minimise the number of required halo exchanges.
+
+Note, the actual halo exchange extents (their depths) are computed
+dynamically so are not a concern at this point.
+
+A general rule is that a halo exchange must not have a dependence with
+another halo exchange, as this would mean that one of them is not
+required. PSyclone should raise an exeption if it finds this
+situation.
+
+However, due to the two step halo exchange management process, there
+can be a transient situation after the first step where a halo
+exchange can temporarily depend on another halo exchange. If we
+revisit the previous example and consider the state of the system once
+the first step has completed:
+
+::
+    0: HaloExchange[field='f1', check_dirty=True]
+    1: Loop[type='dofs', upper_bound='dof_halo(1)']
+        0: BuiltIn setval_x(f2,f1)
+    2: HaloExchange[field='f1', check_dirty=True]
+    3: Loop[type='cells', upper_bound='cell_halo(1)']
+        0: CodedKern testkern_code(f2,f1)
+
+we have a transient situation where a halo exchange has been added
+before the ``setval_x`` kernel but the halo exchange before the
+``testkern_code`` kernel has not yet been removed. Therefore, when
+adding, updating or removing halo exchanges the test for whether halo
+exchanges have a dependence between each other must be temporarily
+disabled. This is achieved by the ``ignore_hex_dep`` argument being
+set to ``True`` in the ``_add_halo_exchange_code`` function within the
+``DynLoop`` class and the actual check that is skipped is implemented
+in the ``_compute_halo_read_info`` function within the
+``DynHaloExchange`` class.
+
 Asynchronous Halo Exchanges
 +++++++++++++++++++++++++++
 
