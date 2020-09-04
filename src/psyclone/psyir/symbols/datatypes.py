@@ -375,6 +375,12 @@ class StructureType(DataType):
         return "Structure<{0}>".format(self.name)
 
     @property
+    def name(self):
+        ''' TODO
+        '''
+        return self._name
+
+    @property
     def symbol_table(self):
         '''
         TODO
