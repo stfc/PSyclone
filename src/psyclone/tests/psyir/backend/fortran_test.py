@@ -575,7 +575,7 @@ def test_gen_decls(fort_writer):
     symbol_table.add(ContainerSymbol("my_module"))
     use_statement = DataSymbol("my_use", DeferredType(),
                                interface=GlobalInterface(
-                                   symbol_table.lookup("my_module")))
+                                   symbol_table.lookup("my_module")[0]))
     symbol_table.add(use_statement)
     argument_variable = DataSymbol("arg", INTEGER_TYPE,
                                    interface=ArgumentInterface())

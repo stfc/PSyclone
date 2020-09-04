@@ -96,7 +96,7 @@ class DataSymbol(Symbol):
                 tmp = self.interface
                 module = self.interface.container_symbol
                 try:
-                    extern_symbol = module.container.symbol_table.lookup(
+                    extern_symbol, _ = module.container.symbol_table.lookup(
                         self.name, visibility=Symbol.Visibility.PUBLIC)
                 except KeyError:
                     raise SymbolError(

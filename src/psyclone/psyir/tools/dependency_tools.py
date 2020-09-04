@@ -362,7 +362,7 @@ class DependencyTools(object):
             if var_name in variables_to_ignore:
                 continue
             # Find the symbol for this variable
-            symbol = loop.find_or_create_symbol(var_name)
+            symbol, _ = loop.find_or_create_symbol(var_name)
             var_info = var_accesses[var_name]
             if symbol.is_array:
                 # Handle arrays

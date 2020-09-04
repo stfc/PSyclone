@@ -770,7 +770,7 @@ def test_find_or_create_new_symbol():
     assert isinstance(new_symbol.interface, UnresolvedInterface)
     assert isinstance(new_symbol.datatype, DeferredType)
     assert "undefined" not in container.symbol_table
-    assert kernel1.symbol_table.lookup("undefined") is new_symbol
+    assert kernel1.symbol_table.lookup("undefined")[0] is new_symbol
 
 
 def test_nemo_find_container_symbol(parser):
