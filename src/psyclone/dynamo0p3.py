@@ -7262,6 +7262,36 @@ class DynKern(CodedKern):
 
         super(DynKern, self).gen_code(parent)
 
+    def get_kernel_schedule(self):
+        '''Returns an LFRic PSyIR Schedule representing the kernel code. The
+        base class creates the PSyIR schedule on first invocation
+        which is then transformed to an LFRic PSyIR Schedule here. The
+        Schedule is just generated on first invocation, this allows us
+        to retain transformations that may subsequently be applied to
+        the Schedule (but will not adapt to transformations applied to
+        the fparser2 AST).
+
+        :returns: LFRic Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+
+        '''
+        if self._kern_schedule is None:
+            # Get the PSyIR Kernel Schedule
+            psyir_schedule = super(DynKern, self).get_kernel_schedule()
+            # Step 1 will replace the PSyIR data symbols with LFRic
+            # data symbols where they are known. We will eventually
+            # have a function or class to do the translation, but for
+            # the moment we do it inline here.
+
+            # For each data symbol that is a kernel argument we
+            # replace it with the LFRic version.
+            # [TBD]
+            
+            # For the moment we simply return the unmodified PSyIR schedule
+            self._kern_schedule = psyir_schedule
+        return self._kern_schedule
+
+
 # class DinoWriters(ArgOrdering):
 #    def __init__(self, kern, parent=None, position=None):
 #        ArgOrdering.__init__(self, kern)
