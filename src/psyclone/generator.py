@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -282,8 +282,12 @@ def main(args):
         '-I', '--include', default=[], action="append",
         help='path to Fortran INCLUDE or module files')
     parser.add_argument(
-        '-l', '--limit', dest='limit', action='store_true', default=False,
-        help='limit the fortran line length to 132 characters')
+        '-l', '--limit', dest='limit', default='off',
+        choices=['off', 'all', 'output'],
+        help='limit the Fortran line length to 132 characters (default '
+        '\'%(default)s\'). Use \'all\' to apply limit to both input and '
+        'output Fortran. Use \'output\' to apply line-length limit to output '
+        'Fortran only.')
     parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
         help='generate distributed memory code')
@@ -319,11 +323,11 @@ def main(args):
         if not os.path.exists(args.okern):
             print("Specified kernel output directory ({0}) does not exist.".
                   format(args.okern), file=sys.stderr)
-            exit(1)
+            sys.exit(1)
         if not os.access(args.okern, os.W_OK):
             print("Cannot write to specified kernel output directory ({0}).".
                   format(args.okern), file=sys.stderr)
-            exit(1)
+            sys.exit(1)
         kern_out_path = args.okern
     else:
         # We write any transformed kernels to the current working directory
@@ -343,7 +347,7 @@ def main(args):
         print("Unsupported API '{0}' specified. Supported API's are "
               "{1}.".format(args.api, Config.get().supported_apis),
               file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
         # as API in the config object as well.
@@ -361,13 +365,13 @@ def main(args):
             Config.get().include_paths = ["./"]
     except ConfigurationError as err:
         print(str(err), file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     try:
         alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
-                            line_length=args.limit,
+                            line_length=(args.limit == 'all'),
                             distributed_memory=args.dist_mem,
                             kern_out_path=kern_out_path,
                             kern_naming=args.kernel_renaming)
@@ -385,7 +389,7 @@ def main(args):
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
         print(exc_value, file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     except Exception:  # pylint: disable=broad-except
         print("Error, unexpected exception, please report to the authors:",
               file=sys.stderr)
@@ -396,8 +400,10 @@ def main(args):
         print(exc_type, file=sys.stderr)
         print("Stacktrace ...", file=sys.stderr)
         traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
-        exit(1)
-    if args.limit:
+        sys.exit(1)
+    if args.limit != 'off':
+        # Limit the line length of the output Fortran to ensure it conforms
+        # to the 132 characters mandated by the standard.
         fll = FortLineLength()
         psy_str = fll.process(str(psy))
         alg_str = fll.process(str(alg))

@@ -54,6 +54,10 @@ from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+NEMO_BASE_PATH =  os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "nemo", "test_files")
+DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "dynamo0p3")
 
 
 def delete_module(modname):
@@ -341,10 +345,6 @@ def test_script_trans():
     assert str(generated_code_1) == str(generated_code_2)
 
 
-DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "dynamo0p3")
-
-
 def test_alg_lines_too_long_tested():
     ''' Test that the generate function causes an exception if the
     line_length argument is set to True and the algorithm file has
@@ -567,14 +567,44 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert expected_output in output
 
 
-def test_main_fort_line_length(capsys):
-    '''Tests that the fortran line length object works correctly. Without
+@pytest.mark.parametrize("limit", ['all', 'output'])
+def test_main_fort_line_length(capsys, limit):
+    '''Tests that the Fortran line length object works correctly. Without
     the -l option one of the generated psy-layer lines would be longer
-    than 132 characters'''
+    than 132 characters. Since it is in the output code, both the 'all' and
+   'output' options should cause the limit to be applied. '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'dynamo0.3', '-l'])
+    main([filename, '-api', 'dynamo0.3', '-l', limit])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+
+@pytest.mark.parametrize("limit", [[], ['-l', 'off']])
+def test_main_fort_line_length_off(capsys, limit):
+    '''Tests that the Fortran line-length limiting is off by default and is
+    also disabled by `-l off`. One of the generated psy-layer lines should be
+    longer than 132 characters. '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'dynamo0.3'] + limit)
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+
+def test_main_fort_line_length_output_only(capsys):
+    ''' Check that the '-l output' option disables the line-length check on
+    input files but still limits the line lengths in the output. '''
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    # If line-length checking is enabled then we should abort
+    with pytest.raises(SystemExit):
+        main([alg_filename, '-api', 'nemo', '-l', 'all'])
+    _, error = capsys.readouterr()
+    assert "does not conform to the specified 132 line length limit" in error
+    # If we only mandate that the output be limited then we should be fine
+    main([alg_filename, '-api', 'nemo', '-l', 'output'])
     output, _ = capsys.readouterr()
     for line in output.split('\n'):
         assert len(line) <= 132
