@@ -436,7 +436,16 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
                 "symbol '{0}'.".format(precision_name))
         # Lookup the precision symbol
         try:
-            symbol = symbol_table.lookup(precision_name)
+            symbol, table = symbol_table.lookup(precision_name)
+            if type(symbol) == Symbol:
+                # It exists but is only a generic Symbol so we replace it with
+                # a DataSymbol.
+                new_symbol = DataSymbol(precision_name, DeferredType(),
+                                        visibility=symbol.visibility,
+                                        interface=symbol.interface)
+                table.remove(symbol)
+                table.add(new_symbol)
+                symbol = new_symbol
         except KeyError:
             # The symbol is not found so create a data
             # symbol with deferred type and add it to the
@@ -900,7 +909,7 @@ class Fparser2Reader(object):
                     # scope).
                     dim_name = dim.items[1].string.lower()
                     try:
-                        sym = symbol_table.lookup(dim_name)
+                        sym, _ = symbol_table.lookup(dim_name)
                         if isinstance(sym.datatype, (UnknownType,
                                                      DeferredType)):
                             # Allow symbols of Unknown/DeferredType.
@@ -1073,7 +1082,7 @@ class Fparser2Reader(object):
                 parent.symbol_table.add(container, check_ancestors=False)
             else:
                 new_container = False
-                container = parent.symbol_table.lookup(mod_name)
+                container, _ = parent.symbol_table.lookup(mod_name)
                 if not isinstance(container, ContainerSymbol):
                     raise SymbolError(
                         "Found a USE of module '{0}' but the symbol table "
@@ -1081,7 +1090,7 @@ class Fparser2Reader(object):
                         "({1}). This is invalid Fortran.".format(
                             mod_name, str(container)))
 
-            # Create a 'deferred' symbol for each element in the ONLY clause.
+            # Create a basic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 if not new_container and not container.wildcard_import \
                    and not parent.symbol_table.imported_symbols(container):
@@ -1095,12 +1104,12 @@ class Fparser2Reader(object):
                     sym_name = str(name).lower()
                     if sym_name not in parent.symbol_table:
                         parent.symbol_table.add(
-                            DataSymbol(sym_name,
-                                       DeferredType(),
-                                       interface=GlobalInterface(container)))
+                            Symbol(sym_name,
+                                   interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
-                        existing_symbol = parent.symbol_table.lookup(sym_name)
+                        existing_symbol, _ = parent.symbol_table.lookup(
+                            sym_name)
                         if not existing_symbol.is_global:
                             raise SymbolError(
                                 "Symbol '{0}' is imported from module '{1}' "
@@ -1386,7 +1395,7 @@ class Fparser2Reader(object):
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.
-                sym = parent.symbol_table.lookup(sym_name)
+                sym, _ = parent.symbol_table.lookup(sym_name)
                 if not sym.is_unresolved:
                     raise SymbolError(
                         "Symbol '{0}' already present in SymbolTable with "
@@ -1488,7 +1497,7 @@ class Fparser2Reader(object):
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
             for arg_name in [x.string.lower() for x in arg_list]:
-                symbol = parent.symbol_table.lookup(arg_name)
+                symbol, _ = parent.symbol_table.lookup(arg_name)
                 if symbol.is_local:
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
@@ -1513,7 +1522,7 @@ class Fparser2Reader(object):
         for stmtfn in walk(nodes, Fortran2003.Stmt_Function_Stmt):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
-                symbol = parent.symbol_table.lookup(fn_name.string.lower())
+                symbol, _ = parent.symbol_table.lookup(fn_name.string.lower())
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
@@ -1637,21 +1646,32 @@ class Fparser2Reader(object):
         '''
         lower_name = name.lower()
         try:
-            kind_symbol = symbol_table.lookup(lower_name)
-            if not (isinstance(kind_symbol.datatype,
-                               (UnknownType, DeferredType)) or
-                    (isinstance(kind_symbol.datatype, ScalarType) and
-                     kind_symbol.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER)):
-                raise TypeError(
-                    "SymbolTable already contains an entry for "
-                    "variable '{0}' used as a kind parameter but it "
-                    "is not a 'deferred', 'unknown' or 'scalar integer' type.".
-                    format(lower_name))
-            # A KIND parameter must be of type integer so set it here
-            # (in case it was previously 'deferred'). We don't know
-            # what precision this is so set it to the default.
-            kind_symbol.datatype = default_integer_type()
+            kind_symbol, table = symbol_table.lookup(lower_name)
+            if type(kind_symbol) == Symbol:
+                # There is an existing entry but it's only a generic Symbol
+                # so we need to replace it with a DataSymbol of integer type.
+                new_symbol = DataSymbol(lower_name,
+                                        default_integer_type(),
+                                        visibility=kind_symbol.visibility,
+                                        interface=kind_symbol.interface)
+                table.remove(kind_symbol)
+                table.add(new_symbol)
+                kind_symbol = new_symbol
+            else:
+                if not (isinstance(kind_symbol.datatype,
+                                   (UnknownType, DeferredType)) or
+                        (isinstance(kind_symbol.datatype, ScalarType) and
+                         kind_symbol.datatype.intrinsic ==
+                         ScalarType.Intrinsic.INTEGER)):
+                    raise TypeError(
+                        "SymbolTable already contains an entry for "
+                        "variable '{0}' used as a kind parameter but it is not"
+                        "a 'deferred', 'unknown' or 'scalar integer' type.".
+                        format(lower_name))
+                # A KIND parameter must be of type integer so set it here
+                # (in case it was previously 'deferred'). We don't know
+                # what precision this is so set it to the default.
+                kind_symbol.datatype = default_integer_type()
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't

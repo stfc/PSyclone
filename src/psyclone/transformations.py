@@ -52,7 +52,7 @@ from psyclone.undoredo import Memento
 from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
-    INTEGER_TYPE, DataSymbol
+    INTEGER_TYPE, DataSymbol, Symbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -3682,49 +3682,55 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_symbols[:]:
 
             # Resolve the data type information if it is not available
-            if isinstance(globalvar.datatype, DeferredType):
-                globalvar.resolve_deferred()
+            if (type(globalvar) == Symbol or
+                    isinstance(globalvar.datatype, DeferredType)):
+                updated_sym = globalvar.resolve_deferred()
+                # TODO I could pass the symbol_table to resolve_deferred()
+                # and have it do this step.
+                if updated_sym is not globalvar:
+                    kernel.symbol_table.remove(globalvar)
+                    kernel.symbol_table.add(updated_sym)
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(
-                globalvar, tag="AlgArgs_" + globalvar.name)
+                updated_sym, tag="AlgArgs_" + updated_sym.name)
 
             # Keep a reference to the original container so that we can
             # update it after the interface has been updated.
-            container = globalvar.interface.container_symbol
+            container = updated_sym.interface.container_symbol
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            if globalvar.is_constant:
+            if updated_sym.is_constant:
                 # Global constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                globalvar.constant_value = None
-                globalvar.interface = ArgumentInterface(
+                updated_sym.constant_value = None
+                updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:
-                globalvar.interface = ArgumentInterface(
+                updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READWRITE)
-            current_arg_list.append(globalvar)
+            current_arg_list.append(updated_sym)
             symtab.specify_argument_list(current_arg_list)
 
             # Convert PSyIR DataTypes to Gocean VALID_SCALAR_TYPES
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            if updated_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            elif updated_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
                     "The global variable '{0}' could not be promoted to an "
                     "argument because the GOcean infrastructure does not have"
                     " any scalar type equivalent to the PSyIR {1} type.".
-                    format(globalvar.name, globalvar.datatype))
+                    format(updated_sym.name, updated_sym.datatype))
 
             # Add the global variable in the call argument list
-            node.arguments.append(globalvar.name, go_space)
+            node.arguments.append(updated_sym.name, go_space)
 
             # Check whether we still need the Container symbol from which
             # this global was originally accessed

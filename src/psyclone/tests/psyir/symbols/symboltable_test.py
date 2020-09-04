@@ -234,8 +234,8 @@ def test_add_2():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol1 = schedule_symbol_table.lookup("symbol1")
-    symbol2 = container_symbol_table.lookup("symbol2")
+    symbol1, _ = schedule_symbol_table.lookup("symbol1")
+    symbol2, _ = container_symbol_table.lookup("symbol2")
 
     # A clash in this symbol table should raise an exception
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -295,7 +295,7 @@ def test_add_with_tags_2():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol1 = schedule_symbol_table.lookup("symbol1")
+    symbol1, _ = schedule_symbol_table.lookup("symbol1")
     symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
 
     # A clash of tags in this symbol table should raise an exception
@@ -378,13 +378,14 @@ def test_remove():
     array_type = ArrayType(REAL_TYPE, [5, 1])
     sym_table.add(DataSymbol("var1", array_type,
                              interface=GlobalInterface(my_mod)))
-    var1 = sym_table.lookup("var1")
+    var1, _ = sym_table.lookup("var1")
     assert var1
     assert sym_table.imported_symbols(my_mod) == [var1]
     # We should not be able to remove a Symbol that is not a ContainerSymbol
     with pytest.raises(TypeError) as err:
         sym_table.remove(var1)
-    assert "expects a ContainerSymbol object but got" in str(err.value)
+    assert ("expects a ContainerSymbol or Symbol object but got" in
+            str(err.value))
     # We should not be able to remove a Container if it is referenced
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
@@ -406,7 +407,7 @@ def test_remove():
     # Attempt to supply something that is not a Symbol
     with pytest.raises(TypeError) as err:
         sym_table.remove("broken")
-    assert ("remove() expects a ContainerSymbol object but got: "
+    assert ("remove() expects a ContainerSymbol or Symbol object but got: "
             in str(err.value))
     # Attempting to remove a Symbol that is not in the table but that has
     # the same name as an entry in the table is an error
@@ -514,12 +515,12 @@ def test_lookup_1():
     sym_table.add(DataSymbol("var2", INTEGER_TYPE))
     sym_table.add(DataSymbol("var3", REAL_TYPE))
 
-    assert isinstance(sym_table.lookup("var1"), DataSymbol)
-    assert sym_table.lookup("var1").name == "var1"
-    assert isinstance(sym_table.lookup("var2"), DataSymbol)
-    assert sym_table.lookup("var2").name == "var2"
-    assert isinstance(sym_table.lookup("var3"), DataSymbol)
-    assert sym_table.lookup("var3").name == "var3"
+    assert isinstance(sym_table.lookup("var1")[0], DataSymbol)
+    assert sym_table.lookup("var1")[0].name == "var1"
+    assert isinstance(sym_table.lookup("var2")[0], DataSymbol)
+    assert sym_table.lookup("var2")[0].name == "var2"
+    assert isinstance(sym_table.lookup("var3")[0], DataSymbol)
+    assert sym_table.lookup("var3")[0].name == "var3"
 
     with pytest.raises(KeyError) as error:
         sym_table.lookup("notdeclared")
@@ -539,15 +540,15 @@ def test_lookup_2():
     sym3 = Symbol("var3", visibility=Symbol.Visibility.PUBLIC)
     sym_table.add(sym3)
     # Default visibility is PUBLIC
-    assert (sym_table.lookup("var1", visibility=Symbol.Visibility.PUBLIC)
+    assert (sym_table.lookup("var1", visibility=Symbol.Visibility.PUBLIC)[0]
             is sym1)
-    assert (sym_table.lookup("var3", visibility=[Symbol.Visibility.PUBLIC])
+    assert (sym_table.lookup("var3", visibility=[Symbol.Visibility.PUBLIC])[0]
             is sym3)
     # Check method accepts a list of visibilities
-    assert (sym_table.lookup("var1", visibility=[Symbol.Visibility.PUBLIC])
+    assert (sym_table.lookup("var1", visibility=[Symbol.Visibility.PUBLIC])[0]
             is sym1)
     assert (sym_table.lookup("var1", visibility=[Symbol.Visibility.PRIVATE,
-                                                 Symbol.Visibility.PUBLIC])
+                                                 Symbol.Visibility.PUBLIC])[0]
             is sym1)
     # Check we get the expected error if the symbol exists but doesn't
     # have the requested visibility
@@ -560,7 +561,7 @@ def test_lookup_2():
         sym_table.lookup("var2", visibility="PUBLIC")
     assert ("the 'visibility' argument to lookup() must be an instance (or "
             "list of instances) of Symbol.Visibility but got 'str' when "
-            "searching for symbol 'var2'"in str(err))
+            "searching for symbol 'var2'" in str(err))
 
 
 def test_lookup_3():
@@ -584,8 +585,8 @@ def test_lookup_4():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol1 = schedule_symbol_table.lookup("symbol1")
-    symbol2 = container_symbol_table.lookup("symbol2")
+    symbol1, _ = schedule_symbol_table.lookup("symbol1")
+    symbol2, _ = container_symbol_table.lookup("symbol2")
 
     # raise an exception if the symbol is not found
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -596,7 +597,7 @@ def test_lookup_4():
     # The symbol is in an ancestor symbol table. This will not be
     # found if check_ancestors=False
     for arg in {}, {"check_ancestors": True}:
-        assert schedule_symbol_table.lookup(symbol2.name, **arg) is symbol2
+        assert schedule_symbol_table.lookup(symbol2.name, **arg)[0] is symbol2
     with pytest.raises(KeyError) as info:
         schedule_symbol_table.lookup(symbol2.name, check_ancestors=False)
     assert ("Could not find 'symbol2' in the Symbol Table."
@@ -612,12 +613,12 @@ def test_lookup_4():
     assert (
         schedule_symbol_table.lookup(
             symbol2.name, visibility=Symbol.Visibility.PUBLIC,
-            check_ancestors=True)
+            check_ancestors=True)[0]
         is symbol2)
     with pytest.raises(SymbolError) as info:
         schedule_symbol_table.lookup(
             symbol2.name, visibility=Symbol.Visibility.PRIVATE,
-            check_ancestors=True)
+            check_ancestors=True)[0]
     assert ("Symbol 'symbol2' exists in the Symbol Table but has visibility "
             "'PUBLIC' which does not match with the requested visibility: "
             "['PRIVATE']" in str(info.value))
@@ -665,7 +666,7 @@ def test_lookup_with_tag_3():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol2 = container_symbol_table.lookup("symbol2")
+    symbol2, _ = container_symbol_table.lookup("symbol2")
 
     # raise an exception if the tag is not found
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
@@ -744,7 +745,7 @@ def test_specify_argument_list():
 
     # Check that specifying the Interface allows us to specify how
     # the argument is accessed
-    sym_v2 = sym_table.lookup("var2")
+    sym_v2, _ = sym_table.lookup("var2")
     sym_v2.interface = ArgumentInterface(ArgumentInterface.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1, sym_v2])
     assert sym_table.argument_list[1].is_argument
@@ -759,7 +760,7 @@ def test_specify_arg_list_errors():
     sym_table = SymbolTable()
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     sym_table.add(DataSymbol("var2", REAL_TYPE))
-    sym_v1 = sym_table.lookup("var1")
+    sym_v1, _ = sym_table.lookup("var1")
     # Attempt to say the argument list consists of "var1" which at this
     # point is just a local variable.
     with pytest.raises(ValueError) as err:
@@ -784,7 +785,7 @@ def test_argument_list_errors():
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     # Manually put a local symbol into the internal list of arguments
-    sym_table._argument_list = [sym_table.lookup("var1")]
+    sym_table._argument_list = [sym_table.lookup("var1")[0]]
     with pytest.raises(ValueError) as err:
         sym_table._validate_arg_list(sym_table._argument_list)
     pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has an "
@@ -797,9 +798,9 @@ def test_argument_list_errors():
     assert re.search(pattern, str(err.value)) is not None
     # Check that we reject a symbol imported from a module
     with pytest.raises(ValueError) as err:
-        sym_table._validate_arg_list([sym_table.lookup("var3")])
+        sym_table._validate_arg_list([sym_table.lookup("var3")[0]])
     # Manually put that symbol into the argument list
-    sym_table._argument_list = [sym_table.lookup("var3")]
+    sym_table._argument_list = [sym_table.lookup("var3")[0]]
     pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
                r"interface of type")
     assert re.search(pattern, str(err.value)) is not None
@@ -880,23 +881,23 @@ def test_local_datasymbols():
     sym_table.add(DataSymbol("var3", REAL_TYPE))
 
     assert len(sym_table.local_datasymbols) == 3
-    assert sym_table.lookup("var1") in sym_table.local_datasymbols
-    assert sym_table.lookup("var2") in sym_table.local_datasymbols
-    assert sym_table.lookup("var3") in sym_table.local_datasymbols
-    sym_v1 = sym_table.lookup("var1")
+    assert sym_table.lookup("var1")[0] in sym_table.local_datasymbols
+    assert sym_table.lookup("var2")[0] in sym_table.local_datasymbols
+    assert sym_table.lookup("var3")[0] in sym_table.local_datasymbols
+    sym_v1, _ = sym_table.lookup("var1")
     sym_v1.interface = ArgumentInterface(ArgumentInterface.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.local_datasymbols) == 2
-    assert sym_table.lookup("var1") not in sym_table.local_datasymbols
-    assert sym_table.lookup("var2") in sym_table.local_datasymbols
-    assert sym_table.lookup("var3") in sym_table.local_datasymbols
+    assert sym_table.lookup("var1")[0] not in sym_table.local_datasymbols
+    assert sym_table.lookup("var2")[0] in sym_table.local_datasymbols
+    assert sym_table.lookup("var3")[0] in sym_table.local_datasymbols
 
     sym_table.add(DataSymbol("var4", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
     assert len(sym_table.local_datasymbols) == 2
-    assert sym_table.lookup("var4") not in sym_table.local_datasymbols
+    assert sym_table.lookup("var4")[0] not in sym_table.local_datasymbols
 
 
 def test_global_symbols():
@@ -916,19 +917,19 @@ def test_global_symbols():
     sym_table.add(DataSymbol("gvar1", REAL_TYPE,
                              interface=GlobalInterface(
                                  ContainerSymbol("my_mod"))))
-    assert sym_table.lookup("gvar1") in sym_table.global_symbols
+    assert sym_table.lookup("gvar1")[0] in sym_table.global_symbols
     sym_table.add(
         DataSymbol("gvar2", REAL_TYPE,
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)))
     gsymbols = sym_table.global_symbols
     assert len(gsymbols) == 1
-    assert sym_table.lookup("gvar2") not in gsymbols
+    assert sym_table.lookup("gvar2")[0] not in gsymbols
     # Add another global symbol
     sym_table.add(RoutineSymbol("my_sub",
                                 interface=GlobalInterface(
                                     ContainerSymbol("my_mod"))))
-    assert sym_table.lookup("my_sub") in sym_table.global_symbols
+    assert sym_table.lookup("my_sub")[0] in sym_table.global_symbols
     assert len(sym_table.global_symbols) == 2
 
 
@@ -996,9 +997,9 @@ def test_copy_external_global():
     assert "my_mod" in symtab
     assert var.interface.container_symbol.name == "my_mod"
     # The symtab items should be new copies not connected to the original
-    assert symtab.lookup("a") != var
-    assert symtab.lookup("my_mod") != container
-    assert symtab.lookup("a").interface.container_symbol != container
+    assert symtab.lookup("a")[0] != var
+    assert symtab.lookup("my_mod")[0] != container
+    assert symtab.lookup("a")[0].interface.container_symbol != container
 
     # Copy a second globalvar with a reference to the same external Container
     container2 = ContainerSymbol("my_mod")
@@ -1008,13 +1009,13 @@ def test_copy_external_global():
     assert "b" in symtab
     assert "my_mod" in symtab
     assert var2.interface.container_symbol.name == "my_mod"
-    assert symtab.lookup("b") != var2
-    assert symtab.lookup("my_mod") != container2
-    assert symtab.lookup("b").interface.container_symbol != container2
+    assert symtab.lookup("b")[0] != var2
+    assert symtab.lookup("my_mod")[0] != container2
+    assert symtab.lookup("b")[0].interface.container_symbol != container2
 
     # The new globalvar should reuse the available container reference
-    assert symtab.lookup("a").interface.container_symbol == \
-        symtab.lookup("b").interface.container_symbol
+    assert symtab.lookup("a")[0].interface.container_symbol == \
+        symtab.lookup("b")[0].interface.container_symbol
 
     # The copy of globalvars that already exist is supported
     var3 = DataSymbol("b", DeferredType(),
@@ -1084,7 +1085,7 @@ def test_shallow_copy():
     # Create a copy and check the contents are the same
     symtab2 = symtab.shallow_copy()
     assert "symbol1" in symtab2
-    assert symtab2.lookup("symbol1") == sym1
+    assert symtab2.lookup("symbol1")[0] == sym1
     assert symtab2.lookup_with_tag("tag1") == sym2
     assert symtab2._node == dummy
     assert sym1 in symtab2.argument_list
@@ -1109,13 +1110,13 @@ def test_name_from_tag_1():
 
     # If the tag does not exist, create a symbol with the tag as name
     assert symtab.name_from_tag("tag2") == "tag2"
-    assert symtab.lookup("tag2").name == "tag2"
+    assert symtab.lookup("tag2")[0].name == "tag2"
     assert symtab.lookup_with_tag("tag2").name == "tag2"
 
     # If the tag does not exist and a root name is given, create a new
     # symbol with the given name as root
     assert symtab.name_from_tag("tag3", root="newsymbol") == "newsymbol"
-    assert symtab.lookup("newsymbol").name == "newsymbol"
+    assert symtab.lookup("newsymbol")[0].name == "newsymbol"
     assert symtab.lookup_with_tag("tag3").name == "newsymbol"
     assert symtab.name_from_tag("tag4", root="newsymbol") == "newsymbol_1"
 
@@ -1128,7 +1129,7 @@ def test_name_from_tag_2():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol2 = container_symbol_table.lookup("symbol2")
+    symbol2, _ = container_symbol_table.lookup("symbol2")
 
     # The tag is in an ancestor symbol table. This will not be
     # found if check_ancestors=False
@@ -1154,7 +1155,8 @@ def test_all_symbols():
     # node.
     all_symbols = schedule_symbol_table._all_symbols
     assert len(all_symbols) == 1
-    assert all_symbols[symbol1.name] is symbol1
+    assert all_symbols[symbol1.name][0] is symbol1
+    assert all_symbols[symbol1.name][1] is schedule_symbol_table
 
     schedule = KernelSchedule.create("my_kernel", schedule_symbol_table, [])
     container_symbol_table = SymbolTable()
@@ -1167,14 +1169,17 @@ def test_all_symbols():
     # node which has no parent.
     all_symbols = container_symbol_table._all_symbols
     assert len(all_symbols) == 1
-    assert all_symbols[symbol2.name] is symbol2
+    assert all_symbols[symbol2.name][0] is symbol2
+    assert all_symbols[symbol2.name][1] is container_symbol_table
 
     # all_symbols() works when the symbol table has ancestor symbol
     # tables.
     all_symbols = schedule_symbol_table._all_symbols
     assert len(all_symbols) == 2
-    assert all_symbols[symbol1.name] is symbol1
-    assert all_symbols[symbol2.name] is symbol2
+    assert all_symbols[symbol1.name][0] is symbol1
+    assert all_symbols[symbol1.name][1] is schedule_symbol_table
+    assert all_symbols[symbol2.name][0] is symbol2
+    assert all_symbols[symbol2.name][1] is container_symbol_table
 
 
 def test_all_tags():

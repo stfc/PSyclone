@@ -244,6 +244,38 @@ class Symbol(object):
             # Use the setter as it checks the variables validity
             self.interface = interface
 
+    def resolve_deferred(self):
+        '''
+        '''
+        if self.is_global:
+            # Copy all the symbol properties but the interface and
+            # visibility (the latter is determined by the current
+            # scoping unit)
+            tmp = self.interface
+            module = self.interface.container_symbol
+            try:
+                extern_symbol, _ = module.container.symbol_table.lookup(
+                    self.name, visibility=Symbol.Visibility.PUBLIC)
+            except KeyError:
+                raise SymbolError(
+                    "Error trying to resolve the properties of symbol "
+                    "'{0}'. The interface points to module '{1}' but "
+                    "could not find the definition of '{0}' in that "
+                    "module.".format(self.name, module.name))
+            except SymbolError as err:
+                raise SymbolError(
+                    "Error trying to resolve the properties of symbol "
+                    "'{0}' in module '{1}': {2}".format(
+                        self.name, module.name, str(err.value)))
+            # Create a new symbol object of the same class as the one
+            # we've just looked up.
+            new_symbol = type(extern_symbol)(self.name,
+                                             interface=self.interface)
+            new_symbol.copy_properties(extern_symbol)
+            new_symbol.interface = tmp
+            return new_symbol
+        return self
+
     @property
     def name(self):
         '''

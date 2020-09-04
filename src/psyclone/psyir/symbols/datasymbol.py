@@ -96,8 +96,8 @@ class DataSymbol(Symbol):
                 tmp = self.interface
                 module = self.interface.container_symbol
                 try:
-                    extern_symbol = module.container.symbol_table.lookup(
-                        self.name, visibility=Symbol.Visibility.PUBLIC)
+                    extern_symbol, _ = module.container.symbol_table.lookup(
+                        self.name, visibility=self.Visibility.PUBLIC)
                 except KeyError:
                     raise SymbolError(
                         "Error trying to resolve the properties of symbol "
@@ -116,6 +116,7 @@ class DataSymbol(Symbol):
                     "Error trying to resolve symbol '{0}' properties, the lazy"
                     " evaluation of '{1}' interfaces is not supported."
                     "".format(self.name, self.interface))
+        return self
 
     @property
     def datatype(self):
