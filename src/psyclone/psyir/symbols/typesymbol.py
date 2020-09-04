@@ -76,11 +76,13 @@ class TypeSymbol(Symbol):
         :raises TypeError: if value is not of the correct type.
 
         '''
-        from psyclone.psyir.symbols import StructureType, DeferredType
-        if not isinstance(value, (StructureType, DeferredType)):
+        from psyclone.psyir.symbols import (StructureType, DeferredType,
+                                            UnknownType)
+        if not isinstance(value, (StructureType, DeferredType, UnknownType)):
             raise TypeError(
                 "The datatype of a TypeSymbol must be specified using a "
-                "StructureType but got: '{0}'".format(type(value).__name__))
+                "StructureType, DeferredType or UnknownType but got: '{0}'".
+                format(type(value).__name__))
         self._datatype = value
 
 
