@@ -42,12 +42,12 @@ module testkern_multi_field_same_stencil_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_multi_field_same_stencil_type
-     type(arg_type), dimension(5) :: meta_args =               &
-          (/ arg_type(gh_field, gh_inc,  w1),                  &
-             arg_type(gh_field, gh_read, w1, stencil(cross)),  &
-             arg_type(gh_field, gh_read, w1, stencil(cross)),  &
-             arg_type(gh_field, gh_read, w2, stencil(xory1d)), &
-             arg_type(gh_field, gh_read, w2, stencil(xory1d))  &
+     type(arg_type), dimension(5) :: meta_args =                        &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w1),                  &
+             arg_type(gh_field, gh_real, gh_read, w1, stencil(cross)),  &
+             arg_type(gh_field, gh_real, gh_read, w1, stencil(cross)),  &
+             arg_type(gh_field, gh_real, gh_read, w2, stencil(xory1d)), &
+             arg_type(gh_field, gh_real, gh_read, w2, stencil(xory1d))  &
            /)
      integer :: iterates_over = cells
    contains

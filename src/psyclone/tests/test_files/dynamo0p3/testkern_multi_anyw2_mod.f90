@@ -44,12 +44,11 @@ module testkern_multi_anyw2_mod
 
   ! Test that multiple read and write arguments on any_w2 space
   ! produce correct code.
-  type, public, extends(kernel_type) :: testkern_multi_anyw2_type
-    private
-    type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(gh_field, gh_inc,  any_w2),      &
-         arg_type(gh_field, gh_read, any_w2),      &
-         arg_type(gh_field, gh_read, any_w2)       &
+  type, extends(kernel_type) :: testkern_multi_anyw2_type
+    type(arg_type), dimension(3) :: meta_args = (/     &
+         arg_type(gh_field, gh_real, gh_inc,  any_w2), &
+         arg_type(gh_field, gh_real, gh_read, any_w2), &
+         arg_type(gh_field, gh_real, gh_read, any_w2)  &
          /)
     integer :: iterates_over = cells
   contains
@@ -58,8 +57,7 @@ module testkern_multi_anyw2_mod
 
 contains
 
-  subroutine testkern_multi_anyw2_code(nlayers, field_1_any_w2,        &
-                                       field_2_any_w2, field_3_any_w2, &
+  subroutine testkern_multi_anyw2_code(nlayers, fld1, fld2, fld3, &
                                        ndf_any_w2, undf_any_w2, map_any_w2)
 
     implicit none
@@ -68,9 +66,9 @@ contains
     integer(kind=i_def), intent(in) :: ndf_any_w2
     integer(kind=i_def), intent(in) :: undf_any_w2
     integer(kind=i_def), intent(in), dimension(ndf_any_w2) :: map_any_w2
-    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: field_1_any_w2
-    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field_2_any_w2
-    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: field_3_any_w2
+    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld3
 
   end subroutine testkern_multi_anyw2_code
 

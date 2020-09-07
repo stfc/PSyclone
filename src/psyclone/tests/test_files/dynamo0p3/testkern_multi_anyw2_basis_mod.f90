@@ -41,12 +41,12 @@ module testkern_multi_anyw2_basis_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_multi_anyw2_basis_type
-     type(arg_type), dimension(3) :: meta_args =   &
-          (/ arg_type(gh_field, gh_inc,  any_w2),  &
-             arg_type(gh_field, gh_read, any_w2),  &
-             arg_type(gh_field, gh_read, any_w2)   &
+     type(arg_type), dimension(3) :: meta_args =            &
+          (/ arg_type(gh_field, gh_real, gh_inc,  any_w2),  &
+             arg_type(gh_field, gh_real, gh_read, any_w2),  &
+             arg_type(gh_field, gh_real, gh_read, any_w2)   &
            /)
-     type(func_type), dimension(1) :: meta_funcs = &
+     type(func_type), dimension(1) :: meta_funcs =          &
           (/ func_type(any_w2, gh_basis, gh_diff_basis) /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_XYoZ
