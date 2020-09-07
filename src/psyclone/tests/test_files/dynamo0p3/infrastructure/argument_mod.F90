@@ -147,7 +147,7 @@ module argument_mod
   integer, public, parameter :: outward_normals_to_faces = 009
 
   type, public :: arg_type
-     integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
+     integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR, GH_SCALAR}
      integer :: arg_intent       ! {GH_READ, GH_WRITE, GH_READWRITE, GH_INC, GH_SUM, GH_MIN, GH_MAX}
      integer :: wspace      = -1 ! {W0, W1, W2, W3, ANY_SPACE_[0-9]+}
      integer :: from_wspace = -1 ! { " } only required for gh_operator
@@ -170,5 +170,5 @@ module argument_mod
     !  outward_normals_to_<horizontal/vertical/all>_faces}
     integer :: reference_element_data_item
   end type reference_element_data_type
-  
+
 end module argument_mod
