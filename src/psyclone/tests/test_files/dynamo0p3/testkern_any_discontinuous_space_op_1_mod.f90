@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council
+! Copyright (c) 2019-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,20 +50,19 @@ module testkern_any_discontinuous_space_op_1_mod
   ! 5) different to- and from- any_discontinuous_space spaces used with
   !    an operator.
 
-  type, public, extends(kernel_type) :: testkern_any_discontinuous_space_op_1_type
-    private
-    type(arg_type) :: meta_args(5) = (/                                  &
-         arg_type(GH_FIELD*3,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
-                                             ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_OPERATOR, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3,  &
-                                             ANY_DISCONTINUOUS_SPACE_7), &
-         arg_type(GH_REAL,     GH_READ)                                  &
+  type, extends(kernel_type) :: testkern_any_discontinuous_space_op_1_type
+    type(arg_type) :: meta_args(5) = (/                                           &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_OPERATOR,          GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+                                                      ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_OPERATOR,          GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3,  &
+                                                      ANY_DISCONTINUOUS_SPACE_7), &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                                  &
          /)
     integer :: iterates_over = CELLS
   contains
-    procedure, public, nopass :: testkern_any_discontinuous_space_op_1_code
+    procedure, nopass :: testkern_any_discontinuous_space_op_1_code
   end type testkern_any_discontinuous_space_op_1_type
 
 contains

@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 module testkern_any_space_1_mod
 
@@ -46,16 +46,16 @@ module testkern_any_space_1_mod
    ! 2) an existing space as another argument (W0 in this case),
    ! 3) func_type basis functions on any_space.
   type, extends(kernel_type) :: testkern_any_space_1_type
-    type(arg_type) :: meta_args(4) = (/              &
-         arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-         arg_type(GH_REAL,    GH_READ),              &
-         arg_type(GH_FIELD,   GH_READ, ANY_SPACE_2), &
-         arg_type(GH_FIELD*3, GH_READ, W0)           &
+    type(arg_type) :: meta_args(4) = (/                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_SPACE_1), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_SPACE_2), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)           &
          /)
-    type(func_type) :: meta_funcs(3) = (/            &
-         func_type(ANY_SPACE_1, GH_BASIS),           &
-         func_type(ANY_SPACE_2, GH_BASIS),           &
-         func_type(W0,          GH_DIFF_BASIS)       &
+    type(func_type) :: meta_funcs(3) = (/                     &
+         func_type(ANY_SPACE_1, GH_BASIS),                    &
+         func_type(ANY_SPACE_2, GH_BASIS),                    &
+         func_type(W0,          GH_DIFF_BASIS)                &
        /)
     integer :: iterates_over = CELLS
     integer :: gh_shape = gh_quadrature_XYoZ

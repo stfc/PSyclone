@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and  R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified: I. Kavcic Met Office
 
 module testkern_any_space_4_mod
 
@@ -43,24 +43,23 @@ module testkern_any_space_4_mod
   ! Test for any_space producing correct code with different
   ! permutations of whether ANY_SPACE is used by another operator/field
   ! or not and whether it has a basis function or not
-  type, public, extends(kernel_type) :: testkern_any_space_4_type
-    private
-    type(arg_type) :: meta_args(6) = (/                                 &
-         arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_5),              &
-         arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2), &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_SPACE_3, ANY_SPACE_2), &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_SPACE_4, ANY_SPACE_4), &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_SPACE_3, ANY_SPACE_5), &
-         arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_4)               &
+  type, extends(kernel_type) :: testkern_any_space_4_type
+    type(arg_type) :: meta_args(6) = (/                                          &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,      ANY_SPACE_5),              &
+         arg_type(GH_OPERATOR,          GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2), &
+         arg_type(GH_OPERATOR,          GH_READ,      ANY_SPACE_3, ANY_SPACE_2), &
+         arg_type(GH_OPERATOR,          GH_READ,      ANY_SPACE_4, ANY_SPACE_4), &
+         arg_type(GH_OPERATOR,          GH_READ,      ANY_SPACE_3, ANY_SPACE_5), &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,      ANY_SPACE_4)               &
          /)
-    type(func_type) :: meta_funcs(2) = (/                               &
-         func_type(ANY_SPACE_1, GH_BASIS),                              &
-         func_type(ANY_SPACE_4, GH_BASIS, GH_DIFF_BASIS)                &
+    type(func_type) :: meta_funcs(2) = (/                                        &
+         func_type(ANY_SPACE_1, GH_BASIS),                                       &
+         func_type(ANY_SPACE_4, GH_BASIS, GH_DIFF_BASIS)                         &
          /)
     integer :: iterates_over = CELLS
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
-    procedure, public, nopass :: testkern_any_space_4_code
+    procedure, nopass :: testkern_any_space_4_code
   end type testkern_any_space_4_type
 
 contains
