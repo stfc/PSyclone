@@ -42,17 +42,17 @@ module dummy_orientation_mod
   implicit none
 
   type, extends(kernel_type) :: dummy_orientation_type
-     type(arg_type), meta_args(4) =                       &
-          (/ arg_type(gh_field,    gh_inc,       w0),     &
-             arg_type(gh_operator, gh_readwrite, w1, w1), &
-             arg_type(gh_field,    gh_read,      w2),     &
-             arg_type(gh_operator, gh_write,     w3, w3)  &
+     type(arg_type), meta_args(4) =                                &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),     &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1), &
+             arg_type(gh_field,    gh_real, gh_read,      w2),     &
+             arg_type(gh_operator, gh_real, gh_write,     w3, w3)  &
            /)
-     type(func_type), meta_funcs(4) =       &
-          (/ func_type(w0, gh_orientation), &
-             func_type(w1, gh_orientation), &
-             func_type(w2, gh_orientation), &
-             func_type(w3, gh_orientation)  &
+     type(func_type), meta_funcs(4) =                              &
+          (/ func_type(w0, gh_orientation),                        &
+             func_type(w1, gh_orientation),                        &
+             func_type(w2, gh_orientation),                        &
+             func_type(w3, gh_orientation)                         &
            /)
      integer :: iterates_over = cells
    contains

@@ -47,9 +47,9 @@
 !>          boundary dofs this can be removed
 module enforce_bc_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,               &
-                                    GH_FIELD, GH_REAL, GH_INC,         &
-                                    ANY_SPACE_1,                       &
+use argument_mod,            only : arg_type, func_type,       &
+                                    GH_FIELD, GH_REAL, GH_INC, &
+                                    ANY_SPACE_1,               &
                                     CELLS
 use constants_mod,           only : r_def, i_def
 
@@ -63,8 +63,8 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: enforce_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1)                &
+  type(arg_type) :: meta_args(1) = (/                          &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1)        &
        /)
   integer :: iterates_over = CELLS
 contains
