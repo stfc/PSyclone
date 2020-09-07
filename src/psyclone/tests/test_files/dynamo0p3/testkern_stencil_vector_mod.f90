@@ -43,9 +43,9 @@ module testkern_stencil_vector_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_stencil_vector_type
-     type(arg_type), dimension(2) :: meta_args =               &
-          (/ arg_type(gh_field*3, gh_inc,  w0),                &
-             arg_type(gh_field*4, gh_read, w3, stencil(cross)) &
+     type(arg_type), dimension(2) :: meta_args =                        &
+          (/ arg_type(gh_field*3, gh_real, gh_inc,  w0),                &
+             arg_type(gh_field*4, gh_real, gh_read, w3, stencil(cross)) &
            /)
      integer :: iterates_over = cells
    contains
