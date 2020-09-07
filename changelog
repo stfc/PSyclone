@@ -98,7 +98,7 @@
 	33) #884 for #883. Restructure psyclone user guide to move
 	psyclone command section nearer the front of the document.
 
-        33) #823 for #471. Updates the access from INC to READWRITE for
+        34) #823 for #471. Updates the access from INC to READWRITE for
         those kernels that loop over DoFs.
 
 release 1.9.0 20th May 2020
