@@ -1,9 +1,9 @@
-.. _psyclone_script:
+.. _psyclone_command:
 
-PSyclone Script
-===============
+The psyclone command
+====================
 
-The simplest way to run PSyclone is to use the ``psyclone`` script. If
+The simplest way to run PSyclone is to use the ``psyclone`` command. If
 you installed PSyclone using ``pip`` then this script should be available
 on your PATH (see :ref:`getting_going_env` for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
