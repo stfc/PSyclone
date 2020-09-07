@@ -42,16 +42,15 @@ module testkern_anyw2_operator_mod
 
   implicit none
 
-  type, public, extends(kernel_type) :: testkern_anyw2_operator_type
-    private
-    type(arg_type), dimension(4) :: meta_args = (/        &
-         arg_type(gh_operator, gh_write, any_w2, any_w2), &
-         arg_type(gh_field,    gh_read,  any_w2),         &
-         arg_type(gh_field,    gh_read,  any_w2),         &
-         arg_type(gh_field,    gh_read,  any_w2)          &
+  type, extends(kernel_type) :: testkern_anyw2_operator_type
+    type(arg_type), dimension(4) :: meta_args = (/                 &
+         arg_type(gh_operator, gh_real, gh_write, any_w2, any_w2), &
+         arg_type(gh_field,    gh_real, gh_read,  any_w2),         &
+         arg_type(gh_field,    gh_real, gh_read,  any_w2),         &
+         arg_type(gh_field,    gh_real, gh_read,  any_w2)          &
          /)
-    type(func_type) :: meta_funcs(1) =  (/ &
-         func_type(any_w2, gh_basis)       &
+    type(func_type) :: meta_funcs(1) =  (/                         &
+         func_type(any_w2, gh_basis)                               &
          /)
     integer :: iterates_over = cells
     integer :: gh_shape = gh_quadrature_XYoZ

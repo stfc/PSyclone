@@ -43,16 +43,15 @@ module testkern_anyd_any_space_mod
 
   ! Description: discontinuous field readwriter (any_discontinuous_space_1)
   ! and continuous readers (any_space_1 and any_w2)
-  type, public, extends(kernel_type) :: testkern_anyd_any_space_type
-     private
-     type(arg_type), dimension(3) :: meta_args = (/                    &
-          arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
-          arg_type(gh_field, gh_read,      any_space_1),               &
-          arg_type(gh_field, gh_read,      any_w2)                     &
+  type, extends(kernel_type) :: testkern_anyd_any_space_type
+     type(arg_type), dimension(3) :: meta_args = (/                             &
+          arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_1), &
+          arg_type(gh_field, gh_real, gh_read,      any_space_1),               &
+          arg_type(gh_field, gh_real, gh_read,      any_w2)                     &
           /)
      integer :: iterates_over = cells
    contains
-     procedure, public, nopass :: code => testkern_anyd_any_space_code
+     procedure, nopass :: code => testkern_anyd_any_space_code
   end type testkern_anyd_any_space_type
 
 contains
