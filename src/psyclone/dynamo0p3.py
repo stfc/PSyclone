@@ -7158,7 +7158,7 @@ class DynKern(CodedKern):
                 "DynKern.gen_stub(): Expected one of {0} as iteration "
                 "space but found '{1}' in kernel '{2}'.".
                 format(USER_KERNEL_ITERATION_SPACES, self.iterates_over,
-                       self._name))
+                       self.name))
 
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
@@ -7217,7 +7217,7 @@ class DynKern(CodedKern):
                 "The LFRic API supports calls to user-supplied kernels "
                 "that have one of {0} as iteration space, but kernel '{1}' "
                 "has an iteration space of '{2}'.".
-                format(USER_KERNEL_ITERATION_SPACES, self._name,
+                format(USER_KERNEL_ITERATION_SPACES, self.name,
                        self.iterates_over))
 
         # Get configuration for valid argument kinds

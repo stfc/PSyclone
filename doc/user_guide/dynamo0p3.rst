@@ -769,12 +769,11 @@ user-defined Kernels are summarised here. All types of data
 (``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
-argument must be listed as being modified. When data is *modified* in a
-user-supplied Kernel then the permitted access modes depend on the type
-of data it is and the function space it is on (such Kernel has ``cells``
-as its iteration space, see :ref:`iteration space metadata
-<dynamo0.3-user-kernel-iterates-over>`). Valid access mode values are
-given in the table below.
+argument must be listed as being modified. When data is *modified*
+in a user-supplied Kernel (i.e. a Kernel that has ``CELLS`` as its
+iteration space, see :ref:`iteration space metadata
+<dynamo0.3-user-kernel-iterates-over>`) then the permitted access
+modes depend on the type it is and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
 
@@ -797,27 +796,18 @@ given in the table below.
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
 
-As mentioned above, only :ref:`Built-ins <dynamo0.3-built-ins>` may
-modify scalar arguments. In practice this means that the only allowed
-access for the scalars in user-defined Kernels is ``GH_READ`` (see the
-allowed accesses for arguments in Built-ins in the
-:ref:`section below <dynamo0.3-built-ins-valid-access>`).
+Note that scalar arguments to user-defined Kernels must be read-only.
+Only :ref:`Built-ins <dynamo0.3-built-ins>`are permitted to modify scalar
+arguments. In practice this means that the only allowed access for the scalars
+in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
+in Built-ins in the :ref:`section below <dynamo0.3-built-ins-valid-access>`).
 
-A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or ``GH_READWRITE`` as
-its access pattern must either
-
-* Be on a horizontally discontinuous function space (see
-  :ref:`dynamo0.3-function-space` for the list of discontinuous function
-  spaces); or
-
-* Have DoFs as its iteration space (this is currently only supported
-  for :ref:`Built-ins <dynamo0.3-built-ins>`, not for the user-supplied
-  Kernels; see :ref:`here <dynamo0.3-built-ins-valid-access>` for the
-  field accesses in Built-ins).
-
-Parallelisation of the loop over the horizontal domain for a kernel that
-updates such a field will not require colouring for either of the above
-cases (since there are no shared entities).
+Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
+``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
+function space (see :ref:`dynamo0.3-function-space` for the list of
+discontinuous function spaces). Parallelisation of the loop over the
+horizontal domain for a kernel that updates such a field will not require
+colouring for either of the above cases (since there are no shared entities).
 
 If a field is described as being on ``ANY_SPACE``, there is currently no
 way to determine its continuity from the metadata (unless we can statically
@@ -1947,10 +1937,9 @@ metadata, 1) 'meta_args', 2) 'iterates_over' and 3) 'procedure'::
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
 
-As can be seen, the Built-ins metadata are the same as the
-:ref:`user-defined Kernel metadata <dynamo0.3-api-kernel-metadata>`
-with one exception and that is having ``DOFS`` instead of ``cells`` as
-the iteration space.
+As can be seen, the metadata for a Built-in kernel is a subset of that
+for a :ref:`user-defined Kernel <dynamo0.3-api-kernel-metadata>` with the
+exception that the iteration space is ``DOFS`` instead of ``CELLS``.
 
 .. _dynamo0.3-built-ins-valid-access:
 
@@ -1967,7 +1956,7 @@ are listed in the table below.
 +---------------+----------------+---------------------------------+
 | Argument Type | Function Space | Access Type                     |
 +===============+================+=================================+
-| GH_INTEGER    | n/a            | GH_READ, *GH_SUM*               |
+| GH_INTEGER    | n/a            | GH_READ                         |
 +---------------+----------------+---------------------------------+
 | GH_REAL       | n/a            | GH_READ, GH_SUM                 |
 +---------------+----------------+---------------------------------+
