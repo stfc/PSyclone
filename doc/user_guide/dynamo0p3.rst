@@ -797,7 +797,7 @@ modes depend on the type it is and the function space it is on:
 +------------------------+------------------------------+--------------------+
 
 Note that scalar arguments to user-defined Kernels must be read-only.
-Only :ref:`Built-ins <dynamo0.3-built-ins>`are permitted to modify scalar
+Only :ref:`Built-ins <dynamo0.3-built-ins>` are permitted to modify scalar
 arguments. In practice this means that the only allowed access for the scalars
 in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
 in Built-ins in the :ref:`section below <dynamo0.3-built-ins-valid-access>`).
