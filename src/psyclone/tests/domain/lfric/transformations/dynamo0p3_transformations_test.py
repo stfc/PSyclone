@@ -4341,6 +4341,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+@pytest.mark.xfail(reason="#885 missing halo exchange for f1")
 def test_rc_dofs_depth():
     ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
@@ -4357,9 +4358,9 @@ def test_rc_dofs_depth():
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-
-    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    for field in ["f1", "f2"]:
+        assert "IF ({0}_proxy%is_dirty(depth=3)) THEN".format(field) in result
+        assert "CALL {0}_proxy%halo_exchange(depth=3)".format(field) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
