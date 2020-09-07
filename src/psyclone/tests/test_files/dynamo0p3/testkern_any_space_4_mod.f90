@@ -46,10 +46,10 @@ module testkern_any_space_4_mod
   type, extends(kernel_type) :: testkern_any_space_4_type
     type(arg_type) :: meta_args(6) = (/                                          &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,      ANY_SPACE_5),              &
-         arg_type(GH_OPERATOR,          GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2), &
-         arg_type(GH_OPERATOR,          GH_READ,      ANY_SPACE_3, ANY_SPACE_2), &
-         arg_type(GH_OPERATOR,          GH_READ,      ANY_SPACE_4, ANY_SPACE_4), &
-         arg_type(GH_OPERATOR,          GH_READ,      ANY_SPACE_3, ANY_SPACE_5), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_3, ANY_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_4, ANY_SPACE_4), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_3, ANY_SPACE_5), &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,      ANY_SPACE_4)               &
          /)
     type(func_type) :: meta_funcs(2) = (/                                        &

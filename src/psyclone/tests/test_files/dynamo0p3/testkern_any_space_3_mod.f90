@@ -45,8 +45,8 @@ module testkern_any_space_3_mod
   ! 2) no other arguments.
   type, public, extends(kernel_type) ::testkern_any_space_3_type
     private
-    type(arg_type) :: meta_args(1) = (/                                &
-         arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
+    type(arg_type) :: meta_args(1) = (/                                         &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
          /)
     integer :: iterates_over = CELLS
   contains

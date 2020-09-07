@@ -46,9 +46,10 @@
 module enforce_operator_bc_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,               &
-                                    GH_OPERATOR, GH_READWRITE,         &
-                                    ANY_SPACE_1, ANY_SPACE_2,          &
+use argument_mod,            only : arg_type, func_type,      &
+                                    GH_OPERATOR, GH_REAL,     &
+                                    GH_READWRITE,             &
+                                    ANY_SPACE_1, ANY_SPACE_2, &
                                     CELLS
 use constants_mod,           only : r_def, i_def
 
@@ -59,11 +60,11 @@ private
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
-!> The type declaration for the kernel. Contains the metadata needed by the Psy layer
+!> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: enforce_operator_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2)   &
+  type(arg_type) :: meta_args(1) = (/                                         &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
        /)
   integer :: iterates_over = CELLS
 contains
