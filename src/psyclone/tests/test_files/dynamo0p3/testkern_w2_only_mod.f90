@@ -43,9 +43,9 @@ module testkern_w2_only_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_w2_only_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_field, gh_inc,  w2),    &
-             arg_type(gh_field, gh_read, w2)     &
+     type(arg_type), dimension(2) :: meta_args =       &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w2), &
+             arg_type(gh_field, gh_real, gh_read, w2)  &
            /)
      integer :: iterates_over = cells
    contains

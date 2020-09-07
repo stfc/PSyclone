@@ -44,9 +44,9 @@ module testkern_w2v_mod
 
   ! Description: discontinuous field readwriter (w2v) and reader (wtheta)
   type, extends(kernel_type) :: testkern_w2v_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_field, gh_readwrite, w2v),   &
-             arg_type(gh_field, gh_read,      wtheta) &
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_field, gh_real, gh_readwrite, w2v),   &
+             arg_type(gh_field, gh_real, gh_read,      wtheta) &
            /)
      integer :: iterates_over = cells
    contains
