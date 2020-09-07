@@ -93,7 +93,10 @@
 	code but not input code. The various options can be controlled by
 	command line switches.
 
-	32) #882 for #881 Removes specific version of pylint in setup.py.
+	32) #882 for #881. Removes specific version of pylint in setup.py.
+
+	33) #884 for #883. Restructure psyclone user guide to move
+	psyclone command section nearer the front of the document.
 
         33) #823 for #471. Updates the access from INC to READWRITE for
         those kernels that loop over DoFs.

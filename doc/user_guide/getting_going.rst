@@ -357,7 +357,7 @@ use that layer. These files are named according to the user-supplied
 arguments (options -oalg and -opsy). If those arguments are not
 supplied then the script writes the generated/re-written Fortran to
 the terminal. For details of the other command-line arguments please
-see the :ref:`psyclone_script` Section.
+see the :ref:`psyclone_command` Section.
 
 Examples are provided in the ``examples`` directory of the PSyclone git
 repository - if you have cloned the repository then ``EGS_HOME`` in
