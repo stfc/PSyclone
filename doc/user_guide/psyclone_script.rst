@@ -28,8 +28,8 @@ by the script:
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                  [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
-                  [--kernel-renaming {multiple,single}]
+                  [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
+		  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
 		  [--profile {invokes,kernels}] [--config CONFIG] [-v]
 		  filename
 
@@ -53,7 +53,11 @@ by the script:
                           source code
     -I INCLUDE, --include INCLUDE
                           path to Fortran INCLUDE files (nemo API only)
-    -l, --limit           limit the fortran line length to 132 characters
+    -l {off,all,output}, --limit {off,all,output}
+                          limit the Fortran line length to 132 characters
+                          (default 'off'). Use 'on' to apply limit to both input
+                          and output Fortran. Use 'output' to apply line-length
+                          limit to output Fortran only.
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
     --kernel-renaming {single,multiple}
@@ -215,7 +219,7 @@ the :ref:`sec_transformations_script` section.
 Fortran line length
 -------------------
 
-By default the ``psyclone`` script will generate fortran code with no
+By default the ``psyclone`` script will generate Fortran code with no
 consideration of Fortran line-length limits. As the line-length limit
 for free-format Fortran is 132 characters, the code that is output may
 be non-conformant.
@@ -224,11 +228,11 @@ Line length is not an issue for many compilers as they
 allow compiler flags to be set which allow lines longer than the
 Fortran standard. However this is not the case for all compilers.
 
-When the ``-l`` option is specified to the ``psyclone`` script, the output
-will be line wrapped so that the output lines are always within
-the 132 character limit.
+When either the ``-l all`` or ``-l output`` option is specified to
+the ``psyclone`` script, the output will be line wrapped so that the
+output lines are always within the 132 character limit.
 
-The ``-l`` option also checks the parsed algorithm and kernel files for
+The ``-l all`` additionally checks the parsed algorithm and kernel files for
 conformance and raises an error if they do not conform.
 
 Line wrapping is not performed by default. There are two reasons for

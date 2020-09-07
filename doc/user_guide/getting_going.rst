@@ -342,8 +342,8 @@ on your PATH:
 
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
-                   [--kernel-renaming {multiple,single}]
+                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
+		   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
 		   [--profile {invokes,kernels}] [--config CONFIG] [-v]
                    filename
    psyclone: error: too few arguments
