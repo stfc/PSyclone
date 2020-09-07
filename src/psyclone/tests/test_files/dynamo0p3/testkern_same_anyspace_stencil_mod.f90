@@ -42,10 +42,10 @@ module testkern_same_anyspace_stencil_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_same_anyspace_stencil_type
-    type(arg_type), dimension(3) :: meta_args = (/                 &
-         arg_type(gh_field, gh_inc,  w1),                          &
-         arg_type(gh_field, gh_read, any_space_1, stencil(cross)), &
-         arg_type(gh_field, gh_read, any_space_1, stencil(cross))  &
+    type(arg_type), dimension(3) :: meta_args = (/                          &
+         arg_type(gh_field, gh_real, gh_inc,  w1),                          &
+         arg_type(gh_field, gh_real, gh_read, any_space_1, stencil(cross)), &
+         arg_type(gh_field, gh_real, gh_read, any_space_1, stencil(cross))  &
          /)
     integer :: iterates_over = cells
   contains
