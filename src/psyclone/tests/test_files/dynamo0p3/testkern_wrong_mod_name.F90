@@ -44,12 +44,12 @@ module testkern
   implicit none
 
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real,  gh_read),        &
-             arg_type(gh_field, gh_inc,  w1),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w3)     &
+     type(arg_type), dimension(5) :: meta_args =        &
+          (/ arg_type(gh_scalar, gh_real, gh_read),     &
+             arg_type(gh_field,  gh_real, gh_inc,  w1), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w3)  &
            /)
      integer :: iterates_over = cells
    contains
