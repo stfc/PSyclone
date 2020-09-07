@@ -43,7 +43,7 @@ module simple_mod
 
   type, extends(kernel_type) :: simple_type
     type(arg_type), dimension(1) :: meta_args = &
-         (/ arg_type(gh_field, gh_inc, w1) /)
+         (/ arg_type(gh_field, gh_real, gh_inc, w1) /)
     integer :: iterates_over = cells
   contains
     procedure, nopass :: code => simple_code

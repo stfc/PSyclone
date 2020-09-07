@@ -42,10 +42,10 @@ module simple_with_reduction_mod
   implicit none
 
   type, extends(kernel_type) :: simple_with_reduction_type
-    type(arg_type), dimension(3) :: meta_args =  &
-         (/ arg_type(gh_real,    gh_sum),        &
-            arg_type(gh_field,   gh_read, w1),   &
-            arg_type(gh_integer, gh_read) /)
+    type(arg_type), dimension(3) :: meta_args =           &
+         (/ arg_type(gh_scalar, gh_real,    gh_sum),      &
+            arg_type(gh_field,  gh_real,    gh_read, w1), &
+            arg_type(gh_scalar, gh_integer, gh_read) /)
     integer :: iterates_over = cells
   contains
     procedure, nopass :: code => simple_with_reduction_code
