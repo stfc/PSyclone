@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,28 +47,33 @@
 module columnwise_op_mul_2scalars_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type,                               &
-                                    GH_REAL, GH_COLUMNWISE_OPERATOR,        &
-                                    GH_READ, GH_WRITE, GH_READWRITE,        &
-                                    ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,  &
+use argument_mod,            only : arg_type,                                 &
+                                    GH_SCALAR, GH_COLUMNWISE_OPERATOR,        &
+                                    GH_REAL, GH_READ, GH_WRITE, GH_READWRITE, &
+                                    ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,    &
                                     CELLS 
 
 use constants_mod,           only : r_def, i_def
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 
 type, public, extends(kernel_type) :: columnwise_op_mul_2scalars_kernel_type
-   private
-  type(arg_type) :: meta_args(5) = (/                                            &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,      ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_REAL,                GH_READ),                                &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,      ANY_SPACE_2, ANY_SPACE_3), &
-       arg_type(GH_REAL,                GH_READ),                                &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)  &
+  private
+  type(arg_type) :: meta_args(5) = (/                                        &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_1,  &
+                                                               ANY_SPACE_2), &
+       arg_type(GH_SCALAR,              GH_REAL, GH_READ),                   &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_2,  &
+                                                               ANY_SPACE_3), &
+       arg_type(GH_SCALAR,              GH_REAL, GH_READ),                   &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1,  &
+                                                               ANY_SPACE_3)  &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -76,57 +81,43 @@ contains
 end type columnwise_op_mul_2scalars_kernel_type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_mul_2scalars_kernel_type
-   module procedure columnwise_op_mul_2scalars_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_mul_2scalars_kernel_code
+
 contains
-  
-  type (columnwise_op_mul_2scalars_kernel_type) function &
-        columnwise_op_mul_2scalars_kernel_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_op_mul_2scalars_kernel_constructor
 
   !> @brief The subroutine which is called directly from the PSY layer and
   !> calculates op_C = op_C + op_A * op_B 
   !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] ncell_2d total number of cells in 2d grid
-  !> @param [in] columnwise_matrix banded matrix op_A
-  !> @param [in] nrow_A number of rows in the banded matrix A
-  !> @param [in] ncol_A number of columns in the banded matrix A
-  !> @param [in] bandwidth_A bandwidth of the banded matrix
-  !> @param [in] alpha_A banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta_A banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m_A banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p_A banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] alpha - some scalar
-  !> @param [in] columnwise_matrix banded matrix op_B
-  !> @param [in] nrow_B number of rows in the banded matrix B
-  !> @param [in] ncol_B number of columns in the banded matrix B
+  !> @param [in] cell The horizontal cell index
+  !> @param [in] ncell_2d Total number of cells in 2d grid
+  !> @param [in] columnwise_matrix_A Banded matrix op_A
+  !> @param [in] nrow_A Number of rows in the banded matrix A
+  !> @param [in] ncol_A Number of columns in the banded matrix A
+  !> @param [in] bandwidth_A Bandwidth of the banded matrix
+  !> @param [in] alpha_A Banded matrix parameter \f$\alpha\f$
+  !> @param [in] beta_A Banded matrix parameter \f$\beta\f$
+  !> @param [in] gamma_m_A Banded matrix parameter \f$\gamma_-\f$
+  !> @param [in] gamma_p_A Banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] alpha Some scalar
+  !> @param [in] columnwise_matrix_B Banded matrix op_B
+  !> @param [in] nrow_B Number of rows in the banded matrix B
+  !> @param [in] ncol_B Number of columns in the banded matrix B
   !> @param [in] bandwidth_B bandwidth of the banded matrix
-  !> @param [in] alpha_B banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta_B banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m_B banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p_B banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] beta - some scalar
-  !> @param [inout] columnwise_matrix banded matrix op_C
-  !> @param [in] nrow_C number of rows in the banded matrix C
-  !> @param [in] ncol_C number of columns in the banded matrix C
-  !> @param [in] bandwidth_C bandwidth of the banded matrix
-  !> @param [in] alpha_C banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta_C banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m_C banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p_C banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] alpha_B Banded matrix parameter \f$\alpha\f$
+  !> @param [in] beta_B Banded matrix parameter \f$\beta\f$
+  !> @param [in] gamma_m_B Banded matrix parameter \f$\gamma_-\f$
+  !> @param [in] gamma_p_B Banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] beta Some scalar
+  !> @param [in,out] columnwise_matrix_C Banded matrix op_C
+  !> @param [in] nrow_C Number of rows in the banded matrix C
+  !> @param [in] ncol_C Number of columns in the banded matrix C
+  !> @param [in] bandwidth_C Bandwidth of the banded matrix
+  !> @param [in] alpha_C Banded matrix parameter \f$\alpha\f$
+  !> @param [in] beta_C Banded matrix parameter \f$\beta\f$
+  !> @param [in] gamma_m_C Banded matrix parameter \f$\gamma_-\f$
+  !> @param [in] gamma_p_C Banded matrix parameter \f$\gamma_+\f$
   subroutine columnwise_op_mul_2scalars_kernel_code(cell,                &
                                                     ncell_2d,            &
                                                     columnwise_matrix_A, &
