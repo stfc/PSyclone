@@ -38,13 +38,13 @@ module testkern_eval_op_mod
 
   ! Test kernel that writes to an operator and requires an evaluator
   type, extends(kernel_type) :: testkern_eval_op_type
-     type(arg_type)  :: meta_args(2) =  (/      &
-       arg_type(GH_OPERATOR, GH_WRITE, W0, W2), &
-       arg_type(GH_FIELD,    GH_READ, W3)       &
+     type(arg_type)  :: meta_args(2) =  (/               &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W0, W2), &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3)      &
        /)
-     type(func_type) :: meta_funcs(2) = (/      &
-       func_type(W2, GH_BASIS),                 &
-       func_type(W3, GH_DIFF_BASIS)             &
+     type(func_type) :: meta_funcs(2) = (/               &
+       func_type(W2, GH_BASIS),                          &
+       func_type(W3, GH_DIFF_BASIS)                      &
        /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator

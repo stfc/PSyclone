@@ -37,13 +37,13 @@ module testkern_eval_mod
   use kernel_mod
 
   type, extends(kernel_type) :: testkern_eval_type
-     type(arg_type) :: meta_args(2) =  (/  &
-       arg_type(GH_FIELD, GH_INC,  W0),    &
-       arg_type(GH_FIELD, GH_READ, W1)     &
+     type(arg_type) :: meta_args(2) =  (/        &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W1)  &
        /)
-     type(func_type) :: meta_funcs(2) = (/ &
-       func_type(W0, GH_BASIS),            &
-       func_type(W1, GH_DIFF_BASIS)        &
+     type(func_type) :: meta_funcs(2) = (/       &
+       func_type(W0, GH_BASIS),                  &
+       func_type(W1, GH_DIFF_BASIS)              &
        /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator

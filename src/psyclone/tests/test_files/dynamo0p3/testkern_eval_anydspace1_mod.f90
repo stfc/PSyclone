@@ -39,14 +39,14 @@ module testkern_eval_anydspace1_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_eval_anydspace1_type
-     type(arg_type)  :: meta_args(3) = (/                          &
-          arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-          arg_type(GH_FIELD, GH_READ,  W0),                        &
-          arg_type(GH_FIELD, GH_READ,  W1)                         &
+     type(arg_type)  :: meta_args(3) = (/                                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  W0),                        &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  W1)                         &
           /)
-     type(func_type) :: meta_funcs(2) = (/                         &
-          func_type(W0, GH_BASIS),                                 &
-          func_type(W1, GH_DIFF_BASIS)                             &
+     type(func_type) :: meta_funcs(2) = (/                                  &
+          func_type(W0, GH_BASIS),                                          &
+          func_type(W1, GH_DIFF_BASIS)                                      &
           /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
