@@ -7355,3 +7355,17 @@ def test_read_only_fields_hex(tmpdir):
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")
     assert expected in generated_code
+
+
+def test_get_kernel_schedule():
+    '''code under development ... using matrix_vector_kernel as that is
+    what we are interested in
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[2].loop_body[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    exit(1)
